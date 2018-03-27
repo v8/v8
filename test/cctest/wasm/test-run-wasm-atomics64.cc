@@ -251,6 +251,144 @@ WASM_COMPILED_EXEC_TEST(I32AtomicCompareExchange8U) {
     }
   }
 }
+
+WASM_COMPILED_EXEC_TEST(I64AtomicLoad) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory = r.builder().AddMemoryElems<uint64_t>(8);
+  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad, WASM_ZERO,
+                                MachineRepresentation::kWord64));
+
+  FOR_UINT64_INPUTS(i) {
+    uint64_t expected = *i;
+    r.builder().WriteMemory(&memory[0], expected);
+    CHECK_EQ(expected, r.Call());
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicLoad32U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint32_t* memory = r.builder().AddMemoryElems<uint32_t>(8);
+  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad32U, WASM_ZERO,
+                                MachineRepresentation::kWord32));
+
+  FOR_UINT32_INPUTS(i) {
+    uint32_t expected = *i;
+    r.builder().WriteMemory(&memory[0], expected);
+    CHECK_EQ(expected, r.Call());
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicLoad16U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(8);
+  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad16U, WASM_ZERO,
+                                MachineRepresentation::kWord16));
+
+  FOR_UINT16_INPUTS(i) {
+    uint16_t expected = *i;
+    r.builder().WriteMemory(&memory[0], expected);
+    CHECK_EQ(expected, r.Call());
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicLoad8U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(8);
+  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad8U, WASM_ZERO,
+                                MachineRepresentation::kWord8));
+
+  FOR_UINT8_INPUTS(i) {
+    uint8_t expected = *i;
+    r.builder().WriteMemory(&memory[0], expected);
+    CHECK_EQ(expected, r.Call());
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicStoreLoad) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory = r.builder().AddMemoryElems<uint64_t>(8);
+
+  BUILD(r,
+        WASM_ATOMICS_STORE_OP(kExprI64AtomicStore, WASM_ZERO, WASM_GET_LOCAL(0),
+                              MachineRepresentation::kWord64),
+        WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad, WASM_ZERO,
+                             MachineRepresentation::kWord64));
+
+  FOR_UINT64_INPUTS(i) {
+    uint64_t expected = *i;
+    CHECK_EQ(expected, r.Call(*i));
+    CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicStoreLoad32U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint32_t* memory = r.builder().AddMemoryElems<uint32_t>(8);
+
+  BUILD(
+      r,
+      WASM_ATOMICS_STORE_OP(kExprI64AtomicStore32U, WASM_ZERO,
+                            WASM_GET_LOCAL(0), MachineRepresentation::kWord32),
+      WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad32U, WASM_ZERO,
+                           MachineRepresentation::kWord32));
+
+  FOR_UINT32_INPUTS(i) {
+    uint32_t expected = *i;
+    CHECK_EQ(expected, r.Call(*i));
+    CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicStoreLoad16U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(8);
+
+  BUILD(
+      r,
+      WASM_ATOMICS_STORE_OP(kExprI64AtomicStore16U, WASM_ZERO,
+                            WASM_GET_LOCAL(0), MachineRepresentation::kWord16),
+      WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad16U, WASM_ZERO,
+                           MachineRepresentation::kWord16));
+
+  FOR_UINT16_INPUTS(i) {
+    uint16_t expected = *i;
+    CHECK_EQ(expected, r.Call(*i));
+    CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(I64AtomicStoreLoad8U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t> r(execution_mode);
+  r.builder().SetHasSharedMemory();
+  uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(8);
+
+  BUILD(r,
+        WASM_ATOMICS_STORE_OP(kExprI64AtomicStore8U, WASM_ZERO,
+                              WASM_GET_LOCAL(0), MachineRepresentation::kWord8),
+        WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad8U, WASM_ZERO,
+                             MachineRepresentation::kWord8));
+
+  FOR_UINT8_INPUTS(i) {
+    uint8_t expected = *i;
+    CHECK_EQ(expected, r.Call(*i));
+    CHECK_EQ(*i, r.builder().ReadMemory(&memory[0]));
+  }
+}
 }  // namespace test_run_wasm_atomics_64
 }  // namespace wasm
 }  // namespace internal

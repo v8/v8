@@ -4514,24 +4514,32 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
   V(I64AtomicExchange16U, Exchange, Uint16, Word64) \
   V(I64AtomicExchange32U, Exchange, Uint32, Word64)
 
-#define ATOMIC_TERNARY_LIST(V)                                    \
-  V(I32AtomicCompareExchange, CompareExchange, Uint32, Word32)    \
-  V(I64AtomicCompareExchange, CompareExchange, Uint64, Word64)    \
-  V(I32AtomicCompareExchange8U, CompareExchange, Uint8, Word32)   \
-  V(I32AtomicCompareExchange16U, CompareExchange, Uint16, Word32) \
-  V(I64AtomicCompareExchange8U, CompareExchange, Uint8, Word64)   \
-  V(I64AtomicCompareExchange16U, CompareExchange, Uint16, Word64) \
-  V(I64AtomicCompareExchange32U, CompareExchange, Uint32, Word64)
+#define ATOMIC_CMP_EXCHG_LIST(V)                 \
+  V(I32AtomicCompareExchange, Uint32, Word32)    \
+  V(I64AtomicCompareExchange, Uint64, Word64)    \
+  V(I32AtomicCompareExchange8U, Uint8, Word32)   \
+  V(I32AtomicCompareExchange16U, Uint16, Word32) \
+  V(I64AtomicCompareExchange8U, Uint8, Word64)   \
+  V(I64AtomicCompareExchange16U, Uint16, Word64) \
+  V(I64AtomicCompareExchange32U, Uint32, Word64)
 
-#define ATOMIC_LOAD_LIST(V) \
-  V(I32AtomicLoad, Uint32)  \
-  V(I32AtomicLoad8U, Uint8) \
-  V(I32AtomicLoad16U, Uint16)
+#define ATOMIC_LOAD_LIST(V)           \
+  V(I32AtomicLoad, Uint32, Word32)    \
+  V(I64AtomicLoad, Uint64, Word64)    \
+  V(I32AtomicLoad8U, Uint8, Word32)   \
+  V(I32AtomicLoad16U, Uint16, Word32) \
+  V(I64AtomicLoad8U, Uint8, Word64)   \
+  V(I64AtomicLoad16U, Uint16, Word64) \
+  V(I64AtomicLoad32U, Uint32, Word64)
 
-#define ATOMIC_STORE_LIST(V)         \
-  V(I32AtomicStore, Uint32, kWord32) \
-  V(I32AtomicStore8U, Uint8, kWord8) \
-  V(I32AtomicStore16U, Uint16, kWord16)
+#define ATOMIC_STORE_LIST(V)                    \
+  V(I32AtomicStore, Uint32, kWord32, Word32)    \
+  V(I64AtomicStore, Uint64, kWord64, Word64)    \
+  V(I32AtomicStore8U, Uint8, kWord8, Word32)    \
+  V(I32AtomicStore16U, Uint16, kWord16, Word32) \
+  V(I64AtomicStore8U, Uint8, kWord8, Word64)    \
+  V(I64AtomicStore16U, Uint16, kWord16, Word64) \
+  V(I64AtomicStore32U, Uint32, kWord32, Word64)
 
 Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                                  uint32_t alignment, uint32_t offset,
@@ -4552,41 +4560,42 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
     ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
 #undef BUILD_ATOMIC_BINOP
 
-#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type, Prefix)                \
+#define BUILD_ATOMIC_CMP_EXCHG(Name, Type, Prefix)                            \
   case wasm::kExpr##Name: {                                                   \
     Node* index =                                                             \
         BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),       \
                        inputs[0], offset, position, kNeedsBoundsCheck);       \
     node = graph()->NewNode(                                                  \
-        jsgraph()->machine()->Prefix##Atomic##Operation(MachineType::Type()), \
+        jsgraph()->machine()->Prefix##AtomicCompareExchange(                  \
+            MachineType::Type()),                                             \
         MemBuffer(offset), index, inputs[1], inputs[2], *effect_, *control_); \
     break;                                                                    \
   }
-    ATOMIC_TERNARY_LIST(BUILD_ATOMIC_TERNARY_OP)
-#undef BUILD_ATOMIC_TERNARY_OP
+    ATOMIC_CMP_EXCHG_LIST(BUILD_ATOMIC_CMP_EXCHG)
+#undef BUILD_ATOMIC_CMP_EXCHG
 
-#define BUILD_ATOMIC_LOAD_OP(Name, Type)                                \
+#define BUILD_ATOMIC_LOAD_OP(Name, Type, Prefix)                        \
   case wasm::kExpr##Name: {                                             \
     Node* index =                                                       \
         BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), \
                        inputs[0], offset, position, kNeedsBoundsCheck); \
     node = graph()->NewNode(                                            \
-        jsgraph()->machine()->Word32AtomicLoad(MachineType::Type()),    \
+        jsgraph()->machine()->Prefix##AtomicLoad(MachineType::Type()),  \
         MemBuffer(offset), index, *effect_, *control_);                 \
     break;                                                              \
   }
     ATOMIC_LOAD_LIST(BUILD_ATOMIC_LOAD_OP)
 #undef BUILD_ATOMIC_LOAD_OP
 
-#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                               \
-  case wasm::kExpr##Name: {                                                  \
-    Node* index =                                                            \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),      \
-                       inputs[0], offset, position, kNeedsBoundsCheck);      \
-    node = graph()->NewNode(                                                 \
-        jsgraph()->machine()->Word32AtomicStore(MachineRepresentation::Rep), \
-        MemBuffer(offset), index, inputs[1], *effect_, *control_);           \
-    break;                                                                   \
+#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep, Prefix)                         \
+  case wasm::kExpr##Name: {                                                    \
+    Node* index =                                                              \
+        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),        \
+                       inputs[0], offset, position, kNeedsBoundsCheck);        \
+    node = graph()->NewNode(                                                   \
+        jsgraph()->machine()->Prefix##AtomicStore(MachineRepresentation::Rep), \
+        MemBuffer(offset), index, inputs[1], *effect_, *control_);             \
+    break;                                                                     \
   }
     ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
 #undef BUILD_ATOMIC_STORE_OP
@@ -4598,7 +4607,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 }
 
 #undef ATOMIC_BINOP_LIST
-#undef ATOMIC_TERNARY_LIST
+#undef ATOMIC_CMP_EXCHG_LIST
 #undef ATOMIC_LOAD_LIST
 #undef ATOMIC_STORE_LIST
 

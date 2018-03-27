@@ -56,8 +56,12 @@ struct WasmException;
 
 #define ATOMIC_OP_LIST(V)                \
   V(I32AtomicLoad, Uint32)               \
+  V(I64AtomicLoad, Uint64)               \
   V(I32AtomicLoad8U, Uint8)              \
   V(I32AtomicLoad16U, Uint16)            \
+  V(I64AtomicLoad8U, Uint8)              \
+  V(I64AtomicLoad16U, Uint16)            \
+  V(I64AtomicLoad32U, Uint32)            \
   V(I32AtomicAdd, Uint32)                \
   V(I32AtomicAdd8U, Uint8)               \
   V(I32AtomicAdd16U, Uint16)             \
@@ -110,8 +114,12 @@ struct WasmException;
 
 #define ATOMIC_STORE_OP_LIST(V) \
   V(I32AtomicStore, Uint32)     \
+  V(I64AtomicStore, Uint64)     \
   V(I32AtomicStore8U, Uint8)    \
-  V(I32AtomicStore16U, Uint16)
+  V(I32AtomicStore16U, Uint16)  \
+  V(I64AtomicStore8U, Uint8)    \
+  V(I64AtomicStore16U, Uint16)  \
+  V(I64AtomicStore32U, Uint32)
 
 template <typename T, typename Allocator>
 Vector<T> vec2vec(std::vector<T, Allocator>& vec) {

@@ -235,6 +235,14 @@ namespace compiler {
   V(X64S128Not)                           \
   V(X64S128Select)                        \
   V(X64S128Zero)                          \
+  V(X64Word64AtomicLoadUint8)             \
+  V(X64Word64AtomicLoadUint16)            \
+  V(X64Word64AtomicLoadUint32)            \
+  V(X64Word64AtomicLoadUint64)            \
+  V(X64Word64AtomicStoreWord8)            \
+  V(X64Word64AtomicStoreWord16)           \
+  V(X64Word64AtomicStoreWord32)           \
+  V(X64Word64AtomicStoreWord64)           \
   V(X64Word64AtomicAddUint8)              \
   V(X64Word64AtomicAddUint16)             \
   V(X64Word64AtomicAddUint32)             \

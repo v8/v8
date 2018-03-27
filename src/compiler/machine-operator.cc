@@ -38,6 +38,7 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
          IrOpcode::kProtectedLoad == op->opcode() ||
          IrOpcode::kWord32AtomicLoad == op->opcode() ||
+         IrOpcode::kWord64AtomicLoad == op->opcode() ||
          IrOpcode::kPoisonedLoad == op->opcode() ||
          IrOpcode::kUnalignedLoad == op->opcode());
   return OpParameter<LoadRepresentation>(op);
@@ -78,7 +79,8 @@ StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op) {
 }
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kWord32AtomicStore, op->opcode());
+  DCHECK(IrOpcode::kWord32AtomicStore == op->opcode() ||
+         IrOpcode::kWord64AtomicStore == op->opcode());
   return OpParameter<MachineRepresentation>(op);
 }
 
@@ -408,6 +410,10 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(kWord16)                          \
   V(kWord32)
 
+#define ATOMIC64_REPRESENTATION_LIST(V) \
+  ATOMIC_REPRESENTATION_LIST(V)         \
+  V(kWord64)
+
 #define SIMD_LANE_OP_LIST(V) \
   V(F32x4, 4)                \
   V(I32x4, 4)                \
@@ -577,6 +583,19 @@ struct MachineOperatorGlobalCache {
   ATOMIC_TYPE_LIST(ATOMIC_LOAD)
 #undef ATOMIC_LOAD
 
+#define ATOMIC_LOAD(Type)                                                   \
+  struct Word64AtomicLoad##Type##Operator final                             \
+      : public Operator1<LoadRepresentation> {                              \
+    Word64AtomicLoad##Type##Operator()                                      \
+        : Operator1<LoadRepresentation>(                                    \
+              IrOpcode::kWord64AtomicLoad,                                  \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
+              "Word64AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {} \
+  };                                                                        \
+  Word64AtomicLoad##Type##Operator kWord64AtomicLoad##Type;
+  ATOMIC64_TYPE_LIST(ATOMIC_LOAD)
+#undef ATOMIC_LOAD
+
 #define ATOMIC_STORE(Type)                                                 \
   struct Word32AtomicStore##Type##Operator                                 \
       : public Operator1<MachineRepresentation> {                          \
@@ -589,6 +608,20 @@ struct MachineOperatorGlobalCache {
   };                                                                       \
   Word32AtomicStore##Type##Operator kWord32AtomicStore##Type;
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
+#undef ATOMIC_STORE
+
+#define ATOMIC_STORE(Type)                                                 \
+  struct Word64AtomicStore##Type##Operator                                 \
+      : public Operator1<MachineRepresentation> {                          \
+    Word64AtomicStore##Type##Operator()                                    \
+        : Operator1<MachineRepresentation>(                                \
+              IrOpcode::kWord64AtomicStore,                                \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "Word64AtomicStore", 3, 1, 1, 0, 1, 0,                       \
+              MachineRepresentation::Type) {}                              \
+  };                                                                       \
+  Word64AtomicStore##Type##Operator kWord64AtomicStore##Type;
+  ATOMIC64_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef ATOMIC_STORE
 
 #define ATOMIC_OP(op, type)                                                    \
@@ -992,6 +1025,28 @@ const Operator* MachineOperatorBuilder::PoisonOnSpeculationWord() {
   return &cache_.kPoisonOnSpeculationWord;
 }
 
+const Operator* MachineOperatorBuilder::Word64AtomicLoad(
+    LoadRepresentation rep) {
+#define LOAD(Type)                          \
+  if (rep == MachineType::Type()) {         \
+    return &cache_.kWord64AtomicLoad##Type; \
+  }
+  ATOMIC64_TYPE_LIST(LOAD)
+#undef LOAD
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::Word64AtomicStore(
+    MachineRepresentation rep) {
+#define STORE(kRep)                          \
+  if (rep == MachineRepresentation::kRep) {  \
+    return &cache_.kWord64AtomicStore##kRep; \
+  }
+  ATOMIC64_REPRESENTATION_LIST(STORE)
+#undef STORE
+  UNREACHABLE();
+}
+
 const Operator* MachineOperatorBuilder::Word64AtomicAdd(MachineType rep) {
 #define ADD(kRep)                          \
   if (rep == MachineType::kRep()) {        \
@@ -1127,6 +1182,7 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
 #undef ATOMIC_TYPE_LIST
 #undef ATOMIC64_TYPE_LIST
 #undef ATOMIC_REPRESENTATION_LIST
+#undef ATOMIC64_REPRESENTATION_LIST
 #undef SIMD_LANE_OP_LIST
 #undef SIMD_FORMAT_LIST
 #undef STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST

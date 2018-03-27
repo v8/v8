@@ -2119,6 +2119,12 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   VisitLoad(node);
 }
 
+void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  USE(load_rep);
+  VisitLoad(node);
+}
+
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   X64OperandGenerator g(this);
   Node* base = node->InputAt(0);
@@ -2154,6 +2160,48 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
     addressing_mode = kMode_MR1;
   }
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
+}
+
+void InstructionSelector::VisitWord64AtomicStore(Node* node) {
+  X64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kX64Word64AtomicExchangeUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kX64Word64AtomicExchangeUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kX64Word64AtomicExchangeUint32;
+      break;
+    case MachineRepresentation::kWord64:
+      opcode = kX64Word64AtomicExchangeUint64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  DCHECK_LE(input_count, arraysize(inputs));
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
 }
 

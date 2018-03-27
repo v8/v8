@@ -614,8 +614,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // atomic-load [base + index]
   const Operator* Word32AtomicLoad(LoadRepresentation rep);
+  // atomic-load [base + index]
+  const Operator* Word64AtomicLoad(LoadRepresentation rep);
   // atomic-store [base + index], value
   const Operator* Word32AtomicStore(MachineRepresentation rep);
+  // atomic-store [base + index], value
+  const Operator* Word64AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
   const Operator* Word32AtomicExchange(MachineType rep);
   // atomic-exchange [base + index], value

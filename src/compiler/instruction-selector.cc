@@ -1669,8 +1669,15 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitWord32AtomicLoad(node);
     }
+    case IrOpcode::kWord64AtomicLoad: {
+      LoadRepresentation type = LoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
+      return VisitWord64AtomicLoad(node);
+    }
     case IrOpcode::kWord32AtomicStore:
       return VisitWord32AtomicStore(node);
+    case IrOpcode::kWord64AtomicStore:
+      return VisitWord64AtomicStore(node);
 #define ATOMIC_CASE(name, rep)                               \
   case IrOpcode::k##rep##Atomic##name: {                     \
     MachineType type = AtomicOpRepresentationOf(node->op()); \
@@ -2311,6 +2318,12 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitWord64AtomicLoad(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64AtomicStore(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitWord64AtomicAdd(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicSub(Node* node) { UNIMPLEMENTED(); }
