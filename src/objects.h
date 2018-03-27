@@ -4801,6 +4801,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   bool IsTemplateFor(Map* map);
   inline bool instantiated();
 
+  inline bool BreakAtEntry();
+
   // Helper function for cached accessors.
   static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,
                                                     Handle<Object> getter);

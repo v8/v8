@@ -820,15 +820,16 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
           return ComputeHandler(lookup);
         }
 
-        // When debugging we need to go the slow path to flood the accessor.
-        if (GetHostFunction()->shared()->HasBreakInfo()) {
+        Handle<Object> getter(AccessorPair::cast(*accessors)->getter(),
+                              isolate());
+        if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
         }
 
-        Handle<Object> getter(AccessorPair::cast(*accessors)->getter(),
-                              isolate());
-        if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo()) {
+        if (getter->IsFunctionTemplateInfo() &&
+            FunctionTemplateInfo::cast(*getter)->BreakAtEntry()) {
+          // Do not install an IC if the api function has a breakpoint.
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
         }
@@ -1554,6 +1555,14 @@ Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return slow_stub();
         }
+
+        if (setter->IsFunctionTemplateInfo() &&
+            FunctionTemplateInfo::cast(*setter)->BreakAtEntry()) {
+          // Do not install an IC if the api function has a breakpoint.
+          TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+          return slow_stub();
+        }
+
         CallOptimization call_optimization(setter);
         if (call_optimization.is_simple_api_call()) {
           if (call_optimization.IsCompatibleReceiver(receiver, holder)) {

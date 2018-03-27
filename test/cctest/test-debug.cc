@@ -1488,6 +1488,192 @@ TEST(BreakPointApiFunction) {
   CheckDebuggerUnloaded();
 }
 
+void GetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(
+      args[0]
+          .As<v8::Object>()
+          ->Get(args.GetIsolate()->GetCurrentContext(), args[1])
+          .ToLocalChecked());
+}
+
+TEST(BreakPointApiGetter) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  v8::Local<v8::FunctionTemplate> get_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), GetWrapperCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+  v8::Local<v8::Function> get =
+      get_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.context(), v8_str("get_wrapper"), get).ToChecked();
+  CompileRun(
+      "var o = {};"
+      "Object.defineProperty(o, 'f', { get: f, enumerable: true });");
+
+  // === Test API builtin as getter ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+  CompileRun("get_wrapper(o, 'f')");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("o.f");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("get_wrapper(o, 'f', 2)");
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+void SetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]
+            .As<v8::Object>()
+            ->Set(args.GetIsolate()->GetCurrentContext(), args[1], args[2])
+            .FromJust());
+}
+
+TEST(BreakPointApiSetter) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  v8::Local<v8::FunctionTemplate> set_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), SetWrapperCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+  v8::Local<v8::Function> set =
+      set_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.context(), v8_str("set_wrapper"), set).ToChecked();
+
+  CompileRun(
+      "var o = {};"
+      "Object.defineProperty(o, 'f', { set: f, enumerable: true });");
+
+  // === Test API builtin as setter ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+
+  CompileRun("o.f = 3");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("set_wrapper(o, 'f', 2)");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("o.f = 3");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // === Test API builtin as setter, with condition ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0, "arguments[0] == 3");
+  CompileRun("set_wrapper(o, 'f', 2)");
+  CHECK_EQ(0, break_point_hit_count);
+
+  CompileRun("set_wrapper(o, 'f', 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("o.f = 3");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("set_wrapper(o, 'f', 2)");
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointApiAccessor) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  // Create 'foo' class, with a hidden property.
+  v8::Local<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
+  v8::Local<v8::FunctionTemplate> accessor_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  obj_template->SetAccessorProperty(v8_str("f"), accessor_template,
+                                    accessor_template);
+  v8::Local<v8::Object> obj =
+      obj_template->NewInstance(env.context()).ToLocalChecked();
+  env->Global()->Set(env.context(), v8_str("o"), obj).ToChecked();
+
+  v8::Local<v8::Function> function =
+      CompileRun("Object.getOwnPropertyDescriptor(o, 'f').set")
+          .As<v8::Function>();
+
+  // === Test API accessor ===
+  break_point_hit_count = 0;
+
+  CompileRun("function get_loop() { for (var i = 0; i < 10; i++) o.f }");
+  CompileRun("function set_loop() { for (var i = 0; i < 10; i++) o.f = 2 }");
+
+  CompileRun("get_loop(); set_loop();");  // Initialize ICs.
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+
+  CompileRun("o.f = 3");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("o.f");
+  CHECK_EQ(2, break_point_hit_count);
+
+  CompileRun("for (var i = 0; i < 10; i++) o.f");
+  CHECK_EQ(12, break_point_hit_count);
+
+  CompileRun("get_loop();");
+  CHECK_EQ(22, break_point_hit_count);
+
+  CompileRun("for (var i = 0; i < 10; i++) o.f = 2");
+  CHECK_EQ(32, break_point_hit_count);
+
+  CompileRun("set_loop();");
+  CHECK_EQ(42, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("o.f = 3");
+  CompileRun("o.f");
+  CHECK_EQ(42, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
 TEST(BreakPointInlineApiFunction) {
   i::FLAG_allow_natives_syntax = true;
   DebugLocalContext env;

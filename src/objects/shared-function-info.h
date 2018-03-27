@@ -207,6 +207,7 @@ class SharedFunctionInfo : public HeapObject {
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
   bool HasBreakInfo() const;
+  bool BreakAtEntry() const;
 
   // Coverage infos are contained in DebugInfo, this is a convenience method
   // to simplify access.

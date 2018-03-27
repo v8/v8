@@ -86,7 +86,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   DCHECK_EQ(*function, it.frame()->function());
-  isolate->debug()->Break(it.frame(), handle(it.frame()->function()));
+  isolate->debug()->Break(it.frame(), function);
 
   return isolate->heap()->undefined_value();
 }

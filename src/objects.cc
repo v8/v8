@@ -13547,6 +13547,13 @@ bool SharedFunctionInfo::HasBreakInfo() const {
   return has_break_info;
 }
 
+bool SharedFunctionInfo::BreakAtEntry() const {
+  if (!HasDebugInfo()) return false;
+  DebugInfo* info = DebugInfo::cast(debug_info());
+  bool break_at_entry = info->BreakAtEntry();
+  return break_at_entry;
+}
+
 bool SharedFunctionInfo::HasCoverageInfo() const {
   if (!HasDebugInfo()) return false;
   DebugInfo* info = DebugInfo::cast(debug_info());

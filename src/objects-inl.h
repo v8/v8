@@ -2327,6 +2327,15 @@ bool FunctionTemplateInfo::instantiated() {
   return shared_function_info()->IsSharedFunctionInfo();
 }
 
+bool FunctionTemplateInfo::BreakAtEntry() {
+  Object* maybe_shared = shared_function_info();
+  if (maybe_shared->IsSharedFunctionInfo()) {
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(maybe_shared);
+    return shared->BreakAtEntry();
+  }
+  return false;
+}
+
 FunctionTemplateInfo* FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Object* parent = parent_template();
   return parent->IsUndefined(isolate) ? nullptr
