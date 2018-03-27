@@ -6897,10 +6897,7 @@ void CodeStubAssembler::TryLookupProperty(
   DCHECK_EQ(MachineType::PointerRepresentation(), var_name_index->rep());
 
   Label if_objectisspecial(this);
-  STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         &if_objectisspecial);
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), &if_objectisspecial);
 
   uint32_t mask =
       Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
@@ -7316,9 +7313,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
                                          Label* if_absent, Label* if_not_found,
                                          Label* if_bailout) {
   // Handle special objects in runtime.
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         if_bailout);
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), if_bailout);
 
   Node* elements_kind = LoadMapElementsKind(map);
 
