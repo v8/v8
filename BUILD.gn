@@ -3163,7 +3163,7 @@ v8_executable("d8") {
   defines = []
 
   if (v8_enable_vtunejit) {
-    deps += [ "//src/third_party/vtune:v8_vtune" ]
+    deps += [ "src/third_party/vtune:v8_vtune" ]
   }
 }
 
