@@ -151,7 +151,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       BIND(&fast);
       {
         GotoIf(SmiNotEqual(LoadJSArrayLength(a()), to_.value()), &runtime);
-        kind = EnsureArrayPushable(a(), &runtime);
+        kind = EnsureArrayPushable(LoadMap(a()), &runtime);
         GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
                &object_push_pre);
 
@@ -1026,7 +1026,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   {
     array_receiver = CAST(receiver);
     arg_index = IntPtrConstant(0);
-    kind = EnsureArrayPushable(array_receiver, &runtime);
+    kind = EnsureArrayPushable(LoadMap(array_receiver), &runtime);
     GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
            &object_push_pre);
 

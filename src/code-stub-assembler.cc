@@ -2187,11 +2187,11 @@ void CodeStubAssembler::EnsureArrayLengthWritable(Node* map, Label* bailout) {
   GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), bailout);
 }
 
-Node* CodeStubAssembler::EnsureArrayPushable(Node* receiver, Label* bailout) {
+TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Map> map,
+                                                     Label* bailout) {
   // Disallow pushing onto prototypes. It might be the JSArray prototype.
   // Disallow pushing onto non-extensible objects.
   Comment("Disallow pushing onto prototypes");
-  Node* map = LoadMap(receiver);
   Node* bit_field2 = LoadMapBitField2(map);
   int mask = Map::IsPrototypeMapBit::kMask | Map::IsExtensibleBit::kMask;
   Node* test = Word32And(bit_field2, Int32Constant(mask));
@@ -2205,8 +2205,8 @@ Node* CodeStubAssembler::EnsureArrayPushable(Node* receiver, Label* bailout) {
 
   EnsureArrayLengthWritable(map, bailout);
 
-  Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
-  return kind;
+  TNode<Uint32T> kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+  return Signed(kind);
 }
 
 void CodeStubAssembler::PossiblyGrowElementsCapacity(

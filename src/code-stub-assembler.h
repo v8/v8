@@ -741,12 +741,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void EnsureArrayLengthWritable(Node* map, Label* bailout);
 
-  // EnsureArrayPushable verifies that receiver is:
+  // EnsureArrayPushable verifies that receiver with this map is:
   //   1. Is not a prototype.
   //   2. Is not a dictionary.
   //   3. Has a writeable length property.
   // It returns ElementsKind as a node for further division into cases.
-  Node* EnsureArrayPushable(Node* receiver, Label* bailout);
+  TNode<Int32T> EnsureArrayPushable(TNode<Map> map, Label* bailout);
 
   void TryStoreArrayElement(ElementsKind kind, ParameterMode mode,
                             Label* bailout, Node* elements, Node* index,
