@@ -278,8 +278,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
-  // TODO(mstarzinger): needed until we sort out source positions, which are
-  // still on the  GC-heap.
+  // TODO(mstarzinger): The link to the {compiled_module} is deprecated and all
+  // uses should vanish to make {NativeModule} independent of the Isolate.
   WasmCompiledModule* compiled_module() const;
   void SetCompiledModule(Handle<WasmCompiledModule>);
 
@@ -340,12 +340,16 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
+  // A phantom reference to the {WasmCompiledModule}. It is intentionally not
+  // typed {Handle<WasmCompiledModule>} because this location will be cleared
+  // when the phantom reference is cleared.
+  WasmCompiledModule** compiled_module_ = nullptr;
+
   DisjointAllocationPool free_memory_;
   DisjointAllocationPool allocated_memory_;
   std::list<VirtualMemory> owned_memory_;
   WasmCodeManager* wasm_code_manager_;
   base::Mutex allocation_mutex_;
-  Handle<WasmCompiledModule> compiled_module_;
   size_t committed_memory_ = 0;
   bool can_request_more_memory_;
   bool is_executable_ = false;

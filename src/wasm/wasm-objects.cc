@@ -155,14 +155,6 @@ bool IsBreakablePosition(WasmSharedModuleData* shared, int func_index,
 }
 #endif  // DEBUG
 
-void CompiledModuleFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  DisallowHeapAllocation no_gc;
-  JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
-  WasmCompiledModule* compiled_module = WasmCompiledModule::cast(*p);
-  compiled_module->reset_native_module();
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
-}
-
 enum DispatchTableElements : int {
   kDispatchTableInstanceOffset,
   kDispatchTableIndexOffset,
@@ -1252,13 +1244,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     Handle<Foreign> native_module_wrapper =
         Managed<wasm::NativeModule>::From(isolate, native_module);
     compiled_module->set_native_module(*native_module_wrapper);
-    Handle<WasmCompiledModule> weak_link =
-        isolate->global_handles()->Create(*compiled_module);
-    GlobalHandles::MakeWeak(Handle<Object>::cast(weak_link).location(),
-                            Handle<Object>::cast(weak_link).location(),
-                            &CompiledModuleFinalizer,
-                            v8::WeakCallbackType::kFinalizer);
-    compiled_module->GetNativeModule()->SetCompiledModule(weak_link);
+    compiled_module->GetNativeModule()->SetCompiledModule(compiled_module);
   }
 
   // TODO(mtrofin): copy the rest of the specialization parameters over.
@@ -1292,13 +1278,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   Handle<Foreign> native_module_wrapper =
       Managed<wasm::NativeModule>::From(isolate, native_module.release());
   ret->set_native_module(*native_module_wrapper);
-  Handle<WasmCompiledModule> weak_link =
-      isolate->global_handles()->Create(*ret);
-  GlobalHandles::MakeWeak(Handle<Object>::cast(weak_link).location(),
-                          Handle<Object>::cast(weak_link).location(),
-                          &CompiledModuleFinalizer,
-                          v8::WeakCallbackType::kFinalizer);
-  ret->GetNativeModule()->SetCompiledModule(weak_link);
+  ret->GetNativeModule()->SetCompiledModule(ret);
 
   if (module->has_lazy_compile_data()) {
     Handle<FixedArray> lazy_comp_data = isolate->factory()->NewFixedArray(
