@@ -100,6 +100,9 @@ class Reader {
 
 constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
+// Start from 1 so an encoded stub id is not confused with an encoded builtin.
+constexpr int kFirstStubId = 1;
+
 void WriteVersion(Isolate* isolate, Vector<byte> buffer) {
   DCHECK_GE(buffer.size(), kVersionSize);
   Writer writer(buffer);
@@ -304,7 +307,7 @@ void NativeModuleSerializer::BufferCopiedStubs() {
   Writer writer(remaining_);
   writer.Write(
       static_cast<uint32_t>((buff_size - sizeof(uint32_t)) / sizeof(uint32_t)));
-  uint32_t stub_id = 0;
+  uint32_t stub_id = kFirstStubId;
 
   for (auto pair : native_module_->stubs_) {
     uint32_t key = pair.first;
@@ -615,7 +618,7 @@ Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
     return native_module_->GetLocalAddressFor(handle(builtin));
   } else {
     DCHECK_EQ(tag & 0xFFFF0000, 0);
-    return stubs_[tag];
+    return stubs_[tag - kFirstStubId];
   }
 }
 
