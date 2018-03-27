@@ -1220,10 +1220,9 @@ int CountBuiltins() {
   return counter;
 }
 
-
 static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
-    ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
+    ScriptData* cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::GetSharedFunctionInfoForScript(
              source, Compiler::ScriptDetails(name), v8::ScriptOriginOptions(),
              nullptr, cached_data, options, ScriptCompiler::kNoCacheNoReason,
@@ -1279,7 +1278,7 @@ TEST(CodeSerializerOnePlusOne) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, copy_source, Handle<String>(), &cache,
+    copy = CompileScript(isolate, copy_source, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
 
@@ -1317,7 +1316,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 
   DisallowCompilation no_compile_expected(isolate);
   Handle<SharedFunctionInfo> copy = CompileScript(
-      isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
+      isolate, src, src, cache, v8::ScriptCompiler::kConsumeCodeCache);
 
   MaybeHandle<SharedFunctionInfo> shared =
       isolate->compilation_cache()->LookupScript(
@@ -1365,7 +1364,7 @@ TEST(CodeSerializerInternalizedString) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, copy_source, Handle<String>(), &script_data,
+    copy = CompileScript(isolate, copy_source, Handle<String>(), script_data,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1418,7 +1417,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+    copy = CompileScript(isolate, source_str, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1492,7 +1491,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+    copy = CompileScript(isolate, source_str, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1545,7 +1544,7 @@ TEST(CodeSerializerLargeStrings) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+    copy = CompileScript(isolate, source_str, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1613,7 +1612,7 @@ TEST(CodeSerializerThreeBigStrings) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+    copy = CompileScript(isolate, source_str, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1731,7 +1730,7 @@ TEST(CodeSerializerExternalString) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_string, Handle<String>(), &cache,
+    copy = CompileScript(isolate, source_string, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1788,7 +1787,7 @@ TEST(CodeSerializerLargeExternalString) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+    copy = CompileScript(isolate, source_str, Handle<String>(), cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -1837,7 +1836,7 @@ TEST(CodeSerializerExternalScriptName) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, source_string, name, &cache,
+    copy = CompileScript(isolate, source_string, name, cache,
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
@@ -2218,8 +2217,9 @@ TEST(Regress503552) {
 
   heap::SimulateIncrementalMarking(isolate->heap());
 
-  script_data = CodeSerializer::Serialize(isolate, shared, source);
-  delete script_data;
+  v8::ScriptCompiler::CachedData* cache_data =
+      CodeSerializer::Serialize(shared, source);
+  delete cache_data;
 }
 
 TEST(SnapshotCreatorMultipleContexts) {
@@ -3420,13 +3420,50 @@ TEST(WeakArraySerializationInCodeCache) {
 
   DisallowCompilation no_compile_expected(isolate);
   Handle<SharedFunctionInfo> copy = CompileScript(
-      isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
+      isolate, src, src, cache, v8::ScriptCompiler::kConsumeCodeCache);
 
   // Verify that the pointers in shared_function_infos are weak.
   WeakFixedArray* sfis = Script::cast(copy->script())->shared_function_infos();
   CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;
+}
+
+TEST(CachedCompileFunctionInContext) {
+  DisableAlwaysOpt();
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::String> source = v8_str("return x*x;");
+  v8::Local<v8::String> arg_str = v8_str("x");
+  ScriptCompiler::CachedData* cache;
+  {
+    v8::ScriptCompiler::Source script_source(source);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunctionInContext(
+            env.local(), &script_source, 1, &arg_str, 0, nullptr,
+            v8::ScriptCompiler::kEagerCompile)
+            .ToLocalChecked();
+    cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun, source);
+  }
+
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    v8::ScriptCompiler::Source script_source(source, cache);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunctionInContext(
+            env.local(), &script_source, 1, &arg_str, 0, nullptr,
+            v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    v8::Local<v8::Value> arg = v8_num(3);
+    v8::Local<v8::Value> result =
+        fun->Call(env.local(), v8::Undefined(CcTest::isolate()), 1, &arg)
+            .ToLocalChecked();
+    CHECK_EQ(9, result->Int32Value(env.local()).FromJust());
+  }
 }
 
 }  // namespace internal

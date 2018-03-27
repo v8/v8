@@ -2398,22 +2398,14 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       source->host_defined_options);
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForScript(
-          str, script_details, source->resource_options, nullptr, &script_data,
+          str, script_details, source->resource_options, nullptr, script_data,
           options, no_cache_reason, i::NOT_NATIVES_CODE);
-  has_pending_exception = !maybe_function_info.ToHandle(&result);
-  if (has_pending_exception && script_data != nullptr) {
-    // This case won't happen during normal operation; we have compiled
-    // successfully and produced cached data, and but the second compilation
-    // of the same source code fails.
-    delete script_data;
-    script_data = nullptr;
-  }
-  RETURN_ON_FAILED_EXECUTION(UnboundScript);
-
   if (options == kConsumeCodeCache) {
     source->cached_data->rejected = script_data->rejected();
   }
   delete script_data;
+  has_pending_exception = !maybe_function_info.ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(UnboundScript);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
@@ -2498,14 +2490,18 @@ class IsIdentifierHelper {
   DISALLOW_COPY_AND_ASSIGN(IsIdentifierHelper);
 };
 
-
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Context> v8_context, Source* source, size_t arguments_count,
     Local<String> arguments[], size_t context_extension_count,
-    Local<Object> context_extensions[]) {
+    Local<Object> context_extensions[], CompileOptions options,
+    NoCacheReason no_cache_reason) {
   PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
                         Function);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
+
+  DCHECK(options == CompileOptions::kConsumeCodeCache ||
+         options == CompileOptions::kEagerCompile ||
+         options == CompileOptions::kNoCompileOptions);
 
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
   i::Handle<i::SharedFunctionInfo> outer_info(context->closure()->shared(),
@@ -2535,25 +2531,30 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
         extension);
   }
 
-  i::Handle<i::Object> name_obj;
-  int line_offset = 0;
-  int column_offset = 0;
-  if (!source->resource_name.IsEmpty()) {
-    name_obj = Utils::OpenHandle(*(source->resource_name));
-  }
-  if (!source->resource_line_offset.IsEmpty()) {
-    line_offset = static_cast<int>(source->resource_line_offset->Value());
-  }
-  if (!source->resource_column_offset.IsEmpty()) {
-    column_offset = static_cast<int>(source->resource_column_offset->Value());
+  i::Compiler::ScriptDetails script_details = GetScriptDetails(
+      isolate, source->resource_name, source->resource_line_offset,
+      source->resource_column_offset, source->source_map_url,
+      source->host_defined_options);
+
+  i::ScriptData* script_data = nullptr;
+  if (options == kConsumeCodeCache) {
+    DCHECK(source->cached_data);
+    // ScriptData takes care of pointer-aligning the data.
+    script_data = new i::ScriptData(source->cached_data->data,
+                                    source->cached_data->length);
   }
 
   i::Handle<i::JSFunction> result;
   has_pending_exception =
       !i::Compiler::GetWrappedFunction(
            Utils::OpenHandle(*source->source_string), arguments_list, context,
-           line_offset, column_offset, name_obj, source->resource_options)
+           script_details, source->resource_options, script_data, options,
+           no_cache_reason)
            .ToHandle(&result);
+  if (options == kConsumeCodeCache) {
+    source->cached_data->rejected = script_data->rejected();
+  }
+  delete script_data;
   RETURN_ON_FAILED_EXECUTION(Function);
   RETURN_ESCAPED(Utils::CallableToLocal(result));
 }
@@ -2627,37 +2628,18 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
   i::Handle<i::SharedFunctionInfo> shared =
       i::Handle<i::SharedFunctionInfo>::cast(
           Utils::OpenHandle(*unbound_script));
-  i::Isolate* isolate = shared->GetIsolate();
-  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
-  base::ElapsedTimer timer;
-  if (i::FLAG_profile_deserialization) {
-    timer.Start();
-  }
-  i::HistogramTimerScope histogram_timer(
-      isolate->counters()->compile_serialize());
-  i::RuntimeCallTimerScope runtimeTimer(
-      isolate, i::RuntimeCallCounterId::kCompileSerialize);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
-
+  i::Handle<i::String> source_str = Utils::OpenHandle(*source);
   DCHECK(shared->is_toplevel());
-  i::Handle<i::Script> script(i::Script::cast(shared->script()));
-  // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
-  // context independent.
-  if (script->ContainsAsmModule()) return nullptr;
-  if (isolate->debug()->is_loaded()) return nullptr;
+  return i::CodeSerializer::Serialize(shared, source_str);
+}
 
-  i::ScriptData* script_data =
-      i::CodeSerializer::Serialize(isolate, shared, Utils::OpenHandle(*source));
-  CachedData* result = new CachedData(
-      script_data->data(), script_data->length(), CachedData::BufferOwned);
-  script_data->ReleaseDataOwnership();
-  delete script_data;
-
-  if (i::FLAG_profile_deserialization) {
-    i::PrintF("[Serializing took %0.3f ms]\n",
-              timer.Elapsed().InMillisecondsF());
-  }
-  return result;
+ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
+    Local<Function> function, Local<String> source) {
+  i::Handle<i::SharedFunctionInfo> shared(
+      i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function))->shared());
+  i::Handle<i::String> source_str = Utils::OpenHandle(*source);
+  CHECK(shared->is_wrapped());
+  return i::CodeSerializer::Serialize(shared, source_str);
 }
 
 MaybeLocal<Script> Script::Compile(Local<Context> context, Local<String> source,
@@ -9603,15 +9585,15 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
                                                         Local<String> source) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, UnboundScript);
-  i::ScriptData* script_data = nullptr;
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Handle<i::SharedFunctionInfo> result;
   {
     ScriptOriginOptions origin_options;
+    i::ScriptData* script_data = nullptr;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScript(
             str, i::Compiler::ScriptDetails(), origin_options, nullptr,
-            &script_data, ScriptCompiler::kNoCompileOptions,
+            script_data, ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
                                              : i::INSPECTOR_CODE);

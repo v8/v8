@@ -30,31 +30,49 @@ ScriptData::ScriptData(const byte* data, int length)
   }
 }
 
-ScriptData* CodeSerializer::Serialize(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> info,
-                                      Handle<String> source) {
+// static
+ScriptCompiler::CachedData* CodeSerializer::Serialize(
+    Handle<SharedFunctionInfo> info, Handle<String> source) {
+  Isolate* isolate = info->GetIsolate();
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     RuntimeCallCounterId::kCompileSerialize);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
+
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
+  Handle<Script> script(Script::cast(info->script()), isolate);
   if (FLAG_trace_serializer) {
     PrintF("[Serializing from");
     Object* script = info->script();
-    if (script->IsScript()) Script::cast(script)->name()->ShortPrint();
+    Script::cast(script)->name()->ShortPrint();
     PrintF("]\n");
   }
+  // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
+  // context independent.
+  if (script->ContainsAsmModule()) return nullptr;
+  if (isolate->debug()->is_loaded()) return nullptr;
 
   // Serialize code object.
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(source));
   DisallowHeapAllocation no_gc;
   cs.reference_map()->AddAttachedReference(*source);
-  ScriptData* ret = cs.Serialize(info);
+  ScriptData* script_data = cs.Serialize(info);
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
-    int length = ret->length();
+    int length = script_data->length();
     PrintF("[Serializing to %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  return ret;
+  ScriptCompiler::CachedData* result =
+      new ScriptCompiler::CachedData(script_data->data(), script_data->length(),
+                                     ScriptCompiler::CachedData::BufferOwned);
+  script_data->ReleaseDataOwnership();
+  delete script_data;
+
+  return result;
 }
 
 ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
@@ -246,6 +264,11 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     }
     PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
                                      result->abstract_code(), *result, name));
+  }
+
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    Handle<Script> script(Script::cast(result->script()), isolate);
+    Script::InitLineEnds(script);
   }
   return scope.CloseAndEscape(result);
 }

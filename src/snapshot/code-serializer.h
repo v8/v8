@@ -45,9 +45,8 @@ class ScriptData {
 
 class CodeSerializer : public Serializer<> {
  public:
-  static ScriptData* Serialize(Isolate* isolate,
-                               Handle<SharedFunctionInfo> info,
-                               Handle<String> source);
+  static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info,
+                                               Handle<String> source);
 
   ScriptData* Serialize(Handle<HeapObject> obj);
 

@@ -96,25 +96,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       int column_offset = 0, Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
-  // Create a function that results from wrapping |source| in a function,
-  // with |arguments| being a list of parameters for that function.
-  MUST_USE_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
-      Handle<String> source, Handle<FixedArray> arguments,
-      Handle<Context> context, int line_offset = 0, int column_offset = 0,
-      Handle<Object> script_name = Handle<Object>(),
-      ScriptOriginOptions options = ScriptOriginOptions());
-
-  // Returns true if the embedder permits compiling the given source string in
-  // the given context.
-  static bool CodeGenerationFromStringsAllowed(Isolate* isolate,
-                                               Handle<Context> context,
-                                               Handle<String> source);
-
-  // Create a (bound) function for a String source within a context for eval.
-  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
-      Handle<Context> context, Handle<String> source,
-      ParseRestriction restriction, int parameters_end_pos);
-
   struct ScriptDetails {
     ScriptDetails() : line_offset(0), column_offset(0) {}
     explicit ScriptDetails(Handle<Object> script_name)
@@ -127,11 +108,32 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
     i::MaybeHandle<i::FixedArray> host_defined_options;
   };
 
+  // Create a function that results from wrapping |source| in a function,
+  // with |arguments| being a list of parameters for that function.
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
+      Handle<String> source, Handle<FixedArray> arguments,
+      Handle<Context> context, const ScriptDetails& script_details,
+      ScriptOriginOptions origin_options, ScriptData* cached_data,
+      v8::ScriptCompiler::CompileOptions compile_options,
+      v8::ScriptCompiler::NoCacheReason no_cache_reason);
+
+  // Returns true if the embedder permits compiling the given source string in
+  // the given context.
+  static bool CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                               Handle<Context> context,
+                                               Handle<String> source);
+
+  // Create a (bound) function for a String source within a context for eval.
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
+      Handle<Context> context, Handle<String> source,
+      ParseRestriction restriction, int parameters_end_pos);
+
+
   // Create a shared function info object for a String source.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
       Handle<String> source, const ScriptDetails& script_details,
       ScriptOriginOptions origin_options, v8::Extension* extension,
-      ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
+      ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
       NativesFlag is_natives_code);
 
