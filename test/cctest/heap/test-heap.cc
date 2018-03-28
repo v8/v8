@@ -5963,7 +5963,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
         HandleScope inner_scope(i_isolate);
         factory->NewFixedArray(30000, TENURED);
       }
-      CHECK_GE(heap->tracer()->AverageMarkCompactMutatorUtilization(), 0.2);
+      CHECK_GE(heap->tracer()->AverageMarkCompactMutatorUtilization(), 0.09);
     }
   }
   isolate->Dispose();
