@@ -17,7 +17,6 @@ if (is_android) {
 }
 
 import("gni/v8.gni")
-import("gni/isolate.gni")
 import("snapshot_toolchain.gni")
 
 declare_args() {
@@ -3005,10 +3004,6 @@ group("gn_all") {
   if (want_v8_shell) {
     deps += [ ":v8_shell" ]
   }
-
-  if (v8_test_isolation_mode != "noop") {
-    deps += [ ":d8_run" ]
-  }
 }
 
 group("v8_clusterfuzz") {
@@ -3024,13 +3019,6 @@ group("v8_clusterfuzz") {
       ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
       ":d8(//build/toolchain/linux:clang_x86)",
       ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
-    ]
-  }
-
-  if (v8_test_isolation_mode != "noop") {
-    deps += [
-      "test:d8_default_run",
-      "tools:run-num-fuzzer_run",
     ]
   }
 }
@@ -3165,14 +3153,6 @@ v8_executable("d8") {
   if (v8_enable_vtunejit) {
     deps += [ "src/third_party/vtune:v8_vtune" ]
   }
-}
-
-v8_isolate_run("d8") {
-  deps = [
-    ":d8",
-  ]
-
-  isolate = "//src/d8.isolate"
 }
 
 v8_executable("v8_hello_world") {

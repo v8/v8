@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/config/sanitizers/sanitizers.gni")
-import("../gni/isolate.gni")
 import("../gni/v8.gni")
 
 group("gn_all") {
@@ -14,15 +13,6 @@ group("gn_all") {
     "gcmole:v8_run_gcmole",
     "jsfunfuzz:v8_jsfunfuzz",
   ]
-
-  if (v8_test_isolation_mode != "noop") {
-    deps = [
-      ":check-static-initializers_run",
-      ":jsfunfuzz_run",
-      ":run-gcmole_run",
-      ":run-num-fuzzer_run",
-    ]
-  }
 }
 
 group("v8_check_static_initializers") {
@@ -54,37 +44,4 @@ group("v8_testrunner") {
       "../third_party/llvm/projects/compiler-rt/lib/sanitizer_common/scripts/sancov.py",
     ]
   }
-}
-
-v8_isolate_run("check-static-initializers") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "check-static-initializers.isolate"
-}
-
-v8_isolate_run("jsfunfuzz") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "jsfunfuzz/jsfunfuzz.isolate"
-}
-
-v8_isolate_run("run-gcmole") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "gcmole/run-gcmole.isolate"
-}
-
-# TODO(machenbach): Add tests as dependencies.
-v8_isolate_run("run-num-fuzzer") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "run-num-fuzzer.isolate"
 }
