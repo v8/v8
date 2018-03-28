@@ -978,9 +978,6 @@ class Heap {
   // Create ObjectStats if live_object_stats_ or dead_object_stats_ are nullptr.
   void CreateObjectStats();
 
-  // Sets the TearDown state, so no new GC tasks get posted.
-  void StartTearDown();
-
   // Destroys all memory allocated by the heap.
   void TearDown();
 

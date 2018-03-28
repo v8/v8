@@ -2625,7 +2625,6 @@ void Isolate::ClearSerializerData() {
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
 
-  heap_.StartTearDown();
   debug()->Unload();
 
   if (concurrent_recompilation_enabled()) {
