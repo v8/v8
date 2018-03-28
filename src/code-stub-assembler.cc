@@ -5602,25 +5602,26 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   return result.value();
 }
 
-Node* CodeStubAssembler::ToName(Node* context, Node* value) {
+TNode<Name> CodeStubAssembler::ToName(SloppyTNode<Context> context,
+                                      SloppyTNode<Object> value) {
   Label end(this);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Name, var_result);
 
   Label is_number(this);
   GotoIf(TaggedIsSmi(value), &is_number);
 
   Label not_name(this);
-  Node* value_instance_type = LoadInstanceType(value);
+  TNode<Int32T> value_instance_type = LoadInstanceType(CAST(value));
   STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
   GotoIf(Int32GreaterThan(value_instance_type, Int32Constant(LAST_NAME_TYPE)),
          &not_name);
 
-  var_result.Bind(value);
+  var_result = CAST(value);
   Goto(&end);
 
   BIND(&is_number);
   {
-    var_result.Bind(CallBuiltin(Builtins::kNumberToString, context, value));
+    var_result = CAST(CallBuiltin(Builtins::kNumberToString, context, value));
     Goto(&end);
   }
 
@@ -5633,18 +5634,17 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
     GotoIfNot(InstanceTypeEqual(value_instance_type, ODDBALL_TYPE),
               &not_oddball);
 
-    var_result.Bind(LoadObjectField(value, Oddball::kToStringOffset));
+    var_result = LoadObjectField<String>(CAST(value), Oddball::kToStringOffset);
     Goto(&end);
 
     BIND(&not_oddball);
     {
-      var_result.Bind(CallRuntime(Runtime::kToName, context, value));
+      var_result = CAST(CallRuntime(Runtime::kToName, context, value));
       Goto(&end);
     }
   }
 
   BIND(&end);
-  CSA_ASSERT(this, IsName(var_result.value()));
   return var_result.value();
 }
 
@@ -10046,7 +10046,7 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<HeapObject> object,
 
   BIND(&if_proxy);
   {
-    TNode<Name> name = CAST(ToName(context, key));
+    TNode<Name> name = ToName(context, key);
     switch (mode) {
       case kHasProperty:
         GotoIf(IsPrivateSymbol(name), &return_false);
