@@ -14,20 +14,18 @@ namespace wasm {
 
 namespace {
 void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
-                              size_t size, bool require_guard_regions,
-                              void** allocation_base,
+                              size_t size, void** allocation_base,
                               size_t* allocation_length) {
-#if V8_TARGET_ARCH_32_BIT
-  DCHECK(!require_guard_regions);
-#endif
-  // We always allocate the largest possible offset into the heap, so the
-  // addressable memory after the guard page can be made inaccessible.
+// We always allocate the largest possible offset into the heap, so the
+// addressable memory after the guard page can be made inaccessible.
+#if V8_TARGET_ARCH_64_BIT
+  *allocation_length = RoundUp(kWasmMaxHeapOffset, CommitPageSize());
+#else
   *allocation_length =
-      require_guard_regions
-          ? RoundUp(kWasmMaxHeapOffset, CommitPageSize())
-          : RoundUp(
-                base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
-                kWasmPageSize);
+      RoundUp(base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
+              kWasmPageSize);
+#endif
+
   DCHECK_GE(*allocation_length, size);
   DCHECK_GE(*allocation_length, kWasmPageSize);
 
@@ -169,12 +167,11 @@ void* WasmMemoryTracker::GetEmptyBackingStore(void** allocation_base,
                                               Heap* heap) {
   if (empty_backing_store_.allocation_base == nullptr) {
     constexpr size_t buffer_length = 0;
-    const bool require_guard_regions = trap_handler::IsTrapHandlerEnabled();
     void* local_allocation_base;
     size_t local_allocation_length;
-    void* buffer_start = TryAllocateBackingStore(
-        this, heap, buffer_length, require_guard_regions,
-        &local_allocation_base, &local_allocation_length);
+    void* buffer_start = TryAllocateBackingStore(this, heap, buffer_length,
+                                                 &local_allocation_base,
+                                                 &local_allocation_length);
 
     empty_backing_store_ =
         AllocationData(local_allocation_base, local_allocation_length,
@@ -220,7 +217,6 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
 }
 
 Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
-                                     bool require_guard_regions,
                                      SharedFlag shared) {
   // Check against kMaxInt, since the byte length is stored as int in the
   // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
@@ -241,10 +237,8 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
           ? memory_tracker->GetEmptyBackingStore(
                 &allocation_base, &allocation_length, isolate->heap())
           : TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
-                                    require_guard_regions, &allocation_base,
-                                    &allocation_length);
-
-  if (size > 0 && memory == nullptr) {
+                                    &allocation_base, &allocation_length);
+  if (memory == nullptr) {
     return Handle<JSArrayBuffer>::null();
   }
 

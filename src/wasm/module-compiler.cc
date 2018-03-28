@@ -1676,17 +1676,25 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   WasmContext* wasm_context = instance->wasm_context()->get();
   uint32_t globals_size = module_->globals_size;
   if (globals_size > 0) {
-    constexpr bool enable_guard_regions = false;
-    Handle<JSArrayBuffer> global_buffer =
-        NewArrayBuffer(isolate_, globals_size, enable_guard_regions);
-    globals_ = global_buffer;
+    void* backing_store =
+        isolate_->array_buffer_allocator()->Allocate(globals_size);
+    if (backing_store == nullptr) {
+      thrower_->RangeError("Out of memory: wasm globals");
+      return {};
+    }
+    globals_ =
+        isolate_->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
+    constexpr bool is_external = false;
+    constexpr bool is_wasm_memory = false;
+    JSArrayBuffer::Setup(globals_, isolate_, is_external, backing_store,
+                         globals_size, SharedFlag::kNotShared, is_wasm_memory);
     if (globals_.is_null()) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
     wasm_context->globals_start =
-        reinterpret_cast<byte*>(global_buffer->backing_store());
-    instance->set_globals_buffer(*global_buffer);
+        reinterpret_cast<byte*>(globals_->backing_store());
+    instance->set_globals_buffer(*globals_);
   }
 
   //--------------------------------------------------------------------------
@@ -2375,11 +2383,10 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
-  const bool enable_guard_regions = use_trap_handler();
   const bool is_shared_memory =
       module_->has_shared_memory && i::FLAG_experimental_wasm_threads;
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
-      isolate_, num_pages * kWasmPageSize, enable_guard_regions,
+      isolate_, num_pages * kWasmPageSize,
       is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared);
 
   if (mem_buffer.is_null()) {
