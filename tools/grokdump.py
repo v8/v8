@@ -2063,7 +2063,8 @@ class InspectionPadawan(object):
   def SenseMap(self, tagged_address):
     if self.IsInKnownMapSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
-      known_map_info = KNOWN_MAPS.get(offset)
+      lookup_key = ("MAP_SPACE", offset)
+      known_map_info = KNOWN_MAPS.get(lookup_key)
       if known_map_info:
         known_map_type, known_map_name = known_map_info
         return KnownMap(self, known_map_name, known_map_type)
