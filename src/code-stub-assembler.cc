@@ -4750,7 +4750,12 @@ Node* CodeStubAssembler::IsJSRegExp(Node* object) {
   return HasInstanceType(object, JS_REGEXP_TYPE);
 }
 
-Node* CodeStubAssembler::IsNumeric(Node* object) {
+TNode<BoolT> CodeStubAssembler::IsNumber(SloppyTNode<Object> object) {
+  return Select<BoolT>(TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
+                       [=] { return IsHeapNumber(object); });
+}
+
+TNode<BoolT> CodeStubAssembler::IsNumeric(SloppyTNode<Object> object) {
   return Select<BoolT>(TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
                        [=] {
                          return UncheckedCast<BoolT>(
@@ -4758,56 +4763,41 @@ Node* CodeStubAssembler::IsNumeric(Node* object) {
                        });
 }
 
-Node* CodeStubAssembler::IsNumber(Node* object) {
-  return Select<BoolT>(TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
-                       [=] { return IsHeapNumber(object); });
-}
-
-Node* CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(Node* element_count,
-                                                           int base_size,
-                                                           ParameterMode mode) {
-  int max_newspace_elements =
-      (kMaxRegularHeapObjectSize - base_size) / kPointerSize;
-  return IntPtrOrSmiGreaterThan(
-      element_count, IntPtrOrSmiConstant(max_newspace_elements, mode), mode);
-}
-
-Node* CodeStubAssembler::IsNumberNormalized(Node* number) {
-  CSA_ASSERT(this, IsNumber(number));
-
-  VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(1));
+TNode<BoolT> CodeStubAssembler::IsNumberNormalized(SloppyTNode<Number> number) {
+  TVARIABLE(BoolT, var_result, Int32TrueConstant());
   Label out(this);
 
   GotoIf(TaggedIsSmi(number), &out);
 
-  Node* const value = LoadHeapNumberValue(number);
-  Node* const smi_min = Float64Constant(static_cast<double>(Smi::kMinValue));
-  Node* const smi_max = Float64Constant(static_cast<double>(Smi::kMaxValue));
+  TNode<Float64T> value = LoadHeapNumberValue(CAST(number));
+  TNode<Float64T> smi_min =
+      Float64Constant(static_cast<double>(Smi::kMinValue));
+  TNode<Float64T> smi_max =
+      Float64Constant(static_cast<double>(Smi::kMaxValue));
 
   GotoIf(Float64LessThan(value, smi_min), &out);
   GotoIf(Float64GreaterThan(value, smi_max), &out);
   GotoIfNot(Float64Equal(value, value), &out);  // NaN.
 
-  var_result.Bind(Int32Constant(0));
+  var_result = Int32FalseConstant();
   Goto(&out);
 
   BIND(&out);
   return var_result.value();
 }
 
-Node* CodeStubAssembler::IsNumberPositive(Node* number) {
-  CSA_ASSERT(this, IsNumber(number));
-  Node* const float_zero = Float64Constant(0.);
+TNode<BoolT> CodeStubAssembler::IsNumberPositive(SloppyTNode<Number> number) {
+  TNode<Float64T> float_zero = Float64Constant(0.);
   return Select<BoolT>(TaggedIsSmi(number),
                        [=] { return TaggedIsPositiveSmi(number); },
                        [=] {
-                         Node* v = LoadHeapNumberValue(number);
+                         TNode<Float64T> v = LoadHeapNumberValue(CAST(number));
                          return Float64GreaterThanOrEqual(v, float_zero);
                        });
 }
 
-Node* CodeStubAssembler::IsNumberArrayIndex(Node* number) {
-  VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(1));
+TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(SloppyTNode<Number> number) {
+  TVARIABLE(BoolT, var_result, Int32TrueConstant());
 
   Label check_upper_bound(this), check_is_integer(this), out(this),
       return_false(this);
@@ -4823,17 +4813,26 @@ Node* CodeStubAssembler::IsNumberArrayIndex(Node* number) {
   BIND(&check_is_integer);
   GotoIf(TaggedIsSmi(number), &out);
   // Check that the HeapNumber is a valid uint32
-  Node* value = LoadHeapNumberValue(number);
-  Node* int_value = ChangeFloat64ToUint32(value);
+  TNode<Float64T> value = LoadHeapNumberValue(CAST(number));
+  TNode<Uint32T> int_value = ChangeFloat64ToUint32(value);
   GotoIf(Float64Equal(value, ChangeUint32ToFloat64(int_value)), &out);
   Goto(&return_false);
 
   BIND(&return_false);
-  var_result.Bind(Int32Constant(0));
+  var_result = Int32FalseConstant();
   Goto(&out);
 
   BIND(&out);
   return var_result.value();
+}
+
+Node* CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(Node* element_count,
+                                                           int base_size,
+                                                           ParameterMode mode) {
+  int max_newspace_elements =
+      (kMaxRegularHeapObjectSize - base_size) / kPointerSize;
+  return IntPtrOrSmiGreaterThan(
+      element_count, IntPtrOrSmiConstant(max_newspace_elements, mode), mode);
 }
 
 TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
@@ -6238,8 +6237,9 @@ TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
   }
 
   BIND(&out);
-  if (mode == kTruncateMinusZero)
-    CSA_ASSERT(this, IsNumberNormalized(var_arg.value()));
+  if (mode == kTruncateMinusZero) {
+    CSA_ASSERT(this, IsNumberNormalized(CAST(var_arg.value())));
+  }
   return CAST(var_arg.value());
 }
 

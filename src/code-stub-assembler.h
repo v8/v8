@@ -1200,17 +1200,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsSpeciesProtectorCellInvalid();
 
   // True iff |object| is a Smi or a HeapNumber.
-  Node* IsNumber(Node* object);
+  TNode<BoolT> IsNumber(SloppyTNode<Object> object);
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
-  Node* IsNumeric(Node* object);
+  TNode<BoolT> IsNumeric(SloppyTNode<Object> object);
 
   // True iff |number| is either a Smi, or a HeapNumber whose value is not
   // within Smi range.
-  Node* IsNumberNormalized(Node* number);
-  Node* IsNumberPositive(Node* number);
+  TNode<BoolT> IsNumberNormalized(SloppyTNode<Number> number);
+  TNode<BoolT> IsNumberPositive(SloppyTNode<Number> number);
   // True iff {number} is a positive number and a valid array index in the range
   // [0, 2^32-1).
-  Node* IsNumberArrayIndex(Node* number);
+  TNode<BoolT> IsNumberArrayIndex(SloppyTNode<Number> number);
+
+  Node* FixedArraySizeDoesntFitInNewSpace(
+      Node* element_count, int base_size = FixedArray::kHeaderSize,
+      ParameterMode mode = INTPTR_PARAMETERS);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
@@ -1218,10 +1222,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsHoleyFastElementsKind(Node* elements_kind);
   Node* IsElementsKindGreaterThan(Node* target_kind,
                                   ElementsKind reference_kind);
-
-  Node* FixedArraySizeDoesntFitInNewSpace(
-      Node* element_count, int base_size = FixedArray::kHeaderSize,
-      ParameterMode mode = INTPTR_PARAMETERS);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
