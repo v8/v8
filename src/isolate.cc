@@ -2653,6 +2653,10 @@ void Isolate::Deinit() {
   if (sampler && sampler->IsActive()) sampler->Stop();
 
   FreeThreadResources();
+
+  // We start with the heap tear down so that releasing managed objects does
+  // not cause a GC.
+  heap_.StartTearDown();
   // Release managed objects before shutting down the heap. The finalizer might
   // need to access heap objects.
   ReleaseManagedObjects();
