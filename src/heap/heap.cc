@@ -5991,8 +5991,10 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
   }
 }
 
+void Heap::StartTearDown() { SetGCState(TEAR_DOWN); }
+
 void Heap::TearDown() {
-  SetGCState(TEAR_DOWN);
+  DCHECK_EQ(gc_state_, TEAR_DOWN);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
