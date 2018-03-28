@@ -31,7 +31,6 @@ import itertools
 import os
 import re
 import sys
-import tarfile
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
@@ -58,7 +57,6 @@ FEATURE_FLAGS = {
 SKIPPED_FEATURES = set([])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-ARCHIVE = DATA + ".tar"
 
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
@@ -102,24 +100,7 @@ class TestSuite(testsuite.TestSuite):
                     for f in TEST_262_HARNESS_FILES]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
     self.localtestroot = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
-
-    self._extract_sources()
     self.parse_test_record = self._load_parse_test_record()
-
-  def _extract_sources(self):
-    # The archive is created only on swarming. Local checkouts have the
-    # data folder.
-    if (os.path.exists(ARCHIVE) and
-        # Check for a JS file from the archive if we need to unpack. Some other
-        # files from the archive unfortunately exist due to a bug in the
-        # isolate_processor.
-        # TODO(machenbach): Migrate this to GN to avoid using the faulty
-        # isolate_processor: http://crbug.com/669910
-        not os.path.exists(os.path.join(DATA, 'test', 'harness', 'error.js'))):
-      print "Extracting archive..."
-      tar = tarfile.open(ARCHIVE)
-      tar.extractall(path=os.path.dirname(ARCHIVE))
-      tar.close()
 
   def _load_parse_test_record(self):
     root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
