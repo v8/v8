@@ -181,6 +181,7 @@ Heap::Heap()
       max_marking_limit_reached_(0.0),
       ms_count_(0),
       gc_count_(0),
+      consecutive_ineffective_mark_compacts_(0),
       mmap_region_base_(0),
       remembered_unmapped_pages_index_(0),
       old_generation_allocation_limit_(initial_old_generation_size_),
@@ -1725,6 +1726,8 @@ bool Heap::PerformGarbageCollection(
     external_memory_at_last_mark_compact_ = external_memory_;
     external_memory_limit_ = external_memory_ + kExternalAllocationSoftLimit;
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
+    CheckIneffectiveMarkCompact(
+        old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
     DampenOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
@@ -4276,6 +4279,34 @@ bool Heap::HasLowAllocationRate() {
          HasLowOldGenerationAllocationRate();
 }
 
+bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
+                                    double mutator_utilization) {
+  const double kHighHeapPercentage = 0.8;
+  const double kLowMutatorUtilization = 0.4;
+  return old_generation_size >=
+             kHighHeapPercentage * max_old_generation_size_ &&
+         mutator_utilization < kLowMutatorUtilization;
+}
+
+void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
+                                       double mutator_utilization) {
+  const int kMaxConsecutiveIneffectiveMarkCompacts = 4;
+  if (!FLAG_detect_ineffective_gcs_near_heap_limit) return;
+  if (!IsIneffectiveMarkCompact(old_generation_size, mutator_utilization)) {
+    consecutive_ineffective_mark_compacts_ = 0;
+    return;
+  }
+  ++consecutive_ineffective_mark_compacts_;
+  if (consecutive_ineffective_mark_compacts_ ==
+      kMaxConsecutiveIneffectiveMarkCompacts) {
+    if (InvokeNearHeapLimitCallback()) {
+      // The callback increased the heap limit.
+      consecutive_ineffective_mark_compacts_ = 0;
+      return;
+    }
+    FatalProcessOutOfMemory("Ineffective mark-compacts near heap limit");
+  }
+}
 
 bool Heap::HasHighFragmentation() {
   size_t used = PromotedSpaceSizeOfObjects();
