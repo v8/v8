@@ -2284,8 +2284,17 @@ TEST(SnapshotCreatorMultipleContexts) {
   delete[] blob.data;
 }
 
+static int serialized_static_field = 314;
+
 static void SerializedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (args.Data()->IsExternal()) {
+    CHECK_EQ(args.Data().As<v8::External>()->Value(),
+             static_cast<void*>(&serialized_static_field));
+    int* value =
+        reinterpret_cast<int*>(args.Data().As<v8::External>()->Value());
+    (*value)++;
+  }
   args.GetReturnValue().Set(v8_num(42));
 }
 
@@ -2307,8 +2316,6 @@ static void AccessorForSerialization(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_num(2017));
 }
-
-static int serialized_static_field = 314;
 
 class SerializedExtension : public v8::Extension {
  public:
@@ -2639,8 +2646,10 @@ TEST(SnapshotCreatorTemplates) {
       v8::ExtensionConfiguration* no_extension = nullptr;
       v8::Local<v8::ObjectTemplate> global_template =
           v8::ObjectTemplate::New(isolate);
+      v8::Local<v8::External> external =
+          v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
-          v8::FunctionTemplate::New(isolate, SerializedCallback);
+          v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       global_template->Set(v8_str("f"), callback);
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, no_extension, global_template);
@@ -2652,6 +2661,7 @@ TEST(SnapshotCreatorTemplates) {
 
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
+      CHECK_EQ(315, serialized_static_field);
 
       v8::Local<v8::Object> a =
           object_template->NewInstance(context).ToLocalChecked();
@@ -2707,6 +2717,7 @@ TEST(SnapshotCreatorTemplates) {
                 .ToLocalChecked();
         v8::Context::Scope context_scope(context);
         ExpectInt32("f()", 42);
+        CHECK_EQ(316, serialized_static_field);
 
         // Retrieve the snapshotted object template.
         v8::Local<v8::ObjectTemplate> obj_template =
@@ -2716,6 +2727,7 @@ TEST(SnapshotCreatorTemplates) {
             obj_template->NewInstance(context).ToLocalChecked();
         CHECK(context->Global()->Set(context, v8_str("o"), object).FromJust());
         ExpectInt32("o.f()", 42);
+        CHECK_EQ(317, serialized_static_field);
         // Check that it instantiates to the same prototype.
         ExpectTrue("o.f.prototype === f.prototype");
 
