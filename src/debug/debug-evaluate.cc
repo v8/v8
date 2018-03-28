@@ -616,7 +616,6 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:
     case Builtins::kArrayConcat:
-    case Builtins::kArraySlice:
     case Builtins::kArrayFilter:
     case Builtins::kArrayMap:
     case Builtins::kArrayReduce:

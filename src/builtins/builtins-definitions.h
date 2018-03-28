@@ -269,7 +269,6 @@ namespace internal {
   CPP(ArrayShift)                                                              \
   TFJ(ArrayPrototypeShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 #sec-array.prototype.slice */                                         \
-  CPP(ArraySlice)                                                              \
   TFJ(ArrayPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 #sec-array.prototype.splice */                                        \
   CPP(ArraySplice)                                                             \

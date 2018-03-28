@@ -578,45 +578,13 @@ function ArrayUnshiftFallback(arg1) {  // length == 1
 }
 
 
+// Oh the humanity... don't remove the following function because js2c for some
+// reason gets symbol minifiation wrong if it's not there. Instead of spending
+// the time fixing js2c (which will go away when all of the internal .js runtime
+// files are gone), just keep this work-around.
 function ArraySliceFallback(start, end) {
-  var array = TO_OBJECT(this);
-  var len = TO_LENGTH(array.length);
-  var start_i = TO_INTEGER(start);
-  var end_i = len;
-
-  if (!IS_UNDEFINED(end)) end_i = TO_INTEGER(end);
-
-  if (start_i < 0) {
-    start_i += len;
-    if (start_i < 0) start_i = 0;
-  } else {
-    if (start_i > len) start_i = len;
-  }
-
-  if (end_i < 0) {
-    end_i += len;
-    if (end_i < 0) end_i = 0;
-  } else {
-    if (end_i > len) end_i = len;
-  }
-
-  var result = ArraySpeciesCreate(array, MathMax(end_i - start_i, 0));
-
-  if (end_i < start_i) return result;
-
-  if (UseSparseVariant(array, len, IS_ARRAY(array), end_i - start_i)) {
-    %NormalizeElements(array);
-    if (IS_ARRAY(result)) %NormalizeElements(result);
-    SparseSlice(array, start_i, end_i - start_i, len, result);
-  } else {
-    SimpleSlice(array, start_i, end_i - start_i, len, result);
-  }
-
-  result.length = end_i - start_i;
-
-  return result;
+  return null;
 }
-
 
 function ComputeSpliceStartIndex(start_i, len) {
   if (start_i < 0) {
@@ -1229,7 +1197,6 @@ utils.Export(function(to) {
   "array_push", ArrayPushFallback,
   "array_shift", ArrayShiftFallback,
   "array_splice", ArraySpliceFallback,
-  "array_slice", ArraySliceFallback,
   "array_unshift", ArrayUnshiftFallback,
 ]);
 
