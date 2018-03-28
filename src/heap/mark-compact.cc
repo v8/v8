@@ -473,7 +473,14 @@ int NumberOfAvailableCores() {
 
 int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   DCHECK_GT(pages, 0);
-  return FLAG_parallel_compaction ? Min(NumberOfAvailableCores(), pages) : 1;
+  int tasks =
+      FLAG_parallel_compaction ? Min(NumberOfAvailableCores(), pages) : 1;
+  if (!heap_->CanExpandOldGeneration(
+          static_cast<size_t>(tasks * Page::kPageSize))) {
+    // Optimize for memory usage near the heap limit.
+    tasks = 1;
+  }
+  return tasks;
 }
 
 int MarkCompactCollectorBase::NumberOfParallelPointerUpdateTasks(int pages,
