@@ -222,6 +222,7 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
     "constructor")                                                      \
   V(harmony_public_fields, "harmony public fields in class literals")   \
   V(harmony_private_fields, "harmony private fields in class literals") \
+  V(harmony_bigint, "harmony arbitrary precision integers")             \
   V(harmony_numeric_separator, "harmony numeric separator between digits")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -235,7 +236,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_promise_finally, "harmony Promise.prototype.finally")             \
   V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
   V(harmony_import_meta, "harmony import.meta property")                      \
-  V(harmony_bigint, "harmony arbitrary precision integers")                   \
   V(harmony_dynamic_import, "harmony dynamic import")
 
 #ifdef V8_INTL_SUPPORT
