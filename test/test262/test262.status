@@ -391,6 +391,19 @@
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/internals/Get/indexed-value-sab': ['--harmony-sharedarraybuffer'],
 
+  # 64-bit Atomics are not implemented yet.
+  'built-ins/Atomics/wake/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/xor/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/load/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/compareExchange/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/wait/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/exchange/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/sub/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/store/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/or/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/and/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/add/bad-range': ['--noharmony-bigint'],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],

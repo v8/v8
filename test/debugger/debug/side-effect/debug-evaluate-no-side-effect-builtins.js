@@ -99,8 +99,13 @@ function listener(event, exec_state, event_data, data) {
     success(undefined, `data_view.byteLength`);
     success(undefined, `data_view.byteOffset`);
     for (f of Object.getOwnPropertyNames(DataView.prototype)) {
-      if (typeof data_view[f] === 'function' && f.startsWith('get'))
-        success(0, `data_view.${f}()`);
+      if (typeof data_view[f] === 'function') {
+        if (f.startsWith('getBig')) {
+          success(0n, `data_view.${f}()`);
+        } else if (f.startsWith('get')) {
+          success(0, `data_view.${f}()`);
+        }
+      }
     }
 
     // Test TypedArray functions.
