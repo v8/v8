@@ -67,4 +67,8 @@
     "label": "//test/unittests:unittests",
     "type": "script",
   },
+  "webkit": {
+    "label": "//test/webkit:v8_webkit",
+    "type": "script",
+  },
 }
