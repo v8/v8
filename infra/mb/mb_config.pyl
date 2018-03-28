@@ -415,7 +415,8 @@
     'release_x64_gcc_coverage': [
       'release_bot', 'x64', 'coverage', 'gcc'],
     'release_x64_internal': [
-      'release_bot', 'x64', 'v8_snapshot_internal'],
+      'release_bot', 'x64', 'v8_enable_embedded_builtins',
+      'v8_snapshot_internal'],
     'release_x64_jumbo': [
       'release_bot', 'x64', 'jumbo'],
     'release_x64_jumbo_trybot': [
@@ -445,7 +446,7 @@
       'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
     'release_x64_verify_csa': [
       'release_bot', 'x64', 'dcheck_always_on',
-      'v8_enable_slow_dchecks', 'v8_verify_csa'],
+      'v8_enable_slow_dchecks', 'v8_enable_embedded_builtins', 'v8_verify_csa'],
 
     # Debug configs for x64.
     'debug_x64': [
@@ -750,6 +751,10 @@
 
     'v8_enable_disassembler': {
       'gn_args': 'v8_enable_disassembler=true',
+    },
+
+    'v8_enable_embedded_builtins': {
+      'gn_args': 'v8_enable_embedded_builtins=true',
     },
 
     'v8_enable_slow_dchecks': {
