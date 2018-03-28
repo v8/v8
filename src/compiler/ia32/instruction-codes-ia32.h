@@ -128,6 +128,8 @@ namespace compiler {
   V(AVXF32x4Abs)                   \
   V(SSEF32x4Neg)                   \
   V(AVXF32x4Neg)                   \
+  V(IA32F32x4RecipApprox)          \
+  V(IA32F32x4RecipSqrtApprox)      \
   V(SSEF32x4Add)                   \
   V(AVXF32x4Add)                   \
   V(SSEF32x4Sub)                   \

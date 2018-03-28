@@ -501,8 +501,6 @@ WASM_SIMD_TEST(F32x4Neg) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4Neg, Negate);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 static const float kApproxError = 0.01f;
 
 WASM_SIMD_TEST(F32x4RecipApprox) {
@@ -513,8 +511,6 @@ WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4RecipSqrtApprox, RecipSqrt,
                    kApproxError);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 
 void RunF32x4BinOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
                        FloatBinOp expected_op) {

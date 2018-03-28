@@ -1792,15 +1792,17 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_INT_UNOP_LIST(V) \
-  V(F32x4SConvertI32x4)       \
-  V(I32x4Neg)                 \
-  V(I16x8Neg)                 \
+#define SIMD_UNOP_LIST(V) \
+  V(F32x4SConvertI32x4)   \
+  V(F32x4RecipApprox)     \
+  V(F32x4RecipSqrtApprox) \
+  V(I32x4Neg)             \
+  V(I16x8Neg)             \
   V(I8x16Neg)
 
-#define SIMD_OTHER_UNOP_LIST(V) \
-  V(F32x4Abs)                   \
-  V(F32x4Neg)                   \
+#define SIMD_UNOP_PREFIX_LIST(V) \
+  V(F32x4Abs)                    \
+  V(F32x4Neg)                    \
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
@@ -1943,24 +1945,24 @@ SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
 #undef SIMD_SHIFT_OPCODES
 
-#define VISIT_SIMD_INT_UNOP(Opcode)                                         \
+#define VISIT_SIMD_UNOP(Opcode)                                             \
   void InstructionSelector::Visit##Opcode(Node* node) {                     \
     IA32OperandGenerator g(this);                                           \
     Emit(kIA32##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0))); \
   }
-SIMD_INT_UNOP_LIST(VISIT_SIMD_INT_UNOP)
-#undef VISIT_SIMD_INT_UNOP
-#undef SIMD_INT_UNOP_LIST
+SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
+#undef VISIT_SIMD_UNOP
+#undef SIMD_UNOP_LIST
 
-#define VISIT_SIMD_OTHER_UNOP(Opcode)                                        \
+#define VISIT_SIMD_UNOP_PREFIX(Opcode)                                       \
   void InstructionSelector::Visit##Opcode(Node* node) {                      \
     IA32OperandGenerator g(this);                                            \
     InstructionCode opcode = IsSupported(AVX) ? kAVX##Opcode : kSSE##Opcode; \
     Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));         \
   }
-SIMD_OTHER_UNOP_LIST(VISIT_SIMD_OTHER_UNOP)
-#undef VISIT_SIMD_OTHER_UNOP
-#undef SIMD_OTHER_UNOP_LIST
+SIMD_UNOP_PREFIX_LIST(VISIT_SIMD_UNOP_PREFIX)
+#undef VISIT_SIMD_UNOP_PREFIX
+#undef SIMD_UNOP_PREFIX_LIST
 
 #define VISIT_SIMD_BINOP(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {    \
