@@ -1659,7 +1659,7 @@ void MacroAssembler::AssertConstructor(Register object, Register scratch) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
-    LoadP(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
+    LoadP(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     tm(FieldMemOperand(scratch, Map::kBitFieldOffset),
        Operand(Map::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor);
