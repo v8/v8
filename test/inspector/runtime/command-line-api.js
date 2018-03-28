@@ -36,28 +36,25 @@ InspectorTest.runAsyncTestSuite([
   async function testQueryObjects() {
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: 'queryObjects', includeCommandLineAPI: true}));
     await Protocol.Runtime.enable();
-    let {result: {result: {objectId}}} = await Protocol.Runtime.evaluate(
-        {expression: 'class Foo {}; a = new Foo(); Foo'});
-    InspectorTest.logMessage(objectId);
-    const objectGroup = 'query';
-    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
-      expression: 'queryObjects(Foo)',
-      includeCommandLineAPI: true,
-      objectGroup
-    }));
-    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
-      expression: 'queryObjects(Foo.prototype)',
-      includeCommandLineAPI: true,
-      objectGroup
-    }));
-    Protocol.Runtime.releaseObjectGroup({objectGroup})
-        await Protocol.Runtime.evaluate({expression: 'a = null;'});
-    InspectorTest.logMessage(await Protocol.Runtime.evaluate(
-        {expression: 'queryObjects(Foo)', includeCommandLineAPI: true}));
-    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
-      expression: 'queryObjects(Foo.prototype)',
-      includeCommandLineAPI: true
-    }));
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({expression: 'Promise.prototype'});
+    Protocol.Runtime.evaluate({expression: 'queryObjects(Promise)', includeCommandLineAPI: true});
+    let request = await Protocol.Runtime.onceInspectRequested();
+    InspectorTest.logMessage(request);
+    InspectorTest.logMessage('Is Promise.prototype: ' + await isEqual(objectId, request.params.object.objectId));
+
+    Protocol.Runtime.evaluate({expression: 'queryObjects(Promise.prototype)', includeCommandLineAPI: true});
+    request = await Protocol.Runtime.onceInspectRequested();
+    InspectorTest.logMessage(request);
+    InspectorTest.logMessage('Is Promise.prototype: ' + await isEqual(objectId, request.params.object.objectId));
+
+    ({result:{result:{objectId}}} = await Protocol.Runtime.evaluate({expression:'p = {a:1}'}));
+    Protocol.Runtime.evaluate({expression: 'queryObjects(p)', includeCommandLineAPI: true});
+    request = await Protocol.Runtime.onceInspectRequested();
+    InspectorTest.logMessage(request);
+    InspectorTest.logMessage('Is p: ' + await isEqual(objectId, request.params.object.objectId));
+
+    Protocol.Runtime.evaluate({expression: 'queryObjects(1)', includeCommandLineAPI: true});
+    InspectorTest.logMessage(await Protocol.Runtime.onceInspectRequested());
     await Protocol.Runtime.disable();
   },
 

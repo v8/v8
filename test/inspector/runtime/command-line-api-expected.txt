@@ -120,52 +120,61 @@ Running test: testQueryObjects
         }
     }
 }
-{"injectedScriptId":1,"id":10}
 {
-    id : <messageId>
-    result : {
-        result : {
-            className : Array
-            description : Array(1)
+    method : Runtime.inspectRequested
+    params : {
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Promise
+            description : Promise
             objectId : <objectId>
-            subtype : array
             type : object
         }
     }
 }
+Is Promise.prototype: true
 {
-    id : <messageId>
-    result : {
-        result : {
-            className : Array
-            description : Array(1)
+    method : Runtime.inspectRequested
+    params : {
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Promise
+            description : Promise
             objectId : <objectId>
-            subtype : array
             type : object
         }
     }
 }
+Is Promise.prototype: true
 {
-    id : <messageId>
-    result : {
-        result : {
-            className : Array
-            description : Array(0)
+    method : Runtime.inspectRequested
+    params : {
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Object
+            description : Object
             objectId : <objectId>
-            subtype : array
             type : object
         }
     }
 }
+Is p: true
 {
-    id : <messageId>
-    result : {
-        result : {
-            className : Array
-            description : Array(0)
-            objectId : <objectId>
-            subtype : array
-            type : object
+    method : Runtime.inspectRequested
+    params : {
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            description : 1
+            type : number
+            value : 1
         }
     }
 }
