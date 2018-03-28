@@ -17,8 +17,10 @@ namespace internal {
 
 using compiler::CodeAssemblerState;
 using compiler::Node;
-using compiler::TNode;
-using compiler::SloppyTNode;
+template <typename T>
+using TNode = compiler::TNode<T>;
+template <typename T>
+using SloppyTNode = compiler::SloppyTNode<T>;
 
 //////////////////// Private helpers.
 

@@ -20,7 +20,8 @@ namespace internal {
 namespace interpreter {
 
 using compiler::Node;
-using compiler::TNode;
+template <typename T>
+using TNode = compiler::TNode<T>;
 
 class IntrinsicsGenerator {
  public:
