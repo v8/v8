@@ -32,10 +32,8 @@ class MaybeObject {
                                        HeapObjectReferenceType* reference_type);
   inline bool IsStrongHeapObject();
   inline bool ToStrongHeapObject(HeapObject** result);
-  inline HeapObject* ToStrongHeapObject();
   inline bool IsWeakHeapObject();
   inline bool ToWeakHeapObject(HeapObject** result);
-  inline HeapObject* ToWeakHeapObject();
 
   inline HeapObject* GetHeapObject();
 

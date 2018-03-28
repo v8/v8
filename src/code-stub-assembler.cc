@@ -1481,20 +1481,14 @@ TNode<Object> CodeStubAssembler::LoadMapPrototype(SloppyTNode<Map> map) {
 
 TNode<PrototypeInfo> CodeStubAssembler::LoadMapPrototypeInfo(
     SloppyTNode<Map> map, Label* if_no_proto_info) {
-  Label if_strong_heap_object(this);
   CSA_ASSERT(this, IsMap(map));
-  Node* maybe_prototype_info =
+  Node* prototype_info =
       LoadObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
-  VARIABLE(prototype_info, MachineRepresentation::kTagged);
-  DispatchMaybeObject(maybe_prototype_info, if_no_proto_info, if_no_proto_info,
-                      if_no_proto_info, &if_strong_heap_object,
-                      &prototype_info);
-
-  BIND(&if_strong_heap_object);
-  GotoIfNot(WordEqual(LoadMap(prototype_info.value()),
+  GotoIf(TaggedIsSmi(prototype_info), if_no_proto_info);
+  GotoIfNot(WordEqual(LoadMap(prototype_info),
                       LoadRoot(Heap::kPrototypeInfoMapRootIndex)),
             if_no_proto_info);
-  return CAST(prototype_info.value());
+  return CAST(prototype_info);
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadMapInstanceSizeInWords(
@@ -1670,37 +1664,6 @@ TNode<Object> CodeStubAssembler::LoadWeakCellValue(
     GotoIf(WordEqual(value, IntPtrConstant(0)), if_cleared);
   }
   return value;
-}
-
-void CodeStubAssembler::DispatchMaybeObject(Node* maybe_object, Label* if_smi,
-                                            Label* if_cleared, Label* if_weak,
-                                            Label* if_strong,
-                                            Variable* extracted) {
-  Label inner_if_smi(this), inner_if_strong(this);
-
-  GotoIf(TaggedIsSmi(maybe_object), &inner_if_smi);
-
-  GotoIf(WordEqual(maybe_object, IntPtrConstant(reinterpret_cast<intptr_t>(
-                                     HeapObjectReference::ClearedValue()))),
-         if_cleared);
-
-  GotoIf(WordEqual(WordAnd(BitcastTaggedToWord(maybe_object),
-                           IntPtrConstant(kWeakHeapObjectMask)),
-                   IntPtrConstant(0)),
-         &inner_if_strong);
-
-  extracted->Bind(
-      BitcastWordToTagged(WordAnd(BitcastTaggedToWord(maybe_object),
-                                  IntPtrConstant(~kWeakHeapObjectMask))));
-  Goto(if_weak);
-
-  BIND(&inner_if_smi);
-  extracted->Bind(maybe_object);
-  Goto(if_smi);
-
-  BIND(&inner_if_strong);
-  extracted->Bind(maybe_object);
-  Goto(if_strong);
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElement(

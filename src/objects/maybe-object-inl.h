@@ -58,11 +58,6 @@ bool MaybeObject::ToStrongHeapObject(HeapObject** result) {
   return false;
 }
 
-HeapObject* MaybeObject::ToStrongHeapObject() {
-  DCHECK(IsStrongHeapObject());
-  return reinterpret_cast<HeapObject*>(this);
-}
-
 bool MaybeObject::IsWeakHeapObject() {
   return HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject();
 }
@@ -73,11 +68,6 @@ bool MaybeObject::ToWeakHeapObject(HeapObject** result) {
     return true;
   }
   return false;
-}
-
-HeapObject* MaybeObject::ToWeakHeapObject() {
-  DCHECK(IsWeakHeapObject());
-  return GetHeapObject();
 }
 
 HeapObject* MaybeObject::GetHeapObject() {

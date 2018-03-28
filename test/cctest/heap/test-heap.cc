@@ -2867,7 +2867,7 @@ TEST(TransitionArraySimpleToFull) {
   root = GetByName("root");
   {
     DisallowHeapAllocation no_gc;
-    CHECK(TestTransitionsAccessor(root->map(), &no_gc).IsWeakRefEncoding());
+    CHECK(TestTransitionsAccessor(root->map(), &no_gc).IsWeakCellEncoding());
   }
   AddPropertyTo(2, root, "happy");
 

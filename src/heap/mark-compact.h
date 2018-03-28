@@ -798,8 +798,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Checks if the given weak cell is a simple transition from the parent map
   // of the given dead target. If so it clears the transition and trims
   // the descriptor array of the parent if needed.
-  void ClearPotentialSimpleMapTransition(Map* dead_target);
-  void ClearPotentialSimpleMapTransition(Map* map, Map* dead_target);
+  void ClearSimpleMapTransition(WeakCell* potential_transition,
+                                Map* dead_target);
+  void ClearSimpleMapTransition(Map* map, Map* dead_target);
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();

@@ -9083,8 +9083,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
         // For prototype maps, the PrototypeInfo is not copied.
         DCHECK_EQ(0, memcmp(fresh->address(), new_map->address(),
                             kTransitionsOrPrototypeInfoOffset));
-        DCHECK_EQ(fresh->raw_transitions(),
-                  MaybeObject::FromObject(Smi::kZero));
+        DCHECK_EQ(fresh->raw_transitions(), Smi::kZero);
         STATIC_ASSERT(kDescriptorsOffset ==
                       kTransitionsOrPrototypeInfoOffset + kPointerSize);
         DCHECK_EQ(0, memcmp(HeapObject::RawField(*fresh, kDescriptorsOffset),

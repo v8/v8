@@ -18,7 +18,7 @@ class TestTransitionsAccessor : public TransitionsAccessor {
       : TransitionsAccessor(map) {}
 
   // Expose internals for tests.
-  bool IsWeakRefEncoding() { return encoding() == kWeakRef; }
+  bool IsWeakCellEncoding() { return encoding() == kWeakCell; }
 
   bool IsFullTransitionArrayEncoding() {
     return encoding() == kFullTransitionArray;

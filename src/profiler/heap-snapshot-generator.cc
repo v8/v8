@@ -1085,40 +1085,30 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
 
 
 void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
-  MaybeObject* maybe_raw_transitions_or_prototype_info = map->raw_transitions();
-  HeapObject* raw_transitions_or_prototype_info;
-  if (maybe_raw_transitions_or_prototype_info->ToWeakHeapObject(
-          &raw_transitions_or_prototype_info)) {
-    DCHECK(raw_transitions_or_prototype_info->IsMap());
-    SetWeakReference(map, entry, "transition",
-                     raw_transitions_or_prototype_info,
-                     Map::kTransitionsOrPrototypeInfoOffset);
-  } else if (maybe_raw_transitions_or_prototype_info->ToStrongHeapObject(
-                 &raw_transitions_or_prototype_info)) {
-    DCHECK(!raw_transitions_or_prototype_info->IsWeakCell());
-
-    if (raw_transitions_or_prototype_info->IsTransitionArray()) {
-      TransitionArray* transitions =
-          TransitionArray::cast(raw_transitions_or_prototype_info);
-      if (map->CanTransition() && transitions->HasPrototypeTransitions()) {
-        TagObject(transitions->GetPrototypeTransitions(),
-                  "(prototype transitions)");
-      }
-      TagObject(transitions, "(transition array)");
-      SetInternalReference(map, entry, "transitions", transitions,
-                           Map::kTransitionsOrPrototypeInfoOffset);
-    } else if (raw_transitions_or_prototype_info->IsTuple3() ||
-               raw_transitions_or_prototype_info->IsFixedArray()) {
-      TagObject(raw_transitions_or_prototype_info, "(transition)");
-      SetInternalReference(map, entry, "transition",
-                           raw_transitions_or_prototype_info,
-                           Map::kTransitionsOrPrototypeInfoOffset);
-    } else if (map->is_prototype_map()) {
-      TagObject(raw_transitions_or_prototype_info, "prototype_info");
-      SetInternalReference(map, entry, "prototype_info",
-                           raw_transitions_or_prototype_info,
-                           Map::kTransitionsOrPrototypeInfoOffset);
+  Object* raw_transitions_or_prototype_info = map->raw_transitions();
+  if (raw_transitions_or_prototype_info->IsTransitionArray()) {
+    TransitionArray* transitions =
+        TransitionArray::cast(raw_transitions_or_prototype_info);
+    if (map->CanTransition() && transitions->HasPrototypeTransitions()) {
+      TagObject(transitions->GetPrototypeTransitions(),
+                "(prototype transitions)");
     }
+
+    TagObject(transitions, "(transition array)");
+    SetInternalReference(map, entry, "transitions", transitions,
+                         Map::kTransitionsOrPrototypeInfoOffset);
+  } else if (raw_transitions_or_prototype_info->IsWeakCell() ||
+             raw_transitions_or_prototype_info->IsTuple3() ||
+             raw_transitions_or_prototype_info->IsFixedArray()) {
+    TagObject(raw_transitions_or_prototype_info, "(transition)");
+    SetInternalReference(map, entry, "transition",
+                         raw_transitions_or_prototype_info,
+                         Map::kTransitionsOrPrototypeInfoOffset);
+  } else if (map->is_prototype_map()) {
+    TagObject(raw_transitions_or_prototype_info, "prototype_info");
+    SetInternalReference(map, entry, "prototype_info",
+                         raw_transitions_or_prototype_info,
+                         Map::kTransitionsOrPrototypeInfoOffset);
   }
   DescriptorArray* descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");

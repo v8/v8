@@ -119,13 +119,14 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitMap(Map* map, Map* object) {
   // When map collection is enabled we have to mark through map's transitions
   // and back pointers in a special way to make these links weak.
-  int size = Map::BodyDescriptor::SizeOf(map, object);
   if (object->CanTransition()) {
     MarkMapContents(object);
   } else {
-    Map::BodyDescriptor::IterateBody(map, object, size, this);
+    VisitPointers(object,
+                  HeapObject::RawField(object, Map::kPointerFieldsBeginOffset),
+                  HeapObject::RawField(object, Map::kPointerFieldsEndOffset));
   }
-  return size;
+  return Map::BodyDescriptor::SizeOf(map, object);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
@@ -358,8 +359,8 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // Mark the pointer fields of the Map. Since the transitions array has
   // been marked already, it is fine that one of these fields contains a
   // pointer to it.
-  Map::BodyDescriptor::IterateBody(
-      map->map(), map, Map::BodyDescriptor::SizeOf(map->map(), map), this);
+  VisitPointers(map, HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
+                HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
