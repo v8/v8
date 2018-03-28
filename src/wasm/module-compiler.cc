@@ -99,7 +99,7 @@ class CompilationState {
     base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
-  CompilationState(internal::Isolate* isolate, Handle<Context> context);
+  explicit CompilationState(internal::Isolate* isolate);
   ~CompilationState();
 
   // Needs to be set before {AddCompilationUnits} is run, which triggers
@@ -142,7 +142,18 @@ class CompilationState {
   void Abort();
 
   Isolate* isolate() { return isolate_; }
-  Handle<Context> context() { return context_; }
+
+  WasmCompiledModule* compiled_module() const {
+    DCHECK_NOT_NULL(compiled_module_);
+    return *compiled_module_;
+  }
+
+  void SetCompiledModule(Handle<WasmCompiledModule> compiled_module) {
+    compiled_module_ =
+        isolate_->global_handles()->Create(*compiled_module).location();
+    GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&compiled_module_));
+  }
+
   bool failed() { return failed_; }
 
  private:
@@ -152,7 +163,10 @@ class CompilationState {
 
   Isolate* isolate_;
 
-  Handle<Context> context_;
+  // A phantom reference to the {WasmCompiledModule}. It is intentionally not
+  // typed {Handle<WasmCompiledModule>} because this location will be cleared
+  // when the phantom reference is cleared.
+  WasmCompiledModule** compiled_module_ = nullptr;
 
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
@@ -167,6 +181,7 @@ class CompilationState {
   // When canceling the background_task_manager_, use {CancelAndWait} on
   // the CompilationState in order to cleanly clean up.
   CancelableTaskManager background_task_manager_;
+  CancelableTaskManager foreground_task_manager_;
   std::shared_ptr<v8::TaskRunner> background_task_runner_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
@@ -177,8 +192,6 @@ class CompilationState {
   std::atomic<bool> failed_{false};
 
   size_t outstanding_units_ = 0;
-
-  std::vector<DeferredHandles*> deferred_handles_;
 };
 
 namespace {
@@ -1458,15 +1471,16 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
 // the NativeModule, the code table, etc.).
 class FinishCompileTask : public CancelableTask {
  public:
-  explicit FinishCompileTask(CompilationState* compilation_state)
-      : CancelableTask(compilation_state->isolate()->cancelable_task_manager()),
-        compilation_state_(compilation_state) {}
+  explicit FinishCompileTask(CompilationState* compilation_state,
+                             CancelableTaskManager* task_manager)
+      : CancelableTask(task_manager), compilation_state_(compilation_state) {}
 
   void RunInternal() override {
     Isolate* isolate = compilation_state_->isolate();
     HandleScope scope(isolate);
     SaveContext saved_context(isolate);
-    isolate->set_context(*compilation_state_->context());
+    isolate->set_context(
+        compilation_state_->compiled_module()->native_context());
 
     TRACE_COMPILE("(4a) Finishing compilation units...\n");
     if (compilation_state_->failed()) {
@@ -3415,10 +3429,15 @@ void CompilationStateDeleter::operator()(
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
     Isolate* isolate) {
   return std::unique_ptr<CompilationState, CompilationStateDeleter>(
-      new CompilationState(isolate, handle(isolate->context())));
+      new CompilationState(isolate));
 }
 
-CompilationState::CompilationState(Isolate* isolate, Handle<Context> context)
+void SetCompiledModule(CompilationState* compilation_state,
+                       Handle<WasmCompiledModule> compiled_module) {
+  compilation_state->SetCompiledModule(compiled_module);
+}
+
+CompilationState::CompilationState(internal::Isolate* isolate)
     : isolate_(isolate),
       executed_units_(isolate->random_number_generator(),
                       GetMaxUsableMemorySize(isolate) / 2) {
@@ -3429,18 +3448,17 @@ CompilationState::CompilationState(Isolate* isolate, Handle<Context> context)
 
   // Register task manager for clean shutdown in case of an isolate shutdown.
   isolate_->wasm_engine()->Register(&background_task_manager_);
-
-  // The handle for the context must be deferred.
-  // TODO(wasm): Evaluate if switching to global handles is faster. We create
-  // several DeferredHandleScopes with just one single handle.
-  DeferredHandleScope deferred(isolate);
-  context_ = Handle<Context>(*context);
-  deferred_handles_.push_back(deferred.Detach());
 }
 
 CompilationState::~CompilationState() {
   CancelAndWait();
-  for (auto d : deferred_handles_) delete d;
+  foreground_task_manager_.CancelAndWait();
+
+  if (compiled_module_ != nullptr) {
+    isolate_->global_handles()->Destroy(
+        reinterpret_cast<Object**>(compiled_module_));
+    compiled_module_ = nullptr;
+  }
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
@@ -3556,7 +3574,8 @@ bool CompilationState::SetFinisherIsRunning(bool value) {
 }
 
 void CompilationState::ScheduleFinisherTask() {
-  foreground_task_runner_->PostTask(base::make_unique<FinishCompileTask>(this));
+  foreground_task_runner_->PostTask(
+      base::make_unique<FinishCompileTask>(this, &foreground_task_manager_));
 }
 
 void CompilationState::Abort() {

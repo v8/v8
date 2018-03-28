@@ -33,6 +33,9 @@ struct CompilationStateDeleter {
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
     Isolate* isolate);
 
+void SetCompiledModule(CompilationState* compilation_state,
+                       Handle<WasmCompiledModule> compiled_module);
+
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,

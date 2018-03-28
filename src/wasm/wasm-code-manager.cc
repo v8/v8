@@ -532,6 +532,7 @@ void NativeModule::SetCompiledModule(
                          ->Create(*compiled_module)
                          .location();
   GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&compiled_module_));
+  wasm::SetCompiledModule(compilation_state_.get(), compiled_module);
 }
 
 WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
