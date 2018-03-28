@@ -142,8 +142,8 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
   Label named_captures(this), out(this);
 
-  TNode<IntPtrT> num_indices = SmiUntag(LoadFixedArrayElement(
-      match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
+  TNode<IntPtrT> num_indices = SmiUntag(CAST(LoadFixedArrayElement(
+      match_info, RegExpMatchInfo::kNumberOfCapturesIndex)));
   Node* const num_results = SmiTag(WordShr(num_indices, 1));
   Node* const start =
       LoadFixedArrayElement(match_info, RegExpMatchInfo::kFirstCaptureIndex);

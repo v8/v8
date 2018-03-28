@@ -125,8 +125,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
             tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
-          Node* lane_value = __ SmiToInt32(
-              __ LoadFixedArrayElement(element, __ IntPtrConstant(lane)));
+          TNode<Int32T> lane_value = __ LoadAndUntagToWord32FixedArrayElement(
+              element, __ IntPtrConstant(lane));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
                   lane),

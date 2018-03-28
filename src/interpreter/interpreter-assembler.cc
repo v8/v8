@@ -647,7 +647,7 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);
-  return LoadFixedArrayElement(constant_pool, index,
+  return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
                                LoadSensitivity::kNeedsPoisoning);
 }
 

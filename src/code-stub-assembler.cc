@@ -1595,8 +1595,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&if_property_dictionary);
   {
-    var_hash = SmiUntag(
-        LoadFixedArrayElement(properties, NameDictionary::kObjectHashIndex));
+    var_hash = SmiUntag(CAST(
+        LoadFixedArrayElement(properties, NameDictionary::kObjectHashIndex)));
     Goto(&done);
   }
 
@@ -1666,17 +1666,18 @@ TNode<Object> CodeStubAssembler::LoadWeakCellValue(
   return value;
 }
 
-Node* CodeStubAssembler::LoadFixedArrayElement(
-    Node* object, Node* index_node, int additional_offset,
+TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
+    SloppyTNode<Object> object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode, LoadSensitivity needs_poisoning) {
   CSA_SLOW_ASSERT(this, IntPtrGreaterThanOrEqual(
                             ParameterToIntPtr(index_node, parameter_mode),
                             IntPtrConstant(0)));
   int32_t header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
-                                        parameter_mode, header_size);
-  return Load(MachineType::AnyTagged(), object, offset, needs_poisoning);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
+                                                 parameter_mode, header_size);
+  return UncheckedCast<Object>(
+      Load(MachineType::AnyTagged(), object, offset, needs_poisoning));
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
@@ -1884,8 +1885,8 @@ TNode<Object> CodeStubAssembler::LoadFeedbackVectorSlot(
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), object, offset));
 }
 
-Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
-    Node* object, Node* index_node, int additional_offset,
+TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
+    SloppyTNode<Object> object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, IsFixedArraySubclass(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
@@ -1899,7 +1900,7 @@ Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
   if (Is64()) {
-    return Load(MachineType::Int32(), object, offset);
+    return UncheckedCast<Int32T>(Load(MachineType::Int32(), object, offset));
   } else {
     return SmiToInt32(Load(MachineType::AnyTagged(), object, offset));
   }
@@ -7701,10 +7702,10 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
-                                                ElementsKind kind,
-                                                ParameterMode mode,
-                                                int base_size) {
+TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
+                                                         ElementsKind kind,
+                                                         ParameterMode mode,
+                                                         int base_size) {
   int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
   int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
@@ -7724,13 +7725,13 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
     return IntPtrConstant(base_size + element_size * index);
   }
 
-  Node* shifted_index =
+  TNode<WordT> shifted_index =
       (element_size_shift == 0)
-          ? index_node
+          ? UncheckedCast<WordT>(index_node)
           : ((element_size_shift > 0)
                  ? WordShl(index_node, IntPtrConstant(element_size_shift))
                  : WordSar(index_node, IntPtrConstant(-element_size_shift)));
-  return IntPtrAdd(IntPtrConstant(base_size), shifted_index);
+  return IntPtrAdd(IntPtrConstant(base_size), Signed(shifted_index));
 }
 
 Node* CodeStubAssembler::LoadFeedbackVector(Node* closure) {
@@ -7953,10 +7954,10 @@ TNode<Context> CodeStubAssembler::LoadScriptContext(
   TNode<ScriptContextTable> script_context_table = CAST(
       LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
 
-  Node* script_context = LoadFixedArrayElement(
+  TNode<Context> script_context = CAST(LoadFixedArrayElement(
       script_context_table, context_index,
-      ScriptContextTable::kFirstContextSlotIndex * kPointerSize);
-  return CAST(script_context);
+      ScriptContextTable::kFirstContextSlotIndex * kPointerSize));
+  return script_context;
 }
 
 namespace {

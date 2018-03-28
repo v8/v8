@@ -599,26 +599,44 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   Label* if_cleared = nullptr);
 
   // Load an array element from a FixedArray.
-  Node* LoadFixedArrayElement(
-      Node* object, Node* index, int additional_offset = 0,
+  TNode<Object> LoadFixedArrayElement(
+      SloppyTNode<Object> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
-  Node* LoadFixedArrayElement(Node* object, Node* index,
-                              LoadSensitivity needs_poisoning) {
+
+  TNode<Object> LoadFixedArrayElement(SloppyTNode<Object> object,
+                                      TNode<IntPtrT> index,
+                                      LoadSensitivity needs_poisoning) {
     return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
                                  needs_poisoning);
   }
-  Node* LoadFixedArrayElement(
-      Node* object, int index, int additional_offset = 0,
+
+  TNode<Object> LoadFixedArrayElement(
+      SloppyTNode<Object> object, TNode<IntPtrT> index,
+      int additional_offset = 0,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return LoadFixedArrayElement(object, index, additional_offset,
+                                 INTPTR_PARAMETERS, needs_poisoning);
+  }
+
+  TNode<Object> LoadFixedArrayElement(
+      SloppyTNode<Object> object, int index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
                                  additional_offset, INTPTR_PARAMETERS,
                                  needs_poisoning);
   }
   // Load an array element from a FixedArray, untag it and return it as Word32.
-  Node* LoadAndUntagToWord32FixedArrayElement(
-      Node* object, Node* index, int additional_offset = 0,
+  TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
+      SloppyTNode<Object> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
+
+  TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
+      SloppyTNode<Object> object, int index, int additional_offset = 0) {
+    return LoadAndUntagToWord32FixedArrayElement(
+        object, IntPtrConstant(index), additional_offset, INTPTR_PARAMETERS);
+  }
+
   // Load an array element from a FixedDoubleArray.
   Node* LoadFixedDoubleArrayElement(
       Node* object, Node* index, MachineType machine_type,
@@ -1487,18 +1505,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Loads the details for the entry with the given key_index.
   // Returns an untagged int32.
   template <class ContainerType>
-  Node* LoadDetailsByKeyIndex(Node* container, Node* key_index) {
+  TNode<Uint32T> LoadDetailsByKeyIndex(Node* container, Node* key_index) {
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
-    return LoadAndUntagToWord32FixedArrayElement(container, key_index,
-                                                 kKeyToDetailsOffset);
+    return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
+                                                          kKeyToDetailsOffset));
   }
 
   // Loads the value for the entry with the given key_index.
   // Returns a tagged value.
   template <class ContainerType>
-  Node* LoadValueByKeyIndex(Node* container, Node* key_index) {
+  TNode<Object> LoadValueByKeyIndex(Node* container, Node* key_index) {
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
@@ -1867,19 +1885,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                last_element_exclusive, body, mode, direction);
   }
 
-  Node* GetArrayAllocationSize(Node* element_count, ElementsKind kind,
-                               ParameterMode mode, int header_size) {
+  TNode<IntPtrT> GetArrayAllocationSize(Node* element_count, ElementsKind kind,
+                                        ParameterMode mode, int header_size) {
     return ElementOffsetFromIndex(element_count, kind, mode, header_size);
   }
 
-  Node* GetFixedArrayAllocationSize(Node* element_count, ElementsKind kind,
-                                    ParameterMode mode) {
+  TNode<IntPtrT> GetFixedArrayAllocationSize(Node* element_count,
+                                             ElementsKind kind,
+                                             ParameterMode mode) {
     return GetArrayAllocationSize(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
   }
 
-  Node* GetPropertyArrayAllocationSize(Node* element_count,
-                                       ParameterMode mode) {
+  TNode<IntPtrT> GetPropertyArrayAllocationSize(Node* element_count,
+                                                ParameterMode mode) {
     return GetArrayAllocationSize(element_count, PACKED_ELEMENTS, mode,
                                   PropertyArray::kHeaderSize);
   }
@@ -1939,8 +1958,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // TypedArray/ArrayBuffer helpers
   Node* IsDetachedBuffer(Node* buffer);
 
-  Node* ElementOffsetFromIndex(Node* index, ElementsKind kind,
-                               ParameterMode mode, int base_size = 0);
+  TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
+                                        ParameterMode mode, int base_size = 0);
 
   // Load a builtin's code from the builtin array in the isolate.
   TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);

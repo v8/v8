@@ -893,8 +893,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<HeapObject> microtask = TNode<HeapObject>::UncheckedCast(
-          LoadFixedArrayElement(queue, index.value()));
+      TNode<HeapObject> microtask =
+          CAST(LoadFixedArrayElement(queue, index.value()));
       index = IntPtrAdd(index.value(), IntPtrConstant(1));
 
       CSA_ASSERT(this, TaggedIsNotSmi(microtask));

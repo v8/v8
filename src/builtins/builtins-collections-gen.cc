@@ -491,7 +491,7 @@ TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
 
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
     TNode<Object> elements, TNode<IntPtrT> index) {
-  TNode<Object> element = CAST(LoadFixedArrayElement(elements, index));
+  TNode<Object> element = LoadFixedArrayElement(elements, index);
   return Select<Object>(IsTheHole(element), [=] { return UndefinedConstant(); },
                         [=] { return element; });
 }
@@ -1058,12 +1058,12 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     std::function<void(Node*, Label*, Label*)> key_compare,
     Variable* entry_start_position, Label* entry_found, Label* not_found) {
   // Get the index of the bucket.
-  Node* const number_of_buckets = SmiUntag(
-      LoadFixedArrayElement(table, CollectionType::kNumberOfBucketsIndex));
+  Node* const number_of_buckets = SmiUntag(CAST(
+      LoadFixedArrayElement(table, CollectionType::kNumberOfBucketsIndex)));
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
-  Node* const first_entry = SmiUntag(LoadFixedArrayElement(
-      table, bucket, CollectionType::kHashTableStartIndex * kPointerSize));
+  Node* const first_entry = SmiUntag(CAST(LoadFixedArrayElement(
+      table, bucket, CollectionType::kHashTableStartIndex * kPointerSize)));
 
   // Walk the bucket chain.
   Node* entry_start;
@@ -1086,10 +1086,10 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
         UintPtrLessThan(
             var_entry.value(),
             SmiUntag(SmiAdd(
-                LoadFixedArrayElement(table,
-                                      CollectionType::kNumberOfElementsIndex),
-                LoadFixedArrayElement(
-                    table, CollectionType::kNumberOfDeletedElementsIndex)))));
+                CAST(LoadFixedArrayElement(
+                    table, CollectionType::kNumberOfElementsIndex)),
+                CAST(LoadFixedArrayElement(
+                    table, CollectionType::kNumberOfDeletedElementsIndex))))));
 
     // Compute the index of the entry relative to kHashTableStartIndex.
     entry_start =
@@ -1106,10 +1106,10 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
 
     BIND(&continue_next_entry);
     // Load the index of the next entry in the bucket chain.
-    var_entry.Bind(SmiUntag(LoadFixedArrayElement(
+    var_entry.Bind(SmiUntag(CAST(LoadFixedArrayElement(
         table, entry_start,
         (CollectionType::kHashTableStartIndex + CollectionType::kChainOffset) *
-            kPointerSize)));
+            kPointerSize))));
 
     Goto(&loop);
   }
@@ -1360,8 +1360,8 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
   VARIABLE(table_var, MachineRepresentation::kTaggedPointer, table);
   {
     // Check we have enough space for the entry.
-    number_of_buckets.Bind(SmiUntag(
-        LoadFixedArrayElement(table, OrderedHashMap::kNumberOfBucketsIndex)));
+    number_of_buckets.Bind(SmiUntag(CAST(
+        LoadFixedArrayElement(table, OrderedHashMap::kNumberOfBucketsIndex))));
 
     STATIC_ASSERT(OrderedHashMap::kLoadFactor == 2);
     Node* const capacity = WordShl(number_of_buckets.value(), 1);
@@ -1376,8 +1376,8 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
     // fields.
     CallRuntime(Runtime::kMapGrow, context, receiver);
     table_var.Bind(LoadObjectField(receiver, JSMap::kTableOffset));
-    number_of_buckets.Bind(SmiUntag(LoadFixedArrayElement(
-        table_var.value(), OrderedHashMap::kNumberOfBucketsIndex)));
+    number_of_buckets.Bind(SmiUntag(CAST(LoadFixedArrayElement(
+        table_var.value(), OrderedHashMap::kNumberOfBucketsIndex))));
     Node* const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
         table_var.value(), OrderedHashMap::kNumberOfElementsOffset)));
     Node* const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
@@ -1516,7 +1516,7 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
            &add_entry);
 
     // Otherwise, go to runtime to compute the hash code.
-    entry_start_position_or_hash.Bind(SmiUntag((CallGetOrCreateHashRaw(key))));
+    entry_start_position_or_hash.Bind(SmiUntag(CallGetOrCreateHashRaw(key)));
     Goto(&add_entry);
   }
 
@@ -1526,8 +1526,8 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
   VARIABLE(table_var, MachineRepresentation::kTaggedPointer, table);
   {
     // Check we have enough space for the entry.
-    number_of_buckets.Bind(SmiUntag(
-        LoadFixedArrayElement(table, OrderedHashSet::kNumberOfBucketsIndex)));
+    number_of_buckets.Bind(SmiUntag(CAST(
+        LoadFixedArrayElement(table, OrderedHashSet::kNumberOfBucketsIndex))));
 
     STATIC_ASSERT(OrderedHashSet::kLoadFactor == 2);
     Node* const capacity = WordShl(number_of_buckets.value(), 1);
@@ -1542,8 +1542,8 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
     // fields.
     CallRuntime(Runtime::kSetGrow, context, receiver);
     table_var.Bind(LoadObjectField(receiver, JSMap::kTableOffset));
-    number_of_buckets.Bind(SmiUntag(LoadFixedArrayElement(
-        table_var.value(), OrderedHashSet::kNumberOfBucketsIndex)));
+    number_of_buckets.Bind(SmiUntag(CAST(LoadFixedArrayElement(
+        table_var.value(), OrderedHashSet::kNumberOfBucketsIndex))));
     Node* const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
         table_var.value(), OrderedHashSet::kNumberOfElementsOffset)));
     Node* const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
@@ -2220,7 +2220,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
   TNode<IntPtrT> key_index;
   {
     key_index = KeyIndexFromEntry(var_entry.value());
-    TNode<Object> entry_key = CAST(LoadFixedArrayElement(table, key_index));
+    TNode<Object> entry_key = LoadFixedArrayElement(table, key_index);
 
     key_compare(entry_key, &if_found);
 
@@ -2269,15 +2269,15 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::KeyIndexFromEntry(
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfElements(
     TNode<Object> table, int offset) {
-  TNode<IntPtrT> number_of_elements = SmiUntag(
-      LoadFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex));
+  TNode<IntPtrT> number_of_elements = SmiUntag(CAST(
+      LoadFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex)));
   return IntPtrAdd(number_of_elements, IntPtrConstant(offset));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfDeleted(
     TNode<Object> table, int offset) {
-  TNode<IntPtrT> number_of_deleted = SmiUntag(LoadFixedArrayElement(
-      table, ObjectHashTable::kNumberOfDeletedElementsIndex));
+  TNode<IntPtrT> number_of_deleted = SmiUntag(CAST(LoadFixedArrayElement(
+      table, ObjectHashTable::kNumberOfDeletedElementsIndex)));
   return IntPtrAdd(number_of_deleted, IntPtrConstant(offset));
 }
 
@@ -2289,7 +2289,7 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::LoadTable(
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadTableCapacity(
     TNode<Object> table) {
   return SmiUntag(
-      LoadFixedArrayElement(table, ObjectHashTable::kCapacityIndex));
+      CAST(LoadFixedArrayElement(table, ObjectHashTable::kCapacityIndex)));
 }
 
 TNode<Word32T> WeakCollectionsBuiltinsAssembler::InsufficientCapacityToAdd(
