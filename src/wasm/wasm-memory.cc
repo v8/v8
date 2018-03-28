@@ -12,10 +12,52 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
 void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, size_t size,
                               bool require_guard_regions,
                               void** allocation_base,
-                              size_t* allocation_length);
+                              size_t* allocation_length) {
+#if V8_TARGET_ARCH_32_BIT
+  DCHECK(!require_guard_regions);
+#endif
+  // We always allocate the largest possible offset into the heap, so the
+  // addressable memory after the guard page can be made inaccessible.
+  *allocation_length =
+      require_guard_regions
+          ? RoundUp(kWasmMaxHeapOffset, CommitPageSize())
+          : RoundUp(
+                base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
+                kWasmPageSize);
+  DCHECK_GE(*allocation_length, size);
+  DCHECK_GE(*allocation_length, kWasmPageSize);
+
+  // Let the WasmMemoryTracker know we are going to reserve a bunch of
+  // address space.
+  if (!memory_tracker->ReserveAddressSpace(*allocation_length)) {
+    // If we are over the address space limit, fail.
+    return nullptr;
+  }
+
+  // The Reserve makes the whole region inaccessible by default.
+  *allocation_base = AllocatePages(nullptr, *allocation_length, kWasmPageSize,
+                                   PageAllocator::kNoAccess);
+  if (*allocation_base == nullptr) {
+    memory_tracker->ReleaseReservation(*allocation_length);
+    return nullptr;
+  }
+  void* memory = *allocation_base;
+
+  // Make the part we care about accessible.
+  if (size > 0) {
+    CHECK(SetPermissions(memory, RoundUp(size, kWasmPageSize),
+                         PageAllocator::kReadWrite));
+  }
+
+  memory_tracker->RegisterAllocation(*allocation_base, *allocation_length,
+                                     memory, size);
+  return memory;
+}
+}  // namespace
 
 WasmMemoryTracker::~WasmMemoryTracker() {
   if (empty_backing_store_.allocation_base != nullptr) {
@@ -155,51 +197,6 @@ bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(const void* buffer_start) {
     return true;
   }
   return false;
-}
-
-void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, size_t size,
-                              bool require_guard_regions,
-                              void** allocation_base,
-                              size_t* allocation_length) {
-#if V8_TARGET_ARCH_32_BIT
-  DCHECK(!require_guard_regions);
-#endif
-  // We always allocate the largest possible offset into the heap, so the
-  // addressable memory after the guard page can be made inaccessible.
-  *allocation_length =
-      require_guard_regions
-          ? RoundUp(kWasmMaxHeapOffset, CommitPageSize())
-          : RoundUp(
-                base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
-                kWasmPageSize);
-  DCHECK_GE(*allocation_length, size);
-  DCHECK_GE(*allocation_length, kWasmPageSize);
-
-  // Let the WasmMemoryTracker know we are going to reserve a bunch of
-  // address space.
-  if (!memory_tracker->ReserveAddressSpace(*allocation_length)) {
-    // If we are over the address space limit, fail.
-    return nullptr;
-  }
-
-  // The Reserve makes the whole region inaccessible by default.
-  *allocation_base = AllocatePages(nullptr, *allocation_length, kWasmPageSize,
-                                   PageAllocator::kNoAccess);
-  if (*allocation_base == nullptr) {
-    memory_tracker->ReleaseReservation(*allocation_length);
-    return nullptr;
-  }
-  void* memory = *allocation_base;
-
-  // Make the part we care about accessible.
-  if (size > 0) {
-    CHECK(SetPermissions(memory, RoundUp(size, kWasmPageSize),
-                         PageAllocator::kReadWrite));
-  }
-
-  memory_tracker->RegisterAllocation(*allocation_base, *allocation_length,
-                                     memory, size);
-  return memory;
 }
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
