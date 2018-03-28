@@ -537,8 +537,69 @@ FP_UNOP(f64_sqrt, sqrt_d)
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src) {
-  BAILOUT("emit_type_conversion");
-  return true;
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      TurboAssembler::Move(dst.gp(), src.low_gp());
+      return true;
+    case kExprI32ReinterpretF32:
+      mfc1(dst.gp(), src.fp());
+      return true;
+    case kExprI64SConvertI32:
+      TurboAssembler::Move(dst.low_gp(), src.gp());
+      TurboAssembler::Move(dst.high_gp(), src.gp());
+      sra(dst.high_gp(), dst.high_gp(), 31);
+      return true;
+    case kExprI64UConvertI32:
+      TurboAssembler::Move(dst.low_gp(), src.gp());
+      TurboAssembler::Move(dst.high_gp(), zero_reg);
+      return true;
+    case kExprI64ReinterpretF64:
+      mfc1(dst.low_gp(), src.fp());
+      TurboAssembler::Mfhc1(dst.high_gp(), src.fp());
+      return true;
+    case kExprF32SConvertI32: {
+      LiftoffRegister scratch =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      mtc1(src.gp(), scratch.fp());
+      cvt_s_w(dst.fp(), scratch.fp());
+      return true;
+    }
+    case kExprF32UConvertI32: {
+      LiftoffRegister scratch =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      TurboAssembler::Cvt_d_uw(dst.fp(), src.gp(), scratch.fp());
+      cvt_s_d(dst.fp(), dst.fp());
+      return true;
+    }
+    case kExprF32ConvertF64:
+      cvt_s_d(dst.fp(), src.fp());
+      return true;
+    case kExprF32ReinterpretI32:
+      TurboAssembler::FmoveLow(dst.fp(), src.gp());
+      return true;
+    case kExprF64SConvertI32: {
+      LiftoffRegister scratch =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      mtc1(src.gp(), scratch.fp());
+      cvt_d_w(dst.fp(), scratch.fp());
+      return true;
+    }
+    case kExprF64UConvertI32: {
+      LiftoffRegister scratch =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      TurboAssembler::Cvt_d_uw(dst.fp(), src.gp(), scratch.fp());
+      return true;
+    }
+    case kExprF64ConvertF32:
+      cvt_d_s(dst.fp(), src.fp());
+      return true;
+    case kExprF64ReinterpretI64:
+      mtc1(src.low_gp(), dst.fp());
+      TurboAssembler::Mthc1(src.high_gp(), dst.fp());
+      return true;
+    default:
+      return false;
+  }
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {

@@ -431,8 +431,57 @@ FP_UNOP(f64_sqrt, sqrt_d)
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src) {
-  BAILOUT("emit_type_conversion");
-  return true;
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      TurboAssembler::Ext(dst.gp(), src.gp(), 0, 32);
+      return true;
+    case kExprI32ReinterpretF32:
+      TurboAssembler::FmoveLow(dst.gp(), src.fp());
+      return true;
+    case kExprI64SConvertI32:
+      sll(dst.gp(), src.gp(), 0);
+      return true;
+    case kExprI64UConvertI32:
+      TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
+      return true;
+    case kExprI64ReinterpretF64:
+      dmfc1(dst.gp(), src.fp());
+      return true;
+    case kExprF32SConvertI32: {
+      LiftoffRegister scratch =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      mtc1(src.gp(), scratch.fp());
+      cvt_s_w(dst.fp(), scratch.fp());
+      return true;
+    }
+    case kExprF32UConvertI32:
+      TurboAssembler::Cvt_s_uw(dst.fp(), src.gp());
+      return true;
+    case kExprF32ConvertF64:
+      cvt_s_d(dst.fp(), src.fp());
+      return true;
+    case kExprF32ReinterpretI32:
+      TurboAssembler::FmoveLow(dst.fp(), src.gp());
+      return true;
+    case kExprF64SConvertI32: {
+      LiftoffRegister scratch =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      mtc1(src.gp(), scratch.fp());
+      cvt_d_w(dst.fp(), scratch.fp());
+      return true;
+    }
+    case kExprF64UConvertI32:
+      TurboAssembler::Cvt_d_uw(dst.fp(), src.gp());
+      return true;
+    case kExprF64ConvertF32:
+      cvt_d_s(dst.fp(), src.fp());
+      return true;
+    case kExprF64ReinterpretI64:
+      dmtc1(src.gp(), dst.fp());
+      return true;
+    default:
+      return false;
+  }
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {
