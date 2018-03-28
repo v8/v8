@@ -82,7 +82,7 @@ namespace {
 
 void FinalizePartialMap(Heap* heap, Map* map) {
   map->set_dependent_code(DependentCode::cast(heap->empty_fixed_array()));
-  map->set_raw_transitions(Smi::kZero);
+  map->set_raw_transitions(MaybeObject::FromSmi(Smi::kZero));
   map->set_instance_descriptors(heap->empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());

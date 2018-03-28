@@ -598,6 +598,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Object> LoadWeakCellValue(SloppyTNode<WeakCell> weak_cell,
                                   Label* if_cleared = nullptr);
 
+  // Figures out whether the value of maybe_object is:
+  // - a SMI (jump to "if_smi", "extracted" will be the SMI value)
+  // - a cleared weak reference (jump to "if_cleared", "extracted" will be
+  // untouched)
+  // - a weak reference (jump to "if_weak", "extracted" will be the object
+  // pointed to)
+  // - a strong reference (jump to "if_strong", "extracted" will be the object
+  // pointed to)
+  void DispatchMaybeObject(Node* maybe_object, Label* if_smi, Label* if_cleared,
+                           Label* if_weak, Label* if_strong,
+                           Variable* extracted);
+
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElement(
       Node* object, Node* index, int additional_offset = 0,

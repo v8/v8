@@ -691,7 +691,7 @@ TEST(HeapSnapshotMap) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   CompileRun(
-      "function Z() { this.foo = {}; }\n"
+      "function Z() { this.foo = {}; this.bar = 0; }\n"
       "z = new Z();\n");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
@@ -706,14 +706,16 @@ TEST(HeapSnapshotMap) {
       GetProperty(env->GetIsolate(), map, v8::HeapGraphEdge::kInternal, "map"));
   CHECK(GetProperty(env->GetIsolate(), map, v8::HeapGraphEdge::kInternal,
                     "prototype"));
+  const v8::HeapGraphNode* parent_map = GetProperty(
+      env->GetIsolate(), map, v8::HeapGraphEdge::kInternal, "back_pointer");
+  CHECK(parent_map);
+
   CHECK(GetProperty(env->GetIsolate(), map, v8::HeapGraphEdge::kInternal,
                     "back_pointer"));
   CHECK(GetProperty(env->GetIsolate(), map, v8::HeapGraphEdge::kInternal,
                     "descriptors"));
-  const v8::HeapGraphNode* weak_cell = GetProperty(
-      env->GetIsolate(), map, v8::HeapGraphEdge::kInternal, "weak_cell_cache");
-  CHECK(GetProperty(env->GetIsolate(), weak_cell, v8::HeapGraphEdge::kWeak,
-                    "value"));
+  CHECK(GetProperty(env->GetIsolate(), parent_map, v8::HeapGraphEdge::kWeak,
+                    "transition"));
 }
 
 TEST(HeapSnapshotInternalReferences) {

@@ -405,7 +405,7 @@ class Map : public HeapObject {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions, Object)
+  DECL_ACCESSORS(raw_transitions, MaybeObject)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_ACCESSORS(prototype_info, Object)
@@ -807,9 +807,7 @@ class Map : public HeapObject {
 
   STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
-  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
-                              kPointerFieldsEndOffset, kSize>
-      BodyDescriptor;
+  class BodyDescriptor;
 
   // Compares this map to another to see if they describe equivalent objects.
   // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if

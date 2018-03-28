@@ -50,7 +50,7 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   }
   {
     TestTransitionsAccessor transitions(map0);
-    CHECK(transitions.IsWeakCellEncoding());
+    CHECK(transitions.IsWeakRefEncoding());
     CHECK_EQ(*map1, transitions.SearchTransition(*name1, kData, attributes));
     CHECK_EQ(1, transitions.NumberOfTransitions());
     CHECK_EQ(*name1, transitions.GetKey(0));
