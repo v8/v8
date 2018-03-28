@@ -30,7 +30,8 @@
 
 #include "src/inspector/v8-runtime-agent-impl.h"
 
-#include "src/base/platform/platform.h"
+#include <inttypes.h>
+
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -612,8 +613,7 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
 
 Response V8RuntimeAgentImpl::getIsolateId(String16* outIsolateId) {
   char buf[40];
-  std::snprintf(buf, sizeof(buf), "%d.%p", v8::base::OS::GetCurrentProcessId(),
-                m_inspector->isolate());
+  std::snprintf(buf, sizeof(buf), "%" PRIx64, m_inspector->isolateId());
   *outIsolateId = buf;
   return Response::OK();
 }
