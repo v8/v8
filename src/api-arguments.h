@@ -15,34 +15,31 @@ namespace internal {
 // Custom arguments replicate a small segment of stack that can be
 // accessed through an Arguments object the same way the actual stack
 // can.
-template <int kArrayLength>
 class CustomArgumentsBase : public Relocatable {
- public:
-  virtual inline void IterateInstance(RootVisitor* v) {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
-                         values_ + kArrayLength);
-  }
-
  protected:
-  inline Object** begin() { return values_; }
   explicit inline CustomArgumentsBase(Isolate* isolate)
       : Relocatable(isolate) {}
-  Object* values_[kArrayLength];
+  static bool PerformSideEffectCheck(Isolate* isolate, Object* callback_info);
 };
 
 template <typename T>
-class CustomArguments : public CustomArgumentsBase<T::kArgsLength> {
+class CustomArguments : public CustomArgumentsBase {
  public:
   static const int kReturnValueOffset = T::kReturnValueIndex;
 
-  typedef CustomArgumentsBase<T::kArgsLength> Super;
   ~CustomArguments() {
     this->begin()[kReturnValueOffset] =
         reinterpret_cast<Object*>(kHandleZapValue);
   }
 
+  virtual inline void IterateInstance(RootVisitor* v) {
+    v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
+                         values_ + T::kArgsLength);
+  }
+
  protected:
-  explicit inline CustomArguments(Isolate* isolate) : Super(isolate) {}
+  explicit inline CustomArguments(Isolate* isolate)
+      : CustomArgumentsBase(isolate) {}
 
   template <typename V>
   Handle<V> GetReturnValue(Isolate* isolate);
@@ -50,6 +47,9 @@ class CustomArguments : public CustomArgumentsBase<T::kArgsLength> {
   inline Isolate* isolate() {
     return reinterpret_cast<Isolate*>(this->begin()[T::kIsolateIndex]);
   }
+
+  inline Object** begin() { return values_; }
+  Object* values_[T::kArgsLength];
 };
 
 template <typename T>
@@ -126,7 +126,8 @@ class PropertyCallbackArguments
                                          Handle<Name> name);
   inline Handle<Object> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
                                             Handle<Name> name);
-  Handle<JSObject> CallNamedEnumerator(Handle<InterceptorInfo> interceptor);
+  inline Handle<JSObject> CallNamedEnumerator(
+      Handle<InterceptorInfo> interceptor);
 
   // -------------------------------------------------------------------------
   // Indexed Interceptor Callbacks
@@ -143,7 +144,8 @@ class PropertyCallbackArguments
                                            uint32_t index);
   inline Handle<Object> CallIndexedDescriptor(
       Handle<InterceptorInfo> interceptor, uint32_t index);
-  Handle<JSObject> CallIndexedEnumerator(Handle<InterceptorInfo> interceptor);
+  inline Handle<JSObject> CallIndexedEnumerator(
+      Handle<InterceptorInfo> interceptor);
 
  private:
   /*
@@ -166,8 +168,6 @@ class PropertyCallbackArguments
   inline JSObject* holder() {
     return JSObject::cast(this->begin()[T::kHolderIndex]);
   }
-
-  bool PerformSideEffectCheck(Isolate* isolate, Handle<Object> callback_info);
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.
@@ -215,7 +215,7 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  Handle<Object> Call(CallHandlerInfo* handler);
+  inline Handle<Object> Call(CallHandlerInfo* handler);
 
  private:
   inline JSObject* holder() {

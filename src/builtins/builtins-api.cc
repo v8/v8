@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins.h"
 
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/api-natives.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/counters.h"

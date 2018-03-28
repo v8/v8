@@ -25,7 +25,7 @@ namespace internal {
 #define PREPARE_CALLBACK_INFO(ISOLATE, F, RETURN_VALUE, API_RETURN_TYPE, \
                               CALLBACK_INFO)                             \
   if (ISOLATE->needs_side_effect_check() &&                              \
-      !PerformSideEffectCheck(ISOLATE, CALLBACK_INFO)) {                 \
+      !PerformSideEffectCheck(ISOLATE, *CALLBACK_INFO)) {                \
     return RETURN_VALUE();                                               \
   }                                                                      \
   VMState<EXTERNAL> state(ISOLATE);                                      \
@@ -76,6 +76,41 @@ FOR_EACH_CALLBACK(CREATE_INDEXED_CALLBACK)
 
 #undef FOR_EACH_CALLBACK
 #undef CREATE_INDEXED_CALLBACK
+
+Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
+  Isolate* isolate = this->isolate();
+  LOG(isolate, ApiObjectAccess("call", holder()));
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
+  v8::FunctionCallback f =
+      v8::ToCData<v8::FunctionCallback>(handler->callback());
+  if (isolate->needs_side_effect_check() &&
+      !PerformSideEffectCheck(isolate, handler)) {
+    return Handle<Object>();
+  }
+  VMState<EXTERNAL> state(isolate);
+  ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
+  FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
+  f(info);
+  return GetReturnValue<Object>(isolate);
+}
+
+Handle<JSObject> PropertyCallbackArguments::CallNamedEnumerator(
+    Handle<InterceptorInfo> interceptor) {
+  DCHECK(interceptor->is_named());
+  LOG(isolate(), ApiObjectAccess("interceptor-named-enumerator", holder()));
+  RuntimeCallTimerScope timer(isolate(),
+                              RuntimeCallCounterId::kNamedEnumeratorCallback);
+  return CallPropertyEnumerator(interceptor);
+}
+
+Handle<JSObject> PropertyCallbackArguments::CallIndexedEnumerator(
+    Handle<InterceptorInfo> interceptor) {
+  DCHECK(!interceptor->is_named());
+  LOG(isolate(), ApiObjectAccess("interceptor-indexed-enumerator", holder()));
+  RuntimeCallTimerScope timer(isolate(),
+                              RuntimeCallCounterId::kIndexedEnumeratorCallback);
+  return CallPropertyEnumerator(interceptor);
+}
 
 Handle<Object> PropertyCallbackArguments::CallNamedGetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
