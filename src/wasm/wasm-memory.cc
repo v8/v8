@@ -13,8 +13,8 @@ namespace internal {
 namespace wasm {
 
 namespace {
-void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, size_t size,
-                              bool require_guard_regions,
+void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
+                              size_t size, bool require_guard_regions,
                               void** allocation_base,
                               size_t* allocation_length) {
 #if V8_TARGET_ARCH_32_BIT
@@ -34,8 +34,12 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, size_t size,
   // Let the WasmMemoryTracker know we are going to reserve a bunch of
   // address space.
   if (!memory_tracker->ReserveAddressSpace(*allocation_length)) {
-    // If we are over the address space limit, fail.
-    return nullptr;
+    // If we fail the first time, collect garbage and retry.
+    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+    if (!memory_tracker->ReserveAddressSpace(*allocation_length)) {
+      // If we are over the address space limit, fail.
+      return nullptr;
+    }
   }
 
   // The Reserve makes the whole region inaccessible by default.
@@ -161,15 +165,16 @@ bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
 }
 
 void* WasmMemoryTracker::GetEmptyBackingStore(void** allocation_base,
-                                              size_t* allocation_length) {
+                                              size_t* allocation_length,
+                                              Heap* heap) {
   if (empty_backing_store_.allocation_base == nullptr) {
     constexpr size_t buffer_length = 0;
     const bool require_guard_regions = trap_handler::IsTrapHandlerEnabled();
     void* local_allocation_base;
     size_t local_allocation_length;
     void* buffer_start = TryAllocateBackingStore(
-        this, buffer_length, require_guard_regions, &local_allocation_base,
-        &local_allocation_length);
+        this, heap, buffer_length, require_guard_regions,
+        &local_allocation_base, &local_allocation_length);
 
     empty_backing_store_ =
         AllocationData(local_allocation_base, local_allocation_length,
@@ -231,11 +236,13 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
   void* allocation_base = nullptr;
   size_t allocation_length = 0;
 
-  void* memory = (size == 0) ? memory_tracker->GetEmptyBackingStore(
-                                   &allocation_base, &allocation_length)
-                             : TryAllocateBackingStore(
-                                   memory_tracker, size, require_guard_regions,
-                                   &allocation_base, &allocation_length);
+  void* memory =
+      (size == 0)
+          ? memory_tracker->GetEmptyBackingStore(
+                &allocation_base, &allocation_length, isolate->heap())
+          : TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
+                                    require_guard_regions, &allocation_base,
+                                    &allocation_length);
 
   if (size > 0 && memory == nullptr) {
     return Handle<JSArrayBuffer>::null();

@@ -72,7 +72,8 @@ class WasmMemoryTracker {
   // Empty WebAssembly memories are all backed by a shared inaccessible
   // reservation. This method creates this store or returns the existing one if
   // already created.
-  void* GetEmptyBackingStore(void** allocation_base, size_t* allocation_length);
+  void* GetEmptyBackingStore(void** allocation_base, size_t* allocation_length,
+                             Heap* heap);
 
   bool IsEmptyBackingStore(const void* buffer_start) const;
 

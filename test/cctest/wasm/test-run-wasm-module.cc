@@ -1149,6 +1149,21 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
   int_buffer[0] = 0;
 }
 
+#if V8_TARGET_ARCH_64_BIT
+TEST(Run_WasmModule_Reclaim_Memory) {
+  // Make sure we can allocate memories without running out of address space.
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  Handle<JSArrayBuffer> buffer;
+  for (int i = 0; i < 256; ++i) {
+    HandleScope scope(isolate);
+    constexpr bool require_guard_regions = true;
+    buffer = NewArrayBuffer(isolate, kWasmPageSize, require_guard_regions,
+                            SharedFlag::kNotShared);
+    CHECK(!buffer.is_null());
+  }
+}
+#endif
+
 TEST(AtomicOpDisassembly) {
   {
     EXPERIMENTAL_FLAG_SCOPE(threads);
