@@ -55,7 +55,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kSwitchJumpTableEnabled = 1 << 13,
     kCalledWithCodeStartRegister = 1 << 14,
     kPoisonRegisterArguments = 1 << 15,
-    kAllocationFoldingEnabled = 1 << 16
+    kAllocationFoldingEnabled = 1 << 16,
+    kAnalyzeEnvironmentLiveness = 1 << 17,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -198,6 +199,13 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void MarkAsAllocationFoldingEnabled() { SetFlag(kAllocationFoldingEnabled); }
   bool is_allocation_folding_enabled() const {
     return GetFlag(kAllocationFoldingEnabled);
+  }
+
+  void MarkAsAnalyzeEnvironmentLiveness() {
+    SetFlag(kAnalyzeEnvironmentLiveness);
+  }
+  bool is_analyze_environment_liveness() const {
+    return GetFlag(kAnalyzeEnvironmentLiveness);
   }
 
   // Code getters and setters.

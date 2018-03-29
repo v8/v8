@@ -516,7 +516,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags, bool stack_check)
+    int inlining_id, JSTypeHintLowering::Flags flags, bool stack_check,
+    bool analyze_environment_liveness)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
@@ -533,6 +534,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       osr_offset_(osr_offset),
       currently_peeled_loop_offset_(-1),
       stack_check_(stack_check),
+      analyze_environment_liveness_(analyze_environment_liveness),
       merge_environments_(local_zone),
       generator_merge_environments_(local_zone),
       exception_handlers_(local_zone),
@@ -869,7 +871,7 @@ void BytecodeGraphBuilder::VisitSingleBytecode(
 
 void BytecodeGraphBuilder::VisitBytecodes() {
   BytecodeAnalysis bytecode_analysis(bytecode_array(), local_zone(),
-                                     FLAG_analyze_environment_liveness);
+                                     analyze_environment_liveness());
   bytecode_analysis.Analyze(osr_offset_);
   set_bytecode_analysis(&bytecode_analysis);
 
@@ -878,7 +880,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   SourcePositionTableIterator source_position_iterator(
       handle(bytecode_array()->SourcePositionTable()));
 
-  if (FLAG_trace_environment_liveness) {
+  if (analyze_environment_liveness() && FLAG_trace_environment_liveness) {
     OFStream of(stdout);
 
     bytecode_analysis.PrintLivenessTo(of);

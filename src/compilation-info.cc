@@ -48,6 +48,11 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   if (!FLAG_turbo_disable_switch_jump_table) SetFlag(kSwitchJumpTableEnabled);
   if (FLAG_untrusted_code_mitigations) MarkAsPoisoningRegisterArguments();
 
+  // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
+  if (FLAG_analyze_environment_liveness) {
+    MarkAsAnalyzeEnvironmentLiveness();
+  }
+
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
