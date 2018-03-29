@@ -2206,6 +2206,12 @@ void InstructionSelector::VisitF32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Abs(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitF32x4RecipApprox(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
