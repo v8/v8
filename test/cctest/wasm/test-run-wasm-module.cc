@@ -1115,6 +1115,28 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
   Cleanup();
 }
 
+TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
+  // Regresion test for https://crbug.com/813876
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+#if V8_TARGET_ARCH_64_BIT
+  const bool require_guard_regions = trap_handler::IsTrapHandlerEnabled();
+#else
+  constexpr bool require_guard_regions = false;
+#endif
+  Handle<JSArrayBuffer> buffer =
+      wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions);
+  CHECK(!buffer.is_null());
+  Handle<WasmMemoryObject> mem = WasmMemoryObject::New(isolate, buffer, 128);
+  auto contents = v8::Utils::ToLocal(buffer)->Externalize();
+  WasmMemoryObject::Grow(isolate, mem, 0);
+  CHECK(FreePages(contents.AllocationBase(), contents.AllocationLength()));
+  // Make sure we can write to the buffer without crashing
+  uint32_t* int_buffer =
+      reinterpret_cast<uint32_t*>(mem->array_buffer()->backing_store());
+  int_buffer[0] = 0;
+}
+
 TEST(AtomicOpDisassembly) {
   {
     EXPERIMENTAL_FLAG_SCOPE(threads);

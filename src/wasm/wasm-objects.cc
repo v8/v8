@@ -449,9 +449,12 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
       new_size > kMaxInt) {
     return Handle<JSArrayBuffer>::null();
   }
-  if (((use_trap_handler && new_size < old_buffer->allocation_length()) ||
-       old_size == new_size) &&
-      old_size != 0) {
+  // Reusing the backing store from externalized buffers causes problems with
+  // Blink's array buffers. The connection between the two is lost, which can
+  // lead to Blink not knowing about the other reference to the buffer and
+  // freeing it too early.
+  if (!old_buffer->is_external() && old_size != 0 &&
+      ((new_size < old_buffer->allocation_length()) || old_size == new_size)) {
     DCHECK_NOT_NULL(old_buffer->backing_store());
     if (old_size != new_size) {
       CHECK(i::SetPermissions(old_mem_start, new_size,
@@ -475,21 +478,13 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   } else {
     bool free_memory = false;
     Handle<JSArrayBuffer> new_buffer;
-    if (pages != 0) {
-      // Allocate a new buffer and memcpy the old contents.
-      free_memory = true;
-      new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
-      if (new_buffer.is_null() || old_size == 0) return new_buffer;
-      Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
-      memcpy(new_mem_start, old_mem_start, old_size);
-      DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
-    } else {
-      // Reuse the prior backing store, but allocate a new array buffer.
-      new_buffer = wasm::SetupArrayBuffer(
-          isolate, old_buffer->allocation_base(),
-          old_buffer->allocation_length(), old_buffer->backing_store(),
-          new_size, old_buffer->is_external(), old_buffer->has_guard_region());
-    }
+    // Allocate a new buffer and memcpy the old contents.
+    free_memory = true;
+    new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
+    if (new_buffer.is_null() || old_size == 0) return new_buffer;
+    Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
+    memcpy(new_mem_start, old_mem_start, old_size);
+    DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
     i::wasm::DetachMemoryBuffer(isolate, old_buffer, free_memory);
     return new_buffer;
   }
