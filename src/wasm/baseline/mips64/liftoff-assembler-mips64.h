@@ -504,25 +504,19 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  Label true_label;
-  if (dst != lhs && dst != rhs) {
-    ori(dst, zero_reg, 0x1);
+  Register tmp = dst;
+  if (dst == lhs || dst == rhs) {
+    tmp = GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs, rhs)).gp();
   }
+  // Write 1 as result.
+  TurboAssembler::li(tmp, 1);
 
-  TurboAssembler::Branch(&true_label, cond, lhs, Operand(rhs));
-  // If not true, set on 0.
-  TurboAssembler::mov(dst, zero_reg);
+  // If negative condition is true, write 0 as result.
+  Condition neg_cond = NegateCondition(cond);
+  TurboAssembler::LoadZeroOnCondition(tmp, lhs, Operand(rhs), neg_cond);
 
-  if (dst != lhs && dst != rhs) {
-    bind(&true_label);
-  } else {
-    Label end_label;
-    TurboAssembler::Branch(&end_label);
-    bind(&true_label);
-
-    ori(dst, zero_reg, 0x1);
-    bind(&end_label);
-  }
+  // If tmp != dst, result will be moved.
+  TurboAssembler::Move(dst, tmp);
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
