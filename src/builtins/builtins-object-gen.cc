@@ -314,7 +314,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
       TNode<Uint32T> descriptor_index = TNode<Uint32T>::UncheckedCast(
           TruncateIntPtrToInt32(var_descriptor_number.value()));
-      Node* next_key = DescriptorArrayGetKey(descriptors, descriptor_index);
+      Node* next_key = GetKey(descriptors, descriptor_index);
 
       // Skip Symbols.
       GotoIf(IsSymbol(next_key), &loop_condition);
@@ -332,8 +332,8 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
       VARIABLE(var_property_value, MachineRepresentation::kTagged,
                UndefinedConstant());
-      Node* descriptor_name_index = DescriptorArrayToKeyIndex(
-          TruncateIntPtrToInt32(var_descriptor_number.value()));
+      TNode<IntPtrT> descriptor_name_index = ToKeyIndex<DescriptorArray>(
+          Unsigned(TruncateIntPtrToInt32(var_descriptor_number.value())));
 
       // Let value be ? Get(O, key).
       LoadPropertyFromFastObject(object, map, descriptors,

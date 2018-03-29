@@ -541,8 +541,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     Label next_proto(this);
     {
       Label found(this), found_fast(this), found_dict(this), found_global(this);
-      VARIABLE(var_meta_storage, MachineRepresentation::kTagged);
-      VARIABLE(var_entry, MachineType::PointerRepresentation());
+      TVARIABLE(HeapObject, var_meta_storage);
+      TVARIABLE(IntPtrT, var_entry);
       TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
                         &found_dict, &found_global, &var_meta_storage,
                         &var_entry, &next_proto, bailout);
@@ -626,7 +626,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Comment("fast property store");
     Node* descriptors = LoadMapDescriptors(receiver_map);
     Label descriptor_found(this), lookup_transition(this);
-    VARIABLE(var_name_index, MachineType::PointerRepresentation());
+    TVARIABLE(IntPtrT, var_name_index);
     Label* notfound = use_stub_cache == kUseStubCache ? &stub_cache : slow;
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
                      &var_name_index, &lookup_transition);

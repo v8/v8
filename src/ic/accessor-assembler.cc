@@ -2060,7 +2060,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Node* descriptors = LoadMapDescriptors(receiver_map);
 
   Label if_descriptor_found(this), stub_cache(this);
-  VARIABLE(var_name_index, MachineType::PointerRepresentation());
+  TVARIABLE(IntPtrT, var_name_index);
   Label* notfound =
       use_stub_cache == kUseStubCache ? &stub_cache : &lookup_prototype_chain;
   DescriptorLookup(p->name, descriptors, bitfield3, &if_descriptor_found,

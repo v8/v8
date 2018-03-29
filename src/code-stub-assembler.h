@@ -1706,7 +1706,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void TryLookupProperty(Node* object, Node* map, Node* instance_type,
                          Node* unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
-                         Variable* var_meta_storage, Variable* var_name_index,
+                         TVariable<HeapObject>* var_meta_storage,
+                         TVariable<IntPtrT>* var_name_index,
                          Label* if_not_found, Label* if_bailout);
 
   // This method jumps to if_found if the element is known to exist. To
@@ -2010,22 +2011,44 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void PerformStackCheck(Node* context);
 
  protected:
-  void DescriptorLookup(Node* unique_name, Node* descriptors, Node* bitfield3,
-                        Label* if_found, Variable* var_name_index,
+  // Implements DescriptorArray::Search().
+  void DescriptorLookup(SloppyTNode<Name> unique_name,
+                        SloppyTNode<DescriptorArray> descriptors,
+                        SloppyTNode<Uint32T> bitfield3, Label* if_found,
+                        TVariable<IntPtrT>* var_name_index,
                         Label* if_not_found);
-  void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,
-                              Label* if_found, Variable* var_name_index,
-                              Label* if_not_found);
-  void DescriptorLookupBinary(Node* unique_name, Node* descriptors, Node* nof,
-                              Label* if_found, Variable* var_name_index,
-                              Label* if_not_found);
-  Node* DescriptorNumberToIndex(SloppyTNode<Uint32T> descriptor_number);
-  // Implements DescriptorArray::ToKeyIndex.
-  // Returns an untagged IntPtr.
-  Node* DescriptorArrayToKeyIndex(Node* descriptor_number);
-  // Implements DescriptorArray::GetKey.
-  Node* DescriptorArrayGetKey(Node* descriptors, Node* descriptor_number);
-  // Implements DescriptorArray::GetKey.
+
+  // Implements generic search procedure like i::Search<Array>().
+  template <typename Array>
+  void Lookup(TNode<Name> unique_name, TNode<Array> array,
+              TNode<Uint32T> number_of_valid_entries, Label* if_found,
+              TVariable<IntPtrT>* var_name_index, Label* if_not_found);
+
+  // Implements generic linear search procedure like i::LinearSearch<Array>().
+  template <typename Array>
+  void LookupLinear(TNode<Name> unique_name, TNode<Array> array,
+                    TNode<Uint32T> number_of_valid_entries, Label* if_found,
+                    TVariable<IntPtrT>* var_name_index, Label* if_not_found);
+
+  // Implements generic binary search procedure like i::BinarySearch<Array>().
+  template <typename Array>
+  void LookupBinary(TNode<Name> unique_name, TNode<Array> array,
+                    TNode<Uint32T> number_of_valid_entries, Label* if_found,
+                    TVariable<IntPtrT>* var_name_index, Label* if_not_found);
+
+  // Converts [Descriptor/Transition]Array entry number to a fixed array index.
+  template <typename Array>
+  TNode<IntPtrT> EntryIndexToIndex(TNode<Uint32T> entry_index);
+
+  // Implements [Descriptor/Transition]Array::ToKeyIndex.
+  template <typename Array>
+  TNode<IntPtrT> ToKeyIndex(TNode<Uint32T> entry_index);
+
+  // Implements [Descriptor/Transition]Array::GetKey.
+  template <typename Array>
+  TNode<Name> GetKey(TNode<Array> array, TNode<Uint32T> entry_index);
+
+  // Implements DescriptorArray::GetDetails.
   TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
                                            TNode<Uint32T> descriptor_number);
 
@@ -2079,13 +2102,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* SelectImpl(TNode<BoolT> condition, const NodeGenerator& true_body,
                    const NodeGenerator& false_body, MachineRepresentation rep);
 
-  // Implements DescriptorArray::number_of_entries.
-  // Returns an untagged int32.
-  Node* DescriptorArrayNumberOfEntries(Node* descriptors);
-  // Implements DescriptorArray::GetSortedKeyIndex.
-  // Returns an untagged int32.
-  Node* DescriptorArrayGetSortedKeyIndex(Node* descriptors,
-                                         Node* descriptor_number);
+  // Implements [Descriptor/Transition]Array::number_of_entries.
+  template <typename Array>
+  TNode<Uint32T> NumberOfEntries(TNode<Array> array);
+
+  // Implements [Descriptor/Transition]Array::GetSortedKeyIndex.
+  template <typename Array>
+  TNode<Uint32T> GetSortedKeyIndex(TNode<Array> descriptors,
+                                   TNode<Uint32T> entry_index);
 
   Node* CollectFeedbackForString(Node* instance_type);
   void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
