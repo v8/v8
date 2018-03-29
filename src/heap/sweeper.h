@@ -51,7 +51,8 @@ class Sweeper {
     void FilterOldSpaceSweepingPages(Callback callback) {
       if (!sweeping_in_progress_) return;
 
-      SweepingList* sweeper_list = &sweeper_->sweeping_list_[OLD_SPACE];
+      SweepingList* sweeper_list =
+          &sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)];
       // Iteration here is from most free space to least free space.
       for (auto it = old_space_sweeping_list_.begin();
            it != old_space_sweeping_list_.end(); it++) {
@@ -123,7 +124,8 @@ class Sweeper {
   class IterabilityTask;
   class SweeperTask;
 
-  static const int kNumberOfSweepingSpaces = LAST_GROWABLE_PAGED_SPACE + 1;
+  static const int kNumberOfSweepingSpaces =
+      LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
   static const int kMaxSweeperTasks = 3;
 
   template <typename Callback>
@@ -162,9 +164,14 @@ class Sweeper {
     return space == NEW_SPACE || space == RO_SPACE;
   }
 
-  bool IsValidSweepingSpace(AllocationSpace space) {
+  static bool IsValidSweepingSpace(AllocationSpace space) {
     return space >= FIRST_GROWABLE_PAGED_SPACE &&
            space <= LAST_GROWABLE_PAGED_SPACE;
+  }
+
+  static int GetSweepSpaceIndex(AllocationSpace space) {
+    DCHECK(IsValidSweepingSpace(space));
+    return space - FIRST_GROWABLE_PAGED_SPACE;
   }
 
   Heap* const heap_;
