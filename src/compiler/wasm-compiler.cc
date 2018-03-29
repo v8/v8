@@ -3168,7 +3168,8 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
 
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-    if (function->shared()->internal_formal_parameter_count() == wasm_count) {
+    if (function->shared()->internal_formal_parameter_count() == wasm_count &&
+        !IsClassConstructor(function->shared()->kind())) {
       int pos = 0;
       args[pos++] =
           LoadImportData(index, kFunction, table);  // target callable.
