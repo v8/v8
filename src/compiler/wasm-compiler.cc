@@ -3160,7 +3160,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     return false;
   }
 
-  Node** args = Buffer(wasm_count + 7);
+  Node** args = Buffer(wasm_count + 9);
 
   Node* call = nullptr;
 
@@ -3168,41 +3168,71 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
 
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-    if (function->shared()->internal_formal_parameter_count() == wasm_count &&
-        !IsClassConstructor(function->shared()->kind())) {
-      int pos = 0;
-      args[pos++] =
-          LoadImportData(index, kFunction, table);  // target callable.
-      // Receiver.
-      if (is_sloppy(function->shared()->language_mode()) &&
-          !function->shared()->native()) {
-        args[pos++] = LoadImportData(index, kGlobalProxy, table);
-      } else {
-        args[pos++] = jsgraph()->Constant(
-            handle(isolate->heap()->undefined_value(), isolate));
+    if (!IsClassConstructor(function->shared()->kind())) {
+      if (function->shared()->internal_formal_parameter_count() == wasm_count) {
+        int pos = 0;
+        args[pos++] =
+            LoadImportData(index, kFunction, table);  // target callable.
+        // Receiver.
+        if (is_sloppy(function->shared()->language_mode()) &&
+            !function->shared()->native()) {
+          args[pos++] = LoadImportData(index, kGlobalProxy, table);
+        } else {
+          args[pos++] = jsgraph()->Constant(
+              handle(isolate->heap()->undefined_value(), isolate));
+        }
+
+        call_descriptor = Linkage::GetJSCallDescriptor(
+            graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
+
+        // Convert wasm numbers to JS values.
+        pos = AddParameterNodes(args, pos, wasm_count, sig_);
+
+        args[pos++] = jsgraph()->UndefinedConstant();        // new target
+        args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
+        args[pos++] = LoadImportData(index, kFunctionContext, table);
+        args[pos++] = *effect_;
+        args[pos++] = *control_;
+
+        call = graph()->NewNode(jsgraph()->common()->Call(call_descriptor), pos,
+                                args);
+      } else if (function->shared()->internal_formal_parameter_count() >= 0) {
+        Callable callable = CodeFactory::ArgumentAdaptor(isolate);
+        int pos = 0;
+        args[pos++] = jsgraph()->HeapConstant(callable.code());
+        args[pos++] =
+            LoadImportData(index, kFunction, table);         // target callable
+        args[pos++] = jsgraph()->UndefinedConstant();        // new target
+        args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
+        args[pos++] = jsgraph()->Int32Constant(
+            function->shared()->internal_formal_parameter_count());
+        // Receiver.
+        if (is_sloppy(function->shared()->language_mode()) &&
+            !function->shared()->native()) {
+          args[pos++] = LoadImportData(index, kGlobalProxy, table);
+        } else {
+          args[pos++] = jsgraph()->Constant(
+              handle(isolate->heap()->undefined_value(), isolate));
+        }
+
+        // Convert wasm numbers to JS values.
+        pos = AddParameterNodes(args, pos, wasm_count, sig_);
+        args[pos++] = LoadImportData(index, kFunctionContext, table);
+        args[pos++] = *effect_;
+        args[pos++] = *control_;
+        call = graph()->NewNode(
+            jsgraph()->common()->Call(Linkage::GetStubCallDescriptor(
+                isolate, jsgraph()->zone(), callable.descriptor(),
+                1 + wasm_count, CallDescriptor::kNoFlags)),
+            pos, args);
       }
-
-      call_descriptor = Linkage::GetJSCallDescriptor(
-          graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
-
-      // Convert wasm numbers to JS values.
-      pos = AddParameterNodes(args, pos, wasm_count, sig_);
-
-      args[pos++] = jsgraph()->UndefinedConstant();        // new target
-      args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
-      args[pos++] = LoadImportData(index, kFunctionContext, table);
-      args[pos++] = *effect_;
-      args[pos++] = *control_;
-
-      call = graph()->NewNode(jsgraph()->common()->Call(call_descriptor), pos,
-                              args);
     }
   }
 
-  // We cannot call the target directly, we have to use the Call builtin.
   Node* native_context = nullptr;
   if (!call) {
     int pos = 0;
+    // We cannot call the target directly, we have to use the Call builtin.
     Callable callable = CodeFactory::Call(isolate);
     args[pos++] = jsgraph()->HeapConstant(callable.code());
     args[pos++] = LoadImportData(index, kFunction, table);  // target callable.
@@ -4790,7 +4820,6 @@ Handle<Code> CompileWasmToJSWrapper(
           function->context()->global_proxy());
     }
   }
-
   if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
     OFStream os(stdout);
     os << "-- Graph after change lowering -- " << std::endl;
@@ -4824,11 +4853,11 @@ Handle<Code> CompileWasmToJSWrapper(
   deopt_data->set(1, *index_handle);
   code->set_deoptimization_data(*deopt_data);
 #ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_opt_code && !code.is_null()) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      code->Disassemble(func_name.start(), os);
-    }
+  if (FLAG_print_opt_code && !code.is_null()) {
+    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    code->Disassemble(func_name.start(), os);
+  }
 #endif
 
   if (must_record_function_compilation(isolate)) {
