@@ -96,13 +96,6 @@ class SharedFunctionInfo : public HeapObject {
   // value if it isn't yet known.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
 
-  // [construct stub]: Code stub for constructing instances of this function.
-  DECL_ACCESSORS(construct_stub, Code)
-
-  // Sets the given code as the construct stub, and marks builtin code objects
-  // as a construct stub.
-  void SetConstructStub(Code* code);
-
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled() const;
 
@@ -386,6 +379,15 @@ class SharedFunctionInfo : public HeapObject {
   // Sets the expected number of properties based on estimate from parser.
   void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
 
+  inline bool construct_as_builtin() const;
+
+  // Determines and sets the ConstructAsBuiltinBit in |flags|, based on the
+  // |function_data|. Must be called when creating the SFI after other fields
+  // are initialized. The ConstructAsBuiltinBit determines whether
+  // JSBuiltinsConstructStub or JSConstructStubGeneric should be called to
+  // construct this function.
+  inline void CalculateConstructAsBuiltin();
+
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
@@ -444,7 +446,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kFunctionDataOffset, kPointerSize)        \
   V(kNameOrScopeInfoOffset, kPointerSize)     \
   V(kOuterScopeInfoOffset, kPointerSize)      \
-  V(kConstructStubOffset, kPointerSize)       \
   V(kScriptOffset, kPointerSize)              \
   V(kDebugInfoOffset, kPointerSize)           \
   V(kFunctionIdentifierOffset, kPointerSize)  \
@@ -499,7 +500,8 @@ class SharedFunctionInfo : public HeapObject {
   V(IsAsmWasmBrokenBit, bool, 1, _)                      \
   V(FunctionMapIndexBits, int, 5, _)                     \
   V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
-  V(RequiresInstanceFieldsInitializer, bool, 1, _)
+  V(RequiresInstanceFieldsInitializer, bool, 1, _)       \
+  V(ConstructAsBuiltinBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS

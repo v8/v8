@@ -1561,8 +1561,6 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type* target_type = NodeProperties::GetType(target);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   // Check if {target} is a known JSFunction.
   if (target_type->IsHeapConstant() &&
@@ -1570,44 +1568,31 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
-    const int builtin_index = shared->construct_stub()->builtin_index();
-    const bool is_builtin = (builtin_index != -1);
 
     // Only optimize [[Construct]] here if {function} is a Constructor.
     if (!function->IsConstructor()) return NoChange();
 
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
-    if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
-        !NeedsArgumentAdaptorFrame(shared, arity)) {
-      // Patch {node} to a direct CEntryStub call.
+    // Patch {node} to an indirect call via the {function}s construct stub.
+    bool use_builtin_construct_stub = shared->construct_as_builtin();
 
-      // Load the context from the {target}.
-      Node* context = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
-          target, effect, control);
-      NodeProperties::ReplaceContextInput(node, context);
+    Handle<Code> code =
+        use_builtin_construct_stub
+            ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
+            : BUILTIN_CODE(isolate(), JSConstructStubGenericUnrestrictedReturn);
 
-      // Update the effect dependency for the {node}.
-      NodeProperties::ReplaceEffectInput(node, effect);
+    node->RemoveInput(arity + 1);
+    node->InsertInput(graph()->zone(), 0, jsgraph()->HeapConstant(code));
+    node->InsertInput(graph()->zone(), 2, new_target);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+    node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(),
+                  ConstructStubDescriptor(isolate()), 1 + arity, flags)));
 
-      ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
-    } else {
-      // Patch {node} to an indirect call via the {function}s construct stub.
-      Callable callable(handle(shared->construct_stub(), isolate()),
-                        ConstructStubDescriptor(isolate()));
-      node->RemoveInput(arity + 1);
-      node->InsertInput(graph()->zone(), 0,
-                        jsgraph()->HeapConstant(callable.code()));
-      node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-      node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
-      NodeProperties::ChangeOp(
-          node, common()->Call(Linkage::GetStubCallDescriptor(
-                    isolate(), graph()->zone(), callable.descriptor(),
-                    1 + arity, flags)));
-    }
     return Changed(node);
   }
 

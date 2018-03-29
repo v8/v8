@@ -25,7 +25,6 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
-ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
@@ -159,6 +158,26 @@ void SharedFunctionInfo::set_needs_home_object(bool value) {
   hints = NeedsHomeObjectBit::update(hints, value);
   set_flags(hints);
   UpdateFunctionMapIndex();
+}
+
+bool SharedFunctionInfo::construct_as_builtin() const {
+  return ConstructAsBuiltinBit::decode(flags());
+}
+
+void SharedFunctionInfo::CalculateConstructAsBuiltin() {
+  bool uses_builtins_construct_stub = false;
+  if (HasBuiltinId()) {
+    int id = builtin_id();
+    if (id != Builtins::kCompileLazy && id != Builtins::kEmptyFunction) {
+      uses_builtins_construct_stub = true;
+    }
+  } else if (IsApiFunction()) {
+    uses_builtins_construct_stub = true;
+  }
+
+  int f = flags();
+  f = ConstructAsBuiltinBit::update(f, uses_builtins_construct_stub);
+  set_flags(f);
 }
 
 int SharedFunctionInfo::function_map_index() const {
