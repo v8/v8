@@ -1181,7 +1181,12 @@ void SimdScalarLowering::LowerNode(Node* node) {
       Node** rep_node = zone()->NewArray<Node*>(16);
       for (int i = 0; i < 16; i++) {
         int lane = shuffle[i];
+#if defined(V8_TARGET_BIG_ENDIAN)
+        rep_node[15 - i] =
+            lane < 16 ? rep_left[15 - lane] : rep_right[31 - lane];
+#else
         rep_node[i] = lane < 16 ? rep_left[lane] : rep_right[lane - 16];
+#endif
       }
       ReplaceNode(node, rep_node, 16);
       break;
