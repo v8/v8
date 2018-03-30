@@ -2698,7 +2698,7 @@ v8_component("v8_libbase") {
     defines = [ "BUILDING_V8_BASE_SHARED" ]
   }
 
-  if (is_posix) {
+  if (is_posix || is_fuchsia) {
     sources += [
       "src/base/platform/platform-posix.cc",
       "src/base/platform/platform-posix.h",
@@ -3143,7 +3143,7 @@ v8_executable("d8") {
     "//build/win:default_exe_manifest",
   ]
 
-  if (is_posix) {
+  if (is_posix || is_fuchsia) {
     sources += [ "src/d8-posix.cc" ]
   } else if (is_win) {
     sources += [ "src/d8-windows.cc" ]
