@@ -352,6 +352,21 @@
       ]
     },
     {
+      "name": "ObjectLiteralSpread",
+      "path": ["ObjectLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ObjectLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "BabelAndOverwrite"},
+        {"name": "ObjectAssign"},
+        {"name": "ObjectAssignAndOverwrite"},
+        {"name": "ObjectSpread"},
+        {"name": "ObjectSpreadAndOverwrite"}
+      ]
+    },
+    {
       "name": "Scope",
       "path": ["Scope"],
       "main": "run.js",
