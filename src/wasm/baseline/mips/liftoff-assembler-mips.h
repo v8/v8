@@ -645,10 +645,56 @@ void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
   and_(dst, dst, tmp);
 }
 
+namespace liftoff {
+inline Condition cond_make_unsigned(Condition cond) {
+  switch (cond) {
+    case kSignedLessThan:
+      return kUnsignedLessThan;
+    case kSignedLessEqual:
+      return kUnsignedLessEqual;
+    case kSignedGreaterThan:
+      return kUnsignedGreaterThan;
+    case kSignedGreaterEqual:
+      return kUnsignedGreaterEqual;
+    default:
+      return cond;
+  }
+}
+}  // namespace liftoff
+
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  BAILOUT("emit_i64_set_cond");
+  Label low, cont;
+
+  // For signed i64 comparisons, we still need to use unsigned comparison for
+  // the low word (the only bit carrying signedness information is the MSB in
+  // the high word).
+  Condition unsigned_cond = liftoff::cond_make_unsigned(cond);
+
+  Register tmp = dst;
+  if (liftoff::IsRegInRegPair(lhs, dst) || liftoff::IsRegInRegPair(rhs, dst)) {
+    tmp =
+        GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, lhs, rhs)).gp();
+  }
+
+  // Write 1 initially in tmp register.
+  TurboAssembler::li(tmp, 1);
+
+  // If high words are equal, then compare low words, else compare high.
+  Branch(&low, eq, lhs.high_gp(), Operand(rhs.high_gp()));
+
+  TurboAssembler::LoadZeroOnCondition(
+      tmp, lhs.high_gp(), Operand(rhs.high_gp()), NegateCondition(cond));
+  Branch(&cont);
+
+  bind(&low);
+  TurboAssembler::LoadZeroOnCondition(tmp, lhs.low_gp(), Operand(rhs.low_gp()),
+                                      NegateCondition(unsigned_cond));
+
+  bind(&cont);
+  // Move result to dst register if needed.
+  TurboAssembler::Move(dst, tmp);
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
