@@ -3189,6 +3189,18 @@ Handle<JSPromise> Factory::NewJSPromise(PretenureFlag pretenure) {
   return promise;
 }
 
+Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
+  Handle<Map> map = has_no_side_effect
+                        ? side_effect_free_call_handler_info_map()
+                        : side_effect_call_handler_info_map();
+  Handle<CallHandlerInfo> info = New<CallHandlerInfo>(map, OLD_SPACE);
+  Object* undefined_value = isolate()->heap()->undefined_value();
+  info->set_callback(undefined_value);
+  info->set_js_callback(undefined_value);
+  info->set_data(undefined_value);
+  return info;
+}
+
 // static
 NewFunctionArgs NewFunctionArgs::ForWasm(Handle<String> name, Handle<Code> code,
                                          Handle<Map> map) {

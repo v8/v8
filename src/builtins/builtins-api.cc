@@ -277,7 +277,6 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   {
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
-
     FunctionCallbackArguments custom(isolate, call_data->data(), constructor,
                                      obj, new_target, &args[0] - 1,
                                      args.length() - 1);

@@ -422,6 +422,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SCRIPT_CONTEXT_TYPE)                                        \
   V(WITH_CONTEXT_TYPE)                                          \
                                                                 \
+  V(CALL_HANDLER_INFO_TYPE)                                     \
   V(CELL_TYPE)                                                  \
   V(CODE_DATA_CONTAINER_TYPE)                                   \
   V(FEEDBACK_CELL_TYPE)                                         \
@@ -786,6 +787,7 @@ enum InstanceType : uint16_t {
   WITH_CONTEXT_TYPE,  // LAST_FIXED_ARRAY_TYPE, LAST_CONTEXT_TYPE
 
   // Misc.
+  CALL_HANDLER_INFO_TYPE,
   CELL_TYPE,
   CODE_DATA_CONTAINER_TYPE,
   FEEDBACK_CELL_TYPE,
@@ -4633,6 +4635,12 @@ class CallHandlerInfo : public Tuple3 {
   DECL_ACCESSORS(data, Object)
 
   DECL_CAST(CallHandlerInfo)
+
+  inline bool IsSideEffectFreeCallHandlerInfo() const;
+
+  // Dispatched behavior.
+  DECL_PRINTER(CallHandlerInfo)
+  DECL_VERIFIER(CallHandlerInfo)
 
   Address redirected_callback() const;
 

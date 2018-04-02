@@ -129,6 +129,9 @@ using v8::MemoryPressureLevel;
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
   V(Map, property_array_map, PropertyArrayMap)                                 \
+  V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
+  V(Map, side_effect_free_call_handler_info_map,                               \
+    SideEffectFreeCallHandlerInfoMap)                                          \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \

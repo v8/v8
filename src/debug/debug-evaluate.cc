@@ -859,7 +859,6 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
   }
 
   DCHECK(info->is_compiled());
-
   if (info->HasBytecodeArray()) {
     // Check bytecodes against whitelist.
     Handle<BytecodeArray> bytecode_array(info->bytecode_array());
@@ -883,6 +882,10 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
       return false;
     }
     return true;
+  } else if (info->IsApiFunction()) {
+    if (info->GetCode()->is_builtin()) {
+      return info->GetCode()->builtin_index() == Builtins::kHandleApiCall;
+    }
   } else {
     // Check built-ins against whitelist.
     int builtin_index =
@@ -944,6 +947,12 @@ bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
     if (info->has_no_side_effect()) return true;
     if (FLAG_trace_side_effect_free_debug_evaluate) {
       PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
+    }
+  } else if (callback_info->IsCallHandlerInfo()) {
+    CallHandlerInfo* info = CallHandlerInfo::cast(callback_info);
+    if (info->IsSideEffectFreeCallHandlerInfo()) return true;
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
     }
   }
   return false;

@@ -347,6 +347,11 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
     native_context_map()->set_visitor_id(kVisitNativeContext);
 
+    ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
+                 side_effect_call_handler_info)
+    ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
+                 side_effect_free_call_handler_info)
+
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
 

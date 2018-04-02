@@ -668,6 +668,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       } else {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }
+    case CALL_HANDLER_INFO_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
       return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);

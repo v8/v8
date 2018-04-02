@@ -882,6 +882,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSPromise> NewJSPromise(PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
+
  private:
   Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }
 
