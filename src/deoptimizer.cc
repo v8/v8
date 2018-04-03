@@ -1370,16 +1370,20 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 //    |           ...           |
 //    +-------------------------+
 //    |     builtin param m     |<- FrameState input value n+m-1, or in
-//    +-------------------------+   the LAZY case, return LAZY result value
+//    +-----needs-alignment-----+   the LAZY case, return LAZY result value
 //    | ContinueToBuiltin entry |
 //    +-------------------------+
 // |  |    saved frame (FP)     |
-// |  +=========================+<- fpreg
+// |  +=====needs=alignment=====+<- fpreg
 // |  |constant pool (if ool_cp)|
 // v  +-------------------------+
 //    |BUILTIN_CONTINUATION mark|
 //    +-------------------------+
-//    |  JS Builtin code object |
+//    |  JSFunction (or zero)   |<- only if JavaScript builtin
+//    +-------------------------+
+//    |  frame height above FP  |
+//    +-------------------------+
+//    |     builtin address     |
 //    +-------------------------+
 //    | builtin input GPR reg0  |<- populated from deopt FrameState using
 //    +-------------------------+   the builtin's CallInterfaceDescriptor
@@ -1388,11 +1392,11 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 //    | builtin input GPR regn  |
 //    +-------------------------+
 //    | reg padding (arch dept) |
-//    +-------------------------+
+//    +-----needs--alignment----+
 //    | res padding (arch dept) |<- only if {is_topmost}; result is pop'd by
 //    +-------------------------+<- kNotifyDeopt ASM stub and moved to acc
 //    |      result  value      |<- reg, as ContinueToBuiltin stub expects.
-//    +-------------------------+<- spreg
+//    +-----needs-alignment-----+<- spreg
 //
 void Deoptimizer::DoComputeBuiltinContinuation(
     TranslatedFrame* translated_frame, int frame_index,
@@ -1402,7 +1406,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   // The output frame must have room for all of the parameters that need to be
   // passed to the builtin continuation.
-  int height_in_words = translated_frame->height();
+  const int height_in_words = translated_frame->height();
 
   BailoutId bailout_id = translated_frame->node_id();
   Builtins::Name builtin_name = Builtins::GetBuiltinFromBailoutId(bailout_id);
@@ -1413,35 +1417,47 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   CallInterfaceDescriptor continuation_descriptor =
       continuation_callable.descriptor();
 
-  bool is_bottommost = (0 == frame_index);
-  bool is_topmost = (output_count_ - 1 == frame_index);
-  bool must_handle_result = !is_topmost || bailout_type_ == LAZY;
+  const bool is_bottommost = (0 == frame_index);
+  const bool is_topmost = (output_count_ - 1 == frame_index);
+  const bool must_handle_result = !is_topmost || bailout_type_ == LAZY;
 
   const RegisterConfiguration* config(RegisterConfiguration::Default());
-  int allocatable_register_count = config->num_allocatable_general_registers();
-  int padding_slot_count = BuiltinContinuationFrameConstants::PaddingSlotCount(
-      allocatable_register_count);
+  const int allocatable_register_count =
+      config->num_allocatable_general_registers();
+  const int padding_slot_count =
+      BuiltinContinuationFrameConstants::PaddingSlotCount(
+          allocatable_register_count);
 
-  int register_parameter_count =
+  const int register_parameter_count =
       continuation_descriptor.GetRegisterParameterCount();
   // Make sure to account for the context by removing it from the register
   // parameter count.
-  int stack_param_count = height_in_words - register_parameter_count - 1;
-  if (must_handle_result) stack_param_count++;
-  unsigned output_frame_size =
-      kPointerSize * (stack_param_count + allocatable_register_count +
-                      padding_slot_count) +
-      BuiltinContinuationFrameConstants::kFixedFrameSize;
+  const int translated_stack_parameters =
+      height_in_words - register_parameter_count - 1;
+  const int stack_param_count =
+      translated_stack_parameters + (must_handle_result ? 1 : 0);
+  const int stack_param_pad_count =
+      ShouldPadArguments(stack_param_count) ? 1 : 0;
 
   // If the builtins frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of callback function to the
   // top of the reconstructed stack and popping it in
   // {Builtins::kNotifyDeoptimized}.
-  if (is_topmost) {
-    output_frame_size += kPointerSize;
-    if (PadTopOfStackRegister()) output_frame_size += kPointerSize;
-  }
+  const int push_result_count =
+      is_topmost ? (PadTopOfStackRegister() ? 2 : 1) : 0;
+
+  const unsigned output_frame_size =
+      kPointerSize * (stack_param_count + stack_param_pad_count +
+                      allocatable_register_count + padding_slot_count +
+                      push_result_count) +
+      BuiltinContinuationFrameConstants::kFixedFrameSize;
+
+  const unsigned output_frame_size_above_fp =
+      kPointerSize * (allocatable_register_count + padding_slot_count +
+                      push_result_count) +
+      (BuiltinContinuationFrameConstants::kFixedFrameSize -
+       BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp);
 
   // Validate types of parameters. They must all be tagged except for argc for
   // JS builtins.
@@ -1470,10 +1486,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
            stack_param_count);
   }
 
-  int translated_stack_parameters =
-      must_handle_result ? stack_param_count - 1 : stack_param_count;
-
-  if (ShouldPadArguments(stack_param_count)) output_frame_size += kPointerSize;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, stack_param_count);
   output_[frame_index] = output_frame;
@@ -1573,6 +1585,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "caller's fp\n");
 
+  DCHECK_EQ(output_frame_size_above_fp, output_frame_offset);
+
   if (FLAG_enable_embedded_constant_pool) {
     // Read the caller's constant pool from the previous frame.
     output_frame_offset -= kPointerSize;
@@ -1603,7 +1617,15 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        java_script_builtin ? "JSFunction\n" : "unused\n");
 
-  // The builtin to continue to
+  // The delta from the SP to the FP; used to reconstruct SP in
+  // Isolate::UnwindAndFindHandler.
+  output_frame_offset -= kPointerSize;
+  value = static_cast<intptr_t>(output_frame_size_above_fp);
+  output_frame->SetFrameSlot(output_frame_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
+                       "frame height at deoptimization\n");
+
+  // The builtin to continue to.
   output_frame_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(builtin);
   output_frame->SetFrameSlot(output_frame_offset, value);
