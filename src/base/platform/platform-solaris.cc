@@ -37,7 +37,8 @@ namespace base {
 class SolarisTimezoneCache : public PosixTimezoneCache {
   const char* LocalTimezone(double time) override;
 
-  double LocalTimeOffset(double time, bool is_utc) override;
+  double LocalTimeOffset() override;
+
   ~SolarisTimezoneCache() override {}
 };
 
@@ -50,7 +51,7 @@ const char* SolarisTimezoneCache::LocalTimezone(double time) {
   return tzname[0];  // The location of the timezone string on Solaris.
 }
 
-double SolarisTimezoneCache::LocalTimeOffset(double time, bool is_utc) {
+double SolarisTimezoneCache::LocalTimeOffset() {
   tzset();
   return -static_cast<double>(timezone * msPerSecond);
 }
