@@ -53,15 +53,11 @@ let workerScript =
   `onmessage = function(msg) {
     let {serialized_m1, m1_bytes} = msg;
 
-    try {
-      let m1_clone = %DeserializeWasmModule(serialized_m1, m1_bytes);
-      let imports = {mod: {get: () => 3, call: () => {}}};
-      let i2 = new WebAssembly.Instance(m1_clone, imports);
-      i2.exports.main();
-      postMessage('done');
-    } catch(e) {
-      postMessage('done w/ exception');
-    }
+    let m1_clone = %DeserializeWasmModule(serialized_m1, m1_bytes);
+    let imports = {mod: {get: () => 3, call: () => {}}};
+    let i2 = new WebAssembly.Instance(m1_clone, imports);
+    i2.exports.main();
+    postMessage('done');
   }`;
 
 let worker = new Worker(workerScript);

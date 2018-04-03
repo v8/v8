@@ -549,6 +549,8 @@ class RelocInfo {
   INLINE(void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_target_external_reference(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.

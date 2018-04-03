@@ -130,8 +130,12 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
 #else
-  rinfo->set_target_address(reinterpret_cast<Address>(tag), SKIP_WRITE_BARRIER,
-                            SKIP_ICACHE_FLUSH);
+  Address addr = reinterpret_cast<Address>(tag);
+  if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
+    rinfo->set_target_external_reference(addr, SKIP_ICACHE_FLUSH);
+  } else {
+    rinfo->set_target_address(addr, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+  }
 #endif
 }
 
@@ -139,8 +143,10 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   return *(reinterpret_cast<uint32_t*>(rinfo->target_address_address()));
 #else
-  return static_cast<uint32_t>(
-      reinterpret_cast<size_t>(rinfo->target_address()));
+  Address addr = rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE
+                     ? rinfo->target_external_reference()
+                     : rinfo->target_address();
+  return static_cast<uint32_t>(reinterpret_cast<size_t>(addr));
 #endif
 }
 
@@ -365,7 +371,8 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
   // now relocate the code
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
   for (RelocIterator
@@ -387,7 +394,16 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
       } break;
       case RelocInfo::RUNTIME_ENTRY: {
         Address orig_target = orig_iter.rinfo()->target_address();
-        uint32_t tag = reference_table_lookup_[orig_target];
+        auto ref_iter = reference_table_lookup_.find(orig_target);
+        DCHECK(ref_iter != reference_table_lookup_.end());
+        uint32_t tag = ref_iter->second;
+        SetWasmCalleeTag(iter.rinfo(), tag);
+      } break;
+      case RelocInfo::EXTERNAL_REFERENCE: {
+        Address orig_target = orig_iter.rinfo()->target_external_reference();
+        auto ref_iter = reference_table_lookup_.find(orig_target);
+        DCHECK(ref_iter != reference_table_lookup_.end());
+        uint32_t tag = ref_iter->second;
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       default:
@@ -565,7 +581,8 @@ bool NativeModuleDeserializer::ReadCode() {
   // now relocate the code
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
              RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
                           ret->constant_pool(), mask);
        !iter.done(); iter.next()) {
@@ -592,8 +609,15 @@ bool NativeModuleDeserializer::ReadCode() {
                                                SKIP_ICACHE_FLUSH);
         break;
       }
-      default:
+      case RelocInfo::EXTERNAL_REFERENCE: {
+        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
+        Address address =
+            isolate_->heap()->external_reference_table()->address(tag);
+        iter.rinfo()->set_target_external_reference(address, SKIP_ICACHE_FLUSH);
         break;
+      }
+      default:
+        UNREACHABLE();
     }
   }
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes

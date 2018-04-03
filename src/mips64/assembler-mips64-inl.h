@@ -185,6 +185,12 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
+void RelocInfo::set_target_external_reference(
+    Address target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   icache_flush_mode);
+}
 
 Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
