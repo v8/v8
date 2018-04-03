@@ -344,13 +344,13 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
       return OLT;
     case kUnsignedGreaterThanOrEqual:
       predicate = false;
-      return ULT;
+      return OLT;
     case kUnsignedLessThanOrEqual:
       predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
       predicate = false;
-      return ULE;
+      return OLE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       predicate = true;
@@ -1331,9 +1331,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 
-    case kMips64CmpS:
-      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here.
-      break;
+    case kMips64CmpS: {
+      FPURegister left = i.InputOrZeroSingleRegister(0);
+      FPURegister right = i.InputOrZeroSingleRegister(1);
+      bool predicate;
+      FPUCondition cc =
+          FlagsConditionToConditionCmpFPU(predicate, instr->flags_condition());
+
+      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
+          !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+
+      __ CompareF32(cc, left, right);
+    } break;
     case kMips64AddS:
       // TODO(plind): add special case: combine mult & add.
       __ add_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1385,9 +1396,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ min_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64CmpD:
-      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here.
-      break;
+    case kMips64CmpD: {
+      FPURegister left = i.InputOrZeroDoubleRegister(0);
+      FPURegister right = i.InputOrZeroDoubleRegister(1);
+      bool predicate;
+      FPUCondition cc =
+          FlagsConditionToConditionCmpFPU(predicate, instr->flags_condition());
+      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
+          !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+      __ CompareF64(cc, left, right);
+    } break;
     case kMips64AddD:
       // TODO(plind): add special case: combine mult & add.
       __ add_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -3061,31 +3081,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   out << "Unsupported " << #opcode << " condition: \"" << condition << "\""; \
   UNIMPLEMENTED();
 
-static bool convertCondition(FlagsCondition condition, Condition& cc) {
-  switch (condition) {
-    case kEqual:
-      cc = eq;
-      return true;
-    case kNotEqual:
-      cc = ne;
-      return true;
-    case kUnsignedLessThan:
-      cc = lt;
-      return true;
-    case kUnsignedGreaterThanOrEqual:
-      cc = uge;
-      return true;
-    case kUnsignedLessThanOrEqual:
-      cc = le;
-      return true;
-    case kUnsignedGreaterThan:
-      cc = ugt;
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
 
 void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Instruction* instr, FlagsCondition condition,
@@ -3141,28 +3136,15 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kMips64Cmp) {
     cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
-  } else if (instr->arch_opcode() == kMips64CmpS) {
-    if (!convertCondition(condition, cc)) {
-      UNSUPPORTED_COND(kMips64CmpS, condition);
+  } else if (instr->arch_opcode() == kMips64CmpS ||
+             instr->arch_opcode() == kMips64CmpD) {
+    bool predicate;
+    FlagsConditionToConditionCmpFPU(predicate, condition);
+    if (predicate) {
+      __ BranchTrueF(tlabel);
+    } else {
+      __ BranchFalseF(tlabel);
     }
-    FPURegister left = i.InputOrZeroSingleRegister(0);
-    FPURegister right = i.InputOrZeroSingleRegister(1);
-    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-        !__ IsDoubleZeroRegSet()) {
-      __ Move(kDoubleRegZero, 0.0);
-    }
-    __ BranchF32(tlabel, nullptr, cc, left, right);
-  } else if (instr->arch_opcode() == kMips64CmpD) {
-    if (!convertCondition(condition, cc)) {
-      UNSUPPORTED_COND(kMips64CmpD, condition);
-    }
-    FPURegister left = i.InputOrZeroDoubleRegister(0);
-    FPURegister right = i.InputOrZeroDoubleRegister(1);
-    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-        !__ IsDoubleZeroRegSet()) {
-      __ Move(kDoubleRegZero, 0.0);
-    }
-    __ BranchF64(tlabel, nullptr, cc, left, right);
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
            instr->arch_opcode());
@@ -3477,15 +3459,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ Move(kDoubleRegZero, 0.0);
     }
     bool predicate;
-    FPUCondition cc = FlagsConditionToConditionCmpFPU(predicate, condition);
+    FlagsConditionToConditionCmpFPU(predicate, condition);
     if (kArchVariant != kMips64r6) {
       __ li(result, Operand(1));
-      if (instr->arch_opcode() == kMips64CmpD) {
-        __ c(cc, D, left, right);
-      } else {
-        DCHECK_EQ(kMips64CmpS, instr->arch_opcode());
-        __ c(cc, S, left, right);
-      }
       if (predicate) {
         __ Movf(result, zero_reg);
       } else {
@@ -3493,11 +3469,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       }
     } else {
       if (instr->arch_opcode() == kMips64CmpD) {
-        __ cmp(cc, L, kDoubleCompareReg, left, right);
         __ dmfc1(result, kDoubleCompareReg);
       } else {
         DCHECK_EQ(kMips64CmpS, instr->arch_opcode());
-        __ cmp(cc, W, kDoubleCompareReg, left, right);
         __ mfc1(result, kDoubleCompareReg);
       }
       if (predicate) {

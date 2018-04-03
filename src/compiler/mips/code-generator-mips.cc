@@ -331,13 +331,13 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
       return OLT;
     case kUnsignedGreaterThanOrEqual:
       predicate = false;
-      return ULT;
+      return OLT;
     case kUnsignedLessThanOrEqual:
       predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
       predicate = false;
-      return ULE;
+      return OLE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       predicate = true;
@@ -348,6 +348,11 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
   }
   UNREACHABLE();
 }
+
+#define UNSUPPORTED_COND(opcode, condition)                                  \
+  OFStream out(stdout);                                                      \
+  out << "Unsupported " << #opcode << " condition: \"" << condition << "\""; \
+  UNIMPLEMENTED();
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
@@ -1185,9 +1190,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Lsa(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
              i.InputInt8(2));
       break;
-    case kMipsCmpS:
-      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here.
-      break;
+    case kMipsCmpS: {
+      FPURegister left = i.InputOrZeroSingleRegister(0);
+      FPURegister right = i.InputOrZeroSingleRegister(1);
+      bool predicate;
+      FPUCondition cc =
+          FlagsConditionToConditionCmpFPU(predicate, instr->flags_condition());
+
+      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
+          !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+
+      __ CompareF32(cc, left, right);
+    } break;
     case kMipsAddS:
       // TODO(plind): add special case: combine mult & add.
       __ add_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1235,9 +1251,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ min_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMipsCmpD:
-      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here.
-      break;
+    case kMipsCmpD: {
+      FPURegister left = i.InputOrZeroDoubleRegister(0);
+      FPURegister right = i.InputOrZeroDoubleRegister(1);
+      bool predicate;
+      FPUCondition cc =
+          FlagsConditionToConditionCmpFPU(predicate, instr->flags_condition());
+      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
+          !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+      __ CompareF64(cc, left, right);
+    } break;
     case kMipsAddPair:
       __ AddPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
                  i.InputRegister(1), i.InputRegister(2), i.InputRegister(3));
@@ -2838,37 +2863,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 }  // NOLINT(readability/fn_size)
 
 
-#define UNSUPPORTED_COND(opcode, condition)                                  \
-  OFStream out(stdout);                                                      \
-  out << "Unsupported " << #opcode << " condition: \"" << condition << "\""; \
-  UNIMPLEMENTED();
-
-static bool convertCondition(FlagsCondition condition, Condition& cc) {
-  switch (condition) {
-    case kEqual:
-      cc = eq;
-      return true;
-    case kNotEqual:
-      cc = ne;
-      return true;
-    case kUnsignedLessThan:
-      cc = lt;
-      return true;
-    case kUnsignedGreaterThanOrEqual:
-      cc = uge;
-      return true;
-    case kUnsignedLessThanOrEqual:
-      cc = le;
-      return true;
-    case kUnsignedGreaterThan:
-      cc = ugt;
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
-
 void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Instruction* instr, FlagsCondition condition,
                             Label* tlabel, Label* flabel, bool fallthru) {
@@ -2917,28 +2911,15 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kMipsCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
-  } else if (instr->arch_opcode() == kMipsCmpS) {
-    if (!convertCondition(condition, cc)) {
-      UNSUPPORTED_COND(kMips64CmpS, condition);
+  } else if (instr->arch_opcode() == kMipsCmpS ||
+             instr->arch_opcode() == kMipsCmpD) {
+    bool predicate;
+    FlagsConditionToConditionCmpFPU(predicate, condition);
+    if (predicate) {
+      __ BranchTrueF(tlabel);
+    } else {
+      __ BranchFalseF(tlabel);
     }
-    FPURegister left = i.InputOrZeroSingleRegister(0);
-    FPURegister right = i.InputOrZeroSingleRegister(1);
-    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-        !__ IsDoubleZeroRegSet()) {
-      __ Move(kDoubleRegZero, 0.0);
-    }
-    __ BranchF32(tlabel, nullptr, cc, left, right);
-  } else if (instr->arch_opcode() == kMipsCmpD) {
-    if (!convertCondition(condition, cc)) {
-      UNSUPPORTED_COND(kMips64CmpD, condition);
-    }
-    FPURegister left = i.InputOrZeroDoubleRegister(0);
-    FPURegister right = i.InputOrZeroDoubleRegister(1);
-    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-        !__ IsDoubleZeroRegSet()) {
-      __ Move(kDoubleRegZero, 0.0);
-    }
-    __ BranchF64(tlabel, nullptr, cc, left, right);
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
            instr->arch_opcode());
@@ -3226,27 +3207,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ Move(kDoubleRegZero, 0.0);
     }
     bool predicate;
-    FPUCondition cc = FlagsConditionToConditionCmpFPU(predicate, condition);
+    FlagsConditionToConditionCmpFPU(predicate, condition);
     if (!IsMipsArchVariant(kMips32r6)) {
       __ li(result, Operand(1));
-      if (instr->arch_opcode() == kMipsCmpD) {
-        __ c(cc, D, left, right);
-      } else {
-        DCHECK_EQ(kMipsCmpS, instr->arch_opcode());
-        __ c(cc, S, left, right);
-      }
       if (predicate) {
         __ Movf(result, zero_reg);
       } else {
         __ Movt(result, zero_reg);
       }
     } else {
-      if (instr->arch_opcode() == kMipsCmpD) {
-        __ cmp(cc, L, kDoubleCompareReg, left, right);
-      } else {
-        DCHECK_EQ(kMipsCmpS, instr->arch_opcode());
-        __ cmp(cc, W, kDoubleCompareReg, left, right);
-      }
       __ mfc1(result, kDoubleCompareReg);
       if (predicate) {
         __ And(result, result, 1);  // cmp returns all 1's/0's, use only LSB.

@@ -210,30 +210,30 @@ class TurboAssembler : public Assembler {
 #undef COND_TYPED_ARGS
 #undef COND_ARGS
 
-  // Wrapper functions for the different cmp/branch types.
-  inline void BranchF32(Label* target, Label* nan, Condition cc,
-                        FPURegister cmp1, FPURegister cmp2,
-                        BranchDelaySlot bd = PROTECT) {
-    BranchFCommon(S, target, nan, cc, cmp1, cmp2, bd);
+  // Floating point branches
+  void CompareF32(FPUCondition cc, FPURegister cmp1, FPURegister cmp2) {
+    CompareF(S, cc, cmp1, cmp2);
   }
 
-  inline void BranchF64(Label* target, Label* nan, Condition cc,
-                        FPURegister cmp1, FPURegister cmp2,
-                        BranchDelaySlot bd = PROTECT) {
-    BranchFCommon(D, target, nan, cc, cmp1, cmp2, bd);
+  void CompareIsNanF32(FPURegister cmp1, FPURegister cmp2) {
+    CompareIsNanF(S, cmp1, cmp2);
   }
 
-  // Alternate (inline) version for better readability with USE_DELAY_SLOT.
-  inline void BranchF64(BranchDelaySlot bd, Label* target, Label* nan,
-                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF64(target, nan, cc, cmp1, cmp2, bd);
+  void CompareF64(FPUCondition cc, FPURegister cmp1, FPURegister cmp2) {
+    CompareF(D, cc, cmp1, cmp2);
   }
 
-  inline void BranchF32(BranchDelaySlot bd, Label* target, Label* nan,
-                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF32(target, nan, cc, cmp1, cmp2, bd);
+  void CompareIsNanF64(FPURegister cmp1, FPURegister cmp2) {
+    CompareIsNanF(D, cmp1, cmp2);
   }
 
+  void BranchTrueShortF(Label* target);
+  void BranchFalseShortF(Label* target);
+
+  void BranchTrueF(Label* target);
+  void BranchFalseF(Label* target);
+
+  // MSA Branches
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
                  MSARegister wt, BranchDelaySlot bd = PROTECT);
 
@@ -807,17 +807,6 @@ class TurboAssembler : public Assembler {
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
 
-  // Alias functions for backward compatibility.
-  inline void BranchF(Label* target, Label* nan, Condition cc, FPURegister cmp1,
-                      FPURegister cmp2, BranchDelaySlot bd = PROTECT) {
-    BranchF64(target, nan, cc, cmp1, cmp2, bd);
-  }
-
-  inline void BranchF(BranchDelaySlot bd, Label* target, Label* nan,
-                      Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF64(bd, target, nan, cc, cmp1, cmp2);
-  }
-
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
@@ -841,14 +830,11 @@ class TurboAssembler : public Assembler {
   void CallCFunctionHelper(Register function_base, int16_t function_offset,
                            int num_reg_arguments, int num_double_arguments);
 
-  // Common implementation of BranchF functions for the different formats.
-  void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,
-                     Condition cc, FPURegister cmp1, FPURegister cmp2,
-                     BranchDelaySlot bd = PROTECT);
+  void CompareF(SecondaryField sizeField, FPUCondition cc, FPURegister cmp1,
+                FPURegister cmp2);
 
-  void BranchShortF(SecondaryField sizeField, Label* target, Condition cc,
-                    FPURegister cmp1, FPURegister cmp2,
-                    BranchDelaySlot bd = PROTECT);
+  void CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
+                     FPURegister cmp2);
 
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);

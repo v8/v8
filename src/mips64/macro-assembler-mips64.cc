@@ -2069,7 +2069,8 @@ void TurboAssembler::Neg_s(FPURegister fd, FPURegister fs) {
     Label is_nan, done;
     Register scratch1 = t8;
     Register scratch2 = t9;
-    BranchF32(nullptr, &is_nan, eq, fs, fs);
+    CompareIsNanF32(fs, fs);
+    BranchTrueShortF(&is_nan);
     Branch(USE_DELAY_SLOT, &done);
     // For NaN input, neg_s will return the same NaN value,
     // while the sign has to be changed separately.
@@ -2092,7 +2093,8 @@ void TurboAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     Label is_nan, done;
     Register scratch1 = t8;
     Register scratch2 = t9;
-    BranchF64(nullptr, &is_nan, eq, fs, fs);
+    CompareIsNanF64(fs, fs);
+    BranchTrueShortF(&is_nan);
     Branch(USE_DELAY_SLOT, &done);
     // For NaN input, neg_d will return the same NaN value,
     // while the sign has to be changed separately.
@@ -2303,7 +2305,8 @@ void TurboAssembler::Trunc_uw_d(FPURegister fd, Register rs,
   // Test if scratch > fd.
   // If fd < 2^31 we can convert it normally.
   Label simple_convert;
-  BranchF(&simple_convert, nullptr, lt, fd, scratch);
+  CompareF64(OLT, fd, scratch);
+  BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^31 from fd, then trunc it to rs
   // and add 2^31 to rs.
@@ -2337,7 +2340,8 @@ void TurboAssembler::Trunc_uw_s(FPURegister fd, Register rs,
   // Test if scratch > fd.
   // If fd < 2^31 we can convert it normally.
   Label simple_convert;
-  BranchF32(&simple_convert, nullptr, lt, fd, scratch);
+  CompareF32(OLT, fd, scratch);
+  BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^31 from fd, then trunc it to rs
   // and add 2^31 to rs.
@@ -2366,7 +2370,10 @@ void TurboAssembler::Trunc_ul_d(FPURegister fd, Register rs,
     mov(result, zero_reg);
     Move(scratch, -1.0);
     // If fd =< -1 or unordered, then the conversion fails.
-    BranchF(&fail, &fail, le, fd, scratch);
+    CompareF64(OLE, fd, scratch);
+    BranchTrueShortF(&fail);
+    CompareIsNanF64(fd, scratch);
+    BranchTrueShortF(&fail);
   }
 
   // Load 2^63 into scratch as its double representation.
@@ -2375,7 +2382,8 @@ void TurboAssembler::Trunc_ul_d(FPURegister fd, Register rs,
 
   // Test if scratch > fd.
   // If fd < 2^63 we can convert it normally.
-  BranchF(&simple_convert, nullptr, lt, fd, scratch);
+  CompareF64(OLT, fd, scratch);
+  BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^63 from fd, then trunc it to rs
   // and add 2^63 to rs.
@@ -2417,7 +2425,10 @@ void TurboAssembler::Trunc_ul_s(FPURegister fd, Register rs,
     mov(result, zero_reg);
     Move(scratch, -1.0f);
     // If fd =< -1 or unordered, then the conversion fails.
-    BranchF32(&fail, &fail, le, fd, scratch);
+    CompareF32(OLE, fd, scratch);
+    BranchTrueShortF(&fail);
+    CompareIsNanF32(fd, scratch);
+    BranchTrueShortF(&fail);
   }
 
   {
@@ -2430,7 +2441,8 @@ void TurboAssembler::Trunc_ul_s(FPURegister fd, Register rs,
 
   // Test if scratch > fd.
   // If fd < 2^63 we can convert it normally.
-  BranchF32(&simple_convert, nullptr, lt, fd, scratch);
+  CompareF32(OLT, fd, scratch);
+  BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^63 from fd, then trunc it to rs
   // and add 2^63 to rs.
@@ -2490,203 +2502,65 @@ void MacroAssembler::Msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
   sub_d(fd, scratch, fr);
 }
 
-void TurboAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
-                                   Label* nan, Condition cond, FPURegister cmp1,
-                                   FPURegister cmp2, BranchDelaySlot bd) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (cond == al) {
-    Branch(bd, target);
-    return;
-  }
-
+void TurboAssembler::CompareF(SecondaryField sizeField, FPUCondition cc,
+                              FPURegister cmp1, FPURegister cmp2) {
   if (kArchVariant == kMips64r6) {
     sizeField = sizeField == D ? L : W;
-  }
-
-  DCHECK(nan || target);
-  // Check for unordered (NaN) cases.
-  if (nan) {
-    bool long_branch =
-        nan->is_bound() ? !is_near(nan) : is_trampoline_emitted();
-    if (kArchVariant != kMips64r6) {
-      if (long_branch) {
-        Label skip;
-        c(UN, sizeField, cmp1, cmp2);
-        bc1f(&skip);
-        nop();
-        BranchLong(nan, bd);
-        bind(&skip);
-      } else {
-        c(UN, sizeField, cmp1, cmp2);
-        bc1t(nan);
-        if (bd == PROTECT) {
-          nop();
-        }
-      }
-    } else {
-      // Use kDoubleCompareReg for comparison result. It has to be unavailable
-      // to lithium
-      // register allocator.
-      DCHECK(cmp1 != kDoubleCompareReg && cmp2 != kDoubleCompareReg);
-      if (long_branch) {
-        Label skip;
-        cmp(UN, sizeField, kDoubleCompareReg, cmp1, cmp2);
-        bc1eqz(&skip, kDoubleCompareReg);
-        nop();
-        BranchLong(nan, bd);
-        bind(&skip);
-      } else {
-        cmp(UN, sizeField, kDoubleCompareReg, cmp1, cmp2);
-        bc1nez(nan, kDoubleCompareReg);
-        if (bd == PROTECT) {
-          nop();
-        }
-      }
-    }
-  }
-
-  if (target) {
-    bool long_branch =
-        target->is_bound() ? !is_near(target) : is_trampoline_emitted();
-    if (long_branch) {
-      Label skip;
-      Condition neg_cond = NegateFpuCondition(cond);
-      BranchShortF(sizeField, &skip, neg_cond, cmp1, cmp2, bd);
-      BranchLong(target, bd);
-      bind(&skip);
-    } else {
-      BranchShortF(sizeField, target, cond, cmp1, cmp2, bd);
-    }
+    DCHECK(cmp1 != kDoubleCompareReg && cmp2 != kDoubleCompareReg);
+    cmp(cc, sizeField, kDoubleCompareReg, cmp1, cmp2);
+  } else {
+    c(cc, sizeField, cmp1, cmp2);
   }
 }
 
-void TurboAssembler::BranchShortF(SecondaryField sizeField, Label* target,
-                                  Condition cc, FPURegister cmp1,
-                                  FPURegister cmp2, BranchDelaySlot bd) {
-  if (kArchVariant != kMips64r6) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    if (target) {
-      // Here NaN cases were either handled by this function or are assumed to
-      // have been handled by the caller.
-      switch (cc) {
-        case lt:
-          c(OLT, sizeField, cmp1, cmp2);
-          bc1t(target);
-          break;
-        case ult:
-          c(ULT, sizeField, cmp1, cmp2);
-          bc1t(target);
-          break;
-        case gt:
-          c(ULE, sizeField, cmp1, cmp2);
-          bc1f(target);
-          break;
-        case ugt:
-          c(OLE, sizeField, cmp1, cmp2);
-          bc1f(target);
-          break;
-        case ge:
-          c(ULT, sizeField, cmp1, cmp2);
-          bc1f(target);
-          break;
-        case uge:
-          c(OLT, sizeField, cmp1, cmp2);
-          bc1f(target);
-          break;
-        case le:
-          c(OLE, sizeField, cmp1, cmp2);
-          bc1t(target);
-          break;
-        case ule:
-          c(ULE, sizeField, cmp1, cmp2);
-          bc1t(target);
-          break;
-        case eq:
-          c(EQ, sizeField, cmp1, cmp2);
-          bc1t(target);
-          break;
-        case ueq:
-          c(UEQ, sizeField, cmp1, cmp2);
-          bc1t(target);
-          break;
-        case ne:  // Unordered or not equal.
-          c(EQ, sizeField, cmp1, cmp2);
-          bc1f(target);
-          break;
-        case ogl:
-          c(UEQ, sizeField, cmp1, cmp2);
-          bc1f(target);
-          break;
-        default:
-          CHECK(0);
-      }
-    }
-  } else {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    if (target) {
-      // Here NaN cases were either handled by this function or are assumed to
-      // have been handled by the caller.
-      // Unsigned conditions are treated as their signed counterpart.
-      // Use kDoubleCompareReg for comparison result, it is valid in fp64 (FR =
-      // 1) mode.
-      DCHECK(cmp1 != kDoubleCompareReg && cmp2 != kDoubleCompareReg);
-      switch (cc) {
-        case lt:
-          cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1nez(target, kDoubleCompareReg);
-          break;
-        case ult:
-          cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1nez(target, kDoubleCompareReg);
-          break;
-        case gt:
-          cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1eqz(target, kDoubleCompareReg);
-          break;
-        case ugt:
-          cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1eqz(target, kDoubleCompareReg);
-          break;
-        case ge:
-          cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1eqz(target, kDoubleCompareReg);
-          break;
-        case uge:
-          cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1eqz(target, kDoubleCompareReg);
-          break;
-        case le:
-          cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1nez(target, kDoubleCompareReg);
-          break;
-        case ule:
-          cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1nez(target, kDoubleCompareReg);
-          break;
-        case eq:
-          cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1nez(target, kDoubleCompareReg);
-          break;
-        case ueq:
-          cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1nez(target, kDoubleCompareReg);
-          break;
-        case ne:
-          cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1eqz(target, kDoubleCompareReg);
-          break;
-        case ogl:
-          cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
-          bc1eqz(target, kDoubleCompareReg);
-          break;
-        default:
-          CHECK(0);
-      }
-    }
-  }
+void TurboAssembler::CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
+                                   FPURegister cmp2) {
+  CompareF(sizeField, UN, cmp1, cmp2);
+}
 
-  if (bd == PROTECT) {
+void TurboAssembler::BranchTrueShortF(Label* target) {
+  if (kArchVariant == kMips64r6) {
+    bc1nez(target, kDoubleCompareReg);
     nop();
+  } else {
+    bc1t(target);
+    nop();
+  }
+}
+
+void TurboAssembler::BranchFalseShortF(Label* target) {
+  if (kArchVariant == kMips64r6) {
+    bc1eqz(target, kDoubleCompareReg);
+    nop();
+  } else {
+    bc1f(target);
+    nop();
+  }
+}
+
+void TurboAssembler::BranchTrueF(Label* target) {
+  bool long_branch =
+      target->is_bound() ? !is_near(target) : is_trampoline_emitted();
+  if (long_branch) {
+    Label skip;
+    BranchFalseShortF(&skip);
+    BranchLong(target, PROTECT);
+    bind(&skip);
+  } else {
+    BranchTrueShortF(target);
+  }
+}
+
+void TurboAssembler::BranchFalseF(Label* target) {
+  bool long_branch =
+      target->is_bound() ? !is_near(target) : is_trampoline_emitted();
+  if (long_branch) {
+    Label skip;
+    BranchTrueShortF(&skip);
+    BranchLong(target, PROTECT);
+    bind(&skip);
+  } else {
+    BranchFalseShortF(target);
   }
 }
 
@@ -3107,7 +2981,8 @@ void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
   cvt_w_d(double_scratch, double_input);
   mfc1(result, double_scratch);
   cvt_d_w(double_scratch, double_scratch);
-  BranchF(&done, nullptr, eq, double_input, double_scratch);
+  CompareF64(EQ, double_input, double_scratch);
+  BranchTrueShortF(&done);
 
   int32_t except_mask = kFCSRFlagMask;  // Assume interested in all exceptions.
 
@@ -5378,15 +5253,18 @@ void TurboAssembler::Float32Max(FPURegister dst, FPURegister src1,
   }
 
   // Check if one of operands is NaN.
-  BranchF32(nullptr, out_of_line, eq, src1, src2);
+  CompareIsNanF32(src1, src2);
+  BranchTrueF(out_of_line);
 
   if (kArchVariant >= kMips64r6) {
     max_s(dst, src1, src2);
   } else {
     Label return_left, return_right, done;
 
-    BranchF32(&return_right, nullptr, lt, src1, src2);
-    BranchF32(&return_left, nullptr, lt, src2, src1);
+    CompareF32(OLT, src1, src2);
+    BranchTrueShortF(&return_right);
+    CompareF32(OLT, src2, src1);
+    BranchTrueShortF(&return_left);
 
     // Operands are equal, but check for +/-0.
     mfc1(t8, src1);
@@ -5422,15 +5300,18 @@ void TurboAssembler::Float32Min(FPURegister dst, FPURegister src1,
   }
 
   // Check if one of operands is NaN.
-  BranchF32(nullptr, out_of_line, eq, src1, src2);
+  CompareIsNanF32(src1, src2);
+  BranchTrueF(out_of_line);
 
   if (kArchVariant >= kMips64r6) {
     min_s(dst, src1, src2);
   } else {
     Label return_left, return_right, done;
 
-    BranchF32(&return_left, nullptr, lt, src1, src2);
-    BranchF32(&return_right, nullptr, lt, src2, src1);
+    CompareF32(OLT, src1, src2);
+    BranchTrueShortF(&return_left);
+    CompareF32(OLT, src2, src1);
+    BranchTrueShortF(&return_right);
 
     // Left equals right => check for -0.
     mfc1(t8, src1);
@@ -5466,15 +5347,18 @@ void TurboAssembler::Float64Max(FPURegister dst, FPURegister src1,
   }
 
   // Check if one of operands is NaN.
-  BranchF64(nullptr, out_of_line, eq, src1, src2);
+  CompareIsNanF64(src1, src2);
+  BranchTrueF(out_of_line);
 
   if (kArchVariant >= kMips64r6) {
     max_d(dst, src1, src2);
   } else {
     Label return_left, return_right, done;
 
-    BranchF64(&return_right, nullptr, lt, src1, src2);
-    BranchF64(&return_left, nullptr, lt, src2, src1);
+    CompareF64(OLT, src1, src2);
+    BranchTrueShortF(&return_right);
+    CompareF64(OLT, src2, src1);
+    BranchTrueShortF(&return_left);
 
     // Left equals right => check for -0.
     dmfc1(t8, src1);
@@ -5509,15 +5393,18 @@ void TurboAssembler::Float64Min(FPURegister dst, FPURegister src1,
   }
 
   // Check if one of operands is NaN.
-  BranchF64(nullptr, out_of_line, eq, src1, src2);
+  CompareIsNanF64(src1, src2);
+  BranchTrueF(out_of_line);
 
   if (kArchVariant >= kMips64r6) {
     min_d(dst, src1, src2);
   } else {
     Label return_left, return_right, done;
 
-    BranchF64(&return_left, nullptr, lt, src1, src2);
-    BranchF64(&return_right, nullptr, lt, src2, src1);
+    CompareF64(OLT, src1, src2);
+    BranchTrueShortF(&return_left);
+    CompareF64(OLT, src2, src1);
+    BranchTrueShortF(&return_right);
 
     // Left equals right => check for -0.
     dmfc1(t8, src1);

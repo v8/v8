@@ -239,41 +239,30 @@ class TurboAssembler : public Assembler {
 #undef COND_TYPED_ARGS
 #undef COND_ARGS
 
-  // Wrapper functions for the different cmp/branch types.
-  inline void BranchF32(Label* target, Label* nan, Condition cc,
-                        FPURegister cmp1, FPURegister cmp2,
-                        BranchDelaySlot bd = PROTECT) {
-    BranchFCommon(S, target, nan, cc, cmp1, cmp2, bd);
+  // Floating point branches
+  void CompareF32(FPUCondition cc, FPURegister cmp1, FPURegister cmp2) {
+    CompareF(S, cc, cmp1, cmp2);
   }
 
-  inline void BranchF64(Label* target, Label* nan, Condition cc,
-                        FPURegister cmp1, FPURegister cmp2,
-                        BranchDelaySlot bd = PROTECT) {
-    BranchFCommon(D, target, nan, cc, cmp1, cmp2, bd);
+  void CompareIsNanF32(FPURegister cmp1, FPURegister cmp2) {
+    CompareIsNanF(S, cmp1, cmp2);
   }
 
-  // Alternate (inline) version for better readability with USE_DELAY_SLOT.
-  inline void BranchF64(BranchDelaySlot bd, Label* target, Label* nan,
-                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF64(target, nan, cc, cmp1, cmp2, bd);
+  void CompareF64(FPUCondition cc, FPURegister cmp1, FPURegister cmp2) {
+    CompareF(D, cc, cmp1, cmp2);
   }
 
-  inline void BranchF32(BranchDelaySlot bd, Label* target, Label* nan,
-                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF32(target, nan, cc, cmp1, cmp2, bd);
+  void CompareIsNanF64(FPURegister cmp1, FPURegister cmp2) {
+    CompareIsNanF(D, cmp1, cmp2);
   }
 
-  // Alias functions for backward compatibility.
-  inline void BranchF(Label* target, Label* nan, Condition cc, FPURegister cmp1,
-                      FPURegister cmp2, BranchDelaySlot bd = PROTECT) {
-    BranchF64(target, nan, cc, cmp1, cmp2, bd);
-  }
+  void BranchTrueShortF(Label* target);
+  void BranchFalseShortF(Label* target);
 
-  inline void BranchF(BranchDelaySlot bd, Label* target, Label* nan,
-                      Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF64(bd, target, nan, cc, cmp1, cmp2);
-  }
+  void BranchTrueF(Label* target);
+  void BranchFalseF(Label* target);
 
+  // MSA branches
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
                  MSARegister wt, BranchDelaySlot bd = PROTECT);
 
@@ -870,6 +859,12 @@ class TurboAssembler : public Assembler {
   Handle<HeapObject> code_object_;
   bool has_double_zero_reg_set_;
 
+  void CompareF(SecondaryField sizeField, FPUCondition cc, FPURegister cmp1,
+                FPURegister cmp2);
+
+  void CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
+                     FPURegister cmp2);
+
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);
 
@@ -879,15 +874,6 @@ class TurboAssembler : public Assembler {
   bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits);
   bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
                        Register& scratch, const Operand& rt);
-
-  // Common implementation of BranchF functions for the different formats.
-  void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,
-                     Condition cc, FPURegister cmp1, FPURegister cmp2,
-                     BranchDelaySlot bd = PROTECT);
-
-  void BranchShortF(SecondaryField sizeField, Label* target, Condition cc,
-                    FPURegister cmp1, FPURegister cmp2,
-                    BranchDelaySlot bd = PROTECT);
 
   void BranchShortHelperR6(int32_t offset, Label* L);
   void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
