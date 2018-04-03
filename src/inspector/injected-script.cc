@@ -654,6 +654,7 @@ InjectedScript::Scope::Scope(V8InspectorSessionImpl* session)
       m_ignoreExceptionsAndMuteConsole(false),
       m_previousPauseOnExceptionsState(v8::debug::NoBreakOnException),
       m_userGesture(false),
+      m_allowEval(false),
       m_contextGroupId(session->contextGroupId()),
       m_sessionId(session->sessionId()) {}
 
@@ -666,6 +667,7 @@ Response InjectedScript::Scope::initialize() {
   if (!response.isSuccess()) return response;
   m_context = m_injectedScript->context()->context();
   m_context->Enter();
+  if (m_allowEval) m_context->AllowCodeGenerationFromStrings(true);
   return Response::OK();
 }
 
@@ -701,9 +703,17 @@ void InjectedScript::Scope::pretendUserGesture() {
   m_inspector->client()->beginUserGesture();
 }
 
+void InjectedScript::Scope::allowCodeGenerationFromStrings() {
+  DCHECK(!m_allowEval);
+  if (m_context->IsCodeGenerationFromStringsAllowed()) return;
+  m_allowEval = true;
+  m_context->AllowCodeGenerationFromStrings(true);
+}
+
 void InjectedScript::Scope::cleanup() {
   m_commandLineAPIScope.reset();
   if (!m_context.IsEmpty()) {
+    if (m_allowEval) m_context->AllowCodeGenerationFromStrings(false);
     m_context->Exit();
     m_context.Clear();
   }

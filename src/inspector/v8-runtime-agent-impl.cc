@@ -136,6 +136,9 @@ void innerCallFunctionOn(
   if (silent) scope.ignoreExceptionsAndMuteConsole();
   if (userGesture) scope.pretendUserGesture();
 
+  // Temporarily enable allow evals for inspector.
+  scope.allowCodeGenerationFromStrings();
+
   v8::MaybeLocal<v8::Value> maybeFunctionValue;
   v8::Local<v8::Script> functionScript;
   if (inspector
@@ -253,9 +256,8 @@ void V8RuntimeAgentImpl::evaluate(
 
   if (includeCommandLineAPI.fromMaybe(false)) scope.installCommandLineAPI();
 
-  bool evalIsDisabled = !scope.context()->IsCodeGenerationFromStringsAllowed();
   // Temporarily enable allow evals for inspector.
-  if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(true);
+  scope.allowCodeGenerationFromStrings();
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
@@ -265,8 +267,6 @@ void V8RuntimeAgentImpl::evaluate(
         m_inspector->isolate(), toV8String(m_inspector->isolate(), expression),
         throwOnSideEffect.fromMaybe(false));
   }  // Run microtasks before returning result.
-
-  if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(false);
 
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
