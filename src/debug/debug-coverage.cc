@@ -67,6 +67,11 @@ bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
   return a.start < b.start;
 }
 
+void SortBlockData(std::vector<CoverageBlock>& v) {
+  // Sort according to the block nesting structure.
+  std::sort(v.begin(), v.end(), CompareCoverageBlock);
+}
+
 std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
                                               SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
@@ -86,8 +91,7 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
     result.emplace_back(start_pos, until_pos, count);
   }
 
-  // Sort according to the block nesting structure.
-  std::sort(result.begin(), result.end(), CompareCoverageBlock);
+  SortBlockData(result);
 
   return result;
 }
@@ -243,6 +247,21 @@ void MergeDuplicateSingletons(CoverageFunction* function) {
   }
 }
 
+void MergeDuplicateRanges(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next() && iter.HasNext()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& next_block = iter.GetNextBlock();
+
+    if (!HaveSameSourceRange(block, next_block)) continue;
+
+    DCHECK_NE(kNoSourcePosition, block.end);  // Non-singleton range.
+    next_block.count = std::max(block.count, next_block.count);
+    iter.DeleteBlock();
+  }
+}
+
 // Rewrite position singletons (produced by unconditional control flow
 // like return statements, and by continuation counters) into source
 // ranges that end at the next sibling range or the end of the parent
@@ -274,16 +293,13 @@ void RewritePositionSingletonsToRanges(CoverageFunction* function) {
   }
 }
 
-void MergeNestedAndConsecutiveRanges(CoverageFunction* function) {
+void MergeConsecutiveRanges(CoverageFunction* function) {
   CoverageBlockIterator iter(function);
 
   while (iter.Next()) {
     CoverageBlock& block = iter.GetBlock();
-    CoverageBlock& parent = iter.GetParent();
 
-    if (parent.count == block.count) {
-      iter.DeleteBlock();
-    } else if (iter.HasSiblingOrChild()) {
+    if (iter.HasSiblingOrChild()) {
       CoverageBlock& sibling = iter.GetSiblingOrChild();
       if (sibling.start == block.end && sibling.count == block.count) {
         // Best-effort: this pass may miss mergeable siblings in the presence of
@@ -291,6 +307,21 @@ void MergeNestedAndConsecutiveRanges(CoverageFunction* function) {
         sibling.start = block.start;
         iter.DeleteBlock();
       }
+    }
+  }
+}
+
+void MergeNestedRanges(CoverageFunction* function) {
+  CoverageBlockIterator iter(function);
+
+  while (iter.Next()) {
+    CoverageBlock& block = iter.GetBlock();
+    CoverageBlock& parent = iter.GetParent();
+
+    if (parent.count == block.count) {
+      // Transformation may not be valid if sibling blocks exist with a
+      // differing count.
+      iter.DeleteBlock();
     }
   }
 }
@@ -373,7 +404,15 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
   RewritePositionSingletonsToRanges(function);
 
   // Merge nested and consecutive ranges with identical counts.
-  MergeNestedAndConsecutiveRanges(function);
+  // Note that it's necessary to merge duplicate ranges prior to merging nested
+  // changes in order to avoid invalid transformations. See crbug.com/827530.
+  MergeConsecutiveRanges(function);
+
+  SortBlockData(function->blocks);
+  MergeDuplicateRanges(function);
+  MergeNestedRanges(function);
+
+  MergeConsecutiveRanges(function);
 
   // Filter out ranges with count == 0 unless the immediate parent range has
   // a count != 0.
@@ -381,7 +420,6 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
 
   // Filter out ranges of zero length.
   FilterEmptyRanges(function);
-
 
   // Reset all counters on the DebugInfo to zero.
   ResetAllBlockCounts(info);
