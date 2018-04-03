@@ -14,6 +14,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/string-case.h"
+#include "unicode/basictz.h"
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
 #include "unicode/timezone.h"
@@ -373,23 +374,41 @@ icu::TimeZone* ICUTimezoneCache::GetTimeZone() {
   return timezone_;
 }
 
-bool ICUTimezoneCache::GetOffsets(double time_ms, int32_t* raw_offset,
-                                  int32_t* dst_offset) {
+bool ICUTimezoneCache::GetOffsets(double time_ms, bool is_utc,
+                                  int32_t* raw_offset, int32_t* dst_offset) {
   UErrorCode status = U_ZERO_ERROR;
-  GetTimeZone()->getOffset(time_ms, false, *raw_offset, *dst_offset, status);
+  // TODO(jshin): ICU TimeZone class handles skipped time differently from
+  // Ecma 262 (https://github.com/tc39/ecma262/pull/778) and icu::TimeZone
+  // class does not expose the necessary API. Fixing
+  // http://bugs.icu-project.org/trac/ticket/13268 would make it easy to
+  // implement the proposed spec change. A proposed fix for ICU is
+  //    https://chromium-review.googlesource.com/851265 .
+  // In the meantime, use an internal (still public) API of icu::BasicTimeZone.
+  // Once it's accepted by the upstream, get rid of cast. Note that casting
+  // TimeZone to BasicTimeZone is safe because we know that icu::TimeZone used
+  // here is a BasicTimeZone.
+  if (is_utc) {
+    GetTimeZone()->getOffset(time_ms, false, *raw_offset, *dst_offset, status);
+  } else {
+    static_cast<const icu::BasicTimeZone*>(GetTimeZone())
+        ->getOffsetFromLocal(time_ms, icu::BasicTimeZone::kFormer,
+                             icu::BasicTimeZone::kFormer, *raw_offset,
+                             *dst_offset, status);
+  }
+
   return U_SUCCESS(status);
 }
 
 double ICUTimezoneCache::DaylightSavingsOffset(double time_ms) {
   int32_t raw_offset, dst_offset;
-  if (!GetOffsets(time_ms, &raw_offset, &dst_offset)) return 0;
+  if (!GetOffsets(time_ms, true, &raw_offset, &dst_offset)) return 0;
   return dst_offset;
 }
 
-double ICUTimezoneCache::LocalTimeOffset() {
+double ICUTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
   int32_t raw_offset, dst_offset;
-  if (!GetOffsets(icu::Calendar::getNow(), &raw_offset, &dst_offset)) return 0;
-  return raw_offset;
+  if (!GetOffsets(time_ms, is_utc, &raw_offset, &dst_offset)) return 0;
+  return raw_offset + dst_offset;
 }
 
 void ICUTimezoneCache::Clear() {

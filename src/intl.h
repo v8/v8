@@ -48,14 +48,15 @@ class ICUTimezoneCache : public base::TimezoneCache {
 
   double DaylightSavingsOffset(double time_ms) override;
 
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time_ms, bool is_utc) override;
 
   void Clear() override;
 
  private:
   icu::TimeZone* GetTimeZone();
 
-  bool GetOffsets(double time_ms, int32_t* raw_offset, int32_t* dst_offset);
+  bool GetOffsets(double time_ms, bool is_utc, int32_t* raw_offset,
+                  int32_t* dst_offset);
 
   icu::TimeZone* timezone_;
 

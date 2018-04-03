@@ -181,6 +181,11 @@
   # noi18n cannot turn on ICU backend for Date
   'icu-date-to-string': [PASS, ['no_i18n == True', SKIP]],
   'icu-date-lord-howe': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-apia': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-lord-howe': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-moscow': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-new-york': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-seoul': [PASS, ['no_i18n == True', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -609,6 +614,13 @@
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
   'regress/regress-6288': [SKIP],
+  'tzoffset-transition-apia': [SKIP],
+  'tzoffset-transition-lord-howe': [SKIP],
+  'tzoffset-transition-moscow': [SKIP],
+  'tzoffset-transition-new-york': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
