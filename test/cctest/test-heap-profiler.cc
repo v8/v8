@@ -768,7 +768,7 @@ TEST(HeapSnapshotEphemeron) {
     const v8::HeapGraphNode* child = edge->GetToNode();
     if (!strcmp("ValueClass", GetName(child))) {
       v8::String::Utf8Value edge_name(CcTest::isolate(), edge->GetName());
-      CHECK(EndsWith(*edge_name, " / WeakMap"));
+      CHECK(EndsWith(*edge_name, " / key KeyClass in WeakMap"));
       success = true;
       break;
     }

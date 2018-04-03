@@ -1364,8 +1364,10 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
         int key_entry_index = key_entry->index();
         HeapEntry* value_entry = GetEntry(value);
         if (key_entry && value_entry) {
+          const char* edge_name =
+              names_->GetFormatted("key %s in WeakMap", key_entry->name());
           filler_->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
-                                              key_entry_index, "WeakMap",
+                                              key_entry_index, edge_name,
                                               value_entry);
         }
       }
