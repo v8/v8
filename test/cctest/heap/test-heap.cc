@@ -6016,6 +6016,7 @@ struct OutOfMemoryState {
   bool oom_triggered;
   size_t old_generation_capacity_at_oom;
   size_t memory_allocator_size_at_oom;
+  size_t new_space_capacity_at_oom;
 };
 
 size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
@@ -6025,6 +6026,7 @@ size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
   state->oom_triggered = true;
   state->old_generation_capacity_at_oom = heap->OldGenerationCapacity();
   state->memory_allocator_size_at_oom = heap->memory_allocator()->Size();
+  state->new_space_capacity_at_oom = heap->new_space()->Capacity();
   return initial_heap_limit + 100 * MB;
 }
 
@@ -6061,13 +6063,13 @@ UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
     }
   }
   CHECK_LE(state.old_generation_capacity_at_oom,
-           kOldGenerationLimit + heap->new_space()->Capacity());
+           kOldGenerationLimit + state.new_space_capacity_at_oom);
   CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
-                                    heap->new_space()->Capacity());
+                                    state.new_space_capacity_at_oom);
   CHECK_LE(
       state.memory_allocator_size_at_oom,
       MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
-                                          2 * heap->new_space()->Capacity()));
+                                          2 * state.new_space_capacity_at_oom));
   reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
 }
 
@@ -6101,7 +6103,7 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
   CHECK_LE(
       state.memory_allocator_size_at_oom,
       MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
-                                          2 * heap->new_space()->Capacity()));
+                                          2 * state.new_space_capacity_at_oom));
   reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
 }
 
