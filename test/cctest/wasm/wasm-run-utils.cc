@@ -40,8 +40,12 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK_EQ(0, mem_size_);
   DCHECK(!instance_object_->has_memory_object());
   test_module_.has_memory = true;
-  uint32_t alloc_size = RoundUp(size, kWasmPageSize);
-  Handle<JSArrayBuffer> new_buffer = wasm::NewArrayBuffer(isolate_, alloc_size);
+  const bool enable_guard_regions =
+      trap_handler::IsTrapHandlerEnabled() && test_module_.is_wasm();
+  uint32_t alloc_size =
+      enable_guard_regions ? RoundUp(size, CommitPageSize()) : size;
+  Handle<JSArrayBuffer> new_buffer =
+      wasm::NewArrayBuffer(isolate_, alloc_size, enable_guard_regions);
   CHECK(!new_buffer.is_null());
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;

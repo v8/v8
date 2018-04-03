@@ -341,7 +341,8 @@ void WasmTableObject::ClearDispatchTables(Handle<WasmTableObject> table,
 namespace {
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                        Handle<JSArrayBuffer> old_buffer,
-                                       uint32_t pages, uint32_t maximum_pages) {
+                                       uint32_t pages, uint32_t maximum_pages,
+                                       bool use_trap_handler) {
   if (!old_buffer->is_growable()) return Handle<JSArrayBuffer>::null();
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
@@ -394,7 +395,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     // We couldn't reuse the old backing store, so create a new one and copy the
     // old contents in.
     Handle<JSArrayBuffer> new_buffer;
-    new_buffer = wasm::NewArrayBuffer(isolate, new_size);
+    new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
     if (new_buffer.is_null() || old_size == 0) return new_buffer;
     Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
     memcpy(new_mem_start, old_mem_start, old_size);
@@ -496,7 +497,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     maximum_pages = Min(FLAG_wasm_max_mem_pages,
                         static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
+  // TODO(kschimpf): We need to fix this by adding a field to WasmMemoryObject
+  // that defines the style of memory being used.
+  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages,
+                                trap_handler::IsTrapHandlerEnabled());
   if (new_buffer.is_null()) return -1;
 
   if (memory_object->has_instances()) {

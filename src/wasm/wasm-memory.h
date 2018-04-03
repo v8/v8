@@ -114,7 +114,8 @@ class WasmMemoryTracker {
 };
 
 Handle<JSArrayBuffer> NewArrayBuffer(
-    Isolate*, size_t size, SharedFlag shared = SharedFlag::kNotShared);
+    Isolate*, size_t size, bool require_guard_regions,
+    SharedFlag shared = SharedFlag::kNotShared);
 
 Handle<JSArrayBuffer> SetupArrayBuffer(
     Isolate*, void* backing_store, size_t size, bool is_external,
