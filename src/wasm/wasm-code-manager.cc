@@ -867,13 +867,15 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
 
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
-  wasm_code_manager_->FreeNativeModuleMemories(this);
+  // Clear the handle at the beginning of destructor to make it robust against
+  // potential GCs in the rest of the desctructor.
   if (compiled_module_ != nullptr) {
     Isolate* isolate = compiled_module()->GetIsolate();
     isolate->global_handles()->Destroy(
         reinterpret_cast<Object**>(compiled_module_));
     compiled_module_ = nullptr;
   }
+  wasm_code_manager_->FreeNativeModuleMemories(this);
 }
 
 WasmCodeManager::WasmCodeManager(v8::Isolate* isolate, size_t max_committed)

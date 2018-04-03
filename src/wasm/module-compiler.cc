@@ -3458,14 +3458,15 @@ CompilationState::CompilationState(internal::Isolate* isolate)
 }
 
 CompilationState::~CompilationState() {
-  CancelAndWait();
-  foreground_task_manager_.CancelAndWait();
-
+  // Clear the handle at the beginning of destructor to make it robust against
+  // potential GCs in the rest of the desctructor.
   if (compiled_module_ != nullptr) {
     isolate_->global_handles()->Destroy(
         reinterpret_cast<Object**>(compiled_module_));
     compiled_module_ = nullptr;
   }
+  CancelAndWait();
+  foreground_task_manager_.CancelAndWait();
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
