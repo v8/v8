@@ -570,32 +570,29 @@ inline void Emit64BitShiftOperation(
   pinned.set(dst);
   pinned.set(src);
   pinned.set(amount);
-  // If dst contains ecx, replace it by an unused register, which is then moved
-  // to ecx in the end.
+  // If {dst} contains {ecx}, replace it by an unused register, which is then
+  // moved to {ecx} in the end.
   Register ecx_replace = no_reg;
   if (PairContains(dst, ecx)) {
     ecx_replace = pinned.set(assm->GetUnusedRegister(kGpReg, pinned)).gp();
     dst = ReplaceInPair(dst, ecx, ecx_replace);
+    // If {amount} needs to be moved to {ecx}, but {ecx} is in use (and not part
+    // of {dst}, hence overwritten anyway), move {ecx} to a tmp register and
+    // restore it at the end.
+  } else if (amount != ecx &&
+             assm->cache_state()->is_used(LiftoffRegister(ecx))) {
+    ecx_replace = assm->GetUnusedRegister(kGpReg, pinned).gp();
+    assm->mov(ecx_replace, ecx);
   }
 
-  // Move src to dst.
-  if (dst != src) assm->Move(dst, src, kWasmI64);
-
-  // Move amount into ecx. If ecx is in use and not part of dst, move its
-  // content to a tmp register first.
-  if (amount != ecx) {
-    if (assm->cache_state()->is_used(LiftoffRegister(ecx)) &&
-        ecx_replace == no_reg) {
-      ecx_replace = assm->GetUnusedRegister(kGpReg, pinned).gp();
-      assm->mov(ecx_replace, ecx);
-    }
-    assm->mov(ecx, amount);
-  }
+  assm->ParallelRegisterMove(
+      {{dst, src, kWasmI64},
+       {LiftoffRegister{ecx}, LiftoffRegister{amount}, kWasmI32}});
 
   // Do the actual shift.
   (assm->*emit_shift)(dst.high_gp(), dst.low_gp());
 
-  // Restore ecx if needed.
+  // Restore {ecx} if needed.
   if (ecx_replace != no_reg) assm->mov(ecx, ecx_replace);
 }
 }  // namespace liftoff

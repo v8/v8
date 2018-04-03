@@ -326,7 +326,18 @@ class LiftoffAssembler : public TurboAssembler {
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 
+  // Move {src} into {dst}. {src} and {dst} must be different.
   void Move(LiftoffRegister dst, LiftoffRegister src, ValueType);
+
+  // Parallel register move: For a list of tuples <dst, src, type>, move the
+  // {src} register of type {type} into {dst}. If {src} equals {dst}, ignore
+  // that tuple.
+  struct ParallelRegisterMoveTuple {
+    LiftoffRegister dst;
+    LiftoffRegister src;
+    ValueType type;
+  };
+  void ParallelRegisterMove(std::initializer_list<ParallelRegisterMoveTuple>);
 
   ////////////////////////////////////
   // Platform-specific part.        //

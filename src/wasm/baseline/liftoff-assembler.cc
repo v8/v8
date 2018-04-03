@@ -577,6 +577,15 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
   }
 }
 
+void LiftoffAssembler::ParallelRegisterMove(
+    std::initializer_list<ParallelRegisterMoveTuple> tuples) {
+  StackTransferRecipe stack_transfers(this);
+  for (auto tuple : tuples) {
+    if (tuple.dst == tuple.src) continue;
+    stack_transfers.MoveRegister(tuple.dst, tuple.src, tuple.type);
+  }
+}
+
 LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                                    LiftoffRegList pinned) {
   // Spill one cached value to free a register.
