@@ -405,20 +405,16 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                                  isolate());
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ xorp(arg_reg_1, arg_reg_1);  // argc.
-    __ xorp(arg_reg_2, arg_reg_2);  // argv.
+    __ movp(arg_reg_1, Immediate(0));  // argc.
+    __ movp(arg_reg_2, Immediate(0));  // argv.
     __ Move(arg_reg_3, ExternalReference::isolate_address(isolate()));
     __ PrepareCallCFunction(3);
     __ CallCFunction(find_handler, 3);
   }
   // Retrieve the handler context, SP and FP.
   __ movp(rsi, masm->ExternalOperand(pending_handler_context_address));
-  __ movp(rsp,
-          masm->ExternalOperandReuseScratchRegister(
-              pending_handler_sp_address, pending_handler_context_address));
-  __ movp(rbp,
-          masm->ExternalOperandReuseScratchRegister(
-              pending_handler_fp_address, pending_handler_context_address));
+  __ movp(rsp, masm->ExternalOperand(pending_handler_sp_address));
+  __ movp(rbp, masm->ExternalOperand(pending_handler_fp_address));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (rsi == 0) for non-JS frames.
@@ -435,9 +431,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
-  __ movp(rdi, masm->ExternalOperandReuseScratchRegister(
-                   pending_handler_entrypoint_address,
-                   pending_handler_context_address));
+  __ movp(rdi, masm->ExternalOperand(pending_handler_entrypoint_address));
   __ jmp(rdi);
 }
 

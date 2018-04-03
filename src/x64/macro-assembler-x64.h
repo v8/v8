@@ -366,9 +366,6 @@ class TurboAssembler : public Assembler {
   // that is guaranteed not to be clobbered.
   Operand ExternalOperand(ExternalReference reference,
                           Register scratch = kScratchRegister);
-  Operand ExternalOperandReuseScratchRegister(
-      ExternalReference target, ExternalReference previous,
-      Register scratch = kScratchRegister);
 
   void Call(Operand op);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
