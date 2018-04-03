@@ -115,7 +115,7 @@ class WindowsTimezoneCache : public TimezoneCache {
 
   const char* LocalTimezone(double time) override;
 
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time, bool is_utc) override;
 
   double DaylightSavingsOffset(double time) override;
 
@@ -466,7 +466,9 @@ const char* WindowsTimezoneCache::LocalTimezone(double time) {
 
 // Returns the local time offset in milliseconds east of UTC without
 // taking daylight savings time into account.
-double WindowsTimezoneCache::LocalTimeOffset() {
+double WindowsTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
+  // Ignore is_utc and time_ms for now. That way, the behavior wouldn't
+  // change with icu_timezone_data disabled.
   // Use current time, rounded to the millisecond.
   Win32Time t(OS::TimeCurrentMillis());
   // Time::LocalOffset inlcudes any daylight savings offset, so subtract it.
