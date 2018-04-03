@@ -191,6 +191,7 @@ void HeapObject::HeapObjectVerify() {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case WASM_GLOBAL_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:

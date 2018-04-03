@@ -72,6 +72,7 @@
 //           - JSDate
 //         - JSMessageObject
 //         - JSModuleNamespace
+//         - WasmGlobalObject
 //         - WasmInstanceObject
 //         - WasmMemoryObject
 //         - WasmModuleObject
@@ -473,6 +474,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_TYPED_ARRAY_TYPE)                                        \
   V(JS_DATA_VIEW_TYPE)                                          \
                                                                 \
+  V(WASM_GLOBAL_TYPE)                                           \
   V(WASM_INSTANCE_TYPE)                                         \
   V(WASM_MEMORY_TYPE)                                           \
   V(WASM_MODULE_TYPE)                                           \
@@ -847,6 +849,7 @@ enum InstanceType : uint16_t {
   JS_TYPED_ARRAY_TYPE,
   JS_DATA_VIEW_TYPE,
 
+  WASM_GLOBAL_TYPE,
   WASM_INSTANCE_TYPE,
   WASM_MEMORY_TYPE,
   WASM_MODULE_TYPE,
@@ -1130,6 +1133,7 @@ template <class C> inline bool Is(Object* obj);
   V(TransitionArray)                      \
   V(Undetectable)                         \
   V(UniqueName)                           \
+  V(WasmGlobalObject)                     \
   V(WasmInstanceObject)                   \
   V(WasmMemoryObject)                     \
   V(WasmModuleObject)                     \

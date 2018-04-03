@@ -676,6 +676,67 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 
+void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Global()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Global must be invoked with 'new'");
+    return;
+  }
+  if (!args[0]->IsObject()) {
+    thrower.TypeError("Argument 0 must be a global descriptor");
+    return;
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
+
+  // TODO(binji): handle descriptor's 'value'.
+
+  // The descriptor's 'mutable'.
+  bool is_mutable = false;
+  {
+    Local<String> mutable_key = v8_str(isolate, "mutable");
+    v8::MaybeLocal<v8::Value> maybe = descriptor->Get(context, mutable_key);
+    v8::Local<v8::Value> value;
+    if (maybe.ToLocal(&value)) {
+      if (!value->BooleanValue(context).To(&is_mutable)) return;
+    }
+  }
+
+  // The descriptor's 'type'.
+  i::wasm::ValueType type;
+  {
+    v8::MaybeLocal<v8::Value> maybe =
+        descriptor->Get(context, v8_str(isolate, "type"));
+    v8::Local<v8::Value> value;
+    if (!maybe.ToLocal(&value)) return;
+    v8::Local<v8::String> string;
+    if (!value->ToString(context).ToLocal(&string)) return;
+
+    bool equal;
+    if (string->Equals(context, v8_str(isolate, "i32")).To(&equal) && equal) {
+      type = i::wasm::kWasmI32;
+    } else if (string->Equals(context, v8_str(isolate, "f32")).To(&equal) &&
+               equal) {
+      type = i::wasm::kWasmF32;
+    } else if (string->Equals(context, v8_str(isolate, "f64")).To(&equal) &&
+               equal) {
+      type = i::wasm::kWasmF64;
+    } else {
+      thrower.TypeError(
+          "Descriptor property 'type' must be 'i32', 'f32', or 'f64'");
+      return;
+    }
+  }
+
+  uint32_t offset = 0;
+  i::Handle<i::JSObject> global_obj = i::WasmGlobalObject::New(
+      i_isolate, i::MaybeHandle<i::JSArrayBuffer>(), type, offset, is_mutable);
+  args.GetReturnValue().Set(Utils::ToLocal(global_obj));
+}
+
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
@@ -1039,6 +1100,22 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
   JSObject::AddProperty(memory_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
+
+  // Setup Global
+  if (i::FLAG_experimental_wasm_mut_global) {
+    Handle<JSFunction> global_constructor =
+        InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);
+    context->set_wasm_global_constructor(*global_constructor);
+    JSFunction::EnsureHasInitialMap(global_constructor);
+    Handle<JSObject> global_proto(
+        JSObject::cast(global_constructor->instance_prototype()));
+    i::Handle<i::Map> global_map = isolate->factory()->NewMap(
+        i::WASM_GLOBAL_TYPE, WasmGlobalObject::kSize);
+    JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
+    // TODO(binji): add other properties
+    JSObject::AddProperty(global_proto, factory->to_string_tag_symbol(),
+                          v8_str(isolate, "WebAssembly.Global"), ro_attributes);
+  }
 
   // Setup errors
   attributes = static_cast<PropertyAttributes>(DONT_ENUM);

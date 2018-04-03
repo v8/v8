@@ -16,6 +16,7 @@ namespace internal {
 
 CAST_ACCESSOR(WasmCompiledModule)
 CAST_ACCESSOR(WasmDebugInfo)
+CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
@@ -56,6 +57,12 @@ ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
 OPTIONAL_ACCESSORS(WasmMemoryObject, instances, FixedArrayOfWeakCells,
                    kInstancesOffset)
+
+// WasmGlobalObject
+ACCESSORS(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
+SMI_ACCESSORS(WasmGlobalObject, type, kTypeOffset)
+SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
+SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
 
 // WasmInstanceObject
 ACCESSORS(WasmInstanceObject, wasm_context, Managed<WasmContext>,

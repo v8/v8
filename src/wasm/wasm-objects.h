@@ -190,6 +190,33 @@ class WasmMemoryObject : public JSObject {
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 };
 
+// Representation of a WebAssembly.Global JavaScript-level object.
+class WasmGlobalObject : public JSObject {
+ public:
+  DECL_CAST(WasmGlobalObject)
+
+  DECL_ACCESSORS(array_buffer, JSArrayBuffer)
+  DECL_INT_ACCESSORS(type)
+  DECL_INT_ACCESSORS(offset)
+  DECL_INT_ACCESSORS(is_mutable)
+
+// Layout description.
+#define WASM_GLOBAL_OBJECT_FIELDS(V)  \
+  V(kArrayBufferOffset, kPointerSize) \
+  V(kTypeOffset, kPointerSize)        \
+  V(kOffsetOffset, kPointerSize)      \
+  V(kIsMutableOffset, kPointerSize)   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_GLOBAL_OBJECT_FIELDS)
+#undef WASM_GLOBAL_OBJECT_FIELDS
+
+  V8_EXPORT_PRIVATE static Handle<WasmGlobalObject> New(
+      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, wasm::ValueType type,
+      int32_t offset, bool is_mutable);
+};
+
 // A WebAssembly.Instance JavaScript-level object.
 class WasmInstanceObject : public JSObject {
  public:

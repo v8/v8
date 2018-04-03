@@ -22,6 +22,7 @@ namespace internal {
 
 class WasmCompiledModule;
 class WasmDebugInfo;
+class WasmGlobalObject;
 class WasmInstanceObject;
 class WasmMemoryObject;
 class WasmModuleObject;

@@ -518,6 +518,36 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   return old_size / wasm::kWasmPageSize;
 }
 
+// static
+Handle<WasmGlobalObject> WasmGlobalObject::New(
+    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
+    wasm::ValueType type, int32_t offset, bool is_mutable) {
+  Handle<JSFunction> global_ctor(
+      isolate->native_context()->wasm_global_constructor());
+  auto global_obj = Handle<WasmGlobalObject>::cast(
+      isolate->factory()->NewJSObject(global_ctor));
+
+  uint32_t type_size = 1 << ElementSizeLog2Of(type);
+
+  Handle<JSArrayBuffer> buffer;
+  if (!maybe_buffer.ToHandle(&buffer)) {
+    // If no buffer was provided, create one long enough for the given type.
+    buffer = wasm::SetupArrayBuffer(isolate, nullptr, type_size, false);
+  }
+
+  // Check that the offset is in bounds.
+  uint32_t buffer_size = 0;
+  CHECK(buffer->byte_length()->ToUint32(&buffer_size));
+  CHECK(offset + type_size <= buffer_size);
+
+  global_obj->set_array_buffer(*buffer);
+  global_obj->set_type(static_cast<int>(type));
+  global_obj->set_offset(offset);
+  global_obj->set_is_mutable(is_mutable);
+
+  return global_obj;
+}
+
 bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
     size_t minimum_size) {
   constexpr int kInvalidSigIndex = -1;

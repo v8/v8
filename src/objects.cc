@@ -1387,6 +1387,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSStringIterator::kSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
+    case WASM_GLOBAL_TYPE:
+      return WasmGlobalObject::kSize;
     case WASM_INSTANCE_TYPE:
       return WasmInstanceObject::kSize;
     case WASM_MEMORY_TYPE:
@@ -3091,6 +3093,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_STRING_ITERATOR_TYPE:
     case JS_PROMISE_TYPE:
     case JS_REGEXP_TYPE:
+    case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
@@ -12826,6 +12829,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_VALUE_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
+    case WASM_GLOBAL_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
@@ -15784,7 +15788,8 @@ bool JSObject::WasConstructedFromApiFunction() {
   bool is_api_object = instance_type == JS_API_OBJECT_TYPE ||
                        instance_type == JS_SPECIAL_API_OBJECT_TYPE;
   bool is_wasm_object =
-      instance_type == WASM_MEMORY_TYPE || instance_type == WASM_MODULE_TYPE ||
+      instance_type == WASM_GLOBAL_TYPE || instance_type == WASM_MEMORY_TYPE ||
+      instance_type == WASM_MODULE_TYPE ||
       instance_type == WASM_INSTANCE_TYPE || instance_type == WASM_TABLE_TYPE;
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {

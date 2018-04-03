@@ -306,6 +306,7 @@ enum ContextLookupFlags {
   V(STRING_ITERATOR_MAP_INDEX, Map, string_iterator_map)                       \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(NATIVE_FUNCTION_MAP_INDEX, Map, native_function_map)                       \
+  V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \

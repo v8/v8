@@ -3555,6 +3555,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
         map->instance_type() == JS_ERROR_TYPE ||
         map->instance_type() == JS_ARRAY_TYPE ||
         map->instance_type() == JS_API_OBJECT_TYPE ||
+        map->instance_type() == WASM_GLOBAL_TYPE ||
         map->instance_type() == WASM_INSTANCE_TYPE ||
         map->instance_type() == WASM_MEMORY_TYPE ||
         map->instance_type() == WASM_MODULE_TYPE ||
