@@ -45,8 +45,13 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // the actual value on the object changes.
   Comment("Check descriptor array length");
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
-  Node* descriptors_length = LoadFixedArrayBaseLength(descriptors);
-  GotoIf(SmiLessThanOrEqual(descriptors_length, SmiConstant(1)), &slow);
+  // Minimum descriptor array length required for fast path.
+  const int min_descriptors_length = DescriptorArray::LengthFor(Max(
+      JSFunction::kLengthDescriptorIndex, JSFunction::kNameDescriptorIndex));
+  TNode<Smi> descriptors_length = LoadFixedArrayBaseLength(descriptors);
+  GotoIf(SmiLessThanOrEqual(descriptors_length,
+                            SmiConstant(min_descriptors_length)),
+         &slow);
 
   // Check whether the length and name properties are still present as
   // AccessorInfo objects. In that case, their value can be recomputed even if
@@ -66,15 +71,15 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     GotoIfNot(IsAccessorInfoMap(length_value_map), &slow);
 
     const int name_index = JSFunction::kNameDescriptorIndex;
-    Node* maybe_name = LoadFixedArrayElement(
-        descriptors, DescriptorArray::ToKeyIndex(name_index));
+    TNode<Name> maybe_name = CAST(LoadFixedArrayElement(
+        descriptors, DescriptorArray::ToKeyIndex(name_index)));
     GotoIf(WordNotEqual(maybe_name, LoadRoot(Heap::kname_stringRootIndex)),
            &slow);
 
-    Node* maybe_name_accessor = LoadFixedArrayElement(
+    TNode<Object> maybe_name_accessor = LoadFixedArrayElement(
         descriptors, DescriptorArray::ToValueIndex(name_index));
     GotoIf(TaggedIsSmi(maybe_name_accessor), &slow);
-    Node* name_value_map = LoadMap(maybe_name_accessor);
+    TNode<Map> name_value_map = LoadMap(CAST(maybe_name_accessor));
     GotoIfNot(IsAccessorInfoMap(name_value_map), &slow);
   }
 
