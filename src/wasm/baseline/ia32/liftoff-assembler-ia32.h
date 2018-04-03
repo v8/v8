@@ -548,6 +548,47 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
 }
 
 namespace liftoff {
+template <void (Assembler::*op)(Register, Register),
+          void (Assembler::*op_with_carry)(Register, Register)>
+inline void OpWithCarry(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister lhs, LiftoffRegister rhs) {
+  // First, compute the low half of the result, potentially into a temporary dst
+  // register if {dst.low_gp()} equals {rhs.low_gp()} or any register we need to
+  // keep alive for computing the upper half.
+  LiftoffRegList keep_alive = LiftoffRegList::ForRegs(lhs.high_gp(), rhs);
+  Register dst_low = keep_alive.has(dst.low_gp())
+                         ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
+                         : dst.low_gp();
+
+  if (dst_low != lhs.low_gp()) assm->mov(dst_low, lhs.low_gp());
+  (assm->*op)(dst_low, rhs.low_gp());
+
+  // Now compute the upper half, while keeping alive the previous result.
+  keep_alive = LiftoffRegList::ForRegs(dst_low, rhs.high_gp());
+  Register dst_high = keep_alive.has(dst.high_gp())
+                          ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
+                          : dst.high_gp();
+
+  if (dst_high != lhs.high_gp()) assm->mov(dst_high, lhs.high_gp());
+  (assm->*op_with_carry)(dst_high, rhs.high_gp());
+
+  // If necessary, move result into the right registers.
+  LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
+  if (tmp_result != dst) assm->Move(dst, tmp_result, kWasmI64);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::OpWithCarry<&Assembler::add, &Assembler::adc>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::OpWithCarry<&Assembler::sub, &Assembler::sbb>(this, dst, lhs, rhs);
+}
+
+namespace liftoff {
 inline bool PairContains(LiftoffRegister pair, Register reg) {
   return pair.low_gp() == reg || pair.high_gp() == reg;
 }
@@ -613,11 +654,6 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
                                    &TurboAssembler::ShrPair_cl, pinned);
-}
-
-void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
-                                        Register rhs) {
-  emit_i32_add(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,

@@ -497,6 +497,26 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   return true;
 }
 
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  if (lhs.gp() != dst.gp()) {
+    leap(dst.gp(), Operand(lhs.gp(), rhs.gp(), times_1, 0));
+  } else {
+    addp(dst.gp(), rhs.gp());
+  }
+}
+
+void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  if (dst.gp() == rhs.gp()) {
+    negq(dst.gp());
+    addq(dst.gp(), lhs.gp());
+  } else {
+    if (dst.gp() != lhs.gp()) movq(dst.gp(), lhs.gp());
+    subq(dst.gp(), rhs.gp());
+  }
+}
+
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
   liftoff::EmitShiftOperation<kWasmI64>(this, dst.gp(), src.gp(), amount,
@@ -513,15 +533,6 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
   liftoff::EmitShiftOperation<kWasmI64>(this, dst.gp(), src.gp(), amount,
                                         &Assembler::shrq_cl, pinned);
-}
-
-void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
-                                        Register rhs) {
-  if (lhs != dst) {
-    leap(dst, Operand(lhs, rhs, times_1, 0));
-  } else {
-    addp(dst, rhs);
-  }
 }
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,

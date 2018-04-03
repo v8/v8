@@ -233,6 +233,8 @@ class LiftoffRegList {
     }
     return (regs_ & (storage_t{1} << reg.liftoff_code())) != 0;
   }
+  bool has(Register reg) const { return has(LiftoffRegister(reg)); }
+  bool has(DoubleRegister reg) const { return has(LiftoffRegister(reg)); }
 
   constexpr bool is_empty() const { return regs_ == 0; }
 

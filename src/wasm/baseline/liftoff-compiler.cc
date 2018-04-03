@@ -687,6 +687,12 @@ class LiftoffCompiler {
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
         });
+#define CASE_I64_BINOP(opcode, fn)                                           \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI64, kWasmI64>(                                    \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_##fn(dst, lhs, rhs);                                       \
+        });
 #define CASE_FLOAT_BINOP(opcode, type, fn)                                   \
   case WasmOpcode::kExpr##opcode:                                            \
     return EmitBinOp<kWasm##type, kWasm##type>(                              \
@@ -752,6 +758,8 @@ class LiftoffCompiler {
       CASE_I32_CMPOP(I32LeU, kUnsignedLessEqual)
       CASE_I32_CMPOP(I32GeS, kSignedGreaterEqual)
       CASE_I32_CMPOP(I32GeU, kUnsignedGreaterEqual)
+      CASE_I64_BINOP(I64Add, i64_add)
+      CASE_I64_BINOP(I64Sub, i64_sub)
       CASE_I64_CMPOP(I64Eq, kEqual)
       CASE_I64_CMPOP(I64Ne, kUnequal)
       CASE_I64_CMPOP(I64LtS, kSignedLessThan)
@@ -788,6 +796,7 @@ class LiftoffCompiler {
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
 #undef CASE_I32_BINOP
+#undef CASE_I64_BINOP
 #undef CASE_FLOAT_BINOP
 #undef CASE_I32_CMPOP
 #undef CASE_I64_CMPOP

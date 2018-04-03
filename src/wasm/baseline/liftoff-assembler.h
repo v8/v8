@@ -397,6 +397,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline bool emit_i32_popcnt(Register dst, Register src);
 
   // i64 binops.
+  inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs);
+  inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs);
   inline void emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                            Register amount, LiftoffRegList pinned = {});
   inline void emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
@@ -404,7 +408,14 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                            Register amount, LiftoffRegList pinned = {});
 
-  inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
+  inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
+    if (kPointerSize == 4) {
+      emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs),
+                   LiftoffRegister(rhs));
+    } else {
+      emit_i32_add(dst, lhs, rhs);
+    }
+  }
 
   // f32 binops.
   inline void emit_f32_add(DoubleRegister dst, DoubleRegister lhs,

@@ -355,11 +355,6 @@ I32_BINOP(xor, xor_)
 
 #undef I32_BINOP
 
-void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
-                                        Register rhs) {
-  TurboAssembler::Daddu(dst, lhs, rhs);
-}
-
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   TurboAssembler::Clz(dst, src);
   return true;
@@ -386,6 +381,16 @@ I32_SHIFTOP(sar, srav)
 I32_SHIFTOP(shr, srlv)
 
 #undef I32_SHIFTOP
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  TurboAssembler::Daddu(dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  BAILOUT("i64_sub");
+}
 
 #define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \

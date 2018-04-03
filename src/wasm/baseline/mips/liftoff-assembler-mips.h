@@ -408,11 +408,6 @@ I32_BINOP(xor, xor_)
 
 #undef I32_BINOP
 
-void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
-                                        Register rhs) {
-  emit_i32_add(dst, lhs, rhs);
-}
-
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   TurboAssembler::Clz(dst, src);
   return true;
@@ -439,6 +434,17 @@ I32_SHIFTOP(sar, srav)
 I32_SHIFTOP(shr, srlv)
 
 #undef I32_SHIFTOP
+
+#define UNIMPLEMENTED_I64_BINOP(name)                                  \
+  void LiftoffAssembler::emit_i64_##name(                              \
+      LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+    BAILOUT("i64 binop: " #name);                                      \
+  }
+
+UNIMPLEMENTED_I64_BINOP(add)
+UNIMPLEMENTED_I64_BINOP(sub)
+
+#undef UNIMPLEMENTED_I64_BINOP
 
 namespace liftoff {
 
