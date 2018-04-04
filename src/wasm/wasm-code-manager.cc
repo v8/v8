@@ -71,14 +71,15 @@ void PatchTrampolineAndStubCalls(
   // targets to call the new trampolines and stubs.
   intptr_t delta =
       new_code->instructions().start() - original_code->instructions().start();
+  int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask;
+  RelocIterator orig_it(original_code->instructions(),
+                        original_code->reloc_info(),
+                        original_code->constant_pool(), mask);
   for (RelocIterator it(new_code->instructions(), new_code->reloc_info(),
-                        new_code->constant_pool(),
-                        RelocInfo::kCodeTargetMask | RelocInfo::kApplyMask);
-       !it.done(); it.next()) {
-    bool relocate =
-        RelocInfo::ModeMask(it.rinfo()->rmode()) & RelocInfo::kApplyMask;
+                        new_code->constant_pool(), mask);
+       !it.done(); it.next(), orig_it.next()) {
     if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
-      Address target = it.rinfo()->target_address() - (relocate ? delta : 0);
+      Address target = orig_it.rinfo()->target_address();
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
       auto found = reverse_lookup.find(target);
       DCHECK(found != reverse_lookup.end());
