@@ -183,10 +183,8 @@ Register ToRegister(int num) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo.
 
-const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-                                  1 << RelocInfo::INTERNAL_REFERENCE |
+const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE |
                                   1 << RelocInfo::INTERNAL_REFERENCE_ENCODED;
-
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
