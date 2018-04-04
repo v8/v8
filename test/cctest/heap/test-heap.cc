@@ -2844,39 +2844,6 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
       Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
-
-
-TEST(TransitionArraySimpleToFull) {
-  FLAG_stress_compaction = false;
-  FLAG_stress_incremental_marking = false;
-  FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  static const int transitions_count = 1;
-  CompileRun("function F() {}");
-  AddTransitions(transitions_count);
-  CompileRun("var root = new F;");
-  Handle<JSObject> root = GetByName("root");
-
-  // Count number of live transitions before marking.
-  int transitions_before = CountMapTransitions(root->map());
-  CHECK_EQ(transitions_count, transitions_before);
-
-  CompileRun("o = new F;"
-             "root = new F");
-  root = GetByName("root");
-  {
-    DisallowHeapAllocation no_gc;
-    CHECK(TestTransitionsAccessor(root->map(), &no_gc).IsWeakCellEncoding());
-  }
-  AddPropertyTo(2, root, "happy");
-
-  // Count number of live transitions after marking.  Note that one transition
-  // is left, because 'root' still holds an instance of one transition target.
-  int transitions_after = CountMapTransitions(
-      Map::cast(root->map()->GetBackPointer()));
-  CHECK_EQ(1, transitions_after);
-}
 #endif  // DEBUG
 
 
