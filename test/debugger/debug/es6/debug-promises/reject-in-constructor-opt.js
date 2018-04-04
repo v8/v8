@@ -57,3 +57,5 @@ foo();
 // bar does not get inlined into foo.
 foo();
 %RunMicrotasks();
+
+assertEquals(0, expected_events);
