@@ -556,14 +556,14 @@
 
     'cfi': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_icall=true '
-                  'use_cfi_diag=true use_cfi_recover=false'),
+      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
+                  'use_cfi_recover=false'),
     },
 
     'cfi_clusterfuzz': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_icall=true '
-                  'use_cfi_diag=true use_cfi_recover=true'),
+      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
+                  'use_cfi_recover=true'),
     },
 
     'clang': {
