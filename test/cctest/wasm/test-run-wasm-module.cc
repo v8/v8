@@ -1084,8 +1084,10 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
 #else
     constexpr bool require_guard_regions = false;
 #endif
-    Handle<JSArrayBuffer> buffer = wasm::NewArrayBuffer(
-        isolate, 16 * kWasmPageSize, require_guard_regions);
+    Handle<JSArrayBuffer> buffer;
+    CHECK(
+        wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
+            .ToHandle(&buffer));
     Handle<WasmMemoryObject> mem_obj =
         WasmMemoryObject::New(isolate, buffer, 100);
     auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
@@ -1111,8 +1113,10 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
 #else
     constexpr bool require_guard_regions = false;
 #endif
-    Handle<JSArrayBuffer> buffer = wasm::NewArrayBuffer(
-        isolate, 16 * kWasmPageSize, require_guard_regions);
+    Handle<JSArrayBuffer> buffer;
+    CHECK(
+        wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
+            .ToHandle(&buffer));
     auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     wasm::DetachMemoryBuffer(isolate, buffer, true);
     constexpr bool is_wasm_memory = true;
@@ -1133,8 +1137,9 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
 #else
   constexpr bool require_guard_regions = false;
 #endif
-  Handle<JSArrayBuffer> buffer =
-      wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions);
+  Handle<JSArrayBuffer> buffer;
+  CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
+            .ToHandle(&buffer));
   Handle<WasmMemoryObject> mem = WasmMemoryObject::New(isolate, buffer, 128);
   auto contents = v8::Utils::ToLocal(buffer)->Externalize();
   WasmMemoryObject::Grow(isolate, mem, 0);
@@ -1157,9 +1162,9 @@ TEST(Run_WasmModule_Reclaim_Memory) {
   for (int i = 0; i < 256; ++i) {
     HandleScope scope(isolate);
     constexpr bool require_guard_regions = true;
-    buffer = NewArrayBuffer(isolate, kWasmPageSize, require_guard_regions,
-                            SharedFlag::kNotShared);
-    CHECK(!buffer.is_null());
+    CHECK(NewArrayBuffer(isolate, kWasmPageSize, require_guard_regions,
+                         SharedFlag::kNotShared)
+              .ToHandle(&buffer));
   }
 }
 #endif

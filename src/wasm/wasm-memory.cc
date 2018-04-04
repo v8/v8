@@ -223,15 +223,15 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
   return buffer;
 }
 
-Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
-                                     bool require_guard_regions,
-                                     SharedFlag shared) {
+MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
+                                          bool require_guard_regions,
+                                          SharedFlag shared) {
   // Check against kMaxInt, since the byte length is stored as int in the
   // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
   // line, and we don't want to fail a CHECK then.
   if (size > FLAG_wasm_max_mem_pages * kWasmPageSize || size > kMaxInt) {
     // TODO(titzer): lift restriction on maximum memory allocated here.
-    return Handle<JSArrayBuffer>::null();
+    return {};
   }
 
   WasmMemoryTracker* memory_tracker = isolate->wasm_engine()->memory_tracker();
@@ -248,9 +248,7 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                     require_guard_regions, &allocation_base,
                                     &allocation_length);
 
-  if (size > 0 && memory == nullptr) {
-    return Handle<JSArrayBuffer>::null();
-  }
+  if (size > 0 && memory == nullptr) return {};
 
 #if DEBUG
   // Double check the API allocator actually zero-initialized the memory.

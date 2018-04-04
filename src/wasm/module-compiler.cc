@@ -1652,16 +1652,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   uint32_t globals_size = module_->globals_size;
   if (globals_size > 0) {
     constexpr bool enable_guard_regions = false;
-    Handle<JSArrayBuffer> global_buffer =
-        NewArrayBuffer(isolate_, globals_size, enable_guard_regions);
-    globals_ = global_buffer;
-    if (globals_.is_null()) {
+    if (!NewArrayBuffer(isolate_, globals_size, enable_guard_regions)
+             .ToHandle(&globals_)) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
     wasm_context->globals_start =
-        reinterpret_cast<byte*>(global_buffer->backing_store());
-    instance->set_globals_buffer(*global_buffer);
+        reinterpret_cast<byte*>(globals_->backing_store());
+    instance->set_globals_buffer(*globals_);
   }
 
   //--------------------------------------------------------------------------
@@ -2353,11 +2351,12 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
   const bool enable_guard_regions = use_trap_handler();
   const bool is_shared_memory =
       module_->has_shared_memory && i::FLAG_experimental_wasm_threads;
-  Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
-      isolate_, num_pages * kWasmPageSize, enable_guard_regions,
-      is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared);
-
-  if (mem_buffer.is_null()) {
+  i::SharedFlag shared_flag =
+      is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared;
+  Handle<JSArrayBuffer> mem_buffer;
+  if (!NewArrayBuffer(isolate_, num_pages * kWasmPageSize, enable_guard_regions,
+                      shared_flag)
+           .ToHandle(&mem_buffer)) {
     thrower_->RangeError("Out of memory: wasm memory");
   }
   return mem_buffer;

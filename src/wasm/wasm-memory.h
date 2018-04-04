@@ -113,7 +113,7 @@ class WasmMemoryTracker {
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };
 
-Handle<JSArrayBuffer> NewArrayBuffer(
+MaybeHandle<JSArrayBuffer> NewArrayBuffer(
     Isolate*, size_t size, bool require_guard_regions,
     SharedFlag shared = SharedFlag::kNotShared);
 
