@@ -437,7 +437,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
-                                   LiftoffRegister* explicit_context) {
+                                   LiftoffRegister* target_instance) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
   // Input 0 is the call target.
   constexpr size_t kInputShift = 1;
@@ -455,14 +455,14 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   StackTransferRecipe stack_transfers(this);
   LiftoffRegList param_regs;
 
-  // Move the explicit context (if any) into the correct context register.
-  compiler::LinkageLocation context_loc =
+  // Move the target instance (if supplied) into the correct instance register.
+  compiler::LinkageLocation instance_loc =
       call_descriptor->GetInputLocation(kInputShift);
-  DCHECK(context_loc.IsRegister() && !context_loc.IsAnyRegister());
-  LiftoffRegister context_reg(Register::from_code(context_loc.AsRegister()));
-  param_regs.set(context_reg);
-  if (explicit_context && *explicit_context != context_reg) {
-    stack_transfers.MoveRegister(context_reg, *explicit_context, kWasmIntPtr);
+  DCHECK(instance_loc.IsRegister() && !instance_loc.IsAnyRegister());
+  LiftoffRegister instance_reg(Register::from_code(instance_loc.AsRegister()));
+  param_regs.set(instance_reg);
+  if (target_instance && *target_instance != instance_reg) {
+    stack_transfers.MoveRegister(instance_reg, *target_instance, kWasmIntPtr);
   }
 
   // Now move all parameter values into the right slot for the call.
@@ -504,7 +504,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
       }
     }
   }
-  // {call_desc_input_idx} should point after the context parameter now.
+  // {call_desc_input_idx} should point after the instance parameter now.
   DCHECK_EQ(call_desc_input_idx, kInputShift + 1);
 
   // If the target register overlaps with a parameter register, then move the
@@ -523,7 +523,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     }
   }
 
-  // Execute the stack transfers before filling the context register.
+  // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
 
   // Pop parameters from the value stack.
@@ -533,9 +533,9 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   // Reset register use counters.
   cache_state_.reset_used_registers();
 
-  // Reload the context from the stack.
-  if (!explicit_context) {
-    FillContextInto(context_reg.gp());
+  // Reload the instance from the stack.
+  if (!target_instance) {
+    FillInstanceInto(instance_reg.gp());
   }
 }
 

@@ -1140,8 +1140,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     WasmExportedFunction* function = WasmExportedFunction::cast(this);
     os << "\n - WASM instance "
        << reinterpret_cast<void*>(function->instance());
-    os << "\n   context "
-       << reinterpret_cast<void*>(function->instance()->wasm_context()->get());
     os << "\n - WASM function index " << function->function_index();
   }
   shared()->PrintSourceCode(os);

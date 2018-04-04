@@ -213,12 +213,6 @@ bool RelocInfo::OffHeapTargetIsCodedSpecially() {
 #endif
 }
 
-void RelocInfo::set_wasm_context_reference(Address address,
-                                           ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmContextReference(rmode_));
-  set_embedded_address(address, icache_flush_mode);
-}
-
 void RelocInfo::set_global_handle(Address address,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
@@ -239,11 +233,6 @@ void RelocInfo::set_wasm_call_address(Address address,
 
 Address RelocInfo::global_handle() const {
   DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
-  return embedded_address();
-}
-
-Address RelocInfo::wasm_context_reference() const {
-  DCHECK(IsWasmContextReference(rmode_));
   return embedded_address();
 }
 
@@ -546,8 +535,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "constant pool";
     case VENEER_POOL:
       return "veneer pool";
-    case WASM_CONTEXT_REFERENCE:
-      return "wasm context reference";
     case WASM_GLOBAL_HANDLE:
       return "global handle";
     case WASM_CALL:
@@ -650,7 +637,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_ID:
     case CONST_POOL:
     case VENEER_POOL:
-    case WASM_CONTEXT_REFERENCE:
     case WASM_GLOBAL_HANDLE:
     case WASM_CALL:
     case JS_TO_WASM_CALL:
