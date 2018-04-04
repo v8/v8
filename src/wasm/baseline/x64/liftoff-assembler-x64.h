@@ -613,6 +613,23 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
+void LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  Roundss(dst, src, kRoundUp);
+}
+
+void LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  Roundss(dst, src, kRoundDown);
+}
+
+void LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  Roundss(dst, src, kRoundToZero);
+}
+
+void LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  Roundss(dst, src, kRoundToNearest);
+}
+
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
   Sqrtss(dst, src);
 }
@@ -693,6 +710,23 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
     TurboAssembler::Move(dst, kSignBit);
     Xorpd(dst, src);
   }
+}
+
+void LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+  Roundsd(dst, src, kRoundUp);
+}
+
+void LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+  Roundsd(dst, src, kRoundDown);
+}
+
+void LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+  Roundsd(dst, src, kRoundToZero);
+}
+
+void LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  Roundsd(dst, src, kRoundToNearest);
 }
 
 void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {

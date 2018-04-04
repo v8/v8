@@ -734,6 +734,31 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
+void LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundss(dst, src, kRoundUp);
+}
+
+void LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundss(dst, src, kRoundDown);
+}
+
+void LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundss(dst, src, kRoundToZero);
+}
+
+void LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundss(dst, src, kRoundToNearest);
+}
+
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
   Sqrtss(dst, src);
 }
@@ -814,6 +839,31 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
     TurboAssembler::Move(dst, kSignBit);
     Xorpd(dst, src);
   }
+}
+
+void LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundsd(dst, src, kRoundUp);
+}
+
+void LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundsd(dst, src, kRoundDown);
+}
+
+void LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundsd(dst, src, kRoundToZero);
+}
+
+void LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) return bailout("no sse4.1");
+  CpuFeatureScope feature(this, SSE4_1);
+  roundsd(dst, src, kRoundToNearest);
 }
 
 void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {
