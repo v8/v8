@@ -65,6 +65,7 @@ namespace internal {
   TFC(ConstructWithArrayLike, ConstructWithArrayLike, 1)                       \
   ASM(ConstructForwardVarargs)                                                 \
   ASM(ConstructFunctionForwardVarargs)                                         \
+  ASM(JSConstructStubApi)                                                      \
   ASM(JSConstructStubGenericRestrictedReturn)                                  \
   ASM(JSConstructStubGenericUnrestrictedReturn)                                \
   ASM(JSBuiltinsConstructStub)                                                 \

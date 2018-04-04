@@ -139,16 +139,13 @@ TEST(StressJS) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
-      factory->function_string(), isolate->sloppy_function_map(),
-      Builtins::kEmptyFunction);
-  Handle<JSFunction> function = factory->NewFunction(args);
-  CHECK(!function->shared()->construct_as_builtin());
-
-  // Force the creation of an initial map.
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
+  // Force the creation of an initial map and set the code to
+  // something empty.
   factory->NewJSObject(function);
-
+  function->set_code(
+      CcTest::i_isolate()->builtins()->builtin(Builtins::kEmptyFunction));
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());

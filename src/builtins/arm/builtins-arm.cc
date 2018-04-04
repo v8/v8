@@ -441,6 +441,9 @@ void Builtins::Generate_JSConstructStubGenericUnrestrictedReturn(
     MacroAssembler* masm) {
   Generate_JSConstructStubGeneric(masm, false);
 }
+void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
+  Generate_JSBuiltinsConstructStubHelper(masm);
+}
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
@@ -2237,20 +2240,11 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // r2 to contain either an AllocationSite or undefined.
   __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
 
-  Label call_generic_stub;
-
-  // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
   __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kFlagsOffset));
-  __ tst(r4, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
-  __ b(eq, &call_generic_stub);
-
-  __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
-          RelocInfo::CODE_TARGET);
-
-  __ bind(&call_generic_stub);
-  __ Jump(masm->isolate()->builtins()->JSConstructStubGeneric(),
-          RelocInfo::CODE_TARGET);
+  __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kConstructStubOffset));
+  __ add(pc, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
 }
 
 // static

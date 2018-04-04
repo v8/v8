@@ -879,19 +879,6 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
     CHECK_EQ(raw_start_position(), info->StartPosition());
     CHECK_EQ(raw_end_position(), info->EndPosition());
   }
-
-  if (IsApiFunction()) {
-    CHECK(construct_as_builtin());
-  } else if (!HasBuiltinId()) {
-    CHECK(!construct_as_builtin());
-  } else {
-    int id = builtin_id();
-    if (id != Builtins::kCompileLazy && id != Builtins::kEmptyFunction) {
-      CHECK(construct_as_builtin());
-    } else {
-      CHECK(!construct_as_builtin());
-    }
-  }
 }
 
 

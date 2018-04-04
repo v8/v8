@@ -261,7 +261,9 @@ namespace {
 // TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
-  if (!shared_info->construct_as_builtin()) {
+  Isolate* const isolate = shared_info->GetIsolate();
+  Code* const construct_stub = shared_info->construct_stub();
+  if (construct_stub == *isolate->builtins()->JSConstructStubGeneric()) {
     return !IsDerivedConstructor(shared_info->kind());
   } else {
     return false;
