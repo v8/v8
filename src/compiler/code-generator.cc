@@ -11,10 +11,10 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/eh-frame.h"
 #include "src/frames.h"
 #include "src/macro-assembler-inl.h"
-#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -37,13 +37,14 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(
-    Zone* codegen_zone, Frame* frame, Linkage* linkage,
-    InstructionSequence* code, CompilationInfo* info, Isolate* isolate,
-    base::Optional<OsrHelper> osr_helper, int start_source_position,
-    JumpOptimizationInfo* jump_opt,
-    std::vector<trap_handler::ProtectedInstructionData>* protected_instructions,
-    PoisoningMitigationLevel poisoning_enabled)
+CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
+                             InstructionSequence* code, CompilationInfo* info,
+                             Isolate* isolate,
+                             base::Optional<OsrHelper> osr_helper,
+                             int start_source_position,
+                             JumpOptimizationInfo* jump_opt,
+                             WasmCompilationData* wasm_compilation_data,
+                             PoisoningMitigationLevel poisoning_enabled)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -73,7 +74,7 @@ CodeGenerator::CodeGenerator(
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
       source_position_table_builder_(info->SourcePositionRecordingMode()),
-      protected_instructions_(protected_instructions),
+      wasm_compilation_data_(wasm_compilation_data),
       result_(kSuccess),
       poisoning_enabled_(poisoning_enabled) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
@@ -89,13 +90,15 @@ CodeGenerator::CodeGenerator(
   }
 }
 
+bool CodeGenerator::wasm_runtime_exception_support() const {
+  DCHECK(wasm_compilation_data_);
+  return wasm_compilation_data_->runtime_exception_support();
+}
+
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
                                                    uint32_t landing_offset) {
-  if (protected_instructions_ != nullptr) {
-    trap_handler::ProtectedInstructionData data = {instr_offset,
-                                                   landing_offset};
-    protected_instructions_->emplace_back(data);
-  }
+  DCHECK_NOT_NULL(wasm_compilation_data_);
+  wasm_compilation_data_->AddProtectedInstruction(instr_offset, landing_offset);
 }
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {

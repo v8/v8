@@ -1394,17 +1394,17 @@ WASM_EXEC_TEST(I64Rol) {
 }
 
 WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
-  // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::IsTrapHandlerEnabled()) return;
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
       MachineType::Int64(),  MachineType::Uint64(), MachineType::Float32(),
       MachineType::Float64()};
 
+  constexpr size_t num_bytes = kWasmPageSize;
+
   for (size_t m = 0; m < arraysize(machineTypes); m++) {
     WasmRunner<int32_t, uint32_t> r(execution_mode);
-    byte* memory = r.builder().AddMemoryElems<byte>(32);
+    byte* memory = r.builder().AddMemoryElems<byte>(num_bytes);
     r.builder().RandomizeMemory(1119 + static_cast<int>(m));
 
     BUILD(r, WASM_STORE_MEM_OFFSET(machineTypes[m], 8, WASM_GET_LOCAL(0),
@@ -1412,7 +1412,7 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
           WASM_ZERO);
 
     byte memsize = WasmOpcodes::MemSize(machineTypes[m]);
-    uint32_t boundary = 24 - memsize;
+    uint32_t boundary = num_bytes - 8 - memsize;
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
 

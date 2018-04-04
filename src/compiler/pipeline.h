@@ -20,10 +20,6 @@ class CompilationJob;
 class RegisterConfiguration;
 class JumpOptimizationInfo;
 
-namespace trap_handler {
-struct ProtectedInstructionData;
-}  // namespace trap_handler
-
 namespace wasm {
 enum ModuleOrigin : uint8_t;
 }  // namespace wasm
@@ -36,6 +32,7 @@ class Graph;
 class InstructionSequence;
 class Schedule;
 class SourcePositionTable;
+class WasmCompilationData;
 
 class Pipeline : public AllStatic {
  public:
@@ -47,8 +44,7 @@ class Pipeline : public AllStatic {
   static CompilationJob* NewWasmCompilationJob(
       CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      std::vector<trap_handler::ProtectedInstructionData>*
-          protected_instructions,
+      WasmCompilationData* wasm_compilation_data,
       wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must

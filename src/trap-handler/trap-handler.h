@@ -93,6 +93,12 @@ inline void ClearThreadInWasm() {
   }
 }
 
+class ThreadInWasmScope {
+ public:
+  ThreadInWasmScope() { SetThreadInWasm(); }
+  ~ThreadInWasmScope() { ClearThreadInWasm(); }
+};
+
 bool RegisterDefaultSignalHandler();
 V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
 

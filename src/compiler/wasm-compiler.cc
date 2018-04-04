@@ -5066,6 +5066,18 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   return code;
 }
 
+WasmCompilationData::WasmCompilationData(
+    RuntimeExceptionSupport runtime_exception_support)
+    : protected_instructions_(
+          new std::vector<trap_handler::ProtectedInstructionData>()),
+      runtime_exception_support_(runtime_exception_support) {}
+
+void WasmCompilationData::AddProtectedInstruction(uint32_t instr_offset,
+                                                  uint32_t landing_offset) {
+  protected_instructions_->emplace_back(
+      trap_handler::ProtectedInstructionData{instr_offset, landing_offset});
+}
+
 SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     double* decode_ms) {
   base::ElapsedTimer decode_timer;
@@ -5078,7 +5090,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
       new (tf_.jsgraph_->zone()) SourcePositionTable(tf_.jsgraph_->graph());
   WasmGraphBuilder builder(env_, tf_.jsgraph_->zone(), tf_.jsgraph_,
                            centry_stub_, func_body_.sig, source_position_table,
-                           runtime_exception_support_);
+                           wasm_compilation_data_.runtime_exception_support());
   tf_.graph_construction_result_ =
       wasm::BuildTFGraph(isolate_->allocator(), &builder, func_body_);
   if (tf_.graph_construction_result_.failed()) {
@@ -5149,11 +5161,9 @@ WasmCompilationUnit::WasmCompilationUnit(
       counters_(counters ? counters : isolate->counters()),
       centry_stub_(centry_stub),
       func_index_(index),
-      runtime_exception_support_(exception_support),
       native_module_(native_module),
       lower_simd_(lower_simd),
-      protected_instructions_(
-          new std::vector<trap_handler::ProtectedInstructionData>()),
+      wasm_compilation_data_(exception_support),
       mode_(mode) {
   switch (mode_) {
     case WasmCompilationUnit::CompilationMode::kLiftoff:
@@ -5248,8 +5258,7 @@ void WasmCompilationUnit::ExecuteTurbofanCompilation() {
 
     tf_.job_.reset(Pipeline::NewWasmCompilationJob(
         tf_.info_.get(), isolate_, tf_.jsgraph_, call_descriptor,
-        source_positions, protected_instructions_.get(),
-        env_->module->origin()));
+        source_positions, &wasm_compilation_data_, env_->module->origin()));
     ok_ = tf_.job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
@@ -5331,7 +5340,7 @@ wasm::WasmCode* WasmCompilationUnit::FinishTurbofanCompilation(
       func_index_,
       tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
       tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
-      std::move(protected_instructions_),
+      wasm_compilation_data_.ReleaseProtectedInstructions(),
       tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table,
       wasm::WasmCode::kTurbofan);
   if (!code) return code;
@@ -5355,8 +5364,9 @@ wasm::WasmCode* WasmCompilationUnit::FinishLiftoffCompilation(
 
   wasm::WasmCode* code = native_module_->AddCode(
       desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
-      liftoff_.safepoint_table_offset_, 0, std::move(protected_instructions_),
-      source_positions, wasm::WasmCode::kLiftoff);
+      liftoff_.safepoint_table_offset_, 0,
+      wasm_compilation_data_.ReleaseProtectedInstructions(), source_positions,
+      wasm::WasmCode::kLiftoff);
 
   return code;
 }

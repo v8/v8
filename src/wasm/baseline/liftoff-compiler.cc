@@ -19,6 +19,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+using WasmCompilationData = compiler::WasmCompilationData;
+
 constexpr auto kRegister = LiftoffAssembler::VarState::kRegister;
 constexpr auto KIntConst = LiftoffAssembler::VarState::KIntConst;
 constexpr auto kStack = LiftoffAssembler::VarState::kStack;
@@ -121,10 +123,8 @@ class LiftoffCompiler {
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
                   compiler::CallDescriptor* call_descriptor,
                   compiler::ModuleEnv* env,
-                  compiler::RuntimeExceptionSupport runtime_exception_support,
                   SourcePositionTableBuilder* source_position_table_builder,
-                  std::vector<trap_handler::ProtectedInstructionData>*
-                      protected_instructions,
+                  WasmCompilationData* wasm_compilation_data,
                   Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone)
       : asm_(liftoff_asm),
         descriptor_(
@@ -135,9 +135,8 @@ class LiftoffCompiler {
                                ? env_->module->maximum_pages
                                : wasm::kV8MaxWasmMemoryPages} *
                   wasm::kWasmPageSize),
-        runtime_exception_support_(runtime_exception_support),
         source_position_table_builder_(source_position_table_builder),
-        protected_instructions_(protected_instructions),
+        wasm_compilation_data_(wasm_compilation_data),
         compilation_zone_(compilation_zone),
         codegen_zone_(codegen_zone),
         safepoint_table_builder_(compilation_zone_) {}
@@ -251,7 +250,10 @@ class LiftoffCompiler {
   }
 
   void StackCheck(wasm::WasmCodePosition position) {
-    if (FLAG_wasm_no_stack_checks || !runtime_exception_support_) return;
+    if (FLAG_wasm_no_stack_checks ||
+        !wasm_compilation_data_->runtime_exception_support()) {
+      return;
+    }
     out_of_line_code_.push_back(
         OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
     OutOfLineCode& ool = out_of_line_code_.back();
@@ -332,7 +334,16 @@ class LiftoffCompiler {
   void GenerateOutOfLineCode(OutOfLineCode& ool) {
     __ bind(ool.label.get());
     const bool is_stack_check = ool.builtin == Builtins::kWasmStackGuard;
-    if (!runtime_exception_support_) {
+    const bool is_mem_out_of_bounds =
+        ool.builtin == Builtins::kThrowWasmTrapMemOutOfBounds;
+
+    if (is_mem_out_of_bounds && env_->use_trap_handler) {
+      uint32_t pc = static_cast<uint32_t>(__ pc_offset());
+      DCHECK_EQ(pc, __ pc_offset());
+      wasm_compilation_data_->AddProtectedInstruction(ool.pc, pc);
+    }
+
+    if (!wasm_compilation_data_->runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
       // In this mode, we never generate stack checks.
@@ -341,13 +352,6 @@ class LiftoffCompiler {
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       __ Ret();
       return;
-    }
-
-    if (!is_stack_check && env_->use_trap_handler) {
-      uint32_t pc = static_cast<uint32_t>(__ pc_offset());
-      DCHECK_EQ(pc, __ pc_offset());
-      protected_instructions_->emplace_back(
-          trap_handler::ProtectedInstructionData{ool.pc, pc});
     }
 
     if (!ool.regs_to_save.is_empty()) __ PushRegisters(ool.regs_to_save);
@@ -1432,11 +1436,10 @@ class LiftoffCompiler {
   // {min_size_} and {max_size_} are cached values computed from the ModuleEnv.
   const uint64_t min_size_;
   const uint64_t max_size_;
-  const compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder* const source_position_table_builder_;
-  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_;
+  WasmCompilationData* wasm_compilation_data_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
@@ -1487,9 +1490,8 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
       base::in_place, counters()->liftoff_compile_time());
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, func_body_, &liftoff_.asm_, call_descriptor, env_,
-              runtime_exception_support_,
-              &liftoff_.source_position_table_builder_,
-              protected_instructions_.get(), &zone, &liftoff_.codegen_zone_);
+              &liftoff_.source_position_table_builder_, &wasm_compilation_data_,
+              &zone, &liftoff_.codegen_zone_);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {

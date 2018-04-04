@@ -257,40 +257,81 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
-class WasmOutOfLineTrap final : public OutOfLineCode {
+class WasmOutOfLineTrap : public OutOfLineCode {
  public:
-  WasmOutOfLineTrap(CodeGenerator* gen, int pc, bool frame_elided,
-                    Instruction* instr)
+  WasmOutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
       : OutOfLineCode(gen),
         gen_(gen),
-        pc_(pc),
         frame_elided_(frame_elided),
         instr_(instr) {}
 
-  // TODO(eholk): Refactor this method to take the code generator as a
-  // parameter.
-  void Generate() final {
-    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+  void Generate() override {
+    X64OperandConverter i(gen_, instr_);
 
+    Builtins::Name trap_id =
+        static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
+    GenerateWithTrapId(trap_id);
+  }
+
+ protected:
+  CodeGenerator* gen_;
+
+  void GenerateWithTrapId(Builtins::Name trap_id) {
+    bool old_has_frame = __ has_frame();
     if (frame_elided_) {
+      __ set_has_frame(true);
       __ EnterFrame(StackFrame::WASM_COMPILED);
     }
-
-    gen_->AssembleSourcePosition(instr_);
-    __ Call(__ isolate()->builtins()->builtin_handle(
-                Builtins::kThrowWasmTrapMemOutOfBounds),
-            RelocInfo::CODE_TARGET);
-    ReferenceMap* reference_map = new (gen_->zone()) ReferenceMap(gen_->zone());
-    gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                          Safepoint::kNoLazyDeopt);
-    __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+    GenerateCallToTrap(trap_id);
+    if (frame_elided_) {
+      __ set_has_frame(old_has_frame);
+    }
   }
 
  private:
-  CodeGenerator* gen_;
-  int pc_;
+  void GenerateCallToTrap(Builtins::Name trap_id) {
+    if (!gen_->wasm_runtime_exception_support()) {
+      // We cannot test calls to the runtime in cctest/test-run-wasm.
+      // Therefore we emit a call to C here instead of a call to the runtime.
+      __ PrepareCallCFunction(0);
+      __ CallCFunction(
+          ExternalReference::wasm_call_trap_callback_for_testing(__ isolate()),
+          0);
+      __ LeaveFrame(StackFrame::WASM_COMPILED);
+      auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+      size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
+      // Use rcx as a scratch register, we return anyways immediately.
+      __ Ret(static_cast<int>(pop_size), rcx);
+    } else {
+      gen_->AssembleSourcePosition(instr_);
+      __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
+              RelocInfo::CODE_TARGET);
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+    }
+  }
+
   bool frame_elided_;
   Instruction* instr_;
+};
+
+class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
+ public:
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, bool frame_elided,
+                               Instruction* instr)
+      : WasmOutOfLineTrap(gen, frame_elided, instr), pc_(pc) {}
+
+  void Generate() final {
+    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+
+    GenerateWithTrapId(Builtins::kThrowWasmTrapMemOutOfBounds);
+  }
+
+ private:
+  int pc_;
 };
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
@@ -300,7 +341,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessProtected) {
     const bool frame_elided = !codegen->frame_access_state()->has_frame();
-    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, instr);
+    new (zone) WasmProtectedInstructionTrap(codegen, pc, frame_elided, instr);
   }
 }
 
@@ -2967,62 +3008,8 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  class OutOfLineTrap final : public OutOfLineCode {
-   public:
-    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
-        : OutOfLineCode(gen),
-          frame_elided_(frame_elided),
-          instr_(instr),
-          gen_(gen) {}
-
-    void Generate() final {
-      X64OperandConverter i(gen_, instr_);
-
-      Builtins::Name trap_id =
-          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
-      bool old_has_frame = __ has_frame();
-      if (frame_elided_) {
-        __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM_COMPILED);
-      }
-      GenerateCallToTrap(trap_id);
-      if (frame_elided_) {
-        __ set_has_frame(old_has_frame);
-      }
-    }
-
-   private:
-    void GenerateCallToTrap(Builtins::Name trap_id) {
-      if (trap_id == Builtins::builtin_count) {
-        // We cannot test calls to the runtime in cctest/test-run-wasm.
-        // Therefore we emit a call to C here instead of a call to the runtime.
-        __ PrepareCallCFunction(0);
-        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
-                             __ isolate()),
-                         0);
-        __ LeaveFrame(StackFrame::WASM_COMPILED);
-        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-        size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
-        // Use rcx as a scratch register, we return anyways immediately.
-        __ Ret(static_cast<int>(pop_size), rcx);
-      } else {
-        gen_->AssembleSourcePosition(instr_);
-        __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-                RelocInfo::CODE_TARGET);
-        ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                              Safepoint::kNoLazyDeopt);
-        __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
-      }
-    }
-
-    bool frame_elided_;
-    Instruction* instr_;
-    CodeGenerator* gen_;
-  };
   bool frame_elided = !frame_access_state()->has_frame();
-  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  auto ool = new (zone()) WasmOutOfLineTrap(this, frame_elided, instr);
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {

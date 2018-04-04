@@ -125,8 +125,7 @@ class PipelineData {
   PipelineData(ZoneStats* zone_stats, Isolate* isolate, CompilationInfo* info,
                JSGraph* jsgraph, PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
-               std::vector<trap_handler::ProtectedInstructionData>*
-                   protected_instructions)
+               WasmCompilationData* wasm_compilation_data)
       : isolate_(isolate),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -145,7 +144,7 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        protected_instructions_(protected_instructions) {}
+        wasm_compilation_data_(wasm_compilation_data) {}
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Isolate* isolate,
@@ -344,7 +343,7 @@ class PipelineData {
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        protected_instructions_,
+        wasm_compilation_data_,
         info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
                                   : PoisoningMitigationLevel::kOff);
   }
@@ -417,8 +416,7 @@ class PipelineData {
   // Source position output for --trace-turbo.
   std::string source_position_output_;
 
-  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_ =
-      nullptr;
+  WasmCompilationData* wasm_compilation_data_ = nullptr;
 
   JumpOptimizationInfo* jump_optimization_info_ = nullptr;
 
@@ -887,15 +885,14 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(
       CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      std::vector<trap_handler::ProtectedInstructionData>* protected_insts,
-      bool asmjs_origin)
+      WasmCompilationData* wasm_compilation_data, bool asmjs_origin)
       : CompilationJob(isolate->stack_guard()->real_climit(), nullptr, info,
                        "TurboFan", State::kReadyToExecute),
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             Handle<Script>::null(), info, isolate, &zone_stats_)),
         data_(&zone_stats_, isolate, info, jsgraph, pipeline_statistics_.get(),
-              source_positions, protected_insts),
+              source_positions, wasm_compilation_data),
         pipeline_(&data_),
         linkage_(call_descriptor),
         asmjs_origin_(asmjs_origin) {}
@@ -2088,11 +2085,11 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
 CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-    std::vector<trap_handler::ProtectedInstructionData>* protected_instructions,
+    WasmCompilationData* wasm_compilation_data,
     wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(info, isolate, jsgraph, call_descriptor,
-                                        source_positions,
-                                        protected_instructions, asmjs_origin);
+                                        source_positions, wasm_compilation_data,
+                                        asmjs_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
