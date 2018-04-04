@@ -731,9 +731,9 @@ class DebugWrapper {
            };
   }
 
-  evaluateGlobal(expr, throw_on_side_effect) {
+  execStateEvaluateGlobal(expr) {
     const {msgid, msg} = this.createMessage(
-        "Runtime.evaluate", { expression : expr, throwOnSideEffect: throw_on_side_effect });
+        "Runtime.evaluate", { expression : expr });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
 
@@ -830,7 +830,7 @@ class DebugWrapper {
     let execState = { frames : params.callFrames,
                       prepareStep : this.execStatePrepareStep.bind(this),
                       evaluateGlobal :
-                        (expr) => this.evaluateGlobal(expr),
+                        (expr) => this.execStateEvaluateGlobal(expr),
                       frame : (index) => this.execStateFrame(
                           index ? params.callFrames[index]
                                 : params.callFrames[0]),

@@ -132,10 +132,10 @@ v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
-  DCHECK(!allocation_tracker_);
+  DCHECK(!is_tracking_allocations());
   if (track_allocations) {
     allocation_tracker_.reset(new AllocationTracker(ids_.get(), names_.get()));
-    heap()->AddHeapObjectAllocationTracker(this);
+    heap()->DisableInlineAllocation();
     heap()->isolate()->debug()->feature_tracker()->Track(
         DebugFeatureTracker::kAllocationTracking);
   }
@@ -148,9 +148,9 @@ SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream,
 
 void HeapProfiler::StopHeapObjectsTracking() {
   ids_->StopHeapObjectsTracking();
-  if (allocation_tracker_) {
+  if (is_tracking_allocations()) {
     allocation_tracker_.reset();
-    heap()->RemoveHeapObjectAllocationTracker(this);
+    heap()->EnableInlineAllocation();
   }
 }
 
@@ -206,7 +206,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 
 void HeapProfiler::ClearHeapObjectMap() {
   ids_.reset(new HeapObjectsMap(heap()));
-  if (!allocation_tracker_) is_tracking_object_moves_ = false;
+  if (!is_tracking_allocations()) is_tracking_object_moves_ = false;
 }
 
 

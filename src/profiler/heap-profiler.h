@@ -24,7 +24,7 @@ class HeapSnapshot;
 class SamplingHeapProfiler;
 class StringsStorage;
 
-class HeapProfiler : public HeapObjectAllocationTracker {
+class HeapProfiler {
  public:
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler();
@@ -57,9 +57,9 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   void ObjectMoveEvent(Address from, Address to, int size);
 
-  void AllocationEvent(Address addr, int size) override;
+  void AllocationEvent(Address addr, int size);
 
-  void UpdateObjectSizeEvent(Address addr, int size) override;
+  void UpdateObjectSizeEvent(Address addr, int size);
 
   void DefineWrapperClass(
       uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback);
@@ -79,6 +79,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   }
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
+  bool is_tracking_allocations() const { return !!allocation_tracker_; }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();

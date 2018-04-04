@@ -267,7 +267,7 @@ class Debug {
   void ClearStepOut();
 
   void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
-  void PrepareFunctionForDebugExecution(Handle<SharedFunctionInfo> shared);
+  void PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   void InstallDebugBreakTrampoline();
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
@@ -336,18 +336,8 @@ class Debug {
     return is_active() && !debug_context().is_null() && break_id() != 0;
   }
 
-  // Apply proper instrumentation depends on debug_execution_mode.
-  void ApplyInstrumentation(Handle<SharedFunctionInfo> shared);
-
-  void StartSideEffectCheckMode();
-  void StopSideEffectCheckMode();
-
-  void ApplySideEffectChecks(Handle<DebugInfo> debug_info);
-  void ClearSideEffectChecks(Handle<DebugInfo> debug_info);
-
   bool PerformSideEffectCheck(Handle<JSFunction> function);
-  bool PerformSideEffectCheckForCallback(Handle<Object> callback_info);
-  bool PerformSideEffectCheckForObject(Handle<Object> object);
+  bool PerformSideEffectCheckForCallback(Object* callback_info);
 
   // Flags and states.
   DebugScope* debugger_entry() {
@@ -413,7 +403,7 @@ class Debug {
 
  private:
   explicit Debug(Isolate* isolate);
-  ~Debug();
+  ~Debug() { DCHECK_NULL(debug_delegate_); }
 
   void UpdateState();
   void UpdateHookOnFunctionCall();
@@ -427,8 +417,7 @@ class Debug {
   int CurrentFrameCount();
 
   inline bool ignore_events() const {
-    return is_suppressed_ || !is_active_ ||
-           isolate_->debug_execution_mode() == DebugInfo::kSideEffects;
+    return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
   }
   inline bool break_disabled() const { return break_disabled_; }
 
@@ -532,10 +521,6 @@ class Debug {
 
   // List of active debug info objects.
   DebugInfoListNode* debug_info_list_;
-
-  // Used for side effect check to mark temporary objects.
-  class TemporaryObjectsTracker;
-  std::unique_ptr<TemporaryObjectsTracker> temporary_objects_;
 
   // Used to collect histogram data on debugger feature usage.
   DebugFeatureTracker feature_tracker_;
@@ -742,6 +727,23 @@ class SuppressDebug BASE_EMBEDDED {
   Debug* debug_;
   bool old_state_;
   DISALLOW_COPY_AND_ASSIGN(SuppressDebug);
+};
+
+class NoSideEffectScope {
+ public:
+  NoSideEffectScope(Isolate* isolate, bool disallow_side_effects)
+      : isolate_(isolate) {
+    // NoSideEffectScope is not re-entrant if already enabled.
+    CHECK(!isolate->needs_side_effect_check());
+    isolate->set_needs_side_effect_check(disallow_side_effects);
+    isolate->debug()->UpdateHookOnFunctionCall();
+    isolate->debug()->side_effect_check_failed_ = false;
+  }
+  ~NoSideEffectScope();
+
+ private:
+  Isolate* isolate_;
+  DISALLOW_COPY_AND_ASSIGN(NoSideEffectScope);
 };
 
 // Code generator routines.
