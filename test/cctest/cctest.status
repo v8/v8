@@ -133,10 +133,6 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-
-  # Flaky test
-  'test-run-wasm/RunWasmLiftoff_I64ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64ShlOnDifferentRegisters': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
