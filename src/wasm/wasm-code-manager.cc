@@ -430,7 +430,7 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
       code_table_(num_functions),
       num_imported_functions_(num_imports),
       compilation_state_(NewCompilationState(
-          reinterpret_cast<Isolate*>(code_manager->isolate_))),
+          reinterpret_cast<Isolate*>(code_manager->isolate_), this)),
       free_memory_(reinterpret_cast<Address>(mem->address()),
                    reinterpret_cast<Address>(mem->end())),
       wasm_code_manager_(code_manager),
@@ -532,7 +532,6 @@ void NativeModule::SetCompiledModule(
                          ->Create(*compiled_module)
                          .location();
   GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&compiled_module_));
-  wasm::SetCompiledModule(compilation_state_.get(), compiled_module);
 }
 
 WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,

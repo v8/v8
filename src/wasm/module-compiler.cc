@@ -99,7 +99,7 @@ class CompilationState {
     base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
-  explicit CompilationState(internal::Isolate* isolate);
+  CompilationState(internal::Isolate* isolate, NativeModule* native_module);
   ~CompilationState();
 
   // Needs to be set before {AddCompilationUnits} is run, which triggers
@@ -142,17 +142,7 @@ class CompilationState {
   void Abort();
 
   Isolate* isolate() { return isolate_; }
-
-  WasmCompiledModule* compiled_module() const {
-    DCHECK_NOT_NULL(compiled_module_);
-    return *compiled_module_;
-  }
-
-  void SetCompiledModule(Handle<WasmCompiledModule> compiled_module) {
-    compiled_module_ =
-        isolate_->global_handles()->Create(*compiled_module).location();
-    GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&compiled_module_));
-  }
+  NativeModule* native_module() const { return native_module_; }
 
   bool failed() { return failed_; }
 
@@ -162,11 +152,7 @@ class CompilationState {
   void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
 
   Isolate* isolate_;
-
-  // A phantom reference to the {WasmCompiledModule}. It is intentionally not
-  // typed {Handle<WasmCompiledModule>} because this location will be cleared
-  // when the phantom reference is cleared.
-  WasmCompiledModule** compiled_module_ = nullptr;
+  NativeModule* native_module_;
 
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
@@ -1479,8 +1465,9 @@ class FinishCompileTask : public CancelableTask {
     Isolate* isolate = compilation_state_->isolate();
     HandleScope scope(isolate);
     SaveContext saved_context(isolate);
-    isolate->set_context(
-        compilation_state_->compiled_module()->native_context());
+    isolate->set_context(compilation_state_->native_module()
+                             ->compiled_module()
+                             ->native_context());
 
     TRACE_COMPILE("(4a) Finishing compilation units...\n");
     if (compilation_state_->failed()) {
@@ -3427,18 +3414,15 @@ void CompilationStateDeleter::operator()(
 }
 
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate) {
+    Isolate* isolate, NativeModule* native_module) {
   return std::unique_ptr<CompilationState, CompilationStateDeleter>(
-      new CompilationState(isolate));
+      new CompilationState(isolate, native_module));
 }
 
-void SetCompiledModule(CompilationState* compilation_state,
-                       Handle<WasmCompiledModule> compiled_module) {
-  compilation_state->SetCompiledModule(compiled_module);
-}
-
-CompilationState::CompilationState(internal::Isolate* isolate)
+CompilationState::CompilationState(internal::Isolate* isolate,
+                                   NativeModule* native_module)
     : isolate_(isolate),
+      native_module_(native_module),
       executed_units_(isolate->random_number_generator(),
                       GetMaxUsableMemorySize(isolate) / 2) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
@@ -3451,13 +3435,6 @@ CompilationState::CompilationState(internal::Isolate* isolate)
 }
 
 CompilationState::~CompilationState() {
-  // Clear the handle at the beginning of destructor to make it robust against
-  // potential GCs in the rest of the desctructor.
-  if (compiled_module_ != nullptr) {
-    isolate_->global_handles()->Destroy(
-        reinterpret_cast<Object**>(compiled_module_));
-    compiled_module_ = nullptr;
-  }
   CancelAndWait();
   foreground_task_manager_.CancelAndWait();
 }
