@@ -1131,12 +1131,27 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // kInterpreterBytecodeArrayRegister is already loaded with
   // SharedFunctionInfo::kFunctionDataOffset.
   __ Bind(&maybe_load_debug_bytecode_array);
-  __ Ldrsw(x10, UntagSmiFieldMemOperand(x11, DebugInfo::kFlagsOffset));
-  __ TestAndBranchIfAllClear(x10, DebugInfo::kHasBreakInfo,
-                             &bytecode_array_loaded);
+  __ Ldrsw(x10, FieldMemOperand(x11, DebugInfo::kDebugBytecodeArrayOffset));
+  __ JumpIfRoot(x10, Heap::kUndefinedValueRootIndex, &bytecode_array_loaded);
+
   __ Ldr(kInterpreterBytecodeArrayRegister,
          FieldMemOperand(x11, DebugInfo::kDebugBytecodeArrayOffset));
-  __ B(&bytecode_array_loaded);
+  __ Ldrsw(x10, UntagSmiFieldMemOperand(x11, DebugInfo::kFlagsOffset));
+  __ And(x10, x10, Immediate(DebugInfo::kDebugExecutionMode));
+
+  STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
+                static_cast<int>(DebugInfo::kSideEffects));
+  ExternalReference debug_execution_mode =
+      ExternalReference::debug_execution_mode_address(masm->isolate());
+  __ Mov(x0, Operand(debug_execution_mode));
+  __ Ldrsb(x0, MemOperand(x0));
+  __ CompareAndBranch(x10, x0, eq, &bytecode_array_loaded);
+
+  __ Push(closure, feedback_vector);
+  __ PushArgument(closure);
+  __ CallRuntime(Runtime::kDebugApplyInstrumentation);
+  __ Pop(feedback_vector, closure);
+  __ jmp(&bytecode_array_loaded);
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,

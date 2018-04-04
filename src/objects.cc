@@ -13641,8 +13641,12 @@ String* SharedFunctionInfo::DebugName() {
 // static
 bool SharedFunctionInfo::HasNoSideEffect(Handle<SharedFunctionInfo> info) {
   if (!info->computed_has_no_side_effect()) {
-    bool has_no_side_effect = DebugEvaluate::FunctionHasNoSideEffect(info);
-    info->set_has_no_side_effect(has_no_side_effect);
+    DebugEvaluate::SideEffectState has_no_side_effect =
+        DebugEvaluate::FunctionGetSideEffectState(info);
+    info->set_has_no_side_effect(has_no_side_effect !=
+                                 DebugEvaluate::kHasSideEffects);
+    info->set_requires_runtime_side_effect_checks(
+        has_no_side_effect == DebugEvaluate::kRequiresRuntimeChecks);
     info->set_computed_has_no_side_effect(true);
   }
   return info->has_no_side_effect();

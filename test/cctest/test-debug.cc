@@ -6381,6 +6381,7 @@ TEST(BreakLocationIterator) {
 
   EnableDebugger(isolate);
   CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
+  i_isolate->debug()->PrepareFunctionForDebugExecution(shared);
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
 
@@ -6678,10 +6679,9 @@ TEST(DebugEvaluateNoSideEffect) {
   // itself contains additional sanity checks.
   for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
-    {
-      i::NoSideEffectScope scope(isolate, true);
-      failed = !isolate->debug()->PerformSideEffectCheck(fun);
-    }
+    isolate->debug()->StartSideEffectCheckMode();
+    failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    isolate->debug()->StopSideEffectCheckMode();
     if (failed) isolate->clear_pending_exception();
   }
   DisableDebugger(env->GetIsolate());

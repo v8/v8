@@ -41,9 +41,11 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared_info,
                                                             context);
-  NoSideEffectScope no_side_effect(isolate, throw_on_side_effect);
-  return Execution::Call(isolate, fun,
-                         Handle<JSObject>(context->global_proxy()), 0, nullptr);
+  if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
+  MaybeHandle<Object> result = Execution::Call(
+      isolate, fun, Handle<JSObject>(context->global_proxy()), 0, nullptr);
+  if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
+  return result;
 }
 
 MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
@@ -135,11 +137,14 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
       Object);
 
   Handle<Object> result;
-  {
-    NoSideEffectScope no_side_effect(isolate, throw_on_side_effect);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        Execution::Call(isolate, eval_fun, receiver, 0, nullptr), Object);
+  bool sucess = false;
+  if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
+  sucess = Execution::Call(isolate, eval_fun, receiver, 0, nullptr)
+               .ToHandle(&result);
+  if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
+  if (!sucess) {
+    DCHECK(isolate->has_pending_exception());
+    return MaybeHandle<Object>();
   }
 
   // Skip the global proxy as it has no properties and always delegates to the
@@ -571,10 +576,6 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kSetPendingMessage:
       return true;
     default:
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
-        PrintF("[debug-evaluate] bytecode %s may cause side effect.\n",
-               Bytecodes::ToString(bytecode));
-      }
       return false;
   }
 }
@@ -849,10 +850,25 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
   }
 }
 
+bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
+  typedef interpreter::Bytecode Bytecode;
+  switch (bytecode) {
+    case Bytecode::kStaNamedProperty:
+    case Bytecode::kStaNamedOwnProperty:
+    case Bytecode::kStaKeyedProperty:
+    case Bytecode::kStaInArrayLiteral:
+    case Bytecode::kStaDataPropertyInLiteral:
+      return true;
+    default:
+      return false;
+  }
+}
+
 }  // anonymous namespace
 
 // static
-bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
+DebugEvaluate::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
+    Handle<SharedFunctionInfo> info) {
   if (FLAG_trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] Checking function %s for side effect.\n",
            info->DebugName()->ToCString().get());
@@ -863,6 +879,7 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
     // Check bytecodes against whitelist.
     Handle<BytecodeArray> bytecode_array(info->bytecode_array());
     if (FLAG_trace_side_effect_free_debug_evaluate) bytecode_array->Print();
+    bool requires_runtime_checks = false;
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
          it.Advance()) {
       interpreter::Bytecode bytecode = it.current_bytecode();
@@ -873,18 +890,29 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
                 ? it.GetIntrinsicIdOperand(0)
                 : it.GetRuntimeIdOperand(0);
         if (IntrinsicHasNoSideEffect(id)) continue;
-        return false;
+        return kHasSideEffects;
       }
 
       if (BytecodeHasNoSideEffect(bytecode)) continue;
+      if (BytecodeRequiresRuntimeCheck(bytecode)) {
+        requires_runtime_checks = true;
+        continue;
+      }
+
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] bytecode %s may cause side effect.\n",
+               interpreter::Bytecodes::ToString(bytecode));
+      }
 
       // Did not match whitelist.
-      return false;
+      return kHasSideEffects;
     }
-    return true;
+    return requires_runtime_checks ? kRequiresRuntimeChecks : kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
     if (info->GetCode()->is_builtin()) {
-      return info->GetCode()->builtin_index() == Builtins::kHandleApiCall;
+      return info->GetCode()->builtin_index() == Builtins::kHandleApiCall
+                 ? kHasNoSideEffect
+                 : kHasSideEffects;
     }
   } else {
     // Check built-ins against whitelist.
@@ -923,11 +951,11 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
         DCHECK(!failed);
       }
 #endif  // DEBUG
-      return true;
+      return kHasNoSideEffect;
     }
   }
 
-  return false;
+  return kHasSideEffects;
 }
 
 // static
@@ -956,6 +984,21 @@ bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
     }
   }
   return false;
+}
+
+// static
+void DebugEvaluate::ApplySideEffectChecks(
+    Handle<BytecodeArray> bytecode_array) {
+  for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
+       it.Advance()) {
+    interpreter::Bytecode bytecode = it.current_bytecode();
+    if (BytecodeRequiresRuntimeCheck(bytecode)) {
+      interpreter::Bytecode debugbreak =
+          interpreter::Bytecodes::GetDebugBreak(bytecode);
+      bytecode_array->set(it.current_offset(),
+                          interpreter::Bytecodes::ToByte(debugbreak));
+    }
+  }
 }
 
 }  // namespace internal

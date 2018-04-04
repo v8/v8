@@ -907,6 +907,11 @@ ExternalReference ExternalReference::debug_hook_on_function_call_address(
   return ExternalReference(isolate->debug()->hook_on_function_call_address());
 }
 
+ExternalReference ExternalReference::debug_execution_mode_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug_execution_mode_address());
+}
+
 ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
   return ExternalReference(

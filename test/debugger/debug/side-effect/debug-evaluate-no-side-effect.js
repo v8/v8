@@ -67,8 +67,8 @@ function listener(event, exec_state, event_data, data) {
     // Constructed literals.
     success([1], "[1]");
     success({x: 1}, "({x: 1})");
-    fail("[a]");
-    fail("({x: a})");
+    success([1], "[a]");
+    success({x: 1}, "({x: a})");
     // Test that template literal evaluation fails.
     fail("simple_return`1`");
     // Test that non-read-only code fails.

@@ -198,6 +198,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
                     SharedFunctionInfo::HasNoSideEffectBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
+                    requires_runtime_side_effect_checks,
+                    SharedFunctionInfo::RequiresRuntimeSideEffectChecksBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
                     computed_has_no_side_effect,
                     SharedFunctionInfo::ComputedHasNoSideEffectBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,

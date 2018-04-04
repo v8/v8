@@ -22,14 +22,14 @@ namespace internal {
   DCHECK(!name->IsPrivate());                     \
   DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
 
-#define PREPARE_CALLBACK_INFO(ISOLATE, F, RETURN_VALUE, API_RETURN_TYPE, \
-                              CALLBACK_INFO)                             \
-  if (ISOLATE->needs_side_effect_check() &&                              \
-      !PerformSideEffectCheck(ISOLATE, *CALLBACK_INFO)) {                \
-    return RETURN_VALUE();                                               \
-  }                                                                      \
-  VMState<EXTERNAL> state(ISOLATE);                                      \
-  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));           \
+#define PREPARE_CALLBACK_INFO(ISOLATE, F, RETURN_VALUE, API_RETURN_TYPE,     \
+                              CALLBACK_INFO)                                 \
+  if (ISOLATE->debug_execution_mode() == DebugInfo::kSideEffects &&          \
+      !ISOLATE->debug()->PerformSideEffectCheckForCallback(CALLBACK_INFO)) { \
+    return RETURN_VALUE();                                                   \
+  }                                                                          \
+  VMState<EXTERNAL> state(ISOLATE);                                          \
+  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));               \
   PropertyCallbackInfo<API_RETURN_TYPE> callback_info(begin());
 
 #define CREATE_NAMED_CALLBACK(FUNCTION, TYPE, RETURN_TYPE, API_RETURN_TYPE,   \
@@ -83,8 +83,8 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
       v8::ToCData<v8::FunctionCallback>(handler->callback());
-  if (isolate->needs_side_effect_check() &&
-      !PerformSideEffectCheck(isolate, handler)) {
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
+      !isolate->debug()->PerformSideEffectCheckForCallback(handle(handler))) {
     return Handle<Object>();
   }
   VMState<EXTERNAL> state(isolate);
@@ -158,7 +158,6 @@ Handle<Object> PropertyCallbackArguments::CallNamedSetter(
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedSetterCallback);
-  DCHECK(!isolate->needs_side_effect_check());
   Handle<Object> side_effect_check_not_supported;
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
                         side_effect_check_not_supported);
@@ -177,8 +176,6 @@ Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
                               RuntimeCallCounterId::kNamedDefinerCallback);
   GenericNamedPropertyDefinerCallback f =
       ToCData<GenericNamedPropertyDefinerCallback>(interceptor->definer());
-  // We should not have come this far when side effect checks are enabled.
-  DCHECK(!isolate->needs_side_effect_check());
   Handle<Object> side_effect_check_not_supported;
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
                         side_effect_check_not_supported);
@@ -196,8 +193,6 @@ Handle<Object> PropertyCallbackArguments::CallIndexedSetter(
                               RuntimeCallCounterId::kIndexedSetterCallback);
   IndexedPropertySetterCallback f =
       ToCData<IndexedPropertySetterCallback>(interceptor->setter());
-  // We should not have come this far when side effect checks are enabled.
-  DCHECK(!isolate->needs_side_effect_check());
   Handle<Object> side_effect_check_not_supported;
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
                         side_effect_check_not_supported);
@@ -216,8 +211,6 @@ Handle<Object> PropertyCallbackArguments::CallIndexedDefiner(
                               RuntimeCallCounterId::kIndexedDefinerCallback);
   IndexedPropertyDefinerCallback f =
       ToCData<IndexedPropertyDefinerCallback>(interceptor->definer());
-  // We should not have come this far when side effect checks are enabled.
-  DCHECK(!isolate->needs_side_effect_check());
   Handle<Object> side_effect_check_not_supported;
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
                         side_effect_check_not_supported);
@@ -295,8 +288,6 @@ Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
                               RuntimeCallCounterId::kAccessorSetterCallback);
   AccessorNameSetterCallback f =
       ToCData<AccessorNameSetterCallback>(accessor_info->setter());
-  // We should not have come this far when side effect checks are enabled.
-  DCHECK(!isolate->needs_side_effect_check());
   Handle<Object> side_effect_check_not_supported;
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, void,
                         side_effect_check_not_supported);
