@@ -20,15 +20,18 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationInfo;
-class CompilationJob;
 class JavaScriptFrame;
+class OptimizedCompilationInfo;
+class OptimizedCompilationJob;
 class ParseInfo;
 class Parser;
 class ScriptData;
 struct ScriptStreamingData;
+class UnoptimizedCompilationInfo;
+class UnoptimizedCompilationJob;
 
-typedef std::forward_list<std::unique_ptr<CompilationJob>> CompilationJobList;
+typedef std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>
+    UnoptimizedCompilationJobList;
 
 // The V8 compiler API.
 //
@@ -64,7 +67,11 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       ScriptStreamingData* streaming_data, Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
-  static bool FinalizeCompilationJob(CompilationJob* job, Isolate* isolate);
+  static bool FinalizeCompilationJob(UnoptimizedCompilationJob* job,
+                                     Handle<SharedFunctionInfo> shared_info,
+                                     Isolate* isolate);
+  static bool FinalizeCompilationJob(OptimizedCompilationJob* job,
+                                     Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -168,14 +175,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 };
 
 // A base class for compilation jobs intended to run concurrent to the main
-// thread. The job is split into three phases which are called in sequence on
-// different threads and with different limitations:
-//  1) PrepareJob:   Runs on main thread. No major limitations.
-//  2) ExecuteJob:   Runs concurrently. No heap allocation or handle derefs.
-//  3) FinalizeJob:  Runs on main thread. No dependency changes.
-//
-// Each of the three phases can either fail or succeed. The current state of
-// the job can be checked using {state()}.
+// thread. The current state of the job can be checked using {state()}.
 class V8_EXPORT_PRIVATE CompilationJob {
  public:
   enum Status { SUCCEEDED, FAILED };
@@ -186,10 +186,96 @@ class V8_EXPORT_PRIVATE CompilationJob {
     kSucceeded,
     kFailed,
   };
-  CompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
-                 CompilationInfo* compilation_info, const char* compiler_name,
-                 State initial_state = State::kReadyToPrepare);
+
+  CompilationJob(uintptr_t stack_limit, State initial_state)
+      : state_(initial_state), stack_limit_(stack_limit) {}
   virtual ~CompilationJob() {}
+
+  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
+  uintptr_t stack_limit() const { return stack_limit_; }
+
+  State state() const { return state_; }
+
+ protected:
+  MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
+    if (status == SUCCEEDED) {
+      state_ = next_state;
+    } else {
+      state_ = State::kFailed;
+    }
+    return status;
+  }
+
+ private:
+  State state_;
+  uintptr_t stack_limit_;
+};
+
+// A base class for unoptimized compilation jobs.
+//
+// The job is split into two phases which are called in sequence on
+// different threads and with different limitations:
+//  1) ExecuteJob:   Runs concurrently. No heap allocation or handle derefs.
+//  2) FinalizeJob:  Runs on main thread. No dependency changes.
+//
+// Either of phases can either fail or succeed.
+class UnoptimizedCompilationJob : public CompilationJob {
+ public:
+  UnoptimizedCompilationJob(intptr_t stack_limit, ParseInfo* parse_info,
+                            UnoptimizedCompilationInfo* compilation_info)
+      : CompilationJob(stack_limit, State::kReadyToExecute),
+        parse_info_(parse_info),
+        compilation_info_(compilation_info) {}
+
+  // Executes the compile job. Can be called on a background thread.
+  MUST_USE_RESULT Status ExecuteJob();
+
+  // Finalizes the compile job. Must be called on the main thread.
+  MUST_USE_RESULT Status FinalizeJob(Handle<SharedFunctionInfo> shared_info,
+                                     Isolate* isolate);
+
+  void RecordCompilationStats(Isolate* isolate) const;
+  void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+                                 Handle<SharedFunctionInfo> shared,
+                                 Isolate* isolate) const;
+
+  ParseInfo* parse_info() const { return parse_info_; }
+  UnoptimizedCompilationInfo* compilation_info() const {
+    return compilation_info_;
+  }
+
+ protected:
+  // Overridden by the actual implementation.
+  virtual Status ExecuteJobImpl() = 0;
+  virtual Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+                                 Isolate* isolate) = 0;
+
+ private:
+  ParseInfo* parse_info_;
+  UnoptimizedCompilationInfo* compilation_info_;
+  base::TimeDelta time_taken_to_execute_;
+  base::TimeDelta time_taken_to_finalize_;
+};
+
+// A base class for optimized compilation jobs.
+//
+// The job is split into three phases which are called in sequence on
+// different threads and with different limitations:
+//  1) PrepareJob:   Runs on main thread. No major limitations.
+//  2) ExecuteJob:   Runs concurrently. No heap allocation or handle derefs.
+//  3) FinalizeJob:  Runs on main thread. No dependency changes.
+//
+// Each of the three phases can either fail or succeed.
+class OptimizedCompilationJob : public CompilationJob {
+ public:
+  OptimizedCompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
+                          OptimizedCompilationInfo* compilation_info,
+                          const char* compiler_name,
+                          State initial_state = State::kReadyToPrepare)
+      : CompilationJob(stack_limit, initial_state),
+        parse_info_(parse_info),
+        compilation_info_(compilation_info),
+        compiler_name_(compiler_name) {}
 
   // Prepare the compile job. Must be called on the main thread.
   MUST_USE_RESULT Status PrepareJob(Isolate* isolate);
@@ -209,17 +295,14 @@ class V8_EXPORT_PRIVATE CompilationJob {
   // Should only be called on optimization compilation jobs.
   Status AbortOptimization(BailoutReason reason);
 
-  void RecordOptimizedCompilationStats() const;
-  void RecordUnoptimizedCompilationStats(Isolate* isolate) const;
+  void RecordCompilationStats() const;
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                  Isolate* isolate) const;
 
-  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
-  uintptr_t stack_limit() const { return stack_limit_; }
-
-  State state() const { return state_; }
   ParseInfo* parse_info() const { return parse_info_; }
-  CompilationInfo* compilation_info() const { return compilation_info_; }
+  OptimizedCompilationInfo* compilation_info() const {
+    return compilation_info_;
+  }
   virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
@@ -229,24 +312,13 @@ class V8_EXPORT_PRIVATE CompilationJob {
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
  private:
-  // TODO(6409): Remove parse_info once Fullcode and AstGraphBuilder are gone.
+  // TODO(rmcilroy): Remove parse_info.
   ParseInfo* parse_info_;
-  CompilationInfo* compilation_info_;
+  OptimizedCompilationInfo* compilation_info_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
-  State state_;
-  uintptr_t stack_limit_;
-
-  MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
-    if (status == SUCCEEDED) {
-      state_ = next_state;
-    } else {
-      state_ = State::kFailed;
-    }
-    return status;
-  }
 };
 
 // Contains all data which needs to be transmitted between threads for
@@ -271,8 +343,8 @@ struct ScriptStreamingData {
   std::unique_ptr<Parser> parser;
 
   // Data needed for finalizing compilation after background compilation.
-  std::unique_ptr<CompilationJob> outer_function_job;
-  CompilationJobList inner_function_jobs;
+  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job;
+  UnoptimizedCompilationJobList inner_function_jobs;
 
   DISALLOW_COPY_AND_ASSIGN(ScriptStreamingData);
 };

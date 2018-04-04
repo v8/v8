@@ -6,11 +6,11 @@
 
 #include "src/assembler-inl.h"
 #include "src/callable.h"
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/optimized-compilation-info.h"
 #include "src/s390/macro-assembler-s390.h"
 
 namespace v8 {

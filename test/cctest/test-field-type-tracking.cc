@@ -11,7 +11,6 @@
 
 #include "src/compilation-cache.h"
 #include "src/compilation-dependencies.h"
-#include "src/compilation-info.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/field-type.h"
@@ -19,6 +18,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/property.h"
 #include "src/transitions.h"
 

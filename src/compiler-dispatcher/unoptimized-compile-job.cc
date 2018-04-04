@@ -6,7 +6,6 @@
 
 #include "src/assert-scope.h"
 #include "src/base/optional.h"
-#include "src/compilation-info.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler.h"
 #include "src/flags.h"
@@ -18,6 +17,7 @@
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/unicode-cache.h"
+#include "src/unoptimized-compilation-info.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -292,9 +292,8 @@ void UnoptimizedCompileJob::FinalizeOnMainThread(Isolate* isolate) {
     // Allocate scope infos for the literal.
     DeclarationScope::AllocateScopeInfos(parse_info_.get(), isolate,
                                          AnalyzeMode::kRegular);
-    compilation_job_->compilation_info()->set_shared_info(shared_);
     if (compilation_job_->state() == CompilationJob::State::kFailed ||
-        !Compiler::FinalizeCompilationJob(compilation_job_.release(),
+        !Compiler::FinalizeCompilationJob(compilation_job_.release(), shared_,
                                           isolate)) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();
       set_status(Status::kFailed);

@@ -180,7 +180,7 @@ class CoverageInfo : public FixedArray {
   DECL_CAST(CoverageInfo)
 
   // Print debug info.
-  void Print(String* function_name);
+  void Print(std::unique_ptr<char[]> function_name);
 
  private:
   static int FirstIndexForSlot(int slot_index) {

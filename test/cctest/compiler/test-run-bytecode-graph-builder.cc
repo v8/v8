@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "src/api.h"
-#include "src/compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution.h"
@@ -13,6 +12,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
@@ -119,8 +119,8 @@ class BytecodeGraphTester {
 
     Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared());
-    CompilationInfo compilation_info(&zone, function->GetIsolate(), shared,
-                                     function);
+    OptimizedCompilationInfo compilation_info(&zone, function->GetIsolate(),
+                                              shared, function);
 
     // Compiler relies on canonicalized handles, let's create
     // a canonicalized scope and migrate existing handles there.

@@ -6,12 +6,12 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/code-stub-assembler.h"
 #include "src/codegen.h"
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -1068,7 +1068,7 @@ class CodeGeneratorTester {
 
  private:
   Zone* zone_;
-  CompilationInfo info_;
+  OptimizedCompilationInfo info_;
   Linkage linkage_;
   Frame frame_;
   CodeGenerator generator_;

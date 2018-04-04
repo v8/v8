@@ -157,8 +157,8 @@ void TestReturnMultipleValues(MachineType type) {
     }
     m.Return(count, returns.get());
 
-    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                         Code::STUB);
+    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                  Code::STUB);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 #ifdef ENABLE_DISASSEMBLER
@@ -250,8 +250,8 @@ void ReturnLastValue(MachineType type) {
 
     m.Return(return_count, returns.get());
 
-    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                         Code::STUB);
+    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                  Code::STUB);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 
@@ -310,8 +310,8 @@ void ReturnSumOfReturns(MachineType type) {
 
     m.Return(return_count, returns.get());
 
-    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                         Code::STUB);
+    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                  Code::STUB);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 

@@ -7,7 +7,6 @@
 #include "src/address-map.h"
 #include "src/assembler-inl.h"
 #include "src/base/adapters.h"
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -15,6 +14,7 @@
 #include "src/eh-frame.h"
 #include "src/frames.h"
 #include "src/macro-assembler-inl.h"
+#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -38,8 +38,8 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 };
 
 CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                             InstructionSequence* code, CompilationInfo* info,
-                             Isolate* isolate,
+                             InstructionSequence* code,
+                             OptimizedCompilationInfo* info, Isolate* isolate,
                              base::Optional<OsrHelper> osr_helper,
                              int start_source_position,
                              JumpOptimizationInfo* jump_opt,
@@ -73,7 +73,8 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       osr_helper_(osr_helper),
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
-      source_position_table_builder_(info->SourcePositionRecordingMode()),
+      source_position_table_builder_(
+          SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
       wasm_compilation_data_(wasm_compilation_data),
       result_(kSuccess),
       poisoning_enabled_(poisoning_enabled) {
@@ -138,7 +139,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
 }
 
 void CodeGenerator::AssembleCode() {
-  CompilationInfo* info = this->info();
+  OptimizedCompilationInfo* info = this->info();
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
@@ -175,7 +176,7 @@ void CodeGenerator::AssembleCode() {
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
-  for (CompilationInfo::InlinedFunctionHolder& inlined :
+  for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
     if (!inlined.shared_info.equals(info->shared_info())) {
       int index = DefineDeoptimizationLiteral(
@@ -691,7 +692,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
   source_position_table_builder_.AddPosition(tasm()->pc_offset(),
                                              source_position, false);
   if (FLAG_code_comments) {
-    CompilationInfo* info = this->info();
+    OptimizedCompilationInfo* info = this->info();
     if (info->IsStub()) return;
     std::ostringstream buffer;
     buffer << "-- ";
@@ -733,8 +734,8 @@ void CodeGenerator::AssembleGaps(Instruction* instr) {
 namespace {
 
 Handle<PodArray<InliningPosition>> CreateInliningPositions(
-    CompilationInfo* info, Isolate* isolate) {
-  const CompilationInfo::InlinedFunctionList& inlined_functions =
+    OptimizedCompilationInfo* info, Isolate* isolate) {
+  const OptimizedCompilationInfo::InlinedFunctionList& inlined_functions =
       info->inlined_functions();
   if (inlined_functions.size() == 0) {
     return Handle<PodArray<InliningPosition>>::cast(
@@ -752,7 +753,7 @@ Handle<PodArray<InliningPosition>> CreateInliningPositions(
 }  // namespace
 
 Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
-  CompilationInfo* info = this->info();
+  OptimizedCompilationInfo* info = this->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
   if (deopt_count == 0 && !info->is_osr()) {
     return DeoptimizationData::Empty(isolate());

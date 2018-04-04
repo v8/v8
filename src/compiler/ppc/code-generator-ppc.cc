@@ -6,12 +6,12 @@
 
 #include "src/assembler-inl.h"
 #include "src/callable.h"
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/double.h"
+#include "src/optimized-compilation-info.h"
 #include "src/ppc/macro-assembler-ppc.h"
 
 namespace v8 {

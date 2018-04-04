@@ -6,13 +6,13 @@
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/frame-constants.h"
 #include "src/heap/heap-inl.h"
+#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {

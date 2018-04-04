@@ -18,7 +18,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -78,8 +78,9 @@ class DeoptimizationLiteral {
 class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                         InstructionSequence* code, CompilationInfo* info,
-                         Isolate* isolate, base::Optional<OsrHelper> osr_helper,
+                         InstructionSequence* code,
+                         OptimizedCompilationInfo* info, Isolate* isolate,
+                         base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          WasmCompilationData* wasm_compilation_data,
@@ -125,7 +126,7 @@ class CodeGenerator final : public GapResolver::Assembler {
  private:
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
-  CompilationInfo* info() const { return info_; }
+  OptimizedCompilationInfo* info() const { return info_; }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
 
   // Create the FrameAccessState object. The Frame is immutable from here on.
@@ -376,7 +377,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   Linkage* const linkage_;
   InstructionSequence* const code_;
   UnwindingInfoWriter unwinding_info_writer_;
-  CompilationInfo* const info_;
+  OptimizedCompilationInfo* const info_;
   Label* const labels_;
   Label return_label_;
   RpoNumber current_block_;

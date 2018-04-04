@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILATION_INFO_H_
-#define V8_COMPILATION_INFO_H_
+#ifndef V8_OPTIMIZED_COMPILATION_INFO_H_
+#define V8_OPTIMIZED_COMPILATION_INFO_H_
 
 #include <memory>
 
@@ -30,39 +30,35 @@ class ParseInfo;
 class SourceRangeMap;
 class Zone;
 
-// CompilationInfo encapsulates some information known at compile time.  It
-// is constructed based on the resources available at compile-time.
-// TODO(rmcilroy): Split CompilationInfo into two classes, one for unoptimized
-// compilation and one for optimized compilation, since they don't share much.
-class V8_EXPORT_PRIVATE CompilationInfo final {
+// OptimizedCompilationInfo encapsulates the information needed to compile
+// optimized code for a given function, and the results of the optimized
+// compilation.
+class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
   enum Flag {
-    kIsEval = 1 << 0,
-    kIsNative = 1 << 1,
-    kCollectTypeProfile = 1 << 2,
-    kAccessorInliningEnabled = 1 << 3,
-    kFunctionContextSpecializing = 1 << 4,
-    kInliningEnabled = 1 << 5,
-    kPoisonLoads = 1 << 6,
-    kDisableFutureOptimization = 1 << 7,
-    kSplittingEnabled = 1 << 8,
-    kSourcePositionsEnabled = 1 << 9,
-    kBailoutOnUninitialized = 1 << 10,
-    kLoopPeelingEnabled = 1 << 11,
-    kUntrustedCodeMitigations = 1 << 12,
-    kSwitchJumpTableEnabled = 1 << 13,
-    kCalledWithCodeStartRegister = 1 << 14,
-    kPoisonRegisterArguments = 1 << 15,
-    kAllocationFoldingEnabled = 1 << 16,
-    kAnalyzeEnvironmentLiveness = 1 << 17,
+    kAccessorInliningEnabled = 1 << 0,
+    kFunctionContextSpecializing = 1 << 1,
+    kInliningEnabled = 1 << 2,
+    kPoisonLoads = 1 << 3,
+    kDisableFutureOptimization = 1 << 4,
+    kSplittingEnabled = 1 << 5,
+    kSourcePositionsEnabled = 1 << 6,
+    kBailoutOnUninitialized = 1 << 7,
+    kLoopPeelingEnabled = 1 << 8,
+    kUntrustedCodeMitigations = 1 << 9,
+    kSwitchJumpTableEnabled = 1 << 10,
+    kCalledWithCodeStartRegister = 1 << 11,
+    kPoisonRegisterArguments = 1 << 12,
+    kAllocationFoldingEnabled = 1 << 13,
+    kAnalyzeEnvironmentLiveness = 1 << 14,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
   // the goal of better separating the compiler from where compilation lands. At
-  // that point, the Handle<Code> member of CompilationInfo would also be
-  // removed.
+  // that point, the Handle<Code> member of OptimizedCompilationInfo would also
+  // be removed.
   struct WasmCodeDesc {
     CodeDesc code_desc;
     size_t safepoint_table_offset = 0;
@@ -71,37 +67,19 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     Handle<ByteArray> source_positions_table;
   };
 
-  // Construct a compilation info for unoptimized compilation.
-  CompilationInfo(Zone* zone, ParseInfo* parse_info, FunctionLiteral* literal);
   // Construct a compilation info for optimized compilation.
-  CompilationInfo(Zone* zone, Isolate* isolate,
-                  Handle<SharedFunctionInfo> shared,
-                  Handle<JSFunction> closure);
+  OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
+                           Handle<SharedFunctionInfo> shared,
+                           Handle<JSFunction> closure);
   // Construct a compilation info for stub compilation (or testing).
-  CompilationInfo(Vector<const char> debug_name, Zone* zone,
-                  Code::Kind code_kind);
-  ~CompilationInfo();
+  OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
+                           Code::Kind code_kind);
 
-  FunctionLiteral* literal() const { return literal_; }
-  void set_literal(FunctionLiteral* literal) {
-    DCHECK_NOT_NULL(literal);
-    literal_ = literal;
-  }
-
-  bool has_source_range_map() const { return source_range_map_ != nullptr; }
-  SourceRangeMap* source_range_map() const { return source_range_map_; }
-  void set_source_range_map(SourceRangeMap* source_range_map) {
-    source_range_map_ = source_range_map;
-  }
-
-  DeclarationScope* scope() const;
+  ~OptimizedCompilationInfo();
 
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_offset_.IsNone(); }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  void set_shared_info(Handle<SharedFunctionInfo> shared_info) {
-    shared_info_ = shared_info;
-  }
   bool has_shared_info() const { return !shared_info().is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
@@ -116,25 +94,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void set_builtin_index(int32_t index) { builtin_index_ = index; }
   BailoutId osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
-  int num_parameters() const;
-  int num_parameters_including_this() const;
-
-  bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
-  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
-
-  bool has_asm_wasm_data() const { return !asm_wasm_data_.is_null(); }
-  Handle<FixedArray> asm_wasm_data() const { return asm_wasm_data_; }
-
-  // Flags used by unoptimized compilation.
-
-  void MarkAsEval() { SetFlag(kIsEval); }
-  bool is_eval() const { return GetFlag(kIsEval); }
-
-  void MarkAsNative() { SetFlag(kIsNative); }
-  bool is_native() const { return GetFlag(kIsNative); }
-
-  void MarkAsCollectTypeProfile() { SetFlag(kCollectTypeProfile); }
-  bool collect_type_profile() const { return GetFlag(kCollectTypeProfile); }
 
   // Flags used by optimized compilation.
 
@@ -212,16 +171,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   void SetCode(Handle<Code> code) { code_ = code; }
 
-  void SetBytecodeArray(Handle<BytecodeArray> bytecode_array) {
-    bytecode_array_ = bytecode_array;
-  }
-
-  void SetAsmWasmData(Handle<FixedArray> asm_wasm_data) {
-    asm_wasm_data_ = asm_wasm_data;
-  }
-
-  FeedbackVectorSpec* feedback_vector_spec() { return &feedback_vector_spec_; }
-
   bool has_context() const;
   Context* context() const;
 
@@ -240,8 +189,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   }
   bool IsStub() const {
     return abstract_code_kind() != AbstractCode::OPTIMIZED_FUNCTION &&
-           abstract_code_kind() != AbstractCode::WASM_FUNCTION &&
-           abstract_code_kind() != AbstractCode::INTERPRETED_FUNCTION;
+           abstract_code_kind() != AbstractCode::WASM_FUNCTION;
   }
   void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {
     DCHECK(IsOptimizing());
@@ -278,8 +226,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     return optimization_id_;
   }
 
-  bool has_simple_parameters();
-
   struct InlinedFunctionHolder {
     Handle<SharedFunctionInfo> shared_info;
 
@@ -309,33 +255,16 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   StackFrame::Type GetOutputStackFrameType() const;
 
-  int GetDeclareGlobalsFlags() const;
-
-  SourcePositionTableBuilder::RecordingMode SourcePositionRecordingMode() const;
-
-  bool has_coverage_info() const { return !coverage_info_.is_null(); }
-  Handle<CoverageInfo> coverage_info() const { return coverage_info_; }
-  void set_coverage_info(Handle<CoverageInfo> coverage_info) {
-    coverage_info_ = coverage_info;
-  }
-
   WasmCodeDesc* wasm_code_desc() { return &wasm_code_desc_; }
 
  private:
-  CompilationInfo(Vector<const char> debug_name, AbstractCode::Kind code_kind,
-                  Zone* zone);
+  OptimizedCompilationInfo(Vector<const char> debug_name,
+                           AbstractCode::Kind code_kind, Zone* zone);
 
   void SetFlag(Flag flag) { flags_ |= flag; }
-
-  void SetFlag(Flag flag, bool value) {
-    flags_ = value ? flags_ | flag : flags_ & ~flag;
-  }
-
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
-  FunctionLiteral* literal_;
-  SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
-
+  // Compilation flags.
   unsigned flags_;
 
   AbstractCode::Kind code_kind_;
@@ -353,19 +282,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Entry point when compiling for OSR, {BailoutId::None} otherwise.
   BailoutId osr_offset_;
 
-  // Holds the bytecode array generated by the interpreter.
-  // TODO(rmcilroy/mstarzinger): Temporary work-around until compiler.cc is
-  // refactored to avoid us needing to carry the BytcodeArray around.
-  Handle<BytecodeArray> bytecode_array_;
-
-  // Holds the asm_wasm array generated by the asmjs compiler.
-  Handle<FixedArray> asm_wasm_data_;
-
-  // Holds the feedback vector spec generated during compilation
-  FeedbackVectorSpec feedback_vector_spec_;
-
   // The zone from which the compilation pipeline working on this
-  // CompilationInfo allocates.
+  // OptimizedCompilationInfo allocates.
   Zone* zone_;
 
   std::shared_ptr<DeferredHandles> deferred_handles_;
@@ -384,14 +302,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   Vector<const char> debug_name_;
 
-  // Encapsulates coverage information gathered by the bytecode generator.
-  // Needs to be stored on the shared function info once compilation completes.
-  Handle<CoverageInfo> coverage_info_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
+  DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILATION_INFO_H_
+#endif  // V8_OPTIMIZED_COMPILATION_INFO_H_

@@ -6,7 +6,6 @@
 
 #include <sstream>
 
-#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
@@ -14,6 +13,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/schedule.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +48,8 @@ static const Operator* PointerConstant(CommonOperatorBuilder* common,
 }
 
 BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
-    CompilationInfo* info, Graph* graph, Schedule* schedule, Isolate* isolate) {
+    OptimizedCompilationInfo* info, Graph* graph, Schedule* schedule,
+    Isolate* isolate) {
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
   size_t n_blocks = static_cast<size_t>(schedule->RpoBlockCount()) - 1;

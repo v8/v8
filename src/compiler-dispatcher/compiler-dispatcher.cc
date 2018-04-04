@@ -9,7 +9,6 @@
 #include "src/base/platform/time.h"
 #include "src/base/template-utils.h"
 #include "src/cancelable-task.h"
-#include "src/compilation-info.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler-dispatcher/unoptimized-compile-job.h"

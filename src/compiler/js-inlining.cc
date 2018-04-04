@@ -5,7 +5,6 @@
 #include "src/compiler/js-inlining.h"
 
 #include "src/ast/ast.h"
-#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/bytecode-graph-builder.h"
@@ -18,6 +17,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/isolate-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {

@@ -4718,7 +4718,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   Vector<const char> func_name = CStrVector("js-to-wasm");
 #endif
 
-  CompilationInfo info(func_name, &zone, Code::JS_TO_WASM_FUNCTION);
+  OptimizedCompilationInfo info(func_name, &zone, Code::JS_TO_WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
@@ -4840,7 +4840,7 @@ Handle<Code> CompileWasmToJSWrapper(
   Vector<const char> func_name = CStrVector("wasm-to-js");
 #endif
 
-  CompilationInfo info(func_name, &zone, Code::WASM_TO_JS_FUNCTION);
+  OptimizedCompilationInfo info(func_name, &zone, Code::WASM_TO_JS_FUNCTION);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
       &info, isolate, incoming, &graph, nullptr, source_position_table);
   ValidateImportWrapperReferencesImmovables(code);
@@ -4919,7 +4919,7 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, wasm::WasmCode* target,
     func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
   }
 
-  CompilationInfo info(func_name, &zone, Code::WASM_TO_WASM_FUNCTION);
+  OptimizedCompilationInfo info(func_name, &zone, Code::WASM_TO_WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
@@ -4985,7 +4985,8 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     Vector<const char> func_name = CStrVector("wasm-interpreter-entry");
 #endif
 
-    CompilationInfo info(func_name, &zone, Code::WASM_INTERPRETER_ENTRY);
+    OptimizedCompilationInfo info(func_name, &zone,
+                                  Code::WASM_INTERPRETER_ENTRY);
     code = Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph,
                                             nullptr);
 #ifdef ENABLE_DISASSEMBLER
@@ -5052,7 +5053,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   debug_name[name_len] = '\0';
   Vector<const char> debug_name_vec(debug_name, name_len);
 
-  CompilationInfo info(debug_name_vec, &zone, Code::C_WASM_ENTRY);
+  OptimizedCompilationInfo info(debug_name_vec, &zone, Code::C_WASM_ENTRY);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
@@ -5252,7 +5253,7 @@ void WasmCompilationUnit::ExecuteTurbofanCompilation() {
       call_descriptor = GetI32WasmCallDescriptor(tf_.compilation_zone_.get(),
                                                  call_descriptor);
     }
-    tf_.info_.reset(new CompilationInfo(
+    tf_.info_.reset(new OptimizedCompilationInfo(
         GetDebugName(tf_.compilation_zone_.get(), func_name_, func_index_),
         tf_.compilation_zone_.get(), Code::WASM_FUNCTION));
 

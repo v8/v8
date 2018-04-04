@@ -16,7 +16,7 @@ namespace internal {
 
 class AstNodeSourceRanges;
 class AstStringConstants;
-class CompilationInfo;
+class UnoptimizedCompilationInfo;
 enum class SourceRangeKind;
 
 namespace interpreter {
@@ -29,7 +29,8 @@ class BytecodeJumpTable;
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(
-      CompilationInfo* info, const AstStringConstants* ast_string_constants,
+      UnoptimizedCompilationInfo* info,
+      const AstStringConstants* ast_string_constants,
       ZoneVector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
@@ -278,7 +279,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline BytecodeArrayBuilder* builder() { return &builder_; }
   inline Zone* zone() const { return zone_; }
   inline DeclarationScope* closure_scope() const { return closure_scope_; }
-  inline CompilationInfo* info() const { return info_; }
+  inline UnoptimizedCompilationInfo* info() const { return info_; }
   inline const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
@@ -324,7 +325,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Zone* zone_;
   BytecodeArrayBuilder builder_;
-  CompilationInfo* info_;
+  UnoptimizedCompilationInfo* info_;
   const AstStringConstants* ast_string_constants_;
   DeclarationScope* closure_scope_;
   Scope* current_scope_;

@@ -9,8 +9,8 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
-#include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/optimized-compilation-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder.h"
@@ -168,8 +168,8 @@ class WasmCompilationUnit final {
     // ExecuteCompilation, onto FinishCompilation (which happens on the main
     // thread).
     std::unique_ptr<Zone> compilation_zone_;
-    std::unique_ptr<CompilationInfo> info_;
-    std::unique_ptr<CompilationJob> job_;
+    std::unique_ptr<OptimizedCompilationInfo> info_;
+    std::unique_ptr<OptimizedCompilationJob> job_;
     wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   };
 

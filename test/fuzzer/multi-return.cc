@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "src/compilation-info.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -17,6 +16,7 @@
 #include "src/machine-type.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/optimized-compilation-info.h"
 #include "src/simulator.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -249,7 +249,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  CompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
       &info, i_isolate, desc, callee.graph(), callee.Export());
 
@@ -292,7 +292,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   caller.Return(ret);
 
   // Call the wrapper.
-  CompilationInfo wrapper_info(ArrayVector("wrapper"), &zone, Code::STUB);
+  OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
+                                        Code::STUB);
   Handle<Code> wrapper_code = Pipeline::GenerateCodeForTesting(
       &wrapper_info, i_isolate, wrapper_desc, caller.graph(), caller.Export());
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);

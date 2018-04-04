@@ -13,7 +13,6 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/bootstrapper.h"
-#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
@@ -69,6 +68,7 @@
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-stats.h"
 #include "src/isolate-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
@@ -91,7 +91,8 @@ const int kMaxBytecodeSizeForTurbofan = 128 * 1024;
 class PipelineData {
  public:
   // For main entry point.
-  PipelineData(ZoneStats* zone_stats, Isolate* isolate, CompilationInfo* info,
+  PipelineData(ZoneStats* zone_stats, Isolate* isolate,
+               OptimizedCompilationInfo* info,
                PipelineStatistics* pipeline_statistics)
       : isolate_(isolate),
         info_(info),
@@ -122,8 +123,9 @@ class PipelineData {
   }
 
   // For WebAssembly compile entry point.
-  PipelineData(ZoneStats* zone_stats, Isolate* isolate, CompilationInfo* info,
-               JSGraph* jsgraph, PipelineStatistics* pipeline_statistics,
+  PipelineData(ZoneStats* zone_stats, Isolate* isolate,
+               OptimizedCompilationInfo* info, JSGraph* jsgraph,
+               PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                WasmCompilationData* wasm_compilation_data)
       : isolate_(isolate),
@@ -147,8 +149,8 @@ class PipelineData {
         wasm_compilation_data_(wasm_compilation_data) {}
 
   // For machine graph testing entry point.
-  PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Isolate* isolate,
-               Graph* graph, Schedule* schedule,
+  PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
+               Isolate* isolate, Graph* graph, Schedule* schedule,
                SourcePositionTable* source_positions,
                JumpOptimizationInfo* jump_opt)
       : isolate_(isolate),
@@ -168,8 +170,8 @@ class PipelineData {
         jump_optimization_info_(jump_opt) {}
 
   // For register allocation testing entry point.
-  PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Isolate* isolate,
-               InstructionSequence* sequence)
+  PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
+               Isolate* isolate, InstructionSequence* sequence)
       : isolate_(isolate),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -193,7 +195,7 @@ class PipelineData {
   }
 
   Isolate* isolate() const { return isolate_; }
-  CompilationInfo* info() const { return info_; }
+  OptimizedCompilationInfo* info() const { return info_; }
   ZoneStats* zone_stats() const { return zone_stats_; }
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
@@ -364,7 +366,7 @@ class PipelineData {
 
  private:
   Isolate* const isolate_;
-  CompilationInfo* const info_;
+  OptimizedCompilationInfo* const info_;
   std::unique_ptr<char[]> debug_name_;
   bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
@@ -458,7 +460,7 @@ class PipelineImpl final {
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* call_descriptor, bool run_verifier);
 
-  CompilationInfo* info() const;
+  OptimizedCompilationInfo* info() const;
   Isolate* isolate() const;
 
   PipelineData* const data_;
@@ -468,7 +470,7 @@ namespace {
 
 // Print function's source if it was not printed before.
 // Return a sequential id under which this function was printed.
-int PrintFunctionSource(CompilationInfo* info, Isolate* isolate,
+int PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                         std::vector<Handle<SharedFunctionInfo>>* printed,
                         int inlining_id, Handle<SharedFunctionInfo> shared) {
   // Outermost function has source id -1 and inlined functions take
@@ -518,9 +520,9 @@ int PrintFunctionSource(CompilationInfo* info, Isolate* isolate,
 
 // Print information for the given inlining: which function was inlined and
 // where the inlining occurred.
-void PrintInlinedFunctionInfo(CompilationInfo* info, Isolate* isolate,
-                              int source_id, int inlining_id,
-                              const CompilationInfo::InlinedFunctionHolder& h) {
+void PrintInlinedFunctionInfo(
+    OptimizedCompilationInfo* info, Isolate* isolate, int source_id,
+    int inlining_id, const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
   CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
   OFStream os(tracing_scope.file());
   os << "INLINE (" << h.shared_info->DebugName()->ToCString().get() << ") id{"
@@ -537,7 +539,7 @@ void PrintInlinedFunctionInfo(CompilationInfo* info, Isolate* isolate,
 
 // Print the source of all functions that participated in this optimizing
 // compilation. For inlined functions print source position of their inlining.
-void DumpParticipatingSource(CompilationInfo* info, Isolate* isolate) {
+void DumpParticipatingSource(OptimizedCompilationInfo* info, Isolate* isolate) {
   AllowDeferredHandleDereference allow_deference_for_print_code;
 
   std::vector<Handle<SharedFunctionInfo>> printed;
@@ -554,7 +556,7 @@ void DumpParticipatingSource(CompilationInfo* info, Isolate* isolate) {
 }
 
 // Print the code after compiling it.
-void PrintCode(Handle<Code> code, CompilationInfo* info) {
+void PrintCode(Handle<Code> code, OptimizedCompilationInfo* info) {
   Isolate* isolate = code->GetIsolate();
   if (FLAG_print_opt_source && info->IsOptimizing()) {
     DumpParticipatingSource(info, isolate);
@@ -618,12 +620,12 @@ struct TurboCfgFile : public std::ofstream {
 };
 
 struct TurboJsonFile : public std::ofstream {
-  TurboJsonFile(CompilationInfo* info, std::ios_base::openmode mode)
+  TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode)
       : std::ofstream(GetVisualizerLogFileName(info, nullptr, "json").get(),
                       mode) {}
 };
 
-void TraceSchedule(CompilationInfo* info, Isolate* isolate,
+void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
                    Schedule* schedule) {
   if (FLAG_trace_turbo) {
     AllowHandleDereference allow_deref;
@@ -707,7 +709,7 @@ class PipelineRunScope {
 };
 
 PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
-                                             CompilationInfo* info,
+                                             OptimizedCompilationInfo* info,
                                              Isolate* isolate,
                                              ZoneStats* zone_stats) {
   PipelineStatistics* pipeline_statistics = nullptr;
@@ -740,15 +742,16 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
 
 }  // namespace
 
-class PipelineCompilationJob final : public CompilationJob {
+class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
   PipelineCompilationJob(ParseInfo* parse_info,
                          Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function)
-      // Note that the CompilationInfo is not initialized at the time we pass it
-      // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(parse_info->stack_limit(), parse_info,
-                       &compilation_info_, "TurboFan"),
+      // Note that the OptimizedCompilationInfo is not initialized at the time
+      // we pass it to the CompilationJob constructor, but it is not
+      // dereferenced there.
+      : OptimizedCompilationJob(parse_info->stack_limit(), parse_info,
+                                &compilation_info_, "TurboFan"),
         parse_info_(parse_info),
         zone_stats_(function->GetIsolate()->allocator()),
         compilation_info_(parse_info_.get()->zone(), function->GetIsolate(),
@@ -772,7 +775,7 @@ class PipelineCompilationJob final : public CompilationJob {
  private:
   std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
-  CompilationInfo compilation_info_;
+  OptimizedCompilationInfo compilation_info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   PipelineImpl pipeline_;
@@ -880,14 +883,14 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   code->set_can_have_weak_objects(true);
 }
 
-class PipelineWasmCompilationJob final : public CompilationJob {
+class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
  public:
   explicit PipelineWasmCompilationJob(
-      CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+      OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       WasmCompilationData* wasm_compilation_data, bool asmjs_origin)
-      : CompilationJob(isolate->stack_guard()->real_climit(), nullptr, info,
-                       "TurboFan", State::kReadyToExecute),
+      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), nullptr,
+                                info, "TurboFan", State::kReadyToExecute),
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             Handle<Script>::null(), info, isolate, &zone_stats_)),
@@ -966,7 +969,7 @@ size_t PipelineWasmCompilationJob::AllocatedMemory() const {
 PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   CodeGenerator* code_generator = pipeline_.data_->code_generator();
-  CompilationInfo::WasmCodeDesc* wasm_code_desc =
+  OptimizedCompilationInfo::WasmCodeDesc* wasm_code_desc =
       compilation_info()->wasm_code_desc();
   code_generator->tasm()->GetCode(isolate, &wasm_code_desc->code_desc);
   wasm_code_desc->safepoint_table_offset =
@@ -1080,7 +1083,8 @@ Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
   return Nothing<OuterContext>();
 }
 
-Maybe<OuterContext> ChooseSpecializationContext(CompilationInfo* info) {
+Maybe<OuterContext> ChooseSpecializationContext(
+    OptimizedCompilationInfo* info) {
   if (info->is_function_context_specializing()) {
     DCHECK(info->has_context());
     return Just(OuterContext(handle(info->context()), 0));
@@ -1737,7 +1741,7 @@ struct PrintGraphPhase {
   static const char* phase_name() { return nullptr; }
 
   void Run(PipelineData* data, Zone* temp_zone, const char* phase) {
-    CompilationInfo* info = data->info();
+    OptimizedCompilationInfo* info = data->info();
     Graph* graph = data->graph();
 
     if (FLAG_trace_turbo) {  // Print JSON.
@@ -1962,7 +1966,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
     Schedule* schedule, Code::Kind kind, const char* debug_name,
     uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_enabled) {
-  CompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
+  OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
   info.set_stub_key(stub_key);
 
@@ -2004,7 +2008,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
 }
 
 // static
-Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
+Handle<Code> Pipeline::GenerateCodeForTesting(OptimizedCompilationInfo* info,
                                               Isolate* isolate) {
   ZoneStats zone_stats(isolate->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
@@ -2023,7 +2027,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 }
 
 // static
-Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
+Handle<Code> Pipeline::GenerateCodeForTesting(OptimizedCompilationInfo* info,
                                               Isolate* isolate, Graph* graph,
                                               Schedule* schedule) {
   auto call_descriptor = Linkage::ComputeIncoming(info->zone(), info);
@@ -2033,8 +2037,9 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 
 // static
 Handle<Code> Pipeline::GenerateCodeForTesting(
-    CompilationInfo* info, Isolate* isolate, CallDescriptor* call_descriptor,
-    Graph* graph, Schedule* schedule, SourcePositionTable* source_positions) {
+    OptimizedCompilationInfo* info, Isolate* isolate,
+    CallDescriptor* call_descriptor, Graph* graph, Schedule* schedule,
+    SourcePositionTable* source_positions) {
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
   // TODO(wasm): Refactor code generation to check for non-existing source
@@ -2069,8 +2074,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
-                                            bool has_script) {
+OptimizedCompilationJob* Pipeline::NewCompilationJob(
+    Handle<JSFunction> function, bool has_script) {
   Handle<SharedFunctionInfo> shared = handle(function->shared());
   ParseInfo* parse_info;
   if (!has_script) {
@@ -2082,8 +2087,8 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
 }
 
 // static
-CompilationJob* Pipeline::NewWasmCompilationJob(
-    CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
+    OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     WasmCompilationData* wasm_compilation_data,
     wasm::ModuleOrigin asmjs_origin) {
@@ -2095,7 +2100,8 @@ CompilationJob* Pipeline::NewWasmCompilationJob(
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
-  CompilationInfo info(ArrayVector("testing"), sequence->zone(), Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
+                                Code::STUB);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
   PipelineImpl pipeline(&data);
@@ -2382,7 +2388,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   data->DeleteRegisterAllocationZone();
 }
 
-CompilationInfo* PipelineImpl::info() const { return data_->info(); }
+OptimizedCompilationInfo* PipelineImpl::info() const { return data_->info(); }
 
 Isolate* PipelineImpl::isolate() const { return data_->isolate(); }
 

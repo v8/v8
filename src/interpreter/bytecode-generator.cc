@@ -10,7 +10,6 @@
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/code-stubs.h"
-#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -22,6 +21,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
+#include "src/unoptimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -710,7 +710,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     declarations_.push_back(Declaration(name, slot, nullptr));
   }
 
-  Handle<FixedArray> AllocateDeclarations(CompilationInfo* info,
+  Handle<FixedArray> AllocateDeclarations(UnoptimizedCompilationInfo* info,
                                           Handle<Script> script,
                                           Isolate* isolate) {
     DCHECK(has_constant_pool_entry_);
@@ -873,7 +873,8 @@ static bool IsInEagerLiterals(
 #endif  // DEBUG
 
 BytecodeGenerator::BytecodeGenerator(
-    CompilationInfo* info, const AstStringConstants* ast_string_constants,
+    UnoptimizedCompilationInfo* info,
+    const AstStringConstants* ast_string_constants,
     ZoneVector<FunctionLiteral*>* eager_inner_literals)
     : zone_(info->zone()),
       builder_(zone(), info->num_parameters_including_this(),
@@ -919,7 +920,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     info()->set_coverage_info(
         isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
     if (FLAG_trace_block_coverage) {
-      info()->coverage_info()->Print(info()->shared_info()->Name());
+      info()->coverage_info()->Print(info()->literal()->GetDebugName());
     }
   }
 
@@ -1297,7 +1298,8 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
   globals_builder()->set_constant_pool_entry(
       builder()->AllocateDeferredConstantPoolEntry());
-  int encoded_flags = info()->GetDeclareGlobalsFlags();
+  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
+                      DeclareGlobalsNativeFlag::encode(info()->is_native());
 
   // Emit code to declare globals.
   RegisterList args = register_allocator()->NewRegisterList(3);

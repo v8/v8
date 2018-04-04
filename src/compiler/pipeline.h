@@ -15,8 +15,8 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
-class CompilationJob;
+class OptimizedCompilationInfo;
+class OptimizedCompilationJob;
 class RegisterConfiguration;
 class JumpOptimizationInfo;
 
@@ -37,12 +37,12 @@ class WasmCompilationData;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given function.
-  static CompilationJob* NewCompilationJob(Handle<JSFunction> function,
-                                           bool has_script);
+  static OptimizedCompilationJob* NewCompilationJob(Handle<JSFunction> function,
+                                                    bool has_script);
 
   // Returns a new compilation job for the WebAssembly compilation info.
-  static CompilationJob* NewWasmCompilationJob(
-      CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+  static OptimizedCompilationJob* NewWasmCompilationJob(
+      OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       WasmCompilationData* wasm_compilation_data,
       wasm::ModuleOrigin wasm_origin);
@@ -57,12 +57,12 @@ class Pipeline : public AllStatic {
 
   // Run the entire pipeline and generate a handle to a code object suitable for
   // testing.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
+  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
                                              Isolate* isolate);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
+  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
                                              Isolate* isolate, Graph* graph,
                                              Schedule* schedule = nullptr);
 
@@ -74,8 +74,9 @@ class Pipeline : public AllStatic {
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
   V8_EXPORT_PRIVATE static Handle<Code> GenerateCodeForTesting(
-      CompilationInfo* info, Isolate* isolate, CallDescriptor* call_descriptor,
-      Graph* graph, Schedule* schedule = nullptr,
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule = nullptr,
       SourcePositionTable* source_positions = nullptr);
 
  private:
