@@ -442,6 +442,33 @@ const CreateArrayIteratorParameters& CreateArrayIteratorParametersOf(
   return OpParameter<CreateArrayIteratorParameters>(op);
 }
 
+bool operator==(CreateCollectionIteratorParameters const& lhs,
+                CreateCollectionIteratorParameters const& rhs) {
+  return lhs.collection_kind() == rhs.collection_kind() &&
+         lhs.iteration_kind() == rhs.iteration_kind();
+}
+
+bool operator!=(CreateCollectionIteratorParameters const& lhs,
+                CreateCollectionIteratorParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateCollectionIteratorParameters const& p) {
+  return base::hash_combine(static_cast<size_t>(p.collection_kind()),
+                            static_cast<size_t>(p.iteration_kind()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateCollectionIteratorParameters const& p) {
+  return os << p.collection_kind() << " " << p.iteration_kind();
+}
+
+const CreateCollectionIteratorParameters& CreateCollectionIteratorParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateCollectionIterator, op->opcode());
+  return OpParameter<CreateCollectionIteratorParameters>(op);
+}
+
 bool operator==(CreateBoundFunctionParameters const& lhs,
                 CreateBoundFunctionParameters const& rhs) {
   return lhs.arity() == rhs.arity() &&
@@ -1103,6 +1130,15 @@ const Operator* JSOperatorBuilder::CreateArrayIterator(IterationKind kind) {
       "JSCreateArrayIterator",                                    // name
       1, 1, 1, 1, 1, 0,                                           // counts
       parameters);                                                // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateCollectionIterator(
+    CollectionKind collection_kind, IterationKind iteration_kind) {
+  CreateCollectionIteratorParameters parameters(collection_kind,
+                                                iteration_kind);
+  return new (zone()) Operator1<CreateCollectionIteratorParameters>(
+      IrOpcode::kJSCreateCollectionIterator, Operator::kEliminatable,
+      "JSCreateCollectionIterator", 1, 1, 1, 1, 1, 0, parameters);
 }
 
 const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,

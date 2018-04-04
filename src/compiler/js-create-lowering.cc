@@ -143,6 +143,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateBoundFunction(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
+    case IrOpcode::kJSCreateCollectionIterator:
+      return ReduceJSCreateCollectionIterator(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateStringIterator:
@@ -906,6 +908,69 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
           jsgraph()->ZeroConstant());
   a.Store(AccessBuilder::ForJSArrayIteratorKind(),
           jsgraph()->Constant(static_cast<int>(p.kind())));
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+namespace {
+
+Context::Field ContextFieldForCollectionIterationKind(
+    CollectionKind collection_kind, IterationKind iteration_kind) {
+  switch (collection_kind) {
+    case CollectionKind::kSet:
+      switch (iteration_kind) {
+        case IterationKind::kKeys:
+          UNREACHABLE();
+        case IterationKind::kValues:
+          return Context::SET_VALUE_ITERATOR_MAP_INDEX;
+        case IterationKind::kEntries:
+          return Context::SET_KEY_VALUE_ITERATOR_MAP_INDEX;
+      }
+      break;
+    case CollectionKind::kMap:
+      switch (iteration_kind) {
+        case IterationKind::kKeys:
+          return Context::MAP_KEY_ITERATOR_MAP_INDEX;
+        case IterationKind::kValues:
+          return Context::MAP_VALUE_ITERATOR_MAP_INDEX;
+        case IterationKind::kEntries:
+          return Context::MAP_KEY_VALUE_ITERATOR_MAP_INDEX;
+      }
+      break;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
+Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateCollectionIterator, node->opcode());
+  CreateCollectionIteratorParameters const& p =
+      CreateCollectionIteratorParametersOf(node->op());
+  Node* iterated_object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Load the OrderedHashTable from the {receiver}.
+  Node* table = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
+      iterated_object, effect, control);
+
+  // Create the JSArrayIterator result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSCollectionIterator::kSize, NOT_TENURED, Type::OtherObject());
+  a.Store(AccessBuilder::ForMap(),
+          handle(native_context()->get(ContextFieldForCollectionIterationKind(
+                     p.collection_kind(), p.iteration_kind())),
+                 isolate()));
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSCollectionIteratorTable(), table);
+  a.Store(AccessBuilder::ForJSCollectionIteratorIndex(),
+          jsgraph()->ZeroConstant());
   RelaxControls(node);
   a.FinishAndChange(node);
   return Changed(node);

@@ -139,6 +139,7 @@
   V(JSCreateArrayIterator)      \
   V(JSCreateBoundFunction)      \
   V(JSCreateClosure)            \
+  V(JSCreateCollectionIterator) \
   V(JSCreateGeneratorObject)    \
   V(JSCreateIterResultObject)   \
   V(JSCreateStringIterator)     \

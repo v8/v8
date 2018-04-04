@@ -42,15 +42,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceTypedArrayToStringTag(Node* node);
   Reduction ReduceArrayIsArray(Node* node);
 
-  Reduction ReduceCollectionIterator(Node* node,
-                                     InstanceType collection_instance_type,
-                                     int collection_iterator_map_index);
-  Reduction ReduceCollectionSize(Node* node,
-                                 InstanceType collection_instance_type);
-  Reduction ReduceCollectionIteratorNext(
-      Node* node, int entry_size, Handle<HeapObject> empty_collection,
-      InstanceType collection_iterator_instance_type_first,
-      InstanceType collection_iterator_instance_type_last);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);

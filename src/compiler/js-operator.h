@@ -526,6 +526,38 @@ std::ostream& operator<<(std::ostream&, CreateArrayIteratorParameters const&);
 const CreateArrayIteratorParameters& CreateArrayIteratorParametersOf(
     const Operator* op);
 
+// Defines shared information for the array iterator that should be created.
+// This is used as parameter by JSCreateCollectionIterator operators.
+class CreateCollectionIteratorParameters final {
+ public:
+  explicit CreateCollectionIteratorParameters(CollectionKind collection_kind,
+                                              IterationKind iteration_kind)
+      : collection_kind_(collection_kind), iteration_kind_(iteration_kind) {
+    CHECK(!(collection_kind == CollectionKind::kSet &&
+            iteration_kind == IterationKind::kKeys));
+  }
+
+  CollectionKind collection_kind() const { return collection_kind_; }
+  IterationKind iteration_kind() const { return iteration_kind_; }
+
+ private:
+  CollectionKind const collection_kind_;
+  IterationKind const iteration_kind_;
+};
+
+bool operator==(CreateCollectionIteratorParameters const&,
+                CreateCollectionIteratorParameters const&);
+bool operator!=(CreateCollectionIteratorParameters const&,
+                CreateCollectionIteratorParameters const&);
+
+size_t hash_value(CreateCollectionIteratorParameters const&);
+
+std::ostream& operator<<(std::ostream&,
+                         CreateCollectionIteratorParameters const&);
+
+const CreateCollectionIteratorParameters& CreateCollectionIteratorParametersOf(
+    const Operator* op);
+
 // Defines shared information for the bound function that should be created.
 // This is used as parameter by JSCreateBoundFunction operators.
 class CreateBoundFunctionParameters final {
@@ -686,6 +718,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateArrayIterator(IterationKind);
+  const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 Handle<FeedbackCell> feedback_cell,

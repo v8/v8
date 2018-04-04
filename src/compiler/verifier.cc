@@ -669,6 +669,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateCollectionIterator:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreateBoundFunction:
       // Type is BoundFunction.
       CheckTypeIs(node, Type::BoundFunction());

@@ -1370,6 +1370,18 @@ inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
   UNREACHABLE();
 }
 
+enum class CollectionKind { kMap, kSet };
+
+inline std::ostream& operator<<(std::ostream& os, CollectionKind kind) {
+  switch (kind) {
+    case CollectionKind::kMap:
+      return os << "CollectionKind::kMap";
+    case CollectionKind::kSet:
+      return os << "CollectionKind::kSet";
+  }
+  UNREACHABLE();
+}
+
 // Flags for the runtime function kDefineDataPropertyInLiteral. A property can
 // be enumerable or not, and, in case of functions, the function name
 // can be set or not.
