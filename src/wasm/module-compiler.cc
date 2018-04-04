@@ -99,7 +99,7 @@ class CompilationState {
     base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
-  CompilationState(internal::Isolate* isolate, NativeModule* native_module);
+  explicit CompilationState(internal::Isolate* isolate);
   ~CompilationState();
 
   // Needs to be set before {AddCompilationUnits} is run, which triggers
@@ -142,7 +142,6 @@ class CompilationState {
   void Abort();
 
   Isolate* isolate() { return isolate_; }
-  NativeModule* native_module() const { return native_module_; }
 
   bool failed() { return failed_; }
 
@@ -152,7 +151,6 @@ class CompilationState {
   void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
 
   Isolate* isolate_;
-  NativeModule* native_module_;
 
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
@@ -1160,25 +1158,14 @@ void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
   builder.Commit();
 }
 
-wasm::WasmCode* FinishCompilationUnit(CompilationState* compilation_state,
-                                      ErrorThrower* thrower, int* func_index) {
-  std::unique_ptr<compiler::WasmCompilationUnit> unit =
-      compilation_state->GetNextExecutedUnit();
-  if (unit == nullptr) return {};
-  *func_index = unit->func_index();
-  DCHECK_LE(0, *func_index);
-  return unit->FinishCompilation(thrower);
-}
-
 void FinishCompilationUnits(CompilationState* compilation_state,
                             ErrorThrower* thrower) {
   while (true) {
     if (compilation_state->failed()) break;
-    int func_index = -1;
-    wasm::WasmCode* result =
-        FinishCompilationUnit(compilation_state, thrower, &func_index);
-
-    if (func_index < 0) break;
+    std::unique_ptr<compiler::WasmCompilationUnit> unit =
+        compilation_state->GetNextExecutedUnit();
+    if (unit == nullptr) break;
+    wasm::WasmCode* result = unit->FinishCompilation(thrower);
 
     // Update the compilation state.
     compilation_state->OnFinishedUnit(NotifyCompilationCallback::kNoNotify);
@@ -1465,17 +1452,13 @@ class FinishCompileTask : public CancelableTask {
     Isolate* isolate = compilation_state_->isolate();
     HandleScope scope(isolate);
     SaveContext saved_context(isolate);
-    isolate->set_context(compilation_state_->native_module()
-                             ->compiled_module()
-                             ->native_context());
+    isolate->set_context(nullptr);
 
     TRACE_COMPILE("(4a) Finishing compilation units...\n");
     if (compilation_state_->failed()) {
       compilation_state_->SetFinisherIsRunning(false);
       return;
     }
-
-    ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
 
     // We execute for 1 ms and then reschedule the task, same as the GC.
     double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
@@ -1484,20 +1467,10 @@ class FinishCompileTask : public CancelableTask {
         compilation_state_->RestartBackgroundTasks();
       }
 
-      int func_index = -1;
-      wasm::WasmCode* result =
-          FinishCompilationUnit(compilation_state_, &thrower, &func_index);
+      std::unique_ptr<compiler::WasmCompilationUnit> unit =
+          compilation_state_->GetNextExecutedUnit();
 
-      if (thrower.error()) {
-        DCHECK_NULL(result);
-        USE(result);
-        Handle<Object> error = thrower.Reify();
-        compilation_state_->OnError(error, NotifyCompilationCallback::kNotify);
-        compilation_state_->SetFinisherIsRunning(false);
-        break;
-      }
-
-      if (func_index < 0) {
+      if (unit == nullptr) {
         // It might happen that a background task just scheduled a unit to be
         // finished, but did not start a finisher task since the flag was still
         // set. Check for this case, and continue if there is more work.
@@ -1506,6 +1479,21 @@ class FinishCompileTask : public CancelableTask {
             compilation_state_->SetFinisherIsRunning(true)) {
           continue;
         }
+        break;
+      }
+
+      ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
+      wasm::WasmCode* result = unit->FinishCompilation(&thrower);
+
+      if (thrower.error()) {
+        DCHECK_NULL(result);
+        USE(result);
+        SaveContext saved_context(isolate);
+        isolate->set_context(
+            unit->native_module()->compiled_module()->native_context());
+        Handle<Object> error = thrower.Reify();
+        compilation_state_->OnError(error, NotifyCompilationCallback::kNotify);
+        compilation_state_->SetFinisherIsRunning(false);
         break;
       }
 
@@ -3414,15 +3402,13 @@ void CompilationStateDeleter::operator()(
 }
 
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate, NativeModule* native_module) {
+    Isolate* isolate) {
   return std::unique_ptr<CompilationState, CompilationStateDeleter>(
-      new CompilationState(isolate, native_module));
+      new CompilationState(isolate));
 }
 
-CompilationState::CompilationState(internal::Isolate* isolate,
-                                   NativeModule* native_module)
+CompilationState::CompilationState(internal::Isolate* isolate)
     : isolate_(isolate),
-      native_module_(native_module),
       executed_units_(isolate->random_number_generator(),
                       GetMaxUsableMemorySize(isolate) / 2) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);

@@ -111,8 +111,6 @@ class WasmCompilationUnit final {
 
   ~WasmCompilationUnit();
 
-  int func_index() const { return func_index_; }
-
   void ExecuteCompilation();
   wasm::WasmCode* FinishCompilation(wasm::ErrorThrower* thrower);
 
@@ -123,6 +121,7 @@ class WasmCompilationUnit final {
       CompilationMode = GetDefaultCompilationMode());
 
   size_t memory_cost() const { return memory_cost_; }
+  wasm::NativeModule* native_module() const { return native_module_; }
 
  private:
   struct LiftoffData {

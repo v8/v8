@@ -31,7 +31,7 @@ struct CompilationStateDeleter {
 // Wrapper to create a CompilationState exists in order to avoid having
 // the the CompilationState in the header file.
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate, NativeModule* native_module);
+    Isolate* isolate);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,

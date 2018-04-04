@@ -5188,7 +5188,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
-    PrintF("Compiling wasm function %d\n\n", func_index());
+    PrintF("Compiling wasm function %d\n\n", func_index_);
   }
 
   switch (mode_) {
