@@ -140,13 +140,12 @@ class InterpreterHandle {
   }
 
  public:
-  // TODO(wasm): properly handlify this constructor.
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : isolate_(isolate),
         module_(
             debug_info->wasm_instance()->compiled_module()->shared()->module()),
         interpreter_(isolate, module_, GetBytes(debug_info),
-                     handle(debug_info->wasm_instance())) {}
+                     debug_info->wasm_instance()->wasm_context()->get()) {}
 
   ~InterpreterHandle() { DCHECK_EQ(0, activations_.size()); }
 
@@ -198,6 +197,8 @@ class InterpreterHandle {
 
     uint32_t activation_id = StartActivation(frame_pointer);
 
+    WasmInterpreter::HeapObjectsScope heap_objects_scope(&interpreter_,
+                                                         instance_object);
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
     thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
@@ -680,7 +681,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
     Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-        isolate, func_index, module->functions[func_index].sig);
+        isolate, func_index, module->functions[func_index].sig, instance);
     const wasm::WasmCode* wasm_new_code =
         native_module->AddInterpreterWrapper(new_code, func_index);
     const wasm::WasmCode* old_code =

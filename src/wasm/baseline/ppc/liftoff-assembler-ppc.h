@@ -28,17 +28,17 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   BAILOUT("LoadConstant");
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
-                                        int size) {
-  BAILOUT("LoadFromInstance");
+void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
+                                       int size) {
+  BAILOUT("LoadFromContext");
 }
 
-void LiftoffAssembler::SpillInstance(Register instance) {
-  BAILOUT("SpillInstance");
+void LiftoffAssembler::SpillContext(Register context) {
+  BAILOUT("SpillContext");
 }
 
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  BAILOUT("FillInstanceInto");
+void LiftoffAssembler::FillContextInto(Register dst) {
+  BAILOUT("FillContextInto");
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,

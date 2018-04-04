@@ -37,7 +37,7 @@ struct SsaEnv {
   State state;
   TFNode* control;
   TFNode* effect;
-  compiler::WasmInstanceCacheNodes instance_cache;
+  compiler::WasmContextCacheNodes context_cache;
   TFNode** locals;
 
   bool go() { return state >= kReached; }
@@ -46,7 +46,7 @@ struct SsaEnv {
     locals = nullptr;
     control = nullptr;
     effect = nullptr;
-    instance_cache = {};
+    context_cache = {};
   }
   void SetNotMerged() {
     if (state == kMerged) state = kReached;
@@ -100,14 +100,14 @@ class WasmGraphBuildingInterface {
                  : nullptr;
 
     // The first '+ 1' is needed by TF Start node, the second '+ 1' is for the
-    // instance parameter.
+    // wasm_context parameter.
     TFNode* start = builder_->Start(
         static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
-    // Initialize the instance parameter (index 0).
-    builder_->set_instance_node(
-        builder_->Param(compiler::kWasmInstanceParameterIndex));
+    // Initialize the wasm_context (the paramater at index 0).
+    builder_->set_wasm_context(
+        builder_->Param(compiler::kWasmContextParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
-    // the instance parameter.
+    // the wasm_context.
     uint32_t index = 0;
     for (; index < decoder->sig_->parameter_count(); ++index) {
       ssa_env->locals[index] = builder_->Param(index + 1);
@@ -129,10 +129,11 @@ class WasmGraphBuildingInterface {
     SetEnv(ssa_env);
   }
 
-  // Reload the instance cache entries into the Ssa Environment.
+  // Reload the wasm context variables from the WasmContext structure attached
+  // to the memory object into the Ssa Environment.
   void LoadContextIntoSsa(SsaEnv* ssa_env) {
     if (!ssa_env || !ssa_env->go()) return;
-    builder_->InitInstanceCache(&ssa_env->instance_cache);
+    builder_->InitContextCache(&ssa_env->context_cache);
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
@@ -365,7 +366,7 @@ class WasmGraphBuildingInterface {
 
   void GrowMemory(Decoder* decoder, const Value& value, Value* result) {
     result->node = BUILD(GrowMemory, value.node);
-    // Always reload the instance cache after growing memory.
+    // Always reload the context cache after growing memory.
     LoadContextIntoSsa(ssa_env_);
   }
 
@@ -548,10 +549,10 @@ class WasmGraphBuildingInterface {
     }
 #endif
     ssa_env_ = env;
-    // TODO(wasm): combine the control and effect pointers with instance cache.
+    // TODO(wasm): combine the control and effect pointers with context cache.
     builder_->set_control_ptr(&env->control);
     builder_->set_effect_ptr(&env->effect);
-    builder_->set_instance_cache(&env->instance_cache);
+    builder_->set_context_cache(&env->context_cache);
   }
 
   TFNode* CheckForException(Decoder* decoder, TFNode* node) {
@@ -637,7 +638,7 @@ class WasmGraphBuildingInterface {
         to->locals = from->locals;
         to->control = from->control;
         to->effect = from->effect;
-        to->instance_cache = from->instance_cache;
+        to->context_cache = from->context_cache;
         break;
       }
       case SsaEnv::kReached: {  // Create a new merge.
@@ -661,9 +662,9 @@ class WasmGraphBuildingInterface {
                 builder_->Phi(decoder->GetLocalType(i), 2, vals, merge);
           }
         }
-        // Start a new merge from the instance cache.
-        builder_->NewInstanceCacheMerge(&to->instance_cache,
-                                        &from->instance_cache, merge);
+        // Start a new merge from the context cache.
+        builder_->NewContextCacheMerge(&to->context_cache, &from->context_cache,
+                                       merge);
         break;
       }
       case SsaEnv::kMerged: {
@@ -678,9 +679,9 @@ class WasmGraphBuildingInterface {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
               decoder->GetLocalType(i), merge, to->locals[i], from->locals[i]);
         }
-        // Merge the instance caches.
-        builder_->MergeInstanceCacheInto(&to->instance_cache,
-                                         &from->instance_cache, merge);
+        // Merge the context caches.
+        builder_->MergeContextCacheInto(&to->context_cache,
+                                        &from->context_cache, merge);
         break;
       }
       default:
@@ -696,22 +697,21 @@ class WasmGraphBuildingInterface {
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
-    // The '+ 1' here is to be able to set the instance cache as assigned.
+    // The '+ 1' here is to be able to set the context cache as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->total_locals() + 1, decoder->zone());
     if (decoder->failed()) return env;
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
-      int instance_cache_index = decoder->total_locals();
+      int context_cache_index = decoder->total_locals();
       for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
         env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
                                        &env->locals[i], env->control);
       }
-      // Introduce phis for instance cache pointers if necessary.
-      if (assigned->Contains(instance_cache_index)) {
-        builder_->PrepareInstanceCacheForLoop(&env->instance_cache,
-                                              env->control);
+      // Introduce phis for context cache pointers if necessary.
+      if (assigned->Contains(context_cache_index)) {
+        builder_->PrepareContextCacheForLoop(&env->context_cache, env->control);
       }
 
       SsaEnv* loop_body_env = Split(decoder, env);
@@ -726,8 +726,8 @@ class WasmGraphBuildingInterface {
                                      &env->locals[i], env->control);
     }
 
-    // Conservatively introduce phis for instance cache.
-    builder_->PrepareInstanceCacheForLoop(&env->instance_cache, env->control);
+    // Conservatively introduce phis for context cache.
+    builder_->PrepareContextCacheForLoop(&env->context_cache, env->control);
 
     SsaEnv* loop_body_env = Split(decoder, env);
     builder_->StackCheck(decoder->position(), &loop_body_env->effect,
@@ -750,11 +750,11 @@ class WasmGraphBuildingInterface {
           size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
                    : nullptr;
       memcpy(result->locals, from->locals, size);
-      result->instance_cache = from->instance_cache;
+      result->context_cache = from->context_cache;
     } else {
       result->state = SsaEnv::kUnreachable;
       result->locals = nullptr;
-      result->instance_cache = {};
+      result->context_cache = {};
     }
 
     return result;
@@ -770,7 +770,7 @@ class WasmGraphBuildingInterface {
     result->locals = from->locals;
     result->control = from->control;
     result->effect = from->effect;
-    result->instance_cache = from->instance_cache;
+    result->context_cache = from->context_cache;
     from->Kill(SsaEnv::kUnreachable);
     return result;
   }
@@ -782,7 +782,7 @@ class WasmGraphBuildingInterface {
     result->control = nullptr;
     result->effect = nullptr;
     result->locals = nullptr;
-    result->instance_cache = {};
+    result->context_cache = {};
     return result;
   }
 

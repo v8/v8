@@ -774,7 +774,7 @@ class WasmDecoder : public Decoder {
         case kExprGrowMemory:
         case kExprCallFunction:
         case kExprCallIndirect:
-          // Add instance cache nodes to the assigned set.
+          // Add context cache nodes to the assigned set.
           // TODO(titzer): make this more clear.
           assigned->Add(locals_count - 1);
           length = OpcodeLength(decoder, pc);

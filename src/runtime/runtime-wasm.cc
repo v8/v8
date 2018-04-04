@@ -37,7 +37,6 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   return owning_instance;
 }
 
-// TODO(titzer): rename to GetNativeContextFromWasmInstanceOnStackTop()
 Context* GetWasmContextOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)
       ->compiled_module()

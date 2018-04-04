@@ -70,7 +70,7 @@ Address CompileLazy(Isolate* isolate);
 // logic to actually orchestrate parallel execution of wasm compilation jobs.
 // TODO(clemensh): Implement concurrent lazy compilation.
 class LazyCompilationOrchestrator {
-  const WasmCode* CompileFunction(Isolate*, Handle<WasmCompiledModule>,
+  const WasmCode* CompileFunction(Isolate*, Handle<WasmInstanceObject>,
                                   int func_index);
 
  public:
@@ -79,8 +79,9 @@ class LazyCompilationOrchestrator {
                                             Handle<Code> caller,
                                             uint32_t exported_func_index);
   const wasm::WasmCode* CompileDirectCall(Isolate*, Handle<WasmInstanceObject>,
+                                          Maybe<uint32_t>,
                                           const WasmCode* caller,
-                                          int caller_ret_offset);
+                                          int call_offset);
   const wasm::WasmCode* CompileIndirectCall(Isolate*,
                                             Handle<WasmInstanceObject>,
                                             uint32_t func_index);

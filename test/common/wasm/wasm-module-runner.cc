@@ -97,6 +97,7 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
+  WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
 
@@ -168,6 +169,7 @@ int32_t InterpretWasmModule(Isolate* isolate,
   v8::internal::HandleScope scope(isolate);
 
   WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
+  WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
 

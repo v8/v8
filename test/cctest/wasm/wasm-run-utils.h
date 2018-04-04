@@ -79,19 +79,13 @@ using compiler::Node;
     r.Build(code, code + arraysize(code)); \
   } while (false)
 
-// For tests that must manually import a JSFunction with source code.
-struct ManuallyImportedJSFunction {
-  FunctionSig* sig;
-  Handle<JSFunction> js_function;
-};
-
 // A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject}, {WasmCompiledModule} and, if necessary,
 // the interpreter.
 class TestingModuleBuilder {
  public:
-  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, WasmExecutionMode,
+  TestingModuleBuilder(Zone*, WasmExecutionMode,
                        compiler::RuntimeExceptionSupport, LowerSimd);
 
   void ChangeOriginToAsmjs() { test_module_.set_origin(kAsmJsOrigin); }
@@ -183,6 +177,9 @@ class TestingModuleBuilder {
 
   uint32_t AddFunction(FunctionSig* sig, const char* name);
 
+  uint32_t AddJsFunction(FunctionSig* sig, const char* source,
+                         Handle<FixedArray> js_imports_table);
+
   Handle<JSFunction> WrapCode(uint32_t index);
 
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
@@ -228,14 +225,15 @@ class TestingModuleBuilder {
   WasmModule test_module_;
   WasmModule* test_module_ptr_;
   Isolate* isolate_;
-  uint32_t global_offset = 0;
-  byte* mem_start_ = nullptr;
-  uint32_t mem_size_ = 0;
+  uint32_t global_offset;
+  byte* mem_start_;
+  uint32_t mem_size_;
+  std::vector<GlobalHandleAddress> function_tables_;
   V8_ALIGNED(16) byte globals_data_[kMaxGlobalsSize];
-  WasmInterpreter* interpreter_ = nullptr;
+  WasmInterpreter* interpreter_;
   WasmExecutionMode execution_mode_;
   Handle<WasmInstanceObject> instance_object_;
-  NativeModule* native_module_ = nullptr;
+  NativeModule* native_module_;
   bool linked_ = false;
   compiler::RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
@@ -283,9 +281,13 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
                : common()->Int64Constant(static_cast<int64_t>(value));
   }
 
-  void SetInstance(Handle<WasmInstanceObject> instance) {
-    compiler::NodeProperties::ChangeOp(context_address_,
-                                       common()->HeapConstant(instance));
+  void SetContextAddress(uintptr_t value) {
+    auto rmode = RelocInfo::WASM_CONTEXT_REFERENCE;
+    auto op = kPointerSize == 8 ? common()->RelocatableInt64Constant(
+                                      static_cast<int64_t>(value), rmode)
+                                : common()->RelocatableInt32Constant(
+                                      static_cast<int32_t>(value), rmode);
+    compiler::NodeProperties::ChangeOp(context_address_, op);
   }
 
   Handle<Code> GetWrapperCode();
@@ -347,13 +349,11 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 // code, and run that code.
 class WasmRunnerBase : public HandleAndZoneScope {
  public:
-  WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
-                 WasmExecutionMode execution_mode, int num_params,
+  WasmRunnerBase(WasmExecutionMode execution_mode, int num_params,
                  compiler::RuntimeExceptionSupport runtime_exception_support,
                  LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME),
-        builder_(&zone_, maybe_import, execution_mode,
-                 runtime_exception_support, lower_simd),
+        builder_(&zone_, execution_mode, runtime_exception_support, lower_simd),
         wrapper_(&zone_, num_params) {}
 
   // Builds a graph from the given Wasm code and generates the machine
@@ -430,12 +430,11 @@ template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
   WasmRunner(WasmExecutionMode execution_mode,
-             ManuallyImportedJSFunction* maybe_import = nullptr,
              const char* main_fn_name = "main",
              compiler::RuntimeExceptionSupport runtime_exception_support =
                  compiler::kNoRuntimeExceptionSupport,
              LowerSimd lower_simd = kNoLowerSimd)
-      : WasmRunnerBase(maybe_import, execution_mode, sizeof...(ParamTypes),
+      : WasmRunnerBase(execution_mode, sizeof...(ParamTypes),
                        runtime_exception_support, lower_simd) {
     NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     if (!interpret()) {
@@ -444,8 +443,8 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   WasmRunner(WasmExecutionMode execution_mode, LowerSimd lower_simd)
-      : WasmRunner(execution_mode, nullptr, "main",
-                   compiler::kNoRuntimeExceptionSupport, lower_simd) {}
+      : WasmRunner(execution_mode, "main", compiler::kNoRuntimeExceptionSupport,
+                   lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);
@@ -460,8 +459,10 @@ class WasmRunner : public WasmRunnerBase {
     set_trap_callback_for_testing(trap_callback);
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
-    wrapper_.SetInstance(builder_.instance_object());
-    builder_.Link();
+    WasmContext* wasm_context =
+        builder().instance_object()->wasm_context()->get();
+    wrapper_.SetContextAddress(reinterpret_cast<uintptr_t>(wasm_context));
+    builder().Link();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_code, wrapper_.signature());
@@ -478,6 +479,8 @@ class WasmRunner : public WasmRunnerBase {
     thread->Reset();
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
     thread->InitFrame(function(), args.data());
+    WasmInterpreter::HeapObjectsScope heap_objects_scope(
+        interpreter(), builder().instance_object());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmValue val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();

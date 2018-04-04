@@ -322,7 +322,7 @@ class LiftoffAssembler : public TurboAssembler {
   // register, or {no_reg} if target was spilled to the stack.
   void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
                    Register* target = nullptr,
-                   LiftoffRegister* target_instance = nullptr);
+                   LiftoffRegister* explicit_context = nullptr);
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 
@@ -352,9 +352,9 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);
-  inline void LoadFromInstance(Register dst, uint32_t offset, int size);
-  inline void SpillInstance(Register instance);
-  inline void FillInstanceInto(Register dst);
+  inline void LoadFromContext(Register dst, uint32_t offset, int size);
+  inline void SpillContext(Register context);
+  inline void FillContextInto(Register dst);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uint32_t offset_imm, LoadType type, LiftoffRegList pinned,
                    uint32_t* protected_load_pc = nullptr);

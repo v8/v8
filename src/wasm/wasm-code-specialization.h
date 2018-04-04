@@ -28,10 +28,8 @@ class CodeSpecialization {
   CodeSpecialization(Isolate*, Zone*);
   ~CodeSpecialization();
 
-  // Update instance references in code. Instance references should only
-  // appear in export wrappers.
-  void UpdateInstanceReferences(Handle<WeakCell> old_weak_instance,
-                                Handle<WeakCell> new_weak_instance);
+  // Update WasmContext references.
+  void RelocateWasmContextReferences(Address new_context);
   // Update all direct call sites based on the code table in the given instance.
   void RelocateDirectCalls(NativeModule* module);
   // Apply all relocations and patching to all code in the instance (wasm code
@@ -43,8 +41,8 @@ class CodeSpecialization {
                        ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
-  Handle<WeakCell> old_weak_instance_;
-  Handle<WeakCell> new_weak_instance_;
+  Address new_wasm_context_address_ = 0;
+
   NativeModule* relocate_direct_calls_module_ = nullptr;
 };
 

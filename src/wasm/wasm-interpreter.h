@@ -16,6 +16,7 @@ class AccountingAllocator;
 
 namespace internal {
 class WasmInstanceObject;
+struct WasmContext;
 
 namespace wasm {
 
@@ -87,6 +88,19 @@ class InterpretedFrame {
 // An interpreter capable of executing WebAssembly.
 class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
+  // Open a HeapObjectsScope before running any code in the interpreter which
+  // needs access to the instance object or needs to call to JS functions.
+  class V8_EXPORT_PRIVATE HeapObjectsScope {
+   public:
+    HeapObjectsScope(WasmInterpreter* interpreter,
+                     Handle<WasmInstanceObject> instance);
+    ~HeapObjectsScope();
+
+   private:
+    char data[3 * sizeof(void*)];  // must match sizeof(HeapObjectsScopeImpl).
+    DISALLOW_COPY_AND_ASSIGN(HeapObjectsScope);
+  };
+
   // State machine for a Thread:
   //                         +---------Run()/Step()--------+
   //                         V                             |
@@ -167,8 +181,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                  const ModuleWireBytes& wire_bytes,
-                  Handle<WasmInstanceObject> instance);
+                  const ModuleWireBytes& wire_bytes, WasmContext* wasm_context);
   ~WasmInterpreter();
 
   //==========================================================================

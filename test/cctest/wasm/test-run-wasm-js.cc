@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api.h"
 #include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -40,7 +39,8 @@ class PredictableInputValues {
   }
 };
 
-ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
+uint32_t AddJSSelector(TestingModuleBuilder* builder, FunctionSig* sig,
+                       int which, Handle<FixedArray> js_imports_table) {
   const int kMaxParams = 11;
   static const char* formals[kMaxParams] = {"",
                                             "a",
@@ -61,12 +61,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
   SNPrintF(source, "(function(%s) { return %c; })",
            formals[sig->parameter_count()], param);
 
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source.start()))));
-  ManuallyImportedJSFunction import = {sig, js_function};
-
-  return import;
+  return builder->AddJsFunction(sig, source.start(), js_imports_table);
 }
 
 void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
@@ -133,20 +128,15 @@ WASM_EXEC_TEST(Run_I32Popcount_jswrapped) {
 }
 
 WASM_EXEC_TEST(Run_CallJS_Add_jswrapped) {
+  WasmRunner<int, int> r(execution_mode);
   TestSignatures sigs;
-  HandleScope scope(CcTest::InitIsolateOnce());
-  const char* source = "(function(a) { return a + 99; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  ManuallyImportedJSFunction import = {sigs.i_i(), js_function};
-  WasmRunner<int, int> r(execution_mode, &import);
-  uint32_t js_index = 0;
+  Handle<FixedArray> js_imports_table =
+      r.main_isolate()->factory()->NewFixedArray(2 * 3 + 1, TENURED);
+  uint32_t js_index = r.builder().AddJsFunction(
+      sigs.i_i(), "(function(a) { return a + 99; })", js_imports_table);
+  BUILD(r, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
 
-  WasmFunctionCompiler& t = r.NewFunction(sigs.i_i());
-  BUILD(t, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
-
-  Handle<JSFunction> jsfunc = r.builder().WrapCode(t.function_index());
+  Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
 
   EXPECT_CALL(101, jsfunc, 2, -8);
   EXPECT_CALL(199, jsfunc, 100, -1);
@@ -163,9 +153,11 @@ void RunJSSelectTest(WasmExecutionMode mode, int which) {
     HandleScope scope(CcTest::InitIsolateOnce());
     FunctionSig sig(1, num_params, types);
 
-    ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(mode, &import);
-    uint32_t js_index = 0;
+    WasmRunner<void> r(mode);
+    Handle<FixedArray> js_imports_table =
+        scope.isolate()->factory()->NewFixedArray(2 * 3 + 1, TENURED);
+    uint32_t js_index =
+        AddJSSelector(&r.builder(), &sig, which, js_imports_table);
 
     WasmFunctionCompiler& t = r.NewFunction(&sig);
 
@@ -417,17 +409,20 @@ void RunJSSelectAlignTest(WasmExecutionMode mode, int num_args,
     ADD_CODE(code, WASM_GET_LOCAL(i));
   }
 
-  uint8_t imported_js_index = 0;
-  ADD_CODE(code, kExprCallFunction, imported_js_index);
+  uint8_t predicted_js_index = 1;
+  ADD_CODE(code, kExprCallFunction, predicted_js_index);
 
   size_t end = code.size();
   code.push_back(0);
 
   // Call different select JS functions.
   for (int which = 0; which < num_params; which++) {
-    HandleScope scope(isolate);
-    ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(mode, &import);
+    WasmRunner<void> r(mode);
+    Handle<FixedArray> js_imports_table =
+        factory->NewFixedArray(2 * 3 + 1, TENURED);
+    uint32_t js_index =
+        AddJSSelector(&r.builder(), &sig, which, js_imports_table);
+    CHECK_EQ(predicted_js_index, js_index);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
     t.Build(&code[0], &code[end]);
 

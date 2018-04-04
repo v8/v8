@@ -258,7 +258,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // FunctionCount is WasmModule::functions.size().
   uint32_t FunctionCount() const;
   WasmCode* GetCode(uint32_t index) const;
-  void SetCode(uint32_t index, WasmCode* wasm_code);
 
   // We special-case lazy cloning because we currently rely on making copies
   // of the lazy builtin, to be able to identify, in the runtime, which function
