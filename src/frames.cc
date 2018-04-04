@@ -512,6 +512,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case EXIT:
     case BUILTIN_CONTINUATION:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION:
+    case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
     case BUILTIN_EXIT:
     case STUB:
     case INTERNAL:
@@ -855,6 +856,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case EXIT:
       case BUILTIN_CONTINUATION:
       case JAVA_SCRIPT_BUILTIN_CONTINUATION:
+      case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case BUILTIN_EXIT:
       case ARGUMENTS_ADAPTOR:
       case STUB:
@@ -1220,6 +1222,25 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   return Smi::ToInt(argc_object);
 }
 
+intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
+  Address height_slot =
+      fp() + BuiltinContinuationFrameConstants::kFrameSPtoFPDeltaAtDeoptimize;
+  intptr_t height = *reinterpret_cast<intptr_t*>(height_slot);
+  return height;
+}
+
+void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
+    Object* exception) {
+  Address exception_argument_slot =
+      fp() + JavaScriptFrameConstants::kLastParameterOffset +
+      kPointerSize;  // Skip over return value slot.
+
+  // Only allow setting exception if previous value was the hole.
+  CHECK_EQ(isolate()->heap()->the_hole_value(),
+           Memory::Object_at(exception_argument_slot));
+  Memory::Object_at(exception_argument_slot) = exception;
+}
+
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object* receiver, JSFunction* function,
     AbstractCode* abstract_code, int code_offset, bool is_constructor)
@@ -1436,7 +1457,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   bool is_constructor = IsConstructor();
   for (auto it = translated.begin(); it != translated.end(); it++) {
     if (it->kind() == TranslatedFrame::kInterpretedFunction ||
-        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
+        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
+        it->kind() ==
+            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
       Handle<SharedFunctionInfo> shared_info = it->shared_info();
 
       // The translation commands are ordered and the function is always
@@ -1456,7 +1479,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       // the translation corresponding to the frame type in question.
       Handle<AbstractCode> abstract_code;
       unsigned code_offset;
-      if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
+      if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
+          it->kind() ==
+              TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
         abstract_code =
             handle(AbstractCode::cast(isolate()->builtins()->builtin(
@@ -1575,7 +1600,9 @@ void OptimizedFrame::GetFunctions(
   while (jsframe_count != 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     if (opcode == Translation::INTERPRETED_FRAME ||
-        opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
+        opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME ||
+        opcode ==
+            Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) {
       it.Next();  // Skip bailout id.
       jsframe_count--;
 

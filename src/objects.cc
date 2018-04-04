@@ -14397,7 +14397,8 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
         }
 
         case Translation::BUILTIN_CONTINUATION_FRAME:
-        case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
+        case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
+        case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
           int bailout_id = iterator.Next();
           int shared_info_id = iterator.Next();
           Object* shared_info = LiteralArray()->get(shared_info_id);

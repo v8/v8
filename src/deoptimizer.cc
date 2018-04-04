@@ -100,7 +100,9 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   for (auto it = translated_values.begin(); it != translated_values.end();
        it++) {
     if (it->kind() == TranslatedFrame::kInterpretedFunction ||
-        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
+        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
+        it->kind() ==
+            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
       if (counter == 0) {
         frame_it = it;
         break;
@@ -549,6 +551,9 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
       HandlerTable table(translated_frame->raw_shared_info()->bytecode_array());
       return table.LookupRange(bytecode_offset, data_out, nullptr);
     }
+    case TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch: {
+      return 0;
+    }
     default:
       break;
   }
@@ -653,10 +658,11 @@ void Deoptimizer::DoComputeOutputFrames() {
   for (size_t i = 0; i < count; ++i, ++frame_index) {
     // Read the ast node id, function, and frame height for this output frame.
     TranslatedFrame* translated_frame = &(translated_state_.frames()[i]);
+    bool handle_exception = deoptimizing_throw_ && i == count - 1;
     switch (translated_frame->kind()) {
       case TranslatedFrame::kInterpretedFunction:
         DoComputeInterpretedFrame(translated_frame, frame_index,
-                                  deoptimizing_throw_ && i == count - 1);
+                                  handle_exception);
         jsframe_count_++;
         break;
       case TranslatedFrame::kArgumentsAdaptor:
@@ -666,10 +672,19 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kBuiltinContinuation:
-        DoComputeBuiltinContinuation(translated_frame, frame_index, false);
+        DoComputeBuiltinContinuation(translated_frame, frame_index,
+                                     BuiltinContinuationMode::STUB);
         break;
       case TranslatedFrame::kJavaScriptBuiltinContinuation:
-        DoComputeBuiltinContinuation(translated_frame, frame_index, true);
+        DoComputeBuiltinContinuation(translated_frame, frame_index,
+                                     BuiltinContinuationMode::JAVASCRIPT);
+        break;
+      case TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch:
+        DoComputeBuiltinContinuation(
+            translated_frame, frame_index,
+            handle_exception
+                ? BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION
+                : BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH);
         break;
       case TranslatedFrame::kInvalid:
         FATAL("invalid frame");
@@ -1342,6 +1357,63 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   }
 }
 
+bool Deoptimizer::BuiltinContinuationModeIsJavaScript(
+    BuiltinContinuationMode mode) {
+  switch (mode) {
+    case BuiltinContinuationMode::STUB:
+      return false;
+    case BuiltinContinuationMode::JAVASCRIPT:
+    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+      return true;
+  }
+  UNREACHABLE();
+}
+
+bool Deoptimizer::BuiltinContinuationModeIsWithCatch(
+    BuiltinContinuationMode mode) {
+  switch (mode) {
+    case BuiltinContinuationMode::STUB:
+    case BuiltinContinuationMode::JAVASCRIPT:
+      return false;
+    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+      return true;
+  }
+  UNREACHABLE();
+}
+
+StackFrame::Type Deoptimizer::BuiltinContinuationModeToFrameType(
+    BuiltinContinuationMode mode) {
+  switch (mode) {
+    case BuiltinContinuationMode::STUB:
+      return StackFrame::BUILTIN_CONTINUATION;
+    case BuiltinContinuationMode::JAVASCRIPT:
+      return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION;
+    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+      return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+      return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+  }
+  UNREACHABLE();
+}
+
+Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
+    BuiltinContinuationMode mode, bool must_handle_result) {
+  switch (mode) {
+    case BuiltinContinuationMode::STUB:
+      return must_handle_result ? Builtins::kContinueToCodeStubBuiltinWithResult
+                                : Builtins::kContinueToCodeStubBuiltin;
+    case BuiltinContinuationMode::JAVASCRIPT:
+    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+      return must_handle_result
+                 ? Builtins::kContinueToJavaScriptBuiltinWithResult
+                 : Builtins::kContinueToJavaScriptBuiltin;
+  }
+  UNREACHABLE();
+}
+
 // BuiltinContinuationFrames capture the machine state that is expected as input
 // to a builtin, including both input register values and stack parameters. When
 // the frame is reactivated (i.e. the frame below it returns), a
@@ -1400,7 +1472,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 //
 void Deoptimizer::DoComputeBuiltinContinuation(
     TranslatedFrame* translated_frame, int frame_index,
-    bool java_script_builtin) {
+    BuiltinContinuationMode mode) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
@@ -1435,7 +1507,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   const int translated_stack_parameters =
       height_in_words - register_parameter_count - 1;
   const int stack_param_count =
-      translated_stack_parameters + (must_handle_result ? 1 : 0);
+      translated_stack_parameters + (must_handle_result ? 1 : 0) +
+      (BuiltinContinuationModeIsWithCatch(mode) ? 1 : 0);
   const int stack_param_pad_count =
       ShouldPadArguments(stack_param_count) ? 1 : 0;
 
@@ -1475,7 +1548,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       CHECK(IsAnyTagged(type.representation()));
     }
   }
-  CHECK_EQ(java_script_builtin, has_argc);
+  CHECK_EQ(BuiltinContinuationModeIsJavaScript(mode), has_argc);
 
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
@@ -1529,6 +1602,27 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     output_frame_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_frame_offset);
+  }
+
+  switch (mode) {
+    case BuiltinContinuationMode::STUB:
+      break;
+    case BuiltinContinuationMode::JAVASCRIPT:
+      break;
+    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH: {
+      output_frame_offset -= kPointerSize;
+      WriteValueToOutput(isolate()->heap()->the_hole_value(), input_index,
+                         frame_index, output_frame_offset,
+                         "placeholder for exception on lazy deopt ");
+    } break;
+    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
+      output_frame_offset -= kPointerSize;
+      intptr_t accumulator_value =
+          input_->GetRegister(kInterpreterAccumulatorRegister.code());
+      WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
+                         frame_index, output_frame_offset,
+                         "exception (from accumulator)");
+    } break;
   }
 
   if (must_handle_result) {
@@ -1603,19 +1697,18 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // A marker value is used in place of the context.
   output_frame_offset -= kPointerSize;
   intptr_t marker =
-      java_script_builtin
-          ? StackFrame::TypeToMarker(
-                StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION)
-          : StackFrame::TypeToMarker(StackFrame::BUILTIN_CONTINUATION);
+      StackFrame::TypeToMarker(BuiltinContinuationModeToFrameType(mode));
+
   output_frame->SetFrameSlot(output_frame_offset, marker);
   DebugPrintOutputSlot(marker, frame_index, output_frame_offset,
                        "context (builtin continuation sentinel)\n");
 
   output_frame_offset -= kPointerSize;
-  value = java_script_builtin ? maybe_function : 0;
+  value = BuiltinContinuationModeIsJavaScript(mode) ? maybe_function : 0;
   output_frame->SetFrameSlot(output_frame_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                       java_script_builtin ? "JSFunction\n" : "unused\n");
+  DebugPrintOutputSlot(
+      value, frame_index, output_frame_offset,
+      BuiltinContinuationModeIsJavaScript(mode) ? "JSFunction\n" : "unused\n");
 
   // The delta from the SP to the FP; used to reconstruct SP in
   // Isolate::UnwindAndFindHandler.
@@ -1640,7 +1733,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     output_frame->SetFrameSlot(output_frame_offset, value);
     if (trace_scope_ != nullptr) {
       ScopedVector<char> str(128);
-      if (java_script_builtin &&
+      if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {
         SNPrintF(
             str,
@@ -1705,18 +1798,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   Register fp_reg = JavaScriptFrame::fp_register();
   output_frame->SetRegister(fp_reg.code(), output_[frame_index - 1]->GetFp());
 
-  Code* continue_to_builtin =
-      java_script_builtin
-          ? (must_handle_result
-                 ? isolate()->builtins()->builtin(
-                       Builtins::kContinueToJavaScriptBuiltinWithResult)
-                 : isolate()->builtins()->builtin(
-                       Builtins::kContinueToJavaScriptBuiltin))
-          : (must_handle_result
-                 ? isolate()->builtins()->builtin(
-                       Builtins::kContinueToCodeStubBuiltinWithResult)
-                 : isolate()->builtins()->builtin(
-                       Builtins::kContinueToCodeStubBuiltin));
+  Code* continue_to_builtin = isolate()->builtins()->builtin(
+      TrampolineForBuiltinContinuation(mode, must_handle_result));
   output_frame->SetPc(
       reinterpret_cast<intptr_t>(continue_to_builtin->InstructionStart()));
 
@@ -1966,6 +2049,14 @@ void Translation::BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
   buffer_->Add(height);
 }
 
+void Translation::BeginJavaScriptBuiltinContinuationWithCatchFrame(
+    BailoutId bailout_id, int literal_id, unsigned height) {
+  buffer_->Add(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME);
+  buffer_->Add(bailout_id.ToInt());
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
+}
+
 void Translation::BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
                                           unsigned height) {
   buffer_->Add(CONSTRUCT_STUB_FRAME);
@@ -2124,6 +2215,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case CONSTRUCT_STUB_FRAME:
     case BUILTIN_CONTINUATION_FRAME:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
+    case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
       return 3;
   }
   FATAL("Unexpected translation type");
@@ -2701,6 +2793,14 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
   return frame;
 }
 
+TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
+    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+  TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
+                        height);
+  frame.node_id_ = bailout_id;
+  return frame;
+}
+
 int TranslatedFrame::GetValueCount() {
   switch (kind()) {
     case kInterpretedFunction: {
@@ -2714,6 +2814,7 @@ int TranslatedFrame::GetValueCount() {
     case kConstructStub:
     case kBuiltinContinuation:
     case kJavaScriptBuiltinContinuation:
+    case kJavaScriptBuiltinContinuationWithCatch:
       return 1 + height_;
 
     case kInvalid:
@@ -2820,6 +2921,25 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       // added to the translation during code generation.
       int height_with_context = height + 1;
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
+          bailout_id, shared_info, height_with_context);
+    }
+    case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
+      BailoutId bailout_id = BailoutId(iterator->Next());
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
+      int height = iterator->Next();
+      if (trace_file != nullptr) {
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
+        PrintF(trace_file,
+               "  reading JavaScript builtin continuation frame with catch %s",
+               name.get());
+        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
+               bailout_id.ToInt(), height);
+      }
+      // Add one to the height to account for the context which was implicitly
+      // added to the translation during code generation.
+      int height_with_context = height + 1;
+      return TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
           bailout_id, shared_info, height_with_context);
     }
     case Translation::UPDATE_FEEDBACK:
@@ -2965,6 +3085,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
+    case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
     case Translation::BUILTIN_CONTINUATION_FRAME:
     case Translation::UPDATE_FEEDBACK:
       // Peeled off before getting here.
@@ -3813,7 +3934,9 @@ TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {
 TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
   for (size_t i = 0; i < frames_.size(); i++) {
     if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction ||
-        frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
+        frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
+        frames_[i].kind() ==
+            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
@@ -3828,7 +3951,9 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
     int jsframe_index, int* args_count) {
   for (size_t i = 0; i < frames_.size(); i++) {
     if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction ||
-        frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
+        frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
+        frames_[i].kind() ==
+            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {

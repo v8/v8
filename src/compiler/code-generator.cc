@@ -1004,6 +1004,14 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           bailout_id, shared_info_id, parameter_count);
       break;
     }
+    case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
+      BailoutId bailout_id = descriptor->bailout_id();
+      int parameter_count =
+          static_cast<unsigned int>(descriptor->parameters_count());
+      translation->BeginJavaScriptBuiltinContinuationWithCatchFrame(
+          bailout_id, shared_info_id, parameter_count);
+      break;
+    }
   }
 
   TranslateFrameStateDescriptorOperands(descriptor, iter, state_combine,

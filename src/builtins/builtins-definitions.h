@@ -827,7 +827,8 @@ namespace internal {
   TFJ(PromiseGetCapabilitiesExecutor, 2, kResolve, kReject)                    \
   /* ES6 #sec-newpromisecapability */                                          \
   TFS(NewPromiseCapability, kConstructor, kDebugEvent)                         \
-  TFJ(PromiseConstructorLazyDeoptContinuation, 2, kPromise, kResult)           \
+  TFJ(PromiseConstructorLazyDeoptContinuation, 4, kPromise, kReject,           \
+      kException, kResult)                                                     \
   /* ES6 #sec-promise-executor */                                              \
   TFJ(PromiseConstructor, 1, kExecutor)                                        \
   CPP(IsPromise)                                                               \
@@ -1278,6 +1279,7 @@ namespace internal {
   V(AsyncGeneratorResolve)                           \
   V(PromiseAll)                                      \
   V(PromiseConstructor)                              \
+  V(PromiseConstructorLazyDeoptContinuation)         \
   V(PromiseFulfillReactionJob)                       \
   V(PromiseRace)                                     \
   V(ResolvePromise)

@@ -101,6 +101,8 @@ class StackHandler BASE_EMBEDDED {
   V(STUB, StubFrame)                                                      \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION, JavaScriptBuiltinContinuationFrame) \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH,                          \
+    JavaScriptBuiltinContinuationWithCatchFrame)                          \
   V(INTERNAL, InternalFrame)                                              \
   V(CONSTRUCT, ConstructFrame)                                            \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)                             \
@@ -214,6 +216,9 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script_builtin_continuation() const {
     return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION;
   }
+  bool is_java_script_builtin_with_catch_continuation() const {
+    return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+  }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
   virtual bool is_standard() const { return false; }
@@ -221,7 +226,8 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script() const {
     Type type = this->type();
     return (type == OPTIMIZED) || (type == INTERPRETED) || (type == BUILTIN) ||
-           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION);
+           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION) ||
+           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH);
   }
   bool is_wasm() const {
     Type type = this->type();
@@ -1152,9 +1158,34 @@ class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
   }
 
   int ComputeParametersCount() const override;
+  intptr_t GetSPToFPDelta() const;
 
  protected:
   inline explicit JavaScriptBuiltinContinuationFrame(
+      StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class JavaScriptBuiltinContinuationWithCatchFrame
+    : public JavaScriptBuiltinContinuationFrame {
+ public:
+  Type type() const override {
+    return JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+  }
+
+  static JavaScriptBuiltinContinuationWithCatchFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_java_script_builtin_with_catch_continuation());
+    return static_cast<JavaScriptBuiltinContinuationWithCatchFrame*>(frame);
+  }
+
+  // Patch in the exception object at the appropriate location into the stack
+  // frame.
+  void SetException(Object* exception);
+
+ protected:
+  inline explicit JavaScriptBuiltinContinuationWithCatchFrame(
       StackFrameIteratorBase* iterator);
 
  private:

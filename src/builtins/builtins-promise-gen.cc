@@ -767,6 +767,18 @@ TF_BUILTIN(PromiseCapabilityDefaultResolve, PromiseBuiltinsAssembler) {
 
 TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
   Node* promise = Parameter(Descriptor::kPromise);
+  Node* reject = Parameter(Descriptor::kReject);
+  Node* exception = Parameter(Descriptor::kException);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Label finally(this);
+
+  GotoIf(IsTheHole(exception), &finally);
+  CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+         context, reject, UndefinedConstant(), exception);
+  Goto(&finally);
+
+  BIND(&finally);
   Return(promise);
 }
 

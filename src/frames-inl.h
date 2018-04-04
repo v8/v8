@@ -228,6 +228,11 @@ inline JavaScriptBuiltinContinuationFrame::JavaScriptBuiltinContinuationFrame(
     StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
 
+inline JavaScriptBuiltinContinuationWithCatchFrame::
+    JavaScriptBuiltinContinuationWithCatchFrame(
+        StackFrameIteratorBase* iterator)
+    : JavaScriptBuiltinContinuationFrame(iterator) {}
+
 inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)
     : iterator_(isolate) {
