@@ -2598,12 +2598,12 @@ static void InterceptorForHiddenProperties(
 THREADED_TEST(NoSideEffectPropertyHandler) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
+  LocalContext context;
+
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
       EmptyInterceptorGetter, EmptyInterceptorSetter, EmptyInterceptorQuery,
       EmptyInterceptorDeleter, EmptyInterceptorEnumerator));
-
-  LocalContext context;
   v8::Local<v8::Object> object =
       templ->NewInstance(context.local()).ToLocalChecked();
   context->Global()->Set(context.local(), v8_str("obj"), object).FromJust();
@@ -2620,20 +2620,25 @@ THREADED_TEST(NoSideEffectPropertyHandler) {
             isolate, v8_str("(function() { for (var p in obj) ; })()"), true)
             .IsEmpty());
 
-  // TODO(luoe): turn on has_no_side_effect flag from API once it is exposed.
-  i::Handle<i::JSObject> internal_object =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*object));
-  internal_object->GetNamedInterceptor()->set_has_no_side_effect(true);
+  // Side-effect-free version.
+  Local<ObjectTemplate> templ2 = ObjectTemplate::New(isolate);
+  templ2->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter, EmptyInterceptorQuery,
+      EmptyInterceptorDeleter, EmptyInterceptorEnumerator,
+      v8::Local<v8::Value>(), v8::PropertyHandlerFlags::kHasNoSideEffect));
+  v8::Local<v8::Object> object2 =
+      templ2->NewInstance(context.local()).ToLocalChecked();
+  context->Global()->Set(context.local(), v8_str("obj2"), object2).FromJust();
 
-  v8::debug::EvaluateGlobal(isolate, v8_str("obj.x"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(isolate, v8_str("obj2.x"), true).ToLocalChecked();
   CHECK(
-      v8::debug::EvaluateGlobal(isolate, v8_str("obj.x = 1"), true).IsEmpty());
-  v8::debug::EvaluateGlobal(isolate, v8_str("'x' in obj"), true)
+      v8::debug::EvaluateGlobal(isolate, v8_str("obj2.x = 1"), true).IsEmpty());
+  v8::debug::EvaluateGlobal(isolate, v8_str("'x' in obj2"), true)
       .ToLocalChecked();
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("delete obj.x"), true)
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("delete obj2.x"), true)
             .IsEmpty());
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("(function() { for (var p in obj) ; })()"), true)
+      isolate, v8_str("(function() { for (var p in obj2) ; })()"), true)
       .ToLocalChecked();
 }
 
