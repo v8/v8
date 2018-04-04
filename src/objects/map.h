@@ -420,11 +420,13 @@ class Map : public HeapObject {
                                           Isolate* isolate);
 
   // [prototype chain validity cell]: Associated with a prototype object,
-  // stored in that object's map's PrototypeInfo, indicates that prototype
-  // chains through this object are currently valid. The cell will be
-  // invalidated and replaced when the prototype chain changes.
-  static Handle<Cell> GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
-                                                            Isolate* isolate);
+  // stored in that object's map, indicates that prototype chains through this
+  // object are currently valid. The cell will be invalidated and replaced when
+  // the prototype chain changes. When there's nothing to guard (for example,
+  // when direct prototype is null or Proxy) this function returns Smi with
+  // |kPrototypeChainValid| sentinel value.
+  static Handle<Object> GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
+                                                              Isolate* isolate);
   static const int kPrototypeChainValid = 0;
   static const int kPrototypeChainInvalid = 1;
 

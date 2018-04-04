@@ -588,10 +588,6 @@ void LookupIterator::ApplyTransitionToDataProperty(
     // configuration can produce valid transition handler maps.
     Handle<Object> validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition, isolate());
-    if (validity_cell.is_null()) {
-      validity_cell =
-          handle(Smi::FromInt(Map::kPrototypeChainValid), isolate());
-    }
     transition->set_prototype_validity_cell(*validity_cell);
   }
 

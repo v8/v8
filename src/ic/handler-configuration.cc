@@ -123,9 +123,6 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  if (validity_cell.is_null()) {
-    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
-  }
 
   int data_count = 1 + checks_count;
   Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_count);
@@ -149,11 +146,10 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  if (validity_cell.is_null()) {
+  if (validity_cell->IsSmi()) {
     DCHECK_EQ(0, checks_count);
     // Lookup on receiver isn't supported in case of a simple smi handler.
     if (!LookupOnReceiverBits::decode(smi_handler->value())) return smi_handler;
-    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
 
   int data_count = 1 + checks_count;
@@ -191,9 +187,6 @@ Handle<Object> StoreHandler::StoreElementTransition(
                           .GetCode();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  if (validity_cell.is_null()) {
-    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
-  }
   Handle<WeakCell> cell = Map::WeakCellForMap(transition);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
   handler->set_smi_handler(*stub);
@@ -227,9 +220,6 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
   if (is_dictionary_map || !transition_map->IsPrototypeValidityCellValid()) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition_map, isolate);
-    if (validity_cell.is_null()) {
-      validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
-    }
   }
 
   if (is_dictionary_map) {
@@ -266,10 +256,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  if (validity_cell.is_null()) {
-    DCHECK_EQ(0, checks_count);
-    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
-  }
+  DCHECK_IMPLIES(validity_cell->IsSmi(), checks_count == 0);
 
   int data_count = 1 + checks_count;
   Handle<StoreHandler> handler =

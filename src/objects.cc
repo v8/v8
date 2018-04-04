@@ -12568,8 +12568,8 @@ void Map::SetShouldBeFastPrototypeMap(Handle<Map> map, bool value,
 }
 
 // static
-Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
-                                                        Isolate* isolate) {
+Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
+                                                          Isolate* isolate) {
   Handle<Object> maybe_prototype;
   if (map->IsJSGlobalObjectMap()) {
     DCHECK(map->is_prototype_map());
@@ -12580,7 +12580,9 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     maybe_prototype =
         handle(map->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   }
-  if (!maybe_prototype->IsJSObject()) return Handle<Cell>::null();
+  if (!maybe_prototype->IsJSObject()) {
+    return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
+  }
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.

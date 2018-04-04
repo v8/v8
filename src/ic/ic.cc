@@ -1860,7 +1860,10 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
-  if (validity_cell.is_null()) return stub;
+  if (validity_cell->IsSmi()) {
+    // There's no prototype validity cell to check, so we can just use the stub.
+    return stub;
+  }
   Handle<StoreHandler> handler = isolate()->factory()->NewStoreHandler(0);
   handler->set_validity_cell(*validity_cell);
   handler->set_smi_handler(*stub);
