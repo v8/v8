@@ -48,15 +48,18 @@ Sweeper::FilterSweepingPagesScope::FilterSweepingPagesScope(
   USE(pause_or_complete_scope_);
   if (!sweeping_in_progress_) return;
 
-  old_space_sweeping_list_ = std::move(sweeper_->sweeping_list_[OLD_SPACE]);
-  sweeper_->sweeping_list_[OLD_SPACE].clear();
+  int old_space_index = GetSweepSpaceIndex(OLD_SPACE);
+  old_space_sweeping_list_ =
+      std::move(sweeper_->sweeping_list_[old_space_index]);
+  sweeper_->sweeping_list_[old_space_index].clear();
 }
 
 Sweeper::FilterSweepingPagesScope::~FilterSweepingPagesScope() {
   DCHECK_EQ(sweeping_in_progress_, sweeper_->sweeping_in_progress());
   if (!sweeping_in_progress_) return;
 
-  sweeper_->sweeping_list_[OLD_SPACE] = std::move(old_space_sweeping_list_);
+  sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)] =
+      std::move(old_space_sweeping_list_);
   // old_space_sweeping_list_ does not need to be cleared as we don't use it.
 }
 
@@ -79,19 +82,16 @@ class Sweeper::SweeperTask final : public CancelableTask {
   void RunInternal() final {
     TRACE_BACKGROUND_GC(tracer_,
                         GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
-    DCHECK_GE(space_to_start_, FIRST_GROWABLE_PAGED_SPACE);
-    DCHECK_LE(space_to_start_, LAST_GROWABLE_PAGED_SPACE);
+    DCHECK(IsValidSweepingSpace(space_to_start_));
     const int offset = space_to_start_ - FIRST_GROWABLE_PAGED_SPACE;
-    const int num_spaces =
-        LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
-    for (int i = 0; i < num_spaces; i++) {
-      const int space_id =
-          FIRST_GROWABLE_PAGED_SPACE + ((i + offset) % num_spaces);
+    for (int i = 0; i < kNumberOfSweepingSpaces; i++) {
+      const AllocationSpace space_id = static_cast<AllocationSpace>(
+          FIRST_GROWABLE_PAGED_SPACE +
+          ((i + offset) % kNumberOfSweepingSpaces));
       // Do not sweep code space concurrently.
-      if (static_cast<AllocationSpace>(space_id) == CODE_SPACE) continue;
-      DCHECK_GE(space_id, FIRST_GROWABLE_PAGED_SPACE);
-      DCHECK_LE(space_id, LAST_GROWABLE_PAGED_SPACE);
-      sweeper_->SweepSpaceFromTask(static_cast<AllocationSpace>(space_id));
+      if (space_id == CODE_SPACE) continue;
+      DCHECK(IsValidSweepingSpace(space_id));
+      sweeper_->SweepSpaceFromTask(space_id);
     }
     num_sweeping_tasks_->Decrement(1);
     pending_sweeper_tasks_->Signal();
@@ -139,7 +139,9 @@ void Sweeper::StartSweeping() {
   MajorNonAtomicMarkingState* marking_state =
       heap_->mark_compact_collector()->non_atomic_marking_state();
   ForAllSweepingSpaces([this, marking_state](AllocationSpace space) {
-    std::sort(sweeping_list_[space].begin(), sweeping_list_[space].end(),
+    int space_index = GetSweepSpaceIndex(space);
+    std::sort(sweeping_list_[space_index].begin(),
+              sweeping_list_[space_index].end(),
               [marking_state](Page* a, Page* b) {
                 return marking_state->live_bytes(a) <
                        marking_state->live_bytes(b);
@@ -180,7 +182,7 @@ void Sweeper::SweepOrWaitUntilSweepingCompleted(Page* page) {
 
 Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  SweptList& list = swept_list_[space->identity()];
+  SweptList& list = swept_list_[GetSweepSpaceIndex(space->identity())];
   if (!list.empty()) {
     auto last_page = list.back();
     list.pop_back();
@@ -217,8 +219,9 @@ void Sweeper::EnsureCompleted() {
 
   AbortAndWaitForTasks();
 
-  ForAllSweepingSpaces(
-      [this](AllocationSpace space) { CHECK(sweeping_list_[space].empty()); });
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    CHECK(sweeping_list_[GetSweepSpaceIndex(space)].empty());
+  });
   sweeping_in_progress_ = false;
 }
 
@@ -380,7 +383,7 @@ bool Sweeper::SweepSpaceIncrementallyFromTask(AllocationSpace identity) {
   if (Page* page = GetSweepingPageSafe(identity)) {
     ParallelSweepPage(page, identity);
   }
-  return sweeping_list_[identity].empty();
+  return sweeping_list_[GetSweepSpaceIndex(identity)].empty();
 }
 
 int Sweeper::ParallelSweepSpace(AllocationSpace identity,
@@ -437,7 +440,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
 
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
-    swept_list_[identity].push_back(page);
+    swept_list_[GetSweepSpaceIndex(identity)].push_back(page);
   }
   return max_freed;
 }
@@ -465,7 +468,7 @@ void Sweeper::AddPage(AllocationSpace space, Page* page,
     DCHECK_EQ(Sweeper::READD_TEMPORARY_REMOVED_PAGE, mode);
   }
   DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state().Value());
-  sweeping_list_[space].push_back(page);
+  sweeping_list_[GetSweepSpaceIndex(space)].push_back(page);
 }
 
 void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
@@ -482,10 +485,11 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
 Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
+  int space_index = GetSweepSpaceIndex(space);
   Page* page = nullptr;
-  if (!sweeping_list_[space].empty()) {
-    page = sweeping_list_[space].front();
-    sweeping_list_[space].pop_front();
+  if (!sweeping_list_[space_index].empty()) {
+    page = sweeping_list_[space_index].front();
+    sweeping_list_[space_index].pop_front();
   }
   return page;
 }
