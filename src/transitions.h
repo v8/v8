@@ -247,11 +247,33 @@ class TransitionArray : public FixedArray {
   DECL_PRINTER(TransitionArray)
   DECL_VERIFIER(TransitionArray)
 
+  // Layout for full transition arrays.
+  static const int kPrototypeTransitionsIndex = 0;
+  static const int kTransitionLengthIndex = 1;
+  static const int kFirstIndex = 2;
+
+  // Layout of map transition entries in full transition arrays.
+  static const int kEntryKeyIndex = 0;
+  static const int kEntryTargetIndex = 1;
+  static const int kEntrySize = 2;
+
+  // Conversion from transition number to array indices.
+  static int ToKeyIndex(int transition_number) {
+    return kFirstIndex + (transition_number * kEntrySize) + kEntryKeyIndex;
+  }
+
+  static int ToTargetIndex(int transition_number) {
+    return kFirstIndex + (transition_number * kEntrySize) + kEntryTargetIndex;
+  }
+
+  inline int SearchNameForTesting(Name* name,
+                                  int* out_insertion_index = nullptr) {
+    return SearchName(name, out_insertion_index);
+  }
+
  private:
   friend class MarkCompactCollector;
   friend class TransitionsAccessor;
-
-  static const int kTransitionSize = 2;
 
   inline void SetNumberOfTransitions(int number_of_transitions);
 
@@ -274,31 +296,8 @@ class TransitionArray : public FixedArray {
   static void SetNumberOfPrototypeTransitions(FixedArray* proto_transitions,
                                               int value);
 
-  // Layout for full transition arrays.
-  static const int kPrototypeTransitionsIndex = 0;
-  static const int kTransitionLengthIndex = 1;
-  static const int kFirstIndex = 2;
-
-  // Layout of map transition entries in full transition arrays.
-  static const int kTransitionKey = 0;
-  static const int kTransitionTarget = 1;
-  STATIC_ASSERT(kTransitionSize == 2);
-
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
   STATIC_ASSERT(kProtoTransitionHeaderSize == 1);
-
-  // Conversion from transition number to array indices.
-  static int ToKeyIndex(int transition_number) {
-    return kFirstIndex +
-           (transition_number * kTransitionSize) +
-           kTransitionKey;
-  }
-
-  static int ToTargetIndex(int transition_number) {
-    return kFirstIndex +
-           (transition_number * kTransitionSize) +
-           kTransitionTarget;
-  }
 
   // Returns the fixed array length required to hold number_of_transitions
   // transitions.

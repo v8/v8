@@ -41,8 +41,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                Node* value, Node* context, Label* slow);
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
-                                const StoreICParameters* p, Label* slow,
-                                UseStubCache use_stub_cache = kUseStubCache);
+                                const StoreICParameters* p, Label* slow);
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
                                              Label* non_fast_elements,
@@ -611,8 +610,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 }
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
-    Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
-    UseStubCache use_stub_cache) {
+    Node* receiver, Node* receiver_map, const StoreICParameters* p,
+    Label* slow) {
   VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
@@ -627,7 +626,6 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* descriptors = LoadMapDescriptors(receiver_map);
     Label descriptor_found(this), lookup_transition(this);
     TVARIABLE(IntPtrT, var_name_index);
-    Label* notfound = use_stub_cache == kUseStubCache ? &stub_cache : slow;
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
                      &var_name_index, &lookup_transition);
 
@@ -659,19 +657,57 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&lookup_transition);
     {
       Comment("lookup transition");
-      Label found_simple_transition_handler(this);
-      Node* maybe_handler =
+      TVARIABLE(WeakCell, var_transition_map_weak_cell);
+      Label simple_transition(this), found_handler_candidate(this);
+      TNode<Object> maybe_handler =
           LoadObjectField(receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
-      GotoIf(TaggedIsSmi(maybe_handler), notfound);
-      GotoIf(IsWeakCell(maybe_handler), &found_simple_transition_handler);
+      GotoIf(TaggedIsSmi(maybe_handler), slow);
+      TNode<Map> maybe_handler_map = LoadMap(CAST(maybe_handler));
+      GotoIf(IsWeakCellMap(maybe_handler_map), &simple_transition);
+      GotoIfNot(IsTransitionArrayMap(maybe_handler_map), slow);
 
-      // TODO(jkummerow): Consider implementing TransitionArray search.
-      Goto(notfound);
-
-      BIND(&found_simple_transition_handler);
       {
-        Node* transition_cell = maybe_handler;
-        Node* transition_map = LoadWeakCellValue(transition_cell, slow);
+        TVARIABLE(IntPtrT, var_name_index);
+        Label if_found_candidate(this);
+        TNode<TransitionArray> transitions = CAST(maybe_handler);
+        TransitionLookup(p->name, transitions, &if_found_candidate,
+                         &var_name_index, slow);
+
+        BIND(&if_found_candidate);
+        {
+          // Given that
+          // 1) transitions with the same name are ordered in the transition
+          //    array by PropertyKind and then by PropertyAttributes values,
+          // 2) kData < kAccessor,
+          // 3) NONE == 0,
+          // 4) properties with private symbol names are guaranteed to be
+          //    non-enumerable (so DONT_ENUM bit in attributes is always set),
+          // the resulting map of transitioning store if it exists in the
+          // transition array is expected to be the first among the transitions
+          // with the same name.
+          // See TransitionArray::CompareDetails() for details.
+          STATIC_ASSERT(kData == 0);
+          STATIC_ASSERT(NONE == 0);
+          const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
+                                          TransitionArray::kEntryKeyIndex) *
+                                         kPointerSize;
+          var_transition_map_weak_cell = CAST(LoadFixedArrayElement(
+              transitions, var_name_index.value(), kKeyToTargetOffset));
+          Goto(&found_handler_candidate);
+        }
+      }
+
+      BIND(&simple_transition);
+      {
+        var_transition_map_weak_cell = CAST(maybe_handler);
+        Goto(&found_handler_candidate);
+      }
+
+      BIND(&found_handler_candidate);
+      {
+        TNode<Map> transition_map =
+            CAST(LoadWeakCellValue(var_transition_map_weak_cell.value(), slow));
+        // Validate the transition handler candidate and apply the transition.
         HandleStoreICTransitionMapHandlerCase(p, transition_map, slow, true);
       }
     }
@@ -777,27 +813,6 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
                      p->name, type, p->receiver);
     }
   }
-
-  if (use_stub_cache == kUseStubCache) {
-    BIND(&stub_cache);
-    Comment("stub cache probe");
-    VARIABLE(var_handler, MachineRepresentation::kTagged);
-    Label found_handler(this, &var_handler), stub_cache_miss(this);
-    TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
-                      &found_handler, &var_handler, &stub_cache_miss);
-    BIND(&found_handler);
-    {
-      Comment("KeyedStoreGeneric found handler");
-      HandleStoreICHandlerCase(p, var_handler.value(), &stub_cache_miss,
-                               ICMode::kNonGlobalIC);
-    }
-    BIND(&stub_cache_miss);
-    {
-      Comment("KeyedStoreGeneric_miss");
-      TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value,
-                      p->slot, p->vector, p->receiver, p->name);
-    }
-  }
 }
 
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
@@ -893,8 +908,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
-  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss,
-                           kDontUseStubCache);
+  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
 
   BIND(&miss);
   {

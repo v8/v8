@@ -2683,8 +2683,7 @@ bool MarkCompactCollector::CompactTransitionArray(
   // array disappeared during GC.
   int trim = transitions->Capacity() - transition_index;
   if (trim > 0) {
-    heap_->RightTrimFixedArray(transitions,
-                               trim * TransitionArray::kTransitionSize);
+    heap_->RightTrimFixedArray(transitions, trim * TransitionArray::kEntrySize);
     transitions->SetNumberOfTransitions(transition_index);
   }
   return descriptors_owner_died;

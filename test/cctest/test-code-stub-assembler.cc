@@ -28,6 +28,18 @@ namespace {
 typedef CodeAssemblerLabel Label;
 typedef CodeAssemblerVariable Variable;
 
+Handle<String> MakeString(const char* str) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  return factory->InternalizeUtf8String(str);
+}
+
+Handle<String> MakeName(const char* str, int suffix) {
+  EmbeddedVector<char, 128> buffer;
+  SNPrintF(buffer, "%s%d", str, suffix);
+  return MakeString(buffer.start());
+}
+
 int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
          int a8) {
   return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
@@ -741,6 +753,136 @@ TEST(NumberDictionaryLookup) {
     Handle<Object> key(Smi::FromInt(random_key), isolate);
     ft.CheckTrue(dictionary, key, expect_not_found);
   }
+}
+
+TEST(TransitionLookup) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+
+  enum Result { kFound, kNotFound };
+
+  class TempAssembler : public CodeStubAssembler {
+   public:
+    explicit TempAssembler(compiler::CodeAssemblerState* state)
+        : CodeStubAssembler(state) {}
+
+    void Generate() {
+      TNode<TransitionArray> transitions = CAST(Parameter(0));
+      TNode<Name> name = CAST(Parameter(1));
+      TNode<Smi> expected_result = CAST(Parameter(2));
+      TNode<Object> expected_arg = CAST(Parameter(3));
+
+      Label passed(this), failed(this);
+      Label if_found(this), if_not_found(this);
+      TVARIABLE(IntPtrT, var_transition_index);
+
+      TransitionLookup(name, transitions, &if_found, &var_transition_index,
+                       &if_not_found);
+
+      BIND(&if_found);
+      GotoIfNot(WordEqual(expected_result, SmiConstant(kFound)), &failed);
+      Branch(WordEqual(expected_arg, SmiTag(var_transition_index.value())),
+             &passed, &failed);
+
+      BIND(&if_not_found);
+      Branch(WordEqual(expected_result, SmiConstant(kNotFound)), &passed,
+             &failed);
+
+      BIND(&passed);
+      Return(BooleanConstant(true));
+
+      BIND(&failed);
+      Return(BooleanConstant(false));
+    }
+  };
+  TempAssembler(asm_tester.state()).Generate();
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
+  Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
+
+  const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
+  STATIC_ASSERT(ATTRS_COUNT == 8);
+
+  const int kKeysCount = 300;
+  Handle<Map> root_map = Map::Create(isolate, 0);
+  Handle<Name> keys[kKeysCount];
+
+  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+
+  Factory* factory = isolate->factory();
+  Handle<FieldType> any = FieldType::Any(isolate);
+
+  for (int i = 0; i < kKeysCount; i++) {
+    Handle<Name> name;
+    if (i % 30 == 0) {
+      name = factory->NewPrivateSymbol();
+    } else if (i % 10 == 0) {
+      name = factory->NewSymbol();
+    } else {
+      int random_key = rand_gen.NextInt(Smi::kMaxValue);
+      name = MakeName("p", random_key);
+    }
+    keys[i] = name;
+
+    bool is_private = name->IsPrivate();
+    PropertyAttributes base_attributes = is_private ? DONT_ENUM : NONE;
+
+    // Ensure that all the combinations of cases are covered:
+    // 1) there is a "base" attributes transition
+    // 2) there are other non-base attributes transitions
+    if ((i & 1) == 0) {
+      CHECK(!Map::CopyWithField(root_map, name, any, base_attributes, kMutable,
+                                Representation::Tagged(), INSERT_TRANSITION)
+                 .is_null());
+    }
+
+    if ((i & 2) == 0) {
+      for (int j = 0; j < ATTRS_COUNT; j++) {
+        PropertyAttributes attributes = static_cast<PropertyAttributes>(j);
+        if (attributes == base_attributes) continue;
+        // Don't add private symbols with enumerable attributes.
+        if (is_private && ((attributes & DONT_ENUM) == 0)) continue;
+        CHECK(!Map::CopyWithField(root_map, name, any, attributes, kMutable,
+                                  Representation::Tagged(), INSERT_TRANSITION)
+                   .is_null());
+      }
+    }
+  }
+
+  CHECK(root_map->raw_transitions()->IsTransitionArray());
+  Handle<TransitionArray> transitions(
+      TransitionArray::cast(root_map->raw_transitions()));
+  DCHECK(transitions->IsSortedNoDuplicates());
+
+  // Ensure we didn't overflow transition array and therefore all the
+  // combinations of cases are covered.
+  CHECK(TransitionsAccessor(root_map).CanHaveMoreTransitions());
+
+  // Now try querying keys.
+  bool positive_lookup_tested = false;
+  bool negative_lookup_tested = false;
+  for (int i = 0; i < kKeysCount; i++) {
+    Handle<Name> name = keys[i];
+
+    int transition_number = transitions->SearchNameForTesting(*name);
+
+    if (transition_number != TransitionArray::kNotFound) {
+      Handle<Smi> expected_value(
+          Smi::FromInt(TransitionArray::ToKeyIndex(transition_number)),
+          isolate);
+      ft.CheckTrue(transitions, name, expect_found, expected_value);
+      positive_lookup_tested = true;
+    } else {
+      ft.CheckTrue(transitions, name, expect_not_found);
+      negative_lookup_tested = true;
+    }
+  }
+  CHECK(positive_lookup_tested);
+  CHECK(negative_lookup_tested);
 }
 
 namespace {

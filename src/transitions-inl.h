@@ -202,7 +202,7 @@ void TransitionArray::Set(int transition_number, Name* key, Object* target) {
 
 int TransitionArray::Capacity() {
   if (length() <= kFirstIndex) return 0;
-  return (length() - kFirstIndex) / kTransitionSize;
+  return (length() - kFirstIndex) / kEntrySize;
 }
 
 void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {

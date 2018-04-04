@@ -6754,11 +6754,25 @@ TNode<Uint32T> CodeStubAssembler::NumberOfEntries<DescriptorArray>(
       descriptors, IntPtrConstant(DescriptorArray::kDescriptorLengthIndex)));
 }
 
+template <>
+TNode<Uint32T> CodeStubAssembler::NumberOfEntries<TransitionArray>(
+    TNode<TransitionArray> transitions) {
+  TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(transitions);
+  return Select<Uint32T>(
+      UintPtrLessThan(length, IntPtrConstant(TransitionArray::kFirstIndex)),
+      [=] { return Unsigned(Int32Constant(0)); },
+      [=] {
+        return Unsigned(LoadAndUntagToWord32FixedArrayElement(
+            transitions,
+            IntPtrConstant(TransitionArray::kTransitionLengthIndex)));
+      });
+}
+
 template <typename Array>
 TNode<IntPtrT> CodeStubAssembler::EntryIndexToIndex(
     TNode<Uint32T> entry_index) {
-  TNode<Int32T> descriptor_size = Int32Constant(Array::kEntrySize);
-  TNode<Word32T> index = Int32Mul(entry_index, descriptor_size);
+  TNode<Int32T> entry_size = Int32Constant(Array::kEntrySize);
+  TNode<Word32T> index = Int32Mul(entry_index, entry_size);
   return ChangeInt32ToIntPtr(index);
 }
 
@@ -6769,6 +6783,8 @@ TNode<IntPtrT> CodeStubAssembler::ToKeyIndex(TNode<Uint32T> entry_index) {
 }
 
 template TNode<IntPtrT> CodeStubAssembler::ToKeyIndex<DescriptorArray>(
+    TNode<Uint32T>);
+template TNode<IntPtrT> CodeStubAssembler::ToKeyIndex<TransitionArray>(
     TNode<Uint32T>);
 
 template <>
@@ -6795,6 +6811,8 @@ TNode<Name> CodeStubAssembler::GetKey(TNode<Array> array,
 
 template TNode<Name> CodeStubAssembler::GetKey<DescriptorArray>(
     TNode<DescriptorArray>, TNode<Uint32T>);
+template TNode<Name> CodeStubAssembler::GetKey<TransitionArray>(
+    TNode<TransitionArray>, TNode<Uint32T>);
 
 TNode<Uint32T> CodeStubAssembler::DescriptorArrayGetDetails(
     TNode<DescriptorArray> descriptors, TNode<Uint32T> descriptor_number) {
@@ -6884,6 +6902,16 @@ void CodeStubAssembler::DescriptorLookup(
   TNode<Uint32T> nof = DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
   Lookup<DescriptorArray>(unique_name, descriptors, nof, if_found,
                           var_name_index, if_not_found);
+}
+
+void CodeStubAssembler::TransitionLookup(
+    SloppyTNode<Name> unique_name, SloppyTNode<TransitionArray> transitions,
+    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found) {
+  Comment("TransitionArrayLookup");
+  TNode<Uint32T> number_of_valid_transitions =
+      NumberOfEntries<TransitionArray>(transitions);
+  Lookup<TransitionArray>(unique_name, transitions, number_of_valid_transitions,
+                          if_found, var_name_index, if_not_found);
 }
 
 template <typename Array>
