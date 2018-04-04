@@ -859,27 +859,43 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
   movzxbl(dst, dst);
 }
 
-void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
-                                         DoubleRegister lhs,
-                                         DoubleRegister rhs) {
+namespace liftoff {
+template <void (TurboAssembler::*cmp_op)(DoubleRegister, DoubleRegister)>
+void EmitFloatSetCond(LiftoffAssembler* assm, Condition cond, Register dst,
+                      DoubleRegister lhs, DoubleRegister rhs) {
   Label cont;
   Label not_nan;
 
-  Ucomiss(lhs, rhs);
+  (assm->*cmp_op)(lhs, rhs);
   // IF PF is one, one of the operands was Nan. This needs special handling.
-  j(parity_odd, &not_nan, Label::kNear);
+  assm->j(parity_odd, &not_nan, Label::kNear);
   // Return 1 for f32.ne, 0 for all other cases.
   if (cond == not_equal) {
-    movl(dst, Immediate(1));
+    assm->movl(dst, Immediate(1));
   } else {
-    xorl(dst, dst);
+    assm->xorl(dst, dst);
   }
-  jmp(&cont, Label::kNear);
-  bind(&not_nan);
+  assm->jmp(&cont, Label::kNear);
+  assm->bind(&not_nan);
 
-  setcc(cond, dst);
-  movzxbl(dst, dst);
-  bind(&cont);
+  assm->setcc(cond, dst);
+  assm->movzxbl(dst, dst);
+  assm->bind(&cont);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  liftoff::EmitFloatSetCond<&TurboAssembler::Ucomiss>(this, cond, dst, lhs,
+                                                      rhs);
+}
+
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  liftoff::EmitFloatSetCond<&TurboAssembler::Ucomisd>(this, cond, dst, lhs,
+                                                      rhs);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

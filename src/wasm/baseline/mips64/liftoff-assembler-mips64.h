@@ -561,6 +561,12 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
   BAILOUT("emit_f32_set_cond");
 }
 
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  BAILOUT("emit_f64_set_cond");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   LiftoffRegister tmp = GetUnusedRegister(kGpReg);
   TurboAssembler::li(

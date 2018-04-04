@@ -470,6 +470,8 @@ class LiftoffAssembler : public TurboAssembler {
                                 LiftoffRegister lhs, LiftoffRegister rhs);
   inline void emit_f32_set_cond(Condition condition, Register dst,
                                 DoubleRegister lhs, DoubleRegister rhs);
+  inline void emit_f64_set_cond(Condition condition, Register dst,
+                                DoubleRegister lhs, DoubleRegister rhs);
 
   inline void StackCheck(Label* ool_code);
 

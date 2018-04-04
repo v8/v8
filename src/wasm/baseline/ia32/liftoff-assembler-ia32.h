@@ -1048,30 +1048,44 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
   bind(&cont);
 }
 
-void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
-                                         DoubleRegister lhs,
-                                         DoubleRegister rhs) {
+namespace liftoff {
+template <void (Assembler::*cmp_op)(DoubleRegister, DoubleRegister)>
+void EmitFloatSetCond(LiftoffAssembler* assm, Condition cond, Register dst,
+                      DoubleRegister lhs, DoubleRegister rhs) {
   Label cont;
   Label not_nan;
 
   // Get the tmp byte register out here, such that we don't conditionally spill
   // (this cannot be reflected in the cache state).
-  Register tmp_byte_reg = liftoff::GetTmpByteRegister(this, dst);
+  Register tmp_byte_reg = GetTmpByteRegister(assm, dst);
 
-  ucomiss(lhs, rhs);
+  (assm->*cmp_op)(lhs, rhs);
   // If PF is one, one of the operands was Nan. This needs special handling.
-  j(parity_odd, &not_nan, Label::kNear);
+  assm->j(parity_odd, &not_nan, Label::kNear);
   // Return 1 for f32.ne, 0 for all other cases.
   if (cond == not_equal) {
-    mov(dst, Immediate(1));
+    assm->mov(dst, Immediate(1));
   } else {
-    xor_(dst, dst);
+    assm->xor_(dst, dst);
   }
-  jmp(&cont, Label::kNear);
-  bind(&not_nan);
+  assm->jmp(&cont, Label::kNear);
+  assm->bind(&not_nan);
 
-  liftoff::setcc_32_no_spill(this, cond, dst, tmp_byte_reg);
-  bind(&cont);
+  setcc_32_no_spill(assm, cond, dst, tmp_byte_reg);
+  assm->bind(&cont);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  liftoff::EmitFloatSetCond<&Assembler::ucomiss>(this, cond, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  liftoff::EmitFloatSetCond<&Assembler::ucomisd>(this, cond, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
