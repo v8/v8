@@ -294,11 +294,21 @@ class ExitPoint {
   typedef compiler::CodeAssemblerVariable CodeAssemblerVariable;
 
  public:
+  typedef std::function<void(Node* result)> IndirectReturnHandler;
+
   explicit ExitPoint(CodeStubAssembler* assembler)
-      : ExitPoint(assembler, nullptr, nullptr) {}
+      : ExitPoint(assembler, nullptr) {}
+
+  ExitPoint(CodeStubAssembler* assembler,
+            const IndirectReturnHandler& indirect_return_handler)
+      : asm_(assembler), indirect_return_handler_(indirect_return_handler) {}
+
   ExitPoint(CodeStubAssembler* assembler, CodeAssemblerLabel* out,
             CodeAssemblerVariable* var_result)
-      : out_(out), var_result_(var_result), asm_(assembler) {
+      : ExitPoint(assembler, [=](Node* result) {
+          var_result->Bind(result);
+          assembler->Goto(out);
+        }) {
     DCHECK_EQ(out != nullptr, var_result != nullptr);
   }
 
@@ -308,7 +318,7 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallRuntime(function, context, args...);
     } else {
-      IndirectReturn(asm_->CallRuntime(function, context, args...));
+      indirect_return_handler_(asm_->CallRuntime(function, context, args...));
     }
   }
 
@@ -317,7 +327,7 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallStub(callable, context, args...);
     } else {
-      IndirectReturn(asm_->CallStub(callable, context, args...));
+      indirect_return_handler_(asm_->CallStub(callable, context, args...));
     }
   }
 
@@ -327,7 +337,8 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallStub(descriptor, target, context, args...);
     } else {
-      IndirectReturn(asm_->CallStub(descriptor, target, context, args...));
+      indirect_return_handler_(
+          asm_->CallStub(descriptor, target, context, args...));
     }
   }
 
@@ -335,21 +346,15 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->Return(result);
     } else {
-      IndirectReturn(result);
+      indirect_return_handler_(result);
     }
   }
 
-  bool IsDirect() const { return out_ == nullptr; }
+  bool IsDirect() const { return !indirect_return_handler_; }
 
  private:
-  void IndirectReturn(Node* const result) {
-    var_result_->Bind(result);
-    asm_->Goto(out_);
-  }
-
-  CodeAssemblerLabel* const out_;
-  CodeAssemblerVariable* const var_result_;
   CodeStubAssembler* const asm_;
+  IndirectReturnHandler indirect_return_handler_;
 };
 
 }  // namespace internal

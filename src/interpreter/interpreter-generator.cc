@@ -157,9 +157,10 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
     Node* feedback_slot = BytecodeOperandIdx(slot_operand_index);
 
     AccessorAssembler accessor_asm(state());
-    Label done(this);
-    Variable var_result(this, MachineRepresentation::kTagged);
-    ExitPoint exit_point(this, &done, &var_result);
+    ExitPoint exit_point(this, [=](Node* result) {
+      SetAccumulator(result);
+      Dispatch();
+    });
 
     LazyNode<Context> lazy_context = [=] { return CAST(GetContext()); };
 
@@ -171,10 +172,6 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
     accessor_asm.LoadGlobalIC(feedback_vector, feedback_slot, lazy_context,
                               lazy_name, typeof_mode, &exit_point,
                               CodeStubAssembler::INTPTR_PARAMETERS);
-
-    BIND(&done);
-    SetAccumulator(var_result.value());
-    Dispatch();
   }
 };
 
