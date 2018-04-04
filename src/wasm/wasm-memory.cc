@@ -33,13 +33,17 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 
   // Let the WasmMemoryTracker know we are going to reserve a bunch of
   // address space.
-  if (!memory_tracker->ReserveAddressSpace(*allocation_length)) {
-    // If we fail the first time, collect garbage and retry.
+  // Try up to three times; getting rid of dead JSArrayBuffer allocations might
+  // require two GCs.
+  // TODO(gc): Fix this to only require one GC (crbug.com/v8/7621).
+  for (int trial = 0;; ++trial) {
+    if (memory_tracker->ReserveAddressSpace(*allocation_length)) break;
+    // Collect garbage and retry.
     heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
-    if (!memory_tracker->ReserveAddressSpace(*allocation_length)) {
-      // If we are over the address space limit, fail.
-      return nullptr;
-    }
+    // After first and second GC: retry.
+    if (trial < 2) continue;
+    // We are over the address space limit. Fail.
+    return nullptr;
   }
 
   // The Reserve makes the whole region inaccessible by default.
