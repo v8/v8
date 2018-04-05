@@ -55,7 +55,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   DoubleToIStub stub(isolate, destination_reg);
 
-  byte* start = stub.GetCode()->instruction_start();
+  byte* start = stub.GetCode()->raw_instruction_start();
 
   __ PushCalleeSavedRegisters();
 

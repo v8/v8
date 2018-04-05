@@ -124,8 +124,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   if (function->IsInterpreted()) {
     code_offset = InterpretedFrame::GetBytecodeOffset(fp());
   } else {
-    code_offset =
-        static_cast<int>(pc() - function->code()->instruction_start());
+    code_offset = static_cast<int>(pc() - function->code()->InstructionStart());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(
       function, function->abstract_code(), code_offset);

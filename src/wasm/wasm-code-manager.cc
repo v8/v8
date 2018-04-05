@@ -551,7 +551,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   std::shared_ptr<ProtectedInstructions> protected_instructions(
       new ProtectedInstructions(0));
   Vector<const byte> orig_instructions(
-      code->instruction_start(), static_cast<size_t>(code->instruction_size()));
+      code->raw_instruction_start(),
+      static_cast<size_t>(code->raw_instruction_size()));
   int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
   int safepoint_table_offset =
       code->has_safepoint_info() ? code->safepoint_table_offset() : 0;
@@ -570,7 +571,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                    protected_instructions,        // protected_instructions
                    WasmCode::kOther,              // kind
                    WasmCode::kNoFlushICache);     // flush_icache
-  intptr_t delta = ret->instructions().start() - code->instruction_start();
+  intptr_t delta = ret->instructions().start() - code->raw_instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
              RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
 
@@ -667,7 +668,7 @@ WasmCode* NativeModule::AddCode(
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
 Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
   MacroAssembler masm(code->GetIsolate(), nullptr, 0, CodeObjectRequired::kNo);
-  Address dest = code->instruction_start();
+  Address dest = code->raw_instruction_start();
   GenerateJumpTrampoline(&masm, dest);
   CodeDesc code_desc;
   masm.GetCode(nullptr, &code_desc);
@@ -693,7 +694,7 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
 }
 #else
 Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
-  Address ret = code->instruction_start();
+  Address ret = code->raw_instruction_start();
   trampolines_.insert(std::make_pair(ret, ret));
   return ret;
 }
@@ -711,7 +712,7 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
     }
     return copy->second->instructions().start();
   } else {
-    Address index = code->instruction_start();
+    Address index = code->raw_instruction_start();
     auto trampoline_iter = trampolines_.find(index);
     if (trampoline_iter == trampolines_.end()) {
       return CreateTrampolineTo(code);

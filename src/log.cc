@@ -309,8 +309,8 @@ void PerfBasicLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
     return;
   }
 
-  WriteLogRecordedBuffer(reinterpret_cast<uintptr_t>(code->instruction_start()),
-                         code->instruction_size(), name, length);
+  WriteLogRecordedBuffer(reinterpret_cast<uintptr_t>(code->InstructionStart()),
+                         code->InstructionSize(), name, length);
 }
 
 void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
@@ -426,13 +426,12 @@ void LowLevelLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                                        const char* name, int length) {
   CodeCreateStruct event;
   event.name_size = length;
-  event.code_address = code->instruction_start();
-  event.code_size = code->instruction_size();
+  event.code_address = code->InstructionStart();
+  event.code_size = code->InstructionSize();
   LogWriteStruct(event);
   LogWriteBytes(name, length);
-  LogWriteBytes(
-      reinterpret_cast<const char*>(code->instruction_start()),
-      code->instruction_size());
+  LogWriteBytes(reinterpret_cast<const char*>(code->InstructionStart()),
+                code->InstructionSize());
 }
 
 void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
@@ -449,8 +448,8 @@ void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 
 void LowLevelLogger::CodeMoveEvent(AbstractCode* from, Address to) {
   CodeMoveStruct event;
-  event.from_address = from->instruction_start();
-  size_t header_size = from->instruction_start() - from->address();
+  event.from_address = from->InstructionStart();
+  size_t header_size = from->InstructionStart() - from->address();
   event.to_address = to + header_size;
   LogWriteStruct(event);
 }
@@ -504,10 +503,10 @@ void JitLogger::LogRecordedBuffer(AbstractCode* code,
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
-  event.code_start = code->instruction_start();
+  event.code_start = code->InstructionStart();
   event.code_type =
       code->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
-  event.code_len = code->instruction_size();
+  event.code_len = code->InstructionSize();
   Handle<SharedFunctionInfo> shared_function_handle;
   if (shared && shared->script()->IsScript()) {
     shared_function_handle = Handle<SharedFunctionInfo>(shared);
@@ -538,11 +537,11 @@ void JitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
   event.type = JitCodeEvent::CODE_MOVED;
   event.code_type =
       from->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
-  event.code_start = from->instruction_start();
-  event.code_len = from->instruction_size();
+  event.code_start = from->InstructionStart();
+  event.code_len = from->InstructionSize();
 
   // Calculate the header size.
-  const size_t header_size = from->instruction_start() - from->address();
+  const size_t header_size = from->InstructionStart() - from->address();
 
   // Calculate the new start address of the instructions.
   event.new_code_start = to + header_size;
@@ -894,7 +893,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
   Log::MessageBuilder msg(log_);
   msg << "code-deopt" << kNext << timer_.Elapsed().InMicroseconds() << kNext
       << code->CodeSize() << kNext
-      << reinterpret_cast<void*>(code->instruction_start());
+      << reinterpret_cast<void*>(code->InstructionStart());
 
   // Deoptimization position.
   std::ostringstream deopt_location;
@@ -1203,7 +1202,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   //   <fns> is the function table encoded as a sequence of strings
   //      S<shared-function-info-address>
   msg << "code-source-info" << kNext
-      << static_cast<void*>(code->instruction_start()) << kNext << script_id
+      << static_cast<void*>(code->InstructionStart()) << kNext << script_id
       << kNext << shared->StartPosition() << kNext << shared->EndPosition()
       << kNext;
 

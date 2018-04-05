@@ -14012,13 +14012,13 @@ void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
-  Assembler::FlushICache(instruction_start(), instruction_size());
+  Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
 
 void Code::CopyFrom(const CodeDesc& desc) {
   // copy code
-  CopyBytes(instruction_start(), desc.buffer,
+  CopyBytes(raw_instruction_start(), desc.buffer,
             static_cast<size_t>(desc.instr_size));
 
   // copy unwinding info, if any
@@ -14053,18 +14053,18 @@ void Code::CopyFrom(const CodeDesc& desc) {
       // code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
-      it.rinfo()->set_target_address(code->instruction_start(),
+      it.rinfo()->set_target_address(code->raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
       Address p = it.rinfo()->target_runtime_entry(origin);
       it.rinfo()->set_target_runtime_entry(p, UPDATE_WRITE_BARRIER,
                                            SKIP_ICACHE_FLUSH);
     } else {
-      intptr_t delta = instruction_start() - desc.buffer;
+      intptr_t delta = raw_instruction_start() - desc.buffer;
       it.rinfo()->apply(delta);
     }
   }
-  Assembler::FlushICache(instruction_start(), instruction_size());
+  Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
 
@@ -14076,14 +14076,14 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 #ifdef V8_EMBEDDED_BUILTINS
 int Code::OffHeapInstructionSize() const {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return instruction_size();
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_size();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return instruction_start();
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob();
   return reinterpret_cast<Address>(
       const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index())));
@@ -14091,7 +14091,7 @@ Address Code::OffHeapInstructionStart() const {
 
 Address Code::OffHeapInstructionEnd() const {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return instruction_end();
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob();
   return reinterpret_cast<Address>(
       const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index()) +
@@ -14203,7 +14203,7 @@ void Code::PrintDeoptLocation(FILE* out, const char* str, Address pc) {
 bool Code::CanDeoptAt(Address pc) {
   DeoptimizationData* deopt_data =
       DeoptimizationData::cast(deoptimization_data());
-  Address code_start_address = instruction_start();
+  Address code_start_address = InstructionStart();
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i)->value();
@@ -14578,7 +14578,7 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
   } else {
     // There are some handlers and ICs that we can also find names for with
     // Builtins::Lookup.
-    name = GetIsolate()->builtins()->Lookup(instruction_start());
+    name = GetIsolate()->builtins()->Lookup(raw_instruction_start());
     if (name != nullptr) {
       os << "name = " << name << "\n";
     }

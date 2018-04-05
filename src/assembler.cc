@@ -463,7 +463,7 @@ void RelocIterator::next() {
 RelocIterator::RelocIterator(Code* code, int mode_mask)
     : mode_mask_(mode_mask) {
   rinfo_.host_ = code;
-  rinfo_.pc_ = code->instruction_start();
+  rinfo_.pc_ = code->raw_instruction_start();
   rinfo_.data_ = 0;
   rinfo_.constant_pool_ = code->constant_pool();
   // Relocation info is read backwards.
@@ -631,8 +631,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
       Code* code = Code::cast(isolate->FindCodeObject(pc));
-      CHECK(target >= code->instruction_start());
-      CHECK(target <= code->instruction_end());
+      CHECK(target >= code->InstructionStart());
+      CHECK(target <= code->InstructionEnd());
       break;
     }
     case OFF_HEAP_TARGET: {

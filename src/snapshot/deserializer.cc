@@ -503,8 +503,9 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         int target_offset = source_.GetInt();
         Code* code =
             Code::cast(HeapObject::FromAddress(current_object_address));
-        DCHECK(0 <= pc_offset && pc_offset <= code->instruction_size());
-        DCHECK(0 <= target_offset && target_offset <= code->instruction_size());
+        DCHECK(0 <= pc_offset && pc_offset <= code->raw_instruction_size());
+        DCHECK(0 <= target_offset &&
+               target_offset <= code->raw_instruction_size());
         Address pc = code->entry() + pc_offset;
         Address target = code->entry() + target_offset;
         Assembler::deserialization_set_target_internal_reference_at(
@@ -836,10 +837,10 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
         // At this point, new_object may still be uninitialized, thus the
         // unchecked Code cast.
         new_object = reinterpret_cast<Object*>(
-            reinterpret_cast<Code*>(new_object)->instruction_start());
+            reinterpret_cast<Code*>(new_object)->raw_instruction_start());
       } else if (new_object->IsCode()) {
         new_object = reinterpret_cast<Object*>(
-            Code::cast(new_object)->instruction_start());
+            Code::cast(new_object)->raw_instruction_start());
       } else {
         Cell* cell = Cell::cast(new_object);
         new_object = reinterpret_cast<Object*>(cell->ValueAddress());

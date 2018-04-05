@@ -986,8 +986,8 @@ TEST(DisasmX64) {
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
-  byte* begin = code->instruction_start();
-  byte* end = begin + code->instruction_size();
+  byte* begin = code->raw_instruction_start();
+  byte* end = begin + code->raw_instruction_size();
   Disassemble(stdout, begin, end);
 #endif
 }

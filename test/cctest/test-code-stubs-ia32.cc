@@ -54,7 +54,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                       v8::internal::CodeObjectRequired::kYes);
 
   DoubleToIStub stub(isolate, destination_reg);
-  byte* start = stub.GetCode()->instruction_start();
+  byte* start = stub.GetCode()->raw_instruction_start();
 
   __ push(ebx);
   __ push(ecx);

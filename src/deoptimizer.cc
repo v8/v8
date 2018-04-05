@@ -156,7 +156,7 @@ class ActivationsFinder : public ThreadVisitor {
           int trampoline_pc = safepoint.trampoline_pc();
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
           // Replace the current pc on the stack with the trampoline.
-          it.frame()->set_pc(code->instruction_start() + trampoline_pc);
+          it.frame()->set_pc(code->raw_instruction_start() + trampoline_pc);
         }
       }
     }
@@ -500,7 +500,7 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate, int id,
   CHECK_LE(type, kLastBailoutType);
   CHECK_NOT_NULL(data->deopt_entry_code_[type]);
   Code* code = data->deopt_entry_code_[type];
-  return code->instruction_start() + (id * table_entry_size_);
+  return code->raw_instruction_start() + (id * table_entry_size_);
 }
 
 
@@ -511,7 +511,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
   CHECK_LE(type, kLastBailoutType);
   Code* code = data->deopt_entry_code_[type];
   if (code == nullptr) return kNotDeoptimizationEntry;
-  Address start = code->instruction_start();
+  Address start = code->raw_instruction_start();
   if (addr < start ||
       addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;

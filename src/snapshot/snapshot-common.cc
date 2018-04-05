@@ -355,7 +355,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
                 Builtins::name(i));
       }
 
-      uint32_t length = static_cast<uint32_t>(code->instruction_size());
+      uint32_t length = static_cast<uint32_t>(code->raw_instruction_size());
 
       DCHECK_EQ(0, raw_data_size % kCodeAlignment);
       offsets[i] = raw_data_size;
@@ -387,8 +387,10 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     Code* code = builtins->builtin(i);
     uint32_t offset = offsets[i];
     uint8_t* dst = blob + RawDataOffset() + offset;
-    DCHECK_LE(RawDataOffset() + offset + code->instruction_size(), blob_size);
-    std::memcpy(dst, code->instruction_start(), code->instruction_size());
+    DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
+              blob_size);
+    std::memcpy(dst, code->raw_instruction_start(),
+                code->raw_instruction_size());
   }
 
   return {blob, blob_size};

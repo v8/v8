@@ -5144,14 +5144,6 @@ void Assembler::dq(uint64_t value) {
   pc_ += sizeof(uint64_t);
 }
 
-
-void Assembler::emit_code_stub_address(Code* stub) {
-  CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) =
-      reinterpret_cast<uint32_t>(stub->instruction_start());
-  pc_ += sizeof(uint32_t);
-}
-
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.

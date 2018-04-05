@@ -863,7 +863,8 @@ void FlushICache(Handle<FixedArray> functions) {
   for (int i = 0, e = functions->length(); i < e; ++i) {
     if (!functions->get(i)->IsCode()) continue;
     Code* code = Code::cast(functions->get(i));
-    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
+    Assembler::FlushICache(code->raw_instruction_start(),
+                           code->raw_instruction_size());
   }
 }
 

@@ -54,7 +54,8 @@ WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
       patched = true;
     }
     CHECK(patched);
-    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
+    Assembler::FlushICache(code->raw_instruction_start(),
+                           code->raw_instruction_size());
   }
 
   // Run with the new global data.

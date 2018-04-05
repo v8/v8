@@ -979,11 +979,11 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   uintptr_t CodeStart() const {
-    return reinterpret_cast<uintptr_t>(code_->instruction_start());
+    return reinterpret_cast<uintptr_t>(code_->InstructionStart());
   }
 
   uintptr_t CodeEnd() const {
-    return reinterpret_cast<uintptr_t>(code_->instruction_end());
+    return reinterpret_cast<uintptr_t>(code_->InstructionEnd());
   }
 
   uintptr_t CodeSize() const {

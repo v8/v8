@@ -3311,7 +3311,7 @@ AllocationResult Heap::AllocateCode(
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowHeapAllocation no_gc;
-  code->set_instruction_size(desc.instr_size);
+  code->set_raw_instruction_size(desc.instr_size);
   code->set_relocation_info(reloc_info);
   code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
   code->set_safepoint_table_offset(safepoint_table_offset);

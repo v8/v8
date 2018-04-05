@@ -1491,9 +1491,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data) { dd(data); }
 
-  // Emits the address of the code stub's first instruction.
-  void emit_code_stub_address(Code* stub);
-
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
   void instr_at_put(int pos, Instr instr) {

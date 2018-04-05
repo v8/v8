@@ -502,7 +502,7 @@ class FrameArrayBuilder {
     Handle<Object> receiver(exit_frame->receiver(), isolate_);
     Handle<Code> code(exit_frame->LookupCode(), isolate_);
     const int offset =
-        static_cast<int>(exit_frame->pc() - code->instruction_start());
+        static_cast<int>(exit_frame->pc() - code->InstructionStart());
 
     int flags = 0;
     if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
@@ -1655,8 +1655,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     Handle<Object> receiver(frame->receiver(), this);
     Handle<JSFunction> function(frame->function(), this);
     Handle<AbstractCode> code(AbstractCode::cast(frame->LookupCode()), this);
-    const int offset =
-        static_cast<int>(frame->pc() - code->instruction_start());
+    const int offset = static_cast<int>(frame->pc() - code->InstructionStart());
 
     JSStackFrame site(this, receiver, function, code, offset);
     Handle<String> line = site.ToString().ToHandleChecked();

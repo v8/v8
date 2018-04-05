@@ -302,7 +302,8 @@ class UpdateTypedSlotHelper {
         callback(reinterpret_cast<MaybeObject**>(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
-      rinfo->set_target_address(Code::cast(new_target)->instruction_start());
+      rinfo->set_target_address(
+          Code::cast(new_target)->raw_instruction_start());
     }
     return result;
   }

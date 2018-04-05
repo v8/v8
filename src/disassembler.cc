@@ -48,9 +48,9 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       return v8_buffer_.start();
     }
 
-    int offs = static_cast<int>(pc - code_->instruction_start());
+    int offs = static_cast<int>(pc - code_->raw_instruction_start());
     // print as code offset, if it seems reasonable
-    if (0 <= offs && offs < code_->instruction_size()) {
+    if (0 <= offs && offs < code_->raw_instruction_size()) {
       SNPrintF(v8_buffer_, "%p  <+0x%x>", static_cast<void*>(pc), offs);
       return v8_buffer_.start();
     }

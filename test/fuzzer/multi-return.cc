@@ -254,7 +254,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       &info, i_isolate, desc, callee.graph(), callee.Export());
 
   std::unique_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(i_isolate, code->instruction_size());
+      AllocateNativeModule(i_isolate, code->raw_instruction_size());
   byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
                          ->instructions()
                          .start();

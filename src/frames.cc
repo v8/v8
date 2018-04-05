@@ -769,7 +769,7 @@ Object* StandardFrame::context() const {
 
 int StandardFrame::position() const {
   AbstractCode* code = AbstractCode::cast(LookupCode());
-  int code_offset = static_cast<int>(pc() - code->instruction_start());
+  int code_offset = static_cast<int>(pc() - code->InstructionStart());
   return code->SourcePosition(code_offset);
 }
 

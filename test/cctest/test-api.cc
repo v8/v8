@@ -14233,14 +14233,14 @@ void SetFunctionEntryHookTest::OnEntryHook(
   if (!bar_func_.is_null() && function_code == bar_func_->code()) {
     // Check that we have a symbol for the "bar" function at the right location.
     SymbolLocationMap::iterator it(
-        symbol_locations_.find(function_code->instruction_start()));
+        symbol_locations_.find(function_code->raw_instruction_start()));
     CHECK(it != symbol_locations_.end());
   }
 
   if (!foo_func_.is_null() && function_code == foo_func_->code()) {
     // Check that we have a symbol for "foo" at the right location.
     SymbolLocationMap::iterator it(
-        symbol_locations_.find(function_code->instruction_start()));
+        symbol_locations_.find(function_code->raw_instruction_start()));
     CHECK(it != symbol_locations_.end());
   }
 }

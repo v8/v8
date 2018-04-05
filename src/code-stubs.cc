@@ -88,7 +88,7 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
           CodeCreateEvent(CodeEventListener::STUB_TAG,
                           AbstractCode::cast(*code), os.str().c_str()));
   Counters* counters = isolate()->counters();
-  counters->total_stubs_code_size()->Increment(code->instruction_size());
+  counters->total_stubs_code_size()->Increment(code->raw_instruction_size());
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif

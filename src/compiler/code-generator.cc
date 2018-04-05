@@ -382,10 +382,10 @@ Handle<Code> CodeGenerator::FinalizeCode() {
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
       handler_table_offset_);
   isolate()->counters()->total_compiled_code_size()->Increment(
-      result->instruction_size());
+      result->raw_instruction_size());
 
   LOG_CODE_EVENT(isolate(),
-                 CodeLinePosInfoRecordEvent(result->instruction_start(),
+                 CodeLinePosInfoRecordEvent(result->raw_instruction_start(),
                                             *source_positions));
 
   return result;

@@ -177,8 +177,8 @@ void TestReturnMultipleValues(MachineType type) {
       if (i % 4 == 0) sign = -sign;
     }
 
-    std::unique_ptr<wasm::NativeModule> module =
-        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), code->raw_instruction_size());
     byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
                            ->instructions()
                            .start();
@@ -255,8 +255,8 @@ void ReturnLastValue(MachineType type) {
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 
-    std::unique_ptr<wasm::NativeModule> module =
-        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), code->raw_instruction_size());
     byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
                            ->instructions()
                            .start();
@@ -315,8 +315,8 @@ void ReturnSumOfReturns(MachineType type) {
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 
-    std::unique_ptr<wasm::NativeModule> module =
-        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), code->raw_instruction_size());
     byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
                            ->instructions()
                            .start();

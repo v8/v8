@@ -188,7 +188,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         if (!target->is_builtin()) continue;
         Code* new_target =
             Code::cast(builtins->builtins_[target->builtin_index()]);
-        rinfo->set_target_address(new_target->instruction_start(),
+        rinfo->set_target_address(new_target->raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObject(rinfo->rmode()));
@@ -204,8 +204,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       flush_icache = true;
     }
     if (flush_icache) {
-      Assembler::FlushICache(code->instruction_start(),
-                             code->instruction_size());
+      Assembler::FlushICache(code->raw_instruction_start(),
+                             code->raw_instruction_size());
     }
   }
 }

@@ -55,8 +55,8 @@ class Code : public HeapObject {
 
   // [instruction_size]: Size of the native instructions, including embedded
   // data such as the safepoints table.
-  inline int instruction_size() const;
-  inline void set_instruction_size(int value);
+  inline int raw_instruction_size() const;
+  inline void set_raw_instruction_size(int value);
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
@@ -214,7 +214,7 @@ class Code : public HeapObject {
   static inline Object* GetObjectFromCodeEntry(Address code_entry);
 
   // Returns the address of the first instruction.
-  inline byte* instruction_start() const;
+  inline byte* raw_instruction_start() const;
 
   // Returns the address of the first instruction. For off-heap code objects
   // this differs from instruction_start (which would point to the off-heap
@@ -225,7 +225,7 @@ class Code : public HeapObject {
 #endif
 
   // Returns the address right after the last instruction.
-  inline byte* instruction_end() const;
+  inline byte* raw_instruction_end() const;
 
   // Returns the address right after the last instruction. For off-heap code
   // objects this differs from instruction_end (which would point to the
@@ -251,22 +251,22 @@ class Code : public HeapObject {
   //
   // The body of all code objects has the following layout.
   //
-  //  +--------------------------+  <-- instruction_start()
+  //  +--------------------------+  <-- raw_instruction_start()
   //  |       instructions       |
   //  |           ...            |
   //  +--------------------------+
   //  |      relocation info     |
   //  |           ...            |
-  //  +--------------------------+  <-- instruction_end()
+  //  +--------------------------+  <-- raw_instruction_end()
   //
-  // If has_unwinding_info() is false, instruction_end() points to the first
+  // If has_unwinding_info() is false, raw_instruction_end() points to the first
   // memory location after the end of the code object. Otherwise, the body
   // continues as follows:
   //
   //  +--------------------------+
   //  |    padding to the next   |
   //  |  8-byte aligned address  |
-  //  +--------------------------+  <-- instruction_end()
+  //  +--------------------------+  <-- raw_instruction_end()
   //  |   [unwinding_info_size]  |
   //  |        as uint64_t       |
   //  +--------------------------+  <-- unwinding_info_start()
@@ -500,7 +500,7 @@ class AbstractCode : public HeapObject {
   int SourceStatementPosition(int offset);
 
   // Returns the address of the first instruction.
-  inline Address instruction_start();
+  inline Address raw_instruction_start();
 
   // Returns the address of the first instruction. For off-heap code objects
   // this differs from instruction_start (which would point to the off-heap
@@ -508,7 +508,7 @@ class AbstractCode : public HeapObject {
   inline Address InstructionStart();
 
   // Returns the address right after the last instruction.
-  inline Address instruction_end();
+  inline Address raw_instruction_end();
 
   // Returns the address right after the last instruction. For off-heap code
   // objects this differs from instruction_end (which would point to the
@@ -516,7 +516,7 @@ class AbstractCode : public HeapObject {
   inline Address InstructionEnd();
 
   // Returns the size of the code instructions.
-  inline int instruction_size();
+  inline int raw_instruction_size();
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
@@ -743,7 +743,7 @@ class BytecodeArray : public FixedArrayBase {
   // Dispatched behavior.
   inline int BytecodeArraySize();
 
-  inline int instruction_size();
+  inline int raw_instruction_size();
 
   // Returns the size of bytecode and its metadata. This includes the size of
   // bytecode, constant pool, source position table, and handler table.
