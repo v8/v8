@@ -224,6 +224,8 @@ class TransitionArray : public FixedArray {
   inline void SetTarget(int transition_number, Object* target);
   inline Object* GetRawTarget(int transition_number);
   inline Object** GetTargetSlot(int transition_number);
+  inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
+                                Map** target);
 
   // Required for templatized Search interface.
   static const int kNotFound = -1;
