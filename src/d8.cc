@@ -2916,7 +2916,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
-
 int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
@@ -3398,15 +3397,6 @@ int Shell::Main(int argc, char* argv[]) {
                ShellOptions::CodeCacheOptions::kNoProduceCache) {
       printf("============ Run: Produce code cache ============\n");
       // First run to produce the cache
-      result = RunMain(isolate, argc, argv, false);
-
-      // Change the options to consume cache
-      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
-             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
-      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-
-      printf("============ Run: Consume code cache ============\n");
-      // Second run to consume the cache in new isolate
       Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = Shell::array_buffer_allocator;
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
@@ -3422,9 +3412,19 @@ int Shell::Main(int argc, char* argv[]) {
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 
-        result = RunMain(isolate2, argc, argv, true);
+        result = RunMain(isolate2, argc, argv, false);
       }
       isolate2->Dispose();
+
+      // Change the options to consume cache
+      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
+      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+
+      printf("============ Run: Consume code cache ============\n");
+      // Second run to consume the cache in current isolate
+      result = RunMain(isolate, argc, argv, true);
+      options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
     } else {
       bool last_run = true;
       result = RunMain(isolate, argc, argv, last_run);
