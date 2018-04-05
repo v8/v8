@@ -2294,7 +2294,6 @@ v8_source_set("v8_base") {
     "src/zone/accounting-allocator.cc",
     "src/zone/accounting-allocator.h",
     "src/zone/zone-allocator.h",
-    "src/zone/zone-allocator.h",
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-containers.h",
     "src/zone/zone-handle-set.h",
