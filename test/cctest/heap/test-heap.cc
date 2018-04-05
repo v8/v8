@@ -5923,11 +5923,18 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
     }
     {
       int initial_ms_count = heap->ms_count();
+      int ineffective_ms_start = initial_ms_count;
       while (heap->ms_count() < initial_ms_count + 10) {
         HandleScope inner_scope(i_isolate);
         factory->NewFixedArray(30000, TENURED);
+        if (heap->tracer()->CurrentMarkCompactMutatorUtilization() >= 0.3) {
+          ineffective_ms_start = heap->ms_count() + 1;
+        }
       }
-      CHECK_GE(heap->tracer()->AverageMarkCompactMutatorUtilization(), 0.09);
+      int consecutive_ineffective_ms = heap->ms_count() - ineffective_ms_start;
+      CHECK_IMPLIES(
+          consecutive_ineffective_ms >= 4,
+          heap->tracer()->AverageMarkCompactMutatorUtilization() >= 0.3);
     }
   }
   isolate->Dispose();
