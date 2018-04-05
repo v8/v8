@@ -1346,8 +1346,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
 
   // Patch code to update memory references, global references, and function
   // table references.
-  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
-  wasm::CodeSpecialization code_specialization(isolate, &specialization_zone);
+  wasm::CodeSpecialization code_specialization;
 
   if (compiled_module->has_lazy_compile_data()) {
     for (int i = 0, e = compiled_module->lazy_compile_data()->length(); i < e;

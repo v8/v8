@@ -6,7 +6,6 @@
 #define V8_WASM_WASM_CODE_SPECIALIZATION_H_
 
 #include "src/assembler.h"
-#include "src/identity-map.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -25,7 +24,7 @@ uint32_t ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc);
 // Patch* methods, then apply all changes in one step using the Apply* methods.
 class CodeSpecialization {
  public:
-  CodeSpecialization(Isolate*, Zone*);
+  CodeSpecialization();
   ~CodeSpecialization();
 
   // Update WasmContext references.

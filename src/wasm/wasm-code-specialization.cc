@@ -59,7 +59,7 @@ class PatchDirectCallsHelper {
 
 }  // namespace
 
-CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone) {}
+CodeSpecialization::CodeSpecialization() {}
 
 CodeSpecialization::~CodeSpecialization() {}
 

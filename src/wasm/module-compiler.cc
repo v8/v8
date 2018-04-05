@@ -15,6 +15,7 @@
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
+#include "src/identity-map.h"
 #include "src/property-descriptor.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-manager.h"
@@ -578,8 +579,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   CHECK(!thrower.error());
 
   // Now specialize the generated code for this instance.
-  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
-  CodeSpecialization code_specialization(isolate, &specialization_zone);
+  CodeSpecialization code_specialization;
   code_specialization.RelocateDirectCalls(compiled_module->GetNativeModule());
   code_specialization.ApplyToWasmCode(wasm_code, SKIP_ICACHE_FLUSH);
   int64_t func_size =
@@ -1641,8 +1641,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  Zone instantiation_zone(isolate_->allocator(), ZONE_NAME);
-  CodeSpecialization code_specialization(isolate_, &instantiation_zone);
+  CodeSpecialization code_specialization;
   Handle<WasmInstanceObject> instance =
       WasmInstanceObject::New(isolate_, compiled_module_);
 
