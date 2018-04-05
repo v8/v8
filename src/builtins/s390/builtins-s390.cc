@@ -1057,15 +1057,27 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Load debug copy of the bytecode array if it exists.
   // kInterpreterBytecodeArrayRegister is already loaded with
   // SharedFunctionInfo::kFunctionDataOffset.
-  Label done;
   __ bind(&maybe_load_debug_bytecode_array);
+  __ LoadP(ip, FieldMemOperand(r6, DebugInfo::kDebugBytecodeArrayOffset));
+  __ JumpIfRoot(ip, Heap::kUndefinedValueRootIndex, &bytecode_array_loaded);
+
+  __ LoadRR(kInterpreterBytecodeArrayRegister, ip);
   __ LoadP(ip, FieldMemOperand(r6, DebugInfo::kFlagsOffset));
   __ SmiUntag(ip);
-  __ tmll(ip, Operand(DebugInfo::kHasBreakInfo));
-  __ beq(&done);
-  __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(r6, DebugInfo::kDebugBytecodeArrayOffset));
-  __ bind(&done);
+  __ AndP(ip, ip, Operand(DebugInfo::kDebugExecutionMode));
+
+  ExternalReference debug_execution_mode =
+      ExternalReference::debug_execution_mode_address(masm->isolate());
+  __ mov(r6, Operand(debug_execution_mode));
+  __ LoadB(r6, MemOperand(r6));
+  STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
+                static_cast<int>(DebugInfo::kSideEffects));
+  __ CmpP(r6, ip);
+  __ beq(&bytecode_array_loaded);
+
+  __ Push(closure, feedback_vector, kInterpreterBytecodeArrayRegister, closure);
+  __ CallRuntime(Runtime::kDebugApplyInstrumentation);
+  __ Pop(closure, feedback_vector, kInterpreterBytecodeArrayRegister);
   __ b(&bytecode_array_loaded);
 }
 
