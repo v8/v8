@@ -14,6 +14,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+#define REQUIRE_CPU_FEATURE(name)                                   \
+  if (!CpuFeatures::IsSupported(name)) return bailout("no " #name); \
+  CpuFeatureScope feature(this, name);
+
 namespace liftoff {
 
 // ebp-8 holds the stack marker, ebp-16 is the wasm context, first stack slot
@@ -734,6 +738,27 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
+void LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundUp);
+}
+
+void LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundDown);
+}
+
+void LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundToZero);
+}
+
+void LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundToNearest);
+}
+
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
   Sqrtss(dst, src);
 }
@@ -814,6 +839,27 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
     TurboAssembler::Move(dst, kSignBit);
     Xorpd(dst, src);
   }
+}
+
+void LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundsd(dst, src, kRoundUp);
+}
+
+void LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundsd(dst, src, kRoundDown);
+}
+
+void LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundsd(dst, src, kRoundToZero);
+}
+
+void LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  REQUIRE_CPU_FEATURE(SSE4_1);
+  roundsd(dst, src, kRoundToNearest);
 }
 
 void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {
@@ -1206,6 +1252,8 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(esp, Immediate(size));
 }
+
+#undef REQUIRE_CPU_FEATURE
 
 }  // namespace wasm
 }  // namespace internal
