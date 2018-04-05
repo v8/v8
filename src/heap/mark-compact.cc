@@ -2563,7 +2563,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // ClearFullMapTransitions must be called before WeakCells are cleared.
     ClearFullMapTransitions();
   }
-  ClearWeakCellsAndSimpleMapTransitions();
+  ClearWeakCells();
   ClearWeakReferences();
   MarkDependentCodeForDeoptimization();
 
@@ -2590,8 +2590,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
   }
 }
 
-void MarkCompactCollector::ClearSimpleMapTransition(
-    WeakCell* potential_transition, Map* dead_target) {
+void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map* dead_target) {
   DCHECK(non_atomic_marking_state()->IsWhite(dead_target));
   Object* potential_parent = dead_target->constructor_or_backpointer();
   if (potential_parent->IsMap()) {
@@ -2599,26 +2598,24 @@ void MarkCompactCollector::ClearSimpleMapTransition(
     DisallowHeapAllocation no_gc_obviously;
     if (non_atomic_marking_state()->IsBlackOrGrey(parent) &&
         TransitionsAccessor(parent, &no_gc_obviously)
-            .HasSimpleTransitionTo(potential_transition)) {
-      ClearSimpleMapTransition(parent, dead_target);
+            .HasSimpleTransitionTo(dead_target)) {
+      ClearPotentialSimpleMapTransition(parent, dead_target);
     }
   }
 }
 
-void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
-                                                    Map* dead_target) {
+void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map* map,
+                                                             Map* dead_target) {
   DCHECK(!map->is_prototype_map());
   DCHECK(!dead_target->is_prototype_map());
-  // Clear the useless weak cell pointer, and take ownership of the descriptor
-  // array.
-  map->set_raw_transitions(Smi::kZero);
+  DCHECK_EQ(map->raw_transitions(), HeapObjectReference::Weak(dead_target));
+  // Take ownership of the descriptor array.
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   DescriptorArray* descriptors = map->instance_descriptors();
   if (descriptors == dead_target->instance_descriptors() &&
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
     DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
-    map->set_owns_descriptors(true);
   }
 }
 
@@ -2811,7 +2808,7 @@ void MarkCompactCollector::AbortWeakCollections() {
   heap()->set_encountered_weak_collections(Smi::kZero);
 }
 
-void MarkCompactCollector::ClearWeakCellsAndSimpleMapTransitions() {
+void MarkCompactCollector::ClearWeakCells() {
   Heap* heap = this->heap();
   TRACE_GC(heap->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_CELLS);
   WeakCell* weak_cell;
@@ -2839,11 +2836,6 @@ void MarkCompactCollector::ClearWeakCellsAndSimpleMapTransitions() {
         } else {
           weak_cell->clear();
         }
-      } else if (value->IsMap()) {
-        // The map is non-live.
-        Map* map = Map::cast(value);
-        ClearSimpleMapTransition(weak_cell, map);
-        weak_cell->clear();
       } else {
         // All other objects.
         weak_cell->clear();
@@ -2864,11 +2856,14 @@ void MarkCompactCollector::ClearWeakReferences() {
     HeapObjectReference** location = slot.second;
     if ((*location)->ToWeakHeapObject(&value)) {
       DCHECK(!value->IsCell());
-      DCHECK(!value->IsMap());
       if (non_atomic_marking_state()->IsBlackOrGrey(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.first, location, value);
       } else {
+        if (value->IsMap()) {
+          // The map is non-live.
+          ClearPotentialSimpleMapTransition(Map::cast(value));
+        }
         *location = HeapObjectReference::ClearedValue();
       }
     }

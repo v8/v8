@@ -29,7 +29,7 @@ CAST_ACCESSOR(Map)
 ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
                   kLayoutDescriptorOffset, FLAG_unbox_double_fields)
-ACCESSORS(Map, raw_transitions, Object, kTransitionsOrPrototypeInfoOffset)
+WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
 
 // |bit_field| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field, has_non_instance_prototype,

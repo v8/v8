@@ -27,15 +27,14 @@ namespace internal {
 // operations in a row (provided no GC happens between them), it must be
 // discarded and recreated after "Insert" and "UpdateHandler" operations.
 //
-// Internal details: a Map's field either holds a WeakCell to a transition
-// target, or a StoreIC handler for a transitioning store (which in turn points
-// to its target map), or a TransitionArray for several target maps and/or
-// handlers as well as prototype and ElementsKind transitions.
-// Property details (and in case of inline target storage, the key) are
-// retrieved from the target map's descriptor array.
-// Stored transitions are weak in the GC sense: both single transitions stored
-// inline and TransitionArray fields are cleared when the map they refer to
-// is not otherwise reachable.
+// Internal details: a Map's field either holds an in-place weak reference to a
+// transition target, or a StoreIC handler for a transitioning store (which in
+// turn points to its target map), or a TransitionArray for several target maps
+// and/or handlers as well as prototype and ElementsKind transitions.  Property
+// details (and in case of inline target storage, the key) are retrieved from
+// the target map's descriptor array.  Stored transitions are weak in the GC
+// sense: both single transitions stored inline and TransitionArray fields are
+// cleared when the map they refer to is not otherwise reachable.
 class TransitionsAccessor {
  public:
   TransitionsAccessor(Map* map, DisallowHeapAllocation* no_gc) : map_(map) {
@@ -81,8 +80,8 @@ class TransitionsAccessor {
   inline Map* GetTarget(int transition_number);
   static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
 
-  static bool IsMatchingMap(WeakCell* target_cell, Name* name,
-                            PropertyKind kind, PropertyAttributes attributes);
+  static bool IsMatchingMap(Map* target, Name* name, PropertyKind kind,
+                            PropertyAttributes attributes);
 
   // ===== ITERATION =====
   typedef void (*TraverseCallback)(Map* map, void* data);
@@ -125,7 +124,7 @@ class TransitionsAccessor {
   enum Encoding {
     kPrototypeInfo,
     kUninitialized,
-    kWeakCell,
+    kWeakRef,
     // TODO(ishell): drop support for kHandler encoding since we use maps
     // as transition handlers.
     kHandler,
@@ -167,12 +166,13 @@ class TransitionsAccessor {
   void Initialize();
 
   inline Map* GetSimpleTransition();
-  bool HasSimpleTransitionTo(WeakCell* cell);
+  bool HasSimpleTransitionTo(Map* map);
 
-  void ReplaceTransitions(Object* new_transitions);
+  void ReplaceTransitions(MaybeObject* new_transitions);
 
-  template <Encoding enc>
   inline WeakCell* GetTargetCell();
+
+  inline Map* GetTargetMapFromWeakRef();
 
   void EnsureHasFullTransitionArray();
   void SetPrototypeTransitions(Handle<FixedArray> proto_transitions);
@@ -185,7 +185,7 @@ class TransitionsAccessor {
 
   Handle<Map> map_handle_;
   Map* map_;
-  Object* raw_transitions_;
+  MaybeObject* raw_transitions_;
   Encoding encoding_;
   WeakCell* target_cell_;
 #if DEBUG

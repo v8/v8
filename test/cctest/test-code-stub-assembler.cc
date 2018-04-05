@@ -853,9 +853,9 @@ TEST(TransitionLookup) {
     }
   }
 
-  CHECK(root_map->raw_transitions()->IsTransitionArray());
+  CHECK(root_map->raw_transitions()->ToStrongHeapObject()->IsTransitionArray());
   Handle<TransitionArray> transitions(
-      TransitionArray::cast(root_map->raw_transitions()));
+      TransitionArray::cast(root_map->raw_transitions()->ToStrongHeapObject()));
   DCHECK(transitions->IsSortedNoDuplicates());
 
   // Ensure we didn't overflow transition array and therefore all the

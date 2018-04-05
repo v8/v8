@@ -305,7 +305,7 @@ class ConcurrentMarkingVisitor final
       VisitPointer(map, HeapObject::RawField(map, Map::kPrototypeOffset));
       VisitPointer(
           map, HeapObject::RawField(map, Map::kConstructorOrBackPointerOffset));
-      VisitPointer(map, HeapObject::RawField(
+      VisitPointer(map, HeapObject::RawMaybeWeakField(
                             map, Map::kTransitionsOrPrototypeInfoOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));

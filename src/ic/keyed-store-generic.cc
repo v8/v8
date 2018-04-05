@@ -657,19 +657,36 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&lookup_transition);
     {
       Comment("lookup transition");
-      TVARIABLE(WeakCell, var_transition_map_weak_cell);
-      Label simple_transition(this), found_handler_candidate(this);
+      TVARIABLE(Map, var_transition_map);
+      Label simple_transition(this), transition_array(this),
+          found_handler_candidate(this);
       TNode<Object> maybe_handler =
           LoadObjectField(receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
-      GotoIf(TaggedIsSmi(maybe_handler), slow);
-      TNode<Map> maybe_handler_map = LoadMap(CAST(maybe_handler));
-      GotoIf(IsWeakCellMap(maybe_handler_map), &simple_transition);
-      GotoIfNot(IsTransitionArrayMap(maybe_handler_map), slow);
 
+      // SMI -> slow
+      // cleared weak reference -> slow
+      // weak reference -> simple_transition
+      // strong reference -> transition_array
+      VARIABLE(var_transition_map_or_array, MachineRepresentation::kTagged);
+      DispatchMaybeObject(maybe_handler, slow, slow, &simple_transition,
+                          &transition_array, &var_transition_map_or_array);
+
+      BIND(&simple_transition);
       {
+        var_transition_map = CAST(var_transition_map_or_array.value());
+        Goto(&found_handler_candidate);
+      }
+
+      BIND(&transition_array);
+      {
+        TNode<Map> maybe_handler_map =
+            LoadMap(CAST(var_transition_map_or_array.value()));
+        GotoIfNot(IsTransitionArrayMap(maybe_handler_map), slow);
+
         TVARIABLE(IntPtrT, var_name_index);
         Label if_found_candidate(this);
-        TNode<TransitionArray> transitions = CAST(maybe_handler);
+        TNode<TransitionArray> transitions =
+            CAST(var_transition_map_or_array.value());
         TransitionLookup(p->name, transitions, &if_found_candidate,
                          &var_name_index, slow);
 
@@ -691,24 +708,19 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
           const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                           TransitionArray::kEntryKeyIndex) *
                                          kPointerSize;
-          var_transition_map_weak_cell = CAST(LoadFixedArrayElement(
+          TNode<WeakCell> transition_map_weak_cell = CAST(LoadFixedArrayElement(
               transitions, var_name_index.value(), kKeyToTargetOffset));
+          var_transition_map =
+              CAST(LoadWeakCellValue(transition_map_weak_cell, slow));
           Goto(&found_handler_candidate);
         }
       }
 
-      BIND(&simple_transition);
-      {
-        var_transition_map_weak_cell = CAST(maybe_handler);
-        Goto(&found_handler_candidate);
-      }
-
       BIND(&found_handler_candidate);
       {
-        TNode<Map> transition_map =
-            CAST(LoadWeakCellValue(var_transition_map_weak_cell.value(), slow));
         // Validate the transition handler candidate and apply the transition.
-        HandleStoreICTransitionMapHandlerCase(p, transition_map, slow, true);
+        HandleStoreICTransitionMapHandlerCase(p, var_transition_map.value(),
+                                              slow, true);
       }
     }
   }
