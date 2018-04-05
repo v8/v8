@@ -262,9 +262,6 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
 // function index, the inner one by the local index.
 Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmSharedModuleData>);
 
-void UnpackAndRegisterProtectedInstructions(
-    Isolate* isolate, const wasm::NativeModule* native_module);
-
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
 // Use like this:

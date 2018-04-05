@@ -124,6 +124,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint32_t stack_slots() const { return stack_slots_; }
   bool is_liftoff() const { return tier_ == kLiftoff; }
 
+  // TODO(mstarzinger): Make the next four methods private once wasm-to-wasm
+  // wrappers are gone. All uses are in {NativeModule} by now.
   size_t trap_handler_index() const;
   void set_trap_handler_index(size_t);
   bool HasTrapHandlerIndex() const;
@@ -258,6 +260,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // FunctionCount is WasmModule::functions.size().
   uint32_t FunctionCount() const;
   WasmCode* GetCode(uint32_t index) const;
+
+  // Register/release the protected instructions in all code objects with the
+  // global trap handler for this process.
+  void UnpackAndRegisterProtectedInstructions();
+  void ReleaseProtectedInstructions();
 
   // We special-case lazy cloning because we currently rely on making copies
   // of the lazy builtin, to be able to identify, in the runtime, which function

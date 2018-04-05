@@ -866,6 +866,40 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
   return ret;
 }
 
+void NativeModule::UnpackAndRegisterProtectedInstructions() {
+  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
+    WasmCode* code = GetCode(i);
+
+    if (code == nullptr) continue;
+    if (code->kind() != wasm::WasmCode::kFunction) continue;
+    if (code->HasTrapHandlerIndex()) continue;
+
+    Address base = code->instructions().start();
+
+    size_t size = code->instructions().size();
+    const int index =
+        RegisterHandlerData(base, size, code->protected_instructions().size(),
+                            code->protected_instructions().data());
+
+    // TODO(eholk): if index is negative, fail.
+    CHECK_LE(0, index);
+    code->set_trap_handler_index(static_cast<size_t>(index));
+  }
+}
+
+void NativeModule::ReleaseProtectedInstructions() {
+  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
+    WasmCode* wasm_code = GetCode(i);
+    if (wasm_code->HasTrapHandlerIndex()) {
+      CHECK_LT(wasm_code->trap_handler_index(),
+               static_cast<size_t>(std::numeric_limits<int>::max()));
+      trap_handler::ReleaseHandlerData(
+          static_cast<int>(wasm_code->trap_handler_index()));
+      wasm_code->ResetTrapHandlerIndex();
+    }
+  }
+}
+
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
   // Clear the handle at the beginning of destructor to make it robust against

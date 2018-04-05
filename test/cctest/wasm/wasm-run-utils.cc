@@ -462,7 +462,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   }
   CHECK(!thrower.error());
   if (trap_handler::IsTrapHandlerEnabled()) {
-    UnpackAndRegisterProtectedInstructions(isolate(), native_module);
+    native_module->UnpackAndRegisterProtectedInstructions();
   }
 }
 

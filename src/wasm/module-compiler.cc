@@ -1806,7 +1806,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Unpack and notify signal handler of protected instructions.
   //--------------------------------------------------------------------------
   if (use_trap_handler()) {
-    UnpackAndRegisterProtectedInstructions(isolate_, native_module);
+    native_module->UnpackAndRegisterProtectedInstructions();
   }
 
   //--------------------------------------------------------------------------

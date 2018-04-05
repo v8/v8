@@ -1341,18 +1341,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
 
   TRACE("Resetting %zu\n", native_module->instance_id);
   if (compiled_module->use_trap_handler()) {
-    for (uint32_t i = native_module->num_imported_functions(),
-                  e = native_module->FunctionCount();
-         i < e; ++i) {
-      wasm::WasmCode* wasm_code = native_module->GetCode(i);
-      if (wasm_code->HasTrapHandlerIndex()) {
-        CHECK_LT(wasm_code->trap_handler_index(),
-                 static_cast<size_t>(std::numeric_limits<int>::max()));
-        trap_handler::ReleaseHandlerData(
-            static_cast<int>(wasm_code->trap_handler_index()));
-        wasm_code->ResetTrapHandlerIndex();
-      }
-    }
+    native_module->ReleaseProtectedInstructions();
   }
 
   // Patch code to update memory references, global references, and function
