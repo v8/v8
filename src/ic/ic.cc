@@ -1390,16 +1390,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   }
-  MaybeHandle<Map> maybe_transition_map;
-  if (object->IsJSReceiver()) {
-    name = isolate()->factory()->InternalizeName(name);
-    maybe_transition_map =
-        TransitionsAccessor(receiver_map()).FindTransitionToDataProperty(name);
-  }
-
-  LookupIterator it = LookupIterator::ForTransitionHandler(
-      isolate(), object, name, value, maybe_transition_map);
-
+  LookupIterator it(object, name);
   bool use_ic = FLAG_use_ic;
 
   if (name->IsPrivate()) {

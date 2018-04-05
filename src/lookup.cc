@@ -74,6 +74,7 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
   return LookupIterator(receiver, name, configuration);
 }
 
+// TODO(ishell): Consider removing this way of LookupIterator creation.
 // static
 LookupIterator LookupIterator::ForTransitionHandler(
     Isolate* isolate, Handle<Object> receiver, Handle<Name> name,

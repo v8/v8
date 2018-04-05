@@ -2126,14 +2126,7 @@ MUST_USE_RESULT Maybe<bool> FastAssign(
     }
 
     if (use_set) {
-      Handle<Map> target_map(target->map(), isolate);
-      MaybeHandle<Map> maybe_transition_map =
-          TransitionsAccessor(target_map)
-              .FindTransitionToDataProperty(next_key);
-
-      LookupIterator it = LookupIterator::ForTransitionHandler(
-          isolate, target, next_key, prop_value, maybe_transition_map);
-
+      LookupIterator it(target, next_key, target);
       Maybe<bool> result =
           Object::SetProperty(&it, prop_value, LanguageMode::kStrict,
                               Object::CERTAINLY_NOT_STORE_FROM_KEYED);
