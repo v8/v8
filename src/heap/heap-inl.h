@@ -359,9 +359,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 
 
 void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
-  HeapProfiler* profiler = isolate_->heap_profiler();
-  if (profiler->is_tracking_allocations()) {
-    profiler->AllocationEvent(object->address(), size_in_bytes);
+  for (auto& tracker : allocation_trackers_) {
+    tracker->AllocationEvent(object->address(), size_in_bytes);
   }
 
   if (FLAG_verify_predictable) {
@@ -392,6 +391,9 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
   if (heap_profiler->is_tracking_object_moves()) {
     heap_profiler->ObjectMoveEvent(source->address(), target->address(),
                                    size_in_bytes);
+  }
+  for (auto& tracker : allocation_trackers_) {
+    tracker->MoveEvent(source->address(), target->address(), size_in_bytes);
   }
   if (target->IsSharedFunctionInfo()) {
     LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),

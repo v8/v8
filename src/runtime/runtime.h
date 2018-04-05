@@ -130,6 +130,7 @@ namespace internal {
   F(CheckExecutionState, 1, 1)                  \
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
+  F(DebugApplyInstrumentation, 1, 1)            \
   F(DebugAsyncFunctionPromiseCreated, 1, 1)     \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \

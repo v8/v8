@@ -240,6 +240,9 @@ class SharedFunctionInfo : public HeapObject {
   // Indicates that the function cannot cause side-effects.
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
+  // Indicates that the function requires runtime side-effect checks.
+  DECL_BOOLEAN_ACCESSORS(requires_runtime_side_effect_checks);
+
   // Indicates that |has_no_side_effect| has been computed and set.
   DECL_BOOLEAN_ACCESSORS(computed_has_no_side_effect)
 
@@ -511,15 +514,16 @@ class SharedFunctionInfo : public HeapObject {
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
 
 // Bit positions in |debugger_hints|.
-#define DEBUGGER_HINTS_BIT_FIELDS(V, _)        \
-  V(IsAnonymousExpressionBit, bool, 1, _)      \
-  V(NameShouldPrintAsAnonymousBit, bool, 1, _) \
-  V(IsDeserializedBit, bool, 1, _)             \
-  V(HasNoSideEffectBit, bool, 1, _)            \
-  V(ComputedHasNoSideEffectBit, bool, 1, _)    \
-  V(DebugIsBlackboxedBit, bool, 1, _)          \
-  V(ComputedDebugIsBlackboxedBit, bool, 1, _)  \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)  \
+#define DEBUGGER_HINTS_BIT_FIELDS(V, _)             \
+  V(IsAnonymousExpressionBit, bool, 1, _)           \
+  V(NameShouldPrintAsAnonymousBit, bool, 1, _)      \
+  V(IsDeserializedBit, bool, 1, _)                  \
+  V(HasNoSideEffectBit, bool, 1, _)                 \
+  V(RequiresRuntimeSideEffectChecksBit, bool, 1, _) \
+  V(ComputedHasNoSideEffectBit, bool, 1, _)         \
+  V(DebugIsBlackboxedBit, bool, 1, _)               \
+  V(ComputedDebugIsBlackboxedBit, bool, 1, _)       \
+  V(HasReportedBinaryCoverageBit, bool, 1, _)       \
   V(DebuggingIdBits, int, 20, _)
 
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)

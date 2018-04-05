@@ -48,6 +48,7 @@ class StatsCounter;
     "copy_typed_array_elements_to_typed_array")                                \
   V(cpu_features, "cpu_features")                                              \
   V(date_cache_stamp, "date_cache_stamp")                                      \
+  V(debug_execution_mode_address, "Isolate::debug_execution_mode()")           \
   V(debug_hook_on_function_call_address,                                       \
     "Debug::hook_on_function_call_address()")                                  \
   V(debug_is_active_address, "Debug::is_active_address()")                     \

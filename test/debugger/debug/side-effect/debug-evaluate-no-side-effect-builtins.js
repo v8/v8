@@ -11,6 +11,7 @@ var symbol_for_a = Symbol.for("a");
 var typed_array = new Uint8Array([1, 2, 3]);
 var array_buffer = new ArrayBuffer(3);
 var data_view = new DataView(new ArrayBuffer(8), 0, 8);
+var array = [1,2,3];
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -71,7 +72,7 @@ function listener(event, exec_state, event_data, data) {
       "map", "findIndex"
     ];
     var fails = ["toString", "join", "toLocaleString", "pop", "push", "reverse",
-      "shift", "unshift", "splice", "sort", "copyWithin", "fill"];
+      "shift", "unshift", "splice", "sort", "copyWithin"];
     for (f of Object.getOwnPropertyNames(Array.prototype)) {
       if (typeof Array.prototype[f] === "function") {
         if (fails.includes(f)) {
@@ -87,6 +88,9 @@ function listener(event, exec_state, event_data, data) {
         }
       }
     }
+
+    success([1,1,1], '[1,2,3].fill(1)');
+    fail(`array.fill(1)`);
 
     // Test ArrayBuffer functions.
     success(3, `array_buffer.byteLength`);

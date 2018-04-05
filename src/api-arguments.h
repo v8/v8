@@ -6,6 +6,7 @@
 #define V8_API_ARGUMENTS_H_
 
 #include "src/api.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/visitors.h"
 
@@ -19,7 +20,6 @@ class CustomArgumentsBase : public Relocatable {
  protected:
   explicit inline CustomArgumentsBase(Isolate* isolate)
       : Relocatable(isolate) {}
-  static bool PerformSideEffectCheck(Isolate* isolate, Object* callback_info);
 };
 
 template <typename T>
