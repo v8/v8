@@ -514,22 +514,6 @@ class WasmRunner : public WasmRunnerBase {
   TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }   \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
-#define WASM_EXEC_TEST_WITH_TRAP(name)                   \
-  void RunWasm_##name(WasmExecutionMode execution_mode); \
-  TEST(RunWasmTurbofan_##name) {                         \
-    if (trap_handler::UseTrapHandler()) return;          \
-    RunWasm_##name(kExecuteTurbofan);                    \
-  }                                                      \
-  TEST(RunWasmLiftoff_##name) {                          \
-    if (trap_handler::UseTrapHandler()) return;          \
-    RunWasm_##name(kExecuteLiftoff);                     \
-  }                                                      \
-  TEST(RunWasmInterpreter_##name) {                      \
-    if (trap_handler::UseTrapHandler()) return;          \
-    RunWasm_##name(kExecuteInterpreter);                 \
-  }                                                      \
-  void RunWasm_##name(WasmExecutionMode execution_mode)
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
