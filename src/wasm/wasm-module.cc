@@ -138,20 +138,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
 WasmModule::WasmModule(std::unique_ptr<Zone> owned)
     : signature_zone(std::move(owned)) {}
 
-WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
-                                       Handle<Object> target) {
-  if (target->IsJSFunction()) {
-    Handle<JSFunction> func = Handle<JSFunction>::cast(target);
-    if (func->code()->kind() == Code::JS_TO_WASM_FUNCTION) {
-      auto exported = Handle<WasmExportedFunction>::cast(func);
-      Handle<WasmInstanceObject> other_instance(exported->instance(), isolate);
-      int func_index = exported->function_index();
-      return &other_instance->module()->functions[func_index];
-    }
-  }
-  return nullptr;
-}
-
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be

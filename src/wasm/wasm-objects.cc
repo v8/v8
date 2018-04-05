@@ -285,8 +285,11 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   }
 
   // TODO(titzer): Change this to MaybeHandle<WasmExportedFunction>
+  DCHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exported_function = Handle<WasmExportedFunction>::cast(function);
-  auto* wasm_function = wasm::GetWasmFunctionForExport(isolate, function);
+  Handle<WasmInstanceObject> other_instance(exported_function->instance());
+  int func_index = exported_function->function_index();
+  auto* wasm_function = &other_instance->module()->functions[func_index];
   DCHECK_NOT_NULL(wasm_function);
   DCHECK_NOT_NULL(wasm_function->sig);
   wasm::WasmCode* wasm_code = exported_function->GetWasmCode();
