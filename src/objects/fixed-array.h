@@ -267,6 +267,7 @@ class WeakFixedArray : public HeapObject {
   // Gives access to raw memory which stores the array's data.
   inline MaybeObject** data_start();
 
+  DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
   class BodyDescriptor;

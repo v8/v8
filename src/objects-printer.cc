@@ -271,7 +271,36 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(this)->FeedbackMetadataPrint(os);
       break;
-    default:
+    case WEAK_FIXED_ARRAY_TYPE:
+      WeakFixedArray::cast(this)->WeakFixedArrayPrint(os);
+      break;
+    case INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case STRING_TYPE:
+    case CONS_STRING_TYPE:
+    case EXTERNAL_STRING_TYPE:
+    case SLICED_STRING_TYPE:
+    case THIN_STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+    case CONS_ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case SLICED_ONE_BYTE_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SHORT_EXTERNAL_STRING_TYPE:
+    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+    case SMALL_ORDERED_HASH_SET_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+    case JS_STRING_ITERATOR_TYPE:
+      // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map()->instance_type();
       UNREACHABLE();
       break;
@@ -686,6 +715,37 @@ void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
   PrintFixedArrayElements(os, array);
   os << "\n";
 }
+
+void PrintWeakFixedArrayElements(std::ostream& os, WeakFixedArray* array) {
+  // Print in array notation for non-sparse arrays.
+  MaybeObject* previous_value = array->length() > 0 ? array->Get(0) : nullptr;
+  MaybeObject* value = nullptr;
+  int previous_index = 0;
+  int i;
+  for (i = 1; i <= array->length(); i++) {
+    if (i < array->length()) value = array->Get(i);
+    if (previous_value == value && i != array->length()) {
+      continue;
+    }
+    os << "\n";
+    std::stringstream ss;
+    ss << previous_index;
+    if (previous_index != i - 1) {
+      ss << '-' << (i - 1);
+    }
+    os << std::setw(12) << ss.str() << ": " << MaybeObjectBrief(previous_value);
+    previous_index = i;
+    previous_value = value;
+  }
+}
+
+void PrintWeakFixedArrayWithHeader(std::ostream& os, WeakFixedArray* array) {
+  array->PrintHeader(os, "WeakFixedArray");
+  os << "\n - length: " << array->length() << "\n";
+  PrintWeakFixedArrayElements(os, array);
+  os << "\n";
+}
+
 }  // namespace
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
@@ -712,6 +772,9 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
+  PrintWeakFixedArrayWithHeader(os, this);
+}
 
 void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TransitionArray");

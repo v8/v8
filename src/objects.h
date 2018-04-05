@@ -1566,7 +1566,14 @@ struct Brief {
   const Object* value;
 };
 
+struct MaybeObjectBrief {
+  explicit MaybeObjectBrief(const MaybeObject* const v) : value(v) {}
+  const MaybeObject* value;
+};
+
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const MaybeObjectBrief& v);
 
 // Smi represents integer Numbers that can be stored in 31 bits.
 // Smis are immediate which means they are NOT allocated in the heap.
