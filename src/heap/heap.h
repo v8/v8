@@ -1961,6 +1961,7 @@ class Heap {
   // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
   // memory reduction
   HistogramTimer* GCTypeTimer(GarbageCollector collector);
+  HistogramTimer* GCTypePriorityTimer(GarbageCollector collector);
 
   // ===========================================================================
   // Pretenuring. ==============================================================

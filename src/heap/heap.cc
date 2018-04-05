@@ -1087,6 +1087,33 @@ void Heap::FinalizeIncrementalMarking(GarbageCollectionReason gc_reason) {
   }
 }
 
+HistogramTimer* Heap::GCTypePriorityTimer(GarbageCollector collector) {
+  if (IsYoungGenerationCollector(collector)) {
+    if (isolate_->IsIsolateInBackground()) {
+      return isolate_->counters()->gc_scavenger_background();
+    }
+    return isolate_->counters()->gc_scavenger_foreground();
+  } else {
+    if (!incremental_marking()->IsStopped()) {
+      if (ShouldReduceMemory()) {
+        if (isolate_->IsIsolateInBackground()) {
+          return isolate_->counters()->gc_finalize_reduce_memory_background();
+        }
+        return isolate_->counters()->gc_finalize_reduce_memory_foreground();
+      } else {
+        if (isolate_->IsIsolateInBackground()) {
+          return isolate_->counters()->gc_finalize_background();
+        }
+        return isolate_->counters()->gc_finalize_foreground();
+      }
+    } else {
+      if (isolate_->IsIsolateInBackground()) {
+        return isolate_->counters()->gc_compactor_background();
+      }
+      return isolate_->counters()->gc_compactor_foreground();
+    }
+  }
+}
 
 HistogramTimer* Heap::GCTypeTimer(GarbageCollector collector) {
   if (IsYoungGenerationCollector(collector)) {
@@ -1338,6 +1365,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
       HistogramTimer* gc_type_timer = GCTypeTimer(collector);
       HistogramTimerScope histogram_timer_scope(gc_type_timer);
       TRACE_EVENT0("v8", gc_type_timer->name());
+
+      HistogramTimer* gc_type_priority_timer = GCTypePriorityTimer(collector);
+      HistogramTimerScope histogram_timer_priority_scope(
+          gc_type_priority_timer);
 
       next_gc_likely_to_collect_more =
           PerformGarbageCollection(collector, gc_callback_flags);
