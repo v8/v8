@@ -215,6 +215,14 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
 }
 
+bool JSTypedArray::is_on_heap() const {
+  DisallowHeapAllocation no_gc;
+  // Checking that buffer()->backing_store() is not nullptr is not sufficient;
+  // it will be nullptr when byte_length is 0 as well.
+  FixedTypedArrayBase* fta(FixedTypedArrayBase::cast(elements()));
+  return fta->base_pointer() == fta;
+}
+
 // static
 MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  Handle<Object> receiver,

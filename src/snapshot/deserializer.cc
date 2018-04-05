@@ -220,7 +220,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       FixedTypedArrayBase* elements =
           FixedTypedArrayBase::cast(typed_array->elements());
       // Must be off-heap layout.
-      DCHECK_NULL(elements->base_pointer());
+      DCHECK(!typed_array->is_on_heap());
 
       void* pointer_with_offset = reinterpret_cast<void*>(
           reinterpret_cast<intptr_t>(elements->external_pointer()) +

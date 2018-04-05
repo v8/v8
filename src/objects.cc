@@ -19253,14 +19253,13 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
   return true;
 }
 
-
 Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
     Handle<JSTypedArray> typed_array) {
+  DCHECK(typed_array->is_on_heap());
 
-  Handle<Map> map(typed_array->map());
   Isolate* isolate = typed_array->GetIsolate();
 
-  DCHECK(IsFixedTypedArrayElementsKind(map->elements_kind()));
+  DCHECK(IsFixedTypedArrayElementsKind(typed_array->GetElementsKind()));
 
   Handle<FixedTypedArrayBase> fixed_typed_array(
       FixedTypedArrayBase::cast(typed_array->elements()));
@@ -19293,17 +19292,14 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
           static_cast<uint8_t*>(buffer->backing_store()));
 
   typed_array->set_elements(*new_elements);
+  DCHECK(!typed_array->is_on_heap());
 
   return buffer;
 }
 
-
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
-  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()),
-                                     GetIsolate());
-  if (array_buffer->was_neutered() ||
-      array_buffer->backing_store() != nullptr ||
-      array_buffer->is_wasm_memory()) {
+  if (!is_on_heap()) {
+    Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()));
     return array_buffer;
   }
   Handle<JSTypedArray> self(this);

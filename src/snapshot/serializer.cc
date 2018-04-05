@@ -398,9 +398,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSTypedArray() {
       FixedTypedArrayBase::cast(typed_array->elements());
 
   if (!typed_array->WasNeutered()) {
-    bool off_heap = elements->base_pointer() == nullptr;
-
-    if (off_heap) {
+    if (!typed_array->is_on_heap()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
       CHECK(buffer->byte_length()->IsSmi());

@@ -3940,6 +3940,28 @@ THREADED_TEST(ArrayBuffer_AllocationInformation) {
   CHECK_LE(data + contents.ByteLength(), alloc + contents.AllocationLength());
 }
 
+THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
+  CheckInternalFieldsAreZero(ab);
+  CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
+  CHECK(!ab->IsExternal());
+
+  // Externalize the buffer (taking ownership of the backing store memory).
+  ScopedArrayBufferContents ab_contents(ab->Externalize());
+
+  Local<v8::Uint8Array> u8a = v8::Uint8Array::New(ab, 0, 0);
+  // Calling Buffer() will materialize the ArrayBuffer (transitioning it from
+  // on-heap to off-heap if need be). This should not affect whether it is
+  // marked as is_external or not.
+  USE(u8a->Buffer());
+
+  CHECK(ab->IsExternal());
+}
+
 class ScopedSharedArrayBufferContents {
  public:
   explicit ScopedSharedArrayBufferContents(

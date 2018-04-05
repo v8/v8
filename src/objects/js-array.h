@@ -293,6 +293,9 @@ class JSTypedArray : public JSArrayBufferView {
 
   Handle<JSArrayBuffer> GetBuffer();
 
+  // Whether the buffer's backing store is on-heap or off-heap.
+  inline bool is_on_heap() const;
+
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
                                                    const char* method_name);
