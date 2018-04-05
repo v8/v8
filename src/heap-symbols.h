@@ -264,6 +264,7 @@
   V(async_iterator_symbol, Symbol.asyncIterator) \
   V(iterator_symbol, Symbol.iterator)            \
   V(intl_fallback_symbol, IntlFallback)          \
+  V(match_all_symbol, Symbol.matchAll)           \
   V(match_symbol, Symbol.match)                  \
   V(replace_symbol, Symbol.replace)              \
   V(search_symbol, Symbol.search)                \

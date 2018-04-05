@@ -4205,6 +4205,64 @@ void Genesis::InitializeGlobal_harmony_array_flatten() {
                         Builtins::kArrayPrototypeFlatMap, 1, false, DONT_ENUM);
 }
 
+void Genesis::InitializeGlobal_harmony_string_matchall() {
+  if (!FLAG_harmony_string_matchall) return;
+
+  {  // String.prototype.matchAll
+    Handle<JSFunction> string_fun(native_context()->string_function());
+    Handle<JSObject> string_prototype(
+        JSObject::cast(string_fun->instance_prototype()));
+
+    SimpleInstallFunction(string_prototype, "matchAll",
+                          Builtins::kStringPrototypeMatchAll, 1, true);
+  }
+
+  {  // RegExp.prototype[@@matchAll]
+    Handle<JSFunction> regexp_fun(native_context()->regexp_function());
+    Handle<JSObject> regexp_prototype(
+        JSObject::cast(regexp_fun->instance_prototype()));
+    SimpleInstallFunction(regexp_prototype, factory()->match_all_symbol(),
+                          "[Symbol.matchAll]",
+                          Builtins::kRegExpPrototypeMatchAll, 1, true);
+    Handle<Map> regexp_prototype_map(regexp_prototype->map());
+    Map::SetShouldBeFastPrototypeMap(regexp_prototype_map, true, isolate());
+    native_context()->set_regexp_prototype_map(*regexp_prototype_map);
+  }
+
+  {  // --- R e g E x p S t r i n g  I t e r a t o r ---
+    Handle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype());
+
+    Handle<JSObject> regexp_string_iterator_prototype =
+        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    JSObject::ForceSetPrototype(regexp_string_iterator_prototype,
+                                iterator_prototype);
+
+    JSObject::AddProperty(
+        regexp_string_iterator_prototype, factory()->to_string_tag_symbol(),
+        factory()->NewStringFromAsciiChecked("RegExp String Iterator"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    SimpleInstallFunction(regexp_string_iterator_prototype, "next",
+                          Builtins::kRegExpStringIteratorPrototypeNext, 0,
+                          true);
+
+    Handle<JSFunction> regexp_string_iterator_function = CreateFunction(
+        isolate(), factory()->NewStringFromAsciiChecked("RegExpStringIterator"),
+        JS_REGEXP_STRING_ITERATOR_TYPE, JSRegExpStringIterator::kSize, 0,
+        regexp_string_iterator_prototype, Builtins::kIllegal);
+    regexp_string_iterator_function->shared()->set_native(false);
+    native_context()->set_initial_regexp_string_iterator_prototype_map_index(
+        regexp_string_iterator_function->initial_map());
+  }
+
+  {  // @@matchAll Symbol
+    Handle<JSFunction> symbol_fun(native_context()->symbol_function());
+    InstallConstant(isolate(), symbol_fun, "matchAll",
+                    factory()->match_all_symbol());
+  }
+}
+
 void Genesis::InitializeGlobal_harmony_promise_finally() {
   if (!FLAG_harmony_promise_finally) return;
 

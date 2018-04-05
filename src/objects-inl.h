@@ -42,6 +42,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/regexp-match-info.h"

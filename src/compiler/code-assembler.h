@@ -29,6 +29,7 @@ class Callable;
 class CallInterfaceDescriptor;
 class Isolate;
 class JSCollection;
+class JSRegExpStringIterator;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;

@@ -165,6 +165,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpPrint(os);
       break;
+    case JS_REGEXP_STRING_ITERATOR_TYPE:
+      JSRegExpStringIterator::cast(this)->JSRegExpStringIteratorPrint(os);
+      break;
     case ODDBALL_TYPE:
       Oddball::cast(this)->to_string()->Print(os);
       break;
@@ -619,6 +622,16 @@ void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this);
 }
 
+void JSRegExpStringIterator::JSRegExpStringIteratorPrint(
+    std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSRegExpStringIterator");
+  os << "\n - regex: " << Brief(iterating_regexp());
+  os << "\n - string: " << Brief(iterating_string());
+  os << "\n - done: " << done();
+  os << "\n - global: " << global();
+  os << "\n - unicode: " << unicode();
+  JSObjectPrintBody(os, this);
+}
 
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
@@ -1078,7 +1091,6 @@ void JSCollectionIterator::JSCollectionIteratorPrint(
   os << "\n - index: " << Brief(index());
   os << "\n";
 }
-
 
 void JSSetIterator::JSSetIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSSetIterator");

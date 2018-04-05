@@ -276,6 +276,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
       break;
+    case JS_REGEXP_STRING_ITERATOR_TYPE:
+      JSRegExpStringIterator::cast(this)->JSRegExpStringIteratorVerify();
+      break;
     case FILLER_TYPE:
       break;
     case JS_PROXY_TYPE:
@@ -1313,6 +1316,14 @@ void JSRegExp::JSRegExpVerify() {
       CHECK(data()->IsUndefined(isolate));
       break;
   }
+}
+
+void JSRegExpStringIterator::JSRegExpStringIteratorVerify() {
+  CHECK(IsJSRegExpStringIterator());
+  JSObjectVerify();
+  CHECK(iterating_string()->IsString());
+  CHECK(iterating_regexp()->IsObject());
+  VerifySmiField(kFlagsOffset);
 }
 
 void JSProxy::JSProxyVerify() {

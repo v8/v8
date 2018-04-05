@@ -920,6 +920,8 @@ namespace internal {
   TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                      \
   /* ES #sec-regexp.prototype-@@match */                                       \
   TFJ(RegExpPrototypeMatch, 1, kString)                                        \
+  /* https://tc39.github.io/proposal-string-matchall/ */                       \
+  TFJ(RegExpPrototypeMatchAll, 1, kString)                                     \
   /* ES #sec-get-regexp.prototype.multiline */                                 \
   TFJ(RegExpPrototypeMultilineGetter, 0)                                       \
   /* ES #sec-regexp.prototype-@@search */                                      \
@@ -946,6 +948,10 @@ namespace internal {
   TFS(RegExpReplace, kRegExp, kString, kReplaceValue)                          \
   TFS(RegExpSearchFast, kReceiver, kPattern)                                   \
   TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
+                                                                               \
+  /* RegExp String Iterator */                                                 \
+  /* https://tc39.github.io/proposal-string-matchall/ */                       \
+  TFJ(RegExpStringIteratorPrototypeNext, 0)                                    \
                                                                                \
   /* Set */                                                                    \
   TFJ(SetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
@@ -1024,6 +1030,8 @@ namespace internal {
   TFJ(StringPrototypeLink, 1, kValue)                                          \
   /* ES6 #sec-string.prototype.match */                                        \
   TFJ(StringPrototypeMatch, 1, kRegexp)                                        \
+  /* ES #sec-string.prototype.matchAll */                                      \
+  TFJ(StringPrototypeMatchAll, 1, kRegexp)                                     \
   /* ES6 #sec-string.prototype.localecompare */                                \
   CPP(StringPrototypeLocaleCompare)                                            \
   /* ES6 #sec-string.prototype.padEnd */                                       \

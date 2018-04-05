@@ -59,6 +59,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/map.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/promise-inl.h"
@@ -1369,6 +1370,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSPromise::kSize;
     case JS_REGEXP_TYPE:
       return JSRegExp::kSize;
+    case JS_REGEXP_STRING_ITERATOR_TYPE:
+      return JSRegExpStringIterator::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_MESSAGE_OBJECT_TYPE:
@@ -3100,6 +3103,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_STRING_ITERATOR_TYPE:
     case JS_PROMISE_TYPE:
     case JS_REGEXP_TYPE:
+    case JS_REGEXP_STRING_ITERATOR_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:

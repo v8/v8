@@ -244,6 +244,8 @@ enum ContextLookupFlags {
   V(REGEXP_INTERNAL_MATCH_INFO_INDEX, RegExpMatchInfo,                         \
     regexp_internal_match_info)                                                \
   V(REGEXP_PROTOTYPE_MAP_INDEX, Map, regexp_prototype_map)                     \
+  V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
+    initial_regexp_string_iterator_prototype_map_index)                        \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function)                        \
