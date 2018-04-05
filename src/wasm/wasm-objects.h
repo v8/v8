@@ -175,10 +175,10 @@ class WasmMemoryObject : public JSObject {
                                 WASM_MEMORY_OBJECT_FIELDS)
 #undef WASM_MEMORY_OBJECT_FIELDS
 
-  // Add an instance to the internal (weak) list. amortized O(n).
+  // Add an instance to the internal (weak) list.
   static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
                           Handle<WasmInstanceObject> object);
-  // Remove an instance from the internal (weak) list. O(n).
+  // Remove an instance from the internal (weak) list.
   static void RemoveInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
                              Handle<WasmInstanceObject> object);
   uint32_t current_pages();
