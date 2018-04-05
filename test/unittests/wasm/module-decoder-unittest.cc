@@ -25,6 +25,7 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_F32(val) WASM_F32(val), kExprEnd
 #define WASM_INIT_EXPR_I64(val) WASM_I64(val), kExprEnd
 #define WASM_INIT_EXPR_F64(val) WASM_F64(val), kExprEnd
+#define WASM_INIT_EXPR_ANYREF WASM_REF_NULL, kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
 
 #define SIZEOF_EMPTY_FUNCTION ((size_t)5)
@@ -210,6 +211,67 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   }
 
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
+}
+
+TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  static const byte data[] = {
+      SECTION(Global, 5),  // --
+      1,
+      kLocalAnyRef,          // local type
+      0,                     // immutable
+      WASM_INIT_EXPR_ANYREF  // init
+  };
+
+  {
+    // Should decode to exactly one global.
+    ModuleResult result = DecodeModule(data, data + sizeof(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(1u, result.val->globals.size());
+    EXPECT_EQ(0u, result.val->functions.size());
+    EXPECT_EQ(0u, result.val->data_segments.size());
+
+    const WasmGlobal* global = &result.val->globals.back();
+
+    EXPECT_EQ(kWasmAnyRef, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kAnyRefConst, global->init.kind);
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, AnyRefGlobalWithGlobalInit) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  static const byte data[] = {
+      SECTION(Import, 8),  // section header
+      1,                   // number of imports
+      NAME_LENGTH(1),      // --
+      'm',                 // module name
+      NAME_LENGTH(1),      // --
+      'f',                 // global name
+      kExternalGlobal,     // import kind
+      kLocalAnyRef,        // type
+      0,                   // mutability
+      SECTION(Global, 6),  // --
+      1,
+      kLocalAnyRef,  // local type
+      0,             // immutable
+      WASM_INIT_EXPR_GLOBAL(0),
+  };
+
+  {
+    // Should decode to exactly one global.
+    ModuleResult result = DecodeModule(data, data + sizeof(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(2u, result.val->globals.size());
+    EXPECT_EQ(0u, result.val->functions.size());
+    EXPECT_EQ(0u, result.val->data_segments.size());
+
+    const WasmGlobal* global = &result.val->globals.back();
+
+    EXPECT_EQ(kWasmAnyRef, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kGlobalIndex, global->init.kind);
+  }
 }
 
 TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
@@ -1696,6 +1758,13 @@ TEST_F(WasmModuleVerifyTest, InitExpr_f64) {
   EXPECT_INIT_EXPR(F64, f64, 77999.1, WASM_F64(77999.1));
 }
 
+TEST_F(WasmModuleVerifyTest, InitExpr_AnyRef) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  static const byte data[] = {kExprRefNull, kExprEnd};
+  WasmInitExpr expr = DecodeWasmInitExprForTesting(data, data + sizeof(data));
+  EXPECT_EQ(WasmInitExpr::kAnyRefConst, expr.kind);
+}
+
 #undef EXPECT_INIT_EXPR
 
 #define EXPECT_INIT_EXPR_FAIL(...)                               \
@@ -1819,6 +1888,7 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
 #undef WASM_INIT_EXPR_F32
 #undef WASM_INIT_EXPR_I64
 #undef WASM_INIT_EXPR_F64
+#undef WASM_INIT_EXPR_ANYREF
 #undef WASM_INIT_EXPR_GLOBAL
 #undef SIZEOF_EMPTY_FUNCTION
 #undef EMPTY_BODY

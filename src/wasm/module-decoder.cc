@@ -113,6 +113,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF32;
     case WasmInitExpr::kF64Const:
       return kWasmF64;
+    case WasmInitExpr::kAnyRefConst:
+      return kWasmAnyRef;
     default:
       UNREACHABLE();
   }
@@ -945,30 +947,26 @@ class ModuleDecoderImpl : public Decoder {
     global->mutability = consume_mutability();
     const byte* pos = pc();
     global->init = consume_init_expr(module, kWasmStmt);
-    switch (global->init.kind) {
-      case WasmInitExpr::kGlobalIndex: {
-        uint32_t other_index = global->init.val.global_index;
-        if (other_index >= index) {
-          errorf(pos,
-                 "invalid global index in init expression, "
-                 "index %u, other_index %u",
-                 index, other_index);
-        } else if (module->globals[other_index].type != global->type) {
-          errorf(pos,
-                 "type mismatch in global initialization "
-                 "(from global #%u), expected %s, got %s",
-                 other_index, WasmOpcodes::TypeName(global->type),
-                 WasmOpcodes::TypeName(module->globals[other_index].type));
-        }
-        break;
+    if (global->init.kind == WasmInitExpr::kGlobalIndex) {
+      uint32_t other_index = global->init.val.global_index;
+      if (other_index >= index) {
+        errorf(pos,
+               "invalid global index in init expression, "
+               "index %u, other_index %u",
+               index, other_index);
+      } else if (module->globals[other_index].type != global->type) {
+        errorf(pos,
+               "type mismatch in global initialization "
+               "(from global #%u), expected %s, got %s",
+               other_index, WasmOpcodes::TypeName(global->type),
+               WasmOpcodes::TypeName(module->globals[other_index].type));
       }
-      default:
-        if (global->type != TypeOf(module, global->init)) {
-          errorf(pos,
-                 "type error in global initialization, expected %s, got %s",
-                 WasmOpcodes::TypeName(global->type),
-                 WasmOpcodes::TypeName(TypeOf(module, global->init)));
-        }
+    } else {
+      if (global->type != TypeOf(module, global->init)) {
+        errorf(pos, "type error in global initialization, expected %s, got %s",
+               WasmOpcodes::TypeName(global->type),
+               WasmOpcodes::TypeName(TypeOf(module, global->init)));
+      }
     }
   }
 
@@ -1204,6 +1202,14 @@ class ModuleDecoderImpl : public Decoder {
         expr.val.f64_const = operand.value;
         len = operand.length;
         break;
+      }
+      case kExprRefNull: {
+        if (FLAG_experimental_wasm_anyref) {
+          expr.kind = WasmInitExpr::kAnyRefConst;
+          len = 0;
+          break;
+        }
+        V8_FALLTHROUGH;
       }
       default: {
         error("invalid opcode in initialization expression");
