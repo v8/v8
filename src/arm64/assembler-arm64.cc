@@ -1749,7 +1749,6 @@ void Assembler::stlr(const Register& rt, const Register& rn) {
 
 void Assembler::stlxr(const Register& rs, const Register& rt,
                       const Register& rn) {
-  DCHECK(rs.Is32Bits());
   DCHECK(rn.Is64Bits());
   DCHECK(!rs.Is(rt) && !rs.Is(rn));
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;

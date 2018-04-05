@@ -2323,7 +2323,9 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_X64
 
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitWord64AtomicAdd(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicSub(Node* node) { UNIMPLEMENTED(); }
@@ -2333,7 +2335,9 @@ void InstructionSelector::VisitWord64AtomicAnd(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64AtomicOr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicXor(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
+#if !V8_TARGET_ARCH_X64
 void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
   UNIMPLEMENTED();
 }

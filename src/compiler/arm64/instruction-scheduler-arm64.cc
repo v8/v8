@@ -309,6 +309,28 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64DsbIsb:
       return kHasSideEffect;
 
+    case kArm64Word64AtomicAddUint8:
+    case kArm64Word64AtomicAddUint16:
+    case kArm64Word64AtomicAddUint32:
+    case kArm64Word64AtomicAddUint64:
+    case kArm64Word64AtomicSubUint8:
+    case kArm64Word64AtomicSubUint16:
+    case kArm64Word64AtomicSubUint32:
+    case kArm64Word64AtomicSubUint64:
+    case kArm64Word64AtomicAndUint8:
+    case kArm64Word64AtomicAndUint16:
+    case kArm64Word64AtomicAndUint32:
+    case kArm64Word64AtomicAndUint64:
+    case kArm64Word64AtomicOrUint8:
+    case kArm64Word64AtomicOrUint16:
+    case kArm64Word64AtomicOrUint32:
+    case kArm64Word64AtomicOrUint64:
+    case kArm64Word64AtomicXorUint8:
+    case kArm64Word64AtomicXorUint16:
+    case kArm64Word64AtomicXorUint32:
+    case kArm64Word64AtomicXorUint64:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE

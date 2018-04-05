@@ -290,6 +290,7 @@ v8_source_set("cctest_sources") {
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
+      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
