@@ -858,6 +858,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
     case Bytecode::kStaKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
     case Bytecode::kStaDataPropertyInLiteral:
+    case Bytecode::kStaCurrentContextSlot:
       return true;
     default:
       return false;

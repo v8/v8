@@ -347,7 +347,7 @@ class Debug {
 
   bool PerformSideEffectCheck(Handle<JSFunction> function);
   bool PerformSideEffectCheckForCallback(Handle<Object> callback_info);
-  bool PerformSideEffectCheckForObject(Handle<Object> object);
+  bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
 
   // Flags and states.
   DebugScope* debugger_entry() {
