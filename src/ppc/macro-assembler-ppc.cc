@@ -840,8 +840,9 @@ void TurboAssembler::LoadPC(Register dst) {
 
 void TurboAssembler::LoadConstantPoolPointerRegister() {
   LoadPC(kConstantPoolRegister);
+  int32_t delta = -pc_offset() + 4;
   add_label_offset(kConstantPoolRegister, kConstantPoolRegister,
-                   ConstantPoolPosition(), -pc_offset() + 4);
+                   ConstantPoolPosition(), delta);
 }
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {
@@ -1750,7 +1751,7 @@ void MacroAssembler::AssertConstructor(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, cr0);
     push(object);
     LoadP(object, FieldMemOperand(object, HeapObject::kMapOffset));
     lbz(object, FieldMemOperand(object, Map::kBitFieldOffset));
@@ -2410,7 +2411,7 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
 
   if (!is_int16(offset)) {
     /* cannot use d-form */
-    DCHECK_EQ(scratch, no_reg);
+    DCHECK_NE(scratch, no_reg);
     mov(scratch, Operand(offset));
     LoadPX(dst, MemOperand(mem.ra(), scratch));
   } else {
