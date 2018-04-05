@@ -386,25 +386,39 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   }
 }
 
-#define COMMUTATIVE_I32_BINOP(name, instruction)                     \
-  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
-                                         Register rhs) {             \
-    if (dst == rhs) {                                                \
-      instruction##l(dst, lhs);                                      \
-    } else {                                                         \
-      if (dst != lhs) movl(dst, lhs);                                \
-      instruction##l(dst, rhs);                                      \
-    }                                                                \
+namespace liftoff {
+template <void (Assembler::*op)(Register, Register),
+          void (Assembler::*mov)(Register, Register)>
+void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
+                          Register rhs) {
+  if (dst == rhs) {
+    (assm->*op)(dst, lhs);
+  } else {
+    if (dst != lhs) (assm->*mov)(dst, lhs);
+    (assm->*op)(dst, rhs);
   }
+}
+}  // namespace liftoff
 
-// clang-format off
-COMMUTATIVE_I32_BINOP(mul, imul)
-COMMUTATIVE_I32_BINOP(and, and)
-COMMUTATIVE_I32_BINOP(or, or)
-COMMUTATIVE_I32_BINOP(xor, xor)
-// clang-format on
+void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::imull, &Assembler::movl>(this, dst,
+                                                                     lhs, rhs);
+}
 
-#undef COMMUTATIVE_I32_BINOP
+void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::andl, &Assembler::movl>(this, dst,
+                                                                    lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::orl, &Assembler::movl>(this, dst,
+                                                                   lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::xorl, &Assembler::movl>(this, dst,
+                                                                    lhs, rhs);
+}
 
 namespace liftoff {
 template <ValueType type>
@@ -519,6 +533,24 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
     if (dst.gp() != lhs.gp()) movq(dst.gp(), lhs.gp());
     subq(dst.gp(), rhs.gp());
   }
+}
+
+void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::andq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                   LiftoffRegister rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::orq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::xorq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,

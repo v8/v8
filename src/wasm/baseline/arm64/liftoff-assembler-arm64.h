@@ -106,7 +106,7 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
 #define UNIMPLEMENTED_I64_BINOP(name)                                          \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
-    BAILOUT("i64 binop" #name);                                                \
+    BAILOUT("i64 binop: " #name);                                              \
   }
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
@@ -139,11 +139,14 @@ UNIMPLEMENTED_GP_BINOP(i32_mul)
 UNIMPLEMENTED_GP_BINOP(i32_and)
 UNIMPLEMENTED_GP_BINOP(i32_or)
 UNIMPLEMENTED_GP_BINOP(i32_xor)
-UNIMPLEMENTED_I64_BINOP(i64_add)
-UNIMPLEMENTED_I64_BINOP(i64_sub)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
 UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
+UNIMPLEMENTED_I64_BINOP(i64_add)
+UNIMPLEMENTED_I64_BINOP(i64_sub)
+UNIMPLEMENTED_I64_BINOP(i64_and)
+UNIMPLEMENTED_I64_BINOP(i64_or)
+UNIMPLEMENTED_I64_BINOP(i64_xor)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
 UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shr)

@@ -392,6 +392,20 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
   BAILOUT("i64_sub");
 }
 
+#define I64_BINOP(name)                                                \
+  void LiftoffAssembler::emit_i64_##name(                              \
+      LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+    BAILOUT("i64_" #name);                                             \
+  }
+
+// clang-format off
+I64_BINOP(and)
+I64_BINOP(or)
+I64_BINOP(xor)
+// clang-format on
+
+#undef I64_BINOP
+
 #define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \
                                          LiftoffRegister src, Register amount, \
@@ -403,7 +417,7 @@ I64_SHIFTOP(shl, dsllv)
 I64_SHIFTOP(sar, dsrav)
 I64_SHIFTOP(shr, dsrlv)
 
-#undef I32_SHIFTOP
+#undef I64_SHIFTOP
 
 #define FP_BINOP(name, instruction)                                          \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \

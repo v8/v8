@@ -401,6 +401,12 @@ class LiftoffAssembler : public TurboAssembler {
                            LiftoffRegister rhs);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs);
+  inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                          LiftoffRegister rhs);
+  inline void emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs);
   inline void emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                            Register amount, LiftoffRegList pinned = {});
   inline void emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
@@ -570,6 +576,51 @@ class LiftoffAssembler : public TurboAssembler {
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);
+
+// =======================================================================
+// Partially platform-independent implementations of the platform-dependent
+// part.
+
+#ifdef V8_TARGET_ARCH_32_BIT
+
+namespace liftoff {
+template <void (LiftoffAssembler::*op)(Register, Register, Register)>
+void EmitI64IndependentHalfOperation(LiftoffAssembler* assm,
+                                     LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  // Register pairs are either the same, or they don't overlap at all, so the
+  // low and high registers must be disjoint. Just handle them separately.
+  DCHECK_EQ(LiftoffRegList{},
+            LiftoffRegList::ForRegs(dst.low(), lhs.low(), rhs.low()) &
+                LiftoffRegList::ForRegs(dst.high(), lhs.high(), rhs.high()));
+  (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp());
+  (assm->*op)(dst.high_gp(), lhs.high_gp(), rhs.high_gp());
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::EmitI64IndependentHalfOperation<&LiftoffAssembler::emit_i32_and>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                   LiftoffRegister rhs) {
+  liftoff::EmitI64IndependentHalfOperation<&LiftoffAssembler::emit_i32_or>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::EmitI64IndependentHalfOperation<&LiftoffAssembler::emit_i32_xor>(
+      this, dst, lhs, rhs);
+}
+
+#endif  // V8_TARGET_ARCH_32_BIT
+
+// End of the partially platform-independent implementations of the
+// platform-dependent part.
+// =======================================================================
 
 }  // namespace wasm
 }  // namespace internal
