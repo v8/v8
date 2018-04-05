@@ -128,161 +128,6 @@ size_t Heap::NewSpaceAllocationCounter() {
   return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
 }
 
-template <>
-bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
-  // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
-  return chars == str.length();
-}
-
-
-template <>
-bool inline Heap::IsOneByte(String* str, int chars) {
-  return str->IsOneByteRepresentation();
-}
-
-
-AllocationResult Heap::AllocateInternalizedStringFromUtf8(
-    Vector<const char> str, int chars, uint32_t hash_field) {
-  if (IsOneByte(str, chars)) {
-    return AllocateOneByteInternalizedString(Vector<const uint8_t>::cast(str),
-                                             hash_field);
-  }
-  return AllocateInternalizedStringImpl<false>(str, chars, hash_field);
-}
-
-
-template <typename T>
-AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
-                                                      uint32_t hash_field) {
-  if (IsOneByte(t, chars)) {
-    return AllocateInternalizedStringImpl<true>(t, chars, hash_field);
-  }
-  return AllocateInternalizedStringImpl<false>(t, chars, hash_field);
-}
-
-
-AllocationResult Heap::AllocateOneByteInternalizedString(
-    Vector<const uint8_t> str, uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, str.length());
-  // The canonical empty_string is the only zero-length string we allow.
-  DCHECK_IMPLIES(str.length() == 0, roots_[kempty_stringRootIndex] == nullptr);
-  // Compute map and object size.
-  Map* map = one_byte_internalized_string_map();
-  int size = SeqOneByteString::SizeFor(str.length());
-
-  // Allocate string.
-  HeapObject* result = nullptr;
-  {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
-    if (!allocation.To(&result)) return allocation;
-  }
-
-  // String maps are all immortal immovable objects.
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  // Set length and hash fields of the allocated string.
-  String* answer = String::cast(result);
-  answer->set_length(str.length());
-  answer->set_hash_field(hash_field);
-
-  DCHECK_EQ(size, answer->Size());
-
-  // Fill in the characters.
-  MemCopy(answer->address() + SeqOneByteString::kHeaderSize, str.start(),
-          str.length());
-
-  return answer;
-}
-
-
-AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
-                                                         uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, str.length());
-  DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
-  // Compute map and object size.
-  Map* map = internalized_string_map();
-  int size = SeqTwoByteString::SizeFor(str.length());
-
-  // Allocate string.
-  HeapObject* result = nullptr;
-  {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
-    if (!allocation.To(&result)) return allocation;
-  }
-
-  result->set_map_after_allocation(map);
-  // Set length and hash fields of the allocated string.
-  String* answer = String::cast(result);
-  answer->set_length(str.length());
-  answer->set_hash_field(hash_field);
-
-  DCHECK_EQ(size, answer->Size());
-
-  // Fill in the characters.
-  MemCopy(answer->address() + SeqTwoByteString::kHeaderSize, str.start(),
-          str.length() * kUC16Size);
-
-  return answer;
-}
-
-AllocationResult Heap::CopyFixedArray(FixedArray* src) {
-  if (src->length() == 0) return src;
-  return CopyFixedArrayWithMap(src, src->map());
-}
-
-
-AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
-  if (src->length() == 0) return src;
-  return CopyFixedDoubleArrayWithMap(src, src->map());
-}
-
-AllocationResult Heap::AllocateFixedArrayWithMap(RootListIndex map_root_index,
-                                                 int length,
-                                                 PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(map_root_index, length, pretenure,
-                                      undefined_value());
-}
-
-AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
-                                      pretenure, undefined_value());
-}
-
-AllocationResult Heap::AllocateWeakFixedArray(int length,
-                                              PretenureFlag pretenure) {
-  // Zero-length case must be handled outside, where the knowledge about
-  // the map is.
-  DCHECK_LT(0, length);
-  HeapObject* result = nullptr;
-  {
-    AllocationResult allocation = AllocateRawWeakFixedArray(length, pretenure);
-    if (!allocation.To(&result)) return allocation;
-  }
-  DCHECK(RootIsImmortalImmovable(Heap::kWeakFixedArrayMapRootIndex));
-  Map* map = Map::cast(root(Heap::kWeakFixedArrayMapRootIndex));
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  WeakFixedArray* array = WeakFixedArray::cast(result);
-  array->set_length(length);
-  MemsetPointer(array->data_start(),
-                HeapObjectReference::Strong(undefined_value()), length);
-  return array;
-}
-
-AllocationResult Heap::AllocateRawFixedArray(int length,
-                                             PretenureFlag pretenure) {
-  if (length < 0 || length > FixedArray::kMaxLength) {
-    FatalProcessOutOfMemory("invalid array length");
-  }
-  return AllocateRawArray(FixedArray::SizeFor(length), pretenure);
-}
-
-AllocationResult Heap::AllocateRawWeakFixedArray(int length,
-                                                 PretenureFlag pretenure) {
-  if (length < 0 || length > WeakFixedArray::kMaxLength) {
-    FatalProcessOutOfMemory("invalid array length");
-  }
-  return AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
-}
-
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
@@ -356,7 +201,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 
   return allocation;
 }
-
 
 void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
   for (auto& tracker : allocation_trackers_) {
@@ -703,7 +547,6 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
-  DCHECK(!heap_->unprotected_memory_chunks_registry_enabled());
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
@@ -719,7 +562,6 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
 }
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
-  DCHECK(!heap_->unprotected_memory_chunks_registry_enabled());
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();

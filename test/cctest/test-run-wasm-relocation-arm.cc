@@ -10,7 +10,7 @@
 #include "src/arm/assembler-arm-inl.h"
 #include "src/arm/simulator-arm.h"
 #include "src/disassembler.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/ostreams.h"
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/call-tester.h"

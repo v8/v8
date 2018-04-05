@@ -30,7 +30,7 @@
 #include "src/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

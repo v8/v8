@@ -31,7 +31,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/objects-inl.h"

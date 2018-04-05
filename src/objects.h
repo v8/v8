@@ -4416,7 +4416,7 @@ class Foreign: public HeapObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
-  friend class Heap;
+  friend class Factory;
   friend class SerializerDeserializer;
   friend class StartupSerializer;
 

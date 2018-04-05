@@ -33,7 +33,7 @@
 #include "src/api.h"
 #include "src/compiler.h"
 #include "src/disasm.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

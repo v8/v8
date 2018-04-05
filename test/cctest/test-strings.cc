@@ -35,10 +35,9 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
 #include "src/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"

@@ -36,9 +36,7 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
   DispatchTypedArrayByElementsKind(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        ExternalArrayType type =
-            isolate()->factory()->GetArrayTypeFromElementsKind(kind);
-        Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
+        Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(kind));
         var_typed_map = HeapConstant(map);
       });
 

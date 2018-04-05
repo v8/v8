@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/string-case.h"

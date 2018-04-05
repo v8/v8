@@ -10,7 +10,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "test/cctest/cctest.h"

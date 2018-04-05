@@ -5,11 +5,10 @@
 #ifndef V8_FEEDBACK_VECTOR_INL_H_
 #define V8_FEEDBACK_VECTOR_INL_H_
 
-#include "src/factory-inl.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 

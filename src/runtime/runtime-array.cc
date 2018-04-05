@@ -8,7 +8,7 @@
 #include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/elements.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
 #include "src/messages.h"

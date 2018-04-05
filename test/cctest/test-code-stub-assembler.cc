@@ -3215,8 +3215,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
   CHECK(result->get(1)->IsTheHole(isolate));
 
-  Handle<FixedDoubleArray> source_double(Handle<FixedDoubleArray>::cast(
-      isolate->factory()->NewFixedDoubleArray(5)));
+  Handle<FixedDoubleArray> source_double = Handle<FixedDoubleArray>::cast(
+      isolate->factory()->NewFixedDoubleArray(5));
   source_double->set(0, 10);
   source_double->set(1, 11);
   source_double->set(2, 12);

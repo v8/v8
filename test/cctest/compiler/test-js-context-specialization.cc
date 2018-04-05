@@ -8,7 +8,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/property.h"
 #include "test/cctest/cctest.h"
