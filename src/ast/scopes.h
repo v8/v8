@@ -901,6 +901,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     is_skipped_function_ = is_skipped_function;
   }
 
+  bool has_inferred_function_name() const {
+    return has_inferred_function_name_;
+  }
+  void set_has_inferred_function_name(bool value) {
+    DCHECK(is_function_scope());
+    has_inferred_function_name_ = value;
+  }
+
   // Save data describing the context allocation of the variables in this scope
   // and its subscopes (except scopes at the laziness boundary). The data is
   // saved in produced_preparsed_scope_data_.
@@ -952,6 +960,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool is_being_lazily_parsed_ : 1;
 #endif
   bool is_skipped_function_ : 1;
+  bool has_inferred_function_name_ : 1;
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;

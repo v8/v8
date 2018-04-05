@@ -106,9 +106,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     receiver_info = NONE;
   }
 
-  bool has_new_target =
+  const bool has_new_target =
       scope->is_declaration_scope() &&
       scope->AsDeclarationScope()->new_target_var() != nullptr;
+  // TODO(cbruni): Don't always waste a field for the inferred name.
+  const bool has_inferred_function_name = scope->is_function_scope();
 
   // Determine use and location of the function variable if it is present.
   VariableAllocationInfo function_name_info;
@@ -144,6 +146,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
                      (1 + stack_local_count) + 2 * context_local_count +
                      (has_receiver ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
+                     (has_inferred_function_name ? 1 : 0) +
                      (has_position_info ? kPositionInfoEntries : 0) +
                      (has_outer_scope_info ? 1 : 0) +
                      (scope->is_module_scope()
@@ -176,6 +179,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       ReceiverVariableField::encode(receiver_info) |
       HasNewTargetField::encode(has_new_target) |
       FunctionVariableField::encode(function_name_info) |
+      HasInferredFunctionNameField::encode(has_inferred_function_name) |
       AsmModuleField::encode(asm_module) |
       HasSimpleParametersField::encode(has_simple_parameters) |
       FunctionKindField::encode(function_kind) |
@@ -280,6 +284,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
            var_index == scope_info->ContextLength() - 1);
   }
 
+  DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
+  if (has_inferred_function_name) {
+    // The inferred function name is taken from the SFI.
+    index++;
+  }
+
   DCHECK_EQ(index, scope_info->PositionInfoIndex());
   if (has_position_info) {
     scope_info->set(index++, Smi::FromInt(scope->start_position()));
@@ -343,6 +353,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   DCHECK_EQ(index, scope_info->StackLocalNamesIndex());
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());
+  DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
   DCHECK_EQ(index, scope_info->PositionInfoIndex());
   DCHECK(index == scope_info->OuterScopeInfoIndex());
   if (has_outer_scope_info) {
@@ -410,6 +421,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   scope_info->set(index++, Smi::FromInt(receiver_index));
 
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());
+  DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
   DCHECK_EQ(index, scope_info->PositionInfoIndex());
   // Store dummy position to be in sync with the {scope_type}.
   scope_info->set(index++, Smi::kZero);
@@ -502,6 +514,11 @@ bool ScopeInfo::HasFunctionName() const {
   return NONE != FunctionVariableField::decode(Flags());
 }
 
+bool ScopeInfo::HasInferredFunctionName() const {
+  if (length() == 0) return false;
+  return HasInferredFunctionNameField::decode(Flags());
+}
+
 bool ScopeInfo::HasPositionInfo() const {
   if (length() == 0) return false;
   return NeedsPositionInfo(scope_type());
@@ -521,6 +538,11 @@ void ScopeInfo::SetFunctionName(Object* name) {
   DCHECK(HasFunctionName());
   DCHECK(name->IsString() || name == SharedFunctionInfo::kNoSharedNameSentinel);
   set(FunctionNameInfoIndex(), name);
+}
+
+void ScopeInfo::SetInferredFunctionName(String* name) {
+  DCHECK(HasInferredFunctionName());
+  set(InferredFunctionNameIndex(), name);
 }
 
 bool ScopeInfo::HasOuterScopeInfo() const {
@@ -547,6 +569,11 @@ bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 Object* ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
   return get(FunctionNameInfoIndex());
+}
+
+Object* ScopeInfo::InferredFunctionName() const {
+  DCHECK(HasInferredFunctionName());
+  return get(InferredFunctionNameIndex());
 }
 
 int ScopeInfo::StartPosition() const {
@@ -797,9 +824,13 @@ int ScopeInfo::FunctionNameInfoIndex() const {
   return ReceiverInfoIndex() + (HasAllocatedReceiver() ? 1 : 0);
 }
 
-int ScopeInfo::PositionInfoIndex() const {
+int ScopeInfo::InferredFunctionNameIndex() const {
   return FunctionNameInfoIndex() +
          (HasFunctionName() ? kFunctionNameEntries : 0);
+}
+
+int ScopeInfo::PositionInfoIndex() const {
+  return InferredFunctionNameIndex() + (HasInferredFunctionName() ? 1 : 0);
 }
 
 int ScopeInfo::OuterScopeInfoIndex() const {

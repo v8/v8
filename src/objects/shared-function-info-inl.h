@@ -322,6 +322,9 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* scope_info,
   DCHECK(name->IsString() || name == kNoSharedNameSentinel);
   // Only set the function name for function scopes.
   scope_info->SetFunctionName(name);
+  if (HasInferredName() && inferred_name()->length() != 0) {
+    scope_info->SetInferredFunctionName(inferred_name());
+  }
   WRITE_FIELD(this, kNameOrScopeInfoOffset,
               reinterpret_cast<Object*>(scope_info));
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kNameOrScopeInfoOffset,

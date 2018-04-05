@@ -84,7 +84,10 @@ class ScopeInfo : public FixedArray {
   // See SharedFunctionInfo::HasSharedName.
   bool HasSharedFunctionName() const;
 
+  bool HasInferredFunctionName() const;
+
   void SetFunctionName(Object* name);
+  void SetInferredFunctionName(String* name);
 
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
@@ -99,6 +102,10 @@ class ScopeInfo : public FixedArray {
 
   // Return the function_name if present.
   Object* FunctionName() const;
+
+  // Return the function's inferred name if present.
+  // See SharedFunctionInfo::function_identifier.
+  Object* InferredFunctionName() const;
 
   // Position information accessors.
   int StartPosition() const;
@@ -262,12 +269,14 @@ class ScopeInfo : public FixedArray {
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
-  // 8. SourcePosition:
+  // 8. InferredFunctionName:
+  //    Contains the function's inferred name.
+  // 9. SourcePosition:
   //    Contains two slots with a) the startPosition and b) the endPosition if
   //    the scope belongs to a function or script.
-  // 9. OuterScopeInfoIndex:
+  // 10. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 10. ModuleInfo, ModuleVariableCount, and ModuleVariables:
+  // 11. ModuleInfo, ModuleVariableCount, and ModuleVariables:
   //    For a module scope, this part contains the ModuleInfo, the number of
   //    MODULE-allocated variables, and the metadata of those variables.  For
   //    non-module scopes it is empty.
@@ -278,6 +287,7 @@ class ScopeInfo : public FixedArray {
   int ContextLocalInfosIndex() const;
   int ReceiverInfoIndex() const;
   int FunctionNameInfoIndex() const;
+  int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
   int ModuleInfoIndex() const;
@@ -321,8 +331,12 @@ class ScopeInfo : public FixedArray {
       : public BitField<bool, ReceiverVariableField::kNext, 1> {};
   class FunctionVariableField
       : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
-  class AsmModuleField
+  // TODO(cbruni): Combine with function variable field when only storing the
+  // function name.
+  class HasInferredFunctionNameField
       : public BitField<bool, FunctionVariableField::kNext, 1> {};
+  class AsmModuleField
+      : public BitField<bool, HasInferredFunctionNameField::kNext, 1> {};
   class HasSimpleParametersField
       : public BitField<bool, AsmModuleField::kNext, 1> {};
   class FunctionKindField

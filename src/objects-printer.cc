@@ -1788,9 +1788,12 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }
   if (HasFunctionName()) {
-    os << "\n - function name: ";
-    FunctionName()->ShortPrint(os);
+    os << "\n - function name: " << Brief(FunctionName());
   }
+  if (HasInferredFunctionName()) {
+    os << "\n - inferred function name: " << Brief(InferredFunctionName());
+  }
+
   if (HasPositionInfo()) {
     os << "\n - start position: " << StartPosition();
     os << "\n - end position: " << EndPosition();

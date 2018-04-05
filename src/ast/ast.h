@@ -2246,23 +2246,11 @@ class FunctionLiteral final : public Expression {
     }
     UNREACHABLE();
   }
-
-  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
-  void set_inferred_name(Handle<String> inferred_name) {
-    DCHECK(!inferred_name.is_null());
-    inferred_name_ = inferred_name;
-    DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
-    raw_inferred_name_ = nullptr;
-  }
-
   const AstConsString* raw_inferred_name() { return raw_inferred_name_; }
 
-  void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
-    DCHECK_NOT_NULL(raw_inferred_name);
-    raw_inferred_name_ = raw_inferred_name;
-    DCHECK(inferred_name_.is_null());
-    inferred_name_ = Handle<String>();
-  }
+  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
+  void set_inferred_name(Handle<String> inferred_name);
+  void set_raw_inferred_name(const AstConsString* raw_inferred_name);
 
   bool pretenure() const { return Pretenure::decode(bit_field_); }
   void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
