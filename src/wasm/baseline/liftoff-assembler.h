@@ -429,10 +429,6 @@ class LiftoffAssembler : public TurboAssembler {
   // f32 unops.
   inline void emit_f32_abs(DoubleRegister dst, DoubleRegister src);
   inline void emit_f32_neg(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_ceil(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_floor(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_trunc(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f32_sqrt(DoubleRegister dst, DoubleRegister src);
 
   // f64 binops.
@@ -448,10 +444,6 @@ class LiftoffAssembler : public TurboAssembler {
   // f64 unops.
   inline void emit_f64_abs(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_neg(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_ceil(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_floor(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_trunc(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_sqrt(DoubleRegister dst, DoubleRegister src);
 
   // type conversions.
