@@ -39,7 +39,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceTypedArrayToStringTag(Node* node);
   Reduction ReduceArrayIsArray(Node* node);
 
   Reduction ReduceDateNow(Node* node);
@@ -48,11 +47,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceObjectCreate(Node* node);
-  Reduction ReduceArrayBufferIsView(Node* node);
-  Reduction ReduceArrayBufferViewAccessor(Node* node,
-                                          InstanceType instance_type,
-                                          FieldAccess const& access);
-
   Node* ToNumber(Node* value);
   Node* ToUint32(Node* value);
 

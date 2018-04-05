@@ -23,6 +23,7 @@ namespace compiler {
 // Forward declarations.
 class CallFrequency;
 class CommonOperatorBuilder;
+struct FieldAccess;
 class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
@@ -142,6 +143,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceTypedArrayConstructor(Node* node,
                                         Handle<SharedFunctionInfo> shared);
+  Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
@@ -167,6 +169,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
       Node* node, int entry_size, Handle<HeapObject> empty_collection,
       InstanceType collection_iterator_instance_type_first,
       InstanceType collection_iterator_instance_type_last);
+
+  Reduction ReduceArrayBufferIsView(Node* node);
+  Reduction ReduceArrayBufferViewAccessor(Node* node,
+                                          InstanceType instance_type,
+                                          FieldAccess const& access);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.

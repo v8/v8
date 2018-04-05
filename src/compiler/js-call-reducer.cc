@@ -3359,6 +3359,29 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayIterator(node, IterationKind::kValues);
     case Builtins::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
+    case Builtins::kArrayBufferIsView:
+      return ReduceArrayBufferIsView(node);
+    case Builtins::kDataViewPrototypeGetByteLength:
+      return ReduceArrayBufferViewAccessor(
+          node, JS_DATA_VIEW_TYPE,
+          AccessBuilder::ForJSArrayBufferViewByteLength());
+    case Builtins::kDataViewPrototypeGetByteOffset:
+      return ReduceArrayBufferViewAccessor(
+          node, JS_DATA_VIEW_TYPE,
+          AccessBuilder::ForJSArrayBufferViewByteOffset());
+    case Builtins::kTypedArrayPrototypeByteLength:
+      return ReduceArrayBufferViewAccessor(
+          node, JS_TYPED_ARRAY_TYPE,
+          AccessBuilder::ForJSArrayBufferViewByteLength());
+    case Builtins::kTypedArrayPrototypeByteOffset:
+      return ReduceArrayBufferViewAccessor(
+          node, JS_TYPED_ARRAY_TYPE,
+          AccessBuilder::ForJSArrayBufferViewByteOffset());
+    case Builtins::kTypedArrayPrototypeLength:
+      return ReduceArrayBufferViewAccessor(
+          node, JS_TYPED_ARRAY_TYPE, AccessBuilder::ForJSTypedArrayLength());
+    case Builtins::kTypedArrayPrototypeToStringTag:
+      return ReduceTypedArrayPrototypeToStringTag(node);
     case Builtins::kMathAbs:
       return ReduceMathUnary(node, simplified()->NumberAbs());
     case Builtins::kMathAcos:
@@ -5958,6 +5981,77 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   return Replace(result);
 }
 
+// ES #sec-get-%typedarray%.prototype-@@tostringtag
+Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  NodeVector values(graph()->zone());
+  NodeVector effects(graph()->zone());
+  NodeVector controls(graph()->zone());
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+  control =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  values.push_back(jsgraph()->UndefinedConstant());
+  effects.push_back(effect);
+  controls.push_back(graph()->NewNode(common()->IfTrue(), control));
+
+  control = graph()->NewNode(common()->IfFalse(), control);
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, effect, control);
+  Node* receiver_bit_field2 = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapBitField2()), receiver_map,
+      effect, control);
+  Node* receiver_elements_kind = graph()->NewNode(
+      simplified()->NumberShiftRightLogical(),
+      graph()->NewNode(simplified()->NumberBitwiseAnd(), receiver_bit_field2,
+                       jsgraph()->Constant(Map::ElementsKindBits::kMask)),
+      jsgraph()->Constant(Map::ElementsKindBits::kShift));
+
+  // Offset the elements kind by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+  // so that the branch cascade below is turned into a simple table
+  // switch by the ControlFlowOptimizer later.
+  receiver_elements_kind = graph()->NewNode(
+      simplified()->NumberSubtract(), receiver_elements_kind,
+      jsgraph()->Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                \
+  do {                                                                 \
+    Node* check = graph()->NewNode(                                    \
+        simplified()->NumberEqual(), receiver_elements_kind,           \
+        jsgraph()->Constant(TYPE##_ELEMENTS -                          \
+                            FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
+    control = graph()->NewNode(common()->Branch(), check, control);    \
+    values.push_back(jsgraph()->HeapConstant(                          \
+        factory()->InternalizeUtf8String(#Type "Array")));             \
+    effects.push_back(effect);                                         \
+    controls.push_back(graph()->NewNode(common()->IfTrue(), control)); \
+    control = graph()->NewNode(common()->IfFalse(), control);          \
+  } while (false);
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  values.push_back(jsgraph()->UndefinedConstant());
+  effects.push_back(effect);
+  controls.push_back(control);
+
+  int const count = static_cast<int>(controls.size());
+  control = graph()->NewNode(common()->Merge(count), count, &controls.front());
+  effects.push_back(control);
+  effect =
+      graph()->NewNode(common()->EffectPhi(count), count + 1, &effects.front());
+  values.push_back(control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                       count + 1, &values.front());
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
 // ES #sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   if (node->op()->ValueInputCount() < 3) {
@@ -6416,6 +6510,54 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
   // Yield the final {iterator_result}.
   ReplaceWithValue(node, iterator_result, effect, control);
   return Replace(iterator_result);
+}
+
+Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
+  Node* value = node->op()->ValueInputCount() >= 3
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->UndefinedConstant();
+  RelaxEffectsAndControls(node);
+  node->ReplaceInput(0, value);
+  node->TrimInputCount(1);
+  NodeProperties::ChangeOp(node, simplified()->ObjectIsArrayBufferView());
+  return Changed(node);
+}
+
+Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
+    Node* node, InstanceType instance_type, FieldAccess const& access) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (NodeProperties::HasInstanceTypeWitness(receiver, effect, instance_type)) {
+    // Load the {receiver}s field.
+    Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
+                                            receiver, effect, control);
+
+    // See if we can skip the neutering check.
+    if (isolate()->IsArrayBufferNeuteringIntact()) {
+      // Add a code dependency so we are deoptimized in case an ArrayBuffer
+      // gets neutered.
+      dependencies()->AssumePropertyCell(
+          factory()->array_buffer_neutering_protector());
+    } else {
+      // Check if the {receiver}s buffer was neutered.
+      Node* receiver_buffer = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+          receiver, effect, control);
+      Node* check = effect =
+          graph()->NewNode(simplified()->ArrayBufferWasNeutered(),
+                           receiver_buffer, effect, control);
+
+      // Default to zero if the {receiver}s buffer was neutered.
+      value = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+          check, jsgraph()->ZeroConstant(), value);
+    }
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
