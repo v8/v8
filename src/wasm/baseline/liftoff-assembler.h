@@ -415,7 +415,7 @@ class LiftoffAssembler : public TurboAssembler {
                            Register amount, LiftoffRegList pinned = {});
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
-    if (kPointerSize == 4) {
+    if (kPointerSize == 8) {
       emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
     } else {
