@@ -382,9 +382,6 @@ void Builtins::Generate_JSConstructStubGenericUnrestrictedReturn(
     MacroAssembler* masm) {
   return Generate_JSConstructStubGeneric(masm, false);
 }
-void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSBuiltinsConstructStubHelper(masm);
-}
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
@@ -2399,12 +2396,20 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ebx to contain either an AllocationSite or undefined.
   __ LoadRoot(ebx, Heap::kUndefinedValueRootIndex);
 
-  // Tail call to the function-specific construct stub (still in the caller
-  // context at this point).
+  Label call_generic_stub;
+
+  // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
-  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
-  __ jmp(ecx);
+  __ test(FieldOperand(ecx, SharedFunctionInfo::kFlagsOffset),
+          Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ j(zero, &call_generic_stub, Label::kNear);
+
+  __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&call_generic_stub);
+  __ Jump(masm->isolate()->builtins()->JSConstructStubGeneric(),
+          RelocInfo::CODE_TARGET);
 }
 
 // static

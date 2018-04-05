@@ -1167,13 +1167,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "script", shared->script(),
                        SharedFunctionInfo::kScriptOffset);
-  const char* construct_stub_name = name ?
-      names_->GetFormatted("(construct stub code for %s)", name) :
-      "(construct stub code)";
-  TagObject(shared->construct_stub(), construct_stub_name);
-  SetInternalReference(obj, entry,
-                       "construct_stub", shared->construct_stub(),
-                       SharedFunctionInfo::kConstructStubOffset);
   SetInternalReference(obj, entry,
                        "function_data", shared->function_data(),
                        SharedFunctionInfo::kFunctionDataOffset);

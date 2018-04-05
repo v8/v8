@@ -1209,21 +1209,15 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   } else {
     name_string = isolate->factory()->empty_string();
   }
-  bool is_constructor;
   FunctionKind function_kind;
   if (info->remove_prototype()) {
-    is_constructor = false;
     function_kind = kConciseMethod;
   } else {
-    is_constructor = true;
     function_kind = kNormalFunction;
   }
   Handle<SharedFunctionInfo> result =
       isolate->factory()->NewSharedFunctionInfoForApiFunction(name_string, info,
                                                               function_kind);
-  if (is_constructor) {
-    result->SetConstructStub(*BUILTIN_CODE(isolate, JSConstructStubApi));
-  }
 
   result->set_length(info->length());
   result->DontAdaptArguments();
@@ -13904,8 +13898,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
-  DCHECK_EQ(*shared_info->GetIsolate()->builtins()->JSConstructStubGeneric(),
-            shared_info->construct_stub());
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_function_literal_id(lit->function_literal_id());
   DCHECK_IMPLIES(lit->requires_instance_fields_initializer(),
@@ -13954,23 +13946,6 @@ void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
   estimate += 8;
 
   set_expected_nof_properties(estimate);
-}
-
-void SharedFunctionInfo::SetConstructStub(Code* code) {
-  if (code->kind() == Code::BUILTIN) code->set_is_construct_stub(true);
-#ifdef DEBUG
-  if (code->is_builtin()) {
-    // See https://crbug.com/v8/6787. Lazy deserialization currently cannot
-    // handle lazy construct stubs that differ from the code object.
-    int builtin_id = code->builtin_index();
-    DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-    DCHECK(builtin_id == Builtins::kJSBuiltinsConstructStub ||
-           !Builtins::IsLazy(builtin_id));
-    // Builtins should use JSBuiltinsConstructStub.
-    DCHECK_NE(this->GetCode(), code);
-  }
-#endif
-  set_construct_stub(code);
 }
 
 void Map::StartInobjectSlackTracking() {

@@ -379,7 +379,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kBitwiseNot:
     case kBooleanPrototypeToString:
     case kBooleanPrototypeValueOf:
-    case kConstructFunction:
     case kContinueToCodeStubBuiltin:
     case kContinueToCodeStubBuiltinWithResult:
     case kContinueToJavaScriptBuiltin:

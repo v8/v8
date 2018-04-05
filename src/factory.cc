@@ -2623,7 +2623,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       share->set_builtin_id(Builtins::kIllegal);
     }
     share->set_outer_scope_info(*the_hole_value());
-    share->SetConstructStub(*isolate()->builtins()->JSConstructStubGeneric());
     share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
     share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
     share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
@@ -2643,6 +2642,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_function_token_position(0);
     // All flags default to false or 0.
     share->set_flags(0);
+    share->CalculateConstructAsBuiltin();
     share->set_kind(kind);
 
     share->clear_padding();
