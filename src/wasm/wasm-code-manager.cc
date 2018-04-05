@@ -63,39 +63,6 @@ void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
 const bool kModuleCanAllocateMoreMemory = true;
 #endif
 
-void PatchTrampolineAndStubCalls(
-    const WasmCode* original_code, const WasmCode* new_code,
-    const std::unordered_map<Address, Address, AddressHasher>& reverse_lookup,
-    WasmCode::FlushICache flush_icache) {
-  // Relocate everything in kApplyMask using this delta, and patch all code
-  // targets to call the new trampolines and stubs.
-  intptr_t delta =
-      new_code->instructions().start() - original_code->instructions().start();
-  int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask;
-  RelocIterator orig_it(original_code->instructions(),
-                        original_code->reloc_info(),
-                        original_code->constant_pool(), mask);
-  for (RelocIterator it(new_code->instructions(), new_code->reloc_info(),
-                        new_code->constant_pool(), mask);
-       !it.done(); it.next(), orig_it.next()) {
-    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
-      Address target = orig_it.rinfo()->target_address();
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
-      auto found = reverse_lookup.find(target);
-      DCHECK(found != reverse_lookup.end());
-      target = found->second;
-#endif
-      it.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER);
-    } else {
-      it.rinfo()->apply(delta);
-    }
-  }
-  if (flush_icache) {
-    Assembler::FlushICache(new_code->instructions().start(),
-                           new_code->instructions().size());
-  }
-}
-
 void RelocateCode(WasmCode* code, const WasmCode* orig,
                   WasmCode::FlushICache flush_icache) {
   intptr_t delta = code->instructions().start() - orig->instructions().start();
@@ -345,6 +312,30 @@ WasmCode::~WasmCode() {
   }
 }
 
+// Helper class to selectively clone and patch code from a
+// {source_native_module} into a {cloning_native_module}.
+class NativeModule::CloneCodeHelper {
+ public:
+  explicit CloneCodeHelper(NativeModule* source_native_module,
+                           NativeModule* cloning_native_module);
+
+  void SelectForCloning(int32_t code_index);
+
+  void CloneAndPatchCode(bool patch_stub_to_stub_calls);
+
+  void PatchTrampolineAndStubCalls(const WasmCode* original_code,
+                                   const WasmCode* new_code,
+                                   WasmCode::FlushICache flush_icache);
+
+ private:
+  void PatchStubToStubCalls();
+
+  NativeModule* source_native_module_;
+  NativeModule* cloning_native_module_;
+  std::vector<uint32_t> selection_;
+  std::unordered_map<Address, Address, AddressHasher> reverse_lookup_;
+};
+
 NativeModule::CloneCodeHelper::CloneCodeHelper(
     NativeModule* source_native_module, NativeModule* cloning_native_module)
     : source_native_module_(source_native_module),
@@ -388,14 +379,14 @@ void NativeModule::CloneCodeHelper::CloneAndPatchCode(
         if (!original_code->IsAnonymous()) {
           WasmCode* new_code = cloning_native_module_->CloneCode(
               original_code, WasmCode::kNoFlushICache);
-          PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup_,
+          PatchTrampolineAndStubCalls(original_code, new_code,
                                       WasmCode::kFlushICache);
           break;
         }
         if (anonymous_lazy_builtin == nullptr) {
           WasmCode* new_code = cloning_native_module_->CloneCode(
               original_code, WasmCode::kNoFlushICache);
-          PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup_,
+          PatchTrampolineAndStubCalls(original_code, new_code,
                                       WasmCode::kFlushICache);
           anonymous_lazy_builtin = new_code;
         }
@@ -404,7 +395,7 @@ void NativeModule::CloneCodeHelper::CloneAndPatchCode(
       case WasmCode::kFunction: {
         WasmCode* new_code = cloning_native_module_->CloneCode(
             original_code, WasmCode::kNoFlushICache);
-        PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup_,
+        PatchTrampolineAndStubCalls(original_code, new_code,
                                     WasmCode::kFlushICache);
       } break;
       default:
@@ -417,8 +408,39 @@ void NativeModule::CloneCodeHelper::PatchStubToStubCalls() {
   for (auto& pair : cloning_native_module_->stubs_) {
     WasmCode* new_stub = pair.second;
     WasmCode* old_stub = source_native_module_->stubs_.find(pair.first)->second;
-    PatchTrampolineAndStubCalls(old_stub, new_stub, reverse_lookup_,
-                                WasmCode::kFlushICache);
+    PatchTrampolineAndStubCalls(old_stub, new_stub, WasmCode::kFlushICache);
+  }
+}
+
+void NativeModule::CloneCodeHelper::PatchTrampolineAndStubCalls(
+    const WasmCode* original_code, const WasmCode* new_code,
+    WasmCode::FlushICache flush_icache) {
+  // Relocate everything in kApplyMask using this delta, and patch all code
+  // targets to call the new trampolines and stubs.
+  intptr_t delta =
+      new_code->instructions().start() - original_code->instructions().start();
+  int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask;
+  RelocIterator orig_it(original_code->instructions(),
+                        original_code->reloc_info(),
+                        original_code->constant_pool(), mask);
+  for (RelocIterator it(new_code->instructions(), new_code->reloc_info(),
+                        new_code->constant_pool(), mask);
+       !it.done(); it.next(), orig_it.next()) {
+    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+      Address target = orig_it.rinfo()->target_address();
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
+      auto found = reverse_lookup_.find(target);
+      DCHECK(found != reverse_lookup_.end());
+      target = found->second;
+#endif
+      it.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER);
+    } else {
+      it.rinfo()->apply(delta);
+    }
+  }
+  if (flush_icache) {
+    Assembler::FlushICache(new_code->instructions().start(),
+                           new_code->instructions().size());
   }
 }
 
