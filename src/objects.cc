@@ -9744,8 +9744,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
-                                          StoreFromKeyed store_mode,
-                                          bool* created_new_map) {
+                                          StoreFromKeyed store_mode) {
   RuntimeCallTimerScope stats_scope(
       *map, map->is_prototype_map()
                 ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
@@ -9760,7 +9759,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   Map* maybe_transition =
       TransitionsAccessor(map).SearchTransition(*name, kData, attributes);
   if (maybe_transition != nullptr) {
-    *created_new_map = false;
     Handle<Map> transition(maybe_transition);
     int descriptor = transition->LastAdded();
 
@@ -9771,7 +9769,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
     return UpdateDescriptorForValue(transition, descriptor, constness, value);
   }
 
-  *created_new_map = true;
   TransitionFlag flag = INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
   if (!FLAG_track_constant_fields && value->IsJSFunction()) {

@@ -329,8 +329,6 @@ class StoreIC : public IC {
   Handle<Object> ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
-
-  bool created_new_transition_ = false;
 };
 
 class StoreGlobalIC : public StoreIC {

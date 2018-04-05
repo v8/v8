@@ -1300,8 +1300,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
           if (it->HolderIsReceiverOrHiddenPrototype()) return false;
 
           if (it->ExtendingNonExtensible(receiver)) return false;
-          created_new_transition_ = it->PrepareTransitionToDataProperty(
-              receiver, value, NONE, store_mode);
+          it->PrepareTransitionToDataProperty(receiver, value, NONE,
+                                              store_mode);
           return it->IsCacheableTransition();
         }
       }
@@ -1310,8 +1310,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 
   receiver = it->GetStoreTarget<JSObject>();
   if (it->ExtendingNonExtensible(receiver)) return false;
-  created_new_transition_ =
-      it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
+  it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
   return it->IsCacheableTransition();
 }
 
@@ -1434,13 +1433,6 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
         TraceIC("StoreGlobalIC", lookup->name());
         return;
       }
-    }
-    if (created_new_transition_) {
-      // The first time a transition is performed, there's a good chance that
-      // it won't be taken again, so don't bother creating a handler.
-      set_slow_stub_reason("new transition");
-      TraceIC("StoreIC", lookup->name());
-      return;
     }
     handler = ComputeHandler(lookup);
   } else {

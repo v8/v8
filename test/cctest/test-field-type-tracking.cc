@@ -368,10 +368,9 @@ class Expectations {
                  heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    bool created_new_map;
     return Map::TransitionToDataProperty(
         map, name, value, attributes, constness,
-        Object::CERTAINLY_NOT_STORE_FROM_KEYED, &created_new_map);
+        Object::CERTAINLY_NOT_STORE_FROM_KEYED);
   }
 
   Handle<Map> TransitionToDataConstant(Handle<Map> map,
@@ -382,10 +381,9 @@ class Expectations {
     SetDataConstant(property_index, attributes, value);
 
     Handle<String> name = MakeName("prop", property_index);
-    bool created_new_map;
-    return Map::TransitionToDataProperty(map, name, value, attributes, kConst,
-                                         Object::CERTAINLY_NOT_STORE_FROM_KEYED,
-                                         &created_new_map);
+    return Map::TransitionToDataProperty(
+        map, name, value, attributes, kConst,
+        Object::CERTAINLY_NOT_STORE_FROM_KEYED);
   }
 
   Handle<Map> FollowDataTransition(Handle<Map> map,

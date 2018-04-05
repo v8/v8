@@ -495,14 +495,12 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
 // Can only be called when the receiver is a JSObject. JSProxy has to be handled
 // via a trap. Adding properties to primitive values is not observable.
-// Returns true if a new transition has been created, or false if an existing
-// transition was followed.
-bool LookupIterator::PrepareTransitionToDataProperty(
+void LookupIterator::PrepareTransitionToDataProperty(
     Handle<JSReceiver> receiver, Handle<Object> value,
     PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
   DCHECK_IMPLIES(receiver->IsJSProxy(), name()->IsPrivate());
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
-  if (state_ == TRANSITION) return false;
+  if (state_ == TRANSITION) return;
 
   if (!IsElement() && name()->IsPrivate()) {
     attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
@@ -548,13 +546,11 @@ bool LookupIterator::PrepareTransitionToDataProperty(
           PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
       transition_ = map;
     }
-    return false;
+    return;
   }
 
-  bool created_new_map;
   Handle<Map> transition = Map::TransitionToDataProperty(
-      map, name_, value, attributes, kDefaultFieldConstness, store_mode,
-      &created_new_map);
+      map, name_, value, attributes, kDefaultFieldConstness, store_mode);
   state_ = TRANSITION;
   transition_ = transition;
 
@@ -566,7 +562,6 @@ bool LookupIterator::PrepareTransitionToDataProperty(
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
   }
-  return created_new_map;
 }
 
 void LookupIterator::ApplyTransitionToDataProperty(
