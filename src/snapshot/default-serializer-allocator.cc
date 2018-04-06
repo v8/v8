@@ -70,6 +70,11 @@ bool DefaultSerializerAllocator::BackReferenceIsAlreadyAllocated(
     return reference.large_object_index() < seen_large_objects_index_;
   } else if (space == MAP_SPACE) {
     return reference.map_index() < num_maps_;
+  } else if (space == RO_SPACE &&
+             serializer_->isolate()->heap()->deserialization_complete()) {
+    // If not deserializing the isolate itself, then we create BackReferences
+    // for all RO_SPACE objects without ever allocating.
+    return true;
   } else {
     size_t chunk_index = reference.chunk_index();
     if (chunk_index == completed_chunks_[space].size()) {

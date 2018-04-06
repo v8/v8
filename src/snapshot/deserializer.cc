@@ -281,6 +281,18 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
     case MAP_SPACE:
       obj = allocator()->GetMap(back_reference.map_index());
       break;
+    case RO_SPACE:
+      if (isolate()->heap()->deserialization_complete()) {
+        PagedSpace* read_only_space = isolate()->heap()->read_only_space();
+        Page* page = read_only_space->FirstPage();
+        for (uint32_t i = 0; i < back_reference.chunk_index(); ++i) {
+          page = page->next_page();
+        }
+        Address address = page->OffsetToAddress(back_reference.chunk_offset());
+        obj = HeapObject::FromAddress(address);
+        break;
+      }
+      V8_FALLTHROUGH;
     default:
       obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
                                    back_reference.chunk_index(),

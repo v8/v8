@@ -78,6 +78,9 @@ class CodeSerializer : public Serializer<> {
   void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
 
+  bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,
+                               WhereToPoint where_to_point, int skip);
+
   DisallowHeapAllocation no_gc_;
   uint32_t source_hash_;
   std::vector<uint32_t> stub_keys_;
