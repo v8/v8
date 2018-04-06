@@ -1009,6 +1009,11 @@
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run'
 
+['tsan', {
+  # https://crbug.com/v8/7632
+  'ecma_3/RegExp/regress-85721': [SKIP],
+}],  # tsan
+
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps
