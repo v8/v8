@@ -2522,28 +2522,34 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
+    auto wasm_instance_reg = r3;  // TODO(titzer): put in a common place.
+
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf<r0, r1, r2, r3>();
+    constexpr RegList gp_regs = Register::ListOf<r0, r1, r2>();
     constexpr DwVfpRegister lowest_fp_reg = d0;
     constexpr DwVfpRegister highest_fp_reg = d7;
 
     __ stm(db_w, sp, gp_regs);
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
 
-    // Initialize cp register with kZero, CEntryStub will use it to set the
-    // current context on the isolate.
+    // Pass the WASM instance as an explicit argument to WasmCompileLazy.
+    __ push(wasm_instance_reg);
+    // Initialize the JavaScript context with 0. CEntryStub will use it to
+    // set the current context on the isolate.
     __ Move(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
-    // Store returned instruction start in r8.
-    __ add(r8, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // The entrypoint address is the first return value.
+    __ mov(r8, kReturnRegister0);
+    // The WASM instance is the second return value.
+    __ mov(wasm_instance_reg, kReturnRegister1);
 
     // Restore registers.
     __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);
     __ ldm(ia_w, sp, gp_regs);
   }
-  // Now jump to the instructions of the returned code object.
+  // Finally, jump to the entrypoint.
   __ Jump(r8);
 }
 #undef __

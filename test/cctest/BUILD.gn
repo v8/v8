@@ -100,7 +100,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
-    "compiler/test-run-wasm-machops.cc",
     "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "expression-type-collector-macros.h",
@@ -240,7 +239,6 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",
-    "wasm/test-run-wasm-relocation.cc",
     "wasm/test-run-wasm-sign-extension.cc",
     "wasm/test-run-wasm-simd.cc",
     "wasm/test-run-wasm.cc",
@@ -277,7 +275,6 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
-      "test-run-wasm-relocation-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
@@ -290,7 +287,6 @@ v8_source_set("cctest_sources") {
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
-      "test-run-wasm-relocation-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
@@ -303,7 +299,6 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-ia32.cc",
       "test-log-stack-tracer.cc",
-      "test-run-wasm-relocation-ia32.cc",
     ]
   } else if (v8_current_cpu == "mips") {
     sources += [  ### gcmole(arch:mips) ###
@@ -350,7 +345,6 @@ v8_source_set("cctest_sources") {
       "test-disasm-x64.cc",
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x64.cc",
-      "test-run-wasm-relocation-x64.cc",
       "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {

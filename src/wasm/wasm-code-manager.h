@@ -232,6 +232,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // FunctionCount is WasmModule::functions.size().
   uint32_t FunctionCount() const;
   WasmCode* GetCode(uint32_t index) const;
+  void SetCode(uint32_t index, WasmCode* wasm_code);
 
   // Register/release the protected instructions in all code objects with the
   // global trap handler for this process.

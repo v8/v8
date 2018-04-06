@@ -2712,10 +2712,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    auto wasm_instance_reg = esi;  // TODO(titzer): put in a common place.
+
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr Register gp_regs[]{eax, ebx, ecx, edx, esi};
+    constexpr Register gp_regs[]{eax, ebx, ecx, edx};
     constexpr XMMRegister xmm_regs[]{xmm1, xmm2, xmm3, xmm4, xmm5, xmm6};
 
     for (auto reg : gp_regs) {
@@ -2726,12 +2728,16 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       __ movdqu(Operand(esp, 16 * i), xmm_regs[i]);
     }
 
-    // Initialize rsi register with kZero, CEntryStub will use it to set the
-    // current context on the isolate.
+    // Pass the WASM instance as an explicit argument to WasmCompileLazy.
+    __ Push(wasm_instance_reg);
+    // Initialize the JavaScript context with 0. CEntryStub will use it to
+    // set the current context on the isolate.
     __ Move(esi, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
-    // Store returned instruction start in edi.
-    __ lea(edi, FieldOperand(eax, Code::kHeaderSize));
+    // The entrypoint address is the first return value.
+    __ mov(edi, kReturnRegister0);
+    // The WASM instance is the second return value.
+    __ mov(wasm_instance_reg, kReturnRegister1);
 
     // Restore registers.
     for (int i = arraysize(xmm_regs) - 1; i >= 0; --i) {
@@ -2742,7 +2748,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       __ Pop(gp_regs[i]);
     }
   }
-  // Now jump to the instructions of the returned code object.
+  // Finally, jump to the entrypoint.
   __ jmp(edi);
 }
 

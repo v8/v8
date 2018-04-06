@@ -34,6 +34,16 @@ namespace {
     if (FLAG_trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
   } while (false)
 
+#define WASM_INSTANCE_OBJECT_OFFSET(name) \
+  (WasmInstanceObject::k##name##Offset - kHeapObjectTag)
+
+#define LOAD_INSTANCE_FIELD(dst, name, type)                       \
+  __ LoadFromInstance(dst.gp(), WASM_INSTANCE_OBJECT_OFFSET(name), \
+                      LoadType(type).size());
+
+constexpr LoadType::LoadTypeValue kPointerLoadType =
+    kPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
+
 #if V8_TARGET_ARCH_ARM64
 // On ARM64, the Assembler keeps track of pointers to Labels to resolve
 // branches to distant targets. Moving labels would confuse the Assembler,
@@ -272,24 +282,24 @@ class LiftoffCompiler {
     // finish compilation without errors even if we hit unimplemented
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
-    // Parameter 0 is the wasm context.
+    // Parameter 0 is the instance parameter.
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
         return;
     }
-    // Input 0 is the call target, the context is at 1.
-    constexpr int kContextParameterIndex = 1;
-    // Store the context parameter to a special stack slot.
-    compiler::LinkageLocation context_loc =
-        descriptor_->GetInputLocation(kContextParameterIndex);
-    DCHECK(context_loc.IsRegister());
-    DCHECK(!context_loc.IsAnyRegister());
-    Register context_reg = Register::from_code(context_loc.AsRegister());
-    __ SpillContext(context_reg);
-    // Input 0 is the code target, 1 is the context. First parameter at 2.
-    uint32_t input_idx = kContextParameterIndex + 1;
+    // Input 0 is the call target, the instance is at 1.
+    constexpr int kInstanceParameterIndex = 1;
+    // Store the instance parameter to a special stack slot.
+    compiler::LinkageLocation instance_loc =
+        descriptor_->GetInputLocation(kInstanceParameterIndex);
+    DCHECK(instance_loc.IsRegister());
+    DCHECK(!instance_loc.IsAnyRegister());
+    Register instance_reg = Register::from_code(instance_loc.AsRegister());
+    __ SpillInstance(instance_reg);
+    // Input 0 is the code target, 1 is the instance. First parameter at 2.
+    uint32_t input_idx = kInstanceParameterIndex + 1;
     for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
       input_idx += ProcessParameter(__ local_type(param_idx), input_idx);
     }
@@ -968,13 +978,12 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
       return;
     LiftoffRegList pinned;
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg)).gp();
-    __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
-                       kPointerSize);
+    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg));
+    LOAD_INSTANCE_FIELD(addr, GlobalsStart, kPointerLoadType);
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(global->type), pinned));
     LoadType type = LoadType::ForValueType(global->type);
-    __ Load(value, addr, no_reg, global->offset, type, pinned);
+    __ Load(value, addr.gp(), no_reg, global->offset, type, pinned);
     __ PushRegister(global->type, value);
   }
 
@@ -984,12 +993,11 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
       return;
     LiftoffRegList pinned;
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg)).gp();
-    __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
-                       kPointerSize);
+    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg));
+    LOAD_INSTANCE_FIELD(addr, GlobalsStart, kPointerLoadType);
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type = StoreType::ForValueType(global->type);
-    __ Store(addr, no_reg, global->offset, reg, type, pinned);
+    __ Store(addr.gp(), no_reg, global->offset, reg, type, pinned);
   }
 
   void Unreachable(Decoder* decoder) { unsupported(decoder, "unreachable"); }
@@ -1144,7 +1152,7 @@ class LiftoffCompiler {
     LiftoffRegister end_offset_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
-    __ LoadFromContext(mem_size.gp(), offsetof(WasmContext, mem_size), 4);
+    LOAD_INSTANCE_FIELD(mem_size, MemorySize, LoadType::kI32Load);
     __ LoadConstant(end_offset_reg, WasmValue(end_offset));
     if (end_offset >= min_size_) {
       __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32,
@@ -1235,12 +1243,12 @@ class LiftoffCompiler {
     if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
       return;
     }
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
+    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerLoadType);
     RegClass rc = reg_class_for(value_type);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
     uint32_t protected_load_pc = 0;
-    __ Load(value, addr, index, operand.offset, type, pinned,
+    __ Load(value, addr.gp(), index, operand.offset, type, pinned,
             &protected_load_pc);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
@@ -1266,10 +1274,10 @@ class LiftoffCompiler {
     if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
       return;
     }
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
+    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerLoadType);
     uint32_t protected_store_pc = 0;
-    __ Store(addr, index, operand.offset, value, type, pinned,
+    __ Store(addr.gp(), index, operand.offset, value, type, pinned,
              &protected_store_pc);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
@@ -1304,19 +1312,55 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    __ PrepareCall(operand.sig, call_descriptor);
+    if (operand.index < env_->module->num_imported_functions) {
+      // A direct call to an imported function.
+      LiftoffRegList pinned;
+      LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-    source_position_table_builder_->AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), false);
+      LiftoffRegister imported_targets = tmp;
+      LOAD_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
+                          kPointerLoadType);
+      __ Load(target, imported_targets.gp(), no_reg,
+              operand.index * sizeof(Address), kPointerLoadType, pinned);
 
-    // Just encode the function index. This will be patched at instantiation.
-    Address addr = reinterpret_cast<Address>(operand.index);
-    __ CallNativeWasmCode(addr);
+      LiftoffRegister imported_instances = tmp;
+      LOAD_INSTANCE_FIELD(imported_instances, ImportedFunctionInstances,
+                          kPointerLoadType);
+      LiftoffRegister target_instance = tmp;
+      __ Load(target_instance, imported_instances.gp(), no_reg,
+              compiler::FixedArrayOffsetMinusTag(operand.index),
+              kPointerLoadType, pinned);
 
-    safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
-                                             Safepoint::kNoLazyDeopt);
+      LiftoffRegister* explicit_instance = &target_instance;
+      Register target_reg = target.gp();
+      __ PrepareCall(operand.sig, call_descriptor, &target_reg,
+                     explicit_instance);
+      source_position_table_builder_->AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), false);
 
-    __ FinishCall(operand.sig, call_descriptor);
+      __ CallIndirect(operand.sig, call_descriptor, target_reg);
+
+      safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                               Safepoint::kNoLazyDeopt);
+
+      __ FinishCall(operand.sig, call_descriptor);
+    } else {
+      // A direct call within this module just gets the current instance.
+      __ PrepareCall(operand.sig, call_descriptor);
+
+      source_position_table_builder_->AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), false);
+
+      // Just encode the function index. This will be patched at instantiation.
+      Address addr = reinterpret_cast<Address>(operand.index);
+      __ CallNativeWasmCode(addr);
+
+      safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                               Safepoint::kNoLazyDeopt);
+
+      __ FinishCall(operand.sig, call_descriptor);
+    }
   }
 
   void CallIndirect(Decoder* decoder, const Value& index_val,
@@ -1349,37 +1393,31 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-    LiftoffRegister* explicit_context = nullptr;
-
     // Bounds check against the table size.
     Label* invalid_func_label = AddOutOfLineTrap(
         decoder->position(), Builtins::kThrowWasmTrapFuncInvalid);
-
-    static constexpr LoadType kPointerLoadType =
-        kPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
 
     uint32_t canonical_sig_num = env_->module->signature_ids[operand.sig_index];
     DCHECK_GE(canonical_sig_num, 0);
     DCHECK_GE(kMaxInt, canonical_sig_num);
 
-    // Compare against table size stored in {wasm_context->table_size}.
-    __ LoadFromContext(tmp_const.gp(), offsetof(WasmContext, table_size),
-                       sizeof(uint32_t));
+    // Compare against table size stored in
+    // {instance->indirect_function_table_size}.
+    LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize,
+                        LoadType::kI32Load);
     __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kWasmI32,
                       index.gp(), tmp_const.gp());
-    // Load the table from {wasm_context->table}
-    __ LoadFromContext(table.gp(), offsetof(WasmContext, table), kPointerSize);
-    // Load the signature from {wasm_context->table[$index].sig_id}
-    // == wasm_context.table + $index * #sizeof(IndirectionFunctionTableEntry)
-    //    + #offsetof(sig_id)
-    __ LoadConstant(
-        tmp_const,
-        WasmValue(static_cast<uint32_t>(sizeof(IndirectFunctionTableEntry))));
-    __ emit_i32_mul(index.gp(), index.gp(), tmp_const.gp());
-    __ Load(scratch, table.gp(), index.gp(),
-            offsetof(IndirectFunctionTableEntry, sig_id), LoadType::kI32Load,
-            pinned);
 
+    // Load the signature from {instance->ift_sig_ids[key]}
+    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kPointerLoadType);
+    __ LoadConstant(tmp_const,
+                    WasmValue(static_cast<uint32_t>(sizeof(uint32_t))));
+    // TODO(wasm): use a emit_i32_shli() instead of a multiply.
+    // (currently cannot use shl on ia32/x64 because it clobbers %rcx).
+    __ emit_i32_mul(index.gp(), index.gp(), tmp_const.gp());
+    __ Load(scratch, table.gp(), index.gp(), 0, LoadType::kI32Load, pinned);
+
+    // Compare against expected signature.
     __ LoadConstant(tmp_const, WasmValue(canonical_sig_num));
 
     Label* sig_mismatch_label = AddOutOfLineTrap(
@@ -1388,18 +1426,23 @@ class LiftoffCompiler {
                       LiftoffAssembler::kWasmIntPtr, scratch.gp(),
                       tmp_const.gp());
 
-    // Load the target address from {wasm_context->table[$index].target}
-    __ Load(scratch, table.gp(), index.gp(),
-            offsetof(IndirectFunctionTableEntry, target), kPointerLoadType,
-            pinned);
+    if (kPointerSize == 8) {
+      // {index} has already been multiplied by 4. Multiply by another 2.
+      __ LoadConstant(tmp_const, WasmValue(2));
+      __ emit_i32_mul(index.gp(), index.gp(), tmp_const.gp());
+    }
 
-    // Load the context from {wasm_context->table[$index].context}
-    // TODO(wasm): directly allocate the correct context register to avoid
-    // any potential moves.
+    // Load the target from {instance->ift_targets[key]}
+    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets, kPointerLoadType);
+    __ Load(scratch, table.gp(), index.gp(), 0, kPointerLoadType, pinned);
+
+    // Load the instance from {instance->ift_instances[key]}
+    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableInstances,
+                        kPointerLoadType);
     __ Load(tmp_const, table.gp(), index.gp(),
-            offsetof(IndirectFunctionTableEntry, context), kPointerLoadType,
+            (FixedArray::kHeaderSize - kHeapObjectTag), kPointerLoadType,
             pinned);
-    explicit_context = &tmp_const;
+    LiftoffRegister* explicit_instance = &tmp_const;
 
     source_position_table_builder_->AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
@@ -1410,7 +1453,7 @@ class LiftoffCompiler {
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
     Register target = scratch.gp();
-    __ PrepareCall(operand.sig, call_descriptor, &target, explicit_context);
+    __ PrepareCall(operand.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(operand.sig, call_descriptor, target);
 
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
@@ -1544,6 +1587,8 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
 
 #undef __
 #undef TRACE
+#undef WASM_INSTANCE_OBJECT_OFFSET
+#undef LOAD_INSTANCE_FIELD
 
 }  // namespace internal
 }  // namespace v8

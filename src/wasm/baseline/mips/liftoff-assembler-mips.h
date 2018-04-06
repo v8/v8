@@ -15,8 +15,8 @@ namespace wasm {
 
 namespace liftoff {
 
-// fp-8 holds the stack marker, fp-16 is the wasm context, first stack slot
-// is located at fp-24.
+// fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
+// slot is located at fp-24.
 constexpr int32_t kConstantStackSpace = 16;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
@@ -31,7 +31,7 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
-inline MemOperand GetContextOperand() { return MemOperand(fp, -16); }
+inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
 
 // Use this register to store the address of the last argument pushed on the
 // stack for a call to C. This register must be callee saved according to the c
@@ -129,20 +129,20 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
-                                       int size) {
+void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
+                                        int size) {
   DCHECK_LE(offset, kMaxInt);
-  lw(dst, liftoff::GetContextOperand());
+  lw(dst, liftoff::GetInstanceOperand());
   DCHECK_EQ(4, size);
   lw(dst, MemOperand(dst, offset));
 }
 
-void LiftoffAssembler::SpillContext(Register context) {
-  sw(context, liftoff::GetContextOperand());
+void LiftoffAssembler::SpillInstance(Register instance) {
+  sw(instance, liftoff::GetInstanceOperand());
 }
 
-void LiftoffAssembler::FillContextInto(Register dst) {
-  lw(dst, liftoff::GetContextOperand());
+void LiftoffAssembler::FillInstanceInto(Register dst) {
+  lw(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -894,7 +894,7 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
 }
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  // Set context to zero.
+  // Set instance to zero.
   TurboAssembler::Move(cp, zero_reg);
   CallRuntimeDelayed(zone, fid);
 }

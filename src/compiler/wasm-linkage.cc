@@ -32,6 +32,8 @@ MachineType MachineTypeFor(ValueType type) {
       return MachineType::Float32();
     case wasm::kWasmS128:
       return MachineType::Simd128();
+    case wasm::kWasmAnyRef:
+      return MachineType::TaggedPointer();
     default:
       UNREACHABLE();
   }
@@ -225,15 +227,15 @@ static constexpr Allocator parameter_registers(kGPParamRegisters,
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
                                       bool use_retpoline) {
-  // The '+ 1' here is to accomodate the wasm_context as first parameter.
+  // The '+ 1' here is to accomodate the instance object as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
 
   // Add register and/or stack parameter(s).
   Allocator params = parameter_registers;
 
-  // The wasm_context.
-  locations.AddParam(params.Next(MachineType::PointerRepresentation()));
+  // The instance object.
+  locations.AddParam(params.Next(MachineRepresentation::kTaggedPointer));
 
   const int parameter_count = static_cast<int>(fsig->parameter_count());
   for (int i = 0; i < parameter_count; i++) {

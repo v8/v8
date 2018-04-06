@@ -61,7 +61,6 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
         mode_mask ==
         (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
          RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-         RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
          RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
          RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
          RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |

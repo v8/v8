@@ -23,8 +23,8 @@ constexpr ValueType kWasmI32 = MachineRepresentation::kWord32;
 constexpr ValueType kWasmI64 = MachineRepresentation::kWord64;
 constexpr ValueType kWasmF32 = MachineRepresentation::kFloat32;
 constexpr ValueType kWasmF64 = MachineRepresentation::kFloat64;
-constexpr ValueType kWasmAnyRef = MachineRepresentation::kTaggedPointer;
 constexpr ValueType kWasmS128 = MachineRepresentation::kSimd128;
+constexpr ValueType kWasmAnyRef = MachineRepresentation::kTaggedPointer;
 constexpr ValueType kWasmVar = MachineRepresentation::kTagged;
 
 using FunctionSig = Signature<ValueType>;

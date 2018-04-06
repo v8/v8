@@ -611,7 +611,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_WASM(F)   \
   F(ThrowWasmError, 1, 1)            \
   F(ThrowWasmStackOverflow, 0, 1)    \
-  F(WasmCompileLazy, 0, 1)           \
   F(WasmExceptionGetElement, 1, 1)   \
   F(WasmExceptionSetElement, 2, 1)   \
   F(WasmGetExceptionRuntimeId, 0, 1) \
@@ -623,6 +622,7 @@ namespace internal {
   F(WasmThrowTypeError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
+  F(WasmCompileLazy, 1, 2)                \
   F(DebugBreakOnBytecode, 1, 2)           \
   F(LoadLookupSlotForCall, 1, 2)
 

@@ -366,10 +366,6 @@ class RelocInfo {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,
     EMBEDDED_OBJECT,
-    // Wasm entries are to relocate pointers into the wasm memory embedded in
-    // wasm code. Everything after WASM_CONTEXT_REFERENCE (inclusive) is not
-    // GC'ed.
-    WASM_CONTEXT_REFERENCE,
     WASM_GLOBAL_HANDLE,
     WASM_CALL,
     JS_TO_WASM_CALL,
@@ -466,15 +462,12 @@ class RelocInfo {
     return mode == OFF_HEAP_TARGET;
   }
   static inline bool IsNone(Mode mode) { return mode == NONE; }
-  static inline bool IsWasmContextReference(Mode mode) {
-    return mode == WASM_CONTEXT_REFERENCE;
-  }
   static inline bool IsWasmReference(Mode mode) {
     return IsWasmPtrReference(mode);
   }
   static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_CONTEXT_REFERENCE || mode == WASM_GLOBAL_HANDLE ||
-           mode == WASM_CALL || mode == JS_TO_WASM_CALL;
+    return mode == WASM_GLOBAL_HANDLE || mode == WASM_CALL ||
+           mode == JS_TO_WASM_CALL;
   }
 
   static constexpr int ModeMask(Mode mode) { return 1 << mode; }
@@ -509,14 +502,10 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  Address wasm_context_reference() const;
   Address global_handle() const;
   Address js_to_wasm_address() const;
   Address wasm_call_address() const;
 
-  void set_wasm_context_reference(
-      Address address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_target_address(
       Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,

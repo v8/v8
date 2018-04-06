@@ -15,8 +15,8 @@ namespace wasm {
 
 namespace liftoff {
 
-// fp-8 holds the stack marker, fp-16 is the wasm context, first stack slot
-// is located at fp-24.
+// fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
+// slot is located at fp-24.
 constexpr int32_t kConstantStackSpace = 16;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
@@ -26,7 +26,7 @@ inline MemOperand GetStackSlot(uint32_t index) {
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
-inline MemOperand GetContextOperand() { return MemOperand(fp, -16); }
+inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
 
 // Use this register to store the address of the last argument pushed on the
 // stack for a call to C. This register must be callee saved according to the c
@@ -120,10 +120,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
-                                       int size) {
+void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
+                                        int size) {
   DCHECK_LE(offset, kMaxInt);
-  ld(dst, liftoff::GetContextOperand());
+  ld(dst, liftoff::GetInstanceOperand());
   DCHECK(size == 4 || size == 8);
   if (size == 4) {
     lw(dst, MemOperand(dst, offset));
@@ -132,12 +132,12 @@ void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::SpillContext(Register context) {
-  sd(context, liftoff::GetContextOperand());
+void LiftoffAssembler::SpillInstance(Register instance) {
+  sd(instance, liftoff::GetInstanceOperand());
 }
 
-void LiftoffAssembler::FillContextInto(Register dst) {
-  ld(dst, liftoff::GetContextOperand());
+void LiftoffAssembler::FillInstanceInto(Register dst) {
+  ld(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -735,7 +735,7 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
 }
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  // Set context to zero.
+  // Set instance to zero.
   TurboAssembler::Move(cp, zero_reg);
   CallRuntimeDelayed(zone, fid);
 }

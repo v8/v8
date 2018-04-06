@@ -37,6 +37,7 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   return owning_instance;
 }
 
+// TODO(titzer): rename to GetNativeContextFromWasmInstanceOnStackTop()
 Context* GetWasmContextOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)
       ->compiled_module()
@@ -286,15 +287,17 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
-  DCHECK_EQ(0, args.length());
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_WasmCompileLazy) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance_on_stack, 0);
+  // TODO(titzer): The location on the stack is not visited by the
+  // roots visitor because the type of the frame is a special
+  // WASM builtin. Reopen the handle in a handle scope as a workaround.
   HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance(*instance_on_stack, isolate);
 
-  Address new_func = wasm::CompileLazy(isolate);
-  // The alternative to this is having 2 lazy compile builtins. The builtins
-  // are part of the snapshot, so the flag has no impact on the codegen there.
-  return reinterpret_cast<Object*>(new_func - Code::kHeaderSize +
-                                   kHeapObjectTag);
+  Address entrypoint = wasm::CompileLazy(isolate, instance);
+  return MakePair(reinterpret_cast<Object*>(entrypoint), *instance);
 }
 
 }  // namespace internal

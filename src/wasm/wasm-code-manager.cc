@@ -472,7 +472,13 @@ void NativeModule::ResizeCodeTableForTest(size_t last_index) {
 }
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {
+  DCHECK_LT(index, FunctionCount());
   return code_table_[index];
+}
+
+void NativeModule::SetCode(uint32_t index, WasmCode* wasm_code) {
+  DCHECK_LT(index, FunctionCount());
+  code_table_[index] = wasm_code;
 }
 
 uint32_t NativeModule::FunctionCount() const {
@@ -618,6 +624,10 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
+  if (FLAG_print_wasm_code) {
+    // TODO(mstarzinger): don't need the isolate here.
+    ret->Print(code->GetIsolate());
+  }
   return ret;
 }
 
