@@ -1319,8 +1319,6 @@ namespace internal {
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
-#define BUILTINS_WITH_UNTAGGED_PARAMS(V) V(WasmCompileLazy)
-
 }  // namespace internal
 }  // namespace v8
 

@@ -1361,14 +1361,11 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
       script, asm_js_offset_table);
   if (lazy_compile) WasmSharedModuleData::PrepareForLazyCompilation(shared);
 
-  Handle<Code> init_builtin = lazy_compile
-                                  ? BUILTIN_CODE(isolate, WasmCompileLazy)
-                                  : BUILTIN_CODE(isolate, Illegal);
-
   int export_wrappers_size =
       static_cast<int>(wasm_module->num_exported_functions);
   Handle<FixedArray> export_wrappers =
       factory->NewFixedArray(static_cast<int>(export_wrappers_size), TENURED);
+  Handle<Code> init_builtin = BUILTIN_CODE(isolate, Illegal);
   for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
     export_wrappers->set(i, *init_builtin);
   }

@@ -1873,7 +1873,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   result->initialize_flags(code->kind(), code->has_unwinding_info(),
                            code->is_turbofanned(), stack_slots);
   result->set_builtin_index(code->builtin_index());
-  result->set_has_tagged_params(code->has_tagged_params());
   result->set_handler_table_offset(code->handler_table_offset());
   result->code_data_container()->set_kind_specific_flags(
       code->code_data_container()->kind_specific_flags());

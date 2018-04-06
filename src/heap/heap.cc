@@ -3348,25 +3348,11 @@ AllocationResult Heap::AllocateCode(
   code->set_safepoint_table_offset(safepoint_table_offset);
   code->set_handler_table_offset(handler_table_offset);
   code->set_code_data_container(data_container);
-  code->set_has_tagged_params(true);
   code->set_deoptimization_data(deopt_data);
   code->set_stub_key(stub_key);
   code->set_source_position_table(source_position_table);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(builtin_index);
-
-  switch (code->kind()) {
-    case Code::OPTIMIZED_FUNCTION:
-      code->set_marked_for_deoptimization(false);
-      break;
-    case Code::JS_TO_WASM_FUNCTION:
-    case Code::C_WASM_ENTRY:
-    case Code::WASM_FUNCTION:
-      code->set_has_tagged_params(false);
-      break;
-    default:
-      break;
-  }
 
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.

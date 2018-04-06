@@ -359,19 +359,13 @@ inline bool Code::checks_optimization_marker() const {
          (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
 }
 
+inline bool Code::has_tagged_params() const {
+  return kind() != JS_TO_WASM_FUNCTION && kind() != C_WASM_ENTRY &&
+         kind() != WASM_FUNCTION;
+}
+
 inline bool Code::has_unwinding_info() const {
   return HasUnwindingInfoField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
-}
-
-inline bool Code::has_tagged_params() const {
-  int flags = READ_UINT32_FIELD(this, kFlagsOffset);
-  return HasTaggedStackField::decode(flags);
-}
-
-inline void Code::set_has_tagged_params(bool value) {
-  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
-  int updated = HasTaggedStackField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 inline bool Code::is_turbofanned() const {

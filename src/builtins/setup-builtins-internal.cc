@@ -285,17 +285,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION
 
-  // TODO(mstarzinger,6792): This code-space modification section should be
-  // moved into {Heap} eventually and a safe wrapper be provided.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-#define SET_CODE_NON_TAGGED_PARAMS(Name)             \
-  Code::cast(builtins->builtins_[Builtins::k##Name]) \
-      ->set_has_tagged_params(false);
-
-  BUILTINS_WITH_UNTAGGED_PARAMS(SET_CODE_NON_TAGGED_PARAMS)
-#undef SET_CODE_NON_TAGGED_PARAMS
-
   builtins->MarkInitialized();
 }
 
