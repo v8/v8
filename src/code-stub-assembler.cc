@@ -561,11 +561,11 @@ TNode<Float64T> CodeStubAssembler::SmiToFloat64(SloppyTNode<Smi> value) {
 }
 
 TNode<Smi> CodeStubAssembler::SmiMax(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
-  return SelectTaggedConstant(SmiLessThan(a, b), b, a);
+  return SelectConstant<Smi>(SmiLessThan(a, b), b, a);
 }
 
 TNode<Smi> CodeStubAssembler::SmiMin(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
-  return SelectTaggedConstant(SmiLessThan(a, b), a, b);
+  return SelectConstant<Smi>(SmiLessThan(a, b), a, b);
 }
 
 TNode<Object> CodeStubAssembler::NumberMax(SloppyTNode<Object> a,
@@ -1397,9 +1397,11 @@ TNode<BoolT> CodeStubAssembler::TaggedDoesntHaveInstanceType(
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
     SloppyTNode<JSObject> object) {
   CSA_SLOW_ASSERT(this, Word32Not(IsDictionaryMap(LoadMap(object))));
-  Node* properties = LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
-  return SelectTaggedConstant<HeapObject>(
-      TaggedIsSmi(properties), EmptyFixedArrayConstant(), properties);
+  TNode<Object> properties =
+      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+  return Select<HeapObject>(TaggedIsSmi(properties),
+                            [=] { return EmptyFixedArrayConstant(); },
+                            [=] { return CAST(properties); });
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
@@ -1407,9 +1409,9 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties =
       LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
-  return SelectTaggedConstant<HeapObject>(TaggedIsSmi(properties),
-                                          EmptyPropertyDictionaryConstant(),
-                                          CAST(properties));
+  return Select<HeapObject>(TaggedIsSmi(properties),
+                            [=] { return EmptyPropertyDictionaryConstant(); },
+                            [=] { return CAST(properties); });
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::LoadElements(

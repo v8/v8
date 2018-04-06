@@ -279,7 +279,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName)                       \
-  Node* SmiOpName(Node* a, Node* b) {                                    \
+  TNode<BoolT> SmiOpName(Node* a, Node* b) {                             \
     return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
   }
   SMI_COMPARISON_OP(SmiEqual, WordEqual)
@@ -376,13 +376,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<IntPtrT> SelectIntPtrConstant(SloppyTNode<BoolT> condition,
                                       int true_value, int false_value);
   TNode<Oddball> SelectBooleanConstant(SloppyTNode<BoolT> condition);
-  template <class A>
-  TNode<A> SelectTaggedConstant(SloppyTNode<BoolT> condition,
-                                TNode<A> true_value,
-                                SloppyTNode<A> false_value) {
-    static_assert(std::is_base_of<Object, A>::value, "not a tagged type");
-    return SelectConstant<A>(condition, true_value, false_value);
-  }
   TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi* true_value,
                                Smi* false_value);
   TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, int true_value,

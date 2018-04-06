@@ -771,11 +771,15 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     // as the exception is observable.
     Node* receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
-    Node* builtin_tag = SelectTaggedConstant<Object>(
-        IsTrue(receiver_is_array), LoadRoot(Heap::kArray_stringRootIndex),
-        SelectTaggedConstant<Object>(IsCallableMap(receiver_map),
-                                     LoadRoot(Heap::kFunction_stringRootIndex),
-                                     LoadRoot(Heap::kObject_stringRootIndex)));
+    TNode<String> builtin_tag = Select<String>(
+        IsTrue(receiver_is_array),
+        [=] { return CAST(LoadRoot(Heap::kArray_stringRootIndex)); },
+        [=] {
+          return Select<String>(
+              IsCallableMap(receiver_map),
+              [=] { return CAST(LoadRoot(Heap::kFunction_stringRootIndex)); },
+              [=] { return CAST(LoadRoot(Heap::kObject_stringRootIndex)); });
+        });
 
     // Lookup the @@toStringTag property on the {receiver}.
     VARIABLE(var_tag, MachineRepresentation::kTagged,

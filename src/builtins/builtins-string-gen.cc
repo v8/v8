@@ -1943,7 +1943,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
     {
       TNode<Smi> const zero = SmiConstant(0);
       var_result =
-          SelectTaggedConstant(SmiLessThan(value_smi, zero), zero, limit);
+          SelectConstant<Smi>(SmiLessThan(value_smi, zero), zero, limit);
       Goto(&out);
     }
   }
@@ -1956,8 +1956,8 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
     TNode<Float64T> const float_zero = Float64Constant(0.);
     TNode<Smi> const smi_zero = SmiConstant(0);
     TNode<Float64T> const value_float = LoadHeapNumberValue(value_int_hn);
-    var_result = SelectTaggedConstant(Float64LessThan(value_float, float_zero),
-                                      smi_zero, limit);
+    var_result = SelectConstant<Smi>(Float64LessThan(value_float, float_zero),
+                                     smi_zero, limit);
     Goto(&out);
   }
 
