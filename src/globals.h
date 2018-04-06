@@ -570,10 +570,10 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
 }
 
 // A flag that indicates whether objects should be pretenured when
-// allocated (allocated directly into either the old generation or read-only
-// space), or not (allocated in the young generation if the object size and type
+// allocated (allocated directly into the old generation) or not
+// (allocated in the young generation if the object size and type
 // allows).
-enum PretenureFlag { NOT_TENURED, TENURED, TENURED_READ_ONLY };
+enum PretenureFlag { NOT_TENURED, TENURED };
 
 inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
   switch (flag) {
@@ -581,8 +581,6 @@ inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
       return os << "NotTenured";
     case TENURED:
       return os << "Tenured";
-    case TENURED_READ_ONLY:
-      return os << "TenuredReadOnly";
   }
   UNREACHABLE();
 }

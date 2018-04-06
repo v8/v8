@@ -173,8 +173,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   // Allocate string.
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation =
-        AllocateRaw(size, CanAllocateInReadOnlySpace() ? RO_SPACE : OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -339,7 +338,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     DCHECK(isolate_->serializer_enabled());
 #endif
     DCHECK(!large_object);
-    DCHECK(CanAllocateInReadOnlySpace());
     allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
   } else {
     // NEW_SPACE is not allowed here.
@@ -417,12 +415,6 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
   } else if (FLAG_fuzzer_gc_analysis) {
     ++allocations_count_;
   }
-}
-
-bool Heap::CanAllocateInReadOnlySpace() {
-  return !deserialization_complete_ &&
-         (isolate()->serializer_enabled() ||
-          !isolate()->initialized_from_snapshot());
 }
 
 void Heap::UpdateAllocationsHash(HeapObject* object) {

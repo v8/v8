@@ -933,7 +933,6 @@ class Heap {
   inline void OnMoveEvent(HeapObject* target, HeapObject* source,
                           int size_in_bytes);
 
-  inline bool CanAllocateInReadOnlySpace();
   bool deserialization_complete() const { return deserialization_complete_; }
 
   bool HasLowAllocationRate();
@@ -1801,16 +1800,7 @@ class Heap {
 
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
-    switch (pretenure) {
-      case TENURED_READ_ONLY:
-        return RO_SPACE;
-      case TENURED:
-        return OLD_SPACE;
-      case NOT_TENURED:
-        return NEW_SPACE;
-      default:
-        UNREACHABLE();
-    }
+    return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
   }
 
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
@@ -2224,8 +2214,6 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       AllocatePartialMap(InstanceType instance_type, int instance_size);
 
-  void FinalizePartialMap(Map* map);
-
   // Allocate a block of memory in the given space (filled with a filler).
   // Used as a fall-back for generated code when the space is full.
   MUST_USE_RESULT AllocationResult
@@ -2352,8 +2340,8 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateEmptyBoilerplateDescription();
 
   // Allocate empty fixed typed array of given type.
-  MUST_USE_RESULT AllocationResult AllocateEmptyFixedTypedArray(
-      ExternalArrayType array_type, PretenureFlag pretenure = TENURED);
+  MUST_USE_RESULT AllocationResult
+      AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
 
   // Allocate a tenured simple cell.
   MUST_USE_RESULT AllocationResult AllocateCell(Object* value);
@@ -2365,8 +2353,7 @@ class Heap {
   // Allocate a tenured JS global property cell initialized with the hole.
   MUST_USE_RESULT AllocationResult AllocatePropertyCell(Name* name);
 
-  MUST_USE_RESULT AllocationResult
-  AllocateWeakCell(HeapObject* value, PretenureFlag pretenure = TENURED);
+  MUST_USE_RESULT AllocationResult AllocateWeakCell(HeapObject* value);
 
   MUST_USE_RESULT AllocationResult AllocateTransitionArray(int capacity);
 

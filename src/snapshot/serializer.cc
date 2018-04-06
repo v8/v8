@@ -25,19 +25,13 @@ Serializer<AllocatorT>::Serializer(Isolate* isolate)
   if (FLAG_serialization_statistics) {
     instance_type_count_ = NewArray<int>(kInstanceTypes);
     instance_type_size_ = NewArray<size_t>(kInstanceTypes);
-    read_only_instance_type_count_ = NewArray<int>(kInstanceTypes);
-    read_only_instance_type_size_ = NewArray<size_t>(kInstanceTypes);
     for (int i = 0; i < kInstanceTypes; i++) {
       instance_type_count_[i] = 0;
       instance_type_size_[i] = 0;
-      read_only_instance_type_count_[i] = 0;
-      read_only_instance_type_size_[i] = 0;
     }
   } else {
     instance_type_count_ = nullptr;
     instance_type_size_ = nullptr;
-    read_only_instance_type_count_ = nullptr;
-    read_only_instance_type_size_ = nullptr;
   }
 #endif  // OBJECT_PRINT
 }
@@ -49,24 +43,16 @@ Serializer<AllocatorT>::~Serializer() {
   if (instance_type_count_ != nullptr) {
     DeleteArray(instance_type_count_);
     DeleteArray(instance_type_size_);
-    DeleteArray(read_only_instance_type_count_);
-    DeleteArray(read_only_instance_type_size_);
   }
 #endif  // OBJECT_PRINT
 }
 
 #ifdef OBJECT_PRINT
 template <class AllocatorT>
-void Serializer<AllocatorT>::CountInstanceType(Map* map, int size,
-                                               AllocationSpace space) {
+void Serializer<AllocatorT>::CountInstanceType(Map* map, int size) {
   int instance_type = map->instance_type();
-  if (space != RO_SPACE) {
-    instance_type_count_[instance_type]++;
-    instance_type_size_[instance_type] += size;
-  } else {
-    read_only_instance_type_count_[instance_type]++;
-    read_only_instance_type_size_[instance_type] += size;
-  }
+  instance_type_count_[instance_type]++;
+  instance_type_size_[instance_type] += size;
 }
 #endif  // OBJECT_PRINT
 
@@ -86,21 +72,6 @@ void Serializer<AllocatorT>::OutputStatistics(const char* name) {
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
-  size_t read_only_total = 0;
-#define UPDATE_TOTAL(Name) \
-  read_only_total += read_only_instance_type_size_[Name];
-  INSTANCE_TYPE_LIST(UPDATE_TOTAL)
-#undef UPDATE_TOTAL
-  if (read_only_total > 0) {
-    PrintF("\n  Read Only Instance types (count and bytes):\n");
-#define PRINT_INSTANCE_TYPE(Name)                                           \
-  if (read_only_instance_type_count_[Name]) {                               \
-    PrintF("%10d %10" PRIuS "  %s\n", read_only_instance_type_count_[Name], \
-           read_only_instance_type_size_[Name], #Name);                     \
-  }
-    INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
-#undef PRINT_INSTANCE_TYPE
-  }
   PrintF("\n");
 #endif  // OBJECT_PRINT
 }
@@ -389,7 +360,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializePrologue(
 
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
-    serializer_->CountInstanceType(map, size, space);
+    serializer_->CountInstanceType(map, size);
   }
 #endif  // OBJECT_PRINT
 
