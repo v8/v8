@@ -23,6 +23,10 @@ declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
+  # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
+  # within a release Chrome.
+  v8_enable_debugging_features = is_debug
+
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
 
@@ -148,25 +152,26 @@ declare_args() {
 
 # Derived defaults.
 if (v8_enable_verify_heap == "") {
-  v8_enable_verify_heap = is_debug
+  v8_enable_verify_heap = v8_enable_debugging_features
 }
 if (v8_enable_object_print == "") {
-  v8_enable_object_print = is_debug
+  v8_enable_object_print = v8_enable_debugging_features
 }
 if (v8_enable_disassembler == "") {
-  v8_enable_disassembler = is_debug
+  v8_enable_disassembler = v8_enable_debugging_features
 }
 if (v8_enable_trace_maps == "") {
-  v8_enable_trace_maps = is_debug
+  v8_enable_trace_maps = v8_enable_debugging_features
 }
 if (v8_enable_test_features == "") {
-  v8_enable_test_features = is_debug || dcheck_always_on
+  v8_enable_test_features = v8_enable_debugging_features || dcheck_always_on
 }
 if (v8_enable_v8_checks == "") {
-  v8_enable_v8_checks = is_debug
+  v8_enable_v8_checks = v8_enable_debugging_features
 }
 if (v8_check_microtasks_scopes_consistency == "") {
-  v8_check_microtasks_scopes_consistency = is_debug || dcheck_always_on
+  v8_check_microtasks_scopes_consistency =
+      v8_enable_debugging_features || dcheck_always_on
 }
 
 # Specifies if the target build is a simulator build. Comparing target cpu
@@ -502,7 +507,7 @@ config("toolchain") {
   # TODO(jochen): Support v8_enable_prof on Windows.
   # TODO(jochen): Add support for compiling with simulators.
 
-  if (is_debug) {
+  if (v8_enable_debugging_features) {
     if (is_linux && v8_enable_backtrace) {
       ldflags += [ "-rdynamic" ]
     }
@@ -949,7 +954,7 @@ action("v8_dump_build_config") {
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
     "is_component_build=$is_component_build",
-    "is_debug=$is_debug",
+    "is_debug=$v8_enable_debugging_features",
     "is_gcov_coverage=$is_gcov_coverage",
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
@@ -2785,7 +2790,7 @@ v8_component("v8_libbase") {
       # Copy the VS runtime DLLs into the isolate so that they don't have to be
       # preinstalled on the target machine. The debug runtimes have a "d" at
       # the end.
-      if (is_debug) {
+      if (v8_enable_debugging_features) {
         vcrt_suffix = "d"
       } else {
         vcrt_suffix = ""
