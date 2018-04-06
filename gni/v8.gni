@@ -121,6 +121,10 @@ if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 
+if (!build_with_chromium && is_clang) {
+  v8_remove_configs += [ "//build/config/clang:find_bad_constructs" ]
+}
+
 # All templates should be kept in sync.
 template("v8_source_set") {
   if (defined(invoker.split_count) && invoker.split_count > 1 &&
