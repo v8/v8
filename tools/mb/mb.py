@@ -389,7 +389,7 @@ class MetaBuildWrapper(object):
     elif self.platform.startswith('linux'):
       os_dim = ('os', 'Ubuntu-14.04')
     elif self.platform == 'win32':
-      os_dim = ('os', 'Windows-10-14393')
+      os_dim = ('os', 'Windows-10')
     else:
       raise MBErr('unrecognized platform string "%s"' % self.platform)
 
