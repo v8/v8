@@ -2599,8 +2599,12 @@ void AsyncCompileJob::DoSync(Args&&... args) {
 }
 
 void AsyncCompileJob::StartBackgroundTask() {
-  background_task_runner_->PostTask(
-      base::make_unique<CompileTask>(this, false));
+  // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
+  // tasks. This is used to make timing deterministic.
+  v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
+                                    ? background_task_runner_.get()
+                                    : foreground_task_runner_.get();
+  task_runner->PostTask(base::make_unique<CompileTask>(this, false));
 }
 
 template <typename Step, typename... Args>
@@ -3221,7 +3225,12 @@ void CompilationState::RestartBackgroundTasks() {
   // TODO(wasm): Do not start more background tasks than the number of available
   // units in {compilation_units_}.
   for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
-    background_task_runner_->PostTask(base::make_unique<BackgroundCompileTask>(
+    // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
+    // tasks. This is used to make timing deterministic.
+    v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
+                                      ? background_task_runner_.get()
+                                      : foreground_task_runner_.get();
+    task_runner->PostTask(base::make_unique<BackgroundCompileTask>(
         this, &background_task_manager_));
   }
 }
