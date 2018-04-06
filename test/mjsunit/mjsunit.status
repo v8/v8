@@ -152,6 +152,8 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
+  'compiler/osr-one': [PASS, SLOW],
+  'compiler/osr-two': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
@@ -162,6 +164,7 @@
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
@@ -423,11 +426,6 @@
 
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
-
-  # Slow tests with --noopt.
-  'compiler/osr-one': [PASS, SLOW],
-  'compiler/osr-two': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
@@ -725,7 +723,6 @@
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
 }],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
