@@ -2175,6 +2175,16 @@ Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
   }
 }
 
+Node* CodeStubAssembler::StoreJSArrayLength(TNode<JSArray> array,
+                                            TNode<Smi> length) {
+  return StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+}
+
+Node* CodeStubAssembler::StoreElements(TNode<Object> object,
+                                       TNode<FixedArrayBase> elements) {
+  return StoreObjectField(object, JSObject::kElementsOffset, elements);
+}
+
 Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 Node* value,
                                                 WriteBarrierMode barrier_mode,
@@ -3200,10 +3210,9 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
   return array;
 }
 
-Node* CodeStubAssembler::ExtractFixedArray(Node* fixed_array, Node* first,
-                                           Node* count, Node* capacity,
-                                           ExtractFixedArrayFlags extract_flags,
-                                           ParameterMode parameter_mode) {
+TNode<FixedArray> CodeStubAssembler::ExtractFixedArray(
+    Node* fixed_array, Node* first, Node* count, Node* capacity,
+    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
   VARIABLE(var_fixed_array_map, MachineRepresentation::kTagged);
   const AllocationFlags flags =
@@ -3344,7 +3353,7 @@ Node* CodeStubAssembler::ExtractFixedArray(Node* fixed_array, Node* first,
   }
 
   BIND(&done);
-  return var_result.value();
+  return UncheckedCast<FixedArray>(var_result.value());
 }
 
 void CodeStubAssembler::InitializePropertyArrayLength(Node* property_array,
@@ -3572,6 +3581,18 @@ void CodeStubAssembler::CopyFixedArrayElements(
 
   BIND(&done);
   Comment("] CopyFixedArrayElements");
+}
+
+TNode<FixedArray> CodeStubAssembler::ConvertFixedArrayBaseToFixedArray(
+    TNode<FixedArrayBase> base, Label* cast_fail) {
+  Label fixed_array(this);
+  TNode<Map> map = LoadMap(base);
+  GotoIf(WordEqual(map, LoadRoot(Heap::kFixedArrayMapRootIndex)), &fixed_array);
+  GotoIf(WordNotEqual(map, LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+         cast_fail);
+  Goto(&fixed_array);
+  BIND(&fixed_array);
+  return UncheckedCast<FixedArray>(base);
 }
 
 void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
@@ -5332,6 +5353,16 @@ void CodeStubAssembler::BranchIfCanDerefIndirectString(Node* string,
   Node* rhs = LoadObjectField(string, ConsString::kSecondOffset);
   GotoIf(IsEmptyString(rhs), can_deref);
   Goto(cannot_deref);
+}
+
+Node* CodeStubAssembler::DerefIndirectString(TNode<String> string,
+                                             TNode<Int32T> instance_type,
+                                             Label* cannot_deref) {
+  Label deref(this);
+  BranchIfCanDerefIndirectString(string, instance_type, &deref, cannot_deref);
+  BIND(&deref);
+  STATIC_ASSERT(ThinString::kActualOffset == ConsString::kFirstOffset);
+  return LoadObjectField(string, ThinString::kActualOffset);
 }
 
 void CodeStubAssembler::DerefIndirectString(Variable* var_string,
@@ -10755,6 +10786,15 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
   return result;
 }
 
+Node* CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
+                                            TNode<Object> o,
+                                            TNode<Number> len) {
+  Node* constructor =
+      CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
+  return ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
+                     len);
+}
+
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
 
@@ -10811,7 +10851,7 @@ TNode<Object> CodeStubArguments::AtIndex(int index) const {
 }
 
 TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
-    int index, SloppyTNode<Object> default_value) {
+    int index, TNode<Object> default_value) {
   CodeStubAssembler::TVariable<Object> result(assembler_);
   CodeStubAssembler::Label argument_missing(assembler_),
       argument_done(assembler_, &result);
@@ -10820,6 +10860,27 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
                          assembler_->IntPtrOrSmiConstant(index, argc_mode_),
                          argc_, argc_mode_),
                      &argument_missing);
+  result = AtIndex(index);
+  assembler_->Goto(&argument_done);
+
+  assembler_->BIND(&argument_missing);
+  result = default_value;
+  assembler_->Goto(&argument_done);
+
+  assembler_->BIND(&argument_done);
+  return result.value();
+}
+
+TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
+    TNode<IntPtrT> index, TNode<Object> default_value) {
+  CodeStubAssembler::TVariable<Object> result(assembler_);
+  CodeStubAssembler::Label argument_missing(assembler_),
+      argument_done(assembler_, &result);
+
+  assembler_->GotoIf(
+      assembler_->UintPtrOrSmiGreaterThanOrEqual(
+          assembler_->IntPtrToParameter(index, argc_mode_), argc_, argc_mode_),
+      &argument_missing);
   result = AtIndex(index);
   assembler_->Goto(&argument_done);
 
@@ -10880,6 +10941,11 @@ Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {
 Node* CodeStubAssembler::IsFastSmiOrTaggedElementsKind(Node* elements_kind) {
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(TERMINAL_FAST_ELEMENTS_KIND));
+}
+
+Node* CodeStubAssembler::IsFastSmiElementsKind(Node* elements_kind) {
+  return Uint32LessThanOrEqual(elements_kind,
+                               Int32Constant(HOLEY_SMI_ELEMENTS));
 }
 
 Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
@@ -11115,6 +11181,20 @@ Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
 
   BIND(&if_fast);
   return receiver_map;
+}
+
+TNode<IntPtrT> CodeStubAssembler::GetArgumentsLength(CodeStubArguments* args) {
+  return args->GetLength();
+}
+
+TNode<Object> CodeStubAssembler::GetArgumentValue(CodeStubArguments* args,
+                                                  TNode<IntPtrT> index) {
+  return args->GetOptionalArgumentValue(index);
+}
+
+TNode<Object> CodeStubAssembler::GetArgumentValue(CodeStubArguments* args,
+                                                  TNode<Smi> index) {
+  return args->GetOptionalArgumentValue(SmiUntag(index));
 }
 
 void CodeStubAssembler::Print(const char* s) {
