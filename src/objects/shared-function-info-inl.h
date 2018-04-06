@@ -25,8 +25,6 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
-ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
-          kFeedbackMetadataOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
@@ -331,8 +329,56 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* scope_info,
                             reinterpret_cast<Object*>(scope_info), mode);
 }
 
-ACCESSORS(SharedFunctionInfo, outer_scope_info, HeapObject,
-          kOuterScopeInfoOffset)
+ACCESSORS(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
+          HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
+
+HeapObject* SharedFunctionInfo::outer_scope_info() const {
+  DCHECK(!is_compiled());
+  DCHECK(!HasFeedbackMetadata());
+  return raw_outer_scope_info_or_feedback_metadata();
+}
+
+bool SharedFunctionInfo::HasOuterScopeInfo() const {
+  ScopeInfo* outer_info = nullptr;
+  if (!is_compiled()) {
+    if (!outer_scope_info()->IsScopeInfo()) return false;
+    outer_info = ScopeInfo::cast(outer_scope_info());
+  } else {
+    if (!scope_info()->HasOuterScopeInfo()) return false;
+    outer_info = scope_info()->OuterScopeInfo();
+  }
+  return outer_info->length() > 0;
+}
+
+ScopeInfo* SharedFunctionInfo::GetOuterScopeInfo() const {
+  DCHECK(HasOuterScopeInfo());
+  if (!is_compiled()) return ScopeInfo::cast(outer_scope_info());
+  return scope_info()->OuterScopeInfo();
+}
+
+void SharedFunctionInfo::set_outer_scope_info(HeapObject* value,
+                                              WriteBarrierMode mode) {
+  DCHECK(!is_compiled());
+  DCHECK(raw_outer_scope_info_or_feedback_metadata()->IsTheHole(GetIsolate()));
+  DCHECK(value->IsScopeInfo() || value->IsTheHole(GetIsolate()));
+  return set_raw_outer_scope_info_or_feedback_metadata(value, mode);
+}
+
+bool SharedFunctionInfo::HasFeedbackMetadata() const {
+  return raw_outer_scope_info_or_feedback_metadata()->IsFeedbackMetadata();
+}
+
+FeedbackMetadata* SharedFunctionInfo::feedback_metadata() const {
+  DCHECK(HasFeedbackMetadata());
+  return FeedbackMetadata::cast(raw_outer_scope_info_or_feedback_metadata());
+}
+
+void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata* value,
+                                               WriteBarrierMode mode) {
+  DCHECK(!HasFeedbackMetadata());
+  DCHECK(value->IsFeedbackMetadata());
+  return set_raw_outer_scope_info_or_feedback_metadata(value, mode);
+}
 
 bool SharedFunctionInfo::is_compiled() const {
   Object* data = function_data();
@@ -384,12 +430,6 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
   set_function_data(bytecode);
 }
 
-void SharedFunctionInfo::ClearBytecodeArray() {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
-         HasBytecodeArray());
-  set_builtin_id(Builtins::kCompileLazy);
-}
-
 bool SharedFunctionInfo::HasAsmWasmData() const {
   return function_data()->IsFixedArray();
 }
@@ -403,11 +443,6 @@ void SharedFunctionInfo::set_asm_wasm_data(FixedArray* data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
          HasAsmWasmData());
   set_function_data(data);
-}
-
-void SharedFunctionInfo::ClearAsmWasmData() {
-  DCHECK(HasAsmWasmData());
-  set_builtin_id(Builtins::kCompileLazy);
 }
 
 bool SharedFunctionInfo::HasBuiltinId() const {
@@ -492,6 +527,36 @@ bool SharedFunctionInfo::IsUserJavaScript() {
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {
   return IsUserJavaScript() && !HasAsmWasmData();
+}
+
+bool SharedFunctionInfo::CanFlushCompiled() const {
+  bool can_decompile =
+      (HasBytecodeArray() || HasAsmWasmData() || HasPreParsedScopeData());
+  return can_decompile;
+}
+
+void SharedFunctionInfo::FlushCompiled() {
+  DisallowHeapAllocation no_gc;
+
+  DCHECK(CanFlushCompiled());
+
+  Oddball* the_hole = GetIsolate()->heap()->the_hole_value();
+
+  if (is_compiled()) {
+    HeapObject* outer_scope_info = the_hole;
+    if (!is_toplevel()) {
+      if (scope_info()->HasOuterScopeInfo()) {
+        outer_scope_info = scope_info()->OuterScopeInfo();
+      }
+    }
+    // Raw setter to avoid validity checks, since we're performing the unusual
+    // task of decompiling.
+    set_raw_outer_scope_info_or_feedback_metadata(outer_scope_info);
+  } else {
+    DCHECK(outer_scope_info()->IsScopeInfo() || is_toplevel());
+  }
+
+  set_builtin_id(Builtins::kCompileLazy);
 }
 
 }  // namespace internal

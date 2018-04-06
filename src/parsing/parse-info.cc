@@ -66,10 +66,8 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_module(script->origin_options().IsModule());
   DCHECK(!(is_eval() && is_module()));
 
-  Handle<HeapObject> scope_info(shared->outer_scope_info());
-  if (!scope_info->IsTheHole(isolate) &&
-      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
-    set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
+  if (shared->HasOuterScopeInfo()) {
+    set_outer_scope_info(handle(shared->GetOuterScopeInfo()));
   }
 
   // CollectTypeProfile uses its own feedback slots. If we have existing
@@ -77,9 +75,9 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   // has the appropriate slots.
   set_collect_type_profile(
       isolate->is_collecting_type_profile() &&
-      (shared->feedback_metadata()->is_empty()
-           ? script->IsUserJavaScript()
-           : shared->feedback_metadata()->HasTypeProfileSlot()));
+      (shared->HasFeedbackMetadata()
+           ? shared->feedback_metadata()->HasTypeProfileSlot()
+           : script->IsUserJavaScript()));
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
@@ -136,7 +134,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_module(false);
   DCHECK_NE(shared->kind(), FunctionKind::kModule);
 
-  Handle<HeapObject> scope_info(shared->outer_scope_info());
+  Handle<HeapObject> scope_info(shared->GetOuterScopeInfo());
   if (!scope_info->IsTheHole(isolate) &&
       Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
     p->set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));

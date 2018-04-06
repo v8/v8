@@ -1910,8 +1910,8 @@ void AccessorAssembler::BranchIfStrictMode(Node* vector, Node* slot,
                                            Label* if_strict) {
   Node* sfi =
       LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset);
-  Node* metadata =
-      LoadObjectField(sfi, SharedFunctionInfo::kFeedbackMetadataOffset);
+  TNode<FeedbackMetadata> metadata = CAST(LoadObjectField(
+      sfi, SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset));
   Node* slot_int = SmiToInt32(slot);
 
   // See VectorICComputer::index().

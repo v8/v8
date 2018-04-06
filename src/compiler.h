@@ -268,12 +268,11 @@ class UnoptimizedCompilationJob : public CompilationJob {
 // Each of the three phases can either fail or succeed.
 class OptimizedCompilationJob : public CompilationJob {
  public:
-  OptimizedCompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
+  OptimizedCompilationJob(uintptr_t stack_limit,
                           OptimizedCompilationInfo* compilation_info,
                           const char* compiler_name,
                           State initial_state = State::kReadyToPrepare)
       : CompilationJob(stack_limit, initial_state),
-        parse_info_(parse_info),
         compilation_info_(compilation_info),
         compiler_name_(compiler_name) {}
 
@@ -299,7 +298,6 @@ class OptimizedCompilationJob : public CompilationJob {
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                  Isolate* isolate) const;
 
-  ParseInfo* parse_info() const { return parse_info_; }
   OptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
   }
@@ -312,8 +310,6 @@ class OptimizedCompilationJob : public CompilationJob {
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
  private:
-  // TODO(rmcilroy): Remove parse_info.
-  ParseInfo* parse_info_;
   OptimizedCompilationInfo* compilation_info_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;

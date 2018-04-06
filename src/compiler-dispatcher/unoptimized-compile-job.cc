@@ -77,8 +77,7 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   DCHECK(!shared_->is_toplevel());
   // TODO(rmcilroy): Handle functions with non-empty outer scope info.
-  DCHECK(shared_->outer_scope_info()->IsTheHole(isolate) ||
-         ScopeInfo::cast(shared_->outer_scope_info())->length() == 0);
+  DCHECK(!shared_->HasOuterScopeInfo());
   HandleScope scope(isolate);
   Handle<Script> script(Script::cast(shared_->script()), isolate);
   Handle<String> source(String::cast(script->source()), isolate);
@@ -206,9 +205,8 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
 
   parser_.reset(new Parser(parse_info_.get()));
   MaybeHandle<ScopeInfo> outer_scope_info;
-  if (!shared_->outer_scope_info()->IsTheHole(isolate) &&
-      ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
-    outer_scope_info = handle(ScopeInfo::cast(shared_->outer_scope_info()));
+  if (shared_->HasOuterScopeInfo()) {
+    outer_scope_info = handle(shared_->GetOuterScopeInfo());
   }
   parser_->DeserializeScopeChain(parse_info_.get(), outer_scope_info);
 

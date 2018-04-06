@@ -826,7 +826,7 @@ void LiveEdit::ReplaceFunctionCode(
   if (shared_info->is_compiled()) {
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
-    shared_info->ClearBytecodeArray();
+    shared_info->FlushCompiled();
     shared_info->set_bytecode_array(new_shared_info->bytecode_array());
 
     if (shared_info->HasBreakInfo()) {
@@ -835,16 +835,12 @@ void LiveEdit::ReplaceFunctionCode(
           handle(shared_info->GetDebugInfo()));
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
-    shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
+    shared_info->set_feedback_metadata(new_shared_info->feedback_metadata());
     shared_info->DisableOptimization(BailoutReason::kLiveEdit);
-    // Update the type feedback vector, if needed.
-    Handle<FeedbackMetadata> new_feedback_metadata(
-        new_shared_info->feedback_metadata());
-    shared_info->set_feedback_metadata(*new_feedback_metadata);
   } else {
-    // Use an empty FeedbackMetadata.
-    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(isolate);
-    shared_info->set_feedback_metadata(*feedback_metadata);
+    // There should not be any feedback metadata. Keep the outer scope info the
+    // same.
+    DCHECK(!shared_info->HasFeedbackMetadata());
   }
 
   int start_position = compile_info_wrapper.GetStartPosition();

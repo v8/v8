@@ -1286,9 +1286,16 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - no debug info";
   }
   os << "\n - scope info: " << Brief(scope_info());
+  if (HasOuterScopeInfo()) {
+    os << "\n - outer scope info: " << Brief(GetOuterScopeInfo());
+  }
   os << "\n - length: " << length();
   os << "\n - feedback_metadata: ";
-  feedback_metadata()->FeedbackMetadataPrint(os);
+  if (HasFeedbackMetadata()) {
+    feedback_metadata()->FeedbackMetadataPrint(os);
+  } else {
+    os << "<none>";
+  }
   os << "\n";
 }
 

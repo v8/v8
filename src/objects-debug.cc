@@ -864,10 +864,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kDebugInfoOffset);
-  VerifyObjectField(kFeedbackMetadataOffset);
+  VerifyObjectField(kOuterScopeInfoOrFeedbackMetadataOffset);
   VerifyObjectField(kFunctionIdentifierOffset);
   VerifyObjectField(kNameOrScopeInfoOffset);
-  VerifyObjectField(kOuterScopeInfoOffset);
   VerifyObjectField(kScriptOffset);
 
   Object* value = name_or_scope_info();
@@ -884,6 +883,15 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
+
+  if (!is_compiled()) {
+    CHECK(!HasFeedbackMetadata());
+    CHECK(outer_scope_info()->IsScopeInfo() ||
+          outer_scope_info()->IsTheHole(isolate));
+  } else if (HasBytecodeArray()) {
+    CHECK(HasFeedbackMetadata());
+    CHECK(feedback_metadata()->IsFeedbackMetadata());
+  }
 
   int expected_map_index = Context::FunctionMapIndex(
       language_mode(), kind(), true, HasSharedName(), needs_home_object());

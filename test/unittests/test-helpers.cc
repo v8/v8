@@ -39,7 +39,9 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
           isolate->factory()->NewStringFromAsciiChecked("f"),
           Builtins::kCompileLazy);
   shared->set_raw_end_position(source->length());
-  shared->set_outer_scope_info(ScopeInfo::Empty(isolate));
+  // Make sure we have an outer scope info, even though it's empty
+  shared->set_raw_outer_scope_info_or_feedback_metadata(
+      ScopeInfo::Empty(isolate));
   shared->set_function_literal_id(1);
   SharedFunctionInfo::SetScript(shared, script);
   return scope.CloseAndEscape(shared);

@@ -2545,11 +2545,11 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
-    FunctionLiteral* literal, Handle<Script> script) {
+    FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
       literal->name(), Builtins::kCompileLazy, kind);
-  SharedFunctionInfo::InitFromFunctionLiteral(shared, literal);
+  SharedFunctionInfo::InitFromFunctionLiteral(shared, literal, is_toplevel);
   SharedFunctionInfo::SetScript(shared, script, false);
   return shared;
 }
@@ -2577,14 +2577,16 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
     MaybeHandle<String> maybe_name,
     Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, function_template_info,
-                               Builtins::kNoBuiltinId, kind);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
+      maybe_name, function_template_info, Builtins::kNoBuiltinId, kind);
+  return shared;
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeHandle<String> maybe_name, int builtin_index, FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, MaybeHandle<Code>(), builtin_index,
-                               kind);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
+      maybe_name, MaybeHandle<Code>(), builtin_index, kind);
+  return shared;
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
@@ -2621,12 +2623,19 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     } else {
       share->set_builtin_id(Builtins::kIllegal);
     }
-    share->set_outer_scope_info(*the_hole_value());
+    // Generally functions won't have feedback, unless they have been created
+    // from a FunctionLiteral. Those can just reset this field to keep the
+    // SharedFunctionInfo in a consistent state.
+    if (maybe_builtin_index == Builtins::kCompileLazy) {
+      share->set_raw_outer_scope_info_or_feedback_metadata(*the_hole_value(),
+                                                           SKIP_WRITE_BARRIER);
+    } else {
+      share->set_raw_outer_scope_info_or_feedback_metadata(
+          *empty_feedback_metadata(), SKIP_WRITE_BARRIER);
+    }
     share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
     share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
     share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
-    share->set_feedback_metadata(isolate()->heap()->empty_feedback_metadata(),
-                                 SKIP_WRITE_BARRIER);
     share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
     share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());

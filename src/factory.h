@@ -805,7 +805,7 @@ class V8_EXPORT_PRIVATE Factory final {
       FunctionKind kind = kNormalFunction);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-      FunctionLiteral* literal, Handle<Script> script);
+      FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
 
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
     return (function_mode & kWithPrototypeBits) != 0;

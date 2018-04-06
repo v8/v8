@@ -26,12 +26,12 @@ namespace {
 class BlockingCompilationJob : public OptimizedCompilationJob {
  public:
   BlockingCompilationJob(Isolate* isolate, Handle<JSFunction> function)
-      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(),
-                                &parse_info_, &info_, "BlockingCompilationJob",
+      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), &info_,
+                                "BlockingCompilationJob",
                                 State::kReadyToExecute),
         shared_(function->shared()),
-        parse_info_(shared_),
-        info_(parse_info_.zone(), function->GetIsolate(), shared_, function),
+        zone_(isolate->allocator(), ZONE_NAME),
+        info_(&zone_, function->GetIsolate(), shared_, function),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;
@@ -53,7 +53,7 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
 
  private:
   Handle<SharedFunctionInfo> shared_;
-  ParseInfo parse_info_;
+  Zone zone_;
   OptimizedCompilationInfo info_;
   base::AtomicValue<bool> blocking_;
   base::Semaphore semaphore_;

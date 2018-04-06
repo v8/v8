@@ -138,9 +138,9 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  ParseInfo parse_info(shared);
-  OptimizedCompilationInfo info(parse_info.zone(), function->GetIsolate(),
-                                shared, function);
+  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
+                                function);
 
   if (flags_ & OptimizedCompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
@@ -164,9 +164,9 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  ParseInfo parse_info(shared);
-  OptimizedCompilationInfo info(parse_info.zone(), function->GetIsolate(),
-                                shared, function);
+  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
+                                function);
 
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, function->GetIsolate(), graph);

@@ -116,7 +116,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   // of the target shared function info.
   target_shared->set_function_data(source_shared->function_data());
   target_shared->set_length(source_shared->GetLength());
-  target_shared->set_feedback_metadata(source_shared->feedback_metadata());
+  target_shared->set_raw_outer_scope_info_or_feedback_metadata(
+      source_shared->raw_outer_scope_info_or_feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
   target_shared->set_raw_start_position_and_type(
@@ -128,7 +129,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target_shared->set_function_literal_id(source_shared->function_literal_id());
 
   target_shared->set_scope_info(source_shared->scope_info());
-  target_shared->set_outer_scope_info(source_shared->outer_scope_info());
 
   Handle<Object> source_script(source_shared->script(), isolate);
   if (source_script->IsScript()) {

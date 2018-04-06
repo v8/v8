@@ -744,21 +744,21 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
 
 class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
-  PipelineCompilationJob(ParseInfo* parse_info,
-                         Handle<SharedFunctionInfo> shared_info,
+  PipelineCompilationJob(Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function)
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
-      : OptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                &compilation_info_, "TurboFan"),
-        parse_info_(parse_info),
+      : OptimizedCompilationJob(
+            function->GetIsolate()->stack_guard()->real_climit(),
+            &compilation_info_, "TurboFan"),
+        zone_(function->GetIsolate()->allocator(), ZONE_NAME),
         zone_stats_(function->GetIsolate()->allocator()),
-        compilation_info_(parse_info_.get()->zone(), function->GetIsolate(),
-                          shared_info, function),
-        pipeline_statistics_(
-            CreatePipelineStatistics(parse_info_->script(), compilation_info(),
-                                     function->GetIsolate(), &zone_stats_)),
+        compilation_info_(&zone_, function->GetIsolate(), shared_info,
+                          function),
+        pipeline_statistics_(CreatePipelineStatistics(
+            handle(Script::cast(shared_info->script())), compilation_info(),
+            function->GetIsolate(), &zone_stats_)),
         data_(&zone_stats_, function->GetIsolate(), compilation_info(),
               pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -773,7 +773,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   void RegisterWeakObjectsInOptimizedCode(Handle<Code> code, Isolate* isolate);
 
  private:
-  std::unique_ptr<ParseInfo> parse_info_;
+  Zone zone_;
   ZoneStats zone_stats_;
   OptimizedCompilationInfo compilation_info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
@@ -889,8 +889,8 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
       OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       WasmCompilationData* wasm_compilation_data, bool asmjs_origin)
-      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), nullptr,
-                                info, "TurboFan", State::kReadyToExecute),
+      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), info,
+                                "TurboFan", State::kReadyToExecute),
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             Handle<Script>::null(), info, isolate, &zone_stats_)),
@@ -2075,13 +2075,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 OptimizedCompilationJob* Pipeline::NewCompilationJob(
     Handle<JSFunction> function, bool has_script) {
   Handle<SharedFunctionInfo> shared = handle(function->shared());
-  ParseInfo* parse_info;
-  if (!has_script) {
-    parse_info = ParseInfo::AllocateWithoutScript(shared);
-  } else {
-    parse_info = new ParseInfo(shared);
-  }
-  return new PipelineCompilationJob(parse_info, shared, function);
+  return new PipelineCompilationJob(shared, function);
 }
 
 // static

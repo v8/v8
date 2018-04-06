@@ -283,36 +283,16 @@ void OptimizedCompilationJob::RecordFunctionCompilation(
                          time_taken_to_execute_.InMillisecondsF() +
                          time_taken_to_finalize_.InMillisecondsF();
 
-  LogFunctionCompilation(tag, compilation_info()->shared_info(),
-                         parse_info()->script(), abstract_code, true,
-                         time_taken_ms, isolate);
+  Handle<Script> script(
+      Script::cast(compilation_info()->shared_info()->script()));
+  LogFunctionCompilation(tag, compilation_info()->shared_info(), script,
+                         abstract_code, true, time_taken_ms, isolate);
 }
 
 // ----------------------------------------------------------------------------
 // Local helper methods that make up the compilation pipeline.
 
 namespace {
-
-void EnsureFeedbackMetadata(UnoptimizedCompilationInfo* compilation_info,
-                            Handle<SharedFunctionInfo> shared_info,
-                            Isolate* isolate) {
-  // If no type feedback metadata exists, create it. At this point the
-  // AstNumbering pass has already run. Note the snapshot can contain outdated
-  // vectors for a different configuration, hence we also recreate a new vector
-  // when the function is not compiled (i.e. no code was serialized).
-
-  if (shared_info->feedback_metadata()->is_empty() ||
-      !shared_info->is_compiled()) {
-    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
-        isolate, compilation_info->feedback_vector_spec());
-    shared_info->set_feedback_metadata(*feedback_metadata);
-  }
-
-  // It's very important that recompiles do not alter the structure of the type
-  // feedback vector. Verify that the structure fits the function literal.
-  CHECK(!shared_info->feedback_metadata()->SpecDiffersFrom(
-      compilation_info->feedback_vector_spec()));
-}
 
 bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
   // Check whether asm.js validation is enabled.
@@ -335,23 +315,25 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
   DCHECK_EQ(shared_info->language_mode(),
             compilation_info->literal()->language_mode());
 
-  // Ensure feedback metadata is installed.
-  EnsureFeedbackMetadata(compilation_info, shared_info, isolate);
-
   // Update the shared function info with the scope info.
   Handle<ScopeInfo> scope_info = compilation_info->scope()->scope_info();
   shared_info->set_scope_info(*scope_info);
-  Scope* outer_scope = compilation_info->scope()->GetOuterScopeWithContext();
-  if (outer_scope)
-    shared_info->set_outer_scope_info(*outer_scope->scope_info());
 
   if (compilation_info->has_bytecode_array()) {
     DCHECK(!shared_info->HasBytecodeArray());  // Only compiled once.
     DCHECK(!compilation_info->has_asm_wasm_data());
+    DCHECK(!shared_info->HasFeedbackMetadata());
+
+    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
+        isolate, compilation_info->feedback_vector_spec());
+
     shared_info->set_bytecode_array(*compilation_info->bytecode_array());
+    shared_info->set_feedback_metadata(*feedback_metadata);
   } else {
     DCHECK(compilation_info->has_asm_wasm_data());
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
+    shared_info->set_feedback_metadata(
+        isolate->heap()->empty_feedback_metadata());
   }
 
   // Install coverage info on the shared function info.
@@ -690,7 +672,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   std::unique_ptr<OptimizedCompilationJob> job(
       compiler::Pipeline::NewCompilationJob(function, has_script));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
-  ParseInfo* parse_info = job->parse_info();
 
   compilation_info->SetOptimizingForOsr(osr_offset, osr_frame);
 
@@ -734,7 +715,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // Reopen handles in the new CompilationHandleScope.
   compilation_info->ReopenHandlesInNewHandleScope();
-  parse_info->ReopenHandlesInNewHandleScope();
 
   if (mode == ConcurrencyMode::kConcurrent) {
     if (GetOptimizedCodeLater(job.get(), isolate)) {
@@ -843,9 +823,8 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
   DCHECK_EQ(kNoSourcePosition,
             parse_info->literal()->function_token_position());
   Handle<SharedFunctionInfo> shared_info =
-      isolate->factory()->NewSharedFunctionInfoForLiteral(parse_info->literal(),
-                                                          parse_info->script());
-  shared_info->set_is_toplevel(true);
+      isolate->factory()->NewSharedFunctionInfoForLiteral(
+          parse_info->literal(), parse_info->script(), true);
 
   // Finalize compilation of the unoptimized bytecode or asm-js data.
   if (!FinalizeUnoptimizedCode(parse_info, isolate, shared_info,
@@ -1900,12 +1879,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // Allocate a shared function info object which will be compiled lazily.
   Handle<SharedFunctionInfo> result =
-      isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
-  result->set_is_toplevel(false);
-  Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
-  if (outer_scope) {
-    result->set_outer_scope_info(*outer_scope->scope_info());
-  }
+      isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script,
+                                                          false);
   return result;
 }
 

@@ -734,10 +734,14 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::HeapIterator heap_iterator(isolate->heap());
   while (i::HeapObject* current_obj = heap_iterator.next()) {
-    // Complete in-object slack tracking for all functions.
     if (current_obj->IsJSFunction()) {
       i::JSFunction* fun = i::JSFunction::cast(current_obj);
+
+      // Complete in-object slack tracking for all functions.
       fun->CompleteInobjectSlackTrackingIfActive();
+
+      // Also, clear out feedback vectors.
+      fun->feedback_cell()->set_value(isolate->heap()->undefined_value());
     }
 
     // Clear out re-compilable data from all shared function infos. Any
@@ -746,12 +750,8 @@ StartupData SnapshotCreator::CreateBlob(
     if (current_obj->IsSharedFunctionInfo() &&
         function_code_handling == FunctionCodeHandling::kClear) {
       i::SharedFunctionInfo* shared = i::SharedFunctionInfo::cast(current_obj);
-      if (shared->HasBytecodeArray()) {
-        shared->ClearBytecodeArray();
-      } else if (shared->HasAsmWasmData()) {
-        shared->ClearAsmWasmData();
-      } else if (shared->HasPreParsedScopeData()) {
-        shared->ClearPreParsedScopeData();
+      if (shared->CanFlushCompiled()) {
+        shared->FlushCompiled();
       }
       DCHECK(shared->HasCodeObject() || shared->HasBuiltinId() ||
              shared->IsApiFunction());

@@ -92,9 +92,18 @@ class SharedFunctionInfo : public HeapObject {
   // Start position of this function in the script source.
   inline int StartPosition() const;
 
-  // The outer scope info for the purpose of parsing this function, or the hole
-  // value if it isn't yet known.
-  DECL_ACCESSORS(outer_scope_info, HeapObject)
+  // [outer scope info | feedback metadata] Shared storage for outer scope info
+  // (on uncompiled functions) and feedback metadata (on compiled functions).
+  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
+
+  // Get the outer scope info whether this function is compiled or not.
+  inline bool HasOuterScopeInfo() const;
+  inline ScopeInfo* GetOuterScopeInfo() const;
+
+  // [feedback metadata] Metadata template for feedback vectors of instances of
+  // this function.
+  inline bool HasFeedbackMetadata() const;
+  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled() const;
@@ -118,11 +127,6 @@ class SharedFunctionInfo : public HeapObject {
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
   DECL_INT_ACCESSORS(expected_nof_properties)
-
-  // [feedback_metadata] - describes ast node feedback from full-codegen and
-  // (increasingly) from crankshafted code where sufficient feedback isn't
-  // available.
-  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
 
   // [function_literal_id] - uniquely identifies the FunctionLiteral this
   // SharedFunctionInfo represents within its script, or -1 if this
@@ -151,11 +155,9 @@ class SharedFunctionInfo : public HeapObject {
   inline bool HasBytecodeArray() const;
   inline BytecodeArray* bytecode_array() const;
   inline void set_bytecode_array(BytecodeArray* bytecode);
-  inline void ClearBytecodeArray();
   inline bool HasAsmWasmData() const;
   inline FixedArray* asm_wasm_data() const;
   inline void set_asm_wasm_data(FixedArray* data);
-  inline void ClearAsmWasmData();
   // A brief note to clear up possible confusion:
   // builtin_id corresponds to the auto-generated
   // Builtins::Name id, while builtin_function_id corresponds to
@@ -364,6 +366,14 @@ class SharedFunctionInfo : public HeapObject {
   // Whether this function is defined in user-provided JavaScript code.
   inline bool IsUserJavaScript();
 
+  // True if one can flush compiled code from this function, in such a way that
+  // it can later be re-compiled.
+  inline bool CanFlushCompiled() const;
+
+  // Flush compiled data from this function, setting it back to CompileLazy and
+  // clearing any feedback metadata.
+  inline void FlushCompiled();
+
   // Check whether or not this function is inlineable.
   bool IsInlineable();
 
@@ -377,7 +387,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
   static void InitFromFunctionLiteral(Handle<SharedFunctionInfo> shared_info,
-                                      FunctionLiteral* lit);
+                                      FunctionLiteral* lit, bool is_toplevel);
 
   // Sets the expected number of properties based on estimate from parser.
   void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
@@ -443,28 +453,27 @@ class SharedFunctionInfo : public HeapObject {
 #endif
 
 // Layout description.
-#define SHARED_FUNCTION_INFO_FIELDS(V)        \
-  /* Pointer fields. */                       \
-  V(kStartOfPointerFieldsOffset, 0)           \
-  V(kFunctionDataOffset, kPointerSize)        \
-  V(kNameOrScopeInfoOffset, kPointerSize)     \
-  V(kOuterScopeInfoOffset, kPointerSize)      \
-  V(kScriptOffset, kPointerSize)              \
-  V(kDebugInfoOffset, kPointerSize)           \
-  V(kFunctionIdentifierOffset, kPointerSize)  \
-  V(kFeedbackMetadataOffset, kPointerSize)    \
-  V(kEndOfPointerFieldsOffset, 0)             \
-  /* Raw data fields. */                      \
-  V(kFunctionLiteralIdOffset, kInt32Size)     \
-  V(kUniqueIdOffset, kUniqueIdFieldSize)      \
-  V(kLengthOffset, kInt32Size)                \
-  V(kFormalParameterCountOffset, kInt32Size)  \
-  V(kExpectedNofPropertiesOffset, kInt32Size) \
-  V(kStartPositionAndTypeOffset, kInt32Size)  \
-  V(kEndPositionOffset, kInt32Size)           \
-  V(kFunctionTokenPositionOffset, kInt32Size) \
-  V(kFlagsOffset, kInt32Size)                 \
-  /* Total size. */                           \
+#define SHARED_FUNCTION_INFO_FIELDS(V)                     \
+  /* Pointer fields. */                                    \
+  V(kStartOfPointerFieldsOffset, 0)                        \
+  V(kFunctionDataOffset, kPointerSize)                     \
+  V(kNameOrScopeInfoOffset, kPointerSize)                  \
+  V(kOuterScopeInfoOrFeedbackMetadataOffset, kPointerSize) \
+  V(kScriptOffset, kPointerSize)                           \
+  V(kDebugInfoOffset, kPointerSize)                        \
+  V(kFunctionIdentifierOffset, kPointerSize)               \
+  V(kEndOfPointerFieldsOffset, 0)                          \
+  /* Raw data fields. */                                   \
+  V(kFunctionLiteralIdOffset, kInt32Size)                  \
+  V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
+  V(kLengthOffset, kInt32Size)                             \
+  V(kFormalParameterCountOffset, kInt32Size)               \
+  V(kExpectedNofPropertiesOffset, kInt32Size)              \
+  V(kStartPositionAndTypeOffset, kInt32Size)               \
+  V(kEndPositionOffset, kInt32Size)                        \
+  V(kFunctionTokenPositionOffset, kInt32Size)              \
+  V(kFlagsOffset, kInt32Size)                              \
+  /* Total size. */                                        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -542,6 +551,10 @@ class SharedFunctionInfo : public HeapObject {
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
   DECL_ACCESSORS(name_or_scope_info, Object)
+
+  // [outer scope info] The outer scope info, needed to lazily parse this
+  // function.
+  DECL_ACCESSORS(outer_scope_info, HeapObject)
 
   inline void set_kind(FunctionKind kind);
 

@@ -1186,11 +1186,11 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry, "function_identifier",
                        shared->function_identifier(),
                        SharedFunctionInfo::kFunctionIdentifierOffset);
-  SetInternalReference(obj, entry, "feedback_metadata",
-                       shared->feedback_metadata(),
-                       SharedFunctionInfo::kFeedbackMetadataOffset);
+  SetInternalReference(
+      obj, entry, "raw_outer_scope_info_or_feedback_metadata",
+      shared->raw_outer_scope_info_or_feedback_metadata(),
+      SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset);
 }
-
 
 void V8HeapExplorer::ExtractScriptReferences(int entry, Script* script) {
   HeapObject* obj = script;
