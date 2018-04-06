@@ -105,15 +105,7 @@ DEFINE_METHOD(
   }
 );
 
-// TODO(bmeurer): Migrate this to a proper builtin.
-function TypedArrayConstructor() {
-  throw %make_type_error(kConstructAbstractClass, "TypedArray");
-}
-
 // -------------------------------------------------------------------
-
-%SetCode(GlobalTypedArray, TypedArrayConstructor);
-
 
 %AddNamedProperty(GlobalTypedArray.prototype, "toString", ArrayToString,
                   DONT_ENUM);

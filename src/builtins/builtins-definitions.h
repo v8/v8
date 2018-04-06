@@ -1102,6 +1102,7 @@ namespace internal {
       kByteOffset)                                                             \
   /* ES #sec-typedarray-constructors */                                        \
   TFS(CreateTypedArray, kTarget, kNewTarget, kArg1, kArg2, kArg3)              \
+  TFJ(TypedArrayBaseConstructor, 0)                                            \
   TFJ(TypedArrayConstructorLazyDeoptContinuation, 1, kResult)                  \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   CPP(TypedArrayPrototypeBuffer)                                               \

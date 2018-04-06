@@ -630,6 +630,12 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
                        element_size);
 }
 
+TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  ThrowTypeError(context, MessageTemplate::kConstructAbstractClass,
+                 "TypedArray");
+}
+
 // ES #sec-typedarray-constructors
 TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));

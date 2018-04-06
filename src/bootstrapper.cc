@@ -2829,11 +2829,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- T y p e d A r r a y
-    Handle<JSFunction> typed_array_fun =
-        CreateFunction(isolate, factory->InternalizeUtf8String("TypedArray"),
-                       JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, 0,
-                       factory->the_hole_value(), Builtins::kIllegal);
+    Handle<JSFunction> typed_array_fun = CreateFunction(
+        isolate, factory->InternalizeUtf8String("TypedArray"),
+        JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, 0, factory->the_hole_value(),
+        Builtins::kTypedArrayBaseConstructor);
     typed_array_fun->shared()->set_native(false);
+    typed_array_fun->shared()->set_length(0);
     InstallSpeciesGetter(typed_array_fun);
     native_context()->set_typed_array_function(*typed_array_fun);
 
