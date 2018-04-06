@@ -28,7 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/platform/platform.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"

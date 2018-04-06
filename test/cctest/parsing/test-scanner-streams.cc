@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/factory-inl.h"
+#include "src/factory.h"  // for i::Factory::NewExternalStringFrom*Byte
+#include "src/feedback-vector-inl.h"  // for include "src/factory.h"
 #include "src/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"

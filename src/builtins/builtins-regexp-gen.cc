@@ -11,7 +11,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
-#include "src/heap/factory-inl.h"
+#include "src/factory-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"

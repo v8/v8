@@ -96,38 +96,6 @@ HEAP_TEST(NoPromotion) {
   }
 }
 
-// This is the same as Factory::NewMap, except it doesn't retry on
-// allocation failure.
-AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
-  Heap* heap = isolate->heap();
-  HeapObject* obj;
-  AllocationResult alloc = heap->AllocateRaw(Map::kSize, MAP_SPACE);
-  if (!alloc.To(&obj)) return alloc;
-  obj->set_map_after_allocation(heap->meta_map(), SKIP_WRITE_BARRIER);
-  return isolate->factory()->InitializeMap(Map::cast(obj), JS_OBJECT_TYPE,
-                                           JSObject::kHeaderSize,
-                                           TERMINAL_FAST_ELEMENTS_KIND, 0);
-}
-
-// This is the same as Factory::NewFixedArray, except it doesn't retry
-// on allocation failure.
-AllocationResult HeapTester::AllocateFixedArrayForTest(
-    Heap* heap, int length, PretenureFlag pretenure) {
-  DCHECK(length >= 0 && length <= FixedArray::kMaxLength);
-  int size = FixedArray::SizeFor(length);
-  AllocationSpace space = heap->SelectSpace(pretenure);
-  HeapObject* obj;
-  {
-    AllocationResult result = heap->AllocateRaw(size, space);
-    if (!result.To(&obj)) return result;
-  }
-  obj->set_map_after_allocation(heap->fixed_array_map(), SKIP_WRITE_BARRIER);
-  FixedArray* array = FixedArray::cast(obj);
-  array->set_length(length);
-  MemsetPointer(array->data_start(), heap->undefined_value(), length);
-  return array;
-}
-
 HEAP_TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
   FLAG_retain_maps_for_n_gc = 0;
@@ -146,17 +114,17 @@ HEAP_TEST(MarkCompactCollector) {
   const int arraysize = 100;
   AllocationResult allocation;
   do {
-    allocation = AllocateFixedArrayForTest(heap, arraysize, NOT_TENURED);
+    allocation = heap->AllocateFixedArray(arraysize);
   } while (!allocation.IsRetry());
   CcTest::CollectGarbage(NEW_SPACE);
-  AllocateFixedArrayForTest(heap, arraysize, NOT_TENURED).ToObjectChecked();
+  heap->AllocateFixedArray(arraysize).ToObjectChecked();
 
   // keep allocating maps until it fails
   do {
-    allocation = AllocateMapForTest(isolate);
+    allocation = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   } while (!allocation.IsRetry());
   CcTest::CollectGarbage(MAP_SPACE);
-  AllocateMapForTest(isolate).ToObjectChecked();
+  heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize).ToObjectChecked();
 
   { HandleScope scope(isolate);
     // allocate a garbage

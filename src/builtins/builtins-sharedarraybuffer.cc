@@ -10,9 +10,9 @@
 #include "src/code-factory.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
+#include "src/factory.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
-#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

@@ -14,6 +14,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs-utils.h"
 #include "src/counters.h"
+#include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic-stats.h"

@@ -39,24 +39,28 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-Handle<Object> HeapTester::TestAllocateAfterFailures() {
-  // Similar to what the factory's retrying logic does in the last-resort case,
-  // we wrap the allocator function in an AlwaysAllocateScope.  Test that
-  // all allocations succeed immediately without any retry.
-  CcTest::CollectAllAvailableGarbage();
-  AlwaysAllocateScope scope(CcTest::i_isolate());
+AllocationResult HeapTester::AllocateAfterFailures() {
   Heap* heap = CcTest::heap();
-  int size = FixedArray::SizeFor(100);
-  // New space.
-  HeapObject* obj = heap->AllocateRaw(size, NEW_SPACE).ToObjectChecked();
-  // In order to pass heap verification on Isolate teardown, mark the
-  // allocated area as a filler.
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
-  // Old space.
+  // New space.
+  heap->AllocateByteArray(100).ToObjectChecked();
+  heap->AllocateFixedArray(100, NOT_TENURED).ToObjectChecked();
+
+  // Make sure we can allocate through optimized allocation functions
+  // for specific kinds.
+  heap->AllocateFixedArray(100).ToObjectChecked();
+  heap->AllocateHeapNumber().ToObjectChecked();
+  Object* object = heap->AllocateJSObject(
+      *CcTest::i_isolate()->object_function()).ToObjectChecked();
+  heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
+
+  // Old data space.
   heap::SimulateFullSpace(heap->old_space());
-  obj = heap->AllocateRaw(size, OLD_SPACE).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  heap->AllocateByteArray(100, TENURED).ToObjectChecked();
+
+  // Old pointer space.
+  heap::SimulateFullSpace(heap->old_space());
+  heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
   static const size_t kLargeObjectSpaceFillerLength =
@@ -66,26 +70,34 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   CHECK_GT(kLargeObjectSpaceFillerSize,
            static_cast<size_t>(heap->old_space()->AreaSize()));
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
-    obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, OLD_SPACE)
-              .ToObjectChecked();
-    heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+    heap->AllocateFixedArray(
+        kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
   }
-  obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, OLD_SPACE)
-            .ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  heap->AllocateFixedArray(
+      kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
 
   // Map space.
   heap::SimulateFullSpace(heap->map_space());
-  obj = heap->AllocateRaw(Map::kSize, MAP_SPACE).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), Map::kSize,
-                             ClearRecordedSlots::kNo);
+  int instance_size = JSObject::kHeaderSize;
+  heap->AllocateMap(JS_OBJECT_TYPE, instance_size).ToObjectChecked();
 
-  // Code space.
+  // Test that we can allocate in old pointer space and code space.
   heap::SimulateFullSpace(heap->code_space());
-  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal)->Size();
-  obj = heap->AllocateRaw(size, CODE_SPACE).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
-  return CcTest::i_isolate()->factory()->true_value();
+  heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
+  Code* illegal = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal);
+  heap->CopyCode(illegal, illegal->code_data_container()).ToObjectChecked();
+
+  // Return success.
+  return heap->true_value();
+}
+
+Handle<Object> HeapTester::TestAllocateAfterFailures() {
+  // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
+  // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
+  // all allocations succeed immediately without any retry.
+  CcTest::CollectAllAvailableGarbage();
+  AlwaysAllocateScope scope(CcTest::i_isolate());
+  return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }
 
 

@@ -7,9 +7,11 @@
 #include <stdint.h>
 
 #include "include/v8.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/isolate-inl.h"
+#include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"

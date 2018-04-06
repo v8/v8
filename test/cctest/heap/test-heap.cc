@@ -36,9 +36,9 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/execution.h"
+#include "src/factory.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
-#include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
@@ -1550,7 +1550,6 @@ TEST(TestSizeOfRegExpCode) {
 
 HEAP_TEST(TestSizeOfObjects) {
   v8::V8::Initialize();
-  Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
   MarkCompactCollector* collector = heap->mark_compact_collector();
 
@@ -1563,14 +1562,13 @@ HEAP_TEST(TestSizeOfObjects) {
   int initial_size = static_cast<int>(heap->SizeOfObjects());
 
   {
-    HandleScope scope(isolate);
     // Allocate objects on several different old-space pages so that
     // concurrent sweeper threads will be busy sweeping the old space on
     // subsequent GC runs.
     AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
-      isolate->factory()->NewFixedArray(8192, TENURED);
+      heap->AllocateFixedArray(8192, TENURED).ToObjectChecked();
       CHECK_EQ(initial_size + i * filler_size,
                static_cast<int>(heap->SizeOfObjects()));
     }
@@ -5029,25 +5027,6 @@ TEST(SharedFunctionInfoIterator) {
   CHECK_EQ(0, sfi_count);
 }
 
-// This is the same as Factory::NewByteArray, except it doesn't retry on
-// allocation failure.
-AllocationResult HeapTester::AllocateByteArrayForTest(Heap* heap, int length,
-                                                      PretenureFlag pretenure) {
-  DCHECK(length >= 0 && length <= ByteArray::kMaxLength);
-  int size = ByteArray::SizeFor(length);
-  AllocationSpace space = heap->SelectSpace(pretenure);
-  HeapObject* result = nullptr;
-  {
-    AllocationResult allocation = heap->AllocateRaw(size, space);
-    if (!allocation.To(&result)) return allocation;
-  }
-
-  result->set_map_after_allocation(heap->byte_array_map(), SKIP_WRITE_BARRIER);
-  ByteArray::cast(result)->set_length(length);
-  ByteArray::cast(result)->clear_padding();
-  return result;
-}
-
 HEAP_TEST(Regress587004) {
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
@@ -5076,7 +5055,7 @@ HEAP_TEST(Regress587004) {
   // Don't allow old space expansion. The test works without this flag too,
   // but becomes very slow.
   heap->set_force_oom(true);
-  while (AllocateByteArrayForTest(heap, M, TENURED).To(&byte_array)) {
+  while (heap->AllocateByteArray(M, TENURED).To(&byte_array)) {
     for (int j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
     }
@@ -5103,7 +5082,7 @@ HEAP_TEST(Regress589413) {
   // Fill the new space with byte arrays with elements looking like pointers.
   const int M = 256;
   ByteArray* byte_array;
-  while (AllocateByteArrayForTest(heap, M, NOT_TENURED).To(&byte_array)) {
+  while (heap->AllocateByteArray(M).To(&byte_array)) {
     for (int j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
     }
@@ -5120,7 +5099,7 @@ HEAP_TEST(Regress589413) {
     FixedArray* array;
     // Fill all pages with fixed arrays.
     heap->set_force_oom(true);
-    while (AllocateFixedArrayForTest(heap, N, TENURED).To(&array)) {
+    while (heap->AllocateFixedArray(N, TENURED).To(&array)) {
       arrays.push_back(array);
       pages.insert(Page::FromAddress(array->address()));
       // Add the array in root set.
@@ -5128,7 +5107,7 @@ HEAP_TEST(Regress589413) {
     }
     // Expand and full one complete page with fixed arrays.
     heap->set_force_oom(false);
-    while (AllocateFixedArrayForTest(heap, N, TENURED).To(&array)) {
+    while (heap->AllocateFixedArray(N, TENURED).To(&array)) {
       arrays.push_back(array);
       pages.insert(Page::FromAddress(array->address()));
       // Add the array in root set.
@@ -5845,18 +5824,20 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   Isolate* isolate = heap->isolate();
   CcTest::CollectAllGarbage();
   heap::SimulateIncrementalMarking(heap, false);
-  Handle<Map> map;
+  Map* map;
   {
     AlwaysAllocateScope always_allocate(isolate);
-    map = isolate->factory()->NewMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
+    map = Map::cast(heap->AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize)
+                        .ToObjectChecked());
   }
   heap->incremental_marking()->StartBlackAllocationForTesting();
   Handle<HeapObject> object;
   {
     AlwaysAllocateScope always_allocate(isolate);
-    object = handle(isolate->factory()->NewForTest(map, TENURED), isolate);
+    object = Handle<HeapObject>(
+        heap->Allocate(map, OLD_SPACE).ToObjectChecked(), isolate);
   }
-  // The object is black. If Factory::New sets the map without write-barrier,
+  // The object is black. If Heap::Allocate sets the map without write-barrier,
   // then the map is white and will be freed prematurely.
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectAllGarbage();

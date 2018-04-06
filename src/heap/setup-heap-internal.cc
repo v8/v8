@@ -8,8 +8,8 @@
 #include "src/ast/context-slot-cache.h"
 #include "src/compilation-cache.h"
 #include "src/contexts.h"
+#include "src/factory.h"
 #include "src/heap-symbols.h"
-#include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
@@ -78,58 +78,6 @@ const Heap::StructTable Heap::struct_table[] = {
 #undef DATA_HANDLER_ELEMENT
 };
 
-AllocationResult Heap::AllocateMap(InstanceType instance_type,
-                                   int instance_size,
-                                   ElementsKind elements_kind,
-                                   int inobject_properties) {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  DCHECK_IMPLIES(instance_type >= FIRST_JS_OBJECT_TYPE &&
-                     !Map::CanHaveFastTransitionableElementsKind(instance_type),
-                 IsDictionaryElementsKind(elements_kind) ||
-                     IsTerminalElementsKind(elements_kind));
-  HeapObject* result = nullptr;
-  AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
-  if (!allocation.To(&result)) return allocation;
-
-  result->set_map_after_allocation(meta_map(), SKIP_WRITE_BARRIER);
-  return isolate()->factory()->InitializeMap(Map::cast(result), instance_type,
-                                             instance_size, elements_kind,
-                                             inobject_properties);
-}
-
-AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
-                                          int instance_size) {
-  Object* result = nullptr;
-  AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
-  if (!allocation.To(&result)) return allocation;
-  // Map::cast cannot be used due to uninitialized map field.
-  Map* map = reinterpret_cast<Map*>(result);
-  map->set_map_after_allocation(reinterpret_cast<Map*>(root(kMetaMapRootIndex)),
-                                SKIP_WRITE_BARRIER);
-  map->set_instance_type(instance_type);
-  map->set_instance_size(instance_size);
-  // Initialize to only containing tagged fields.
-  if (FLAG_unbox_double_fields) {
-    map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
-  }
-  // GetVisitorId requires a properly initialized LayoutDescriptor.
-  map->set_visitor_id(Map::GetVisitorId(map));
-  map->set_inobject_properties_start_or_constructor_function_index(0);
-  DCHECK(!map->IsJSObjectMap());
-  map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid));
-  map->SetInObjectUnusedPropertyFields(0);
-  map->set_bit_field(0);
-  map->set_bit_field2(0);
-  DCHECK(!map->is_in_retained_map_list());
-  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
-                   Map::OwnsDescriptorsBit::encode(true) |
-                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
-  map->set_bit_field3(bit_field3);
-  map->set_weak_cell_cache(Smi::kZero);
-  map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
-  return map;
-}
-
 namespace {
 
 void FinalizePartialMap(Heap* heap, Map* map) {
@@ -144,41 +92,6 @@ void FinalizePartialMap(Heap* heap, Map* map) {
 }
 
 }  // namespace
-
-AllocationResult Heap::Allocate(Map* map, AllocationSpace space) {
-  DCHECK(map->instance_type() != MAP_TYPE);
-  int size = map->instance_size();
-  HeapObject* result = nullptr;
-  AllocationResult allocation = AllocateRaw(size, space);
-  if (!allocation.To(&result)) return allocation;
-  // New space objects are allocated white.
-  WriteBarrierMode write_barrier_mode =
-      space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
-  result->set_map_after_allocation(map, write_barrier_mode);
-  return result;
-}
-
-AllocationResult Heap::AllocateEmptyFixedTypedArray(
-    ExternalArrayType array_type) {
-  int size = OBJECT_POINTER_ALIGN(FixedTypedArrayBase::kDataOffset);
-
-  HeapObject* object = nullptr;
-  AllocationResult allocation = AllocateRaw(
-      size, OLD_SPACE,
-      array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
-  if (!allocation.To(&object)) return allocation;
-
-  object->set_map_after_allocation(MapForFixedTypedArray(array_type),
-                                   SKIP_WRITE_BARRIER);
-  FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
-  elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
-  elements->set_external_pointer(
-      ExternalReference::fixed_typed_array_base_data_offset(isolate())
-          .address(),
-      SKIP_WRITE_BARRIER);
-  elements->set_length(0);
-  return elements;
-}
 
 bool Heap::CreateInitialMaps() {
   HeapObject* obj = nullptr;
@@ -218,18 +131,14 @@ bool Heap::CreateInitialMaps() {
 
   // Allocate the empty array.
   {
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(0), OLD_SPACE);
-    if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj)->set_length(0);
+    AllocationResult allocation = AllocateEmptyFixedArray();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_fixed_array(FixedArray::cast(obj));
 
   {
-    AllocationResult alloc = AllocateRaw(WeakFixedArray::SizeFor(0), OLD_SPACE);
-    if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(weak_fixed_array_map(), SKIP_WRITE_BARRIER);
-    WeakFixedArray::cast(obj)->set_length(0);
+    AllocationResult allocation = AllocateEmptyWeakFixedArray();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_weak_fixed_array(WeakFixedArray::cast(obj));
 
@@ -277,12 +186,11 @@ bool Heap::CreateInitialMaps() {
   // Allocate the empty descriptor array.
   {
     STATIC_ASSERT(DescriptorArray::kFirstIndex != 0);
-    int length = DescriptorArray::kFirstIndex;
-    int size = FixedArray::SizeFor(length);
-    if (!AllocateRaw(size, OLD_SPACE).To(&obj)) return false;
-    obj->set_map_after_allocation(descriptor_array_map(), SKIP_WRITE_BARRIER);
-    DescriptorArray::cast(obj)->set_length(length);
+    AllocationResult allocation =
+        AllocateUninitializedFixedArray(DescriptorArray::kFirstIndex, TENURED);
+    if (!allocation.To(&obj)) return false;
   }
+  obj->set_map_no_write_barrier(descriptor_array_map());
   set_empty_descriptor_array(DescriptorArray::cast(obj));
   DescriptorArray::cast(obj)->set(DescriptorArray::kDescriptorLengthIndex,
                                   Smi::kZero);
@@ -393,11 +301,9 @@ bool Heap::CreateInitialMaps() {
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
       Smi* value = Smi::FromInt(Map::kPrototypeChainInvalid);
-      AllocationResult alloc = AllocateRaw(Cell::kSize, OLD_SPACE);
-      if (!alloc.To(&obj)) return false;
-      obj->set_map_after_allocation(cell_map(), SKIP_WRITE_BARRIER);
-      Cell::cast(obj)->set_value(value);
-      set_invalid_prototype_validity_cell(Cell::cast(obj));
+      Cell* cell;
+      if (!AllocateCell(value).To(&cell)) return false;
+      set_invalid_prototype_validity_cell(cell);
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
@@ -461,19 +367,14 @@ bool Heap::CreateInitialMaps() {
   }
 
   {
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(0), OLD_SPACE);
-    if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(scope_info_map(), SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj)->set_length(0);
+    AllocationResult allocation = AllocateEmptyScopeInfo();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_scope_info(ScopeInfo::cast(obj));
 
   {
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(0), OLD_SPACE);
-    if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(boilerplate_description_map(),
-                                  SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj)->set_length(0);
+    AllocationResult allocation = AllocateEmptyBoilerplateDescription();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_boilerplate_description(BoilerplateDescription::cast(obj));
 
@@ -491,34 +392,30 @@ bool Heap::CreateInitialMaps() {
   set_false_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kFalse);
 
-  // Empty arrays.
-  {
-    if (!AllocateRaw(ByteArray::SizeFor(0), OLD_SPACE).To(&obj)) return false;
-    obj->set_map_after_allocation(byte_array_map(), SKIP_WRITE_BARRIER);
-    ByteArray::cast(obj)->set_length(0);
-    set_empty_byte_array(ByteArray::cast(obj));
-  }
-
-  {
-    if (!AllocateRaw(FixedArray::SizeFor(0), OLD_SPACE).To(&obj)) {
-      return false;
+  { // Empty arrays
+    {
+      ByteArray * byte_array;
+      if (!AllocateByteArray(0, TENURED).To(&byte_array)) return false;
+      set_empty_byte_array(byte_array);
     }
-    obj->set_map_after_allocation(property_array_map(), SKIP_WRITE_BARRIER);
-    PropertyArray::cast(obj)->initialize_length(0);
-    set_empty_property_array(PropertyArray::cast(obj));
-  }
 
-#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
-  {                                                                     \
-    FixedTypedArrayBase* obj;                                           \
-    if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) \
-      return false;                                                     \
-    set_empty_fixed_##type##_array(obj);                                \
-  }
+    {
+      PropertyArray* property_array;
+      if (!AllocatePropertyArray(0, TENURED).To(&property_array)) return false;
+      set_empty_property_array(property_array);
+    }
 
-  TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
+#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size)   \
+    {                                                                     \
+      FixedTypedArrayBase* obj;                                           \
+      if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) \
+        return false;                                                     \
+      set_empty_fixed_##type##_array(obj);                                \
+    }
+
+    TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
 #undef ALLOCATE_EMPTY_FIXED_TYPED_ARRAY
-
+  }
   DCHECK(!InNewSpace(empty_fixed_array()));
   return true;
 }

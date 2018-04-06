@@ -4,7 +4,7 @@
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/isolate.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"

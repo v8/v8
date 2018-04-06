@@ -8,7 +8,7 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/isolate.h"
 
 namespace v8 {

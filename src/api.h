@@ -9,7 +9,7 @@
 #include "src/contexts.h"
 #include "src/debug/debug-interface.h"
 #include "src/detachable-vector.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/isolate.h"
 #include "src/objects/js-collection.h"
 

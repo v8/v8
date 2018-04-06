@@ -30,7 +30,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/zone-stats.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/trap-handler/trap-handler.h"
