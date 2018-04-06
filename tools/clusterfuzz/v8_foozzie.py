@@ -106,7 +106,7 @@ ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 
 FLAGS = ['--abort_on_stack_or_string_length_overflow', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
-         '--es-staging']
+         '--es-staging', '--wasm-num-compilation-tasks=0']
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
