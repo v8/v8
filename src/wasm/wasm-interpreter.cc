@@ -1373,7 +1373,7 @@ class ThreadImpl {
   // Returns true if the call was successful, false if the stack check failed
   // and the current activation was fully unwound.
   bool DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
-              pc_t* limit) WARN_UNUSED_RESULT {
+              pc_t* limit) V8_WARN_UNUSED_RESULT {
     frames_.back().pc = *pc;
     PushFrame(target);
     if (!DoStackCheck()) return false;
@@ -1599,7 +1599,7 @@ class ThreadImpl {
   // fully unwound.
   // Do call this function immediately *after* pushing a new frame. The pc of
   // the top frame will be reset to 0 if the stack check fails.
-  bool DoStackCheck() WARN_UNUSED_RESULT {
+  bool DoStackCheck() V8_WARN_UNUSED_RESULT {
     // The goal of this stack check is not to prevent actual stack overflows,
     // but to simulate stack overflows during the execution of compiled code.
     // That is why this function uses FLAG_stack_size, even though the value

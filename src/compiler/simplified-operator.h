@@ -77,7 +77,7 @@ size_t hash_value(FieldAccess const&);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
 V8_EXPORT_PRIVATE FieldAccess const& FieldAccessOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 template <>
 void Operator1<FieldAccess>::PrintParameter(std::ostream& os,
@@ -119,13 +119,13 @@ size_t hash_value(ElementAccess const&);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
-ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
+ExternalArrayType ExternalArrayTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // A the parameters for several Check nodes. The {feedback} parameter is
 // optional. If {feedback} references a valid CallIC slot and this MapCheck
@@ -147,7 +147,7 @@ size_t hash_value(CheckParameters const&);
 
 std::ostream& operator<<(std::ostream&, CheckParameters const&);
 
-CheckParameters const& CheckParametersOf(Operator const*) WARN_UNUSED_RESULT;
+CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 enum class CheckFloat64HoleMode : uint8_t {
   kNeverReturnHole,  // Never return the hole (deoptimize instead).
@@ -158,7 +158,8 @@ size_t hash_value(CheckFloat64HoleMode);
 
 std::ostream& operator<<(std::ostream&, CheckFloat64HoleMode);
 
-CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*) WARN_UNUSED_RESULT;
+CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*)
+    V8_WARN_UNUSED_RESULT;
 
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
@@ -184,7 +185,7 @@ class CheckTaggedInputParameters {
 };
 
 const CheckTaggedInputParameters& CheckTaggedInputParametersOf(const Operator*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 std::ostream& operator<<(std::ostream&,
                          const CheckTaggedInputParameters& params);
@@ -204,7 +205,8 @@ size_t hash_value(CheckForMinusZeroMode);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            CheckForMinusZeroMode);
 
-CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
+CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*)
+    V8_WARN_UNUSED_RESULT;
 
 class CheckMinusZeroParameters {
  public:
@@ -221,7 +223,7 @@ class CheckMinusZeroParameters {
 };
 
 const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 std::ostream& operator<<(std::ostream&, const CheckMinusZeroParameters& params);
 
@@ -287,13 +289,13 @@ size_t hash_value(CheckMapsParameters const&);
 std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
-MapsParameterInfo const& MapGuardMapsOf(Operator const*) WARN_UNUSED_RESULT;
+MapsParameterInfo const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
 MapsParameterInfo const& CompareMapsParametersOf(Operator const*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
 enum class GrowFastElementsMode : uint8_t {
@@ -329,7 +331,7 @@ inline size_t hash_value(const GrowFastElementsParameters&);
 std::ostream& operator<<(std::ostream&, const GrowFastElementsParameters&);
 
 const GrowFastElementsParameters& GrowFastElementsParametersOf(const Operator*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
 class ElementsTransition final {
@@ -359,16 +361,16 @@ size_t hash_value(ElementsTransition);
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 
 ElementsTransition const& ElementsTransitionOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreElement, or
 // TransitionAndStoreNonNumberElement, or
 // TransitionAndStoreNumberElement.
-Handle<Map> DoubleMapParameterOf(const Operator* op) WARN_UNUSED_RESULT;
-Handle<Map> FastMapParameterOf(const Operator* op) WARN_UNUSED_RESULT;
+Handle<Map> DoubleMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+Handle<Map> FastMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreNonNumberElement.
-Type* ValueTypeParameterOf(const Operator* op) WARN_UNUSED_RESULT;
+Type* ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -384,7 +386,7 @@ size_t hash_value(NumberOperationHint);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 
 V8_EXPORT_PRIVATE NumberOperationHint NumberOperationHintOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 class NumberOperationParameters {
  public:
@@ -406,10 +408,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 bool operator==(NumberOperationParameters const&,
                 NumberOperationParameters const&);
 const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
-int FormalParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
-bool IsRestLengthOf(const Operator* op) WARN_UNUSED_RESULT;
+int FormalParameterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+bool IsRestLengthOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
@@ -432,17 +434,17 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AllocateParameters);
 
 bool operator==(AllocateParameters const&, AllocateParameters const&);
 
-PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
+PretenureFlag PretenureFlagOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-Type* AllocateTypeOf(const Operator* op) WARN_UNUSED_RESULT;
+Type* AllocateTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
+UnicodeEncoding UnicodeEncodingOf(const Operator*) V8_WARN_UNUSED_RESULT;
 
-AbortReason AbortReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+AbortReason AbortReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-int NewArgumentsElementsMappedCountOf(const Operator* op) WARN_UNUSED_RESULT;
+int NewArgumentsElementsMappedCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,

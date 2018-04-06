@@ -58,7 +58,7 @@ class CallFrequency final {
 
 std::ostream& operator<<(std::ostream&, CallFrequency);
 
-CallFrequency CallFrequencyOf(Operator const* op) WARN_UNUSED_RESULT;
+CallFrequency CallFrequencyOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSConstructForwardVarargs operators.
@@ -93,7 +93,7 @@ std::ostream& operator<<(std::ostream&,
                          ConstructForwardVarargsParameters const&);
 
 ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
-    Operator const*) WARN_UNUSED_RESULT;
+    Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Defines the arity and the feedback for a JavaScript constructor call. This is
 // used as a parameter by JSConstruct and JSConstructWithSpread operators.
@@ -154,7 +154,7 @@ class CallForwardVarargsParameters final {
 std::ostream& operator<<(std::ostream&, CallForwardVarargsParameters const&);
 
 CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
-    Operator const*) WARN_UNUSED_RESULT;
+    Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCall and JSCallWithSpread operators.
@@ -662,16 +662,16 @@ size_t hash_value(ForInMode);
 
 std::ostream& operator<<(std::ostream&, ForInMode);
 
-ForInMode ForInModeOf(Operator const* op) WARN_UNUSED_RESULT;
+ForInMode ForInModeOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
 
-int GeneratorStoreRegisterCountOf(const Operator* op) WARN_UNUSED_RESULT;
-int RestoreRegisterIndexOf(const Operator* op) WARN_UNUSED_RESULT;
+int GeneratorStoreRegisterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-Handle<ScopeInfo> ScopeInfoOf(const Operator* op) WARN_UNUSED_RESULT;
+Handle<ScopeInfo> ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all

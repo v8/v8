@@ -206,7 +206,7 @@ class JSArrayBuffer : public JSObject {
   static bool SetupAllocatingData(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
       size_t allocated_length, bool initialize = true,
-      SharedFlag shared = SharedFlag::kNotShared) WARN_UNUSED_RESULT;
+      SharedFlag shared = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
