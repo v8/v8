@@ -69,6 +69,9 @@
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
+  # TODO(ulan): Renable after fixing the test's brittleness.
+  'test-heap/OutOfMemory': [SKIP],
+
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
