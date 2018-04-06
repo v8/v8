@@ -2542,8 +2542,9 @@ void Heap::ConfigureInitialOldGenerationSize() {
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                                           int instance_size) {
+  DCHECK(CanAllocateInReadOnlySpace());
   Object* result = nullptr;
-  AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
+  AllocationResult allocation = AllocateRaw(Map::kSize, RO_SPACE);
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
   Map* map = reinterpret_cast<Map*>(result);
@@ -2729,15 +2730,18 @@ AllocationResult Heap::AllocatePropertyCell(Name* name) {
   return result;
 }
 
-
-AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
+AllocationResult Heap::AllocateWeakCell(HeapObject* value,
+                                        PretenureFlag pretenure) {
+  DCHECK(pretenure != NOT_TENURED);
   int size = WeakCell::kSize;
   STATIC_ASSERT(WeakCell::kSize <= kMaxRegularHeapObjectSize);
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    AllocationResult allocation =
+        AllocateRaw(size, pretenure == TENURED ? OLD_SPACE : RO_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
+  DCHECK_NOT_NULL(weak_cell_map());
   result->set_map_after_allocation(weak_cell_map(), SKIP_WRITE_BARRIER);
   WeakCell::cast(result)->initialize(value);
   return result;
@@ -3717,7 +3721,10 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
   // Allocate string.
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    // TODO(delphick): Look at reworking internalized string creation to avoid
+    // this hidden global mode switch.
+    AllocationResult allocation =
+        AllocateRaw(size, CanAllocateInReadOnlySpace() ? RO_SPACE : OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -3795,12 +3802,12 @@ AllocationResult Heap::AllocateRawTwoByteString(int length,
   return result;
 }
 
-
 AllocationResult Heap::AllocateEmptyFixedArray() {
+  DCHECK(CanAllocateInReadOnlySpace());
   int size = FixedArray::SizeFor(0);
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, RO_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
   // Initialize the object.
@@ -3876,10 +3883,9 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   return result;
 }
 
-
 AllocationResult Heap::AllocateEmptyFixedTypedArray(
-    ExternalArrayType array_type) {
-  return AllocateFixedTypedArray(0, array_type, false, TENURED);
+    ExternalArrayType array_type, PretenureFlag pretenure) {
+  return AllocateFixedTypedArray(0, array_type, false, pretenure);
 }
 
 namespace {
@@ -4071,7 +4077,8 @@ AllocationResult Heap::AllocatePropertyArray(int length,
                                              PretenureFlag pretenure) {
   // Allow length = 0 for the empty_property_array singleton.
   DCHECK_LE(0, length);
-  DCHECK_IMPLIES(length == 0, pretenure == TENURED);
+  DCHECK_IMPLIES(length == 0,
+                 pretenure == TENURED || pretenure == TENURED_READ_ONLY);
 
   DCHECK(!InNewSpace(undefined_value()));
   HeapObject* result = nullptr;

@@ -1917,7 +1917,8 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // be in map space.
       Map* map = object->map();
       CHECK(map->IsMap());
-      CHECK(heap()->map_space()->Contains(map));
+      CHECK(heap()->map_space()->Contains(map) ||
+            heap()->read_only_space()->Contains(map));
 
       // Perform space-specific object verification.
       VerifyObject(object);
@@ -2368,10 +2369,11 @@ void NewSpace::Verify() {
       HeapObject* object = HeapObject::FromAddress(current);
 
       // The first word should be a map, and we expect all map pointers to
-      // be in map space.
+      // be in map space or read-only space.
       Map* map = object->map();
       CHECK(map->IsMap());
-      CHECK(heap()->map_space()->Contains(map));
+      CHECK(heap()->map_space()->Contains(map) ||
+            heap()->read_only_space()->Contains(map));
 
       // The object should not be code or a map.
       CHECK(!object->IsMap());
@@ -3445,10 +3447,11 @@ void LargeObjectSpace::Verify() {
     CHECK(object->address() == page->area_start());
 
     // The first word should be a map, and we expect all map pointers to be
-    // in map space.
+    // in map space or read-only space.
     Map* map = object->map();
     CHECK(map->IsMap());
-    CHECK(heap()->map_space()->Contains(map));
+    CHECK(heap()->map_space()->Contains(map) ||
+          heap()->read_only_space()->Contains(map));
 
     // We have only code, sequential strings, external strings (sequential
     // strings that have been morphed into external strings), thin strings
