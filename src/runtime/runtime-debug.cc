@@ -59,8 +59,15 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   bool side_effect_check_failed = false;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
-    side_effect_check_failed =
-        !isolate->debug()->PerformSideEffectCheckAtBytecode(interpreted_frame);
+    int offset = interpreted_frame->GetBytecodeOffset();
+    interpreter::BytecodeArrayAccessor bytecode_accessor(handle(bytecode_array),
+                                                         offset);
+    interpreter::Register reg = bytecode_accessor.GetRegisterOperand(0);
+    Handle<Object> first_operand = handle(
+        interpreted_frame->ReadInterpreterRegister(reg.index()), isolate);
+    if (!isolate->debug()->PerformSideEffectCheckForObject(first_operand)) {
+      side_effect_check_failed = true;
+    }
   }
 
   if (Bytecodes::Returns(bytecode)) {

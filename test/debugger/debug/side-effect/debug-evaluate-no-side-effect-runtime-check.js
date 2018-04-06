@@ -4,13 +4,6 @@
 
 Debug = debug.Debug;
 
-// StaCurrentContextSlot
-success(10, `(function(){
-  const x = 10;
-  function f1() {return x;}
-  return x;
-})()`);
-
 // StaNamedProperty
 var a = {name: 'foo'};
 function set_name(a) {

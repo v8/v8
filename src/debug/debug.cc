@@ -2413,28 +2413,8 @@ bool Debug::PerformSideEffectCheckForCallback(Handle<Object> callback_info) {
   return false;
 }
 
-bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
-  using interpreter::Bytecode;
-
+bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-  SharedFunctionInfo* shared = frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->bytecode_array();
-  int offset = frame->GetBytecodeOffset();
-  interpreter::BytecodeArrayAccessor bytecode_accessor(handle(bytecode_array),
-                                                       offset);
-
-  Bytecode bytecode = bytecode_accessor.current_bytecode();
-  interpreter::Register reg;
-  switch (bytecode) {
-    case Bytecode::kStaCurrentContextSlot:
-      reg = interpreter::Register::current_context();
-      break;
-    default:
-      reg = bytecode_accessor.GetRegisterOperand(0);
-      break;
-  }
-  Handle<Object> object =
-      handle(frame->ReadInterpreterRegister(reg.index()), isolate_);
   if (object->IsHeapObject()) {
     Address address = Handle<HeapObject>::cast(object)->address();
     if (temporary_objects_->HasObject(address)) {
@@ -2442,6 +2422,14 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
     }
   }
   if (FLAG_trace_side_effect_free_debug_evaluate) {
+    JavaScriptFrameIterator it(isolate_);
+    InterpretedFrame* interpreted_frame =
+        reinterpret_cast<InterpretedFrame*>(it.frame());
+    SharedFunctionInfo* shared = interpreted_frame->function()->shared();
+    BytecodeArray* bytecode_array = shared->bytecode_array();
+    int bytecode_offset = interpreted_frame->GetBytecodeOffset();
+    interpreter::Bytecode bytecode =
+        interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
     PrintF("[debug-evaluate] %s failed runtime side effect check.\n",
            interpreter::Bytecodes::ToString(bytecode));
   }
