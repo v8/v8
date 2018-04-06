@@ -136,5 +136,25 @@ bool ArrayBufferTracker::IsTracked(JSArrayBuffer* buffer) {
   }
 }
 
+void ArrayBufferTracker::TearDown(Heap* heap) {
+  // ArrayBuffers can only be found in NEW_SPACE and OLD_SPACE.
+  for (Page* p : *heap->old_space()) {
+    FreeAll(p);
+  }
+  NewSpace* new_space = heap->new_space();
+  if (new_space->to_space().is_committed()) {
+    for (Page* p : new_space->to_space()) {
+      FreeAll(p);
+    }
+  }
+#ifdef DEBUG
+  if (new_space->from_space().is_committed()) {
+    for (Page* p : new_space->from_space()) {
+      DCHECK(!p->contains_array_buffers());
+    }
+  }
+#endif  // DEBUG
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -57,6 +57,9 @@ class ArrayBufferTracker : public AllStatic {
 
   // Returns whether a buffer is currently tracked.
   static bool IsTracked(JSArrayBuffer* buffer);
+
+  // Tears down the tracker and frees up all registered array buffers.
+  static void TearDown(Heap* heap);
 };
 
 // LocalArrayBufferTracker tracks internalized array buffers.

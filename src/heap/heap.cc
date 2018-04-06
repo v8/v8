@@ -6163,6 +6163,11 @@ void Heap::TearDown() {
 
   external_string_table_.TearDown();
 
+  // Tear down all ArrayBuffers before tearing down the heap since  their
+  // byte_length may be a HeapNumber which is required for freeing the backing
+  // store.
+  ArrayBufferTracker::TearDown(this);
+
   delete tracer_;
   tracer_ = nullptr;
 

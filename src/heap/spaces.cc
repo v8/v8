@@ -1472,7 +1472,6 @@ bool PagedSpace::HasBeenSetUp() { return true; }
 void PagedSpace::TearDown() {
   for (auto it = begin(); it != end();) {
     Page* page = *(it++);  // Will be erased.
-    ArrayBufferTracker::FreeAll(page);
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
   anchor_.set_next_page(&anchor_);
@@ -2419,9 +2418,6 @@ void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
 void SemiSpace::TearDown() {
   // Properly uncommit memory to keep the allocator counters in sync.
   if (is_committed()) {
-    for (Page* p : *this) {
-      ArrayBufferTracker::FreeAll(p);
-    }
     Uncommit();
   }
   current_capacity_ = maximum_capacity_ = 0;
