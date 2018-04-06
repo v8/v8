@@ -1960,10 +1960,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* Typeof(Node* value);
 
-  Node* GetSuperConstructor(Node* value, Node* context);
+  TNode<Object> GetSuperConstructor(SloppyTNode<Context> context,
+                                    SloppyTNode<JSFunction> active_function);
 
-  Node* SpeciesConstructor(Node* context, Node* object,
-                           Node* default_constructor);
+  TNode<Object> SpeciesConstructor(SloppyTNode<Context> context,
+                                   SloppyTNode<Object> object,
+                                   SloppyTNode<Object> default_constructor);
 
   Node* InstanceOf(Node* object, Node* callable, Node* context);
 

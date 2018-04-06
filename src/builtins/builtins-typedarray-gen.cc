@@ -866,8 +866,7 @@ TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
   Branch(IsSpeciesProtectorCellInvalid(), &slow, &done);
 
   BIND(&slow);
-  var_constructor =
-      CAST(SpeciesConstructor(context, exemplar, default_constructor));
+  var_constructor = SpeciesConstructor(context, exemplar, default_constructor);
   Goto(&done);
 
   BIND(&done);

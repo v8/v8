@@ -1053,7 +1053,7 @@ TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
 
-  Return(GetSuperConstructor(object, context));
+  Return(GetSuperConstructor(context, object));
 }
 
 TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {

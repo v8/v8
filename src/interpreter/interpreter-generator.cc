@@ -1478,7 +1478,7 @@ IGNITION_HANDLER(DeletePropertySloppy, InterpreterAssembler) {
 IGNITION_HANDLER(GetSuperConstructor, InterpreterAssembler) {
   Node* active_function = GetAccumulator();
   Node* context = GetContext();
-  Node* result = GetSuperConstructor(active_function, context);
+  Node* result = GetSuperConstructor(context, active_function);
   StoreRegisterAtOperandIndex(result, 0);
   Dispatch();
 }

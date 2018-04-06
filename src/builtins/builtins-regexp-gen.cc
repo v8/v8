@@ -1995,7 +1995,7 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
     TNode<Object> regexp_fun =
         LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
     TNode<Object> species_constructor =
-        CAST(SpeciesConstructor(native_context, maybe_regexp, regexp_fun));
+        SpeciesConstructor(native_context, maybe_regexp, regexp_fun);
 
     // b. Let flags be ? ToString(? Get(R, "flags")).
     // TODO(pwong): Add fast path to avoid property lookup.
