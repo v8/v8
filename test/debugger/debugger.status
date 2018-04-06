@@ -41,6 +41,10 @@
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
+
+  # https://crbug.com/v8/7626
+  'debug/debug-stepout-scope-part1': [PASS, ['tsan', SKIP]],
+  'debug/debug-stepout-scope-part2': [PASS, ['tsan', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
