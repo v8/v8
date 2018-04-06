@@ -210,6 +210,7 @@
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
+      'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
       'v8_linux64_msan_rel': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'release_x64_asan_minimal_symbols_coverage',
