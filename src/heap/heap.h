@@ -453,6 +453,8 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
+enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
+
 enum class FixedArrayVisitationMode { kRegular, kIncremental };
 
 enum class TraceRetainingPathMode { kEnabled, kDisabled };
@@ -758,9 +760,13 @@ class Heap {
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo.
-  V8_EXPORT_PRIVATE HeapObject* CreateFillerObjectAt(Address addr, int size,
-                                                     ClearRecordedSlots mode);
+  // pass ClearRecordedSlots::kNo. If the memory after the object header of
+  // the filler should be cleared, pass in kClearFreedMemory. The default is
+  // kDontClearFreedMemory.
+  V8_EXPORT_PRIVATE HeapObject* CreateFillerObjectAt(
+      Address addr, int size, ClearRecordedSlots clear_slots_mode,
+      ClearFreedMemoryMode clear_memory_mode =
+          ClearFreedMemoryMode::kDontClearFreedMemory);
 
   bool CanMoveObjectStart(HeapObject* object);
 

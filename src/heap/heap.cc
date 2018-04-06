@@ -3028,7 +3028,8 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
 }
 
 HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
-                                       ClearRecordedSlots mode) {
+                                       ClearRecordedSlots clear_slots_mode,
+                                       ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3039,14 +3040,22 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
     filler->set_map_after_allocation(
         reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)),
         SKIP_WRITE_BARRIER);
+    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+      Memory::Address_at(addr + kPointerSize) =
+          reinterpret_cast<Address>(kClearedFreeMemoryValue);
+    }
   } else {
     DCHECK_GT(size, 2 * kPointerSize);
     filler->set_map_after_allocation(
         reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)),
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->relaxed_write_size(size);
+    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+      memset(reinterpret_cast<void*>(addr + 2 * kPointerSize),
+             kClearedFreeMemoryValue, size - 2 * kPointerSize);
+    }
   }
-  if (mode == ClearRecordedSlots::kYes) {
+  if (clear_slots_mode == ClearRecordedSlots::kYes) {
     ClearRecordedSlotRange(addr, addr + size);
   }
 
