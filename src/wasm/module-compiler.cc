@@ -338,29 +338,6 @@ class InstanceBuilder {
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
 };
 
-// This is used in ProcessImports.
-// When importing other modules' exports, we need to ask
-// the exporter for a WasmToWasm wrapper. To do that, we need to
-// switch that module to RW. To avoid flip-floping the same module
-// RW <->RX, we create a scope for a set of NativeModules.
-class SetOfNativeModuleModificationScopes final {
- public:
-  void Add(NativeModule* module) {
-    if (native_modules_.insert(module).second) {
-      module->SetExecutable(false);
-    }
-  }
-
-  ~SetOfNativeModuleModificationScopes() {
-    for (NativeModule* module : native_modules_) {
-      module->SetExecutable(true);
-    }
-  }
-
- private:
-  std::unordered_set<NativeModule*> native_modules_;
-};
-
 }  // namespace
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
@@ -1852,7 +1829,6 @@ void InstanceBuilder::SanitizeImports() {
 int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imported_functions = 0;
   int num_imported_tables = 0;
-  SetOfNativeModuleModificationScopes set_of_native_module_scopes;
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());

@@ -83,7 +83,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
     kFunction,
-    kWasmToWasmWrapper,
     kWasmToJsWrapper,
     kLazyStub,
     kInterpreterStub,

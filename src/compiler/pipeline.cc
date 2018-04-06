@@ -1014,8 +1014,7 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
         target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
     bool is_wasm = target->IsCode() &&
                    (Code::cast(target)->kind() == Code::WASM_FUNCTION ||
-                    Code::cast(target)->kind() == Code::WASM_TO_JS_FUNCTION ||
-                    Code::cast(target)->kind() == Code::WASM_TO_WASM_FUNCTION);
+                    Code::cast(target)->kind() == Code::WASM_TO_JS_FUNCTION);
     bool is_allowed_stub = false;
     if (target->IsCode()) {
       Code* code = Code::cast(target);
@@ -1784,7 +1783,6 @@ struct VerifyGraphPhase {
     switch (data->info()->code_kind()) {
       case Code::WASM_FUNCTION:
       case Code::WASM_TO_JS_FUNCTION:
-      case Code::WASM_TO_WASM_FUNCTION:
       case Code::JS_TO_WASM_FUNCTION:
       case Code::WASM_INTERPRETER_ENTRY:
       case Code::C_WASM_ENTRY:

@@ -460,7 +460,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           if (StackFrame::IsTypeMarker(marker)) break;
           return BUILTIN;
         case wasm::WasmCode::kWasmToJsWrapper:
-        case wasm::WasmCode::kWasmToWasmWrapper:
           return WASM_TO_JS;
         default:
           UNREACHABLE();
@@ -864,7 +863,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case CONSTRUCT:
       case JS_TO_WASM:
       case WASM_TO_JS:
-      case WASM_TO_WASM:
       case WASM_COMPILED:
       case WASM_INTERPRETER_ENTRY:
       case C_WASM_ENTRY:
