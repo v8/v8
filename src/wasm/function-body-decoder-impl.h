@@ -1417,7 +1417,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&operand)) break;
             PopArgs(operand.sig);
             auto* block = PushBlock();
-            SetBlockType(block, operand, args_);
+            SetBlockType(block, operand);
             CALL_INTERFACE_IF_REACHABLE(Block, block);
             PushMergeValues(block, &block->start_merge);
             len = 1 + operand.length;
@@ -1446,7 +1446,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&operand)) break;
             PopArgs(operand.sig);
             auto* try_block = PushTry();
-            SetBlockType(try_block, operand, args_);
+            SetBlockType(try_block, operand);
             len = 1 + operand.length;
             CALL_INTERFACE_IF_REACHABLE(Try, try_block);
             PushMergeValues(try_block, &try_block->start_merge);
@@ -1500,7 +1500,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&operand)) break;
             PopArgs(operand.sig);
             auto* block = PushLoop();
-            SetBlockType(&control_.back(), operand, args_);
+            SetBlockType(&control_.back(), operand);
             len = 1 + operand.length;
             CALL_INTERFACE_IF_REACHABLE(Loop, block);
             PushMergeValues(block, &block->start_merge);
@@ -1513,7 +1513,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             PopArgs(operand.sig);
             if (!this->ok()) break;
             auto* if_block = PushIf();
-            SetBlockType(if_block, operand, args_);
+            SetBlockType(if_block, operand);
             CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
             len = 1 + operand.length;
             PushMergeValues(if_block, &if_block->start_merge);
@@ -2030,13 +2030,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
-  void SetBlockType(Control* c, BlockTypeOperand<validate>& operand,
-                    ZoneVector<Value>& params) {
-    InitMerge(&c->end_merge, operand.out_arity(),
-              [&] (uint32_t i) {
-                  return Value::New(this->pc_, operand.out_type(i)); });
+  void SetBlockType(Control* c, BlockTypeOperand<validate>& operand) {
+    DCHECK_EQ(operand.in_arity(), this->args_.size());
+    const byte* pc = this->pc_;
+    Value* args = this->args_.data();
+    InitMerge(&c->end_merge, operand.out_arity(), [pc, &operand](uint32_t i) {
+      return Value::New(pc, operand.out_type(i));
+    });
     InitMerge(&c->start_merge, operand.in_arity(),
-              [&] (uint32_t i) { return params[i]; });
+              [args](uint32_t i) { return args[i]; });
   }
 
   // Pops arguments as required by signature into {args_}.
