@@ -1755,13 +1755,13 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       // TODO(gsathya): Do not copy hash code.
       Handle<PropertyArray> prop = CopyArrayWithMap(
           handle(properties, isolate()), handle(properties->map(), isolate()));
-      clone->set_raw_properties_or_hash(*prop);
+      clone->set_raw_properties_or_hash(*prop, SKIP_WRITE_BARRIER);
     }
   } else {
     Handle<FixedArray> properties(
         FixedArray::cast(source->property_dictionary()), isolate());
     Handle<FixedArray> prop = CopyFixedArray(properties);
-    clone->set_raw_properties_or_hash(*prop);
+    clone->set_raw_properties_or_hash(*prop, SKIP_WRITE_BARRIER);
   }
   return clone;
 }
