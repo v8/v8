@@ -76,7 +76,7 @@ class CompilationState {
         base::RandomNumberGenerator* random_number_generator,
         size_t max_memory = 0);
 
-    void Schedule(std::unique_ptr<compiler::WasmCompilationUnit>&& item);
+    void Schedule(std::unique_ptr<compiler::WasmCompilationUnit> item);
 
     bool IsEmpty() const { return schedule_.empty(); }
 
@@ -3025,7 +3025,7 @@ CompilationState::CodeGenerationSchedule::CodeGenerationSchedule(
 }
 
 void CompilationState::CodeGenerationSchedule::Schedule(
-    std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
+    std::unique_ptr<compiler::WasmCompilationUnit> item) {
   size_t cost = item->memory_cost();
   schedule_.push_back(std::move(item));
   allocated_memory_.Increment(cost);

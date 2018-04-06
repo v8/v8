@@ -149,12 +149,12 @@ class V8_EXPORT_PRIVATE WasmCode final {
  private:
   friend class NativeModule;
 
-  WasmCode(Vector<byte> instructions,
-           std::unique_ptr<const byte[]>&& reloc_info, size_t reloc_size,
-           std::unique_ptr<const byte[]>&& source_pos, size_t source_pos_size,
-           NativeModule* native_module, Maybe<uint32_t> index, Kind kind,
-           size_t constant_pool_offset, uint32_t stack_slots,
-           size_t safepoint_table_offset, size_t handler_table_offset,
+  WasmCode(Vector<byte> instructions, std::unique_ptr<const byte[]> reloc_info,
+           size_t reloc_size, std::unique_ptr<const byte[]> source_pos,
+           size_t source_pos_size, NativeModule* native_module,
+           Maybe<uint32_t> index, Kind kind, size_t constant_pool_offset,
+           uint32_t stack_slots, size_t safepoint_table_offset,
+           size_t handler_table_offset,
            std::shared_ptr<ProtectedInstructions> protected_instructions,
            Tier tier)
       : instructions_(instructions),
