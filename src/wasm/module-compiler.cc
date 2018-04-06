@@ -102,7 +102,7 @@ class CompilationState {
   ~CompilationState();
 
   // Needs to be set before {AddCompilationUnits} is run, which triggers
-  // {StartCompilation}.
+  // background compilation.
   void SetNumberOfFunctionsToCompile(size_t num_functions);
   void AddCallback(
       std::function<void(CompilationEvent, Handle<Object>)> callback);
@@ -121,7 +121,7 @@ class CompilationState {
 
   void CancelAndWait();
   void OnBackgroundTaskStopped();
-  void RestartBackgroundTasks();
+  void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
   // Only one foreground thread (finisher) is allowed to run at a time.
   // {SetFinisherIsRunning} returns whether the flag changed its state.
   bool SetFinisherIsRunning(bool value);
@@ -129,14 +129,6 @@ class CompilationState {
 
   bool CanAcceptWork() const { return executed_units_.CanAcceptWork(); }
   void EnableThrottling() { executed_units_.EnableThrottling(); }
-  bool ShouldIncreaseWorkload() {
-    if (executed_units_.ShouldIncreaseWorkload()) {
-      // Check if it actually makes sense to increase the workload.
-      base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
-      return !compilation_units_.empty();
-    }
-    return false;
-  }
 
   void Abort();
 
@@ -145,8 +137,6 @@ class CompilationState {
   bool failed() { return failed_; }
 
  private:
-  void StartCompilation(size_t num_functions);
-
   void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
 
   Isolate* isolate_;
@@ -169,7 +159,7 @@ class CompilationState {
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
   size_t num_background_tasks_ = 0;
-  size_t stopped_compilation_tasks_ = 0;
+  const size_t max_background_tasks_ = 0;
   base::Mutex tasks_mutex_;
 
   std::atomic<bool> failed_{false};
@@ -960,8 +950,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     DCHECK_IMPLIES(result == nullptr, thrower->error());
     if (result == nullptr) break;
   }
-  if (compilation_state->ShouldIncreaseWorkload() &&
-      !compilation_state->failed()) {
+  if (!compilation_state->failed()) {
     compilation_state->RestartBackgroundTasks();
   }
 }
@@ -1242,9 +1231,7 @@ class FinishCompileTask : public CancelableTask {
     // We execute for 1 ms and then reschedule the task, same as the GC.
     double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
     while (true) {
-      if (compilation_state_->ShouldIncreaseWorkload()) {
-        compilation_state_->RestartBackgroundTasks();
-      }
+      compilation_state_->RestartBackgroundTasks();
 
       std::unique_ptr<compiler::WasmCompilationUnit> unit =
           compilation_state_->GetNextExecutedUnit();
@@ -3086,7 +3073,10 @@ std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
 CompilationState::CompilationState(internal::Isolate* isolate)
     : isolate_(isolate),
       executed_units_(isolate->random_number_generator(),
-                      GetMaxUsableMemorySize(isolate) / 2) {
+                      GetMaxUsableMemorySize(isolate) / 2),
+      max_background_tasks_(std::max(
+          1, std::min(FLAG_wasm_num_compilation_tasks,
+                      V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
@@ -3120,7 +3110,7 @@ void CompilationState::AddCompilationUnits(
                               std::make_move_iterator(units.begin()),
                               std::make_move_iterator(units.end()));
   }
-  StartCompilation(units.size());
+  RestartBackgroundTasks(units.size());
 }
 
 std::unique_ptr<compiler::WasmCompilationUnit>
@@ -3192,15 +3182,22 @@ void CompilationState::CancelAndWait() {
 
 void CompilationState::OnBackgroundTaskStopped() {
   base::LockGuard<base::Mutex> guard(&tasks_mutex_);
-  ++stopped_compilation_tasks_;
-  DCHECK_LE(stopped_compilation_tasks_, num_background_tasks_);
+  DCHECK_LE(1, num_background_tasks_);
+  --num_background_tasks_;
 }
 
-void CompilationState::RestartBackgroundTasks() {
+void CompilationState::RestartBackgroundTasks(size_t max) {
+  if (!executed_units_.ShouldIncreaseWorkload()) return;
+
+  {
+    base::LockGuard<base::Mutex> units_guard(&compilation_units_mutex_);
+    max = std::min(max, compilation_units_.size());
+  }
+
   base::LockGuard<base::Mutex> guard(&tasks_mutex_);
-  // TODO(wasm): Do not start more background tasks than the number of available
-  // units in {compilation_units_}.
-  for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
+
+  for (; num_background_tasks_ < max_background_tasks_ && max > 0;
+       ++num_background_tasks_, --max) {
     // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
     // tasks. This is used to make timing deterministic.
     v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
@@ -3226,28 +3223,6 @@ void CompilationState::ScheduleFinisherTask() {
 void CompilationState::Abort() {
   CancelAndWait();
   failed_ = true;
-}
-
-void CompilationState::StartCompilation(size_t num_functions) {
-  if (num_background_tasks_ == 0) {
-    DCHECK_EQ(stopped_compilation_tasks_, num_background_tasks_);
-
-    // {outstanding_units_} has to be initialized before entering.
-    DCHECK_LE(num_functions, outstanding_units_);
-
-    // First set up. Initialize {num_background_tasks_} and
-    // {stopped_compilation_tasks_}
-    num_background_tasks_ =
-        Max(1, Min(static_cast<int>(outstanding_units_),
-                   Min(FLAG_wasm_num_compilation_tasks,
-                       V8::GetCurrentPlatform()->NumberOfWorkerThreads())));
-    {
-      base::LockGuard<base::Mutex> guard(&tasks_mutex_);
-      stopped_compilation_tasks_ = num_background_tasks_;
-    }
-  }
-
-  RestartBackgroundTasks();
 }
 
 void CompilationState::NotifyOnEvent(CompilationEvent event,
