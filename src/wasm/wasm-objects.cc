@@ -345,7 +345,8 @@ namespace {
 MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                             Handle<JSArrayBuffer> old_buffer,
                                             uint32_t pages,
-                                            uint32_t maximum_pages) {
+                                            uint32_t maximum_pages,
+                                            bool use_trap_handler) {
   if (!old_buffer->is_growable()) return {};
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
@@ -396,7 +397,8 @@ MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     // We couldn't reuse the old backing store, so create a new one and copy the
     // old contents in.
     Handle<JSArrayBuffer> new_buffer;
-    if (!wasm::NewArrayBuffer(isolate, new_size).ToHandle(&new_buffer)) {
+    if (!wasm::NewArrayBuffer(isolate, new_size, use_trap_handler)
+             .ToHandle(&new_buffer)) {
       return {};
     }
     if (old_size == 0) return new_buffer;
@@ -500,7 +502,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     maximum_pages = Min(FLAG_wasm_max_mem_pages,
                         static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  if (!GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages)
+  // TODO(kschimpf): We need to fix this by adding a field to WasmMemoryObject
+  // that defines the style of memory being used.
+  if (!GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages,
+                        trap_handler::IsTrapHandlerEnabled())
            .ToHandle(&new_buffer)) {
     return -1;
   }
