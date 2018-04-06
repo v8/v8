@@ -117,13 +117,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint32_t stack_slots() const { return stack_slots_; }
   bool is_liftoff() const { return tier_ == kLiftoff; }
 
-  // TODO(mstarzinger): Make the next four methods private once wasm-to-wasm
-  // wrappers are gone. All uses are in {NativeModule} by now.
-  size_t trap_handler_index() const;
-  void set_trap_handler_index(size_t);
-  bool HasTrapHandlerIndex() const;
-  void ResetTrapHandlerIndex();
-
   const ProtectedInstructions& protected_instructions() const {
     // TODO(mstarzinger): Code that doesn't have trapping instruction should
     // not be required to have this vector, make it possible to be null.
@@ -176,6 +169,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(handler_table_offset, instructions.size());
     DCHECK_EQ(kInstructionStartOffset, OFFSET_OF(WasmCode, instructions_));
   }
+
+  // Code objects that have been registered with the global trap handler within
+  // this process, will have a {trap_handler_index} associated with them.
+  size_t trap_handler_index() const;
+  void set_trap_handler_index(size_t);
+  bool HasTrapHandlerIndex() const;
+  void ResetTrapHandlerIndex();
 
   Vector<byte> instructions_;
   std::unique_ptr<const byte[]> reloc_info_;
