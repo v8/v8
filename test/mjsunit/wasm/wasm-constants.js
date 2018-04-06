@@ -93,6 +93,7 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128  = 0x7b;
+let kWasmAnyRef = 0x6f;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -133,6 +134,8 @@ let kSig_iii_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32, kWasmI32, kWasmI32]);
 let kSig_v_f = makeSig([kWasmF32], []);
 let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
+let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
+let kSig_v_r = makeSig([kWasmAnyRef], []);
 
 function makeSig(params, results) {
   return {params: params, results: results};

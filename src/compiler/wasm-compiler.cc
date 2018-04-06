@@ -2840,6 +2840,8 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::ValueType type) {
       return BuildChangeFloat64ToTagged(node);
     case wasm::kWasmF64:
       return BuildChangeFloat64ToTagged(node);
+    case wasm::kWasmAnyRef:
+      return node;
     case wasm::kWasmStmt:
       return jsgraph()->UndefinedConstant();
     default:
@@ -2921,6 +2923,11 @@ Node* WasmGraphBuilder::BuildChangeTaggedToFloat64(Node* value) {
 Node* WasmGraphBuilder::FromJS(Node* node, Node* js_context,
                                wasm::ValueType type) {
   DCHECK_NE(wasm::kWasmStmt, type);
+
+  // The parameter is of type AnyRef, we take it as is.
+  if (type == wasm::kWasmAnyRef) {
+    return node;
+  }
 
   // Do a JavaScript ToNumber.
   Node* num = BuildJavaScriptToNumber(node, js_context);
