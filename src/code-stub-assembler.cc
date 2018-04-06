@@ -6997,20 +6997,21 @@ void CodeStubAssembler::Lookup(TNode<Name> unique_name, TNode<Array> array,
   }
 }
 
-void CodeStubAssembler::TryLookupProperty(
-    Node* object, Node* map, Node* instance_type, Node* unique_name,
-    Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
+void CodeStubAssembler::TryLookupPropertyInSimpleObject(
+    TNode<JSObject> object, TNode<Map> map, TNode<Name> unique_name,
+    Label* if_found_fast, Label* if_found_dict,
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
-    Label* if_not_found, Label* if_bailout) {
-  Label if_objectisspecial(this);
-  GotoIf(IsSpecialReceiverInstanceType(instance_type), &if_objectisspecial);
+    Label* if_not_found) {
+  CSA_ASSERT(
+      this,
+      Word32BinaryNot(IsSpecialReceiverInstanceType(LoadMapInstanceType(map))));
 
   uint32_t mask =
       Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
   CSA_ASSERT(this, Word32BinaryNot(IsSetWord32(LoadMapBitField(map), mask)));
   USE(mask);
 
-  Node* bit_field3 = LoadMapBitField3(map);
+  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
   Label if_isfastmap(this), if_isslowmap(this);
   Branch(IsSetWord32<Map::IsDictionaryMapBit>(bit_field3), &if_isslowmap,
          &if_isfastmap);
@@ -7030,6 +7031,21 @@ void CodeStubAssembler::TryLookupProperty(
     NameDictionaryLookup<NameDictionary>(dictionary, unique_name, if_found_dict,
                                          var_name_index, if_not_found);
   }
+}
+
+void CodeStubAssembler::TryLookupProperty(
+    SloppyTNode<JSObject> object, SloppyTNode<Map> map,
+    SloppyTNode<Int32T> instance_type, SloppyTNode<Name> unique_name,
+    Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
+    TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
+    Label* if_not_found, Label* if_bailout) {
+  Label if_objectisspecial(this);
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), &if_objectisspecial);
+
+  TryLookupPropertyInSimpleObject(object, map, unique_name, if_found_fast,
+                                  if_found_dict, var_meta_storage,
+                                  var_name_index, if_not_found);
+
   BIND(&if_objectisspecial);
   {
     // Handle global object here and bailout for other special objects.
@@ -7037,7 +7053,7 @@ void CodeStubAssembler::TryLookupProperty(
               if_bailout);
 
     // Handle interceptors and access checks in runtime.
-    Node* bit_field = LoadMapBitField(map);
+    TNode<Int32T> bit_field = LoadMapBitField(map);
     int mask =
         Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
     GotoIf(IsSetWord32(bit_field, mask), if_bailout);
@@ -7238,10 +7254,9 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
 // |value| is the property backing store's contents, which is either a value
 // or an accessor pair, as specified by |details|.
 // Returns either the original value, or the result of the getter call.
-Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
-                                              Node* context, Node* receiver,
-                                              Label* if_bailout,
-                                              GetOwnPropertyMode mode) {
+TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
+    Node* value, Node* details, Node* context, Node* receiver,
+    Label* if_bailout, GetOwnPropertyMode mode) {
   VARIABLE(var_value, MachineRepresentation::kTagged, value);
   Label done(this), if_accessor_info(this, Label::kDeferred);
 
@@ -7339,7 +7354,7 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
   }
 
   BIND(&done);
-  return var_value.value();
+  return UncheckedCast<Object>(var_value.value());
 }
 
 void CodeStubAssembler::TryGetOwnProperty(

@@ -1710,12 +1710,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   //
   // Note: this code does not check if the global dictionary points to deleted
   // entry! This has to be done by the caller.
-  void TryLookupProperty(Node* object, Node* map, Node* instance_type,
-                         Node* unique_name, Label* if_found_fast,
+  void TryLookupProperty(SloppyTNode<JSObject> object, SloppyTNode<Map> map,
+                         SloppyTNode<Int32T> instance_type,
+                         SloppyTNode<Name> unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
                          TVariable<HeapObject>* var_meta_storage,
                          TVariable<IntPtrT>* var_name_index,
                          Label* if_not_found, Label* if_bailout);
+
+  // This is a building block for TryLookupProperty() above. Supports only
+  // non-special fast and dictionary objects.
+  void TryLookupPropertyInSimpleObject(TNode<JSObject> object, TNode<Map> map,
+                                       TNode<Name> unique_name,
+                                       Label* if_found_fast,
+                                       Label* if_found_dict,
+                                       TVariable<HeapObject>* var_meta_storage,
+                                       TVariable<IntPtrT>* var_name_index,
+                                       Label* if_not_found);
 
   // This method jumps to if_found if the element is known to exist. To
   // if_absent if it's known to not exist. To if_not_found if the prototype
@@ -2069,9 +2080,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
                                            TNode<Uint32T> descriptor_number);
 
-  Node* CallGetterIfAccessor(Node* value, Node* details, Node* context,
-                             Node* receiver, Label* if_bailout,
-                             GetOwnPropertyMode mode = kCallJSGetter);
+  TNode<Object> CallGetterIfAccessor(Node* value, Node* details, Node* context,
+                                     Node* receiver, Label* if_bailout,
+                                     GetOwnPropertyMode mode = kCallJSGetter);
 
   TNode<IntPtrT> TryToIntptr(Node* key, Label* miss);
 

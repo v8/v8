@@ -41,7 +41,15 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                Node* value, Node* context, Label* slow);
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
-                                const StoreICParameters* p, Label* slow);
+                                const StoreICParameters* p,
+                                ExitPoint* exit_point, Label* slow,
+                                bool assume_strict_language_mode = false);
+
+  void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
+                                const StoreICParameters* p, Label* slow) {
+    ExitPoint direct_exit(this);
+    EmitGenericPropertyStore(receiver, receiver_map, p, &direct_exit, slow);
+  }
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
                                              Label* non_fast_elements,
@@ -611,7 +619,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* receiver, Node* receiver_map, const StoreICParameters* p,
-    Label* slow) {
+    ExitPoint* exit_point, Label* slow, bool assume_strict_language_mode) {
   VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
@@ -651,7 +659,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         OverwriteExistingFastDataProperty(receiver, receiver_map, descriptors,
                                           name_index, details, p->value, slow,
                                           false);
-        Return(p->value);
+        exit_point->Return(p->value);
       }
     }
     BIND(&lookup_transition);
@@ -721,6 +729,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         // Validate the transition handler candidate and apply the transition.
         HandleStoreICTransitionMapHandlerCase(p, var_transition_map.value(),
                                               slow, true);
+        exit_point->Return(p->value);
       }
     }
   }
@@ -754,7 +763,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         CheckForAssociatedProtector(p->name, slow);
         StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
                                              p->value);
-        Return(p->value);
+        exit_point->Return(p->value);
       }
     }
 
@@ -774,11 +783,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       InvalidateValidityCellIfPrototype(receiver_map, bitfield2);
       Add<NameDictionary>(properties, p->name, p->value,
                           &add_dictionary_property_slow);
-      Return(p->value);
+      exit_point->Return(p->value);
 
       BIND(&add_dictionary_property_slow);
-      TailCallRuntime(Runtime::kAddDictionaryProperty, p->context, p->receiver,
-                      p->name, p->value);
+      exit_point->ReturnCallRuntime(Runtime::kAddDictionaryProperty, p->context,
+                                    p->receiver, p->name, p->value);
     }
   }
 
@@ -796,13 +805,17 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     Callable callable = CodeFactory::Call(isolate());
     CallJS(callable, p->context, setter, receiver, p->value);
-    Return(p->value);
+    exit_point->Return(p->value);
 
     BIND(&not_callable);
     {
       Label strict(this);
-      BranchIfStrictMode(p->vector, p->slot, &strict);
-      Return(p->value);
+      if (assume_strict_language_mode) {
+        Goto(&strict);
+      } else {
+        BranchIfStrictMode(p->vector, p->slot, &strict);
+        exit_point->Return(p->value);
+      }
 
       BIND(&strict);
       {
@@ -815,9 +828,12 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   BIND(&readonly);
   {
     Label strict(this);
-    BranchIfStrictMode(p->vector, p->slot, &strict);
-    Return(p->value);
-
+    if (assume_strict_language_mode) {
+      Goto(&strict);
+    } else {
+      BranchIfStrictMode(p->vector, p->slot, &strict);
+      exit_point->Return(p->value);
+    }
     BIND(&strict);
     {
       Node* type = Typeof(p->receiver);
