@@ -59,7 +59,7 @@
 namespace v8 {
 namespace internal {
 
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 static inline MaybeHandle<Object> ThrowRegExpException(
     Handle<JSRegExp> re, Handle<String> pattern, Handle<String> error_text) {
   Isolate* isolate = re->GetIsolate();

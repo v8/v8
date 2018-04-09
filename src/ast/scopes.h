@@ -590,8 +590,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Variable* LookupRecursive(ParseInfo* info, VariableProxy* proxy,
                             Scope* outer_scope_end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
-  MUST_USE_RESULT bool ResolveVariable(ParseInfo* info, VariableProxy* proxy);
-  MUST_USE_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
+  V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
+                                             VariableProxy* proxy);
+  V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
@@ -854,7 +855,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Returns false if private fields can not be resolved and
   // ParseInfo's pending_error_handler will be populated with an
   // error. Otherwise, returns true.
-  MUST_USE_RESULT
+  V8_WARN_UNUSED_RESULT
   static bool Analyze(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can

@@ -551,18 +551,15 @@ Handle<String> Factory::NewInternalizedStringFromUtf8(Vector<const char> str,
       String);
 }
 
-
-MUST_USE_RESULT Handle<String> Factory::NewOneByteInternalizedString(
-      Vector<const uint8_t> str,
-      uint32_t hash_field) {
+V8_WARN_UNUSED_RESULT Handle<String> Factory::NewOneByteInternalizedString(
+    Vector<const uint8_t> str, uint32_t hash_field) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateOneByteInternalizedString(str, hash_field),
       String);
 }
 
-
-MUST_USE_RESULT Handle<String> Factory::NewOneByteInternalizedSubString(
+V8_WARN_UNUSED_RESULT Handle<String> Factory::NewOneByteInternalizedSubString(
     Handle<SeqOneByteString> string, int offset, int length,
     uint32_t hash_field) {
   CALL_HEAP_FUNCTION(
@@ -572,10 +569,8 @@ MUST_USE_RESULT Handle<String> Factory::NewOneByteInternalizedSubString(
       String);
 }
 
-
-MUST_USE_RESULT Handle<String> Factory::NewTwoByteInternalizedString(
-      Vector<const uc16> str,
-      uint32_t hash_field) {
+V8_WARN_UNUSED_RESULT Handle<String> Factory::NewTwoByteInternalizedString(
+    Vector<const uc16> str, uint32_t hash_field) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateTwoByteInternalizedString(str, hash_field),

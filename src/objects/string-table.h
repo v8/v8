@@ -71,7 +71,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.
-  MUST_USE_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
       Isolate* isolate, uint16_t c1, uint16_t c2);
   static Object* LookupStringIfExists_NoAllocate(String* string);
 

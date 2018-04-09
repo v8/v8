@@ -78,7 +78,7 @@ inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
 }
 
 // Returns |false| if not applicable.
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
                                                   Handle<Object> receiver,
                                                   BuiltinArguments* args,
@@ -128,9 +128,8 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   return true;
 }
 
-MUST_USE_RESULT static Object* CallJsIntrinsic(Isolate* isolate,
-                                               Handle<JSFunction> function,
-                                               BuiltinArguments args) {
+V8_WARN_UNUSED_RESULT static Object* CallJsIntrinsic(
+    Isolate* isolate, Handle<JSFunction> function, BuiltinArguments args) {
   HandleScope handleScope(isolate);
   int argc = args.length() - 1;
   ScopedVector<Handle<Object>> argv(argc);
@@ -334,7 +333,7 @@ class ArrayConcatVisitor {
 
   ~ArrayConcatVisitor() { clear_storage(); }
 
-  MUST_USE_RESULT bool visit(uint32_t i, Handle<Object> elm) {
+  V8_WARN_UNUSED_RESULT bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
     if (i >= JSObject::kMaxElementCount - index_offset_) {
@@ -412,7 +411,7 @@ class ArrayConcatVisitor {
     return array;
   }
 
-  MUST_USE_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
     DCHECK(!is_fixed_array());
     Handle<JSReceiver> result = Handle<JSReceiver>::cast(storage_);
     Handle<Object> length =

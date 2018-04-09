@@ -232,8 +232,8 @@ class LoadIC : public IC {
     return ShouldThrowReferenceError(kind());
   }
 
-  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
-                                           Handle<Name> name);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+                                                 Handle<Name> name);
 
  protected:
   virtual Handle<Code> slow_stub() const {
@@ -257,7 +257,7 @@ class LoadGlobalIC : public LoadIC {
                FeedbackSlot slot)
       : LoadIC(isolate, vector, slot) {}
 
-  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Name> name);
 
  protected:
   Handle<Code> slow_stub() const override {
@@ -271,8 +271,8 @@ class KeyedLoadIC : public LoadIC {
               FeedbackSlot slot)
       : LoadIC(isolate, vector, slot) {}
 
-  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
-                                           Handle<Object> key);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+                                                 Handle<Object> key);
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
@@ -305,7 +305,7 @@ class StoreIC : public IC {
 
   LanguageMode language_mode() const { return nexus()->GetLanguageMode(); }
 
-  MUST_USE_RESULT MaybeHandle<Object> Store(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       JSReceiver::StoreFromKeyed store_mode =
           JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
@@ -337,8 +337,8 @@ class StoreGlobalIC : public StoreIC {
                 FeedbackSlot slot)
       : StoreIC(isolate, vector, slot) {}
 
-  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Name> name,
-                                            Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Name> name,
+                                                  Handle<Object> value);
 
  protected:
   Handle<Code> slow_stub() const override {
@@ -362,9 +362,9 @@ class KeyedStoreIC : public StoreIC {
                FeedbackSlot slot)
       : StoreIC(isolate, vector, slot) {}
 
-  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
-                                            Handle<Object> name,
-                                            Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Object> object,
+                                                  Handle<Object> name,
+                                                  Handle<Object> value);
 
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,

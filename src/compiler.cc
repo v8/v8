@@ -502,7 +502,7 @@ bool FinalizeUnoptimizedCode(
   return true;
 }
 
-MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
+V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
     Handle<JSFunction> function, BailoutId osr_offset) {
   RuntimeCallTimerScope runtimeTimer(
       function->GetIsolate(),

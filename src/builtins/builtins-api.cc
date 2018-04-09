@@ -41,7 +41,7 @@ JSObject* GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo* info,
 }
 
 template <bool is_construct>
-MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Isolate* isolate, Handle<HeapObject> function,
     Handle<HeapObject> new_target, Handle<FunctionTemplateInfo> fun_data,
     Handle<Object> receiver, BuiltinArguments args) {
@@ -242,7 +242,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
+V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     Isolate* isolate, bool is_construct_call, BuiltinArguments args) {
   Handle<Object> receiver = args.receiver();
 

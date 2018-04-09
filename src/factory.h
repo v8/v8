@@ -109,7 +109,7 @@ class V8_EXPORT_PRIVATE Factory final {
   // The caller has to manually signal an
   // v8::internal::Heap::FatalProcessOutOfMemory typically by calling
   // NewFixedArray as a fallback.
-  MUST_USE_RESULT
+  V8_WARN_UNUSED_RESULT
   MaybeHandle<FixedArray> TryNewFixedArray(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
@@ -231,7 +231,7 @@ class V8_EXPORT_PRIVATE Factory final {
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromOneByte(
       Vector<const uint8_t> str, PretenureFlag pretenure = NOT_TENURED);
 
   template <size_t N>
@@ -251,17 +251,17 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       Vector<const char> str, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
       Handle<SeqOneByteString> str, int begin, int end,
       PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
       Vector<const uc16> str, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
       const ZoneVector<uc16>* str, PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
@@ -286,7 +286,7 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Compute the matching internalized string map for a string if possible.
   // Empty handle is returned if string is in new space or not flattened.
-  MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Map> InternalizedStringMapForString(
       Handle<String> string);
 
   // Creates an internalized copy of an external string. |string| must be
@@ -297,24 +297,22 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  MUST_USE_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
-      int length,
-      PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
-      int length,
-      PretenureFlag pretenure = NOT_TENURED);
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
+      int length, PretenureFlag pretenure = NOT_TENURED);
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a single character string where the character has given code.
   // A cache is used for Latin1 codes.
   Handle<String> LookupSingleCharacterStringFromCode(uint32_t code);
 
   // Create a new cons string object which consists of a pair of strings.
-  MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
-                                                    Handle<String> right);
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
+                                                          Handle<String> right);
 
-  MUST_USE_RESULT Handle<String> NewConsString(Handle<String> left,
-                                               Handle<String> right, int length,
-                                               bool one_byte);
+  V8_WARN_UNUSED_RESULT Handle<String> NewConsString(Handle<String> left,
+                                                     Handle<String> right,
+                                                     int length, bool one_byte);
 
   // Create or lookup a single characters tring made up of a utf16 surrogate
   // pair.
@@ -333,9 +331,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
-  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
       const ExternalOneByteString::Resource* resource);
-  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
   // Create a new external string object for one-byte encoded native script.
   // It does not cache the resource data pointer.

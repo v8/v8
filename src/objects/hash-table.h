@@ -134,7 +134,7 @@ class HashTable : public HashTableBase {
   typedef typename Shape::Key Key;
 
   // Returns a new HashTable object.
-  MUST_USE_RESULT static Handle<Derived> New(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
@@ -193,7 +193,7 @@ class HashTable : public HashTableBase {
   }
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
       Handle<Derived> table, int n, PretenureFlag pretenure = NOT_TENURED);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -202,17 +202,16 @@ class HashTable : public HashTableBase {
  protected:
   friend class ObjectHashTable;
 
-  MUST_USE_RESULT static Handle<Derived> NewInternal(Isolate* isolate,
-                                                     int capacity,
-                                                     PretenureFlag pretenure);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
+      Isolate* isolate, int capacity, PretenureFlag pretenure);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table,
-                                                int additionalCapacity = 0);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
+      Handle<Derived> table, int additionalCapacity = 0);
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
@@ -289,7 +288,7 @@ class ObjectHashTable
   DECL_CAST(ObjectHashTable)
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT static inline Handle<ObjectHashTable> Shrink(
+  V8_WARN_UNUSED_RESULT static inline Handle<ObjectHashTable> Shrink(
       Handle<ObjectHashTable> table);
 
   // Looks up the value associated with the given key. The hole value is

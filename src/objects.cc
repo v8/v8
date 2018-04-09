@@ -2061,7 +2061,7 @@ bool HasExcludedProperty(
   return false;
 }
 
-MUST_USE_RESULT Maybe<bool> FastAssign(
+V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     Handle<JSReceiver> target, Handle<Object> source,
     const ScopedVector<Handle<Object>>* excluded_properties, bool use_set) {
   // Non-empty strings are the only non-JSReceivers that need to be handled
@@ -2405,7 +2405,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
 }
 
 // ES6 section 7.3.20 SpeciesConstructor ( O, defaultConstructor )
-MUST_USE_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
     Isolate* isolate, Handle<JSReceiver> recv,
     Handle<JSFunction> default_ctor) {
   Handle<Object> ctor_obj;
@@ -8777,7 +8777,7 @@ bool Map::OnlyHasSimpleProperties() const {
          !is_dictionary_map();
 }
 
-MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
+V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     Isolate* isolate, Handle<JSReceiver> receiver, bool get_entries,
     Handle<FixedArray>* result) {
   Handle<Map> map(JSReceiver::cast(*receiver)->map(), isolate);
@@ -17275,7 +17275,7 @@ class StringTableNoAllocateKey : public StringTableKey {
     }
   }
 
-  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override {
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override {
     UNREACHABLE();
   }
 

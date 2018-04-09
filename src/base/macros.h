@@ -150,9 +150,6 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define INLINE(declarator)    V8_INLINE declarator
 #define NO_INLINE(declarator) V8_NOINLINE declarator
 
-// Newly written code should use V8_WARN_UNUSED_RESULT.
-#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
-
 // Define V8_USE_ADDRESS_SANITIZER macros.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)

@@ -225,8 +225,8 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
-  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
-                                           Handle<Object> data);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
+                                                 Handle<Object> data);
   Handle<Context> GetDebugContext();
   void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
@@ -445,14 +445,12 @@ class Debug {
   void OnException(Handle<Object> exception, Handle<Object> promise);
 
   // Constructors for debug event objects.
-  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
-  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
-      Handle<Object> exception,
-      bool uncaught,
-      Handle<Object> promise);
-  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeExecutionState();
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeExceptionEvent(
+      Handle<Object> exception, bool uncaught, Handle<Object> promise);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
       v8::debug::PromiseDebugActionType type, int id);
 
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);

@@ -753,8 +753,8 @@ class Isolate {
   Object* ThrowIllegalOperation();
 
   template <typename T>
-  MUST_USE_RESULT MaybeHandle<T> Throw(Handle<Object> exception,
-                                       MessageLocation* location = nullptr) {
+  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(
+      Handle<Object> exception, MessageLocation* location = nullptr) {
     Throw(*exception, location);
     return MaybeHandle<T>();
   }

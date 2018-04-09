@@ -117,7 +117,7 @@ class MarkBitCellIterator {
     return cell_base_;
   }
 
-  MUST_USE_RESULT inline bool Advance() {
+  V8_WARN_UNUSED_RESULT inline bool Advance() {
     cell_base_ += Bitmap::kBitsPerCell * kPointerSize;
     return ++cell_index_ != last_cell_index_;
   }

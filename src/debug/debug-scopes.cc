@@ -176,8 +176,8 @@ void ScopeIterator::UnwrapEvaluationContext() {
   }
 }
 
-
-MUST_USE_RESULT MaybeHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
+V8_WARN_UNUSED_RESULT MaybeHandle<JSObject>
+ScopeIterator::MaterializeScopeDetails() {
   // Calculate the size of the result.
   Handle<FixedArray> details =
       isolate_->factory()->NewFixedArray(kScopeDetailsSize);

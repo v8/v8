@@ -191,7 +191,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   // Expects {storage} to have a length of at least
   // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
   void SerializeDigits(uint8_t* storage);
-  MUST_USE_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
       PretenureFlag pretenure);
 

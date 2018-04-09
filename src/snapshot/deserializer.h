@@ -180,7 +180,7 @@ class StringTableInsertionKey : public StringTableKey {
 
   bool IsMatch(Object* string) override;
 
-  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override;
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
 
  private:
   uint32_t ComputeHashField(String* string);

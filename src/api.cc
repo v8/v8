@@ -6635,8 +6635,7 @@ inline int StringLength(const uint16_t* string) {
   return length;
 }
 
-
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            v8::NewStringType type,
                                            i::Vector<const char> string) {
@@ -6646,8 +6645,7 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
   return factory->NewStringFromUtf8(string);
 }
 
-
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            v8::NewStringType type,
                                            i::Vector<const uint8_t> string) {
@@ -6657,8 +6655,7 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
   return factory->NewStringFromOneByte(string);
 }
 
-
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            v8::NewStringType type,
                                            i::Vector<const uint16_t> string) {

@@ -243,7 +243,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // specifies the type of the result of the visited expression.
   TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
-  MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
+  V8_WARN_UNUSED_RESULT Register VisitForRegisterValue(Expression* expr);
   INLINE(void VisitForRegisterValue(Expression* expr, Register destination));
   void VisitAndPushIntoRegisterList(Expression* expr, RegisterList* reg_list);
   void VisitForEffect(Expression* expr);

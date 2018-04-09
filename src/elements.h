@@ -239,9 +239,8 @@ class ElementsAccessor {
 void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
                      bool allow_appending = false);
 
-MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
-    Handle<JSArray> array,
-    Arguments* args);
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
+    Handle<JSArray> array, Arguments* args);
 
 // Called directly from CSA.
 void CopyFastNumberJSArrayElementsToTypedArray(Context* context,

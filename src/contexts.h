@@ -350,11 +350,11 @@ class ScriptContextTable : public FixedArray {
   // If it returns true, the variable is found and `result` contains
   // valid information about its location.
   // If it returns false, `result` is untouched.
-  MUST_USE_RESULT
+  V8_WARN_UNUSED_RESULT
   static bool Lookup(Handle<ScriptContextTable> table, Handle<String> name,
                      LookupResult* result);
 
-  MUST_USE_RESULT
+  V8_WARN_UNUSED_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
                                            Handle<Context> script_context);
 

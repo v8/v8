@@ -79,7 +79,7 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
 
 namespace {
 
-MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
     Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
     Handle<Name> name, Handle<Object> value) {
   LookupIterator it(receiver, name, holder,

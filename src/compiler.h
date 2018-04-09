@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // real function with a context.
 
   // Create a (bound) function for a String source within a context for eval.
-  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int parameters_end_pos,
@@ -117,7 +117,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
-  MUST_USE_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
       Handle<String> source, Handle<FixedArray> arguments,
       Handle<Context> context, const ScriptDetails& script_details,
       ScriptOriginOptions origin_options, ScriptData* cached_data,
@@ -131,10 +131,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                                Handle<String> source);
 
   // Create a (bound) function for a String source within a context for eval.
-  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
       Handle<Context> context, Handle<String> source,
       ParseRestriction restriction, int parameters_end_pos);
-
 
   // Create a shared function info object for a String source.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
@@ -169,7 +168,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // instead of generating JIT code for a function at all.
 
   // Generate and return optimized code for OSR, or empty handle on failure.
-  MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
       Handle<JSFunction> function, BailoutId osr_offset,
       JavaScriptFrame* osr_frame);
 };
@@ -197,7 +196,7 @@ class V8_EXPORT_PRIVATE CompilationJob {
   State state() const { return state_; }
 
  protected:
-  MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
+  V8_WARN_UNUSED_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {
       state_ = next_state;
     } else {
@@ -228,11 +227,11 @@ class UnoptimizedCompilationJob : public CompilationJob {
         compilation_info_(compilation_info) {}
 
   // Executes the compile job. Can be called on a background thread.
-  MUST_USE_RESULT Status ExecuteJob();
+  V8_WARN_UNUSED_RESULT Status ExecuteJob();
 
   // Finalizes the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status FinalizeJob(Handle<SharedFunctionInfo> shared_info,
-                                     Isolate* isolate);
+  V8_WARN_UNUSED_RESULT Status
+  FinalizeJob(Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
 
   void RecordCompilationStats(Isolate* isolate) const;
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
@@ -277,14 +276,14 @@ class OptimizedCompilationJob : public CompilationJob {
         compiler_name_(compiler_name) {}
 
   // Prepare the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status PrepareJob(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
 
   // Executes the compile job. Can be called on a background thread if
   // can_execute_on_background_thread() returns true.
-  MUST_USE_RESULT Status ExecuteJob();
+  V8_WARN_UNUSED_RESULT Status ExecuteJob();
 
   // Finalizes the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status FinalizeJob(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.

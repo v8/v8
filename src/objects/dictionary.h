@@ -48,11 +48,11 @@ class Dictionary : public HashTable<Derived, Shape> {
   }
 
   // Delete a property from the dictionary.
-  MUST_USE_RESULT static Handle<Derived> DeleteEntry(Handle<Derived> dictionary,
-                                                     int entry);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
+      Handle<Derived> dictionary, int entry);
 
   // Attempt to shrink the dictionary after deletion of key.
-  MUST_USE_RESULT static inline Handle<Derived> Shrink(
+  V8_WARN_UNUSED_RESULT static inline Handle<Derived> Shrink(
       Handle<Derived> dictionary) {
     return DerivedHashTable::Shrink(dictionary);
   }
@@ -73,16 +73,18 @@ class Dictionary : public HashTable<Derived, Shape> {
   inline void SetEntry(int entry, Object* key, Object* value,
                        PropertyDetails details);
 
-  MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
-                                             Key key, Handle<Object> value,
-                                             PropertyDetails details,
-                                             int* entry_out = nullptr);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
+                                                   Key key,
+                                                   Handle<Object> value,
+                                                   PropertyDetails details,
+                                                   int* entry_out = nullptr);
 
  protected:
   // Generic at put operation.
-  MUST_USE_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
-                                               Key key, Handle<Object> value,
-                                               PropertyDetails details);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
+                                                     Key key,
+                                                     Handle<Object> value,
+                                                     PropertyDetails details);
 };
 
 template <typename Key>
@@ -152,7 +154,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   }
 
   // Creates a new dictionary.
-  MUST_USE_RESULT static Handle<Derived> New(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
@@ -174,14 +176,15 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   // Ensure enough space for n additional elements.
   static Handle<Derived> EnsureCapacity(Handle<Derived> dictionary, int n);
 
-  MUST_USE_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
       Handle<Derived> dictionary, Key key, Handle<Object> value,
       PropertyDetails details, int* entry_out = nullptr);
 
-  MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
-                                             Key key, Handle<Object> value,
-                                             PropertyDetails details,
-                                             int* entry_out = nullptr);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
+                                                   Key key,
+                                                   Handle<Object> value,
+                                                   PropertyDetails details,
+                                                   int* entry_out = nullptr);
 };
 
 class NameDictionary
@@ -279,7 +282,7 @@ class SimpleNumberDictionary
  public:
   DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT static Handle<SimpleNumberDictionary> Set(
+  V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary> Set(
       Handle<SimpleNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
 
@@ -300,7 +303,7 @@ class NumberDictionary
   DECL_CAST(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT static Handle<NumberDictionary> Set(
+  V8_WARN_UNUSED_RESULT static Handle<NumberDictionary> Set(
       Handle<NumberDictionary> dictionary, uint32_t key, Handle<Object> value,
       Handle<JSObject> dictionary_holder = Handle<JSObject>::null(),
       PropertyDetails details = PropertyDetails::Empty());

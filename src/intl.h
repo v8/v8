@@ -24,15 +24,19 @@ namespace internal {
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
                                     std::unique_ptr<uc16[]>* dest,
                                     int32_t length);
-MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
-                                          bool is_to_upper, const char* lang);
-MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate);
-MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate);
-MUST_USE_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
-                                    Isolate* isolate);
+V8_WARN_UNUSED_RESULT Object* LocaleConvertCase(Handle<String> s,
+                                                Isolate* isolate,
+                                                bool is_to_upper,
+                                                const char* lang);
+V8_WARN_UNUSED_RESULT Object* ConvertToLower(Handle<String> s,
+                                             Isolate* isolate);
+V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
+                                             Isolate* isolate);
+V8_WARN_UNUSED_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
+                                          Isolate* isolate);
 
-MUST_USE_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
-                                              Isolate* isolate);
+V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
+                                                    Isolate* isolate);
 
 const uint8_t* ToLatin1LowerTable();
 

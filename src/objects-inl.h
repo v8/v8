@@ -885,7 +885,7 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
 }
 
 // static
-MUST_USE_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
+V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
     Handle<JSReceiver> object) {
   return KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
                                  ALL_PROPERTIES,
