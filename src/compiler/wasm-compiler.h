@@ -229,7 +229,8 @@ class WasmGraphBuilder {
   enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
 
   WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
-                   Handle<Code> centry_stub, wasm::FunctionSig* sig,
+                   Handle<Code> centry_stub, Handle<Oddball> anyref_null,
+                   wasm::FunctionSig* sig,
                    compiler::SourcePositionTable* spt = nullptr,
                    RuntimeExceptionSupport res = kRuntimeExceptionSupport);
 
@@ -264,6 +265,7 @@ class WasmGraphBuilder {
   Node* IntPtrConstant(intptr_t value);
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
+  Node* RefNull() { return anyref_null_node_; }
   Node* HeapConstant(Handle<HeapObject> value);
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
@@ -418,6 +420,7 @@ class WasmGraphBuilder {
   Zone* const zone_;
   JSGraph* const jsgraph_;
   Node* const centry_stub_node_;
+  Node* const anyref_null_node_;
   // env_ == nullptr means we're not compiling Wasm functions, such as for
   // wrappers or interpreter stubs.
   ModuleEnv* const env_ = nullptr;

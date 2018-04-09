@@ -235,7 +235,7 @@ class WasmGraphBuildingInterface {
   }
 
   void RefNull(Decoder* decoder, Value* result) {
-    result->node = builder_->HeapConstant(Handle<HeapObject>::null());
+    result->node = builder_->RefNull();
   }
 
   void Drop(Decoder* decoder, const Value& value) {}

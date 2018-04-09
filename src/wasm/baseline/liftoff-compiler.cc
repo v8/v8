@@ -928,7 +928,9 @@ class LiftoffCompiler {
     __ PushRegister(kWasmF64, reg);
   }
 
-  void RefNull(Decoder* decoder, Value* result) { UNIMPLEMENTED(); }
+  void RefNull(Decoder* decoder, Value* result) {
+    unsupported(decoder, "ref_null");
+  }
 
   void Drop(Decoder* decoder, const Value& value) {
     __ DropStackSlot(&__ cache_state()->stack_state.back());

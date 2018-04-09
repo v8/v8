@@ -68,3 +68,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   instance.exports.main({hello: 'world'});
 })();
+
+(function testAnyRefNull() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_r_v)
+      .addBody([kExprRefNull])
+      .exportFunc();
+
+
+  const instance = builder.instantiate();
+
+  assertEquals(null, instance.exports.main());
+})();

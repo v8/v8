@@ -270,13 +270,15 @@ void TestBuildingGraph(
     compiler::RuntimeExceptionSupport runtime_exception_support) {
   if (module) {
     compiler::WasmGraphBuilder builder(
-        module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
-        source_position_table, runtime_exception_support);
+        module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(),
+        jsgraph->isolate()->factory()->null_value(), sig, source_position_table,
+        runtime_exception_support);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   } else {
     compiler::WasmGraphBuilder builder(
         nullptr, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(),
-        sig, source_position_table, runtime_exception_support);
+        jsgraph->isolate()->factory()->null_value(), sig, source_position_table,
+        runtime_exception_support);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   }
 }
