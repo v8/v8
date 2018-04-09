@@ -4,8 +4,6 @@
 
 #include "src/wasm/module-compiler.h"
 
-#include <atomic>
-
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
@@ -95,7 +93,7 @@ class CompilationState {
     std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
     const size_t max_memory_;
     bool throttle_ = false;
-    base::AtomicNumber<size_t> allocated_memory_{0};
+    size_t allocated_memory_ = 0;
   };
 
   explicit CompilationState(internal::Isolate* isolate);
@@ -127,8 +125,8 @@ class CompilationState {
   bool SetFinisherIsRunning(bool value);
   void ScheduleFinisherTask();
 
-  bool CanAcceptWork() const { return executed_units_.CanAcceptWork(); }
-  void EnableThrottling() { executed_units_.EnableThrottling(); }
+  bool CanAcceptWork() const;
+  void EnableThrottling();
 
   void Abort();
 
@@ -141,15 +139,24 @@ class CompilationState {
 
   Isolate* isolate_;
 
+  // This mutex protects all information of this CompilationState which is being
+  // accessed concurrently.
+  mutable base::Mutex mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {mutex_}:
+
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
-  std::vector<std::function<void(CompilationEvent, Handle<Object>)>> callbacks_;
-  base::Mutex compilation_units_mutex_;
-
   CodeGenerationSchedule executed_units_;
-  // Should only be set when result_mutex_ is taken.
   bool finisher_is_running_ = false;
-  base::Mutex result_mutex_;
+  bool failed_ = false;
+  size_t num_background_tasks_ = 0;
+
+  // End of fields protected by {mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
+
+  std::vector<std::function<void(CompilationEvent, Handle<Object>)>> callbacks_;
 
   // When canceling the background_task_manager_, use {CancelAndWait} on
   // the CompilationState in order to cleanly clean up.
@@ -158,11 +165,7 @@ class CompilationState {
   std::shared_ptr<v8::TaskRunner> background_task_runner_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
-  size_t num_background_tasks_ = 0;
   const size_t max_background_tasks_ = 0;
-  base::Mutex tasks_mutex_;
-
-  std::atomic<bool> failed_{false};
 
   size_t outstanding_units_ = 0;
 };
@@ -3010,16 +3013,16 @@ void CompilationState::CodeGenerationSchedule::Schedule(
     std::unique_ptr<compiler::WasmCompilationUnit> item) {
   size_t cost = item->memory_cost();
   schedule_.push_back(std::move(item));
-  allocated_memory_.Increment(cost);
+  allocated_memory_ += cost;
 }
 
 bool CompilationState::CodeGenerationSchedule::CanAcceptWork() const {
-  return !throttle_ || allocated_memory_.Value() <= max_memory_;
+  return !throttle_ || allocated_memory_ <= max_memory_;
 }
 
 bool CompilationState::CodeGenerationSchedule::ShouldIncreaseWorkload() const {
   // Half the memory is unused again, we can increase the workload again.
-  return !throttle_ || allocated_memory_.Value() <= max_memory_ / 2;
+  return !throttle_ || allocated_memory_ <= max_memory_ / 2;
 }
 
 std::unique_ptr<compiler::WasmCompilationUnit>
@@ -3029,7 +3032,7 @@ CompilationState::CodeGenerationSchedule::GetNext() {
   auto ret = std::move(schedule_[index]);
   std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
   schedule_.pop_back();
-  allocated_memory_.Decrement(ret->memory_cost());
+  allocated_memory_ -= ret->memory_cost();
   return ret;
 }
 
@@ -3074,9 +3077,8 @@ CompilationState::~CompilationState() {
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
-  if (!failed_) {
-    outstanding_units_ = num_functions;
-  }
+  DCHECK(!failed_);
+  outstanding_units_ = num_functions;
 }
 
 void CompilationState::AddCallback(
@@ -3087,7 +3089,7 @@ void CompilationState::AddCallback(
 void CompilationState::AddCompilationUnits(
     std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units) {
   {
-    base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
+    base::LockGuard<base::Mutex> guard(&mutex_);
     compilation_units_.insert(compilation_units_.end(),
                               std::make_move_iterator(units.begin()),
                               std::make_move_iterator(units.end()));
@@ -3097,7 +3099,7 @@ void CompilationState::AddCompilationUnits(
 
 std::unique_ptr<compiler::WasmCompilationUnit>
 CompilationState::GetNextCompilationUnit() {
-  base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (!compilation_units_.empty()) {
     std::unique_ptr<compiler::WasmCompilationUnit> unit =
         std::move(compilation_units_.back());
@@ -3110,7 +3112,7 @@ CompilationState::GetNextCompilationUnit() {
 
 std::unique_ptr<compiler::WasmCompilationUnit>
 CompilationState::GetNextExecutedUnit() {
-  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (!executed_units_.IsEmpty()) {
     return executed_units_.GetNext();
   }
@@ -3119,14 +3121,13 @@ CompilationState::GetNextExecutedUnit() {
 }
 
 bool CompilationState::HasCompilationUnitToFinish() {
-  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  base::LockGuard<base::Mutex> guard(&mutex_);
   return !executed_units_.IsEmpty();
 }
 
 void CompilationState::OnError(Handle<Object> error,
                                NotifyCompilationCallback notify) {
-  failed_ = true;
-  CancelAndWait();
+  Abort();
   if (notify == NotifyCompilationCallback::kNotify) {
     NotifyOnEvent(CompilationEvent::kFailedCompilation, error);
   }
@@ -3147,7 +3148,7 @@ void CompilationState::OnFinishedUnit(NotifyCompilationCallback notify) {
 
 void CompilationState::ScheduleUnitForFinishing(
     std::unique_ptr<compiler::WasmCompilationUnit>& unit) {
-  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  base::LockGuard<base::Mutex> guard(&mutex_);
   executed_units_.Schedule(std::move(unit));
 
   if (!finisher_is_running_ && !failed_) {
@@ -3163,35 +3164,37 @@ void CompilationState::CancelAndWait() {
 }
 
 void CompilationState::OnBackgroundTaskStopped() {
-  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+  base::LockGuard<base::Mutex> guard(&mutex_);
   DCHECK_LE(1, num_background_tasks_);
   --num_background_tasks_;
 }
 
 void CompilationState::RestartBackgroundTasks(size_t max) {
-  if (!executed_units_.ShouldIncreaseWorkload()) return;
-
+  size_t num_restart = max;
   {
-    base::LockGuard<base::Mutex> units_guard(&compilation_units_mutex_);
-    max = std::min(max, compilation_units_.size());
+    base::LockGuard<base::Mutex> guard(&mutex_);
+    if (!executed_units_.ShouldIncreaseWorkload()) return;
+    DCHECK_LE(num_background_tasks_, max_background_tasks_);
+    if (num_background_tasks_ == max_background_tasks_) return;
+    num_restart = std::min(
+        num_restart, std::min(compilation_units_.size(),
+                              max_background_tasks_ - num_background_tasks_));
+    num_background_tasks_ += num_restart;
   }
 
-  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
-
-  for (; num_background_tasks_ < max_background_tasks_ && max > 0;
-       ++num_background_tasks_, --max) {
-    // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
-    // tasks. This is used to make timing deterministic.
-    v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
-                                      ? background_task_runner_.get()
-                                      : foreground_task_runner_.get();
+  // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
+  // tasks. This is used to make timing deterministic.
+  v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
+                                    ? background_task_runner_.get()
+                                    : foreground_task_runner_.get();
+  for (; num_restart > 0; --num_restart) {
     task_runner->PostTask(base::make_unique<BackgroundCompileTask>(
         this, &background_task_manager_));
   }
 }
 
 bool CompilationState::SetFinisherIsRunning(bool value) {
-  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (finisher_is_running_ == value) return false;
   finisher_is_running_ = value;
   return true;
@@ -3202,9 +3205,22 @@ void CompilationState::ScheduleFinisherTask() {
       base::make_unique<FinishCompileTask>(this, &foreground_task_manager_));
 }
 
+bool CompilationState::CanAcceptWork() const {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  return executed_units_.CanAcceptWork();
+}
+
+void CompilationState::EnableThrottling() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  executed_units_.EnableThrottling();
+}
+
 void CompilationState::Abort() {
+  {
+    base::LockGuard<base::Mutex> guard(&mutex_);
+    failed_ = true;
+  }
   CancelAndWait();
-  failed_ = true;
 }
 
 void CompilationState::NotifyOnEvent(CompilationEvent event,
