@@ -1674,7 +1674,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     value = output_[frame_index - 1]->GetFp();
   }
   output_frame->SetCallerFp(output_frame_offset, value);
-  intptr_t fp_value = top_address + output_frame_offset;
+  const intptr_t fp_value = top_address + output_frame_offset;
   output_frame->SetFp(fp_value);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "caller's fp\n");
@@ -1796,7 +1796,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // Ensure the frame pointer register points to the callee's frame. The builtin
   // will build its own frame once we continue to it.
   Register fp_reg = JavaScriptFrame::fp_register();
-  output_frame->SetRegister(fp_reg.code(), output_[frame_index - 1]->GetFp());
+  output_frame->SetRegister(fp_reg.code(), fp_value);
 
   Code* continue_to_builtin = isolate()->builtins()->builtin(
       TrampolineForBuiltinContinuation(mode, must_handle_result));
