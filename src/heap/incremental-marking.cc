@@ -588,8 +588,12 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
   Map* filler_map = heap_->one_pointer_filler_map();
 
+#ifdef ENABLE_MINOR_MC
   MinorMarkCompactCollector::MarkingState* minor_marking_state =
       heap()->minor_mark_compact_collector()->marking_state();
+#else
+  void* minor_marking_state = nullptr;
+#endif  // ENABLE_MINOR_MC
 
   marking_worklist()->Update([this, filler_map, minor_marking_state](
                                  HeapObject* obj, HeapObject** out) -> bool {
@@ -613,19 +617,24 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       // The object may be on a page that was moved in new space.
       DCHECK(
           Page::FromAddress(obj->address())->IsFlagSet(Page::SWEEP_TO_ITERATE));
+#ifdef ENABLE_MINOR_MC
       if (minor_marking_state->IsGrey(obj)) {
         *out = obj;
         return true;
       }
+#endif  // ENABLE_MINOR_MC
       return false;
     } else {
-      // The object may be on a page that was moved from new to old space.
+      // The object may be on a page that was moved from new to old space. Only
+      // applicable during minor MC garbage collections.
       if (Page::FromAddress(obj->address())
               ->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
+#ifdef ENABLE_MINOR_MC
         if (minor_marking_state->IsGrey(obj)) {
           *out = obj;
           return true;
         }
+#endif  // ENABLE_MINOR_MC
         return false;
       }
       DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());

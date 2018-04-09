@@ -1852,6 +1852,7 @@ void Heap::MarkCompact() {
 }
 
 void Heap::MinorMarkCompact() {
+#ifdef ENABLE_MINOR_MC
   DCHECK(FLAG_minor_mc);
 
   PauseAllocationObserversScope pause_observers(this);
@@ -1869,6 +1870,9 @@ void Heap::MinorMarkCompact() {
 
   LOG(isolate_, ResourceEvent("MinorMarkCompact", "end"));
   SetGCState(NOT_IN_GC);
+#else
+  UNREACHABLE();
+#endif  // ENABLE_MINOR_MC
 }
 
 void Heap::MarkCompactEpilogue() {
@@ -5911,7 +5915,11 @@ bool Heap::SetUp() {
   }
 
   tracer_ = new GCTracer(this);
+#ifdef ENABLE_MINOR_MC
   minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
+#else
+  minor_mark_compact_collector_ = nullptr;
+#endif  // ENABLE_MINOR_MC
   array_buffer_collector_ = new ArrayBufferCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
@@ -5928,9 +5936,11 @@ bool Heap::SetUp() {
   store_buffer()->SetUp();
 
   mark_compact_collector()->SetUp();
+#ifdef ENABLE_MINOR_MC
   if (minor_mark_compact_collector() != nullptr) {
     minor_mark_compact_collector()->SetUp();
   }
+#endif  // ENABLE_MINOR_MC
 
   idle_scavenge_observer_ = new IdleScavengeObserver(
       *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
@@ -6112,11 +6122,13 @@ void Heap::TearDown() {
     mark_compact_collector_ = nullptr;
   }
 
+#ifdef ENABLE_MINOR_MC
   if (minor_mark_compact_collector_ != nullptr) {
     minor_mark_compact_collector_->TearDown();
     delete minor_mark_compact_collector_;
     minor_mark_compact_collector_ = nullptr;
   }
+#endif  // ENABLE_MINOR_MC
 
   if (array_buffer_collector_ != nullptr) {
     delete array_buffer_collector_;
