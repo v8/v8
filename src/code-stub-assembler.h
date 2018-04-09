@@ -778,7 +778,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  void EnsureArrayLengthWritable(Node* map, Label* bailout);
+  void EnsureArrayLengthWritable(TNode<Map> map, Label* bailout);
 
   // EnsureArrayPushable verifies that receiver with this map is:
   //   1. Is not a prototype.

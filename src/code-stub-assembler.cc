@@ -2244,14 +2244,28 @@ Node* CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
   }
 }
 
-void CodeStubAssembler::EnsureArrayLengthWritable(Node* map, Label* bailout) {
+void CodeStubAssembler::EnsureArrayLengthWritable(TNode<Map> map,
+                                                  Label* bailout) {
+  // Don't support arrays in dictionary named property mode.
+  GotoIf(IsDictionaryMap(map), bailout);
+
   // Check whether the length property is writable. The length property is the
   // only default named property on arrays. It's nonconfigurable, hence is
   // guaranteed to stay the first property.
-  Node* descriptors = LoadMapDescriptors(map);
-  Node* details =
-      LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
-  GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), bailout);
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
+
+  int length_index = JSArray::kLengthDescriptorIndex;
+#ifdef DEBUG
+  TNode<Name> maybe_length = CAST(LoadFixedArrayElement(
+      descriptors, DescriptorArray::ToKeyIndex(length_index)));
+  CSA_ASSERT(this,
+             WordEqual(maybe_length, LoadRoot(Heap::klength_stringRootIndex)));
+#endif
+
+  TNode<Int32T> details = LoadAndUntagToWord32FixedArrayElement(
+      descriptors, DescriptorArray::ToDetailsIndex(length_index));
+  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
+         bailout);
 }
 
 TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Map> map,
@@ -2264,11 +2278,6 @@ TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Map> map,
   Node* test = Word32And(bit_field2, Int32Constant(mask));
   GotoIf(Word32NotEqual(test, Int32Constant(Map::IsExtensibleBit::kMask)),
          bailout);
-
-  // Disallow pushing onto arrays in dictionary named property mode. We need
-  // to figure out whether the length property is still writable.
-  Comment("Disallow pushing onto arrays in dictionary named property mode");
-  GotoIf(IsDictionaryMap(map), bailout);
 
   EnsureArrayLengthWritable(map, bailout);
 

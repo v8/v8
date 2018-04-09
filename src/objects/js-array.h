@@ -81,6 +81,8 @@ class JSArray : public JSObject {
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
+  static const int kLengthDescriptorIndex = 0;
+
   // Max. number of elements being copied in Array builtins.
   static const int kMaxCopyElements = 100;
 

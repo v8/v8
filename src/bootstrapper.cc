@@ -1605,6 +1605,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE);
 
+    STATIC_ASSERT(JSArray::kLengthDescriptorIndex == 0);
     {  // Add length.
       Descriptor d = Descriptor::AccessorConstant(
           factory->length_string(), factory->array_length_accessor(), attribs);
