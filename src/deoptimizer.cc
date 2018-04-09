@@ -1811,6 +1811,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
 void Deoptimizer::MaterializeHeapObjects() {
   translated_state_.Prepare(reinterpret_cast<Address>(stack_fp_));
+  if (FLAG_deopt_every_n_times > 0) {
+    // Doing a GC here will find problems with the deoptimized frames.
+    isolate_->heap()->CollectAllGarbage(
+        i::Heap::kFinalizeIncrementalMarkingMask,
+        i::GarbageCollectionReason::kTesting);
+  }
 
   for (auto& materialization : values_to_materialize_) {
     Handle<Object> value = materialization.value_->GetValue();
