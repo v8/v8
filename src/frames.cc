@@ -297,7 +297,7 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   if (!frame_) return;
 
   // Check that we have actually moved to the previous frame in the stack.
-  if (frame_->sp() < last_sp || frame_->fp() < last_fp) {
+  if (frame_->sp() <= last_sp || frame_->fp() <= last_fp) {
     frame_ = nullptr;
   }
 }
