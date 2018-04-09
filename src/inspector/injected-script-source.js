@@ -784,7 +784,7 @@ InjectedScript.RemoteObject = function(object, objectGroupName, doNotBind, force
     if (generatePreview && this.type === "object") {
         if (this.subtype === "proxy")
             this.preview = this._generatePreview(InjectedScriptHost.proxyTargetValue(object), undefined, columnNames, isTable, skipEntriesPreview);
-        else if (this.subtype !== "node")
+        else
             this.preview = this._generatePreview(object, undefined, columnNames, isTable, skipEntriesPreview);
     }
 
