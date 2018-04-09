@@ -1577,10 +1577,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     // Patch {node} to an indirect call via the {function}s construct stub.
     bool use_builtin_construct_stub = shared->construct_as_builtin();
 
-    Handle<Code> code =
-        use_builtin_construct_stub
-            ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-            : BUILTIN_CODE(isolate(), JSConstructStubGenericUnrestrictedReturn);
+    Handle<Code> code = use_builtin_construct_stub
+                            ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
+                            : isolate()->builtins()->JSConstructStubGeneric();
 
     node->RemoveInput(arity + 1);
     node->InsertInput(graph()->zone(), 0, jsgraph()->HeapConstant(code));
