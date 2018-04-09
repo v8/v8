@@ -1223,7 +1223,7 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
   Address height_slot =
       fp() + BuiltinContinuationFrameConstants::kFrameSPtoFPDeltaAtDeoptimize;
-  intptr_t height = *reinterpret_cast<intptr_t*>(height_slot);
+  intptr_t height = Smi::ToInt(*reinterpret_cast<Smi**>(height_slot));
   return height;
 }
 

@@ -1713,7 +1713,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // The delta from the SP to the FP; used to reconstruct SP in
   // Isolate::UnwindAndFindHandler.
   output_frame_offset -= kPointerSize;
-  value = static_cast<intptr_t>(output_frame_size_above_fp);
+  value = reinterpret_cast<intptr_t>(Smi::FromInt(output_frame_size_above_fp));
   output_frame->SetFrameSlot(output_frame_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "frame height at deoptimization\n");
