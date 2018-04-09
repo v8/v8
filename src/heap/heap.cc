@@ -5018,8 +5018,7 @@ void Heap::AddRetainedMap(Handle<Map> map) {
     CompactRetainedMaps(*array);
   }
   array = ArrayList::Add(
-      array, cell, handle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()),
-      ArrayList::kReloadLengthAfterAllocation);
+      array, cell, handle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()));
   if (*array != retained_maps()) {
     set_retained_maps(*array);
   }

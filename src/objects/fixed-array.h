@@ -372,15 +372,9 @@ class FixedArrayOfWeakCells : public FixedArray {
 // underlying FixedArray starting at kFirstIndex.
 class ArrayList : public FixedArray {
  public:
-  enum AddMode {
-    kNone,
-    // Use this if GC can delete elements from the array.
-    kReloadLengthAfterAllocation,
-  };
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj,
-                               AddMode mode = kNone);
+  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj);
   static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
-                               Handle<Object> obj2, AddMode = kNone);
+                               Handle<Object> obj2);
   static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which

@@ -10275,14 +10275,11 @@ Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Allocate(
 }
 
 // static
-Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj,
-                                 AddMode mode) {
+Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj) {
   int length = array->Length();
   array = EnsureSpace(array, length + 1);
-  if (mode == kReloadLengthAfterAllocation) {
-    DCHECK(array->Length() <= length);
-    length = array->Length();
-  }
+  // Check that GC didn't remove elements from the array.
+  DCHECK_EQ(array->Length(), length);
   array->Set(length, *obj);
   array->SetLength(length + 1);
   return array;
@@ -10290,12 +10287,11 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj,
 
 // static
 Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
-                                 Handle<Object> obj2, AddMode mode) {
+                                 Handle<Object> obj2) {
   int length = array->Length();
   array = EnsureSpace(array, length + 2);
-  if (mode == kReloadLengthAfterAllocation) {
-    length = array->Length();
-  }
+  // Check that GC didn't remove elements from the array.
+  DCHECK_EQ(array->Length(), length);
   array->Set(length, *obj1);
   array->Set(length + 1, *obj2);
   array->SetLength(length + 2);

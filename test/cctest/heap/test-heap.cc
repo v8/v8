@@ -4658,28 +4658,6 @@ TEST(MapRetaining) {
   CheckMapRetainingFor(7);
 }
 
-
-TEST(RegressArrayListGC) {
-  FLAG_retain_maps_for_n_gc = 1;
-  FLAG_incremental_marking = 0;
-  FLAG_gc_global = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  AddRetainedMap(isolate, heap);
-  Handle<Map> map = Map::Create(isolate, 1);
-  CcTest::CollectGarbage(OLD_SPACE);
-  // Force GC in old space on next addition of retained map.
-  Map::WeakCellForMap(map);
-  heap::SimulateFullSpace(CcTest::heap()->new_space());
-  for (int i = 0; i < 10; i++) {
-    heap->AddRetainedMap(map);
-  }
-  CcTest::CollectGarbage(OLD_SPACE);
-}
-
-
 TEST(WritableVsImmortalRoots) {
   for (int i = 0; i < Heap::kStrongRootListLength; ++i) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
