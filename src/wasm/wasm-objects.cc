@@ -36,7 +36,6 @@ namespace v8 {
 namespace internal {
 
 // Import a few often used types from the wasm namespace.
-using GlobalHandleAddress = wasm::GlobalHandleAddress;
 using WasmFunction = wasm::WasmFunction;
 using WasmModule = wasm::WasmModule;
 

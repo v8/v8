@@ -29,7 +29,6 @@ class NativeModule;
 class WasmCode;
 struct WasmModule;
 class SignatureMap;
-typedef Address GlobalHandleAddress;
 using ValueType = MachineRepresentation;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
