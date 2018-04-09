@@ -84,15 +84,12 @@ class CompilationState {
 
     bool ShouldIncreaseWorkload() const;
 
-    void EnableThrottling() { throttle_ = true; }
-
    private:
     size_t GetRandomIndexInSchedule();
 
     base::RandomNumberGenerator* random_number_generator_ = nullptr;
     std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
     const size_t max_memory_;
-    bool throttle_ = false;
     size_t allocated_memory_ = 0;
   };
 
@@ -126,7 +123,6 @@ class CompilationState {
   void ScheduleFinisherTask();
 
   bool CanAcceptWork() const;
-  void EnableThrottling();
 
   void Abort();
 
@@ -987,7 +983,6 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   CanonicalHandleScope canonical(isolate);
 
   CompilationState* compilation_state = native_module->compilation_state();
-  compilation_state->EnableThrottling();
   // Make sure that no foreground task is spawned for finishing
   // the compilation units. This foreground thread will be
   // responsible for finishing compilation.
@@ -2660,9 +2655,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     job_->compiled_module_ = NewCompiledModule(
         job_->isolate_, module_, export_wrappers, job_->module_env_.get());
-    job_->compiled_module_->GetNativeModule()
-        ->compilation_state()
-        ->EnableThrottling();
 
     {
       DeferredHandleScope deferred(job_->isolate_);
@@ -3017,12 +3009,12 @@ void CompilationState::CodeGenerationSchedule::Schedule(
 }
 
 bool CompilationState::CodeGenerationSchedule::CanAcceptWork() const {
-  return !throttle_ || allocated_memory_ <= max_memory_;
+  return allocated_memory_ <= max_memory_;
 }
 
 bool CompilationState::CodeGenerationSchedule::ShouldIncreaseWorkload() const {
   // Half the memory is unused again, we can increase the workload again.
-  return !throttle_ || allocated_memory_ <= max_memory_ / 2;
+  return allocated_memory_ <= max_memory_ / 2;
 }
 
 std::unique_ptr<compiler::WasmCompilationUnit>
@@ -3208,11 +3200,6 @@ void CompilationState::ScheduleFinisherTask() {
 bool CompilationState::CanAcceptWork() const {
   base::LockGuard<base::Mutex> guard(&mutex_);
   return executed_units_.CanAcceptWork();
-}
-
-void CompilationState::EnableThrottling() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  executed_units_.EnableThrottling();
 }
 
 void CompilationState::Abort() {
