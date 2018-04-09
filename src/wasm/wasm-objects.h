@@ -206,25 +206,50 @@ class WasmGlobalObject : public JSObject {
   DECL_CAST(WasmGlobalObject)
 
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
-  DECL_INT_ACCESSORS(type)
-  DECL_INT_ACCESSORS(offset)
-  DECL_INT_ACCESSORS(is_mutable)
+  DECL_INT32_ACCESSORS(offset)
+  DECL_INT_ACCESSORS(flags)
+  DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
+  DECL_BOOLEAN_ACCESSORS(is_mutable)
+
+#define WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS(V, _) \
+  V(TypeBits, wasm::ValueType, 8, _)              \
+  V(IsMutableBit, bool, 1, _)
+
+  DEFINE_BIT_FIELDS(WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS)
+
+#undef WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS
 
 // Layout description.
 #define WASM_GLOBAL_OBJECT_FIELDS(V)  \
   V(kArrayBufferOffset, kPointerSize) \
-  V(kTypeOffset, kPointerSize)        \
   V(kOffsetOffset, kPointerSize)      \
-  V(kIsMutableOffset, kPointerSize)   \
+  V(kFlagsOffset, kPointerSize)       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 WASM_GLOBAL_OBJECT_FIELDS)
 #undef WASM_GLOBAL_OBJECT_FIELDS
 
-  V8_EXPORT_PRIVATE static Handle<WasmGlobalObject> New(
+  V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
       Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
+
+  static inline uint32_t TypeSize(wasm::ValueType);
+  inline uint32_t type_size() const;
+
+  inline int32_t GetI32();
+  inline float GetF32();
+  inline double GetF64();
+
+  inline void SetI32(int32_t value);
+  inline void SetF32(float value);
+  inline void SetF64(double value);
+
+ private:
+  // This function returns the address of the global's data in the
+  // JSArrayBuffer. This buffer may be allocated on-heap, in which case it may
+  // not have a fixed address.
+  inline Address address() const;
 };
 
 // A WebAssembly.Instance JavaScript-level object.

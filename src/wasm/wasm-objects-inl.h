@@ -6,6 +6,7 @@
 #define V8_WASM_WASM_OBJECTS_INL_H_
 
 #include "src/heap/heap-inl.h"
+#include "src/v8memory.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -60,9 +61,44 @@ OPTIONAL_ACCESSORS(WasmMemoryObject, instances, FixedArrayOfWeakCells,
 
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
-SMI_ACCESSORS(WasmGlobalObject, type, kTypeOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
+SMI_ACCESSORS(WasmGlobalObject, flags, kFlagsOffset)
+BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, type, WasmGlobalObject::TypeBits)
+BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, is_mutable,
+                    WasmGlobalObject::IsMutableBit)
+
+// static
+uint32_t WasmGlobalObject::TypeSize(wasm::ValueType type) {
+  return 1U << ElementSizeLog2Of(type);
+}
+
+uint32_t WasmGlobalObject::type_size() const { return TypeSize(type()); }
+
+Address WasmGlobalObject::address() const {
+  uint32_t buffer_size = 0;
+  DCHECK(array_buffer()->byte_length()->ToUint32(&buffer_size));
+  DCHECK(offset() + type_size() <= buffer_size);
+  USE(buffer_size);
+  return Address(array_buffer()->backing_store()) + offset();
+}
+
+int32_t WasmGlobalObject::GetI32() { return Memory::int32_at(address()); }
+
+float WasmGlobalObject::GetF32() { return Memory::float_at(address()); }
+
+double WasmGlobalObject::GetF64() { return Memory::double_at(address()); }
+
+void WasmGlobalObject::SetI32(int32_t value) {
+  Memory::int32_at(address()) = value;
+}
+
+void WasmGlobalObject::SetF32(float value) {
+  Memory::float_at(address()) = value;
+}
+
+void WasmGlobalObject::SetF64(double value) {
+  Memory::double_at(address()) = value;
+}
 
 // WasmInstanceObject
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)

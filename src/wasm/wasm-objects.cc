@@ -596,7 +596,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 }
 
 // static
-Handle<WasmGlobalObject> WasmGlobalObject::New(
+MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
     wasm::ValueType type, int32_t offset, bool is_mutable) {
   Handle<JSFunction> global_ctor(
@@ -604,12 +604,19 @@ Handle<WasmGlobalObject> WasmGlobalObject::New(
   auto global_obj = Handle<WasmGlobalObject>::cast(
       isolate->factory()->NewJSObject(global_ctor));
 
-  uint32_t type_size = 1 << ElementSizeLog2Of(type);
+  uint32_t type_size = TypeSize(type);
 
   Handle<JSArrayBuffer> buffer;
   if (!maybe_buffer.ToHandle(&buffer)) {
     // If no buffer was provided, create one long enough for the given type.
-    buffer = wasm::SetupArrayBuffer(isolate, nullptr, type_size, false);
+    buffer =
+        isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
+
+    const bool initialize = true;
+    if (!JSArrayBuffer::SetupAllocatingData(buffer, isolate, type_size,
+                                            initialize)) {
+      return {};
+    }
   }
 
   // Check that the offset is in bounds.
@@ -618,7 +625,8 @@ Handle<WasmGlobalObject> WasmGlobalObject::New(
   CHECK(offset + type_size <= buffer_size);
 
   global_obj->set_array_buffer(*buffer);
-  global_obj->set_type(static_cast<int>(type));
+  global_obj->set_flags(0);
+  global_obj->set_type(type);
   global_obj->set_offset(offset);
   global_obj->set_is_mutable(is_mutable);
 

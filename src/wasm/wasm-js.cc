@@ -693,7 +693,9 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
 
-  // TODO(binji): handle descriptor's 'value'.
+  // The descriptor's 'value'.
+  v8::MaybeLocal<v8::Value> maybe_value =
+      descriptor->Get(context, v8_str(isolate, "value"));
 
   // The descriptor's 'mutable'.
   bool is_mutable = false;
@@ -732,12 +734,56 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
-  uint32_t offset = 0;
-  i::Handle<i::JSObject> global_obj = i::WasmGlobalObject::New(
-      i_isolate, i::MaybeHandle<i::JSArrayBuffer>(), type, offset, is_mutable);
-  args.GetReturnValue().Set(Utils::ToLocal(global_obj));
+  const uint32_t offset = 0;
+  i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
+      i::WasmGlobalObject::New(i_isolate, i::MaybeHandle<i::JSArrayBuffer>(),
+                               type, offset, is_mutable);
+
+  i::Handle<i::WasmGlobalObject> global_obj;
+  if (!maybe_global_obj.ToHandle(&global_obj)) {
+    thrower.RangeError("could not allocate memory");
+    return;
+  }
+
+  // Convert value to a WebAssembly value.
+  v8::Local<v8::Value> value;
+  if (maybe_value.ToLocal(&value)) {
+    switch (type) {
+      case i::wasm::kWasmI32: {
+        int32_t i32_value = 0;
+        v8::Local<v8::Int32> int32_value;
+        if (!value->ToInt32(context).ToLocal(&int32_value)) return;
+        if (!int32_value->Int32Value(context).To(&i32_value)) return;
+        global_obj->SetI32(i32_value);
+        break;
+      }
+      case i::wasm::kWasmF32: {
+        double f64_value = 0;
+        v8::Local<v8::Number> number_value;
+        if (!value->ToNumber(context).ToLocal(&number_value)) return;
+        if (!number_value->NumberValue(context).To(&f64_value)) return;
+        float f32_value = static_cast<float>(f64_value);
+        global_obj->SetF32(f32_value);
+        break;
+      }
+      case i::wasm::kWasmF64: {
+        double f64_value = 0;
+        v8::Local<v8::Number> number_value;
+        if (!value->ToNumber(context).ToLocal(&number_value)) return;
+        if (!number_value->NumberValue(context).To(&f64_value)) return;
+        global_obj->SetF64(f64_value);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  i::Handle<i::JSObject> global_js_object(global_obj);
+  args.GetReturnValue().Set(Utils::ToLocal(global_js_object));
 }
 
+constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
@@ -949,6 +995,83 @@ void WebAssemblyMemoryGetBuffer(
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
 }
+
+void WebAssemblyGlobalGetValueCommon(
+    const v8::FunctionCallbackInfo<v8::Value>& args, const char* name) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+  ScheduledErrorThrower thrower(i_isolate, name);
+  EXTRACT_THIS(receiver, WasmGlobalObject);
+
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+
+  switch (receiver->type()) {
+    case i::wasm::kWasmI32:
+      return_value.Set(receiver->GetI32());
+      break;
+    case i::wasm::kWasmI64:
+      thrower.TypeError("Can't get the value of i64 WebAssembly.Global");
+      break;
+    case i::wasm::kWasmF32:
+      return_value.Set(receiver->GetF32());
+      break;
+    case i::wasm::kWasmF64:
+      return_value.Set(receiver->GetF64());
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+// WebAssembly.Global.valueOf() -> num
+void WebAssemblyGlobalValueOf(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  return WebAssemblyGlobalGetValueCommon(args, "WebAssembly.Global.valueOf()");
+}
+
+// get WebAssembly.Global.value -> num
+void WebAssemblyGlobalGetValue(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  return WebAssemblyGlobalGetValueCommon(args, "get WebAssembly.Global.value");
+}
+
+// set WebAssembly.Global.value(num)
+void WebAssemblyGlobalSetValue(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  ScheduledErrorThrower thrower(i_isolate, "set WebAssembly.Global.value");
+  EXTRACT_THIS(receiver, WasmGlobalObject);
+
+  switch (receiver->type()) {
+    case i::wasm::kWasmI32: {
+      int32_t i32_value = 0;
+      if (!args[0]->Int32Value(context).To(&i32_value)) return;
+      receiver->SetI32(i32_value);
+      break;
+    }
+    case i::wasm::kWasmI64:
+      thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
+      break;
+    case i::wasm::kWasmF32: {
+      double f64_value = 0;
+      if (!args[0]->NumberValue(context).To(&f64_value)) return;
+      receiver->SetF32(static_cast<float>(f64_value));
+      break;
+    }
+    case i::wasm::kWasmF64: {
+      double f64_value = 0;
+      if (!args[0]->NumberValue(context).To(&f64_value)) return;
+      receiver->SetF64(f64_value);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace
 
 // TODO(titzer): we use the API to create the function template because the
@@ -963,33 +1086,64 @@ static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
 
 namespace internal {
 
-Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
-                               const char* str, FunctionCallback func,
-                               int length = 0) {
-  Handle<String> name = v8_str(isolate, str);
+Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
+                              FunctionCallback func) {
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
   DCHECK(function->shared()->HasSharedName());
+  return function;
+}
+
+Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
+                               const char* str, FunctionCallback func,
+                               int length = 0) {
+  Handle<String> name = v8_str(isolate, str);
+  Handle<JSFunction> function = CreateFunc(isolate, name, func);
   function->shared()->set_length(length);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(object, name, function, attributes);
   return function;
 }
 
+Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
+  return Name::ToFunctionName(name, isolate->factory()->get_string())
+      .ToHandleChecked();
+}
+
 void InstallGetter(Isolate* isolate, Handle<JSObject> object,
                    const char* str, FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
-  // TODO(ishell): shouldn't we set "get "+name as getter's name?
   Handle<JSFunction> function =
-      ApiNatives::InstantiateFunction(temp).ToHandleChecked();
-  DCHECK(function->shared()->HasSharedName());
+      CreateFunc(isolate, GetterName(isolate, name), func);
+
   v8::PropertyAttribute attributes =
       static_cast<v8::PropertyAttribute>(v8::DontEnum);
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
                                               Local<Function>(), attributes);
+}
+
+Handle<String> SetterName(Isolate* isolate, Handle<String> name) {
+  return Name::ToFunctionName(name, isolate->factory()->set_string())
+      .ToHandleChecked();
+}
+
+void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
+                         const char* str, FunctionCallback getter,
+                         FunctionCallback setter) {
+  Handle<String> name = v8_str(isolate, str);
+  Handle<JSFunction> getter_func =
+      CreateFunc(isolate, GetterName(isolate, name), getter);
+  Handle<JSFunction> setter_func =
+      CreateFunc(isolate, SetterName(isolate, name), setter);
+
+  v8::PropertyAttribute attributes =
+      static_cast<v8::PropertyAttribute>(v8::DontEnum);
+
+  Utils::ToLocal(object)->SetAccessorProperty(
+      Utils::ToLocal(name), Utils::ToLocal(getter_func),
+      Utils::ToLocal(setter_func), attributes);
 }
 
 void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
@@ -1110,7 +1264,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     i::Handle<i::Map> global_map = isolate->factory()->NewMap(
         i::WASM_GLOBAL_TYPE, WasmGlobalObject::kSize);
     JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
-    // TODO(binji): add other properties
+    InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
+    InstallGetterSetter(isolate, global_proto, "value",
+                        WebAssemblyGlobalGetValue, WebAssemblyGlobalSetValue);
     JSObject::AddProperty(global_proto, factory->to_string_tag_symbol(),
                           v8_str(isolate, "WebAssembly.Global"), ro_attributes);
   }
