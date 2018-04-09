@@ -19,3 +19,8 @@ src:*src/api-arguments-inl.h
 
 # v8 callback that casts argument template parameters
 fun:*PendingPhantomCallback*Invoke*
+
+# weak_callback_ is cast from original type.
+fun:*GlobalHandles*PostGarbageCollectionProcessing*
+
+fun:*InvokeAccessorGetterCallback*
