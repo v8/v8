@@ -135,6 +135,7 @@ let kSig_v_f = makeSig([kWasmF32], []);
 let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
+let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
 let kSig_v_r = makeSig([kWasmAnyRef], []);
 let kSig_r_v = makeSig([], [kWasmAnyRef]);
 
@@ -250,6 +251,7 @@ let kExprF64Lt = 0x63;
 let kExprF64Gt = 0x64;
 let kExprF64Le = 0x65;
 let kExprF64Ge = 0x66;
+let kExprRefIsNull = 0xd1;
 let kExprI32Clz = 0x67;
 let kExprI32Ctz = 0x68;
 let kExprI32Popcnt = 0x69;
