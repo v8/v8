@@ -2819,8 +2819,8 @@ void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
   if (dst.rb() != r0) DCHECK(!AreAliased(src, dst.rb(), scratch));
   DCHECK(!AreAliased(src, scratch));
   mr(scratch, src);
-  LoadP(src, dst);
-  StoreP(scratch, dst);
+  LoadP(src, dst, r0);
+  StoreP(scratch, dst, r0);
 }
 
 void TurboAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
@@ -2830,10 +2830,25 @@ void TurboAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
   if (dst.ra() != r0) DCHECK(!AreAliased(dst.ra(), scratch_0, scratch_1));
   if (dst.rb() != r0) DCHECK(!AreAliased(dst.rb(), scratch_0, scratch_1));
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadP(scratch_0, src);
-  LoadP(scratch_1, dst);
-  StoreP(scratch_0, dst);
-  StoreP(scratch_1, src);
+  if (is_int16(src.offset()) || is_int16(dst.offset())) {
+    if (!is_int16(src.offset())) {
+      // swap operand
+      MemOperand temp = src;
+      src = dst;
+      dst = temp;
+    }
+    LoadP(scratch_1, dst, scratch_0);
+    LoadP(scratch_0, src);
+    StoreP(scratch_1, src);
+    StoreP(scratch_0, dst, scratch_1);
+  } else {
+    LoadP(scratch_1, dst, scratch_0);
+    push(scratch_1);
+    LoadP(scratch_0, src, scratch_1);
+    StoreP(scratch_0, dst, scratch_1);
+    pop(scratch_1);
+    StoreP(scratch_1, src, scratch_0);
+  }
 }
 
 void TurboAssembler::SwapFloat32(DoubleRegister src, DoubleRegister dst,
@@ -2849,18 +2864,18 @@ void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
                                  DoubleRegister scratch) {
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
-  LoadSingle(src, dst);
-  StoreSingle(scratch, dst);
+  LoadSingle(src, dst, r0);
+  StoreSingle(scratch, dst, r0);
 }
 
 void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
                                  DoubleRegister scratch_0,
                                  DoubleRegister scratch_1) {
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadSingle(scratch_0, src);
-  LoadSingle(scratch_1, dst);
-  StoreSingle(scratch_0, dst);
-  StoreSingle(scratch_1, src);
+  LoadSingle(scratch_0, src, r0);
+  LoadSingle(scratch_1, dst, r0);
+  StoreSingle(scratch_0, dst, r0);
+  StoreSingle(scratch_1, src, r0);
 }
 
 void TurboAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -2876,18 +2891,18 @@ void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
                                 DoubleRegister scratch) {
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
-  LoadDouble(src, dst);
-  StoreDouble(scratch, dst);
+  LoadDouble(src, dst, r0);
+  StoreDouble(scratch, dst, r0);
 }
 
 void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
                                 DoubleRegister scratch_0,
                                 DoubleRegister scratch_1) {
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadDouble(scratch_0, src);
-  LoadDouble(scratch_1, dst);
-  StoreDouble(scratch_0, dst);
-  StoreDouble(scratch_1, src);
+  LoadDouble(scratch_0, src, r0);
+  LoadDouble(scratch_1, dst, r0);
+  StoreDouble(scratch_0, dst, r0);
+  StoreDouble(scratch_1, src, r0);
 }
 
 #ifdef DEBUG
