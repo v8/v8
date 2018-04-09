@@ -255,6 +255,26 @@ bool RegisterDefaultSignalHandler() {
     return false;
   }
 
+// Sanitizers often prevent us from installing our own signal handler. Attempt
+// to detect this and if so, refuse to enable trap handling.
+//
+// TODO(chromium:830894): Remove this once all bots support custom signal
+// handlers.
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
+    defined(UNDEFINED_SANITIZER)
+  struct sigaction installed_handler;
+  CHECK_EQ(sigaction(SIGSEGV, NULL, &installed_handler), 0);
+  // If the installed handler does not point to HandleSignal, then
+  // allow_user_segv_handler is 0.
+  if (installed_handler.sa_sigaction != HandleSignal) {
+    printf(
+        "WARNING: sanitizers are preventing signal handler installation. "
+        "Trap handlers are disabled.");
+    return false;
+  }
+#endif
+
   g_is_default_signal_handler_registered = true;
   return true;
 #else
