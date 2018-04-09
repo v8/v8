@@ -459,16 +459,11 @@ struct timeval Time::ToTimeval() const {
 
 // static
 TimeTicks TimeTicks::HighResolutionNow() {
-  static bool verified_high_resolution_available = false;
-  if (!verified_high_resolution_available) {
-    if (!TimeTicks::IsHighResolution()) {
-      OS::PrintError(
-          "\n\n"
-          "WARNING: High-resolution TimeTicks are not available on this system."
-          "\n\n");
-    }
-    verified_high_resolution_available = true;
-  }
+  // a DCHECK of TimeTicks::IsHighResolution() was removed from here
+  // as it turns out this path is used in the wild for logs and counters.
+  //
+  // TODO(hpayer) We may eventually want to split TimedHistograms based
+  // on low resolution clocks to avoid polluting metrics
   return TimeTicks::Now();
 }
 
