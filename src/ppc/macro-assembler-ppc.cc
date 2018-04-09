@@ -838,6 +838,14 @@ void TurboAssembler::LoadPC(Register dst) {
   mflr(dst);
 }
 
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  Label current_pc;
+  mov_label_addr(dst, &current_pc);
+
+  bind(&current_pc);
+  subi(dst, dst, Operand(pc_offset()));
+}
+
 void TurboAssembler::LoadConstantPoolPointerRegister() {
   LoadPC(kConstantPoolRegister);
   int32_t delta = -pc_offset() + 4;

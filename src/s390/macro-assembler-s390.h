@@ -1011,6 +1011,7 @@ class TurboAssembler : public Assembler {
                      Label* condition_met);
 
   void ResetSpeculationPoisonRegister();
+  void ComputeCodeStartAddress(Register dst);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
