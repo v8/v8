@@ -2630,9 +2630,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ LoadSmiLiteral(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
     // The entrypoint address is the first return value.
-    __ mov(ip, r2);
+    __ LoadRR(ip, r2);
     // The WASM instance is the second return value.
-    __ movq(wasm_instance_reg, kReturnRegister1);
+    __ LoadRR(wasm_instance_reg, kReturnRegister1);
 
     // Restore registers.
     __ MultiPopDoubles(fp_regs);
