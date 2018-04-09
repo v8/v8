@@ -151,9 +151,9 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
   Handle<String> type =
       isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
 
-  ExternalArrayType external_type =
-      isolate->factory()->GetArrayTypeFromElementsKind(kind);
-  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  ExternalArrayType external_type;
+  size_t size;
+  Factory::TypeAndSizeForElementsKind(kind, &external_type, &size);
   Handle<Object> element_size =
       handle(Smi::FromInt(static_cast<int>(size)), isolate);
 

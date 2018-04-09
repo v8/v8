@@ -13,7 +13,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 
 namespace v8 {
 namespace internal {

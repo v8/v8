@@ -684,9 +684,6 @@ class Heap {
   // given alignment.
   static int GetFillToAlign(Address address, AllocationAlignment alignment);
 
-  template <typename T>
-  static inline bool IsOneByte(T t, int chars);
-
   void FatalProcessOutOfMemory(const char* location);
 
   V8_EXPORT_PRIVATE static bool RootIsImmortalImmovable(int root_index);
@@ -842,7 +839,7 @@ class Heap {
   void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk);
   void UnprotectAndRegisterMemoryChunk(HeapObject* object);
 
-  void ProtectUnprotectedMemoryChunks();
+  V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
 
   void EnableUnprotectedMemoryChunksRegistry() {
     unprotected_memory_chunks_registry_enabled_ = true;
@@ -1140,9 +1137,7 @@ class Heap {
   bool RootCanBeTreatedAsConstant(RootListIndex root_index);
 
   Map* MapForFixedTypedArray(ExternalArrayType array_type);
-  RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
-
-  RootListIndex RootIndexForEmptyFixedTypedArray(ElementsKind kind);
+  Map* MapForFixedTypedArray(ElementsKind elements_kind);
   FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
 
   void RegisterStrongRoots(Object** start, Object** end);
@@ -1867,15 +1862,6 @@ class Heap {
 
   inline void UpdateOldSpaceLimits();
 
-  // Initializes a JSObject based on its map.
-  void InitializeJSObjectFromMap(JSObject* obj, Object* properties, Map* map);
-
-  // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset);
-
-  void InitializeAllocationMemento(AllocationMemento* memento,
-                                   AllocationSite* allocation_site);
-
   bool CreateInitialMaps();
   void CreateInternalAccessorInfoObjects();
   void CreateInitialObjects();
@@ -2116,95 +2102,11 @@ class Heap {
   // Allocation methods. =======================================================
   // ===========================================================================
 
-  // Returns a deep copy of the JavaScript object.
-  // Properties and elements are copied too.
-  // Optionally takes an AllocationSite to be appended in an AllocationMemento.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyJSObject(JSObject* source, AllocationSite* site = nullptr);
-
   // Allocates a JS Map in the heap.
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocateMap(InstanceType instance_type, int instance_size,
               ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
               int inobject_properties = 0);
-
-  // Allocates and initializes a new JavaScript object based on a
-  // constructor.
-  // If allocation_site is non-null, then a memento is emitted after the object
-  // that points to the site.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateJSObject(
-      JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED,
-      AllocationSite* allocation_site = nullptr);
-
-  // Allocates and initializes a new JavaScript object based on a map.
-  // Passing an allocation site means that a memento will be created that
-  // points to the site.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure = NOT_TENURED,
-                          AllocationSite* allocation_site = nullptr);
-
-  // Allocates a HeapNumber from value.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateHeapNumber(
-      MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
-
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateBigInt(int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a byte array of the specified length
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateByteArray(int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a bytecode array with given contents.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateBytecodeArray(int length, const byte* raw_bytecodes, int frame_size,
-                        int parameter_count, FixedArray* constant_pool);
-
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyCode(Code* code, CodeDataContainer* data_container);
-
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyBytecodeArray(BytecodeArray* bytecode_array);
-
-  // Allocates a fixed array-like object with given map and initialized with
-  // undefined values.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateFixedArrayWithMap(
-      RootListIndex map_root_index, int length,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a fixed array initialized with undefined values
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateFixedArray(
-      int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates an array allowing in-place weak references, initialized with
-  // undefined values
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateWeakFixedArray(
-      int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocate memory for an uninitialized FixedArray.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawFixedArray(
-      int length, PretenureFlag pretenure);
-
-  // Allocate memory for an uninitialized WeakFixedArray.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawWeakFixedArray(
-      int length, PretenureFlag pretenure);
-
-  // Allocates a property array initialized with undefined values
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocatePropertyArray(int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocate a feedback vector for the given shared function info. The slots
-  // are pre-filled with undefined.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFeedbackVector(SharedFunctionInfo* shared, PretenureFlag pretenure);
-
-  // Allocate an uninitialized feedback vector.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawFeedbackVector(int length, PretenureFlag pretenure);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateSmallOrderedHashSet(
-      int length, PretenureFlag pretenure = NOT_TENURED);
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateSmallOrderedHashMap(
-      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.  This is the single choke-point for allocations
@@ -2214,190 +2116,22 @@ class Heap {
       int size_in_bytes, AllocationSpace space,
       AllocationAlignment aligment = kWordAligned);
 
+  HeapObject* AllocateRawWithRetry(
+      int size, AllocationSpace space,
+      AllocationAlignment alignment = kWordAligned);
+  HeapObject* AllocateRawCodeInLargeObjectSpace(int size);
+
   // Allocates a heap object based on the map.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  Allocate(Map* map, AllocationSpace space,
-           AllocationSite* allocation_site = nullptr);
+  V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map* map,
+                                                  AllocationSpace space);
 
   // Allocates a partial map for bootstrapping.
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocatePartialMap(InstanceType instance_type, int instance_size);
 
-  // Allocate a block of memory in the given space (filled with a filler).
-  // Used as a fall-back for generated code when the space is full.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFillerObject(int size, bool double_align, AllocationSpace space);
-
-  // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawArray(int size, PretenureFlag pretenure);
-
-  // Allocate an uninitialized fixed double array.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawFixedDoubleArray(int length, PretenureFlag pretenure);
-
-  // Allocate an initialized fixed array with the given filler value.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFixedArrayWithFiller(RootListIndex map_root_index, int length,
-                               PretenureFlag pretenure, Object* filler);
-
-  // Allocate and partially initializes a String.  There are two String
-  // encodings: one-byte and two-byte.  These functions allocate a string of
-  // the given length and set its map and length fields.  The characters of
-  // the string are uninitialized.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawOneByteString(int length, PretenureFlag pretenure);
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawTwoByteString(int length, PretenureFlag pretenure);
-
-  // Allocates an internalized string in old space based on the character
-  // stream.
-  V8_WARN_UNUSED_RESULT inline AllocationResult
-  AllocateInternalizedStringFromUtf8(Vector<const char> str, int chars,
-                                     uint32_t hash_field);
-
-  V8_WARN_UNUSED_RESULT inline AllocationResult
-  AllocateOneByteInternalizedString(Vector<const uint8_t> str,
-                                    uint32_t hash_field);
-
-  V8_WARN_UNUSED_RESULT inline AllocationResult
-  AllocateTwoByteInternalizedString(Vector<const uc16> str,
-                                    uint32_t hash_field);
-
-  template <bool is_one_byte, typename T>
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateInternalizedStringImpl(T t, int chars, uint32_t hash_field);
-
-  template <typename T>
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateInternalizedStringImpl(
-      T t, int chars, uint32_t hash_field);
-
-  // Allocates an uninitialized fixed array. It must be filled by the caller.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateUninitializedFixedArray(
-      int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Make a copy of src and return it.
-  V8_WARN_UNUSED_RESULT inline AllocationResult CopyFixedArray(FixedArray* src);
-
-  // Make a copy of src, also grow the copy, and return the copy.
-  template <typename T>
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyArrayAndGrow(T* src, int grow_by, PretenureFlag pretenure);
-
-  // Make a copy of src, also grow the copy, and return the copy.
-  V8_WARN_UNUSED_RESULT AllocationResult CopyPropertyArrayAndGrow(
-      PropertyArray* src, int grow_by, PretenureFlag pretenure);
-
-  // Make a copy of src, also grow the copy, and return the copy.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyFixedArrayUpTo(FixedArray* src, int new_len, PretenureFlag pretenure);
-
-  // Make a copy of src, set the map, and return the copy.
-  template <typename T>
-  V8_WARN_UNUSED_RESULT AllocationResult CopyArrayWithMap(T* src, Map* map);
-
-  // Make a copy of src, set the map, and return the copy.
-  V8_WARN_UNUSED_RESULT AllocationResult CopyFixedArrayWithMap(FixedArray* src,
-                                                               Map* map);
-
-  // Make a copy of src, set the map, and return the copy.
-  V8_WARN_UNUSED_RESULT AllocationResult CopyPropertyArray(PropertyArray* src);
-
-  // Make a copy of src and return it.
-  V8_WARN_UNUSED_RESULT inline AllocationResult CopyFixedDoubleArray(
-      FixedDoubleArray* src);
-
-  // Make a copy of src and return it.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyFeedbackVector(FeedbackVector* src);
-
-  // Computes a single character string where the character has code.
-  // A cache is used for one-byte (Latin1) codes.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  LookupSingleCharacterStringFromCode(uint16_t code);
-
-  // Allocate a symbol in old space.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateSymbol();
-
-  // Allocates an external array of the specified length and type.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFixedTypedArrayWithExternalPointer(int length,
-                                             ExternalArrayType array_type,
-                                             void* external_pointer,
-                                             PretenureFlag pretenure);
-
-  // Allocates a fixed typed array of the specified length and type.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFixedTypedArray(int length, ExternalArrayType array_type,
-                          bool initialize, PretenureFlag pretenure);
-
-  // Make a copy of src and return it.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyAndTenureFixedCOWArray(FixedArray* src);
-
-  // Make a copy of src, set the map, and return the copy.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  CopyFixedDoubleArrayWithMap(FixedDoubleArray* src, Map* map);
-
-  // Allocates a fixed double array with uninitialized values. Returns
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateUninitializedFixedDoubleArray(
-      int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a FeedbackMedata object and zeroes the data section.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFeedbackMetadata(int slot_count);
-
-  // Allocate empty fixed array like objects.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateEmptyFixedArray();
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateEmptyWeakFixedArray();
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateEmptyScopeInfo();
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateEmptyBoilerplateDescription();
-
   // Allocate empty fixed typed array of given type.
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
-
-  // Allocate a tenured simple cell.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateCell(Object* value);
-
-  // Allocate a tenured simple feedback cell.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateFeedbackCell(Map* map, HeapObject* value);
-
-  // Allocate a tenured JS global property cell initialized with the hole.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocatePropertyCell(Name* name);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateWeakCell(HeapObject* value);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateTransitionArray(int capacity);
-
-  // Allocates a new utility object in the old generation.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateStruct(InstanceType type, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a new foreign object.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateForeign(Address address, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a new code object (mostly uninitialized). Can only be used when
-  // code space is unprotected and requires manual initialization by the caller.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateCode(int object_size,
-                                                      Movability movability);
-
-  // Allocates a new code object (fully initialized). All header fields of the
-  // returned object are immutable and the code object is write protected.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateCode(
-      const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-      int32_t builtin_index, ByteArray* reloc_info,
-      CodeDataContainer* data_container, ByteArray* source_position_table,
-      DeoptimizationData* deopt_data, Movability movability, uint32_t stub_key,
-      bool is_turbofanned, int stack_slots, int safepoint_table_offset,
-      int handler_table_offset);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateJSPromise(
-      JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 

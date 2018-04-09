@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-async-gen.h"
 
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {

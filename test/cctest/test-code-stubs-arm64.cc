@@ -32,7 +32,7 @@
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"

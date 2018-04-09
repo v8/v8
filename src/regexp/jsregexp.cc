@@ -11,7 +11,7 @@
 #include "src/compilation-cache.h"
 #include "src/elements.h"
 #include "src/execution.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/ostreams.h"

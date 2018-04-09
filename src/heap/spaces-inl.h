@@ -281,8 +281,9 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
 }
 
 bool PagedSpace::EnsureLinearAllocationArea(int size_in_bytes) {
-  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit())
+  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
     return true;
+  }
   return SlowRefillLinearAllocationArea(size_in_bytes);
 }
 

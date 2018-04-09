@@ -5,7 +5,7 @@
 #include "src/assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 

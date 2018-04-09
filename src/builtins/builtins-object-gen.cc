@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
 

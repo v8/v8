@@ -7,8 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"

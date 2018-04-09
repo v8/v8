@@ -6,7 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 
