@@ -170,7 +170,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 WCM_OBJECT(WasmSharedModuleData, shared, kSharedOffset)
 WCM_WEAK_LINK(Context, native_context, kNativeContextOffset)
 WCM_OBJECT(FixedArray, export_wrappers, kExportWrappersOffset)
-WCM_OBJECT(FixedArray, weak_exported_functions, kWeakExportedFunctionsOffset)
 WCM_OBJECT(WasmCompiledModule, next_instance, kNextInstanceOffset)
 WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)
 WCM_WEAK_LINK(WasmInstanceObject, owning_instance, kOwningInstanceOffset)

@@ -612,12 +612,9 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
   // TODO(6668): Find instances that imported our code and also patch those.
 
   // Redirect all calls in exported functions.
-  FixedArray* weak_exported_functions =
-      instance->compiled_module()->weak_exported_functions();
-  for (int i = 0, e = weak_exported_functions->length(); i != e; ++i) {
-    WeakCell* weak_function = WeakCell::cast(weak_exported_functions->get(i));
-    if (weak_function->cleared()) continue;
-    Code* code = JSFunction::cast(weak_function->value())->code();
+  FixedArray* export_wrapper = instance->compiled_module()->export_wrappers();
+  for (int i = 0, e = export_wrapper->length(); i != e; ++i) {
+    Code* code = Code::cast(export_wrapper->get(i));
     RedirectCallsitesInJSWrapperCode(isolate, code, map);
   }
 }

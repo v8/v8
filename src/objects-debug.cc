@@ -1504,7 +1504,6 @@ void WasmCompiledModule::WasmCompiledModuleVerify() {
   VerifyObjectField(kSharedOffset);
   VerifyObjectField(kNativeContextOffset);
   VerifyObjectField(kExportWrappersOffset);
-  VerifyObjectField(kWeakExportedFunctionsOffset);
   VerifyObjectField(kNextInstanceOffset);
   VerifyObjectField(kPrevInstanceOffset);
   VerifyObjectField(kOwningInstanceOffset);

@@ -473,7 +473,6 @@ class WasmCompiledModule : public Struct {
   V(kSharedOffset, kPointerSize)                \
   V(kNativeContextOffset, kPointerSize)         \
   V(kExportWrappersOffset, kPointerSize)        \
-  V(kWeakExportedFunctionsOffset, kPointerSize) \
   V(kNextInstanceOffset, kPointerSize)          \
   V(kPrevInstanceOffset, kPointerSize)          \
   V(kOwningInstanceOffset, kPointerSize)        \
@@ -520,8 +519,7 @@ class WasmCompiledModule : public Struct {
   // we embed the generated code with a value, then we track that value here.
   WCM_OBJECT(WasmSharedModuleData, shared)
   WCM_WEAK_LINK(Context, native_context)
-  WCM_CONST_OBJECT(FixedArray, export_wrappers)
-  WCM_OBJECT(FixedArray, weak_exported_functions)
+  WCM_OBJECT(FixedArray, export_wrappers)
   WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)

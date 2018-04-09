@@ -2165,22 +2165,8 @@ void InstanceBuilder::ProcessExports(
   desc.set_enumerable(true);
   desc.set_configurable(module_->is_asm_js());
 
-  // Store weak references to all exported functions.
-  Handle<FixedArray> weak_exported_functions;
-  if (compiled_module->has_weak_exported_functions()) {
-    weak_exported_functions =
-        handle(compiled_module->weak_exported_functions(), isolate_);
-  } else {
-    int export_count = 0;
-    for (WasmExport& exp : module_->export_table) {
-      if (exp.kind == kExternalFunction) ++export_count;
-    }
-    weak_exported_functions = isolate_->factory()->NewFixedArray(export_count);
-    compiled_module->set_weak_exported_functions(*weak_exported_functions);
-  }
-
   // Process each export in the export table.
-  int export_index = 0;  // Index into {weak_exported_functions}.
+  int export_index = 0;  // Index into {export_wrappers}.
   for (WasmExport& exp : module_->export_table) {
     Handle<String> name =
         WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
@@ -2221,10 +2207,6 @@ void InstanceBuilder::ProcessExports(
           js_wrappers_[exp.index] = js_function;
         }
         desc.set_value(js_function);
-        Handle<WeakCell> weak_export =
-            isolate_->factory()->NewWeakCell(js_function);
-        DCHECK_GT(weak_exported_functions->length(), export_index);
-        weak_exported_functions->set(export_index, *weak_export);
         export_index++;
         break;
       }
@@ -2289,7 +2271,7 @@ void InstanceBuilder::ProcessExports(
       return;
     }
   }
-  DCHECK_EQ(export_index, weak_exported_functions->length());
+  DCHECK_EQ(export_index, export_wrappers->length());
 
   if (module_->is_wasm()) {
     v8::Maybe<bool> success =

@@ -1803,13 +1803,6 @@ class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
  public:
   void CheckSections(const byte* module_start, const byte* module_end,
                      const CustomSectionOffset* expected, size_t num_expected) {
-    // Add the WASM magic and version number automatically.
-    size_t size = static_cast<size_t>(module_end - module_start);
-    byte header[] = {WASM_MODULE_HEADER};
-    size_t total = sizeof(header) + size;
-    auto temp = new byte[total];
-    memcpy(temp, header, sizeof(header));
-    memcpy(temp + sizeof(header), module_start, size);
     std::vector<CustomSectionOffset> custom_sections =
         DecodeCustomSections(module_start, module_end);
 
