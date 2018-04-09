@@ -3,7 +3,6 @@
 # all paths in here must match this assumption.
 
 vars = {
-  'build_for_node': False,
   'checkout_instrumented_libraries': False,
   'chromium_url': 'https://chromium.googlesource.com',
   'download_gcmole': False,
@@ -102,7 +101,7 @@ hooks = [
   {
     'name': 'clang_format_win',
     'pattern': '.',
-    'condition': 'host_os == "win" and build_for_node != True',
+    'condition': 'host_os == "win"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=win32',
@@ -114,7 +113,7 @@ hooks = [
   {
     'name': 'clang_format_mac',
     'pattern': '.',
-    'condition': 'host_os == "mac" and build_for_node != True',
+    'condition': 'host_os == "mac"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=darwin',
@@ -126,7 +125,7 @@ hooks = [
   {
     'name': 'clang_format_linux',
     'pattern': '.',
-    'condition': 'host_os == "linux" and build_for_node != True',
+    'condition': 'host_os == "linux"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=linux*',
@@ -161,7 +160,7 @@ hooks = [
   {
     'name': 'luci-go_win',
     'pattern': '.',
-    'condition': 'host_os == "win" and build_for_node != True',
+    'condition': 'host_os == "win"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=win32',
@@ -173,7 +172,7 @@ hooks = [
   {
     'name': 'luci-go_mac',
     'pattern': '.',
-    'condition': 'host_os == "mac" and build_for_node != True',
+    'condition': 'host_os == "mac"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=darwin',
@@ -185,7 +184,7 @@ hooks = [
   {
     'name': 'luci-go_linux',
     'pattern': '.',
-    'condition': 'host_os == "linux" and build_for_node != True',
+    'condition': 'host_os == "linux"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=linux*',
@@ -234,7 +233,6 @@ hooks = [
   {
     'name': 'wasm_spec_tests',
     'pattern': '.',
-    'condition': 'build_for_node != True',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--no_auth',
@@ -246,7 +244,6 @@ hooks = [
   {
     'name': 'closure_compiler',
     'pattern': '.',
-    'condition': 'build_for_node != True',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--no_auth',
@@ -325,7 +322,7 @@ hooks = [
   {
     'name': 'binutils',
     'pattern': 'v8/third_party/binutils',
-    'condition': 'host_os == "linux" and build_for_node != True',
+    'condition': 'host_os == "linux"',
     'action': [
         'python',
         'v8/third_party/binutils/download.py',
