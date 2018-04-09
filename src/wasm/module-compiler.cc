@@ -122,7 +122,7 @@ class CompilationState {
   bool SetFinisherIsRunning(bool value);
   void ScheduleFinisherTask();
 
-  bool CanAcceptWork() const;
+  bool StopBackgroundCompilationTaskForThrottling();
 
   void Abort();
 
@@ -1288,17 +1288,16 @@ class BackgroundCompileTask : public CancelableTask {
 
   void RunInternal() override {
     TRACE_COMPILE("(3b) Compiling...\n");
-    while (compilation_state_->CanAcceptWork()) {
-      if (compilation_state_->failed()) break;
-      DisallowHandleAllocation no_handle;
-      DisallowHeapAllocation no_allocation;
-
-      if (!FetchAndExecuteCompilationUnit(compilation_state_)) {
+    // The number of currently running background tasks is reduced either in
+    // {StopBackgroundCompilationTaskForThrottling} or in
+    // {OnBackgroundTaskStopped}.
+    while (!compilation_state_->StopBackgroundCompilationTaskForThrottling()) {
+      if (compilation_state_->failed() ||
+          !FetchAndExecuteCompilationUnit(compilation_state_)) {
+        compilation_state_->OnBackgroundTaskStopped();
         break;
       }
     }
-
-    compilation_state_->OnBackgroundTaskStopped();
   }
 
  private:
@@ -3197,9 +3196,12 @@ void CompilationState::ScheduleFinisherTask() {
       base::make_unique<FinishCompileTask>(this, &foreground_task_manager_));
 }
 
-bool CompilationState::CanAcceptWork() const {
+bool CompilationState::StopBackgroundCompilationTaskForThrottling() {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  return executed_units_.CanAcceptWork();
+  DCHECK_LE(1, num_background_tasks_);
+  if (executed_units_.CanAcceptWork()) return false;
+  --num_background_tasks_;
+  return true;
 }
 
 void CompilationState::Abort() {
