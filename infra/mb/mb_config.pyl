@@ -71,6 +71,8 @@
       # Jumbo.
       'V8 Linux64 Jumbo': 'release_x64_jumbo',
       'V8 Linux64 Jumbo - debug': 'debug_x64_jumbo',
+      'V8 Linux64 Jumbo - limited': 'release_x64_jumbo_limited',
+      'V8 Linux64 Jumbo - limited - debug': 'debug_x64_jumbo_limited',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
@@ -215,6 +217,7 @@
       'v8_linux64_sanitizer_coverage_rel':
           'release_x64_asan_minimal_symbols_coverage',
       'v8_linux64_jumbo_compile_rel': 'release_x64_jumbo_trybot',
+      'v8_linux64_jumbo_limited_compile_rel': 'release_x64_jumbo_limited_trybot',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'release_x64_tsan_concurrent_marking_minimal_symbols',
@@ -422,6 +425,10 @@
       'release_bot', 'x64', 'jumbo'],
     'release_x64_jumbo_trybot': [
       'release_trybot', 'x64', 'jumbo'],
+    'release_x64_jumbo_limited': [
+      'release_bot', 'x64', 'jumbo_limited'],
+    'release_x64_jumbo_limited_trybot': [
+      'release_trybot', 'x64', 'jumbo_limited'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
     'release_x64_no_snap': [
@@ -465,6 +472,8 @@
       'debug_bot', 'x64', 'gcc'],
     'debug_x64_jumbo': [
       'debug_bot', 'x64', 'jumbo'],
+    'debug_x64_jumbo_limited': [
+      'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_no_snap': [
@@ -620,6 +629,10 @@
 
     'jumbo': {
       'gn_args': 'use_jumbo_build=true',
+    },
+
+    'jumbo_limited': {
+      'gn_args': 'use_jumbo_build=true jumbo_file_merge_limit=50',
     },
 
     'lsan': {
