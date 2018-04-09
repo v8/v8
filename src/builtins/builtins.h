@@ -113,8 +113,8 @@ class Builtins {
   // necessarily mean that its kind is Code::BUILTIN.
   static bool IsBuiltin(const Code* code);
 
-  // True, iff the given code object is a builtin with off-heap code.
-  static bool IsOffHeapBuiltin(const Code* code);
+  // True, iff the given code object is a builtin with off-heap embedded code.
+  static bool IsEmbeddedBuiltin(const Code* code);
 
   // Returns true iff the given builtin can be lazy-loaded from the snapshot.
   // This is true in general for most builtins with the exception of a few
@@ -124,17 +124,6 @@ class Builtins {
   // Helper methods used for testing isolate-independent builtins.
   // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
   static bool IsIsolateIndependent(int index);
-
-  // This is the condition we currently use to determine whether a builtin is
-  // copied off-heap when --stress-off-heap-code is passed. Such builtins do not
-  // need to be isolate-independent, e.g. they can contain external references
-  // that point to one specific isolate. A further restrictions is that there
-  // must be enough space for the trampoline.
-  static bool IsOffHeapSafe(int index);
-
-  // The off-heap trampoline is short but requires a certain minimal instruction
-  // size. This function states whether a given builtin is too short.
-  static bool IsTooShortForOffHeapTrampoline(int index);
 
   bool is_initialized() const { return initialized_; }
 

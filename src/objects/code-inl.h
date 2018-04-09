@@ -226,7 +226,7 @@ void Code::set_next_code_link(Object* value) {
 
 int Code::InstructionSize() const {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionSize();
+  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionSize();
 #endif
   return raw_instruction_size();
 }
@@ -237,7 +237,7 @@ byte* Code::raw_instruction_start() const {
 
 Address Code::InstructionStart() const {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionStart();
+  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionStart();
 #endif
   return raw_instruction_start();
 }
@@ -248,7 +248,7 @@ byte* Code::raw_instruction_end() const {
 
 Address Code::InstructionEnd() const {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionEnd();
+  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionEnd();
 #endif
   return raw_instruction_end();
 }

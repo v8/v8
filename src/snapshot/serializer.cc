@@ -825,7 +825,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
 #ifdef V8_EMBEDDED_BUILTINS
   {
     STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
-    CHECK(Builtins::IsOffHeapBuiltin(host));
+    CHECK(Builtins::IsEmbeddedBuiltin(host));
     Address addr = rinfo->target_off_heap_target();
     CHECK_NOT_NULL(addr);
     CHECK_NOT_NULL(

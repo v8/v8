@@ -200,10 +200,10 @@ bool Builtins::IsBuiltin(const Code* code) {
 }
 
 // static
-bool Builtins::IsOffHeapBuiltin(const Code* code) {
+bool Builtins::IsEmbeddedBuiltin(const Code* code) {
 #ifdef V8_EMBEDDED_BUILTINS
   return Builtins::IsBuiltinId(code->builtin_index()) &&
-         Builtins::IsOffHeapSafe(code->builtin_index());
+         Builtins::IsIsolateIndependent(code->builtin_index());
 #else
   return false;
 #endif
@@ -215,7 +215,7 @@ bool Builtins::IsLazy(int index) {
 
 #ifdef V8_EMBEDDED_BUILTINS
   // We don't want to lazy-deserialize off-heap builtins.
-  if (Builtins::IsOffHeapSafe(index)) return false;
+  if (Builtins::IsIsolateIndependent(index)) return false;
 #endif
 
   // There are a couple of reasons that builtins can require eager-loading,
@@ -641,28 +641,6 @@ bool Builtins::IsIsolateIndependent(int index) {
       return false;
   }
   UNREACHABLE();
-}
-
-// static
-bool Builtins::IsOffHeapSafe(int index) {
-#if !defined(V8_EMBEDDED_BUILTINS) || !defined(V8_USE_SNAPSHOT)
-  return false;
-#else
-  DCHECK(IsBuiltinId(index));
-  if (IsTooShortForOffHeapTrampoline(index)) return false;
-  return IsIsolateIndependent(index);
-#endif  // V8_EMBEDDED_BUILTINS
-}
-
-// static
-bool Builtins::IsTooShortForOffHeapTrampoline(int index) {
-  switch (index) {
-    case kLoadIC_StringLength:
-    case kLoadIC_StringWrapperLength:
-      return true;
-    default:
-      return false;
-  }
 }
 
 #ifdef V8_EMBEDDED_BUILTINS

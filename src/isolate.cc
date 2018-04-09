@@ -2897,7 +2897,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
   CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!Builtins::IsOffHeapSafe(i)) continue;
+    if (!Builtins::IsIsolateIndependent(i)) continue;
 
     const uint8_t* instruction_start = d.InstructionStartOfBuiltin(i);
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(

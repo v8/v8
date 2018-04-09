@@ -1861,7 +1861,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   DCHECK(isolate()->serializer_enabled());
   DCHECK_NOT_NULL(isolate()->embedded_blob());
   DCHECK_NE(0, isolate()->embedded_blob_size());
-  DCHECK(Builtins::IsOffHeapBuiltin(*code));
+  DCHECK(Builtins::IsEmbeddedBuiltin(*code));
 
   Handle<Code> result =
       Builtins::GenerateOffHeapTrampolineFor(isolate(), off_heap_entry);

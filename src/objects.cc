@@ -14056,14 +14056,14 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 #ifdef V8_EMBEDDED_BUILTINS
 int Code::OffHeapInstructionSize() const {
-  DCHECK(Builtins::IsOffHeapBuiltin(this));
+  DCHECK(Builtins::IsEmbeddedBuiltin(this));
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_size();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
-  DCHECK(Builtins::IsOffHeapBuiltin(this));
+  DCHECK(Builtins::IsEmbeddedBuiltin(this));
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob();
   return reinterpret_cast<Address>(
@@ -14071,7 +14071,7 @@ Address Code::OffHeapInstructionStart() const {
 }
 
 Address Code::OffHeapInstructionEnd() const {
-  DCHECK(Builtins::IsOffHeapBuiltin(this));
+  DCHECK(Builtins::IsEmbeddedBuiltin(this));
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob();
   return reinterpret_cast<Address>(
