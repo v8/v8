@@ -932,6 +932,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
+void LiftoffAssembler::emit_jump(Register target) { jmp(target); }
+
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {

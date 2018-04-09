@@ -45,7 +45,8 @@ TestingModuleBuilder::TestingModuleBuilder(
         isolate_, maybe_import->js_function, maybe_import->sig,
         maybe_import_index, test_module_.origin(),
         trap_handler::IsTrapHandlerEnabled());
-    native_module_->ResizeCodeTableForTest(maybe_import_index);
+    native_module_->ResizeCodeTableForTesting(maybe_import_index + 1,
+                                              kMaxFunctions);
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
         code, wasm::WasmCode::kWasmToJsWrapper, maybe_import_index);
 
@@ -99,7 +100,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
   }
   uint32_t index = static_cast<uint32_t>(test_module_.functions.size());
   if (native_module_) {
-    native_module_->ResizeCodeTableForTest(index);
+    native_module_->ResizeCodeTableForTesting(index + 1, kMaxFunctions);
   }
   test_module_.functions.push_back({sig, index, 0, {0, 0}, false, false});
   if (name) {
@@ -420,7 +421,6 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   Handle<WasmCompiledModule> compiled_module(
       builder_->instance_object()->compiled_module(), isolate());
   NativeModule* native_module = compiled_module->GetNativeModule();
-  native_module->ResizeCodeTableForTest(function_->func_index);
   Handle<SeqOneByteString> wire_bytes(compiled_module->shared()->module_bytes(),
                                       isolate());
 

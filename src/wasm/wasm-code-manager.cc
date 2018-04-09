@@ -462,10 +462,24 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
   owned_code_.reserve(num_functions);
 }
 
-void NativeModule::ResizeCodeTableForTest(size_t last_index) {
-  size_t new_size = last_index + 1;
-  if (new_size > FunctionCount()) {
-    code_table_.resize(new_size);
+void NativeModule::ResizeCodeTableForTesting(size_t num_functions,
+                                             size_t max_functions) {
+  DCHECK_LE(num_functions, max_functions);
+  if (num_imported_functions_ == num_functions) {
+    // For some tests, the code table might have been initialized to store
+    // a number of imported functions on creation. If that is the case,
+    // we need to retroactively reserve the space.
+    DCHECK_EQ(code_table_.capacity(), num_imported_functions_);
+    DCHECK_EQ(code_table_.size(), num_imported_functions_);
+    DCHECK_EQ(num_functions, 1);
+    code_table_.reserve(max_functions);
+  } else {
+    DCHECK_GT(num_functions, FunctionCount());
+    if (code_table_.capacity() == 0) {
+      code_table_.reserve(max_functions);
+    }
+    DCHECK_EQ(code_table_.capacity(), max_functions);
+    code_table_.resize(num_functions);
   }
 }
 

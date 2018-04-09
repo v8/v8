@@ -539,6 +539,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "global handle";
     case WASM_CALL:
       return "internal wasm call";
+    case WASM_CODE_TABLE_ENTRY:
+      return "wasm code table entry";
     case JS_TO_WASM_CALL:
       return "js to wasm call";
     case NUMBER_OF_MODES:
@@ -640,6 +642,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_GLOBAL_HANDLE:
     case WASM_CALL:
     case JS_TO_WASM_CALL:
+    case WASM_CODE_TABLE_ENTRY:
     case NONE:
       break;
     case NUMBER_OF_MODES:

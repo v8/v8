@@ -336,6 +336,14 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
+void RelocInfo::set_wasm_code_table_entry(Address target,
+                                          ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
+  Memory::Address_at(pc_) = target;
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(pc_, sizeof(Address));
+  }
+}
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);

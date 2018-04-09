@@ -135,7 +135,8 @@ class LiftoffCompiler {
                   compiler::ModuleEnv* env,
                   SourcePositionTableBuilder* source_position_table_builder,
                   WasmCompilationData* wasm_compilation_data,
-                  Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone)
+                  Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone,
+                  WasmCode* const* code_table_entry)
       : asm_(liftoff_asm),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -149,7 +150,8 @@ class LiftoffCompiler {
         wasm_compilation_data_(wasm_compilation_data),
         compilation_zone_(compilation_zone),
         codegen_zone_(codegen_zone),
-        safepoint_table_builder_(compilation_zone_) {}
+        safepoint_table_builder_(compilation_zone_),
+        code_table_entry_(code_table_entry) {}
 
   ~LiftoffCompiler() { BindUnboundLabels(nullptr); }
 
@@ -271,6 +273,49 @@ class LiftoffCompiler {
     if (ool.continuation) __ bind(ool.continuation.get());
   }
 
+  // Inserts a check whether the optimized version of this code already exists.
+  // If so, it redirects execution to the optimized code.
+  void JumpToOptimizedCodeIfExisting() {
+    // Check whether we have an optimized function before
+    // continuing to execute the Liftoff-compiled code.
+    // TODO(clemensh): Reduce number of temporary registers.
+    LiftoffRegList pinned;
+    LiftoffRegister wasm_code_addr =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister target_code_addr =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister code_start_address =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    // Get the current code's target address ({instructions_.start()}).
+    __ ComputeCodeStartAddress(code_start_address.gp());
+
+    static LoadType kPointerLoadType =
+        LoadType::ForValueType(LiftoffAssembler::kWasmIntPtr);
+    using int_t = std::conditional<kPointerSize == 8, uint64_t, uint32_t>::type;
+    static_assert(sizeof(int_t) == sizeof(uintptr_t), "weird uintptr_t");
+    // Get the address of the WasmCode* currently stored in the code table.
+    __ LoadConstant(target_code_addr,
+                    WasmValue(reinterpret_cast<int_t>(code_table_entry_)),
+                    RelocInfo::WASM_CODE_TABLE_ENTRY);
+    // Load the corresponding WasmCode*.
+    __ Load(wasm_code_addr, target_code_addr.gp(), Register::no_reg(), 0,
+            kPointerLoadType, pinned);
+    // Load its target address ({instuctions_.start()}).
+    __ Load(target_code_addr, wasm_code_addr.gp(), Register::no_reg(),
+            WasmCode::kInstructionStartOffset, kPointerLoadType, pinned);
+
+    // If the current code's target address is the same as the
+    // target address of the stored WasmCode, then continue executing, otherwise
+    // jump to the updated WasmCode.
+    Label cont;
+    __ emit_cond_jump(kEqual, &cont, LiftoffAssembler::kWasmIntPtr,
+                      target_code_addr.gp(), code_start_address.gp());
+    __ LeaveFrame(StackFrame::WASM_COMPILED);
+    __ emit_jump(target_code_addr.gp());
+    __ bind(&cont);
+  }
+
   void StartFunctionBody(Decoder* decoder, Control* block) {
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
@@ -339,6 +384,14 @@ class LiftoffCompiler {
     StackCheck(0);
 
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
+
+    // TODO(kimanh): if possible, we want to move this check further up,
+    // in order to avoid unnecessary overhead each time we enter
+    // a Liftoff-compiled function that will jump to a Turbofan-compiled
+    // function.
+    if (FLAG_wasm_tier_up) {
+      JumpToOptimizedCodeIfExisting();
+    }
   }
 
   void GenerateOutOfLineCode(OutOfLineCode& ool) {
@@ -1519,6 +1572,10 @@ class LiftoffCompiler {
   // patch the actually needed stack size in the end.
   uint32_t pc_offset_stack_frame_construction_ = 0;
 
+  // Points to the cell within the {code_table_} of the NativeModule,
+  // which  corresponds to the currently compiled function
+  WasmCode* const* code_table_entry_ = nullptr;
+
   void TraceCacheState(Decoder* decoder) const {
 #ifdef DEBUG
     if (!FLAG_trace_liftoff || !FLAG_trace_wasm_decoder) return;
@@ -1555,10 +1612,12 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters()->liftoff_compile_time());
+  wasm::WasmCode* const* code_table_entry =
+      native_module_->code_table().data() + func_index_;
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, func_body_, &liftoff_.asm_, call_descriptor, env_,
               &liftoff_.source_position_table_builder_, &wasm_compilation_data_,
-              &zone, &liftoff_.codegen_zone_);
+              &zone, &liftoff_.codegen_zone_, code_table_entry);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {

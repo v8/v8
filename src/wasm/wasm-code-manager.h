@@ -141,6 +141,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
+  // Offset of {instructions_.start()}. It is used for tiering, when
+  // we check if optimized code is available during the prologue
+  // of Liftoff-compiled code.
+  static constexpr int kInstructionStartOffset = 0;
+
  private:
   friend class NativeModule;
 
@@ -169,6 +174,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(safepoint_table_offset, instructions.size());
     DCHECK_LE(constant_pool_offset, instructions.size());
     DCHECK_LE(handler_table_offset, instructions.size());
+    DCHECK_EQ(kInstructionStartOffset, OFFSET_OF(WasmCode, instructions_));
   }
 
   Vector<byte> instructions_;
@@ -253,7 +259,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
-  void ResizeCodeTableForTest(size_t);
+  void ResizeCodeTableForTesting(size_t num_functions, size_t max_functions);
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
@@ -263,6 +269,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void SetCompiledModule(Handle<WasmCompiledModule>);
 
   uint32_t num_imported_functions() const { return num_imported_functions_; }
+
+  const std::vector<WasmCode*>& code_table() const { return code_table_; }
 
   size_t committed_memory() const { return committed_memory_; }
   const size_t instance_id = 0;

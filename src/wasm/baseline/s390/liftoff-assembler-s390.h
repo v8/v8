@@ -190,6 +190,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 
 void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
 
+void LiftoffAssembler::emit_jump(Register target) { BAILOUT("emit_jump"); }
+
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {

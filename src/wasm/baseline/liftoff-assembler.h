@@ -465,6 +465,8 @@ class LiftoffAssembler : public TurboAssembler {
                                    LiftoffRegister src);
 
   inline void emit_jump(Label*);
+  inline void emit_jump(Register);
+
   inline void emit_cond_jump(Condition, Label*, ValueType value, Register lhs,
                              Register rhs = no_reg);
   // Set {dst} to 1 if condition holds, 0 otherwise.
