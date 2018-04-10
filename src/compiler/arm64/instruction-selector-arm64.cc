@@ -2102,6 +2102,76 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   }
 }
 
+void VisitAtomicExchange(InstructionSelector* selector, Node* node,
+                         ArchOpcode opcode) {
+  Arm64OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  selector->Emit(code, 1, outputs, input_count, inputs, arraysize(temps),
+                 temps);
+}
+
+void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
+                                ArchOpcode opcode) {
+  Arm64OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(old_value);
+  inputs[input_count++] = g.UseUniqueRegister(new_value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  selector->Emit(code, 1, outputs, input_count, inputs, arraysize(temps),
+                 temps);
+}
+
+void VisitAtomicLoad(InstructionSelector* selector, Node* node,
+                     ArchOpcode opcode) {
+  Arm64OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
+}
+
+void VisitAtomicStore(InstructionSelector* selector, Node* node,
+                      ArchOpcode opcode) {
+  Arm64OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  InstructionOperand temps[] = {g.TempRegister()};
+  selector->Emit(code, 0, nullptr, input_count, inputs, arraysize(temps),
+                 temps);
+}
+
 }  // namespace
 
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
@@ -2544,9 +2614,6 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
@@ -2564,20 +2631,34 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
-  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
-  InstructionOperand temps[] = {g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-       arraysize(temps), temps);
+  VisitAtomicLoad(this, node, opcode);
+}
+
+void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      opcode = kArm64Word64AtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kArm64Word64AtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kArm64Word64AtomicLoadUint32;
+      break;
+    case MachineRepresentation::kWord64:
+      opcode = kArm64Word64AtomicLoadUint64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  VisitAtomicLoad(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
@@ -2593,23 +2674,33 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       UNREACHABLE();
       return;
   }
+  VisitAtomicStore(this, node, opcode);
+}
 
-  AddressingMode addressing_mode = kMode_MRR;
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(code, 0, nullptr, input_count, inputs, arraysize(temps), temps);
+void InstructionSelector::VisitWord64AtomicStore(Node* node) {
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kArm64Word64AtomicStoreWord8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kArm64Word64AtomicStoreWord16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kArm64Word64AtomicStoreWord32;
+      break;
+    case MachineRepresentation::kWord64:
+      opcode = kArm64Word64AtomicStoreWord64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  VisitAtomicStore(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
@@ -2626,26 +2717,28 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
     UNREACHABLE();
     return;
   }
+  VisitAtomicExchange(this, node, opcode);
+}
 
-  AddressingMode addressing_mode = kMode_MRR;
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
+void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  if (type == MachineType::Uint8()) {
+    opcode = kArm64Word64AtomicExchangeUint8;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kArm64Word64AtomicExchangeUint16;
+  } else if (type == MachineType::Uint32()) {
+    opcode = kArm64Word64AtomicExchangeUint32;
+  } else if (type == MachineType::Uint64()) {
+    opcode = kArm64Word64AtomicExchangeUint64;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  VisitAtomicExchange(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* old_value = node->InputAt(2);
-  Node* new_value = node->InputAt(3);
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
@@ -2662,19 +2755,25 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
     UNREACHABLE();
     return;
   }
+  VisitAtomicCompareExchange(this, node, opcode);
+}
 
-  AddressingMode addressing_mode = kMode_MRR;
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(old_value);
-  inputs[input_count++] = g.UseUniqueRegister(new_value);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
+void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  if (type == MachineType::Uint8()) {
+    opcode = kArm64Word64AtomicCompareExchangeUint8;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kArm64Word64AtomicCompareExchangeUint16;
+  } else if (type == MachineType::Uint32()) {
+    opcode = kArm64Word64AtomicCompareExchangeUint32;
+  } else if (type == MachineType::Uint64()) {
+    opcode = kArm64Word64AtomicCompareExchangeUint64;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  VisitAtomicCompareExchange(this, node, opcode);
 }
 
 void InstructionSelector::VisitAtomicBinaryOperation(
