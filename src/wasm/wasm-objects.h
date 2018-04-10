@@ -48,8 +48,10 @@ class WasmInstanceObject;
 // - target   = entrypoint to wasm code for the function, or wasm-to-js wrapper
 class IndirectFunctionTableEntry {
  public:
+  inline IndirectFunctionTableEntry(WasmInstanceObject*, int index);
+
   void clear();
-  void set(int sig_id, Handle<WasmInstanceObject> instance,
+  void set(int sig_id, WasmInstanceObject* instance,
            const wasm::WasmCode* wasm_code);
 
   WasmInstanceObject* instance();
@@ -57,12 +59,11 @@ class IndirectFunctionTableEntry {
   Address target();
 
  private:
-  // These entries are only constructed by the WasmInstanceObject.
-  friend class WasmInstanceObject;
-  IndirectFunctionTableEntry(Handle<WasmInstanceObject> instance, int index)
-      : instance_(instance), index_(index) {}
-  Handle<WasmInstanceObject> instance_;
-  int index_;
+#ifdef DEBUG
+  DisallowHeapAllocation no_gc;
+#endif
+  WasmInstanceObject* const instance_;
+  int const index_;
 };
 
 // An entry for an imported function.
@@ -78,11 +79,12 @@ class IndirectFunctionTableEntry {
 //      - target   = entrypoint to wasm code of the function
 class ImportedFunctionEntry {
  public:
+  inline ImportedFunctionEntry(WasmInstanceObject*, int index);
+
   // Initialize this entry as a {JSReceiver} call.
-  void set(Handle<JSReceiver> callable,
-           const wasm::WasmCode* wasm_to_js_wrapper);
+  void set(JSReceiver* callable, const wasm::WasmCode* wasm_to_js_wrapper);
   // Initialize this entry as a WASM to WASM call.
-  void set(Handle<WasmInstanceObject> target_instance,
+  void set(WasmInstanceObject* target_instance,
            const wasm::WasmCode* wasm_function);
 
   WasmInstanceObject* instance();
@@ -91,12 +93,11 @@ class ImportedFunctionEntry {
   bool is_js_receiver_entry();
 
  private:
-  // These entries are only constructed by the WasmInstanceObject.
-  friend class WasmInstanceObject;
-  ImportedFunctionEntry(Handle<WasmInstanceObject> instance, int index)
-      : instance_(instance), index_(index) {}
-  Handle<WasmInstanceObject> instance_;
-  int index_;
+#ifdef DEBUG
+  DisallowHeapAllocation no_gc;
+#endif
+  WasmInstanceObject* const instance_;
+  int const index_;
 };
 
 // Representation of a WebAssembly.Module JavaScript-level object.
@@ -311,9 +312,6 @@ class WasmInstanceObject : public JSObject {
 
   static bool EnsureIndirectFunctionTableWithMinimumSize(
       Handle<WasmInstanceObject> instance, size_t minimum_size);
-
-  IndirectFunctionTableEntry indirect_function_table_entry_at(int index);
-  ImportedFunctionEntry imported_function_entry_at(int index);
 
   bool has_indirect_function_table();
 

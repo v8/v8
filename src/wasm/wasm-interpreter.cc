@@ -2357,11 +2357,15 @@ class ThreadImpl {
     HandleScope handle_scope(isolate);
 
     DCHECK_GT(module()->num_imported_functions, function_index);
-    auto entry = instance_object_->imported_function_entry_at(function_index);
-    Handle<WasmInstanceObject> instance(entry.instance(), isolate);
+    Handle<WasmInstanceObject> instance;
+    WasmCode* code;
+    {
+      ImportedFunctionEntry entry(*instance_object_, function_index);
+      instance = handle(entry.instance(), isolate);
+      code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+          entry.target());
+    }
     FunctionSig* sig = codemap()->module()->functions[function_index].sig;
-    auto code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-        entry.target());
     return CallExternalWasmFunction(isolate, instance, code, sig);
   }
 
@@ -2399,22 +2403,25 @@ class ThreadImpl {
     if (entry_index >= instance_object_->indirect_function_table_size()) {
       return {ExternalCallResult::INVALID_FUNC};
     }
-    auto entry =
-        instance_object_->indirect_function_table_entry_at(entry_index);
 
-    // Signature check.
-    if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
-      return {ExternalCallResult::SIGNATURE_MISMATCH};
+    WasmCode* code;
+    Handle<WasmInstanceObject> instance;
+    {
+      IndirectFunctionTableEntry entry(*instance_object_, entry_index);
+      instance = handle(entry.instance(), isolate);
+      code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+          entry.target());
+
+      // Signature check.
+      if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
+        return {ExternalCallResult::SIGNATURE_MISMATCH};
+      }
     }
 
     // Call either an internal or external WASM function.
     HandleScope scope(isolate);
     FunctionSig* signature = module()->signatures[sig_index];
-    Handle<WasmInstanceObject> instance(entry.instance(), isolate);
 
-    // Lookup code object from entry address.
-    auto code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-        entry.target());
     if (code->kind() == wasm::WasmCode::kFunction) {
       if (!instance_object_.is_identical_to(instance)) {
         // Cross instance call.

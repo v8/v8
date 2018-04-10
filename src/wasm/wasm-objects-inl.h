@@ -143,6 +143,20 @@ inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;
 }
 
+IndirectFunctionTableEntry::IndirectFunctionTableEntry(
+    WasmInstanceObject* instance, int index)
+    : instance_(instance), index_(index) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, instance->indirect_function_table_size());
+}
+
+ImportedFunctionEntry::ImportedFunctionEntry(WasmInstanceObject* instance,
+                                             int index)
+    : instance_(instance), index_(index) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, instance->module()->num_imported_functions);
+}
+
 // WasmSharedModuleData
 ACCESSORS(WasmSharedModuleData, module_wrapper, Object, kModuleWrapperOffset)
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,

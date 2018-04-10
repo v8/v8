@@ -347,14 +347,15 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // Utilizes a reverse mapping to prevent O(n^2) behavior.
 class IndirectPatcher {
  public:
-  void Patch(Handle<WasmInstanceObject> caller_instance,
-             Handle<WasmInstanceObject> target_instance, int func_index,
+  void Patch(WasmInstanceObject* caller_instance,
+             WasmInstanceObject* target_instance, int func_index,
              Address old_target, const WasmCode* new_code) {
+    DisallowHeapAllocation no_gc;
     TRACE_LAZY(
         "IndirectPatcher::Patch(caller=%p, target=%p, func_index=%i, "
         "old_target=%p, "
         "new_code=%p)\n",
-        *caller_instance, *target_instance, func_index, old_target, new_code);
+        caller_instance, target_instance, func_index, old_target, new_code);
     if (mapping_.size() == 0 || misses_ >= kMaxMisses) {
       BuildMapping(caller_instance);
     }
@@ -368,7 +369,7 @@ class IndirectPatcher {
       if (index < 0) {
         // Imported function entry.
         int i = -1 - index;
-        auto entry = caller_instance->imported_function_entry_at(i);
+        ImportedFunctionEntry entry(caller_instance, i);
         if (entry.target() == old_target) {
           DCHECK_EQ(
               func_index,
@@ -379,7 +380,7 @@ class IndirectPatcher {
       } else {
         // Indirect function table entry.
         int i = index;
-        auto entry = caller_instance->indirect_function_table_entry_at(i);
+        IndirectFunctionTableEntry entry(caller_instance, i);
         if (entry.target() == old_target) {
           DCHECK_EQ(
               func_index,
@@ -393,23 +394,23 @@ class IndirectPatcher {
   }
 
  private:
-  void BuildMapping(Handle<WasmInstanceObject> caller_instance) {
+  void BuildMapping(WasmInstanceObject* caller_instance) {
     mapping_.clear();
     misses_ = 0;
-    TRACE_LAZY("BuildMapping for (caller=%p)...\n", *caller_instance);
+    TRACE_LAZY("BuildMapping for (caller=%p)...\n", caller_instance);
     Isolate* isolate = caller_instance->GetIsolate();
     WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
     uint32_t num_imported_functions =
         caller_instance->module()->num_imported_functions;
     // Process the imported function entries.
     for (unsigned i = 0; i < num_imported_functions; i++) {
-      auto entry = caller_instance->imported_function_entry_at(i);
+      ImportedFunctionEntry entry(caller_instance, i);
       WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
       if (code->kind() != WasmCode::kLazyStub) continue;
       TRACE_LAZY(" +import[%u] -> #%d (%p)\n", i, code->index(),
                  code->instructions().start());
       DCHECK(!entry.is_js_receiver_entry());
-      Handle<WasmInstanceObject> target_instance(entry.instance(), isolate);
+      WasmInstanceObject* target_instance = entry.instance();
       WasmCode* new_code =
           target_instance->compiled_module()->GetNativeModule()->GetCode(
               code->index());
@@ -425,13 +426,13 @@ class IndirectPatcher {
     // Process the indirect function table entries.
     size_t ift_size = caller_instance->indirect_function_table_size();
     for (unsigned i = 0; i < ift_size; i++) {
-      auto entry = caller_instance->indirect_function_table_entry_at(i);
+      IndirectFunctionTableEntry entry(caller_instance, i);
       if (entry.target() == nullptr) continue;  // null IFT entry
       WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
       if (code->kind() != WasmCode::kLazyStub) continue;
       TRACE_LAZY(" +indirect[%u] -> #%d (lazy:%p)\n", i, code->index(),
                  code->instructions().start());
-      Handle<WasmInstanceObject> target_instance(entry.instance(), isolate);
+      WasmInstanceObject* target_instance = entry.instance();
       WasmCode* new_code =
           target_instance->compiled_module()->GetNativeModule()->GetCode(
               code->index());
@@ -827,7 +828,7 @@ Address CompileLazy(Isolate* isolate,
                                    caller_instance->managed_indirect_patcher())
                                    ->get();
     Address old_target = lazy_stub->instructions().start();
-    patcher->Patch(caller_instance, target_instance, target_func_index,
+    patcher->Patch(*caller_instance, *target_instance, target_func_index,
                    old_target, result);
   }
 
@@ -1935,9 +1936,9 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             return -1;
           }
           // The import reference is the instance object itself.
-          auto entry = instance->imported_function_entry_at(func_index);
           auto wasm_code = imported_function->GetWasmCode();
-          entry.set(imported_instance, wasm_code);
+          ImportedFunctionEntry(*instance, func_index)
+              .set(*imported_instance, wasm_code);
           native_module->SetCode(func_index, wasm_code);
         } else {
           // The imported function is a callable.
@@ -1950,8 +1951,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
               wrapper_code, wasm::WasmCode::kWasmToJsWrapper, func_index);
-          auto entry = instance->imported_function_entry_at(func_index);
-          entry.set(js_receiver, wasm_code);
+          ImportedFunctionEntry(*instance, func_index)
+              .set(*js_receiver, wasm_code);
         }
         num_imported_functions++;
         break;
@@ -2026,9 +2027,9 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           FunctionSig* sig = imported_instance->module()
                                  ->functions[exported_code->index()]
                                  .sig;
-          auto entry = instance->indirect_function_table_entry_at(i);
-          entry.set(module_->signature_map.Find(sig), imported_instance,
-                    exported_code);
+          IndirectFunctionTableEntry(*instance, i)
+              .set(module_->signature_map.Find(sig), *imported_instance,
+                   exported_code);
         }
         num_imported_tables++;
         break;
@@ -2398,8 +2399,8 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         wasm::WasmCode* wasm_code =
             native_module->GetIndirectlyCallableCode(func_index);
 
-        auto entry = instance->indirect_function_table_entry_at(table_index);
-        entry.set(sig_id, instance, wasm_code);
+        IndirectFunctionTableEntry(*instance, table_index)
+            .set(sig_id, *instance, wasm_code);
 
         if (!table_instance.table_object.is_null()) {
           // Update the table object's other dispatch tables.

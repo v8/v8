@@ -50,9 +50,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
         code, wasm::WasmCode::kWasmToJsWrapper, maybe_import_index);
 
-    auto entry =
-        instance_object()->imported_function_entry_at(maybe_import_index);
-    entry.set(maybe_import->js_function, wasm_to_js_wrapper);
+    ImportedFunctionEntry(*instance_object_, maybe_import_index)
+        .set(*maybe_import->js_function, wasm_to_js_wrapper);
   }
 
   if (mode == kExecuteInterpreter) {
@@ -169,8 +168,8 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
       WasmFunction& function = test_module_.functions[table.values[j]];
       int sig_id = test_module_.signature_map.Find(function.sig);
       auto wasm_code = native_module_->GetCode(function.func_index);
-      auto entry = instance->indirect_function_table_entry_at(j);
-      entry.set(sig_id, instance, wasm_code);
+      IndirectFunctionTableEntry(*instance, j)
+          .set(sig_id, *instance, wasm_code);
     }
   }
 }

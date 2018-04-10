@@ -110,9 +110,7 @@ class WasmInstanceNativeAllocations {
 
     instance->set_indirect_function_table_instances(*new_instances);
     for (size_t j = old_size; j < new_size; j++) {
-      auto entry =
-          instance->indirect_function_table_entry_at(static_cast<int>(j));
-      entry.clear();
+      IndirectFunctionTableEntry(*instance, static_cast<int>(j)).clear();
     }
   }
   uint32_t* indirect_function_table_sig_ids_ = nullptr;
@@ -390,8 +388,8 @@ void WasmTableObject::UpdateDispatchTables(
     WasmInstanceObject* to_instance = WasmInstanceObject::cast(
         dispatch_tables->get(i + kDispatchTableInstanceOffset));
     auto sig_id = to_instance->module()->signature_map.Find(sig);
-    auto entry = to_instance->indirect_function_table_entry_at(table_index);
-    entry.set(sig_id, from_instance, wasm_code);
+    IndirectFunctionTableEntry(to_instance, table_index)
+        .set(sig_id, *from_instance, wasm_code);
   }
 }
 
@@ -405,8 +403,7 @@ void WasmTableObject::ClearDispatchTables(Handle<WasmTableObject> table,
     WasmInstanceObject* target_instance = WasmInstanceObject::cast(
         dispatch_tables->get(i + kDispatchTableInstanceOffset));
     DCHECK_LT(index, target_instance->indirect_function_table_size());
-    auto entry = target_instance->indirect_function_table_entry_at(index);
-    entry.clear();
+    IndirectFunctionTableEntry(target_instance, index).clear();
   }
 }
 
@@ -640,16 +637,15 @@ void IndirectFunctionTableEntry::clear() {
       index_, instance_->GetIsolate()->heap()->undefined_value());
 }
 
-void IndirectFunctionTableEntry::set(int sig_id,
-                                     Handle<WasmInstanceObject> instance,
+void IndirectFunctionTableEntry::set(int sig_id, WasmInstanceObject* instance,
                                      const wasm::WasmCode* wasm_code) {
   TRACE_IFT("IFT entry %p[%d] = {sig_id=%d, instance=%p, target=%p}\n",
-            *instance_, index_, sig_id, *instance,
+            instance_, index_, sig_id, instance,
             wasm_code->instructions().start());
   instance_->indirect_function_table_sig_ids()[index_] = sig_id;
   instance_->indirect_function_table_targets()[index_] =
       wasm_code->instructions().start();
-  instance_->indirect_function_table_instances()->set(index_, *instance);
+  instance_->indirect_function_table_instances()->set(index_, instance);
 }
 
 WasmInstanceObject* IndirectFunctionTableEntry::instance() {
@@ -665,22 +661,22 @@ Address IndirectFunctionTableEntry::target() {
   return instance_->indirect_function_table_targets()[index_];
 }
 
-void ImportedFunctionEntry::set(Handle<JSReceiver> callable,
+void ImportedFunctionEntry::set(JSReceiver* callable,
                                 const wasm::WasmCode* wasm_to_js_wrapper) {
-  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", *instance_,
-            index_, *callable, wasm_to_js_wrapper->instructions().start());
+  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", instance_,
+            index_, callable, wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
-  instance_->imported_function_instances()->set(index_, *instance_);
-  instance_->imported_function_callables()->set(index_, *callable);
+  instance_->imported_function_instances()->set(index_, instance_);
+  instance_->imported_function_callables()->set(index_, callable);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instructions().start();
 }
 
-void ImportedFunctionEntry::set(Handle<WasmInstanceObject> instance,
+void ImportedFunctionEntry::set(WasmInstanceObject* instance,
                                 const wasm::WasmCode* wasm_code) {
-  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%p}\n", *instance_,
-            index_, *instance, wasm_code->instructions().start());
-  instance_->imported_function_instances()->set(index_, *instance);
+  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%p}\n", instance_,
+            index_, instance, wasm_code->instructions().start());
+  instance_->imported_function_instances()->set(index_, instance);
   instance_->imported_function_callables()->set(
       index_, instance_->GetHeap()->undefined_value());
   instance_->imported_function_targets()[index_] =
@@ -716,23 +712,6 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
   native_allocations->resize_indirect_function_table(isolate, instance,
                                                      minimum_size);
   return true;
-}
-
-IndirectFunctionTableEntry WasmInstanceObject::indirect_function_table_entry_at(
-    int i) {
-  DCHECK_GE(i, 0);
-  DCHECK_LT(i, indirect_function_table_size());
-  Handle<WasmInstanceObject> handle(this, GetIsolate());
-  IndirectFunctionTableEntry entry(handle, i);
-  return entry;
-}
-
-ImportedFunctionEntry WasmInstanceObject::imported_function_entry_at(int i) {
-  DCHECK_GE(i, 0);
-  DCHECK_LT(i, compiled_module()->shared()->module()->num_imported_functions);
-  Handle<WasmInstanceObject> handle(this, GetIsolate());
-  ImportedFunctionEntry entry(handle, i);
-  return entry;
 }
 
 void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
