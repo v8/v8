@@ -5927,7 +5927,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
       while (heap->ms_count() < initial_ms_count + 10) {
         HandleScope inner_scope(i_isolate);
         factory->NewFixedArray(30000, TENURED);
-        if (heap->tracer()->CurrentMarkCompactMutatorUtilization() >= 0.3) {
+        if (heap->tracer()->AverageMarkCompactMutatorUtilization() >= 0.3) {
           ineffective_ms_start = heap->ms_count() + 1;
         }
       }
