@@ -2609,7 +2609,7 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 
 AbstractCode* JSFunction::abstract_code() {
   if (IsInterpreted()) {
-    return AbstractCode::cast(shared()->bytecode_array());
+    return AbstractCode::cast(shared()->GetBytecodeArray());
   } else {
     return AbstractCode::cast(code());
   }

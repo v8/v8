@@ -794,7 +794,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
-  if (compilation_info()->shared_info()->bytecode_array()->length() >
+  if (compilation_info()->shared_info()->GetBytecodeArray()->length() >
       kMaxBytecodeSizeForTurbofan) {
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }

@@ -318,6 +318,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case WASM_COMPILED_MODULE_TYPE:

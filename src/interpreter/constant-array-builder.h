@@ -28,6 +28,7 @@ namespace interpreter {
   V(EmptyFixedArray, empty_fixed_array)                         \
   V(HomeObjectSymbol, home_object_symbol)                       \
   V(IteratorSymbol, iterator_symbol)                            \
+  V(InterpreterTrampolineSymbol, interpreter_trampoline_symbol) \
   V(NaN, nan_value)
 
 // A helper class for constructing constant arrays for the

@@ -1232,7 +1232,7 @@ void Debug::PrepareFunctionForDebugExecution(
   Handle<Object> maybe_debug_bytecode_array =
       isolate_->factory()->undefined_value();
   if (shared->HasBytecodeArray()) {
-    Handle<BytecodeArray> original(shared->bytecode_array());
+    Handle<BytecodeArray> original(shared->GetBytecodeArray());
     maybe_debug_bytecode_array =
         isolate_->factory()->CopyBytecodeArray(original);
   }
@@ -2418,7 +2418,7 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   SharedFunctionInfo* shared = frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->bytecode_array();
+  BytecodeArray* bytecode_array = shared->GetBytecodeArray();
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayAccessor bytecode_accessor(handle(bytecode_array),
                                                        offset);

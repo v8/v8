@@ -2110,6 +2110,26 @@ Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
   return var_result.value();
 }
 
+Node* CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(Node* shared) {
+  CSA_ASSERT(this, TaggedIsNotSmi(shared));
+  CSA_ASSERT(this, IsSharedFunctionInfo(shared));
+
+  Node* function_data =
+      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+
+  VARIABLE(var_result, MachineRepresentation::kTagged, function_data);
+  Label done(this, &var_result);
+
+  GotoIfNot(HasInstanceType(function_data, INTERPRETER_DATA_TYPE), &done);
+  Node* bytecode_array =
+      LoadObjectField(function_data, InterpreterData::kBytecodeArrayOffset);
+  var_result.Bind(bytecode_array);
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
 void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                                              SloppyTNode<Float64T> value) {
   StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
@@ -11024,17 +11044,18 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   TNode<Int32T> data_type = LoadInstanceType(CAST(sfi_data));
 
   int32_t case_values[] = {BYTECODE_ARRAY_TYPE, CODE_TYPE, FIXED_ARRAY_TYPE,
-                           TUPLE2_TYPE};
+                           TUPLE2_TYPE, FUNCTION_TEMPLATE_INFO_TYPE};
   Label check_is_bytecode_array(this);
   Label check_is_code(this);
   Label check_is_fixed_array(this);
   Label check_is_pre_parsed_scope_data(this);
   Label check_is_function_template_info(this);
-  Label* case_labels[] = {&check_is_bytecode_array, &check_is_code,
-                          &check_is_fixed_array,
-                          &check_is_pre_parsed_scope_data};
+  Label check_is_interpreter_data(this);
+  Label* case_labels[] = {
+      &check_is_bytecode_array, &check_is_code, &check_is_fixed_array,
+      &check_is_pre_parsed_scope_data, &check_is_function_template_info};
   STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
-  Switch(data_type, &check_is_function_template_info, case_values, case_labels,
+  Switch(data_type, &check_is_interpreter_data, case_values, case_labels,
          arraysize(case_labels));
 
   // IsBytecodeArray: Interpret bytecode
@@ -11062,11 +11083,17 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);
-  // This is the default branch, so assert that we have the expected data type.
-  CSA_ASSERT(
-      this, Word32Equal(data_type, Int32Constant(FUNCTION_TEMPLATE_INFO_TYPE)));
   DCHECK(!Builtins::IsLazy(Builtins::kHandleApiCall));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCall));
+  Goto(&done);
+
+  // IsInterpreterData: Interpret bytecode
+  BIND(&check_is_interpreter_data);
+  // This is the default branch, so assert that we have the expected data type.
+  CSA_ASSERT(this,
+             Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
+  sfi_code = CAST(LoadObjectField(
+      CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
   Goto(&done);
 
   BIND(&done);

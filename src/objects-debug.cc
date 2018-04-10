@@ -1715,6 +1715,12 @@ void PreParsedScopeData::PreParsedScopeDataVerify() {
   CHECK(child_data()->IsFixedArray());
 }
 
+void InterpreterData::InterpreterDataVerify() {
+  CHECK(IsInterpreterData());
+  CHECK(bytecode_array()->IsBytecodeArray());
+  CHECK(interpreter_trampoline()->IsCode());
+}
+
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

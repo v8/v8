@@ -559,6 +559,19 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
 }
 
+static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
+                                          Register sfi_data,
+                                          Register scratch1) {
+  Label done;
+
+  __ CmpObjectType(sfi_data, INTERPRETER_DATA_TYPE, scratch1);
+  __ j(not_equal, &done, Label::kNear);
+  __ movp(sfi_data,
+          FieldOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+
+  __ bind(&done);
+}
+
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -636,6 +649,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
+    GetSharedFunctionInfoBytecode(masm, rcx, kScratchRegister);
     __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
     __ Assert(equal, AbortReason::kMissingBytecodeArray);
   }
@@ -867,7 +881,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 #define JUMP_IF_EQUAL(NAME)                                             \
   __ cmpb(bytecode,                                                     \
           Immediate(static_cast<int>(interpreter::Bytecode::k##NAME))); \
-  __ j(equal, if_return, Label::kNear);
+  __ j(equal, if_return, Label::kFar);
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
 
@@ -918,6 +932,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(rax, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ movp(kInterpreterBytecodeArrayRegister,
           FieldOperand(rax, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister,
+                                kScratchRegister);
   __ JumpIfNotSmi(FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset),
                   &maybe_load_debug_bytecode_array);
   __ bind(&bytecode_array_loaded);
@@ -1214,13 +1230,30 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
+  Label builtin_trampoline, trampoline_loaded;
   // TODO(jgruber,v8:6666): Update logic once builtin is isolate-independent.
   DCHECK(
       !Builtins::IsIsolateIndependent(Builtins::kInterpreterEntryTrampoline));
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
   DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+
+  // If the SFI function_data is an InterpreterData, get the trampoline stored
+  // in it, otherwise get the trampoline from the builtins list.
+  __ movp(rbx, Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ movp(rbx, FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rbx, FieldOperand(rbx, SharedFunctionInfo::kFunctionDataOffset));
+  __ CmpObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
+  __ j(not_equal, &builtin_trampoline, Label::kNear);
+
+  __ movp(rbx,
+          FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ jmp(&trampoline_loaded, Label::kNear);
+
+  __ bind(&builtin_trampoline);
   __ Move(rbx, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
+
+  __ bind(&trampoline_loaded);
   __ addp(rbx, Immediate(interpreter_entry_return_pc_offset->value() +
                          Code::kHeaderSize - kHeapObjectTag));
   __ Push(rbx);
@@ -1315,6 +1348,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
   Label check_is_fixed_array;
   Label check_is_pre_parsed_scope_data;
   Label check_is_function_template_info;
+  Label check_is_interpreter_data;
 
   Register data_type = scratch1;
 
@@ -1357,11 +1391,20 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsFunctionTemplateInfo: API call
   __ bind(&check_is_function_template_info);
+  __ cmpw(data_type, Immediate(FUNCTION_TEMPLATE_INFO_TYPE));
+  __ j(not_equal, &check_is_interpreter_data);
+  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
+  __ j(always, &done);
+
+  // IsInterpreterData: Interpret bytecode with unique interpreter
+  __ bind(&check_is_interpreter_data);
   if (FLAG_debug_code) {
-    __ cmpw(data_type, Immediate(FUNCTION_TEMPLATE_INFO_TYPE));
+    __ cmpw(data_type, Immediate(INTERPRETER_DATA_TYPE));
     __ Check(equal, AbortReason::kInvalidSharedFunctionInfoData);
   }
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
+  __ movp(
+      sfi_data,
+      FieldOperand(sfi_data, InterpreterData::kInterpreterTrampolineOffset));
 
   __ bind(&done);
 }

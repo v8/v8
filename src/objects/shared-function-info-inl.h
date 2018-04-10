@@ -19,6 +19,11 @@ CAST_ACCESSOR(PreParsedScopeData)
 ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 ACCESSORS(PreParsedScopeData, child_data, FixedArray, kChildDataOffset)
 
+CAST_ACCESSOR(InterpreterData)
+ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
+ACCESSORS(InterpreterData, interpreter_trampoline, Code,
+          kInterpreterTrampolineOffset)
+
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -87,7 +92,7 @@ void SharedFunctionInfo::SetName(String* name) {
 
 AbstractCode* SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
-    return AbstractCode::cast(bytecode_array());
+    return AbstractCode::cast(GetBytecodeArray());
   } else {
     return AbstractCode::cast(GetCode());
   }
@@ -291,6 +296,11 @@ Code* SharedFunctionInfo::GetCode() const {
     // Having a code object means we should run it.
     DCHECK(HasCodeObject());
     return Code::cast(data);
+  } else if (data->IsInterpreterData()) {
+    Code* code = InterpreterTrampoline();
+    DCHECK(code->IsCode());
+    DCHECK(code->is_interpreter_trampoline_builtin());
+    return code;
   }
   UNREACHABLE();
 }
@@ -417,17 +427,43 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
 }
 
 bool SharedFunctionInfo::HasBytecodeArray() const {
-  return function_data()->IsBytecodeArray();
+  return function_data()->IsBytecodeArray() ||
+         function_data()->IsInterpreterData();
 }
 
-BytecodeArray* SharedFunctionInfo::bytecode_array() const {
+BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   DCHECK(HasBytecodeArray());
-  return BytecodeArray::cast(function_data());
+  if (function_data()->IsBytecodeArray()) {
+    return BytecodeArray::cast(function_data());
+  } else {
+    DCHECK(function_data()->IsInterpreterData());
+    return InterpreterData::cast(function_data())->bytecode_array();
+  }
 }
 
-void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
+void SharedFunctionInfo::set_bytecode_array(class BytecodeArray* bytecode) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
   set_function_data(bytecode);
+}
+
+Code* SharedFunctionInfo::InterpreterTrampoline() const {
+  DCHECK(HasInterpreterData());
+  return interpreter_data()->interpreter_trampoline();
+}
+
+bool SharedFunctionInfo::HasInterpreterData() const {
+  return function_data()->IsInterpreterData();
+}
+
+InterpreterData* SharedFunctionInfo::interpreter_data() const {
+  DCHECK(HasInterpreterData());
+  return InterpreterData::cast(function_data());
+}
+
+void SharedFunctionInfo::set_interpreter_data(
+    InterpreterData* interpreter_data) {
+  DCHECK(FLAG_interpreted_frames_native_stack);
+  set_function_data(interpreter_data);
 }
 
 bool SharedFunctionInfo::HasAsmWasmData() const {

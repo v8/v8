@@ -1214,7 +1214,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   if (IsInterpreted()) {
     os << "\n - interpreted";
     if (shared()->HasBytecodeArray()) {
-      os << "\n - bytecode: " << shared()->bytecode_array();
+      os << "\n - bytecode: " << shared()->GetBytecodeArray();
     }
   }
   if (WasmExportedFunction::IsWasmExportedFunction(this)) {
@@ -1890,6 +1890,13 @@ void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PreParsedScopeData");
   os << "\n - scope_data: " << Brief(scope_data());
   os << "\n - child_data: " << Brief(child_data());
+  os << "\n";
+}
+
+void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "InterpreterData");
+  os << "\n - bytecode_array: " << Brief(bytecode_array());
+  os << "\n - interpreter_trampoline: " << Brief(interpreter_trampoline());
   os << "\n";
 }
 

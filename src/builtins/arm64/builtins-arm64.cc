@@ -581,8 +581,13 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (FLAG_debug_code) {
+    Label check_has_bytecode_array;
     __ Ldr(x3, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
     __ Ldr(x3, FieldMemOperand(x3, SharedFunctionInfo::kFunctionDataOffset));
+    __ CompareObjectType(x3, x0, x0, INTERPRETER_DATA_TYPE);
+    __ B(ne, &check_has_bytecode_array);
+    __ Ldr(x3, FieldMemOperand(x3, InterpreterData::kBytecodeArrayOffset));
+    __ Bind(&check_has_bytecode_array);
     __ CompareObjectType(x3, x3, x3, BYTECODE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
   }
@@ -1004,10 +1009,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
-  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded,
+      has_bytecode_array;
   __ Ldr(x0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(kInterpreterBytecodeArrayRegister,
          FieldMemOperand(x0, SharedFunctionInfo::kFunctionDataOffset));
+  __ CompareObjectType(kInterpreterBytecodeArrayRegister, x11, x11,
+                       INTERPRETER_DATA_TYPE);
+  __ B(ne, &has_bytecode_array);
+  __ Ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                         InterpreterData::kBytecodeArrayOffset));
+  __ Bind(&has_bytecode_array);
   __ Ldr(x11, FieldMemOperand(x0, SharedFunctionInfo::kDebugInfoOffset));
   __ JumpIfNotSmi(x11, &maybe_load_debug_bytecode_array);
   __ Bind(&bytecode_array_loaded);
@@ -1301,10 +1314,29 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
+  Label builtin_trampoline, trampoline_loaded;
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
   DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+
+  // If the SFI function_data is an InterpreterData, get the trampoline stored
+  // in it, otherwise get the trampoline from the builtins list.
+  __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ Ldr(x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x1, FieldMemOperand(x1, SharedFunctionInfo::kFunctionDataOffset));
+  __ CompareObjectType(x1, kInterpreterDispatchTableRegister,
+                       kInterpreterDispatchTableRegister,
+                       INTERPRETER_DATA_TYPE);
+  __ B(ne, &builtin_trampoline);
+
+  __ Ldr(x1,
+         FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
+  __ B(&trampoline_loaded);
+
+  __ Bind(&builtin_trampoline);
   __ LoadObject(x1, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
+
+  __ Bind(&trampoline_loaded);
   __ Add(lr, x1, Operand(interpreter_entry_return_pc_offset->value() +
                          Code::kHeaderSize - kHeapObjectTag));
 
@@ -1394,6 +1426,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
   Label check_is_fixed_array;
   Label check_is_pre_parsed_scope_data;
   Label check_is_function_template_info;
+  Label check_is_interpreter_data;
 
   Register data_type = scratch1;
 
@@ -1436,11 +1469,20 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsFunctionTemplateInfo: API call
   __ Bind(&check_is_function_template_info);
+  __ Cmp(data_type, Operand(FUNCTION_TEMPLATE_INFO_TYPE));
+  __ B(ne, &check_is_interpreter_data);
+  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
+  __ B(&done);
+
+  // IsInterpreterData: Interpret bytecode
+  __ Bind(&check_is_interpreter_data);
   if (FLAG_debug_code) {
-    __ Cmp(data_type, Operand(FUNCTION_TEMPLATE_INFO_TYPE));
+    __ Cmp(data_type, Operand(INTERPRETER_DATA_TYPE));
     __ Assert(eq, AbortReason::kInvalidSharedFunctionInfoData);
   }
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
+  __ Ldr(
+      sfi_data,
+      FieldMemOperand(sfi_data, InterpreterData::kInterpreterTrampolineOffset));
 
   __ Bind(&done);
 }

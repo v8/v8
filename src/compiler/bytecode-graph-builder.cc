@@ -521,7 +521,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
-      bytecode_array_(handle(shared_info->bytecode_array())),
+      bytecode_array_(handle(shared_info->GetBytecodeArray())),
       feedback_vector_(feedback_vector),
       type_hint_lowering_(jsgraph, feedback_vector, flags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(

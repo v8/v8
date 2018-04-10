@@ -438,6 +438,19 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
+static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
+                                          Register sfi_data,
+                                          Register scratch1) {
+  Label done;
+
+  __ GetObjectType(sfi_data, scratch1, scratch1);
+  __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
+  __ Ld(sfi_data,
+        FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+
+  __ bind(&done);
+}
+
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -512,6 +525,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ Ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
     __ Ld(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
+    GetSharedFunctionInfoBytecode(masm, a3, a0);
     __ GetObjectType(a3, a3, a3);
     __ Assert(eq, AbortReason::kMissingBytecodeArray, a3,
               Operand(BYTECODE_ARRAY_TYPE));
@@ -896,6 +910,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Ld(a0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ Ld(kInterpreterBytecodeArrayRegister,
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, a4);
   __ Ld(a4, FieldMemOperand(a0, SharedFunctionInfo::kDebugInfoOffset));
   __ JumpIfNotSmi(a4, &maybe_load_debug_bytecode_array);
   __ bind(&bytecode_array_loaded);
@@ -1185,10 +1200,28 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
+  Label builtin_trampoline, trampoline_loaded;
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
   DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+
+  // If the SFI function_data is an InterpreterData, get the trampoline stored
+  // in it, otherwise get the trampoline from the builtins list.
+  __ Ld(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ Ld(t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(t0, FieldMemOperand(t0, SharedFunctionInfo::kFunctionDataOffset));
+  __ GetObjectType(t0, kInterpreterDispatchTableRegister,
+                   kInterpreterDispatchTableRegister);
+  __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
+            Operand(INTERPRETER_DATA_TYPE));
+
+  __ Ld(t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
+  __ Branch(&trampoline_loaded);
+
+  __ bind(&builtin_trampoline);
   __ li(t0, Operand(BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline)));
+
+  __ bind(&trampoline_loaded);
   __ Daddu(ra, t0, Operand(interpreter_entry_return_pc_offset->value() +
                            Code::kHeaderSize - kHeapObjectTag));
 
@@ -1282,6 +1315,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
   Label check_is_fixed_array;
   Label check_is_pre_parsed_scope_data;
   Label check_is_function_template_info;
+  Label check_is_interpreter_data;
 
   Register data_type = scratch1;
 
@@ -1326,11 +1360,18 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsFunctionTemplateInfo: API call
   __ bind(&check_is_function_template_info);
+  __ Branch(&check_is_interpreter_data, ne, data_type,
+            Operand(FUNCTION_TEMPLATE_INFO_TYPE));
+  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
+
+  // IsInterpreterData: Interpret bytecode
+  __ bind(&check_is_interpreter_data);
   if (FLAG_debug_code) {
     __ Assert(eq, AbortReason::kInvalidSharedFunctionInfoData, data_type,
-              Operand(FUNCTION_TEMPLATE_INFO_TYPE));
+              Operand(INTERPRETER_DATA_TYPE));
   }
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
+  __ Ld(sfi_data, FieldMemOperand(
+                      sfi_data, InterpreterData::kInterpreterTrampolineOffset));
 
   __ bind(&done);
 }

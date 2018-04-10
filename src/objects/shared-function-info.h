@@ -35,6 +35,24 @@ class PreParsedScopeData : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PreParsedScopeData);
 };
 
+class InterpreterData : public Struct {
+ public:
+  DECL_ACCESSORS(bytecode_array, BytecodeArray)
+  DECL_ACCESSORS(interpreter_trampoline, Code)
+
+  static const int kBytecodeArrayOffset = Struct::kHeaderSize;
+  static const int kInterpreterTrampolineOffset =
+      kBytecodeArrayOffset + kPointerSize;
+  static const int kSize = kInterpreterTrampolineOffset + kPointerSize;
+
+  DECL_CAST(InterpreterData)
+  DECL_PRINTER(InterpreterData)
+  DECL_VERIFIER(InterpreterData)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(InterpreterData);
+};
+
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject {
@@ -143,6 +161,8 @@ class SharedFunctionInfo : public HeapObject {
   // Currently it has one of:
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
+  //  - a InterpreterData with the BytecodeArray and a copy of the
+  //    interpreter trampoline [HasInterpreterData()]
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
   //  - a PreParsedScopeData for the parser [HasPreParsedScopeData()]
@@ -153,8 +173,12 @@ class SharedFunctionInfo : public HeapObject {
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray() const;
-  inline BytecodeArray* bytecode_array() const;
-  inline void set_bytecode_array(BytecodeArray* bytecode);
+  inline BytecodeArray* GetBytecodeArray() const;
+  inline void set_bytecode_array(class BytecodeArray* bytecode);
+  inline Code* InterpreterTrampoline() const;
+  inline bool HasInterpreterData() const;
+  inline InterpreterData* interpreter_data() const;
+  inline void set_interpreter_data(InterpreterData* interpreter_data);
   inline bool HasAsmWasmData() const;
   inline FixedArray* asm_wasm_data() const;
   inline void set_asm_wasm_data(FixedArray* data);

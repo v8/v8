@@ -778,6 +778,29 @@ TEST(LogAll) {
   isolate->Dispose();
 }
 
+TEST(LogInterpretedFramesNativeStack) {
+  SETUP_FLAGS();
+  i::FLAG_interpreted_frames_native_stack = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    const char* source_text =
+        "function testLogInterpretedFramesNativeStack(a,b) { return a + b };"
+        "testLogInterpretedFramesNativeStack('1', 1);";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    CHECK(logger.FindLine("InterpretedFunction",
+                          "testLogInterpretedFramesNativeStack"));
+  }
+  isolate->Dispose();
+}
+
 TEST(TraceMaps) {
   SETUP_FLAGS();
   i::FLAG_trace_maps = true;

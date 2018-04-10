@@ -749,6 +749,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the "prototype" property of a JSFunction.
   Node* LoadJSFunctionPrototype(Node* function, Label* if_bailout);
 
+  Node* LoadSharedFunctionInfoBytecodeArray(Node* shared);
+
   // Store the floating point value of a HeapNumber.
   void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                             SloppyTNode<Float64T> value);

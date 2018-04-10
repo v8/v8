@@ -53,7 +53,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   InterpretedFrame* interpreted_frame =
       reinterpret_cast<InterpretedFrame*>(it.frame());
   SharedFunctionInfo* shared = interpreted_frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->bytecode_array();
+  BytecodeArray* bytecode_array = shared->GetBytecodeArray();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
 

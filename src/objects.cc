@@ -17646,7 +17646,7 @@ void CompilationCacheTable::Age() {
       }
     } else if (get(entry_index)->IsFixedArray()) {
       SharedFunctionInfo* info = SharedFunctionInfo::cast(get(value_index));
-      if (info->IsInterpreted() && info->bytecode_array()->IsOld()) {
+      if (info->IsInterpreted() && info->GetBytecodeArray()->IsOld()) {
         for (int i = 0; i < kEntrySize; i++) {
           NoWriteBarrierSet(this, entry_index + i, the_hole_value);
         }
@@ -19436,7 +19436,7 @@ int JSGeneratorObject::source_position() const {
   // is used in the source position table, hence the subtraction.
   code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
   AbstractCode* code =
-      AbstractCode::cast(function()->shared()->bytecode_array());
+      AbstractCode::cast(function()->shared()->GetBytecodeArray());
   return code->SourcePosition(code_offset);
 }
 

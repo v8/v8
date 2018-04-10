@@ -1075,8 +1075,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   Node* shared =
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* bytecode_array =
-      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  Node* bytecode_array = LoadSharedFunctionInfoBytecodeArray(shared);
+
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
   Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));

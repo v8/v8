@@ -548,7 +548,8 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
-      HandlerTable table(translated_frame->raw_shared_info()->bytecode_array());
+      HandlerTable table(
+          translated_frame->raw_shared_info()->GetBytecodeArray());
       return table.LookupRange(bytecode_offset, data_out, nullptr);
     }
     case TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch: {
@@ -891,7 +892,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   output_offset -= kPointerSize;
   Object* bytecode_array = shared->HasBreakInfo()
                                ? shared->GetDebugInfo()->DebugBytecodeArray()
-                               : shared->bytecode_array();
+                               : shared->GetBytecodeArray();
   WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
                      "bytecode array ");
 
@@ -2462,7 +2463,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
     SharedFunctionInfo* shared, BailoutId node_id) {
   DCHECK(shared->HasBytecodeArray());
-  return AbstractCode::cast(shared->bytecode_array())
+  return AbstractCode::cast(shared->GetBytecodeArray())
       ->SourcePosition(node_id.ToInt());
 }
 

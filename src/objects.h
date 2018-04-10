@@ -386,6 +386,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO_TYPE)                                            \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
   V(INTERCEPTOR_INFO_TYPE)                                      \
+  V(INTERPRETER_DATA_TYPE)                                      \
   V(MODULE_INFO_ENTRY_TYPE)                                     \
   V(MODULE_TYPE)                                                \
   V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
@@ -558,6 +559,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
+  V(INTERPRETER_DATA, InterpreterData, interpreter_data)                     \
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(MODULE, Module, module)                                                  \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
@@ -752,6 +754,7 @@ enum InstanceType : uint16_t {
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
+  INTERPRETER_DATA_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   MODULE_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,

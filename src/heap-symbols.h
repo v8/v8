@@ -243,6 +243,7 @@
   V(intl_initialized_marker_symbol)    \
   V(intl_pattern_symbol)               \
   V(intl_resolved_symbol)              \
+  V(interpreter_trampoline_symbol)     \
   V(megamorphic_symbol)                \
   V(native_context_index_symbol)       \
   V(nonextensible_symbol)              \

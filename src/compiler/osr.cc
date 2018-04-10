@@ -16,10 +16,10 @@ namespace compiler {
 
 OsrHelper::OsrHelper(OptimizedCompilationInfo* info)
     : parameter_count_(
-          info->shared_info()->bytecode_array()->parameter_count()),
+          info->shared_info()->GetBytecodeArray()->parameter_count()),
       stack_slot_count_(
           InterpreterFrameConstants::RegisterStackSlotCount(
-              info->shared_info()->bytecode_array()->register_count()) +
+              info->shared_info()->GetBytecodeArray()->register_count()) +
           InterpreterFrameConstants::kExtraSlotCount) {}
 
 void OsrHelper::SetupFrame(Frame* frame) {

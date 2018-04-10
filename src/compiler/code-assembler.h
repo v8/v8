@@ -38,6 +38,7 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
+class InterpreterData;
 class Factory;
 class Zone;
 

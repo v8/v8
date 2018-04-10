@@ -1352,7 +1352,7 @@ TEST(CompilationCacheCachingBehavior) {
     CHECK(shared->HasBytecodeArray());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      shared->bytecode_array()->MakeOlder();
+      shared->GetBytecodeArray()->MakeOlder();
     }
   }
 

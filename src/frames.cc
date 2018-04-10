@@ -169,7 +169,8 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
 
 namespace {
 
-bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
+bool IsInterpreterFramePc(Isolate* isolate, Address pc,
+                          StackFrame::State* state) {
   Code* interpreter_entry_trampoline =
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
   Code* interpreter_bytecode_advance =
@@ -177,12 +178,30 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
 
-  return (pc >= interpreter_entry_trampoline->InstructionStart() &&
-          pc < interpreter_entry_trampoline->InstructionEnd()) ||
-         (pc >= interpreter_bytecode_advance->InstructionStart() &&
-          pc < interpreter_bytecode_advance->InstructionEnd()) ||
-         (pc >= interpreter_bytecode_dispatch->InstructionStart() &&
-          pc < interpreter_bytecode_dispatch->InstructionEnd());
+  if (interpreter_entry_trampoline->contains(pc) ||
+      interpreter_bytecode_advance->contains(pc) ||
+      interpreter_bytecode_dispatch->contains(pc)) {
+    return true;
+  } else if (FLAG_interpreted_frames_native_stack) {
+    intptr_t marker = Memory::intptr_at(
+        state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+    MSAN_MEMORY_IS_INITIALIZED(
+        state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
+    Object* maybe_function =
+        Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
+    // There's no need to run a full ContainsSlow if we know the frame can't be
+    // an InterpretedFrame,  so we do these fast checks first
+    if (StackFrame::IsTypeMarker(marker) || maybe_function->IsSmi()) {
+      return false;
+    } else if (!isolate->heap()->code_space()->ContainsSlow(pc)) {
+      return false;
+    }
+    interpreter_entry_trampoline =
+        isolate->heap()->GcSafeFindCodeForInnerPointer(pc);
+    return interpreter_entry_trampoline->is_interpreter_trampoline_builtin();
+  } else {
+    return false;
+  }
 }
 
 DISABLE_ASAN Address ReadMemoryAt(Address address) {
@@ -229,7 +248,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     if (IsValidStackAddress(sp)) {
       MSAN_MEMORY_IS_INITIALIZED(sp, kPointerSize);
       Address tos = ReadMemoryAt(reinterpret_cast<Address>(sp));
-      if (IsInterpreterFramePc(isolate, tos)) {
+      if (IsInterpreterFramePc(isolate, tos, &state)) {
         state.pc_address = reinterpret_cast<Address*>(sp);
         advance_frame = false;
       }
@@ -436,8 +455,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (!StackFrame::IsTypeMarker(marker)) {
       if (maybe_function->IsSmi()) {
         return NATIVE;
-      } else if (IsInterpreterFramePc(iterator->isolate(),
-                                      *(state->pc_address))) {
+      } else if (IsInterpreterFramePc(iterator->isolate(), *(state->pc_address),
+                                      state)) {
         return INTERPRETED;
       } else {
         return OPTIMIZED;
@@ -1641,7 +1660,7 @@ int InterpretedFrame::position() const {
 
 int InterpretedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
-  HandlerTable table(function()->shared()->bytecode_array());
+  HandlerTable table(function()->shared()->GetBytecodeArray());
   return table.LookupRange(GetBytecodeOffset(), context_register, prediction);
 }
 
@@ -1710,7 +1729,7 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
 void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   AbstractCode* abstract_code =
-      AbstractCode::cast(function()->shared()->bytecode_array());
+      AbstractCode::cast(function()->shared()->GetBytecodeArray());
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
       IsConstructor());

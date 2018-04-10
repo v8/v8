@@ -827,7 +827,11 @@ void LiveEdit::ReplaceFunctionCode(
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
     shared_info->FlushCompiled();
-    shared_info->set_bytecode_array(new_shared_info->bytecode_array());
+    if (new_shared_info->HasInterpreterData()) {
+      shared_info->set_interpreter_data(new_shared_info->interpreter_data());
+    } else {
+      shared_info->set_bytecode_array(new_shared_info->GetBytecodeArray());
+    }
 
     if (shared_info->HasBreakInfo()) {
       // Existing break points will be re-applied. Reset the debug info here.
@@ -989,7 +993,7 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_function_token_position(new_function_token_pos);
 
   if (info->HasBytecodeArray()) {
-    TranslateSourcePositionTable(handle(info->bytecode_array()),
+    TranslateSourcePositionTable(handle(info->GetBytecodeArray()),
                                  position_change_array);
   }
   if (info->HasBreakInfo()) {

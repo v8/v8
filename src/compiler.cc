@@ -309,9 +309,48 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
   return literal->scope()->IsAsmModule();
 }
 
+void InstallBytecodeArray(Handle<BytecodeArray> bytecode_array,
+                          Handle<SharedFunctionInfo> shared_info,
+                          ParseInfo* parse_info, Isolate* isolate) {
+  if (!FLAG_interpreted_frames_native_stack) {
+    shared_info->set_bytecode_array(*bytecode_array);
+    return;
+  }
+
+  Handle<Code> code;
+  {
+    CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
+
+    code = isolate->factory()->CopyCode(
+        BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+  }
+
+  Handle<InterpreterData> interpreter_data = Handle<InterpreterData>::cast(
+      isolate->factory()->NewStruct(INTERPRETER_DATA_TYPE, TENURED));
+
+  interpreter_data->set_bytecode_array(*bytecode_array);
+  interpreter_data->set_interpreter_trampoline(*code);
+
+  shared_info->set_interpreter_data(*interpreter_data);
+
+  Handle<Script> script = parse_info->script();
+  Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+  int line_num =
+      Script::GetLineNumber(script, shared_info->StartPosition()) + 1;
+  int column_num =
+      Script::GetColumnNumber(script, shared_info->StartPosition()) + 1;
+  String* script_name = script->name()->IsString()
+                            ? String::cast(script->name())
+                            : isolate->heap()->empty_string();
+  CodeEventListener::LogEventsAndTags log_tag = Logger::ToNativeByScript(
+      CodeEventListener::INTERPRETED_FUNCTION_TAG, *script);
+  PROFILE(isolate, CodeCreateEvent(log_tag, *abstract_code, *shared_info,
+                                   script_name, line_num, column_num));
+}
+
 void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
                             Handle<SharedFunctionInfo> shared_info,
-                            Isolate* isolate) {
+                            ParseInfo* parse_info, Isolate* isolate) {
   DCHECK_EQ(shared_info->language_mode(),
             compilation_info->literal()->language_mode());
 
@@ -327,7 +366,8 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());
 
-    shared_info->set_bytecode_array(*compilation_info->bytecode_array());
+    InstallBytecodeArray(compilation_info->bytecode_array(), shared_info,
+                         parse_info, isolate);
     shared_info->set_feedback_metadata(*feedback_metadata);
   } else {
     DCHECK(compilation_info->has_asm_wasm_data());
@@ -382,7 +422,7 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(
 
   CompilationJob::Status status = job->FinalizeJob(shared_info, isolate);
   if (status == CompilationJob::SUCCEEDED) {
-    InstallUnoptimizedCode(compilation_info, shared_info, isolate);
+    InstallUnoptimizedCode(compilation_info, shared_info, parse_info, isolate);
     CodeEventListener::LogEventsAndTags log_tag;
     if (parse_info->is_toplevel()) {
       log_tag = compilation_info->is_eval() ? CodeEventListener::EVAL_TAG
