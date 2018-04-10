@@ -272,6 +272,27 @@
           ]
         },
         {
+          "name": "StringMatchAll",
+          "main": "run.js",
+          "resources": [ "string-matchall.js" ],
+          "flags": [
+            "--harmony-string-matchall"
+          ],
+          "test_flags": [ "string-matchall" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringMatchAllBuiltinRegExpIteratorCreation"},
+            {"name": "StringMatchAllBuiltinStringIteratorCreation"},
+            {"name": "StringMatchAllBuiltinString"},
+            {"name": "StringMatchAllManualString"},
+            {"name": "StringMatchAllBuiltinRegExp"},
+            {"name": "StringMatchAllManualRegExp"},
+            {"name": "StringMatchAllBuiltinZeroWidth"},
+            {"name": "StringMatchAllBuiltinZeroWidthUnicode"}
+          ]
+        },
+        {
           "name": "StringSubstring",
           "main": "run.js",
           "resources": [ "string-substring.js" ],
