@@ -270,10 +270,8 @@ class GlobalHandles::Node {
     // Zap with something dangerous.
     *location() = reinterpret_cast<Object*>(0x6057CA11);
 
-    typedef v8::WeakCallbackInfo<void> Data;
-    auto callback = reinterpret_cast<Data::Callback>(weak_callback_);
-    pending_phantom_callbacks->push_back(
-        PendingPhantomCallback(this, callback, parameter(), embedder_fields));
+    pending_phantom_callbacks->push_back(PendingPhantomCallback(
+        this, weak_callback_, parameter(), embedder_fields));
     DCHECK(IsInUse());
     set_state(NEAR_DEATH);
   }
