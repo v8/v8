@@ -2629,7 +2629,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
-  __ Jump(at);
+  __ Jump(v0);
 }
 
 #undef __
