@@ -2235,9 +2235,11 @@ void Heap::ComputeFastPromotionMode(double survival_rate) {
 }
 
 void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk) {
-  if (unprotected_memory_chunks_registry_enabled_ &&
-      unprotected_memory_chunks_.insert(chunk).second) {
-    chunk->SetReadAndWritable();
+  if (unprotected_memory_chunks_registry_enabled_) {
+    base::LockGuard<base::Mutex> guard(&unprotected_memory_chunks_mutex_);
+    if (unprotected_memory_chunks_.insert(chunk).second) {
+      chunk->SetReadAndWritable();
+    }
   }
 }
 
