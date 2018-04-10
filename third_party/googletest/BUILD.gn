@@ -14,17 +14,18 @@ config("gtest_config") {
     # In order to allow regex matches in gtest to be shared between Windows
     # and other systems, we tell gtest to always use its internal engine.
     "GTEST_HAS_POSIX_RE=0",
-    "GTEST_LANG_CXX11=1",
 
-    # ::testing::Combine, which is heavily used in Chromium, is gated on
-    # tr1::tuple. Upstream avoids using tr1::tuple on Visual Studio 2017+,
-    # because it causes warnings. We'll take (and ignore) the warnings to keep
-    # our ::testing::Combine.
-    "GTEST_HAS_TR1_TUPLE=1",
+    "GTEST_LANG_CXX11=1",
+    "GTEST_HAS_STD_TUPLE=1",
   ]
 
   # Gtest headers need to be able to find themselves.
-  include_dirs = [ "src/googletest/include" ]
+  include_dirs = [
+    # TODO(crbug.com/829773): Remove this after transitioning off <tr1/tuple>.
+    "custom",
+
+    "src/googletest/include",
+  ]
 
   if (is_win) {
     cflags = [ "/wd4800" ]  # Unused variable warning.
@@ -34,7 +35,8 @@ config("gtest_config") {
 config("gmock_config") {
   # Gmock headers need to be able to find themselves.
   include_dirs = [
-    "custom",
+    # TODO(crbug.com/829773): Add "custom" here after transitioning off
+    #                         <tr1/tuple>.
     "src/googlemock/include",
   ]
 }
@@ -44,6 +46,8 @@ config("gmock_config") {
 source_set("gtest") {
   testonly = true
   sources = [
+    # TODO(crbug.com/829773): Remove this after transitioning off <tr1/tuple>.
+    "custom/gmock/internal/custom/gmock-port.h",
     "src/googletest/include/gtest/gtest-death-test.h",
     "src/googletest/include/gtest/gtest-message.h",
     "src/googletest/include/gtest/gtest-param-test.h",
