@@ -166,14 +166,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // Ensure the context register is updated for materialized objects.
   JavaScriptFrameIterator top_it(isolate);
   JavaScriptFrame* top_frame = top_it.frame();
-  // TODO(7639): We currently don't have a valid context in
-  // JavaScriptBuiltinContinuationFrames; skip them and use the
-  // parent's context instead.
-  if (top_frame->is_java_script_builtin_continuation() ||
-      top_frame->is_java_script_builtin_with_catch_continuation()) {
-    top_it.Advance();
-    top_frame = top_it.frame();
-  }
   isolate->set_context(Context::cast(top_frame->context()));
 
   // Invalidate the underlying optimized code on non-lazy deopts.

@@ -1455,6 +1455,8 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
 //    +-------------------------+
 //    |  frame height above FP  |
 //    +-------------------------+
+//    |         context         |<- this non-standard context slot contains
+//    +-------------------------+   the context, even for non-JS builtins.
 //    |     builtin address     |
 //    +-------------------------+
 //    | builtin input GPR reg0  |<- populated from deopt FrameState using
@@ -1649,7 +1651,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // instruction selector).
   Object* context = value_iterator->GetRawValue();
   value = reinterpret_cast<intptr_t>(context);
-  register_values[kContextRegister.code()] = {context, value_iterator};
+  const RegisterValue context_register_value = {context, value_iterator};
+  register_values[kContextRegister.code()] = context_register_value;
   output_frame->SetContext(value);
   output_frame->SetRegister(kContextRegister.code(), value);
   ++input_index;
@@ -1717,6 +1720,21 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   output_frame->SetFrameSlot(output_frame_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "frame height at deoptimization\n");
+
+  // The context even if this is a stub contininuation frame. We can't use the
+  // usual context slot, because we must store the frame marker there.
+  output_frame_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(context);
+  output_frame->SetFrameSlot(output_frame_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
+                       "builtin JavaScript context\n");
+  if (context == isolate_->heap()->arguments_marker()) {
+    Address output_address =
+        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        output_frame_offset;
+    values_to_materialize_.push_back(
+        {output_address, context_register_value.iterator_});
+  }
 
   // The builtin to continue to.
   output_frame_offset -= kPointerSize;

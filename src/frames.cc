@@ -1227,6 +1227,11 @@ intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
   return height;
 }
 
+Object* JavaScriptBuiltinContinuationFrame::context() const {
+  return Memory::Object_at(
+      fp() + BuiltinContinuationFrameConstants::kBuiltinContextOffset);
+}
+
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object* exception) {
   Address exception_argument_slot =

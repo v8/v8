@@ -1459,7 +1459,7 @@ Object* Isolate::UnwindAndFindHandler() {
             JavaScriptBuiltinContinuationWithCatchFrame::cast(frame);
         js_frame->SetException(exception);
 
-        // Reconstructor stack pointer from the frame pointer.
+        // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
         Code* code = js_frame->LookupCode();
         return FoundHandler(nullptr, code->InstructionStart(), 0,

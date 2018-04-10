@@ -1148,6 +1148,8 @@ class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
   int ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
+  Object* context() const override;
+
  protected:
   inline explicit JavaScriptBuiltinContinuationFrame(
       StackFrameIteratorBase* iterator);

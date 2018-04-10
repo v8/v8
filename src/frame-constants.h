@@ -254,12 +254,13 @@ class BuiltinContinuationFrameConstants : public TypedFrameConstants {
   static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kFrameSPtoFPDeltaAtDeoptimize =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static const int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static const int kBuiltinContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static const int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
 
   // The argument count is in the first allocatable register, stored below the
   // fixed part of the frame and therefore is not part of the fixed frame size.
-  static const int kArgCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
-  DEFINE_TYPED_FRAME_SIZES(3);
+  static const int kArgCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
+  DEFINE_TYPED_FRAME_SIZES(4);
 
   // Returns the number of padding stack slots needed when we have
   // 'register_count' register slots.
