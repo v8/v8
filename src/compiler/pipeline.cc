@@ -342,12 +342,20 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
+
+    CodeGeneratorPoisoningLevel poisoning =
+        CodeGeneratorPoisoningLevel::kDontPoison;
+    if (info()->has_untrusted_code_mitigations()) {
+      poisoning = CodeGeneratorPoisoningLevel::kPoisonStackPointerInPrologue;
+    }
+    if (info()->is_poison_loads()) {
+      poisoning = CodeGeneratorPoisoningLevel::kPoisonAll;
+    }
+
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        wasm_compilation_data_,
-        info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
-                                  : PoisoningMitigationLevel::kOff);
+        wasm_compilation_data_, poisoning);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {

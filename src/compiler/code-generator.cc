@@ -44,7 +44,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              int start_source_position,
                              JumpOptimizationInfo* jump_opt,
                              WasmCompilationData* wasm_compilation_data,
-                             PoisoningMitigationLevel poisoning_enabled)
+                             CodeGeneratorPoisoningLevel poisoning_level)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -77,7 +77,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
       wasm_compilation_data_(wasm_compilation_data),
       result_(kSuccess),
-      poisoning_enabled_(poisoning_enabled) {
+      poisoning_level_(poisoning_level) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -1192,7 +1192,7 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
 }
 
 void CodeGenerator::InitializeSpeculationPoison() {
-  if (poisoning_enabled_ == PoisoningMitigationLevel::kOff) return;
+  if (poisoning_level_ == CodeGeneratorPoisoningLevel::kDontPoison) return;
 
   // Initialize {kSpeculationPoisonRegister} either by comparing the expected
   // with the actual call target, or by unconditionally using {-1} initially.
@@ -1209,7 +1209,7 @@ void CodeGenerator::InitializeSpeculationPoison() {
 }
 
 void CodeGenerator::ResetSpeculationPoison() {
-  if (poisoning_enabled_ != PoisoningMitigationLevel::kOff) {
+  if (poisoning_level_ == CodeGeneratorPoisoningLevel::kPoisonAll) {
     tasm()->ResetSpeculationPoisonRegister();
   }
 }
