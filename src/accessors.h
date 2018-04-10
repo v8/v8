@@ -55,6 +55,7 @@ class JavaScriptFrame;
   V(BoundFunctionName)                         \
   V(FunctionName)                              \
   V(FunctionLength)                            \
+  V(FunctionPrototype)                         \
   V(StringLength)
 
 #define ACCESSOR_SETTER_LIST(V) \
