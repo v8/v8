@@ -382,6 +382,12 @@ namespace internal {
   F(GetOwnPropertyKeys, 2, 1)                                   \
   F(GetProperty, 2, 1)                                          \
   F(GetPrototype, 1, 1)                                         \
+  F(HasPackedSmiElements, 1, 1)                                 \
+  F(HasPackedDoubleElements, 1, 1)                              \
+  F(HasPackedObjectElements, 1, 1)                              \
+  F(HasHoleySmiElements, 1, 1)                                  \
+  F(HasHoleyDoubleElements, 1, 1)                               \
+  F(HasHoleyObjectElements, 1, 1)                               \
   F(HasFastPackedElements, 1, 1)                                \
   F(HasInPrototypeChain, 2, 1)                                  \
   F(HasProperty, 2, 1)                                          \
