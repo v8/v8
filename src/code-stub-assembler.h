@@ -167,6 +167,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<JSArray>(value);
   }
 
+  TNode<HeapObject> TaggedToCallable(TNode<Object> value, Label* fail) {
+    GotoIf(TaggedIsSmi(value), fail);
+    TNode<HeapObject> result = UncheckedCast<HeapObject>(value);
+    GotoIfNot(IsCallableMap(LoadMap(result)), fail);
+    return result;
+  }
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -369,6 +376,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
              Node* extra_node3 = nullptr, const char* extra_node3_name = "",
              Node* extra_node4 = nullptr, const char* extra_node4_name = "",
              Node* extra_node5 = nullptr, const char* extra_node5_name = "");
+
+  // The following Call wrappers call an object according to the semantics that
+  // one finds in the EcmaScript spec, operating on an Callable (e.g. a
+  // JSFunction or proxy) rather than a Code object.
+  template <class... TArgs>
+  TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
+                     TNode<JSReceiver> receiver, TArgs... args) {
+    return UncheckedCast<Object>(CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        context, callable, receiver, args...));
+  }
+  template <class... TArgs>
+  TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
+                     TNode<Object> receiver, TArgs... args) {
+    return UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
+                                        callable, receiver, args...));
+  }
 
   template <class A, class F, class G>
   TNode<A> Select(SloppyTNode<BoolT> condition, const F& true_body,
