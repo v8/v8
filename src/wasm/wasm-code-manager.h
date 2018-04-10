@@ -244,16 +244,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void UnpackAndRegisterProtectedInstructions();
   void ReleaseProtectedInstructions();
 
-  // We special-case lazy cloning because we currently rely on making copies
-  // of the lazy builtin, to be able to identify, in the runtime, which function
-  // the lazy builtin is a placeholder of. If we used trampolines, we would call
-  // the runtime function from a common pc. We could, then, figure who the
-  // caller was if the trampolines called rather than jumped to the common
-  // builtin. The logic for seeking though frames would change, though.
-  // TODO(mtrofin): perhaps we can do exactly that - either before or after
-  // this change.
-  WasmCode* CloneLazyBuiltinInto(const WasmCode* code, uint32_t index,
-                                 WasmCode::FlushICache);
+  // Gets code suitable for indirect or import calls for the given function
+  // index. If the code at the given index is the lazy compile stub, it will
+  // clone a non-anonymous lazy compile stub for the purpose.
+  WasmCode* GetIndirectlyCallableCode(uint32_t func_index);
 
   bool SetExecutable(bool executable);
 
@@ -326,6 +320,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
 
   std::vector<WasmCode*> code_table_;
+  std::unique_ptr<std::vector<WasmCode*>> lazy_compile_stubs_;
   uint32_t num_imported_functions_;
 
   // Maps from instruction start of an immovable code object to instruction

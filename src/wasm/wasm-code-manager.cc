@@ -372,8 +372,7 @@ void NativeModule::CloneCodeHelper::CloneAndPatchCode(
       case WasmCode::kLazyStub: {
         // Use the first anonymous lazy compile stub hit in this loop as the
         // canonical copy for all further ones by remembering it locally via
-        // the {anonymous_lazy_builtin} variable. All non-anonymous such stubs
-        // are just cloned directly via {CloneLazyBuiltinInto} below.
+        // the {anonymous_lazy_builtin} variable.
         if (!original_code->IsAnonymous()) {
           WasmCode* new_code = cloning_native_module_->CloneCode(
               original_code, WasmCode::kNoFlushICache);
@@ -854,15 +853,28 @@ WasmCode* NativeModule::Lookup(Address pc) {
   return nullptr;
 }
 
-WasmCode* NativeModule::CloneLazyBuiltinInto(
-    const WasmCode* code, uint32_t index, WasmCode::FlushICache flush_icache) {
-  DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
-  DCHECK(code->IsAnonymous());
-  WasmCode* ret = CloneCode(code, WasmCode::kNoFlushICache);
-  RelocateCode(ret, code, flush_icache);
-  code_table_[index] = ret;
-  ret->index_ = Just(index);
-  return ret;
+WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
+  WasmCode* code = GetCode(func_index);
+  if (!code || code->kind() != WasmCode::kLazyStub) {
+    return code;
+  }
+  if (!code->IsAnonymous()) {
+    DCHECK_EQ(func_index, code->index());
+    return code;
+  }
+  if (!lazy_compile_stubs_.get()) {
+    lazy_compile_stubs_ =
+        base::make_unique<std::vector<WasmCode*>>(FunctionCount());
+  }
+  WasmCode* cloned_code = lazy_compile_stubs_.get()->at(func_index);
+  if (cloned_code == nullptr) {
+    cloned_code = CloneCode(code, WasmCode::kNoFlushICache);
+    RelocateCode(cloned_code, code, WasmCode::kFlushICache);
+    cloned_code->index_ = Just(func_index);
+    lazy_compile_stubs_.get()->at(func_index) = cloned_code;
+  }
+  DCHECK_EQ(func_index, cloned_code->index());
+  return cloned_code;
 }
 
 void NativeModule::CloneTrampolinesAndStubs(

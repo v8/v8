@@ -255,6 +255,7 @@ class InstanceBuilder {
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
   }
+
   Counters* counters() const { return async_counters().get(); }
 
   bool use_trap_handler() const { return compiled_module_->use_trap_handler(); }
@@ -340,6 +341,115 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   }
   return {};
 }
+
+// A helper class to prevent pathological patching behavior for indirect
+// references to code which must be updated after lazy compiles.
+// Utilizes a reverse mapping to prevent O(n^2) behavior.
+class IndirectPatcher {
+ public:
+  void Patch(Handle<WasmInstanceObject> caller_instance,
+             Handle<WasmInstanceObject> target_instance, int func_index,
+             Address old_target, const WasmCode* new_code) {
+    TRACE_LAZY(
+        "IndirectPatcher::Patch(caller=%p, target=%p, func_index=%i, "
+        "old_target=%p, "
+        "new_code=%p)\n",
+        *caller_instance, *target_instance, func_index, old_target, new_code);
+    if (mapping_.size() == 0 || misses_ >= kMaxMisses) {
+      BuildMapping(caller_instance);
+    }
+    // Patch entries for the given function index.
+    WasmCodeManager* code_manager =
+        caller_instance->GetIsolate()->wasm_engine()->code_manager();
+    USE(code_manager);
+    auto& entries = mapping_[func_index];
+    int patched = 0;
+    for (auto index : entries) {
+      if (index < 0) {
+        // Imported function entry.
+        int i = -1 - index;
+        auto entry = caller_instance->imported_function_entry_at(i);
+        if (entry.target() == old_target) {
+          DCHECK_EQ(
+              func_index,
+              code_manager->GetCodeFromStartAddress(entry.target())->index());
+          entry.set(target_instance, new_code);
+          patched++;
+        }
+      } else {
+        // Indirect function table entry.
+        int i = index;
+        auto entry = caller_instance->indirect_function_table_entry_at(i);
+        if (entry.target() == old_target) {
+          DCHECK_EQ(
+              func_index,
+              code_manager->GetCodeFromStartAddress(entry.target())->index());
+          entry.set(entry.sig_id(), target_instance, new_code);
+          patched++;
+        }
+      }
+    }
+    if (patched == 0) misses_++;
+  }
+
+ private:
+  void BuildMapping(Handle<WasmInstanceObject> caller_instance) {
+    mapping_.clear();
+    misses_ = 0;
+    TRACE_LAZY("BuildMapping for (caller=%p)...\n", *caller_instance);
+    Isolate* isolate = caller_instance->GetIsolate();
+    WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
+    uint32_t num_imported_functions =
+        caller_instance->module()->num_imported_functions;
+    // Process the imported function entries.
+    for (unsigned i = 0; i < num_imported_functions; i++) {
+      auto entry = caller_instance->imported_function_entry_at(i);
+      WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
+      if (code->kind() != WasmCode::kLazyStub) continue;
+      TRACE_LAZY(" +import[%u] -> #%d (%p)\n", i, code->index(),
+                 code->instructions().start());
+      DCHECK(!entry.is_js_receiver_entry());
+      Handle<WasmInstanceObject> target_instance(entry.instance(), isolate);
+      WasmCode* new_code =
+          target_instance->compiled_module()->GetNativeModule()->GetCode(
+              code->index());
+      if (new_code->kind() != WasmCode::kLazyStub) {
+        // Patch an imported function entry which is already compiled.
+        entry.set(target_instance, new_code);
+      } else {
+        int key = code->index();
+        int index = -1 - i;
+        mapping_[key].push_back(index);
+      }
+    }
+    // Process the indirect function table entries.
+    size_t ift_size = caller_instance->indirect_function_table_size();
+    for (unsigned i = 0; i < ift_size; i++) {
+      auto entry = caller_instance->indirect_function_table_entry_at(i);
+      if (entry.target() == nullptr) continue;  // null IFT entry
+      WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
+      if (code->kind() != WasmCode::kLazyStub) continue;
+      TRACE_LAZY(" +indirect[%u] -> #%d (lazy:%p)\n", i, code->index(),
+                 code->instructions().start());
+      Handle<WasmInstanceObject> target_instance(entry.instance(), isolate);
+      WasmCode* new_code =
+          target_instance->compiled_module()->GetNativeModule()->GetCode(
+              code->index());
+      if (new_code->kind() != WasmCode::kLazyStub) {
+        // Patch an indirect function table entry which is already compiled.
+        entry.set(entry.sig_id(), target_instance, new_code);
+      } else {
+        int key = code->index();
+        int index = i;
+        mapping_[key].push_back(index);
+      }
+    }
+  }
+
+  static constexpr int kMaxMisses = 5;  // maximum misses before rebuilding
+  std::unordered_map<int, std::vector<int>> mapping_;
+  int misses_ = 0;
+};
 
 compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
@@ -709,23 +819,16 @@ Address CompileLazy(Isolate* isolate,
     DCHECK_NOT_NULL(wasm_caller_code);
     Handle<WasmInstanceObject> caller_instance(
         WasmInstanceObject::GetOwningInstance(wasm_caller_code), isolate);
-    WasmModule* module = caller_instance->compiled_module()->shared()->module();
+    if (!caller_instance->has_managed_indirect_patcher()) {
+      auto patcher = Managed<IndirectPatcher>::Allocate(isolate);
+      caller_instance->set_managed_indirect_patcher(*patcher);
+    }
+    IndirectPatcher* patcher = Managed<IndirectPatcher>::cast(
+                                   caller_instance->managed_indirect_patcher())
+                                   ->get();
     Address old_target = lazy_stub->instructions().start();
-    // TODO(wasm): this is O(n^2), since we scan the entire IFT and imports
-    // for every lazy compile. Introduce limited scanning.
-    for (unsigned i = 0; i < module->num_imported_functions; i++) {
-      auto entry = caller_instance->imported_function_entry_at(i);
-      if (entry.target() == old_target) {
-        entry.set(target_instance, result);
-      }
-    }
-    for (unsigned i = 0; i < caller_instance->indirect_function_table_size();
-         i++) {
-      auto entry = caller_instance->indirect_function_table_entry_at(i);
-      if (entry.target() == old_target) {
-        entry.set(entry.sig_id(), target_instance, result);
-      }
-    }
+    patcher->Patch(caller_instance, target_instance, target_func_index,
+                   old_target, result);
   }
 
   return result->instructions().start();
@@ -784,23 +887,6 @@ void RecordStats(const wasm::NativeModule* native_module, Counters* counters) {
     const wasm::WasmCode* code = native_module->GetCode(i);
     if (code != nullptr) RecordStats(code, counters);
   }
-}
-
-// Get the code for the given {func_index} in the given native module.
-// If the code at that location is the (shared) lazy compile builtin,
-// clone it, specializing it to the {func_index}.
-wasm::WasmCode* CloneLazyCompileStubIfNeeded(Isolate* isolate,
-                                             wasm::NativeModule* native_module,
-                                             uint32_t func_index) {
-  wasm::WasmCode* code = native_module->GetCode(func_index);
-  // {code} will be nullptr when exporting imports.
-  if (code == nullptr || code->kind() != wasm::WasmCode::kLazyStub ||
-      !code->IsAnonymous()) {
-    return code;
-  }
-  // Clone the lazy builtin into the native module.
-  return native_module->CloneLazyBuiltinInto(code, func_index,
-                                             WasmCode::kFlushICache);
 }
 
 bool in_bounds(uint32_t offset, size_t size, size_t upper) {
@@ -1603,7 +1689,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     wasm::WasmCode* start_code =
-        CloneLazyCompileStubIfNeeded(isolate_, native_module, start_index);
+        native_module->GetIndirectlyCallableCode(start_index);
     FunctionSig* sig = module_->functions[start_index].sig;
     Handle<Code> wrapper_code = js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
         isolate_, module_, start_code, start_index,
@@ -2310,7 +2396,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         // Update the local dispatch table first.
         uint32_t sig_id = module_->signature_ids[function->sig_index];
         wasm::WasmCode* wasm_code =
-            CloneLazyCompileStubIfNeeded(isolate_, native_module, func_index);
+            native_module->GetIndirectlyCallableCode(func_index);
 
         auto entry = instance->indirect_function_table_entry_at(table_index);
         entry.set(sig_id, instance, wasm_code);
@@ -3229,7 +3315,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   for (auto exp : compiled_module->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     wasm::WasmCode* wasm_code =
-        CloneLazyCompileStubIfNeeded(isolate, native_module, exp.index);
+        native_module->GetIndirectlyCallableCode(exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
         isolate, compiled_module->shared()->module(), wasm_code, exp.index,
         compiled_module->use_trap_handler());

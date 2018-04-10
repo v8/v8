@@ -267,6 +267,7 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_function_callables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_instances, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
+  DECL_OPTIONAL_ACCESSORS(managed_indirect_patcher, Foreign)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, uintptr_t)
   DECL_PRIMITIVE_ACCESSORS(memory_mask, uintptr_t)
@@ -289,6 +290,7 @@ class WasmInstanceObject : public JSObject {
   V(kImportedFunctionCallablesOffset, kPointerSize)                   \
   V(kIndirectFunctionTableInstancesOffset, kPointerSize)              \
   V(kManagedNativeAllocationsOffset, kPointerSize)                    \
+  V(kManagedIndirectPatcherOffset, kPointerSize)                      \
   V(kFirstUntaggedOffset, 0)                           /* marker */   \
   V(kMemoryStartOffset, kPointerSize)                  /* untagged */ \
   V(kMemorySizeOffset, kPointerSize)                   /* untagged */ \
