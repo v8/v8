@@ -666,9 +666,13 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
               distance_to_slot;
           slot_out->first = map_word.ToForwardingAddress();
           slot_out->second = reinterpret_cast<HeapObjectReference**>(new_slot);
-        } else {
-          *slot_out = slot_in;
+          return true;
         }
+        if (heap_obj->GetHeap()->InNewSpace(heap_obj)) {
+          // The new space object containing the weak reference died.
+          return false;
+        }
+        *slot_out = slot_in;
         return true;
       });
   weak_objects_->weak_objects_in_code.Update(

@@ -216,6 +216,44 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   CHECK(fv->optimized_code_weak_or_smi()->IsClearedWeakHeapObject());
 }
 
+TEST(ObjectWithWeakFieldDies) {
+  if (!FLAG_incremental_marking) {
+    return;
+  }
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+
+  {
+    HandleScope outer_scope(isolate);
+    Handle<FeedbackVector> fv =
+        CreateFeedbackVectorForTest(CcTest::isolate(), factory);
+    CHECK(heap->InNewSpace(*fv));
+    {
+      HandleScope inner_scope(isolate);
+      // Create a new FixedArray which the FeedbackVector will point to.
+      Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+      CHECK(heap->InNewSpace(*fixed_array));
+      fv->set_optimized_code_weak_or_smi(
+          HeapObjectReference::Weak(*fixed_array));
+      // inner_scope will go out of scope, so when marking the next time,
+      // *fixed_array will stay white.
+    }
+
+    // Do marking steps; this will store *fv into the list for later processing
+    // (since it points to a white object).
+    SimulateIncrementalMarking(heap, true);
+  }  // outer_scope goes out of scope
+
+  // fv will die
+  CcTest::CollectGarbage(NEW_SPACE);
+
+  // This used to crash when processing the dead weak reference.
+  CcTest::CollectAllGarbage();
+}
+
 TEST(ObjectWithWeakReferencePromoted) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
