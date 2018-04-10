@@ -1902,7 +1902,7 @@ WASM_SIMD_TEST(S8x16Concat) {
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.
 #define WASM_SIMD_BOOL_REDUCTION_TEST(format, lanes)                           \
-  WASM_SIMD_COMPILED_TEST(ReductionTest##lanes) {                              \
+  WASM_SIMD_TEST(ReductionTest##lanes) {                                       \
     WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);                       \
     byte zero = r.AllocateLocal(kWasmS128);                                    \
     byte one_one = r.AllocateLocal(kWasmS128);                                 \

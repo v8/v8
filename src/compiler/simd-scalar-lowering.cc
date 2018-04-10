@@ -106,7 +106,13 @@ void SimdScalarLowering::LowerGraph() {
   V(S128And)                      \
   V(S128Or)                       \
   V(S128Xor)                      \
-  V(S128Not)
+  V(S128Not)                      \
+  V(S1x4AnyTrue)                  \
+  V(S1x4AllTrue)                  \
+  V(S1x8AnyTrue)                  \
+  V(S1x8AllTrue)                  \
+  V(S1x16AnyTrue)                 \
+  V(S1x16AllTrue)
 
 #define FOREACH_FLOAT32X4_OPCODE(V) \
   V(F32x4Splat)                     \
@@ -1189,6 +1195,46 @@ void SimdScalarLowering::LowerNode(Node* node) {
 #endif
       }
       ReplaceNode(node, rep_node, 16);
+      break;
+    }
+    case IrOpcode::kS1x4AnyTrue:
+    case IrOpcode::kS1x4AllTrue:
+    case IrOpcode::kS1x8AnyTrue:
+    case IrOpcode::kS1x8AllTrue:
+    case IrOpcode::kS1x16AnyTrue:
+    case IrOpcode::kS1x16AllTrue: {
+      DCHECK_EQ(1, node->InputCount());
+      SimdType input_rep_type = ReplacementType(node->InputAt(0));
+      int input_num_lanes = NumLanes(input_rep_type);
+      Node** rep = GetReplacements(node->InputAt(0));
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      Node* true_node = jsgraph_->Int32Constant(-1);
+      Node* false_node = jsgraph_->Int32Constant(0);
+      Node* tmp_result = false_node;
+      if (node->opcode() == IrOpcode::kS1x4AllTrue ||
+          node->opcode() == IrOpcode::kS1x8AllTrue ||
+          node->opcode() == IrOpcode::kS1x16AllTrue) {
+        tmp_result = true_node;
+      }
+      for (int i = 0; i < input_num_lanes; ++i) {
+        Diamond is_false(
+            graph(), common(),
+            graph()->NewNode(machine()->Word32Equal(), rep[i], false_node));
+        if (node->opcode() == IrOpcode::kS1x4AllTrue ||
+            node->opcode() == IrOpcode::kS1x8AllTrue ||
+            node->opcode() == IrOpcode::kS1x16AllTrue) {
+          tmp_result = is_false.Phi(MachineRepresentation::kWord32, false_node,
+                                    tmp_result);
+        } else {
+          tmp_result = is_false.Phi(MachineRepresentation::kWord32, tmp_result,
+                                    true_node);
+        }
+      }
+      rep_node[0] = tmp_result;
+      for (int i = 1; i < num_lanes; ++i) {
+        rep_node[i] = nullptr;
+      }
+      ReplaceNode(node, rep_node, num_lanes);
       break;
     }
     default: { DefaultLowering(node); }
