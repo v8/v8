@@ -32,7 +32,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b5c70ce2580e8efd7c263a9d50123907e2cb62e7',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1bae362e77893f0fe040098b1c4694e8c5bcb4d3',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
