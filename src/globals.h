@@ -274,10 +274,6 @@ constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;
 
-// Round up n to be a multiple of sz, where sz is a power of 2.
-#define ROUND_UP(n, sz) (((n) + ((sz) - 1)) & ~((sz) - 1))
-
-
 // FUNCTION_ADDR(f) gets the address of a C function f.
 #define FUNCTION_ADDR(f)                                        \
   (reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(f)))

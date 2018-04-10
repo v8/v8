@@ -4009,7 +4009,7 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
   // Overwrite default configuration.
   if (max_semi_space_size_in_kb != 0) {
     max_semi_space_size_ =
-        ROUND_UP(max_semi_space_size_in_kb * KB, Page::kPageSize);
+        RoundUp<Page::kPageSize>(max_semi_space_size_in_kb * KB);
   }
   if (max_old_generation_size_in_mb != 0) {
     max_old_generation_size_ = max_old_generation_size_in_mb * MB;
@@ -4025,9 +4025,9 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
   }
 
   if (Page::kPageSize > MB) {
-    max_semi_space_size_ = ROUND_UP(max_semi_space_size_, Page::kPageSize);
+    max_semi_space_size_ = RoundUp<Page::kPageSize>(max_semi_space_size_);
     max_old_generation_size_ =
-        ROUND_UP(max_old_generation_size_, Page::kPageSize);
+        RoundUp<Page::kPageSize>(max_old_generation_size_);
   }
 
   if (FLAG_stress_compaction) {
@@ -4059,7 +4059,7 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
       }
     } else {
       initial_semispace_size_ =
-          ROUND_UP(initial_semispace_size, Page::kPageSize);
+          RoundUp<Page::kPageSize>(initial_semispace_size);
     }
   }
 
