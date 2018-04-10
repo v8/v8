@@ -386,7 +386,6 @@ class WasmSharedModuleData : public Struct {
   V(kScriptOffset, kPointerSize)                      \
   V(kAsmJsOffsetTableOffset, kPointerSize)            \
   V(kBreakPointInfosOffset, kPointerSize)             \
-  V(kLazyCompilationOrchestratorOffset, kPointerSize) \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -401,8 +400,6 @@ class WasmSharedModuleData : public Struct {
 
   static void SetBreakpointsOnNewInstance(Handle<WasmSharedModuleData>,
                                           Handle<WasmInstanceObject>);
-
-  static void PrepareForLazyCompilation(Handle<WasmSharedModuleData>);
 
   static Handle<WasmSharedModuleData> New(
       Isolate* isolate, Handle<Foreign> module_wrapper,
@@ -479,8 +476,6 @@ class WasmSharedModuleData : public Struct {
   static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*,
                                                   Handle<WasmSharedModuleData>,
                                                   int position);
-
-  DECL_OPTIONAL_ACCESSORS(lazy_compilation_orchestrator, Foreign)
 };
 
 // This represents the set of wasm compiled functions, together

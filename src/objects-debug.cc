@@ -1534,7 +1534,6 @@ void WasmSharedModuleData::WasmSharedModuleDataVerify() {
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kAsmJsOffsetTableOffset);
   VerifyObjectField(kBreakPointInfosOffset);
-  VerifyObjectField(kLazyCompilationOrchestratorOffset);
 }
 
 void DataHandler::DataHandlerVerify() {

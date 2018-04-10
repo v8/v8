@@ -341,125 +341,6 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   return {};
 }
 
-Address CompileLazy(Isolate* isolate,
-                    Handle<WasmInstanceObject> target_instance) {
-  HistogramTimerScope lazy_time_scope(
-      isolate->counters()->wasm_lazy_compilation_time());
-
-  //==========================================================================
-  // Begin stack walk.
-  //==========================================================================
-  StackFrameIterator it(isolate);
-
-  //==========================================================================
-  // First frame: C entry stub.
-  //==========================================================================
-  DCHECK(!it.done());
-  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
-  it.Advance();
-
-  //==========================================================================
-  // Second frame: WasmCompileLazy builtin.
-  //==========================================================================
-  DCHECK(!it.done());
-  int target_func_index = -1;
-  bool indirectly_called = false;
-  const wasm::WasmCode* lazy_stub =
-      isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
-  CHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub->kind());
-  if (!lazy_stub->IsAnonymous()) {
-    // If the lazy stub is not "anonymous", then its copy encodes the target
-    // function index. Used for import and indirect calls.
-    target_func_index = lazy_stub->index();
-    indirectly_called = true;
-  }
-  it.Advance();
-
-  //==========================================================================
-  // Third frame: The calling wasm code (direct or indirect), or js-to-wasm
-  // wrapper.
-  //==========================================================================
-  DCHECK(!it.done());
-  DCHECK(it.frame()->is_js_to_wasm() || it.frame()->is_wasm_compiled());
-  Handle<Code> js_to_wasm_caller_code;
-  const WasmCode* wasm_caller_code = nullptr;
-  int32_t caller_ret_offset = -1;
-  if (it.frame()->is_js_to_wasm()) {
-    js_to_wasm_caller_code = handle(it.frame()->LookupCode(), isolate);
-    // This wasn't actually an indirect call, but a JS->wasm call.
-    indirectly_called = false;
-  } else {
-    wasm_caller_code =
-        isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
-    auto offset = it.frame()->pc() - wasm_caller_code->instructions().start();
-    caller_ret_offset = static_cast<int32_t>(offset);
-    DCHECK_EQ(offset, caller_ret_offset);
-  }
-
-  //==========================================================================
-  // Begin compilation.
-  //==========================================================================
-  Handle<WasmCompiledModule> compiled_module(
-      target_instance->compiled_module());
-
-  wasm::LazyCompilationOrchestrator* orchestrator =
-      Managed<wasm::LazyCompilationOrchestrator>::cast(
-          compiled_module->shared()->lazy_compilation_orchestrator())
-          ->get();
-  DCHECK(!orchestrator->IsFrozenForTesting());
-
-  NativeModuleModificationScope native_module_modification_scope(
-      compiled_module->GetNativeModule());
-
-  const wasm::WasmCode* result = nullptr;
-
-  if (!js_to_wasm_caller_code.is_null()) {
-    result = orchestrator->CompileFromJsToWasm(
-        isolate, target_instance, js_to_wasm_caller_code, target_func_index);
-    DCHECK_NOT_NULL(result);
-    DCHECK_EQ(target_func_index, result->index());
-  } else {
-    DCHECK_NOT_NULL(wasm_caller_code);
-    if (target_func_index < 0) {
-      result = orchestrator->CompileDirectCall(
-          isolate, target_instance, wasm_caller_code, caller_ret_offset);
-      DCHECK_NOT_NULL(result);
-    } else {
-      result = orchestrator->CompileIndirectCall(isolate, target_instance,
-                                                 target_func_index);
-      DCHECK_NOT_NULL(result);
-    }
-  }
-
-  //==========================================================================
-  // Update import and indirect function tables in the caller.
-  //==========================================================================
-  if (indirectly_called) {
-    DCHECK_NOT_NULL(wasm_caller_code);
-    Handle<WasmInstanceObject> caller_instance(
-        WasmInstanceObject::GetOwningInstance(wasm_caller_code), isolate);
-    WasmModule* module = caller_instance->compiled_module()->shared()->module();
-    Address old_target = lazy_stub->instructions().start();
-    // TODO(wasm): this is O(n^2), since we scan the entire IFT and imports
-    // for every lazy compile. Introduce limited scanning.
-    for (unsigned i = 0; i < module->num_imported_functions; i++) {
-      auto entry = caller_instance->imported_function_entry_at(i);
-      if (entry.target() == old_target) {
-        entry.set(target_instance, result);
-      }
-    }
-    for (unsigned i = 0; i < caller_instance->indirect_function_table_size();
-         i++) {
-      auto entry = caller_instance->indirect_function_table_entry_at(i);
-      if (entry.target() == old_target) {
-        entry.set(entry.sig_id(), target_instance, result);
-      }
-    }
-  }
-
-  return result->instructions().start();
-}
-
 compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   DisallowHeapAllocation no_gc;
@@ -468,7 +349,7 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
   return result;
 }
 
-const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
+const wasm::WasmCode* LazyCompileFunction(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
     int func_index) {
   base::ElapsedTimer compilation_timer;
@@ -559,9 +440,7 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
   return byte_pos;
 }
 
-}  // namespace
-
-const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
+const wasm::WasmCode* LazyCompileFromJsToWasm(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     Handle<Code> js_to_wasm_caller, uint32_t callee_func_index) {
   Decoder decoder(nullptr, nullptr);
@@ -572,7 +451,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
       "Starting lazy compilation (func %u, js_to_wasm: true, patch caller: "
       "true). \n",
       callee_func_index);
-  CompileFunction(isolate, compiled_module, callee_func_index);
+  LazyCompileFunction(isolate, compiled_module, callee_func_index);
   {
     DisallowHeapAllocation no_gc;
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
@@ -603,7 +482,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
   return ret;
 }
 
-const wasm::WasmCode* LazyCompilationOrchestrator::CompileIndirectCall(
+const wasm::WasmCode* LazyCompileIndirectCall(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     uint32_t func_index) {
   TRACE_LAZY(
@@ -612,12 +491,13 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileIndirectCall(
       func_index);
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
-  return CompileFunction(isolate, compiled_module, func_index);
+  return LazyCompileFunction(isolate, compiled_module, func_index);
 }
 
-const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    const wasm::WasmCode* wasm_caller, int32_t caller_ret_offset) {
+const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
+                                            Handle<WasmInstanceObject> instance,
+                                            const wasm::WasmCode* wasm_caller,
+                                            int32_t caller_ret_offset) {
   DCHECK_LE(0, caller_ret_offset);
 
   Decoder decoder(nullptr, nullptr);
@@ -696,7 +576,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
   const WasmCode* ret =
-      CompileFunction(isolate, compiled_module, callee_func_index);
+      LazyCompileFunction(isolate, compiled_module, callee_func_index);
   DCHECK_NOT_NULL(ret);
 
   int patched = 0;
@@ -732,6 +612,123 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
   USE(patched);
 
   return ret;
+}
+
+}  // namespace
+
+Address CompileLazy(Isolate* isolate,
+                    Handle<WasmInstanceObject> target_instance) {
+  HistogramTimerScope lazy_time_scope(
+      isolate->counters()->wasm_lazy_compilation_time());
+
+  //==========================================================================
+  // Begin stack walk.
+  //==========================================================================
+  StackFrameIterator it(isolate);
+
+  //==========================================================================
+  // First frame: C entry stub.
+  //==========================================================================
+  DCHECK(!it.done());
+  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
+  it.Advance();
+
+  //==========================================================================
+  // Second frame: WasmCompileLazy builtin.
+  //==========================================================================
+  DCHECK(!it.done());
+  int target_func_index = -1;
+  bool indirectly_called = false;
+  const wasm::WasmCode* lazy_stub =
+      isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
+  CHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub->kind());
+  if (!lazy_stub->IsAnonymous()) {
+    // If the lazy stub is not "anonymous", then its copy encodes the target
+    // function index. Used for import and indirect calls.
+    target_func_index = lazy_stub->index();
+    indirectly_called = true;
+  }
+  it.Advance();
+
+  //==========================================================================
+  // Third frame: The calling wasm code (direct or indirect), or js-to-wasm
+  // wrapper.
+  //==========================================================================
+  DCHECK(!it.done());
+  DCHECK(it.frame()->is_js_to_wasm() || it.frame()->is_wasm_compiled());
+  Handle<Code> js_to_wasm_caller_code;
+  const WasmCode* wasm_caller_code = nullptr;
+  int32_t caller_ret_offset = -1;
+  if (it.frame()->is_js_to_wasm()) {
+    js_to_wasm_caller_code = handle(it.frame()->LookupCode(), isolate);
+    // This wasn't actually an indirect call, but a JS->wasm call.
+    indirectly_called = false;
+  } else {
+    wasm_caller_code =
+        isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
+    auto offset = it.frame()->pc() - wasm_caller_code->instructions().start();
+    caller_ret_offset = static_cast<int32_t>(offset);
+    DCHECK_EQ(offset, caller_ret_offset);
+  }
+
+  //==========================================================================
+  // Begin compilation.
+  //==========================================================================
+  Handle<WasmCompiledModule> compiled_module(
+      target_instance->compiled_module());
+
+  NativeModule* native_module = compiled_module->GetNativeModule();
+  DCHECK(!native_module->lazy_compile_frozen());
+
+  NativeModuleModificationScope native_module_modification_scope(native_module);
+
+  const wasm::WasmCode* result = nullptr;
+
+  if (!js_to_wasm_caller_code.is_null()) {
+    result = LazyCompileFromJsToWasm(isolate, target_instance,
+                                     js_to_wasm_caller_code, target_func_index);
+    DCHECK_NOT_NULL(result);
+    DCHECK_EQ(target_func_index, result->index());
+  } else {
+    DCHECK_NOT_NULL(wasm_caller_code);
+    if (target_func_index < 0) {
+      result = LazyCompileDirectCall(isolate, target_instance, wasm_caller_code,
+                                     caller_ret_offset);
+      DCHECK_NOT_NULL(result);
+    } else {
+      result =
+          LazyCompileIndirectCall(isolate, target_instance, target_func_index);
+      DCHECK_NOT_NULL(result);
+    }
+  }
+
+  //==========================================================================
+  // Update import and indirect function tables in the caller.
+  //==========================================================================
+  if (indirectly_called) {
+    DCHECK_NOT_NULL(wasm_caller_code);
+    Handle<WasmInstanceObject> caller_instance(
+        WasmInstanceObject::GetOwningInstance(wasm_caller_code), isolate);
+    WasmModule* module = caller_instance->compiled_module()->shared()->module();
+    Address old_target = lazy_stub->instructions().start();
+    // TODO(wasm): this is O(n^2), since we scan the entire IFT and imports
+    // for every lazy compile. Introduce limited scanning.
+    for (unsigned i = 0; i < module->num_imported_functions; i++) {
+      auto entry = caller_instance->imported_function_entry_at(i);
+      if (entry.target() == old_target) {
+        entry.set(target_instance, result);
+      }
+    }
+    for (unsigned i = 0; i < caller_instance->indirect_function_table_size();
+         i++) {
+      auto entry = caller_instance->indirect_function_table_entry_at(i);
+      if (entry.target() == old_target) {
+        entry.set(entry.sig_id(), target_instance, result);
+      }
+    }
+  }
+
+  return result->instructions().start();
 }
 
 namespace {
@@ -1133,7 +1130,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
       isolate, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
       script, asm_js_offset_table);
-  if (lazy_compile) WasmSharedModuleData::PrepareForLazyCompilation(shared);
 
   int export_wrappers_size =
       static_cast<int>(wasm_module->num_exported_functions);

@@ -276,6 +276,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   const size_t instance_id = 0;
   ~NativeModule();
 
+  void set_lazy_compile_frozen(bool frozen) { frozen_ = frozen; }
+  bool lazy_compile_frozen() const { return frozen_; }
+
  private:
   friend class WasmCodeManager;
   friend class NativeModuleSerializer;
@@ -347,6 +350,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t committed_memory_ = 0;
   bool can_request_more_memory_;
   bool is_executable_ = false;
+  bool frozen_ = false;
   int modification_scope_depth_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(NativeModule);

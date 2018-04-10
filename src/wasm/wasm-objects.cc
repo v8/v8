@@ -1155,16 +1155,6 @@ void WasmSharedModuleData::SetBreakpointsOnNewInstance(
   }
 }
 
-void WasmSharedModuleData::PrepareForLazyCompilation(
-    Handle<WasmSharedModuleData> shared) {
-  if (shared->has_lazy_compilation_orchestrator()) return;
-  Isolate* isolate = shared->GetIsolate();
-  // TODO(titzer): remove dependency on module-compiler.h
-  auto orch_handle =
-      Managed<wasm::LazyCompilationOrchestrator>::Allocate(isolate);
-  shared->set_lazy_compilation_orchestrator(*orch_handle);
-}
-
 namespace {
 
 enum AsmJsOffsetTableEntryLayout {

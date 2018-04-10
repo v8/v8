@@ -150,8 +150,6 @@ OPTIONAL_ACCESSORS(WasmSharedModuleData, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
                    kBreakPointInfosOffset)
-OPTIONAL_ACCESSORS(WasmSharedModuleData, lazy_compilation_orchestrator, Foreign,
-                   kLazyCompilationOrchestratorOffset)
 void WasmSharedModuleData::reset_breakpoint_infos() {
   DCHECK(IsWasmSharedModuleData());
   WRITE_FIELD(this, kBreakPointInfosOffset, GetHeap()->undefined_value());
