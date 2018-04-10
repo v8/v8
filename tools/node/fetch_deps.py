@@ -32,6 +32,7 @@ GCLIENT_SOLUTION = [
       "v8/test/mozilla/data"                  : None,
       "v8/test/test262/data"                  : None,
       "v8/test/test262/harness"               : None,
+      "v8/test/wasm-js"                       : None,
       "v8/third_party/android_tools"          : None,
       "v8/third_party/catapult"               : None,
       "v8/third_party/colorama/src"           : None,
@@ -39,6 +40,9 @@ GCLIENT_SOLUTION = [
       "v8/tools/gyp"                          : None,
       "v8/tools/luci-go"                      : None,
       "v8/tools/swarming_client"              : None,
+    },
+    "custom_vars": {
+      "build_for_node" : True,
     },
   },
 ]
@@ -52,8 +56,6 @@ def EnsureGit(v8_path):
     return False
   print "Initializing temporary git repository in v8."
   subprocess.check_call(["git", "init"], cwd=v8_path)
-  subprocess.check_call(["git", "config", "user.name", "\"Ada Lovelace\""], cwd=v8_path)
-  subprocess.check_call(["git", "config", "user.email", "\"ada@lovela.ce\""], cwd=v8_path)
   subprocess.check_call(["git", "commit", "--allow-empty", "-m", "init"],
                         cwd=v8_path)
   return True
