@@ -874,24 +874,6 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
       IsFastPackedElementsKind(obj->map()->elements_kind()));
 }
 
-#define RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(Name, Kind)                     \
-  RUNTIME_FUNCTION(Runtime_##Name) {                                        \
-    SealHandleScope shs(isolate);                                           \
-    DCHECK_EQ(1, args.length());                                            \
-    CONVERT_ARG_CHECKED(HeapObject, obj, 0);                                \
-    return isolate->heap()->ToBoolean(obj->map()->elements_kind() == Kind); \
-  }
-
-RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(HasPackedSmiElements, PACKED_SMI_ELEMENTS)
-RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(HasPackedDoubleElements,
-                                    PACKED_DOUBLE_ELEMENTS)
-RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(HasPackedObjectElements, PACKED_ELEMENTS)
-RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(HasHoleySmiElements, HOLEY_SMI_ELEMENTS)
-RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(HasHoleyDoubleElements,
-                                    HOLEY_DOUBLE_ELEMENTS)
-RUNTIME_FUNCTION_CHECK_ELEMENT_KIND(HasHoleyObjectElements, HOLEY_ELEMENTS)
-
-#undef RUNTIME_FUNCTION_CHECK_ELEMENT_KIND
 
 RUNTIME_FUNCTION(Runtime_ValueOf) {
   SealHandleScope shs(isolate);
