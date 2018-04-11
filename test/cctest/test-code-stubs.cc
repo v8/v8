@@ -37,7 +37,6 @@
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
@@ -98,17 +97,7 @@ void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
 
 int32_t DefaultCallWrapper(ConvertDToIFunc func,
                            double from) {
-  if (func == &ConvertDToICVersion) return (*func)(from);
-
-#ifdef USE_SIMULATOR
-  // Simulator users will require a custom 'RunGeneratedCodeCallWrapper' to
-  // account for platform-specific floating point calling conventions.
-  UNREACHABLE();
-#else
-  auto f =
-      GeneratedCode<int32_t(double)>::FromAddress(CcTest::i_isolate(), func);
-  return f.Call(from);
-#endif
+  return (*func)(from);
 }
 
 
