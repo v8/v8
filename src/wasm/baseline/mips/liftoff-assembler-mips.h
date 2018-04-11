@@ -15,9 +15,9 @@ namespace wasm {
 
 namespace liftoff {
 
-// fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
-// slot is located at fp-24.
-constexpr int32_t kConstantStackSpace = 16;
+// fp-4 holds the stack marker, fp-8 is the instance parameter, first stack
+// slot is located at fp-16.
+constexpr int32_t kConstantStackSpace = 8;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
@@ -31,7 +31,7 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
-inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
+inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }
 
 // Use this register to store the address of the last argument pushed on the
 // stack for a call to C. This register must be callee saved according to the c

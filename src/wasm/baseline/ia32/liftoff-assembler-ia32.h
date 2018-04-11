@@ -20,9 +20,9 @@ namespace wasm {
 
 namespace liftoff {
 
-// ebp-8 holds the stack marker, ebp-16 is the instance parameter, first stack
-// slot is located at ebp-24.
-constexpr int32_t kConstantStackSpace = 16;
+// ebp-4 holds the stack marker, ebp-8 is the instance parameter, first stack
+// slot is located at ebp-16.
+constexpr int32_t kConstantStackSpace = 8;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
@@ -37,7 +37,7 @@ inline Operand GetHalfStackSlot(uint32_t half_index) {
 }
 
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
-inline Operand GetInstanceOperand() { return Operand(ebp, -16); }
+inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
 static constexpr LiftoffRegList kByteRegs =
     LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx, ebx>()>();
