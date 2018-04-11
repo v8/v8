@@ -13644,17 +13644,14 @@ String* SharedFunctionInfo::DebugName() {
 }
 
 // static
-bool SharedFunctionInfo::HasNoSideEffect(Handle<SharedFunctionInfo> info) {
-  if (!info->computed_has_no_side_effect()) {
-    DebugEvaluate::SideEffectState has_no_side_effect =
+SharedFunctionInfo::SideEffectState SharedFunctionInfo::GetSideEffectState(
+    Handle<SharedFunctionInfo> info) {
+  if (info->side_effect_state() == kNotComputed) {
+    SharedFunctionInfo::SideEffectState has_no_side_effect =
         DebugEvaluate::FunctionGetSideEffectState(info);
-    info->set_has_no_side_effect(has_no_side_effect !=
-                                 DebugEvaluate::kHasSideEffects);
-    info->set_requires_runtime_side_effect_checks(
-        has_no_side_effect == DebugEvaluate::kRequiresRuntimeChecks);
-    info->set_computed_has_no_side_effect(true);
+    info->set_side_effect_state(has_no_side_effect);
   }
-  return info->has_no_side_effect();
+  return static_cast<SideEffectState>(info->side_effect_state());
 }
 
 // The filter is a pattern that matches function names in this way:

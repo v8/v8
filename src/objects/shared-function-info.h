@@ -256,15 +256,6 @@ class SharedFunctionInfo : public HeapObject {
   // Indicates that the the shared function info is deserialized from cache.
   DECL_BOOLEAN_ACCESSORS(deserialized)
 
-  // Indicates that the function cannot cause side-effects.
-  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
-
-  // Indicates that the function requires runtime side-effect checks.
-  DECL_BOOLEAN_ACCESSORS(requires_runtime_side_effect_checks);
-
-  // Indicates that |has_no_side_effect| has been computed and set.
-  DECL_BOOLEAN_ACCESSORS(computed_has_no_side_effect)
-
   // Indicates that the function should be skipped during stepping.
   DECL_BOOLEAN_ACCESSORS(debug_is_blackboxed)
 
@@ -282,8 +273,13 @@ class SharedFunctionInfo : public HeapObject {
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
-  // The function cannot cause any side effects.
-  static bool HasNoSideEffect(Handle<SharedFunctionInfo> info);
+  enum SideEffectState {
+    kNotComputed = 0,
+    kHasSideEffects = 1,
+    kRequiresRuntimeChecks = 2,
+    kHasNoSideEffect = 3,
+  };
+  static SideEffectState GetSideEffectState(Handle<SharedFunctionInfo> info);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -549,16 +545,14 @@ class SharedFunctionInfo : public HeapObject {
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
 
 // Bit positions in |debugger_hints|.
-#define DEBUGGER_HINTS_BIT_FIELDS(V, _)             \
-  V(IsAnonymousExpressionBit, bool, 1, _)           \
-  V(NameShouldPrintAsAnonymousBit, bool, 1, _)      \
-  V(IsDeserializedBit, bool, 1, _)                  \
-  V(HasNoSideEffectBit, bool, 1, _)                 \
-  V(RequiresRuntimeSideEffectChecksBit, bool, 1, _) \
-  V(ComputedHasNoSideEffectBit, bool, 1, _)         \
-  V(DebugIsBlackboxedBit, bool, 1, _)               \
-  V(ComputedDebugIsBlackboxedBit, bool, 1, _)       \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)       \
+#define DEBUGGER_HINTS_BIT_FIELDS(V, _)        \
+  V(IsAnonymousExpressionBit, bool, 1, _)      \
+  V(NameShouldPrintAsAnonymousBit, bool, 1, _) \
+  V(IsDeserializedBit, bool, 1, _)             \
+  V(SideEffectStateBits, int, 2, _)            \
+  V(DebugIsBlackboxedBit, bool, 1, _)          \
+  V(ComputedDebugIsBlackboxedBit, bool, 1, _)  \
+  V(HasReportedBinaryCoverageBit, bool, 1, _)  \
   V(DebuggingIdBits, int, 20, _)
 
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
@@ -579,6 +573,9 @@ class SharedFunctionInfo : public HeapObject {
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
+
+  inline int side_effect_state() const;
+  inline void set_side_effect_state(int value);
 
   inline void set_kind(FunctionKind kind);
 

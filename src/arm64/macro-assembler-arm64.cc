@@ -2168,6 +2168,11 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   Cbz(x4, &skip_hook);
 
   {
+    // Load receiver to pass it later to DebugOnFunctionCall hook.
+    Operand actual_op = actual.is_immediate() ? Operand(actual.immediate())
+                                              : Operand(actual.reg());
+    Mov(x4, actual_op);
+    Ldr(x4, MemOperand(sp, x4, LSL, kPointerSizeLog2));
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
 
@@ -2181,8 +2186,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     SmiTag(expected_reg);
     SmiTag(actual_reg);
     Push(expected_reg, actual_reg, new_target, fun);
-
-    PushArgument(fun);
+    Push(fun, x4);
     CallRuntime(Runtime::kDebugOnFunctionCall);
 
     // Restore values from stack.

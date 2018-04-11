@@ -93,7 +93,7 @@ function listener(event, exec_state, event_data, data) {
     success(undefined, `set.forEach(()=>1)`);
     success(true, `set.has(1)`);
     success(2, `set.size`);
-    fail(`new Set([1])`);
+    success(1, `new Set([1]).size`);
     fail(`set.add(2)`);
     fail(`set.delete(1)`);
     fail(`set.clear()`);

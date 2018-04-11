@@ -6680,7 +6680,8 @@ TEST(DebugEvaluateNoSideEffect) {
   for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
     isolate->debug()->StartSideEffectCheckMode();
-    failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    failed = !isolate->debug()->PerformSideEffectCheck(
+        fun, v8::Utils::OpenHandle(*env->Global()));
     isolate->debug()->StopSideEffectCheckMode();
     if (failed) isolate->clear_pending_exception();
   }
