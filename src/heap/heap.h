@@ -838,7 +838,7 @@ class Heap {
 
   void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk);
   void UnprotectAndRegisterMemoryChunk(HeapObject* object);
-
+  void UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk);
   V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
 
   void EnableUnprotectedMemoryChunksRegistry() {

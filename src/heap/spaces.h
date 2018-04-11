@@ -1435,6 +1435,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   void UnregisterExecutableMemoryChunk(MemoryChunk* chunk) {
     DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.erase(chunk);
+    chunk->heap()->UnregisterUnprotectedMemoryChunk(chunk);
   }
 
   Isolate* isolate_;

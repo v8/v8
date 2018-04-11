@@ -2247,6 +2247,10 @@ void Heap::UnprotectAndRegisterMemoryChunk(HeapObject* object) {
   UnprotectAndRegisterMemoryChunk(MemoryChunk::FromAddress(object->address()));
 }
 
+void Heap::UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk) {
+  unprotected_memory_chunks_.erase(chunk);
+}
+
 void Heap::ProtectUnprotectedMemoryChunks() {
   DCHECK(unprotected_memory_chunks_registry_enabled_);
   for (auto chunk = unprotected_memory_chunks_.begin();
