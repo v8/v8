@@ -627,6 +627,25 @@
       ]
     },
     {
+      "name": "ArraySort",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort.js"],
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
       "name": "ForLoops",
       "path": ["ForLoops"],
       "main": "run.js",
