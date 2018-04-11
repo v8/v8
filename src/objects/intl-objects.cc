@@ -123,8 +123,20 @@ icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
   icu::SimpleDateFormat* date_format = nullptr;
   icu::UnicodeString skeleton;
   if (ExtractStringSetting(isolate, options, "skeleton", &skeleton)) {
+    // See https://github.com/tc39/ecma402/issues/225 . The best pattern
+    // generation needs to be done in the base locale according to the
+    // current spec however odd it may be. See also crbug.com/826549 .
+    // This is a temporary work-around to get v8's external behavior to match
+    // the current spec, but does not follow the spec provisions mentioned
+    // in the above Ecma 402 issue.
+    // TODO(jshin): The spec may need to be revised because using the base
+    // locale for the pattern match is not quite right. Moreover, what to
+    // do with 'related year' part when 'chinese/dangi' calendar is specified
+    // has to be discussed. Revisit once the spec is clarified/revised.
+    icu::Locale no_extension_locale(icu_locale.getBaseName());
     std::unique_ptr<icu::DateTimePatternGenerator> generator(
-        icu::DateTimePatternGenerator::createInstance(icu_locale, status));
+        icu::DateTimePatternGenerator::createInstance(no_extension_locale,
+                                                      status));
     icu::UnicodeString pattern;
     if (U_SUCCESS(status))
       pattern = generator->getBestPattern(skeleton, status);
