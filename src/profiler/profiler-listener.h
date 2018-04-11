@@ -58,7 +58,7 @@ class ProfilerListener : public CodeEventListener {
       const char* resource_name = CodeEntry::kEmptyResourceName,
       int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
       int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-      std::unique_ptr<JITLineInfoTable> line_info = nullptr,
+      std::unique_ptr<SourcePositionTable> line_info = nullptr,
       Address instruction_start = nullptr);
 
   void AddObserver(CodeEventObserver* observer);

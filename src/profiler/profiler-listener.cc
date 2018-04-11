@@ -83,10 +83,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = abstract_code->address();
-  std::unique_ptr<JITLineInfoTable> line_table;
+  std::unique_ptr<SourcePositionTable> line_table;
   if (shared->script()->IsScript()) {
     Script* script = Script::cast(shared->script());
-    line_table.reset(new JITLineInfoTable());
+    line_table.reset(new SourcePositionTable());
     int offset = abstract_code->IsCode() ? Code::kHeaderSize
                                          : BytecodeArray::kHeaderSize;
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
@@ -296,7 +296,7 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
 CodeEntry* ProfilerListener::NewCodeEntry(
     CodeEventListener::LogEventsAndTags tag, const char* name,
     const char* name_prefix, const char* resource_name, int line_number,
-    int column_number, std::unique_ptr<JITLineInfoTable> line_info,
+    int column_number, std::unique_ptr<SourcePositionTable> line_info,
     Address instruction_start) {
   std::unique_ptr<CodeEntry> code_entry = base::make_unique<CodeEntry>(
       tag, name, name_prefix, resource_name, line_number, column_number,

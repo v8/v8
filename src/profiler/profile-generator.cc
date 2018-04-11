@@ -18,27 +18,23 @@
 namespace v8 {
 namespace internal {
 
-
-JITLineInfoTable::JITLineInfoTable() {}
-
-
-JITLineInfoTable::~JITLineInfoTable() {}
-
-
-void JITLineInfoTable::SetPosition(int pc_offset, int line) {
+void SourcePositionTable::SetPosition(int pc_offset, int line) {
   DCHECK_GE(pc_offset, 0);
   DCHECK_GT(line, 0);  // The 1-based number of the source line.
   if (GetSourceLineNumber(pc_offset) != line) {
-    pc_offset_map_.insert(std::make_pair(pc_offset, line));
+    auto result = pc_offset_map_.insert(std::make_pair(pc_offset, line));
+    // Check that a new element was inserted.
+    USE(result);
+    DCHECK(result.second);
   }
 }
 
+int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
+  if (pc_offset_map_.empty()) return v8::CpuProfileNode::kNoLineNumberInfo;
 
-int JITLineInfoTable::GetSourceLineNumber(int pc_offset) const {
-  PcOffsetMap::const_iterator it = pc_offset_map_.lower_bound(pc_offset);
-  if (it == pc_offset_map_.end()) {
-    if (pc_offset_map_.empty()) return v8::CpuProfileNode::kNoLineNumberInfo;
-    return (--pc_offset_map_.end())->second;
+  PcOffsetMap::const_iterator it = pc_offset_map_.upper_bound(pc_offset);
+  if (it != pc_offset_map_.begin()) {
+    return (--it)->second;
   }
   return it->second;
 }
@@ -121,9 +117,7 @@ void CodeEntry::SetBuiltinId(Builtins::Name id) {
 
 
 int CodeEntry::GetSourceLine(int pc_offset) const {
-  if (line_info_ && !line_info_->empty()) {
-    return line_info_->GetSourceLineNumber(pc_offset);
-  }
+  if (line_info_) return line_info_->GetSourceLineNumber(pc_offset);
   return v8::CpuProfileNode::kNoLineNumberInfo;
 }
 

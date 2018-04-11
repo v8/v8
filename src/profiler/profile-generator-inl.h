@@ -13,7 +13,7 @@ namespace internal {
 CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                      const char* name_prefix, const char* resource_name,
                      int line_number, int column_number,
-                     std::unique_ptr<JITLineInfoTable> line_info,
+                     std::unique_ptr<SourcePositionTable> line_info,
                      Address instruction_start)
     : bit_field_(TagField::encode(tag) |
                  BuiltinIdField::encode(Builtins::builtin_count)),
