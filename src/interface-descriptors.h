@@ -22,7 +22,6 @@ class PlatformInterfaceDescriptor;
   V(ContextOnly)                      \
   V(Load)                             \
   V(LoadWithVector)                   \
-  V(LoadField)                        \
   V(LoadGlobal)                       \
   V(LoadGlobalWithVector)             \
   V(Store)                            \
@@ -364,18 +363,6 @@ class LoadDescriptor : public CallInterfaceDescriptor {
   static const Register ReceiverRegister();
   static const Register NameRegister();
   static const Register SlotRegister();
-};
-
-// LoadFieldDescriptor is used by the shared handler that loads a field from an
-// object based on the smi-encoded field description.
-class LoadFieldDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kSmiHandler)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadFieldDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register ReceiverRegister();
-  static const Register SmiHandlerRegister();
 };
 
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {

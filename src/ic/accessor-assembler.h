@@ -30,7 +30,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
-  void GenerateLoadField();
   void GenerateLoadICTrampoline();
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();

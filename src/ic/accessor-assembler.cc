@@ -3173,30 +3173,6 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
 }
 
-void AccessorAssembler::GenerateLoadField() {
-  typedef LoadFieldDescriptor Descriptor;
-
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = nullptr;
-  Node* slot = nullptr;
-  Node* vector = nullptr;
-  Node* context = Parameter(Descriptor::kContext);
-  LoadICParameters p(context, receiver, name, slot, vector);
-
-  ExitPoint direct_exit(this);
-
-  VARIABLE(var_double_value, MachineRepresentation::kFloat64);
-  Label rebox_double(this, &var_double_value);
-
-  Node* smi_handler = Parameter(Descriptor::kSmiHandler);
-  Node* handler_word = SmiUntag(smi_handler);
-  HandleLoadField(receiver, handler_word, &var_double_value, &rebox_double,
-                  &direct_exit);
-
-  BIND(&rebox_double);
-  Return(AllocateHeapNumberWithValue(var_double_value.value()));
-}
-
 void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
 

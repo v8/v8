@@ -438,7 +438,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kKeyedStoreICTrampoline:
     case kLessThan:
     case kLessThanOrEqual:
-    case kLoadField:
     case kLoadGlobalIC:
     case kLoadGlobalICInsideTypeof:
     case kLoadGlobalICInsideTypeofTrampoline:
