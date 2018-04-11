@@ -178,53 +178,34 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register scratch2 = a7;
 
   Label call_runtime, done, int_exponent;
-  if (exponent_type() == TAGGED) {
-    // Base is already in double_base.
-    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ Ldc1(double_exponent,
-            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  Label int_exponent_convert;
+  // Detect integer exponents stored as double.
+  __ EmitFPUTruncate(kRoundToMinusInf, scratch, double_exponent, at,
+                     double_scratch, scratch2, kCheckForInexactConversion);
+  // scratch2 == 0 means there was no conversion error.
+  __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
+
+  __ push(ra);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     0, 2);
   }
+  __ pop(ra);
+  __ MovFromFloatResult(double_result);
+  __ jmp(&done);
 
-  if (exponent_type() != INTEGER) {
-    Label int_exponent_convert;
-    // Detect integer exponents stored as double.
-    __ EmitFPUTruncate(kRoundToMinusInf,
-                       scratch,
-                       double_exponent,
-                       at,
-                       double_scratch,
-                       scratch2,
-                       kCheckForInexactConversion);
-    // scratch2 == 0 means there was no conversion error.
-    __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
-
-    __ push(ra);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2, scratch2);
-      __ MovToFloatParameters(double_base, double_exponent);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()),
-          0, 2);
-    }
-    __ pop(ra);
-    __ MovFromFloatResult(double_result);
-    __ jmp(&done);
-
-    __ bind(&int_exponent_convert);
-  }
+  __ bind(&int_exponent_convert);
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);
 
   // Get two copies of exponent in the registers scratch and exponent.
-  if (exponent_type() == INTEGER) {
-    __ mov(scratch, exponent);
-  } else {
-    // Exponent has previously been stored into scratch as untagged integer.
-    __ mov(exponent, scratch);
-  }
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ mov(exponent, scratch);
 
   __ mov_d(double_scratch, double_base);  // Back up base.
   __ Move(double_result, 1.0);

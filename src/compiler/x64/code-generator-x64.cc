@@ -1026,8 +1026,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Pow: {
       // TODO(bmeurer): Improve integration of the stub.
       __ Movsd(xmm2, xmm0);
-      __ CallStubDelayed(new (zone())
-                             MathPowStub(nullptr, MathPowStub::DOUBLE));
+      __ CallStubDelayed(new (zone()) MathPowStub());
       __ Movsd(xmm0, xmm3);
       break;
     }

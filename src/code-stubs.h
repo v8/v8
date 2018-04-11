@@ -526,32 +526,14 @@ class InternalArrayConstructorStub: public PlatformCodeStub {
 
 class MathPowStub: public PlatformCodeStub {
  public:
-  enum ExponentType { INTEGER, DOUBLE, TAGGED };
-
-  MathPowStub(Isolate* isolate, ExponentType exponent_type)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = ExponentTypeBits::encode(exponent_type);
-  }
+  MathPowStub() : PlatformCodeStub(nullptr) {}
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (exponent_type() == TAGGED) {
-      return MathPowTaggedDescriptor(isolate());
-    } else if (exponent_type() == INTEGER) {
-      return MathPowIntegerDescriptor(isolate());
-    } else {
-      // A CallInterfaceDescriptor doesn't specify double registers (yet).
-      DCHECK_EQ(DOUBLE, exponent_type());
-      return ContextOnlyDescriptor(isolate());
-    }
+    // A CallInterfaceDescriptor doesn't specify double registers (yet).
+    return ContextOnlyDescriptor(isolate());
   }
 
  private:
-  ExponentType exponent_type() const {
-    return ExponentTypeBits::decode(minor_key_);
-  }
-
-  class ExponentTypeBits : public BitField<ExponentType, 0, 2> {};
-
   DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
 };
 
