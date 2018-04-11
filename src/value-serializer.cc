@@ -1796,7 +1796,6 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
     result = isolate_->wasm_engine()->SyncCompile(
         isolate_, &thrower, wasm::ModuleWireBytes(wire_bytes));
   }
-  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
   uint32_t id = next_id_++;
   if (!result.is_null()) {
     AddObjectWithID(id, result.ToHandleChecked());
