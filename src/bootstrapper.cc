@@ -357,10 +357,11 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 namespace {
 
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len) {
+    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len,
+    FunctionKind kind = FunctionKind::kNormalFunction) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
-                                                          kNormalFunction);
+                                                          kind);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
@@ -2287,15 +2288,19 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
           isolate, Builtins::kPromiseCapabilityDefaultResolve,
-          factory->empty_string(), 1);
+          factory->empty_string(), 1, FunctionKind::kConciseMethod);
       info->set_native(true);
+      info->set_function_map_index(
+          Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
       native_context()->set_promise_capability_default_resolve_shared_fun(
           *info);
 
       info = SimpleCreateSharedFunctionInfo(
           isolate, Builtins::kPromiseCapabilityDefaultReject,
-          factory->empty_string(), 1);
+          factory->empty_string(), 1, FunctionKind::kConciseMethod);
       info->set_native(true);
+      info->set_function_map_index(
+          Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
       native_context()->set_promise_capability_default_reject_shared_fun(*info);
     }
 
