@@ -43,12 +43,6 @@
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
     },
-
-    'client.dart.fyi': {
-      'v8-linux-release': 'release_x86_disassembler',
-      'v8-win-release': 'release_x86_disassembler',
-      'v8-mac-release': 'release_x86_disassembler',
-    },
     'client.dynamorio': {
       'linux-v8-dr': 'release_x64',
     },
@@ -503,8 +497,6 @@
     # Release configs for x86.
     'release_x86': [
       'release_bot', 'x86'],
-    'release_x86_disassembler': [
-      'release_bot', 'x86', 'v8_enable_disassembler'],
     'release_x86_gcc': [
       'release_bot', 'x86', 'gcc'],
     'release_x86_gcc_minimal_symbols': [
@@ -761,10 +753,6 @@
     'v8_correctness_fuzzer': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
-    },
-
-    'v8_enable_disassembler': {
-      'gn_args': 'v8_enable_disassembler=true',
     },
 
     'v8_enable_embedded_builtins': {
