@@ -216,6 +216,33 @@ class LiftoffCompiler {
     }
   }
 
+  void CollectReservedRegsForParameters(uint32_t input_idx_start,
+                                        uint32_t num_params,
+                                        LiftoffRegList& param_regs) {
+    uint32_t input_idx = input_idx_start;
+    for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
+      ValueType type = __ local_type(param_idx);
+      const int num_lowered_params = 1 + needs_reg_pair(type);
+      RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
+
+      for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
+        compiler::LinkageLocation param_loc =
+            descriptor_->GetInputLocation(input_idx + pair_idx);
+        if (param_loc.IsRegister()) {
+          DCHECK(!param_loc.IsAnyRegister());
+          int reg_code = param_loc.AsRegister();
+          RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
+                                            : kLiftoffAssemblerFpCacheRegs;
+          if (cache_regs & (1 << reg_code)) {
+            LiftoffRegister in_reg = LiftoffRegister::from_code(rc, reg_code);
+            param_regs.set(in_reg);
+          }
+        }
+      }
+      input_idx += num_lowered_params;
+    }
+  }
+
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
     const int num_lowered_params = 1 + needs_reg_pair(type);
@@ -275,48 +302,88 @@ class LiftoffCompiler {
 
   // Inserts a check whether the optimized version of this code already exists.
   // If so, it redirects execution to the optimized code.
-  void JumpToOptimizedCodeIfExisting() {
-    // Check whether we have an optimized function before
-    // continuing to execute the Liftoff-compiled code.
-    // TODO(clemensh): Reduce number of temporary registers.
-    LiftoffRegList pinned;
-    LiftoffRegister wasm_code_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister target_code_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister code_start_address =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+  void JumpToOptimizedCodeIfExisting(LiftoffRegList param_regs) {
+    // We need one register to keep the address of the optimized
+    // code that is not used to keep parameters.
+    LiftoffRegister address_tmp = LiftoffRegister(kNoParamRegister);
+    DCHECK(!param_regs.has(address_tmp));
 
-    // Get the current code's target address ({instructions_.start()}).
-    __ ComputeCodeStartAddress(code_start_address.gp());
+    LiftoffRegList available_regs = kGpCacheRegList & ~param_regs;
+    // We already use the {address_tmp} later, so remove it too.
+    available_regs.clear(address_tmp);
+
+    // We require one general purpose register.
+    if (available_regs.is_empty()) {
+      LiftoffRegList taken_gp_regs = kGpCacheRegList & param_regs;
+      LiftoffRegister reg = taken_gp_regs.GetFirstRegSet();
+      available_regs.set(reg);
+    }
+
+    LiftoffRegister tmp = available_regs.GetFirstRegSet();
+    if (param_regs.has(tmp)) __ PushRegisters(LiftoffRegList::ForRegs(tmp));
 
     static LoadType kPointerLoadType =
         LoadType::ForValueType(LiftoffAssembler::kWasmIntPtr);
     using int_t = std::conditional<kPointerSize == 8, uint64_t, uint32_t>::type;
     static_assert(sizeof(int_t) == sizeof(uintptr_t), "weird uintptr_t");
     // Get the address of the WasmCode* currently stored in the code table.
-    __ LoadConstant(target_code_addr,
+    __ LoadConstant(address_tmp,
                     WasmValue(reinterpret_cast<int_t>(code_table_entry_)),
                     RelocInfo::WASM_CODE_TABLE_ENTRY);
     // Load the corresponding WasmCode*.
-    __ Load(wasm_code_addr, target_code_addr.gp(), Register::no_reg(), 0,
-            kPointerLoadType, pinned);
+    LiftoffRegister wasm_code_address = tmp;
+    __ Load(wasm_code_address, address_tmp.gp(), Register::no_reg(), 0,
+            kPointerLoadType, param_regs);
     // Load its target address ({instuctions_.start()}).
-    __ Load(target_code_addr, wasm_code_addr.gp(), Register::no_reg(),
-            WasmCode::kInstructionStartOffset, kPointerLoadType, pinned);
+    __ Load(address_tmp, wasm_code_address.gp(), Register::no_reg(),
+            WasmCode::kInstructionStartOffset, kPointerLoadType, param_regs);
+    // Get the current code's target address ({instructions_.start()}).
+    LiftoffRegister code_start_address = tmp;
+    __ ComputeCodeStartAddress(code_start_address.gp());
 
     // If the current code's target address is the same as the
     // target address of the stored WasmCode, then continue executing, otherwise
     // jump to the updated WasmCode.
     Label cont;
     __ emit_cond_jump(kEqual, &cont, LiftoffAssembler::kWasmIntPtr,
-                      target_code_addr.gp(), code_start_address.gp());
-    __ LeaveFrame(StackFrame::WASM_COMPILED);
-    __ emit_jump(target_code_addr.gp());
+                      address_tmp.gp(), code_start_address.gp());
+
+    if (param_regs.has(tmp)) __ PopRegisters(LiftoffRegList::ForRegs(tmp));
+    __ emit_jump(address_tmp.gp());
+
     __ bind(&cont);
+    if (param_regs.has(tmp)) __ PopRegisters(LiftoffRegList::ForRegs(tmp));
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
+    // Input 0 is the call target, the instance is at 1.
+    constexpr int kInstanceParameterIndex = 1;
+    // Store the instance parameter to a special stack slot.
+    compiler::LinkageLocation instance_loc =
+        descriptor_->GetInputLocation(kInstanceParameterIndex);
+    DCHECK(instance_loc.IsRegister());
+    DCHECK(!instance_loc.IsAnyRegister());
+    Register instance_reg = Register::from_code(instance_loc.AsRegister());
+
+    // Parameter 0 is the instance parameter.
+    uint32_t num_params =
+        static_cast<uint32_t>(decoder->sig_->parameter_count());
+
+    if (FLAG_wasm_tier_up) {
+      if (!kNoParamRegister.is_valid()) {
+        unsupported(decoder, "Please define kNoParamRegister.");
+        return;
+      }
+
+      // Collect all registers that are allocated on function entry.
+      LiftoffRegList param_regs;
+      param_regs.set(instance_reg);
+
+      CollectReservedRegsForParameters(kInstanceParameterIndex + 1, num_params,
+                                       param_regs);
+      JumpToOptimizedCodeIfExisting(param_regs);
+    }
+
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
     pc_offset_stack_frame_construction_ = __ PrepareStackFrame();
@@ -327,21 +394,11 @@ class LiftoffCompiler {
     // finish compilation without errors even if we hit unimplemented
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
-    // Parameter 0 is the instance parameter.
-    uint32_t num_params =
-        static_cast<uint32_t>(decoder->sig_->parameter_count());
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
         return;
     }
-    // Input 0 is the call target, the instance is at 1.
-    constexpr int kInstanceParameterIndex = 1;
-    // Store the instance parameter to a special stack slot.
-    compiler::LinkageLocation instance_loc =
-        descriptor_->GetInputLocation(kInstanceParameterIndex);
-    DCHECK(instance_loc.IsRegister());
-    DCHECK(!instance_loc.IsAnyRegister());
-    Register instance_reg = Register::from_code(instance_loc.AsRegister());
+
     __ SpillInstance(instance_reg);
     // Input 0 is the code target, 1 is the instance. First parameter at 2.
     uint32_t input_idx = kInstanceParameterIndex + 1;
@@ -384,14 +441,6 @@ class LiftoffCompiler {
     StackCheck(0);
 
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
-
-    // TODO(kimanh): if possible, we want to move this check further up,
-    // in order to avoid unnecessary overhead each time we enter
-    // a Liftoff-compiled function that will jump to a Turbofan-compiled
-    // function.
-    if (FLAG_wasm_tier_up) {
-      JumpToOptimizedCodeIfExisting();
-    }
   }
 
   void GenerateOutOfLineCode(OutOfLineCode& ool) {

@@ -3293,6 +3293,69 @@ WASM_EXEC_TEST(I64ShrUOnDifferentRegisters) {
       });
 }
 
+TEST(Liftoff_prologue) {
+  // The tested prologue is only inserted in tiering mode. The prologue
+  // is responsible for jumping to the optimized, tiered up code if
+  // it exists.
+  FlagScope<bool> tier_up_scope(&v8::internal::FLAG_wasm_tier_up, true);
+
+  // The number of parameters define how many registers are used
+  // on a function call. The Liftoff-prologue has to make sure to
+  // correctly save prior, and restore all parameters
+  // after the prologue.
+  const uint8_t kNumParams = 4;
+  ValueType int_types[kNumParams + 1];
+  for (int i = 0; i < kNumParams + 1; i++) int_types[i] = kWasmI32;
+  FunctionSig sig_i_x(1, kNumParams, int_types);
+
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(
+      WasmExecutionMode::kExecuteLiftoff);
+
+  // Define two functions: {add_locals} and {sub_locals}, whereas
+  // {sub_locals} shall be our mockup optimized code.
+  std::vector<byte> add_locals, sub_locals;
+  ADD_CODE(add_locals, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  ADD_CODE(sub_locals, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  for (int i = 2; i < kNumParams; ++i) {
+    ADD_CODE(add_locals, WASM_GET_LOCAL(i), kExprI32Add);
+    ADD_CODE(sub_locals, WASM_GET_LOCAL(i), kExprI32Sub);
+  }
+
+  WasmFunctionCompiler& add_compiler = r.NewFunction(&sig_i_x);
+  add_compiler.Build(&add_locals[0], &add_locals[0] + add_locals.size());
+
+  WasmFunctionCompiler& sub_compiler = r.NewFunction(&sig_i_x);
+  sub_compiler.Build(&sub_locals[0], &sub_locals[0] + sub_locals.size());
+
+  // Create a calling function, which shall call {add_locals}.
+  std::vector<byte> call;
+  for (int i = 0; i < kNumParams; ++i) {
+    ADD_CODE(call, WASM_GET_LOCAL(i));
+  }
+  ADD_CODE(call, kExprCallFunction,
+           static_cast<byte>(add_compiler.function_index()));
+  r.Build(&call[0], &call[0] + call.size());
+
+  NativeModule* native_module =
+      r.builder().instance_object()->compiled_module()->GetNativeModule();
+
+  // This test only works if we managed to compile with Liftoff.
+  if (native_module->GetCode(add_compiler.function_index())->is_liftoff()) {
+    // First run should execute {add_locals}.
+    CHECK_EQ(10, r.Call(1, 2, 3, 4));
+
+    // Update the native_module to contain the "optimized" code ({sub_locals}).
+    native_module->SetCode(
+        add_compiler.function_index(),
+        native_module->GetCode(sub_compiler.function_index()));
+
+    // Second run should execute {add_locals}, which should detect that
+    // the code was updated, and run {sub_locals}.
+    CHECK_EQ(-8, r.Call(1, 2, 3, 4));
+  }
+}
+
 #undef B1
 #undef B2
 #undef RET
