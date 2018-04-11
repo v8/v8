@@ -2244,7 +2244,6 @@ TEST(TracingCpuProfiler) {
   v8::HandleScope scope(env->GetIsolate());
   {
     tracing_controller->StartTracing(trace_config);
-    auto profiler = v8::TracingCpuProfiler::Create(env->GetIsolate());
     CompileRun("function foo() { } foo();");
     tracing_controller->StopTracing();
     CompileRun("function bar() { } bar();");

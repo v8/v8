@@ -42,6 +42,7 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
@@ -2591,6 +2592,8 @@ Isolate::Isolate(bool enable_serializer)
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
 
+  tracing_cpu_profiler_.reset(new TracingCpuProfilerImpl(this));
+
   init_memcopy_functions(this);
 }
 
@@ -2598,6 +2601,7 @@ Isolate::Isolate(bool enable_serializer)
 void Isolate::TearDown() {
   TRACE_ISOLATE(tear_down);
 
+  tracing_cpu_profiler_.reset();
   if (FLAG_stress_sampling_allocation_profiler > 0) {
     heap_profiler()->StopSamplingHeapProfiler();
   }
