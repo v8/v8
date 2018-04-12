@@ -648,11 +648,12 @@
       "name": "ArraySort",
       "path": ["ArraySort"],
       "main": "run.js",
-      "resources": ["sort.js"],
+      "resources": ["sort-base.js", "sort.js"],
+      "test_flags": ["sort"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
       "flags": [
         "--allow-natives-syntax"
       ],
-      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
       "tests": [
         {"name": "PackedSmi"},
         {"name": "PackedDouble"},
@@ -661,6 +662,59 @@
         {"name": "HoleyDouble"},
         {"name": "HoleyElement"},
         {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFns",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn.js"],
+      "test_flags": ["sort-cmpfn"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFnKindChange",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn-kindchange.js"],
+      "test_flags": ["sort-cmpfn-kindchange"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiToPackedDouble"},
+        {"name": "HoleySmiToHoleyDouble"},
+        {"name": "PackedDoubleToHoleyDouble"},
+        {"name": "PackedElementToDictionary"},
+        {"name": "HoleyElementToDictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortPreSorted",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-presorted.js"],
+      "test_flags": ["sort-presorted"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiPreSorted"},
+        {"name": "PackedSmiPreSortedReversed"}
       ]
     },
     {
