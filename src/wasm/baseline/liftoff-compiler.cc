@@ -893,6 +893,7 @@ class LiftoffCompiler {
       CASE_I32_CMPOP(I32GeU, kUnsignedGreaterEqual)
       CASE_I64_BINOP(I64Add, i64_add)
       CASE_I64_BINOP(I64Sub, i64_sub)
+      CASE_I64_BINOP(I64Mul, i64_mul)
       CASE_I64_CMPOP(I64Eq, kEqual)
       CASE_I64_CMPOP(I64Ne, kUnequal)
       CASE_I64_CMPOP(I64LtS, kSignedLessThan)

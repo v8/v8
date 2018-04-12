@@ -518,6 +518,11 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
   BAILOUT("i64_sub");
 }
 
+void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  BAILOUT("i64_mul");
+}
+
 #define I64_BINOP(name)                                                \
   void LiftoffAssembler::emit_i64_##name(                              \
       LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \

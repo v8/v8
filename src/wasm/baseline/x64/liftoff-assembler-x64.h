@@ -546,6 +546,12 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
   }
 }
 
+void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::imulq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::andq, &Assembler::movq>(

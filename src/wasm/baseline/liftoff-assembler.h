@@ -407,6 +407,8 @@ class LiftoffAssembler : public TurboAssembler {
                            LiftoffRegister rhs);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs);
   inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,

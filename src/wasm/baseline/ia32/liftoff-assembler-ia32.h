@@ -603,6 +603,49 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
   liftoff::OpWithCarry<&Assembler::sub, &Assembler::sbb>(this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  // Idea:
+  //        [           lhs_hi  |           lhs_lo  ] * [  rhs_hi  |  rhs_lo  ]
+  //    =   [  lhs_hi * rhs_lo  |                   ]  (32 bit mul, shift 32)
+  //      + [  lhs_lo * rhs_hi  |                   ]  (32 bit mul, shift 32)
+  //      + [             lhs_lo * rhs_lo           ]  (32x32->64 mul, shift 0)
+
+  // For simplicity, we move lhs and rhs into fixed registers.
+  Register dst_hi = edx;
+  Register dst_lo = eax;
+  Register lhs_hi = ecx;
+  Register lhs_lo = dst_lo;
+  Register rhs_hi = dst_hi;
+  Register rhs_lo = ebx;
+
+  // Spill all these registers if they are still holding other values.
+  for (Register r : {dst_hi, dst_lo, lhs_hi, rhs_lo}) {
+    if (!cache_state_.is_used(LiftoffRegister(r))) continue;
+    SpillRegister(LiftoffRegister(r));
+  }
+
+  // Move lhs and rhs into the respective registers.
+  ParallelRegisterMove(
+      {{LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
+       {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}});
+
+  // First mul: lhs_hi' = lhs_hi * rhs_lo.
+  imul(lhs_hi, rhs_lo);
+  // Second mul: rhi_hi' = rhs_hi * lhs_lo.
+  imul(rhs_hi, lhs_lo);
+  // Add them: lhs_hi'' = lhs_hi' + rhs_hi' = lhs_hi * rhs_lo + rhs_hi * lhs_lo.
+  add(lhs_hi, rhs_hi);
+  // Third mul: edx:eax (dst_hi:dst_lo) = eax * ebx (lhs_lo * rhs_lo).
+  mul(rhs_lo);
+  // Add lhs_hi'' to dst_hi.
+  add(dst_hi, lhs_hi);
+
+  // Finally, move back the temporary result to the actual dst register pair.
+  LiftoffRegister dst_tmp = LiftoffRegister::ForPair(dst_lo, dst_hi);
+  if (dst != dst_tmp) Move(dst, dst_tmp, kWasmI64);
+}
+
 namespace liftoff {
 inline bool PairContains(LiftoffRegister pair, Register reg) {
   return pair.low_gp() == reg || pair.high_gp() == reg;
