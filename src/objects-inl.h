@@ -898,7 +898,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
       isolate->heap()->empty_slow_element_dictionary();
   while (prototype != null) {
     Map* map = prototype->map();
-    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
+    if (map->IsCustomElementsReceiverMap()) return false;
     HeapObject* elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
@@ -1448,6 +1448,16 @@ bool Map::IsSpecialReceiverMap() const {
   DCHECK_IMPLIES(!result,
                  !has_named_interceptor() && !is_access_check_needed());
   return result;
+}
+
+inline bool IsCustomElementsReceiverInstanceType(InstanceType instance_type) {
+  return instance_type <= LAST_CUSTOM_ELEMENTS_RECEIVER;
+}
+
+// This should be in objects/map-inl.h, but can't, because of a cyclic
+// dependency.
+bool Map::IsCustomElementsReceiverMap() const {
+  return IsCustomElementsReceiverInstanceType(instance_type());
 }
 
 // static

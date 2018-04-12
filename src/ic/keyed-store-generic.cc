@@ -111,14 +111,10 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
     GotoIf(IsNull(prototype), only_fast_elements);
     Node* prototype_map = LoadMap(prototype);
     var_map.Bind(prototype_map);
-    Node* instance_type = LoadMapInstanceType(prototype_map);
-    STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
-    STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
-    GotoIf(Int32LessThanOrEqual(instance_type,
-                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+    TNode<Int32T> instance_type = LoadMapInstanceType(prototype_map);
+    GotoIf(IsCustomElementsReceiverInstanceType(instance_type),
            non_fast_elements);
     Node* elements_kind = LoadMapElementsKind(prototype_map);
-    STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
     GotoIf(IsFastElementsKind(elements_kind), &loop_body);
     GotoIf(Word32Equal(elements_kind, Int32Constant(NO_ELEMENTS)), &loop_body);
     Goto(non_fast_elements);
@@ -861,12 +857,10 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
-  Node* instance_type = LoadMapInstanceType(receiver_map);
+  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-         &slow);
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &slow);
 
   TryToName(name, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
             &not_internalized);
@@ -925,7 +919,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
 
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
-  Node* instance_type = LoadMapInstanceType(receiver_map);
+  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);

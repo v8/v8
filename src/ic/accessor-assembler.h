@@ -224,12 +224,13 @@ class AccessorAssembler : public CodeStubAssembler {
   // KeyedLoadIC_Generic implementation.
 
   void GenericElementLoad(Node* receiver, Node* receiver_map,
-                          Node* instance_type, Node* index, Label* slow);
+                          SloppyTNode<Int32T> instance_type, Node* index,
+                          Label* slow);
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                           Node* instance_type, const LoadICParameters* p,
-                           Label* slow,
+                           SloppyTNode<Int32T> instance_type,
+                           const LoadICParameters* p, Label* slow,
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.

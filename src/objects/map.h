@@ -755,6 +755,8 @@ class Map : public HeapObject {
 
   inline bool IsSpecialReceiverMap() const;
 
+  inline bool IsCustomElementsReceiverMap() const;
+
   static void AddDependentCode(Handle<Map> map,
                                DependentCode::DependencyGroup group,
                                Handle<Code> code);

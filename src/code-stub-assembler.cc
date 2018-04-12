@@ -871,15 +871,14 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* prototype = LoadMapPrototype(map);
     GotoIf(IsNull(prototype), definitely_no_elements);
     Node* prototype_map = LoadMap(prototype);
-    Node* prototype_instance_type = LoadMapInstanceType(prototype_map);
+    TNode<Int32T> prototype_instance_type = LoadMapInstanceType(prototype_map);
 
     // Pessimistically assume elements if a Proxy, Special API Object,
     // or JSValue wrapper is found on the prototype chain. After this
     // instance type check, it's not necessary to check for interceptors or
     // access checks.
     Label if_custom(this, Label::kDeferred), if_notcustom(this);
-    Branch(Int32LessThanOrEqual(prototype_instance_type,
-                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+    Branch(IsCustomElementsReceiverInstanceType(prototype_instance_type),
            &if_custom, &if_notcustom);
 
     BIND(&if_custom);
@@ -4507,10 +4506,16 @@ Node* CodeStubAssembler::IsFunctionWithPrototypeSlotMap(Node* map) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsSpecialReceiverInstanceType(
-    Node* instance_type) {
+    TNode<Int32T> instance_type) {
   STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
   return Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE));
+}
+
+TNode<BoolT> CodeStubAssembler::IsCustomElementsReceiverInstanceType(
+    TNode<Int32T> instance_type) {
+  return Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER));
 }
 
 Node* CodeStubAssembler::IsStringInstanceType(Node* instance_type) {
@@ -7488,7 +7493,7 @@ void CodeStubAssembler::TryGetOwnProperty(
 }
 
 void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
-                                         Node* instance_type,
+                                         SloppyTNode<Int32T> instance_type,
                                          Node* intptr_index, Label* if_found,
                                          Label* if_absent, Label* if_not_found,
                                          Label* if_bailout) {
@@ -7779,7 +7784,7 @@ Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
     // Check if we can determine the prototype directly from the {object_map}.
     Label if_objectisdirect(this), if_objectisspecial(this, Label::kDeferred);
     Node* object_map = var_object_map.value();
-    Node* object_instance_type = LoadMapInstanceType(object_map);
+    TNode<Int32T> object_instance_type = LoadMapInstanceType(object_map);
     Branch(IsSpecialReceiverInstanceType(object_instance_type),
            &if_objectisspecial, &if_objectisdirect);
     BIND(&if_objectisspecial);
@@ -10963,11 +10968,15 @@ void CodeStubArguments::PopAndReturn(Node* value) {
 }
 
 Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {
+  STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(LAST_FAST_ELEMENTS_KIND));
 }
 
 Node* CodeStubAssembler::IsFastSmiOrTaggedElementsKind(Node* elements_kind) {
+  STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
+  STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS > TERMINAL_FAST_ELEMENTS_KIND);
+  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS > TERMINAL_FAST_ELEMENTS_KIND);
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(TERMINAL_FAST_ELEMENTS_KIND));
 }

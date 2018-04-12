@@ -55,7 +55,7 @@ inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
 }
 
 inline bool HasSimpleElements(JSObject* current) {
-  return current->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+  return !current->map()->IsCustomElementsReceiverMap() &&
          !current->GetElementsAccessor()->HasAccessors(current);
 }
 
@@ -321,13 +321,12 @@ class ArrayConcatVisitor {
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
-        bit_field_(
-            FastElementsField::encode(fast_elements) |
-            ExceedsLimitField::encode(false) |
-            IsFixedArrayField::encode(storage->IsFixedArray()) |
-            HasSimpleElementsField::encode(storage->IsFixedArray() ||
-                                           storage->map()->instance_type() >
-                                               LAST_CUSTOM_ELEMENTS_RECEIVER)) {
+        bit_field_(FastElementsField::encode(fast_elements) |
+                   ExceedsLimitField::encode(false) |
+                   IsFixedArrayField::encode(storage->IsFixedArray()) |
+                   HasSimpleElementsField::encode(
+                       storage->IsFixedArray() ||
+                       !storage->map()->IsCustomElementsReceiverMap())) {
     DCHECK(!(this->fast_elements() && !is_fixed_array()));
   }
 

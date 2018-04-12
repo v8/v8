@@ -418,7 +418,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   BIND(&if_objectisnotsmi);
 
   Node* map = LoadMap(object);
-  Node* instance_type = LoadMapInstanceType(map);
+  TNode<Int32T> instance_type = LoadMapInstanceType(map);
 
   {
     VARIABLE(var_index, MachineType::PointerRepresentation());
@@ -1133,7 +1133,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
   Node* map = LoadMap(object);
-  Node* instance_type = LoadMapInstanceType(map);
+  TNode<Int32T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     VARIABLE(var_index, MachineType::PointerRepresentation(),

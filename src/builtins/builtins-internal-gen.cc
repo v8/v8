@@ -542,10 +542,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
-  Node* instance_type = LoadMapInstanceType(receiver_map);
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-         &slow);
+  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &slow);
   TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
             &if_notunique);
 

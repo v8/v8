@@ -525,7 +525,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
-  DCHECK_GT(object->map()->instance_type(), LAST_CUSTOM_ELEMENTS_RECEIVER);
+  DCHECK(!object->map()->IsCustomElementsReceiverMap());
   const bool can_serialize_fast =
       object->HasFastProperties() && object->elements()->length() == 0;
   if (!can_serialize_fast) return WriteJSObjectSlow(object);

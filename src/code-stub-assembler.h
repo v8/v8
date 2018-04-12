@@ -1327,7 +1327,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                               SloppyTNode<Map> map);
   Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsShortExternalStringInstanceType(Node* instance_type);
-  TNode<BoolT> IsSpecialReceiverInstanceType(Node* instance_type);
+  TNode<BoolT> IsSpecialReceiverInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsCustomElementsReceiverInstanceType(
+      TNode<Int32T> instance_type);
   Node* IsSpecialReceiverMap(Node* map);
   Node* IsStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
@@ -1856,9 +1858,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // This method jumps to if_found if the element is known to exist. To
   // if_absent if it's known to not exist. To if_not_found if the prototype
   // chain needs to be checked. And if_bailout if the lookup is unsupported.
-  void TryLookupElement(Node* object, Node* map, Node* instance_type,
-                        Node* intptr_index, Label* if_found, Label* if_absent,
-                        Label* if_not_found, Label* if_bailout);
+  void TryLookupElement(Node* object, Node* map,
+                        SloppyTNode<Int32T> instance_type, Node* intptr_index,
+                        Label* if_found, Label* if_absent, Label* if_not_found,
+                        Label* if_bailout);
 
   // This is a type of a lookup in holder generator function. In case of a
   // property lookup the {key} is guaranteed to be an unique name and in case of

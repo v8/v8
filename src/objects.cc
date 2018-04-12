@@ -8148,7 +8148,7 @@ bool TestDictionaryPropertiesIntegrityLevel(Dictionary* dict, Isolate* isolate,
 
 bool TestFastPropertiesIntegrityLevel(Map* map, PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
-  DCHECK_LT(LAST_CUSTOM_ELEMENTS_RECEIVER, map->instance_type());
+  DCHECK(!map->IsCustomElementsReceiverMap());
   DCHECK(!map->is_dictionary_map());
 
   DescriptorArray* descriptors = map->instance_descriptors();
@@ -8165,7 +8165,7 @@ bool TestFastPropertiesIntegrityLevel(Map* map, PropertyAttributes level) {
 }
 
 bool TestPropertiesIntegrityLevel(JSObject* object, PropertyAttributes level) {
-  DCHECK_LT(LAST_CUSTOM_ELEMENTS_RECEIVER, object->map()->instance_type());
+  DCHECK(!object->map()->IsCustomElementsReceiverMap());
 
   if (object->HasFastProperties()) {
     return TestFastPropertiesIntegrityLevel(object->map(), level);
@@ -8193,7 +8193,7 @@ bool TestElementsIntegrityLevel(JSObject* object, PropertyAttributes level) {
 }
 
 bool FastTestIntegrityLevel(JSObject* object, PropertyAttributes level) {
-  DCHECK_LT(LAST_CUSTOM_ELEMENTS_RECEIVER, object->map()->instance_type());
+  DCHECK(!object->map()->IsCustomElementsReceiverMap());
 
   return !object->map()->is_extensible() &&
          TestElementsIntegrityLevel(object, level) &&
@@ -8236,7 +8236,7 @@ Maybe<bool> GenericTestIntegrityLevel(Handle<JSReceiver> receiver,
 
 Maybe<bool> JSReceiver::TestIntegrityLevel(Handle<JSReceiver> receiver,
                                            IntegrityLevel level) {
-  if (receiver->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER) {
+  if (!receiver->map()->IsCustomElementsReceiverMap()) {
     return JSObject::TestIntegrityLevel(Handle<JSObject>::cast(receiver),
                                         level);
   }
@@ -8245,7 +8245,7 @@ Maybe<bool> JSReceiver::TestIntegrityLevel(Handle<JSReceiver> receiver,
 
 Maybe<bool> JSObject::TestIntegrityLevel(Handle<JSObject> object,
                                          IntegrityLevel level) {
-  if (object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+  if (!object->map()->IsCustomElementsReceiverMap() &&
       !object->HasSloppyArgumentsElements()) {
     return Just(FastTestIntegrityLevel(*object, level));
   }
