@@ -177,6 +177,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildArrayLiteralSpread(Spread* spread, Register array, Register index,
                                FeedbackSlot index_slot,
                                FeedbackSlot element_slot);
+  void BuildArrayLiteralElementsInsertion(Register array,
+                                          int first_spread_index,
+                                          ZoneList<Expression*>* elements,
+                                          bool skip_constants);
 
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);

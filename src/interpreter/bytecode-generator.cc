@@ -2300,6 +2300,71 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   builder()->LoadAccumulatorWithRegister(literal);
 }
 
+void BytecodeGenerator::BuildArrayLiteralElementsInsertion(
+    Register array, int first_spread_index, ZoneList<Expression*>* elements,
+    bool skip_constants) {
+  Register index = register_allocator()->NewRegister();
+  int array_index = 0;
+
+  ZoneList<Expression*>::iterator iter = elements->begin();
+  ZoneList<Expression*>::iterator first_spread_or_end =
+      first_spread_index >= 0 ? elements->begin() + first_spread_index
+                              : elements->end();
+
+  // Evaluate subexpressions and store them into the array.
+  FeedbackSlot keyed_store_slot;
+  for (; iter != first_spread_or_end; ++iter, array_index++) {
+    Expression* subexpr = *iter;
+    DCHECK(!subexpr->IsSpread());
+    if (skip_constants && CompileTimeValue::IsCompileTimeValue(subexpr))
+      continue;
+    if (keyed_store_slot.IsInvalid()) {
+      keyed_store_slot = feedback_spec()->AddKeyedStoreICSlot(language_mode());
+    }
+    builder()
+        ->LoadLiteral(Smi::FromInt(array_index))
+        .StoreAccumulatorInRegister(index);
+    VisitForAccumulatorValue(subexpr);
+    builder()->StoreKeyedProperty(
+        array, index, feedback_index(keyed_store_slot), language_mode());
+  }
+  if (iter != elements->end()) {
+    builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
+
+    // Handle the first spread element and everything that follows.
+    FeedbackSlot element_slot = feedback_spec()->AddStoreInArrayLiteralICSlot();
+    FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
+    // TODO(neis): Only create length_slot when there are holes.
+    FeedbackSlot length_slot =
+        feedback_spec()->AddStoreICSlot(LanguageMode::kStrict);
+    for (; iter != elements->end(); ++iter) {
+      Expression* subexpr = *iter;
+      if (subexpr->IsSpread()) {
+        BuildArrayLiteralSpread(subexpr->AsSpread(), array, index, index_slot,
+                                element_slot);
+      } else if (!subexpr->IsTheHoleLiteral()) {
+        // literal[index++] = subexpr
+        VisitForAccumulatorValue(subexpr);
+        builder()
+            ->StoreInArrayLiteral(array, index, feedback_index(element_slot))
+            .LoadAccumulatorWithRegister(index)
+            .UnaryOperation(Token::INC, feedback_index(index_slot))
+            .StoreAccumulatorInRegister(index);
+      } else {
+        // literal.length = ++index
+        auto length = ast_string_constants()->length_string();
+        builder()
+            ->LoadAccumulatorWithRegister(index)
+            .UnaryOperation(Token::INC, feedback_index(index_slot))
+            .StoreAccumulatorInRegister(index)
+            .StoreNamedProperty(array, length, feedback_index(length_slot),
+                                LanguageMode::kStrict);
+      }
+    }
+  }
+  builder()->LoadAccumulatorWithRegister(array);
+}
+
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   expr->InitDepthAndFlags();
 
@@ -2320,68 +2385,9 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   Register literal = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(literal);
-
-  // We'll reuse the same literal slot for all of the non-constant
-  // subexpressions that use a keyed store IC.
-
-  Register index = register_allocator()->NewRegister();
-  int array_index = 0;
-
-  // Evaluate all the non-constant subexpressions and store them into the
-  // newly cloned array.
-  FeedbackSlot slot;
-  ZoneList<Expression*>::iterator iter = expr->BeginValue();
-  for (; iter != expr->FirstSpreadOrEndValue(); ++iter, array_index++) {
-    Expression* subexpr = *iter;
-    DCHECK(!subexpr->IsSpread());
-    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
-    if (slot.IsInvalid()) {
-      slot = feedback_spec()->AddKeyedStoreICSlot(language_mode());
-    }
-    builder()
-        ->LoadLiteral(Smi::FromInt(array_index))
-        .StoreAccumulatorInRegister(index);
-    VisitForAccumulatorValue(subexpr);
-    builder()->StoreKeyedProperty(literal, index, feedback_index(slot),
-                                  language_mode());
-  }
-  if (iter != expr->EndValue()) {
-    builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
-
-    // Handle the first spread element and everything that follows.
-    FeedbackSlot element_slot = feedback_spec()->AddStoreInArrayLiteralICSlot();
-    FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
-    // TODO(neis): Only create length_slot when there are holes.
-    FeedbackSlot length_slot =
-        feedback_spec()->AddStoreICSlot(LanguageMode::kStrict);
-    for (; iter != expr->EndValue(); ++iter) {
-      Expression* subexpr = *iter;
-      if (subexpr->IsSpread()) {
-        BuildArrayLiteralSpread(subexpr->AsSpread(), literal, index, index_slot,
-                                element_slot);
-      } else if (!subexpr->IsTheHoleLiteral()) {
-        // literal[index++] = subexpr
-        VisitForAccumulatorValue(subexpr);
-        builder()
-            ->StoreInArrayLiteral(literal, index, feedback_index(element_slot))
-            .LoadAccumulatorWithRegister(index)
-            .UnaryOperation(Token::INC, feedback_index(index_slot))
-            .StoreAccumulatorInRegister(index);
-      } else {
-        // literal.length = ++index
-        auto length = ast_string_constants()->length_string();
-        builder()
-            ->LoadAccumulatorWithRegister(index)
-            .UnaryOperation(Token::INC, feedback_index(index_slot))
-            .StoreAccumulatorInRegister(index)
-            .StoreNamedProperty(literal, length, feedback_index(length_slot),
-                                LanguageMode::kStrict);
-      }
-    }
-  }
-
-  // Restore literal array into accumulator.
-  builder()->LoadAccumulatorWithRegister(literal);
+  // Insert all elements except the constant ones, since they are already there.
+  BuildArrayLiteralElementsInsertion(literal, expr->first_spread_index(),
+                                     expr->values(), true);
 }
 
 void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
