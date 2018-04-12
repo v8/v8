@@ -2343,7 +2343,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
+  __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
   __ AndP(r6, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ beq(&call_generic_stub);
 
