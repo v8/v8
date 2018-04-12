@@ -78,8 +78,8 @@ class WasmInstanceNativeAllocations {
   // Resizes the indirect function table.
   void resize_indirect_function_table(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
-                                      size_t new_size) {
-    size_t old_size = instance->indirect_function_table_size();
+                                      uint32_t new_size) {
+    uint32_t old_size = instance->indirect_function_table_size();
     void* new_sig_ids = nullptr;
     void* new_targets = nullptr;
     Handle<FixedArray> new_instances;
@@ -109,7 +109,7 @@ class WasmInstanceNativeAllocations {
         reinterpret_cast<Address*>(new_targets));
 
     instance->set_indirect_function_table_instances(*new_instances);
-    for (size_t j = old_size; j < new_size; j++) {
+    for (uint32_t j = old_size; j < new_size; j++) {
       IndirectFunctionTableEntry(*instance, static_cast<int>(j)).clear();
     }
   }
@@ -702,8 +702,8 @@ bool ImportedFunctionEntry::is_js_receiver_entry() {
 }
 
 bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-    Handle<WasmInstanceObject> instance, size_t minimum_size) {
-  uintptr_t old_size = instance->indirect_function_table_size();
+    Handle<WasmInstanceObject> instance, uint32_t minimum_size) {
+  uint32_t old_size = instance->indirect_function_table_size();
   if (old_size >= minimum_size) return false;  // Nothing to do.
 
   Isolate* isolate = instance->GetIsolate();
@@ -714,14 +714,14 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
   return true;
 }
 
-void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
+void WasmInstanceObject::SetRawMemory(byte* mem_start, uint32_t mem_size) {
   DCHECK_LE(mem_size, wasm::kV8MaxWasmMemoryPages * wasm::kWasmPageSize);
-  uint64_t mem_size64 = mem_size;
-  uint64_t mem_mask64 = base::bits::RoundUpToPowerOfTwo64(mem_size) - 1;
+  uint32_t mem_size64 = mem_size;
+  uint32_t mem_mask64 = base::bits::RoundUpToPowerOfTwo32(mem_size) - 1;
   DCHECK_LE(mem_size, mem_mask64 + 1);
   set_memory_start(mem_start);
-  set_memory_size(static_cast<uintptr_t>(mem_size64));
-  set_memory_mask(static_cast<uintptr_t>(mem_mask64));
+  set_memory_size(mem_size64);
+  set_memory_mask(mem_mask64);
 }
 
 WasmModuleObject* WasmInstanceObject::module_object() {

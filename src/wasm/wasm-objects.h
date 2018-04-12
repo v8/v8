@@ -270,37 +270,38 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS(managed_indirect_patcher, Foreign)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
-  DECL_PRIMITIVE_ACCESSORS(memory_size, uintptr_t)
-  DECL_PRIMITIVE_ACCESSORS(memory_mask, uintptr_t)
+  DECL_PRIMITIVE_ACCESSORS(memory_size, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(memory_mask, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
-  DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uintptr_t)
+  DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
 
 // Layout description.
-#define WASM_INSTANCE_OBJECT_FIELDS(V)                                \
-  V(kCompiledModuleOffset, kPointerSize)                              \
-  V(kExportsObjectOffset, kPointerSize)                               \
-  V(kMemoryObjectOffset, kPointerSize)                                \
-  V(kGlobalsBufferOffset, kPointerSize)                               \
-  V(kDebugInfoOffset, kPointerSize)                                   \
-  V(kTableObjectOffset, kPointerSize)                                 \
-  V(kFunctionTablesOffset, kPointerSize)                              \
-  V(kImportedFunctionInstancesOffset, kPointerSize)                   \
-  V(kImportedFunctionCallablesOffset, kPointerSize)                   \
-  V(kIndirectFunctionTableInstancesOffset, kPointerSize)              \
-  V(kManagedNativeAllocationsOffset, kPointerSize)                    \
-  V(kManagedIndirectPatcherOffset, kPointerSize)                      \
-  V(kFirstUntaggedOffset, 0)                           /* marker */   \
-  V(kMemoryStartOffset, kPointerSize)                  /* untagged */ \
-  V(kMemorySizeOffset, kPointerSize)                   /* untagged */ \
-  V(kMemoryMaskOffset, kPointerSize)                   /* untagged */ \
-  V(kImportedFunctionTargetsOffset, kPointerSize)      /* untagged */ \
-  V(kGlobalsStartOffset, kPointerSize)                 /* untagged */ \
-  V(kIndirectFunctionTableSizeOffset, kPointerSize)    /* untagged */ \
-  V(kIndirectFunctionTableSigIdsOffset, kPointerSize)  /* untagged */ \
-  V(kIndirectFunctionTableTargetsOffset, kPointerSize) /* untagged */ \
+#define WASM_INSTANCE_OBJECT_FIELDS(V)                                  \
+  V(kCompiledModuleOffset, kPointerSize)                                \
+  V(kExportsObjectOffset, kPointerSize)                                 \
+  V(kMemoryObjectOffset, kPointerSize)                                  \
+  V(kGlobalsBufferOffset, kPointerSize)                                 \
+  V(kDebugInfoOffset, kPointerSize)                                     \
+  V(kTableObjectOffset, kPointerSize)                                   \
+  V(kFunctionTablesOffset, kPointerSize)                                \
+  V(kImportedFunctionInstancesOffset, kPointerSize)                     \
+  V(kImportedFunctionCallablesOffset, kPointerSize)                     \
+  V(kIndirectFunctionTableInstancesOffset, kPointerSize)                \
+  V(kManagedNativeAllocationsOffset, kPointerSize)                      \
+  V(kManagedIndirectPatcherOffset, kPointerSize)                        \
+  V(kFirstUntaggedOffset, 0)                             /* marker */   \
+  V(kMemoryStartOffset, kPointerSize)                    /* untagged */ \
+  V(kMemorySizeOffset, kUInt32Size)                      /* untagged */ \
+  V(kMemoryMaskOffset, kUInt32Size)                      /* untagged */ \
+  V(kImportedFunctionTargetsOffset, kPointerSize)        /* untagged */ \
+  V(kGlobalsStartOffset, kPointerSize)                   /* untagged */ \
+  V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
+  V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
+  V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \
+  V(k64BitArchPaddingOffset, kPointerSize - kUInt32Size) /* padding */  \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -311,11 +312,11 @@ class WasmInstanceObject : public JSObject {
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   static bool EnsureIndirectFunctionTableWithMinimumSize(
-      Handle<WasmInstanceObject> instance, size_t minimum_size);
+      Handle<WasmInstanceObject> instance, uint32_t minimum_size);
 
   bool has_indirect_function_table();
 
-  void SetRawMemory(byte* mem_start, size_t mem_size);
+  void SetRawMemory(byte* mem_start, uint32_t mem_size);
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
