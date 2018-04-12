@@ -94,7 +94,7 @@ void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
   CHECK_EQ(to, result);
 }
 
-
+DISABLE_CFI_ICALL
 int32_t DefaultCallWrapper(ConvertDToIFunc func,
                            double from) {
   return (*func)(from);
