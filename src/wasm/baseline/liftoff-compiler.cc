@@ -1353,7 +1353,7 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
     uint32_t protected_load_pc = 0;
     __ Load(value, addr.gp(), index, operand.offset, type, pinned,
-            &protected_load_pc);
+            &protected_load_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
                        Builtins::kThrowWasmTrapMemOutOfBounds,
@@ -1382,7 +1382,7 @@ class LiftoffCompiler {
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerLoadType);
     uint32_t protected_store_pc = 0;
     __ Store(addr.gp(), index, operand.offset, value, type, pinned,
-             &protected_store_pc);
+             &protected_store_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
                        Builtins::kThrowWasmTrapMemOutOfBounds,

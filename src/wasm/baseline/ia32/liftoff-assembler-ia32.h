@@ -156,7 +156,7 @@ void LiftoffAssembler::FillInstanceInto(Register dst) {
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc) {
+                            uint32_t* protected_load_pc, bool is_load_mem) {
   DCHECK_EQ(type.value_type() == kWasmI64, dst.is_pair());
   // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
   // immediate value (in 31 bits, interpreted as signed value).
@@ -237,7 +237,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
-                             uint32_t* protected_store_pc) {
+                             uint32_t* protected_store_pc, bool is_store_mem) {
   DCHECK_EQ(type.value_type() == kWasmI64, src.is_pair());
   // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
   // immediate value (in 31 bits, interpreted as signed value).
@@ -296,6 +296,17 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
+                                            LiftoffRegList pinned) {
+  // Nop.
+}
+
+void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
+                                             StoreType type,
+                                             LiftoffRegList pinned) {
+  // Nop.
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
