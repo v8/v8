@@ -81,7 +81,7 @@ enum FunctionMode {
 };
 
 // Interface for handle based allocation.
-class V8_EXPORT_PRIVATE Factory final {
+class V8_EXPORT_PRIVATE Factory {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
@@ -894,7 +894,12 @@ class V8_EXPORT_PRIVATE Factory final {
   }
 
  private:
-  Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }
+  Isolate* isolate() {
+    // Downcast to the privately inherited sub-class using c-style casts to
+    // avoid undefined behavior (as static_cast cannot cast across private
+    // bases).
+    return (Isolate*)this;  // NOLINT(readability/casting)
+  }
 
   HeapObject* AllocateRawWithImmortalMap(
       int size, PretenureFlag pretenure, Map* map,
