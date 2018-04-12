@@ -930,6 +930,22 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_SetDataProperties) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
+
+  // 2. If source is undefined or null, let keys be an empty List.
+  if (source->IsUndefined(isolate) || source->IsNull(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source),
+               isolate->heap()->exception());
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

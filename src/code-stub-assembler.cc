@@ -7014,6 +7014,27 @@ void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
   }
 }
 
+void CodeStubAssembler::DescriptorArrayForEach(
+    VariableList& variable_list, TNode<Uint32T> start_descriptor,
+    TNode<Uint32T> end_descriptor, const ForEachDescriptorBodyFunction& body) {
+  TNode<IntPtrT> start_index =
+      IntPtrAdd(IntPtrConstant(DescriptorArray::ToKeyIndex(0)),
+                EntryIndexToIndex<DescriptorArray>(start_descriptor));
+
+  TNode<IntPtrT> end_index =
+      IntPtrAdd(IntPtrConstant(DescriptorArray::ToKeyIndex(0)),
+                EntryIndexToIndex<DescriptorArray>(end_descriptor));
+
+  BuildFastLoop(variable_list, start_index, end_index,
+                [=](Node* index) {
+                  TNode<UintPtrT> descriptor_key_index =
+                      TNode<UintPtrT>::UncheckedCast(index);
+                  body(descriptor_key_index);
+                },
+                DescriptorArray::kEntrySize, INTPTR_PARAMETERS,
+                IndexAdvanceMode::kPost);
+}
+
 void CodeStubAssembler::DescriptorLookup(
     SloppyTNode<Name> unique_name, SloppyTNode<DescriptorArray> descriptors,
     SloppyTNode<Uint32T> bitfield3, Label* if_found,
@@ -7448,7 +7469,7 @@ void CodeStubAssembler::TryGetOwnProperty(
   if (!var_details) {
     var_details = &local_var_details;
   }
-  Label if_found(this, {var_value, var_details});
+  Label if_found(this);
 
   TryLookupProperty(object, map, instance_type, unique_name, &if_found_fast,
                     &if_found_dict, &if_found_global, &var_meta_storage,

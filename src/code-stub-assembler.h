@@ -2236,6 +2236,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
                                            TNode<Uint32T> descriptor_number);
 
+  typedef std::function<void(TNode<UintPtrT> descriptor_key_index)>
+      ForEachDescriptorBodyFunction;
+
+  void DescriptorArrayForEach(VariableList& variable_list,
+                              TNode<Uint32T> start_descriptor,
+                              TNode<Uint32T> end_descriptor,
+                              const ForEachDescriptorBodyFunction& body);
+
   TNode<Object> CallGetterIfAccessor(Node* value, Node* details, Node* context,
                                      Node* receiver, Label* if_bailout,
                                      GetOwnPropertyMode mode = kCallJSGetter);

@@ -16,7 +16,9 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
+using Node = compiler::Node;
+template <class T>
+using TNode = compiler::TNode<T>;
 
 class KeyedStoreGenericAssembler : public AccessorAssembler {
  public:
@@ -26,6 +28,12 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   void KeyedStoreGeneric();
 
   void StoreIC_Uninitialized();
+
+  // Generates code for [[Set]] operation, the |unique_name| is supposed to be
+  // unique otherwise this code will always go to runtime.
+  void SetProperty(TNode<Context> context, TNode<JSReceiver> receiver,
+                   TNode<Name> unique_name, TNode<Object> value,
+                   LanguageMode language_mode);
 
  private:
   enum UpdateLength {
@@ -40,15 +48,18 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                Node* instance_type, Node* intptr_index,
                                Node* value, Node* context, Label* slow);
 
+  // If language mode is not provided it is deduced from the feedback slot's
+  // kind.
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
                                 const StoreICParameters* p,
                                 ExitPoint* exit_point, Label* slow,
-                                bool assume_strict_language_mode = false);
+                                Maybe<LanguageMode> maybe_language_mode);
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
                                 const StoreICParameters* p, Label* slow) {
     ExitPoint direct_exit(this);
-    EmitGenericPropertyStore(receiver, receiver_map, p, &direct_exit, slow);
+    EmitGenericPropertyStore(receiver, receiver_map, p, &direct_exit, slow,
+                             Nothing<LanguageMode>());
   }
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
@@ -95,6 +106,14 @@ void StoreICUninitializedGenerator::Generate(
     compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state);
   assembler.StoreIC_Uninitialized();
+}
+
+void KeyedStoreGenericGenerator::SetProperty(
+    compiler::CodeAssemblerState* state, TNode<Context> context,
+    TNode<JSReceiver> receiver, TNode<Name> name, TNode<Object> value,
+    LanguageMode language_mode) {
+  KeyedStoreGenericAssembler assembler(state);
+  assembler.SetProperty(context, receiver, name, value, language_mode);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -615,7 +634,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* receiver, Node* receiver_map, const StoreICParameters* p,
-    ExitPoint* exit_point, Label* slow, bool assume_strict_language_mode) {
+    ExitPoint* exit_point, Label* slow,
+    Maybe<LanguageMode> maybe_language_mode) {
   VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
@@ -805,36 +825,54 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&not_callable);
     {
+      bool handle_strict = true;
       Label strict(this);
-      if (assume_strict_language_mode) {
-        Goto(&strict);
+      LanguageMode language_mode;
+      if (maybe_language_mode.To(&language_mode)) {
+        if (language_mode == LanguageMode::kStrict) {
+          Goto(&strict);
+        } else {
+          handle_strict = false;
+          exit_point->Return(p->value);
+        }
       } else {
         BranchIfStrictMode(p->vector, p->slot, &strict);
         exit_point->Return(p->value);
       }
 
-      BIND(&strict);
-      {
-        ThrowTypeError(p->context, MessageTemplate::kNoSetterInCallback,
-                       p->name, var_accessor_holder.value());
+      if (handle_strict) {
+        BIND(&strict);
+        {
+          ThrowTypeError(p->context, MessageTemplate::kNoSetterInCallback,
+                         p->name, var_accessor_holder.value());
+        }
       }
     }
   }
 
   BIND(&readonly);
   {
+    bool handle_strict = true;
     Label strict(this);
-    if (assume_strict_language_mode) {
-      Goto(&strict);
+    LanguageMode language_mode;
+    if (maybe_language_mode.To(&language_mode)) {
+      if (language_mode == LanguageMode::kStrict) {
+        Goto(&strict);
+      } else {
+        handle_strict = false;
+        exit_point->Return(p->value);
+      }
     } else {
       BranchIfStrictMode(p->vector, p->slot, &strict);
       exit_point->Return(p->value);
     }
-    BIND(&strict);
-    {
-      Node* type = Typeof(p->receiver);
-      ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
-                     p->name, type, p->receiver);
+    if (handle_strict) {
+      BIND(&strict);
+      {
+        Node* type = Typeof(p->receiver);
+        ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
+                       p->name, type, p->receiver);
+      }
     }
   }
 }
@@ -941,6 +979,29 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                     receiver, name);
   }
+}
+
+void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
+                                             TNode<JSReceiver> receiver,
+                                             TNode<Name> unique_name,
+                                             TNode<Object> value,
+                                             LanguageMode language_mode) {
+  StoreICParameters p(context, receiver, unique_name, value, nullptr, nullptr);
+
+  Label done(this), slow(this, Label::kDeferred);
+  ExitPoint exit_point(this, [&](Node* result) { Goto(&done); });
+
+  EmitGenericPropertyStore(receiver, LoadMap(receiver), &p, &exit_point, &slow,
+                           Just(language_mode));
+
+  BIND(&slow);
+  {
+    CallRuntime(Runtime::kSetProperty, context, receiver, unique_name, value,
+                SmiConstant(language_mode));
+    Goto(&done);
+  }
+
+  BIND(&done);
 }
 
 }  // namespace internal

@@ -401,6 +401,7 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(SameValue, 2, 1)                                            \
   F(SameValueZero, 2, 1)                                        \
+  F(SetDataProperties, 2, 1)                                    \
   F(SetProperty, 4, 1)                                          \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
