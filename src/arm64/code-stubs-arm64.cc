@@ -39,7 +39,7 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label done;
-  Register result = destination();
+  Register result = x7;
 
   DCHECK(result.Is64Bits());
 
@@ -48,7 +48,12 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Register scratch2 = temps.AcquireX();
   DoubleRegister double_scratch = temps.AcquireD();
 
-  __ Peek(double_scratch, 0);
+  // Account for saved regs.
+  const int kArgumentOffset = 2 * kPointerSize;
+
+  __ Push(result, scratch1);  // scratch1 is also pushed to preserve alignment.
+  __ Peek(double_scratch, kArgumentOffset);
+
   // Try to convert with a FPU convert instruction.  This handles all
   // non-saturating cases.
   __ TryConvertDoubleToInt64(result, double_scratch, &done);
@@ -93,6 +98,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Lsl(result, mantissa, exponent);
 
   __ Bind(&done);
+  __ Poke(result, kArgumentOffset);
+  __ Pop(scratch1, result);
   __ Ret();
 }
 

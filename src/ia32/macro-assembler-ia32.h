@@ -299,7 +299,7 @@ class TurboAssembler : public Assembler {
 
   void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
 
-  void SlowTruncateToIDelayed(Zone* zone, Register result_reg);
+  void SlowTruncateToIDelayed(Zone* zone);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

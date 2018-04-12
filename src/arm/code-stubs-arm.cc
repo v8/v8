@@ -41,21 +41,24 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label negate, done;
-  Register result_reg = destination();
 
   UseScratchRegisterScope temps(masm);
+  Register result_reg = r7;
   Register double_low = GetRegisterThatIsNotOneOf(result_reg);
   Register double_high = GetRegisterThatIsNotOneOf(result_reg, double_low);
   LowDwVfpRegister double_scratch = temps.AcquireLowD();
 
   // Save the old values from these temporary registers on the stack.
-  __ Push(double_high, double_low);
+  __ Push(result_reg, double_high, double_low);
 
   // Account for saved regs.
-  const int kArgumentOffset = 2 * kPointerSize;
+  const int kArgumentOffset = 3 * kPointerSize;
+
+  MemOperand input_operand(sp, kArgumentOffset);
+  MemOperand result_operand = input_operand;
 
   // Load double input.
-  __ vldr(double_scratch, MemOperand(sp, kArgumentOffset));
+  __ vldr(double_scratch, input_operand);
   __ vmov(double_low, double_high, double_scratch);
   // Try to convert with a FPU convert instruction. This handles all
   // non-saturating cases.
@@ -122,9 +125,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ add(result_reg, result_reg, Operand(double_high, LSR, 31));
 
   __ bind(&done);
+  __ str(result_reg, result_operand);
 
   // Restore registers corrupted in this routine and return.
-  __ Pop(double_high, double_low);
+  __ Pop(result_reg, double_high, double_low);
   __ Ret();
 }
 

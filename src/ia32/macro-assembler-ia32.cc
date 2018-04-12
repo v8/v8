@@ -177,8 +177,8 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
-void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg) {
-  CallStubDelayed(new (zone) DoubleToIStub(nullptr, result_reg));
+void TurboAssembler::SlowTruncateToIDelayed(Zone* zone) {
+  CallStubDelayed(new (zone) DoubleToIStub(nullptr));
 }
 
 void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,

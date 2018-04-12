@@ -733,25 +733,11 @@ enum EmbedMode {
 
 class DoubleToIStub : public PlatformCodeStub {
  public:
-  DoubleToIStub(Isolate* isolate, Register destination)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = DestinationRegisterBits::encode(destination.code()) |
-                 SSE3Bits::encode(CpuFeatures::IsSupported(SSE3) ? 1 : 0);
-  }
+  explicit DoubleToIStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   bool SometimesSetsUpAFrame() override { return false; }
 
  private:
-  Register destination() const {
-    return Register::from_code(DestinationRegisterBits::decode(minor_key_));
-  }
-
-  static const int kBitsPerRegisterNumber = 6;
-  STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
-  class DestinationRegisterBits
-      : public BitField<int, 0, kBitsPerRegisterNumber> {};
-  class SSE3Bits : public BitField<int, kBitsPerRegisterNumber, 1> {};
-
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
 };

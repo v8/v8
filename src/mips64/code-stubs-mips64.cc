@@ -37,7 +37,7 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done;
-  Register result_reg = destination();
+  Register result_reg = t0;
 
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);
   Register scratch2 = GetRegisterThatIsNotOneOf(result_reg, scratch);
@@ -45,8 +45,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   DoubleRegister double_scratch = kLithiumScratchDouble;
 
   // Account for saved regs.
-  const int kArgumentOffset = 3 * kPointerSize;
+  const int kArgumentOffset = 4 * kPointerSize;
 
+  __ Push(result_reg);
   __ Push(scratch, scratch2, scratch3);
 
   // Load double input.
@@ -161,7 +162,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ bind(&done);
 
+  __ Sd(result_reg, MemOperand(sp, kArgumentOffset));
   __ Pop(scratch, scratch2, scratch3);
+  __ Pop(result_reg);
   __ Ret();
 }
 

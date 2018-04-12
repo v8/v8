@@ -36,32 +36,28 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
-  Register final_result_reg = this->destination();
-
   Label check_negative, process_64_bits, done;
 
   // Account for return address and saved regs.
-  const int kArgumentOffset = 3 * kPointerSize;
+  const int kArgumentOffset = 4 * kPointerSize;
 
   MemOperand mantissa_operand(MemOperand(esp, kArgumentOffset));
   MemOperand exponent_operand(
       MemOperand(esp, kArgumentOffset + kDoubleSize / 2));
 
-  Register scratch1 = no_reg;
-  {
-    Register scratch_candidates[3] = { ebx, edx, edi };
-    for (int i = 0; i < 3; i++) {
-      scratch1 = scratch_candidates[i];
-      if (final_result_reg != scratch1) break;
-    }
-  }
+  // The result is returned on the stack.
+  MemOperand return_operand = mantissa_operand;
+
+  Register scratch1 = ebx;
+
   // Since we must use ecx for shifts below, use some other register (eax)
-  // to calculate the result if ecx is the requested return register.
-  Register result_reg = final_result_reg == ecx ? eax : final_result_reg;
+  // to calculate the result.
+  Register result_reg = eax;
   // Save ecx if it isn't the return register and therefore volatile, or if it
   // is the return register, then save the temp register we use in its stead for
   // the result.
-  Register save_reg = final_result_reg == ecx ? eax : ecx;
+  Register save_reg = eax;
+  __ push(ecx);
   __ push(scratch1);
   __ push(save_reg);
 
@@ -125,12 +121,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   // Restore registers
   __ bind(&done);
-  if (final_result_reg != result_reg) {
-    DCHECK(final_result_reg == ecx);
-    __ mov(final_result_reg, result_reg);
-  }
+  __ mov(return_operand, result_reg);
   __ pop(save_reg);
   __ pop(scratch1);
+  __ pop(ecx);
   __ ret(0);
 }
 
