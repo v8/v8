@@ -126,9 +126,12 @@ class CompilationState {
 
   void Abort();
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
 
-  bool failed() { return failed_; }
+  bool failed() const {
+    base::LockGuard<base::Mutex> guard(&mutex_);
+    return failed_;
+  }
 
  private:
   void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
@@ -3151,7 +3154,7 @@ CompilationState::~CompilationState() {
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
-  DCHECK(!failed_);
+  DCHECK(!failed());
   outstanding_units_ = num_functions;
 }
 
