@@ -1905,6 +1905,125 @@ void TurboAssembler::Trunc_uw_s(FPURegister fd, Register rs,
   bind(&done);
 }
 
+template <typename RoundFunc>
+void TurboAssembler::RoundDouble(FPURegister dst, FPURegister src,
+                                 FPURoundingMode mode, RoundFunc round) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = t8;
+  Register scratch2 = t9;
+  if (IsMipsArchVariant(kMips32r6)) {
+    cfc1(scratch, FCSR);
+    li(at, Operand(mode));
+    ctc1(at, FCSR);
+    rint_d(dst, src);
+    ctc1(scratch, FCSR);
+  } else {
+    Label done;
+    Mfhc1(scratch, src);
+    Ext(at, scratch, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+    Branch(USE_DELAY_SLOT, &done, hs, at,
+           Operand(HeapNumber::kExponentBias + HeapNumber::kMantissaBits));
+    mov_d(dst, src);
+    round(this, dst, src);
+    Move(at, scratch2, dst);
+    or_(at, at, scratch2);
+    Branch(USE_DELAY_SLOT, &done, ne, at, Operand(zero_reg));
+    cvt_d_l(dst, dst);
+    srl(at, scratch, 31);
+    sll(at, at, 31);
+    Mthc1(at, dst);
+    bind(&done);
+  }
+}
+
+void TurboAssembler::Floor_d_d(FPURegister dst, FPURegister src) {
+  RoundDouble(dst, src, mode_floor,
+              [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+                tasm->floor_l_d(dst, src);
+              });
+}
+
+void TurboAssembler::Ceil_d_d(FPURegister dst, FPURegister src) {
+  RoundDouble(dst, src, mode_ceil,
+              [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+                tasm->ceil_l_d(dst, src);
+              });
+}
+
+void TurboAssembler::Trunc_d_d(FPURegister dst, FPURegister src) {
+  RoundDouble(dst, src, mode_trunc,
+              [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+                tasm->trunc_l_d(dst, src);
+              });
+}
+
+void TurboAssembler::Round_d_d(FPURegister dst, FPURegister src) {
+  RoundDouble(dst, src, mode_round,
+              [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+                tasm->round_l_d(dst, src);
+              });
+}
+
+template <typename RoundFunc>
+void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
+                                FPURoundingMode mode, RoundFunc round) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = t8;
+  if (IsMipsArchVariant(kMips32r6)) {
+    cfc1(scratch, FCSR);
+    li(at, Operand(mode));
+    ctc1(at, FCSR);
+    rint_s(dst, src);
+    ctc1(scratch, FCSR);
+  } else {
+    int32_t kFloat32ExponentBias = 127;
+    int32_t kFloat32MantissaBits = 23;
+    int32_t kFloat32ExponentBits = 8;
+    Label done;
+    mfc1(scratch, src);
+    Ext(at, scratch, kFloat32MantissaBits, kFloat32ExponentBits);
+    Branch(USE_DELAY_SLOT, &done, hs, at,
+           Operand(kFloat32ExponentBias + kFloat32MantissaBits));
+    mov_s(dst, src);
+    round(this, dst, src);
+    mfc1(at, dst);
+    Branch(USE_DELAY_SLOT, &done, ne, at, Operand(zero_reg));
+    cvt_s_w(dst, dst);
+    srl(at, scratch, 31);
+    sll(at, at, 31);
+    mtc1(at, dst);
+    bind(&done);
+  }
+}
+
+void TurboAssembler::Floor_s_s(FPURegister dst, FPURegister src) {
+  RoundFloat(dst, src, mode_floor,
+             [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+               tasm->floor_w_s(dst, src);
+             });
+}
+
+void TurboAssembler::Ceil_s_s(FPURegister dst, FPURegister src) {
+  RoundFloat(dst, src, mode_ceil,
+             [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+               tasm->ceil_w_s(dst, src);
+             });
+}
+
+void TurboAssembler::Trunc_s_s(FPURegister dst, FPURegister src) {
+  RoundFloat(dst, src, mode_trunc,
+             [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+               tasm->trunc_w_s(dst, src);
+             });
+}
+
+void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
+  RoundFloat(dst, src, mode_round,
+             [](TurboAssembler* tasm, FPURegister dst, FPURegister src) {
+               tasm->round_w_s(dst, src);
+             });
+}
+
 void TurboAssembler::Mthc1(Register rt, FPURegister fs) {
   if (IsFp32Mode()) {
     mtc1(rt, fs.high());
