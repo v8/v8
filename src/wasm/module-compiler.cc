@@ -68,31 +68,6 @@ enum class NotifyCompilationCallback : uint8_t { kNotify, kNoNotify };
 // compilation of functions.
 class CompilationState {
  public:
-  class CodeGenerationSchedule {
-   public:
-    explicit CodeGenerationSchedule(
-        base::RandomNumberGenerator* random_number_generator,
-        size_t max_memory = 0);
-
-    void Schedule(std::unique_ptr<compiler::WasmCompilationUnit> item);
-
-    bool IsEmpty() const { return schedule_.empty(); }
-
-    std::unique_ptr<compiler::WasmCompilationUnit> GetNext();
-
-    bool CanAcceptWork() const;
-
-    bool ShouldIncreaseWorkload() const;
-
-   private:
-    size_t GetRandomIndexInSchedule();
-
-    base::RandomNumberGenerator* random_number_generator_ = nullptr;
-    std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
-    const size_t max_memory_;
-    size_t allocated_memory_ = 0;
-  };
-
   explicit CompilationState(internal::Isolate* isolate);
   ~CompilationState();
 
@@ -112,7 +87,7 @@ class CompilationState {
   void OnError(Handle<Object> error, NotifyCompilationCallback notify);
   void OnFinishedUnit(NotifyCompilationCallback notify);
   void ScheduleUnitForFinishing(
-      std::unique_ptr<compiler::WasmCompilationUnit>& unit);
+      std::unique_ptr<compiler::WasmCompilationUnit> unit);
 
   void CancelAndWait();
   void OnBackgroundTaskStopped();
@@ -136,7 +111,8 @@ class CompilationState {
  private:
   void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
+  const size_t max_memory_;
 
   // This mutex protects all information of this CompilationState which is being
   // accessed concurrently.
@@ -147,10 +123,12 @@ class CompilationState {
 
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
-  CodeGenerationSchedule executed_units_;
   bool finisher_is_running_ = false;
   bool failed_ = false;
   size_t num_background_tasks_ = 0;
+
+  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> finish_units_;
+  size_t allocated_memory_ = 0;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -983,7 +961,7 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   if (unit == nullptr) return false;
 
   unit->ExecuteCompilation();
-  compilation_state->ScheduleUnitForFinishing(unit);
+  compilation_state->ScheduleUnitForFinishing(std::move(unit));
 
   return true;
 }
@@ -1058,8 +1036,8 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
   //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
-  // 2.b) If {executed_units} contains a compilation unit, the main thread
+  //      result is enqueued in {finish_units_}.
+  // 2.b) If {finish_units_} contains a compilation unit, the main thread
   //      dequeues it and finishes the compilation.
   // 3) After the parallel phase of all compilation units has started, the
   //    main thread waits for all {BackgroundCompileTasks} instances to finish.
@@ -1089,11 +1067,11 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
   //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
+  //      result is enqueued in {finish_units_}.
   //      The foreground task bypasses waiting on memory threshold, because
   //      its results will immediately be converted to code (below).
   while (FetchAndExecuteCompilationUnit(compilation_state)) {
-    // 2.b) If {executed_units} contains a compilation unit, the main thread
+    // 2.b) If {finish_units_} contains a compilation unit, the main thread
     //      dequeues it and finishes the compilation unit. Compilation units
     //      are finished concurrently to the background threads to save
     //      memory.
@@ -3078,49 +3056,6 @@ void AsyncStreamingProcessor::OnAbort() {
   job_->Abort();
 }
 
-CompilationState::CodeGenerationSchedule::CodeGenerationSchedule(
-    base::RandomNumberGenerator* random_number_generator, size_t max_memory)
-    : random_number_generator_(random_number_generator),
-      max_memory_(max_memory) {
-  DCHECK_NOT_NULL(random_number_generator_);
-  DCHECK_GT(max_memory_, 0);
-}
-
-void CompilationState::CodeGenerationSchedule::Schedule(
-    std::unique_ptr<compiler::WasmCompilationUnit> item) {
-  size_t cost = item->memory_cost();
-  schedule_.push_back(std::move(item));
-  allocated_memory_ += cost;
-}
-
-bool CompilationState::CodeGenerationSchedule::CanAcceptWork() const {
-  return allocated_memory_ <= max_memory_;
-}
-
-bool CompilationState::CodeGenerationSchedule::ShouldIncreaseWorkload() const {
-  // Half the memory is unused again, we can increase the workload again.
-  return allocated_memory_ <= max_memory_ / 2;
-}
-
-std::unique_ptr<compiler::WasmCompilationUnit>
-CompilationState::CodeGenerationSchedule::GetNext() {
-  DCHECK(!IsEmpty());
-  size_t index = GetRandomIndexInSchedule();
-  auto ret = std::move(schedule_[index]);
-  std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
-  schedule_.pop_back();
-  allocated_memory_ -= ret->memory_cost();
-  return ret;
-}
-
-size_t CompilationState::CodeGenerationSchedule::GetRandomIndexInSchedule() {
-  double factor = random_number_generator_->NextDouble();
-  size_t index = (size_t)(factor * schedule_.size());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, schedule_.size());
-  return index;
-}
-
 void CompilationStateDeleter::operator()(
     CompilationState* compilation_state) const {
   delete compilation_state;
@@ -3134,11 +3069,11 @@ std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
 
 CompilationState::CompilationState(internal::Isolate* isolate)
     : isolate_(isolate),
-      executed_units_(isolate->random_number_generator(),
-                      GetMaxUsableMemorySize(isolate) / 2),
+      max_memory_(GetMaxUsableMemorySize(isolate) / 2),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
+  DCHECK_LT(0, max_memory_);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
@@ -3190,16 +3125,17 @@ CompilationState::GetNextCompilationUnit() {
 std::unique_ptr<compiler::WasmCompilationUnit>
 CompilationState::GetNextExecutedUnit() {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  if (!executed_units_.IsEmpty()) {
-    return executed_units_.GetNext();
-  }
-
-  return std::unique_ptr<compiler::WasmCompilationUnit>();
+  if (finish_units_.empty()) return {};
+  std::unique_ptr<compiler::WasmCompilationUnit> ret =
+      std::move(finish_units_.back());
+  finish_units_.pop_back();
+  allocated_memory_ -= ret->memory_cost();
+  return ret;
 }
 
 bool CompilationState::HasCompilationUnitToFinish() {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  return !executed_units_.IsEmpty();
+  return !finish_units_.empty();
 }
 
 void CompilationState::OnError(Handle<Object> error,
@@ -3224,9 +3160,11 @@ void CompilationState::OnFinishedUnit(NotifyCompilationCallback notify) {
 }
 
 void CompilationState::ScheduleUnitForFinishing(
-    std::unique_ptr<compiler::WasmCompilationUnit>& unit) {
+    std::unique_ptr<compiler::WasmCompilationUnit> unit) {
+  size_t cost = unit->memory_cost();
   base::LockGuard<base::Mutex> guard(&mutex_);
-  executed_units_.Schedule(std::move(unit));
+  finish_units_.push_back(std::move(unit));
+  allocated_memory_ += cost;
 
   if (!finisher_is_running_ && !failed_) {
     ScheduleFinisherTask();
@@ -3250,7 +3188,8 @@ void CompilationState::RestartBackgroundTasks(size_t max) {
   size_t num_restart = max;
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
-    if (!executed_units_.ShouldIncreaseWorkload()) return;
+    bool should_increase_workload = allocated_memory_ <= max_memory_ / 2;
+    if (!should_increase_workload) return;
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
     if (num_background_tasks_ == max_background_tasks_) return;
     num_restart = std::min(
@@ -3285,7 +3224,8 @@ void CompilationState::ScheduleFinisherTask() {
 bool CompilationState::StopBackgroundCompilationTaskForThrottling() {
   base::LockGuard<base::Mutex> guard(&mutex_);
   DCHECK_LE(1, num_background_tasks_);
-  if (executed_units_.CanAcceptWork()) return false;
+  bool can_accept_work = allocated_memory_ < max_memory_;
+  if (can_accept_work) return false;
   --num_background_tasks_;
   return true;
 }
