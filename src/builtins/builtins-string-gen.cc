@@ -1507,13 +1507,24 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, method_name);
 
   // 2. If regexp is neither undefined nor null, then
-  Label return_match_all_iterator(this);
-  GotoIf(IsNullOrUndefined(maybe_regexp), &return_match_all_iterator);
+  Label return_match_all_iterator(this),
+      tostring_and_return_match_all_iterator(this, Label::kDeferred);
+  TVARIABLE(BoolT, var_is_fast_regexp);
+  TVARIABLE(String, var_receiver_string);
+  GotoIf(IsNullOrUndefined(maybe_regexp),
+         &tostring_and_return_match_all_iterator);
   {
     // a. Let matcher be ? GetMethod(regexp, @@matchAll).
     // b. If matcher is not undefined, then
     //   i. Return ? Call(matcher, regexp, « O »).
-    auto if_regexp_call = [&] { Goto(&return_match_all_iterator); };
+    auto if_regexp_call = [&] {
+      // MaybeCallFunctionAtSymbol guarantees fast path is chosen only if
+      // maybe_regexp is a fast regexp and receiver is a string.
+      CSA_ASSERT(this, IsString(receiver));
+      var_receiver_string = CAST(receiver);
+      var_is_fast_regexp = Int32TrueConstant();
+      Goto(&return_match_all_iterator);
+    };
     auto if_generic_call = [=](Node* fn) {
       Callable call_callable = CodeFactory::Call(isolate());
       Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
@@ -1521,6 +1532,12 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     MaybeCallFunctionAtSymbol(context, maybe_regexp, receiver,
                               isolate()->factory()->match_all_symbol(),
                               if_regexp_call, if_generic_call);
+    Goto(&tostring_and_return_match_all_iterator);
+  }
+  BIND(&tostring_and_return_match_all_iterator);
+  {
+    var_receiver_string = ToString_Inline(context, receiver);
+    var_is_fast_regexp = Int32FalseConstant();
     Goto(&return_match_all_iterator);
   }
   BIND(&return_match_all_iterator);
@@ -1528,7 +1545,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     // 3. Return ? MatchAllIterator(regexp, O).
     RegExpBuiltinsAssembler regexp_asm(state());
     TNode<Object> iterator = regexp_asm.MatchAllIterator(
-        context, native_context, maybe_regexp, receiver, method_name);
+        context, native_context, maybe_regexp, var_receiver_string.value(),
+        var_is_fast_regexp.value(), method_name);
     Return(iterator);
   }
 }
