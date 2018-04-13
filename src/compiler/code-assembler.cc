@@ -371,12 +371,21 @@ TNode<HeapNumber> CodeAssembler::NaNConstant() {
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
-  Int64Matcher m(node);
-  if (m.HasValue() &&
-      m.IsInRange(std::numeric_limits<int32_t>::min(),
-                  std::numeric_limits<int32_t>::max())) {
-    out_value = static_cast<int32_t>(m.Value());
-    return true;
+  {
+    Int64Matcher m(node);
+    if (m.HasValue() && m.IsInRange(std::numeric_limits<int32_t>::min(),
+                                    std::numeric_limits<int32_t>::max())) {
+      out_value = static_cast<int32_t>(m.Value());
+      return true;
+    }
+  }
+
+  {
+    Int32Matcher m(node);
+    if (m.HasValue()) {
+      out_value = m.Value();
+      return true;
+    }
   }
 
   return false;
