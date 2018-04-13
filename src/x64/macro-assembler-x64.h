@@ -458,8 +458,6 @@ class TurboAssembler : public Assembler {
   // HeapObjectRequest that will be fulfilled after code assembly.
   void CallStubDelayed(CodeStub* stub);
 
-  void SlowTruncateToIDelayed(Zone* zone);
-
   // Call a runtime routine.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);

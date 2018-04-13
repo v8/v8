@@ -54,9 +54,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
 
-  DoubleToIStub stub(isolate);
-
-  byte* start = stub.GetCode()->raw_instruction_start();
+  Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
+  byte* start = code->InstructionStart();
 
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());

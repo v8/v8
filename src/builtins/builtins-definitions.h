@@ -1247,7 +1247,12 @@ namespace internal {
   /* #sec-%asyncfromsynciteratorprototype%.return */                           \
   TFJ(AsyncFromSyncIteratorPrototypeReturn, 1, kValue)                         \
   /* #sec-async-iterator-value-unwrap-functions */                             \
-  TFJ(AsyncIteratorValueUnwrap, 1, kValue)
+  TFJ(AsyncIteratorValueUnwrap, 1, kValue)                                     \
+                                                                               \
+  /* Miscellaneous */                                                          \
+                                                                               \
+  ASM(DoubleToI)                                                               \
+  ASM(MathPowInternal)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)        \

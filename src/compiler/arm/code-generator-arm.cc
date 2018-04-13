@@ -920,8 +920,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchTruncateDoubleToI:
-      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
-                                  i.InputDoubleRegister(0));
+      __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
+                           i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchStoreWithWriteBarrier: {
@@ -1011,7 +1011,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       __ vmov(d0, d2);
       break;
     }

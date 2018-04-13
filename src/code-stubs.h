@@ -32,10 +32,8 @@ class Node;
   V(CallApiCallback)                        \
   V(CallApiGetter)                          \
   V(CEntry)                                 \
-  V(DoubleToI)                              \
   V(InternalArrayConstructor)               \
   V(JSEntry)                                \
-  V(MathPow)                                \
   V(ProfileEntryHook)                       \
   /* --- TurboFanCodeStubs --- */           \
   V(StoreSlowElement)                       \
@@ -434,6 +432,7 @@ class TurboFanCodeStub : public CodeStub {
 namespace v8 {
 namespace internal {
 
+// TODO(jgruber): Convert this stub into a builtin.
 class StoreInterceptorStub : public TurboFanCodeStub {
  public:
   explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -473,6 +472,7 @@ class TransitionElementsKindStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(TransitionElementsKind, TurboFanCodeStub);
 };
 
+// TODO(jgruber): Convert this stub into a builtin.
 class LoadIndexedInterceptorStub : public TurboFanCodeStub {
  public:
   explicit LoadIndexedInterceptorStub(Isolate* isolate)
@@ -483,6 +483,7 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
 };
 
 // ES6 [[Get]] operation.
+// TODO(jgruber): Convert this stub into a builtin.
 class GetPropertyStub : public TurboFanCodeStub {
  public:
   explicit GetPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -491,14 +492,13 @@ class GetPropertyStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
 };
 
-
 enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,
   DISABLE_ALLOCATION_SITES,
   LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class ArrayConstructorStub: public PlatformCodeStub {
  public:
   explicit ArrayConstructorStub(Isolate* isolate);
@@ -511,7 +511,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(ArrayConstructor, PlatformCodeStub);
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class InternalArrayConstructorStub: public PlatformCodeStub {
  public:
   explicit InternalArrayConstructorStub(Isolate* isolate);
@@ -523,20 +523,7 @@ class InternalArrayConstructorStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(InternalArrayConstructor, PlatformCodeStub);
 };
 
-
-class MathPowStub: public PlatformCodeStub {
- public:
-  MathPowStub() : PlatformCodeStub(nullptr) {}
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    // A CallInterfaceDescriptor doesn't specify double registers (yet).
-    return ContextOnlyDescriptor(isolate());
-  }
-
- private:
-  DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
-};
-
+// TODO(jgruber): Convert this stub into a builtin.
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
  public:
   explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
@@ -584,7 +571,7 @@ class CallApiCallbackStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class CallApiGetterStub : public PlatformCodeStub {
  public:
   explicit CallApiGetterStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
@@ -711,35 +698,6 @@ class JSEntryStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
-};
-
-
-enum ReceiverCheckMode {
-  // We don't know anything about the receiver.
-  RECEIVER_IS_UNKNOWN,
-
-  // We know the receiver is a string.
-  RECEIVER_IS_STRING
-};
-
-
-enum EmbedMode {
-  // The code being generated is part of an IC handler, which may MISS
-  // to an IC in failure cases.
-  PART_OF_IC_HANDLER,
-
-  NOT_PART_OF_IC_HANDLER
-};
-
-class DoubleToIStub : public PlatformCodeStub {
- public:
-  explicit DoubleToIStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  bool SometimesSetsUpAFrame() override { return false; }
-
- private:
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
 };
 
 class StoreFastElementStub : public TurboFanCodeStub {
@@ -873,6 +831,7 @@ class InternalArraySingleArgumentConstructorStub
                             CommonArrayConstructorStub);
 };
 
+// TODO(jgruber): Convert this stub into a builtin.
 class ArrayNArgumentsConstructorStub : public PlatformCodeStub {
  public:
   explicit ArrayNArgumentsConstructorStub(Isolate* isolate)
@@ -938,7 +897,7 @@ class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class ProfileEntryHookStub : public PlatformCodeStub {
  public:
   explicit ProfileEntryHookStub(Isolate* isolate) : PlatformCodeStub(isolate) {}

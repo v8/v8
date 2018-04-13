@@ -855,8 +855,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), root);
       break;
     case kArchTruncateDoubleToI:
-      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
-                                  i.InputDoubleRegister(0));
+      __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
+                           i.InputDoubleRegister(0));
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
@@ -940,7 +940,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       break;
     }
     case kIeee754Float64Sin:

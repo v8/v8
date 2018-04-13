@@ -2651,8 +2651,9 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
   Branch(done, eq, scratch, Operand(zero_reg));
 }
 
-void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                              DoubleRegister double_input) {
+void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
+                                       Register result,
+                                       DoubleRegister double_input) {
   Label done;
 
   TryInlineTruncateDoubleToI(result, double_input, &done);
@@ -2662,7 +2663,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   Subu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   Sdc1(double_input, MemOperand(sp, 0));
 
-  CallStubDelayed(new (zone) DoubleToIStub(nullptr));
+  Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   lw(result, MemOperand(sp, 0));
 
   Addu(sp, sp, Operand(kDoubleSize));

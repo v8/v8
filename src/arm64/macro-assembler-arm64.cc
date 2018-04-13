@@ -2308,8 +2308,9 @@ void TurboAssembler::TryConvertDoubleToInt64(Register result,
   B(vc, done);
 }
 
-void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                              DoubleRegister double_input) {
+void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
+                                       Register result,
+                                       DoubleRegister double_input) {
   Label done;
 
   // Try to convert the double to an int64. If successful, the bottom 32 bits
@@ -2319,9 +2320,8 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr, double_input);
 
-  auto stub = new (zone) DoubleToIStub(nullptr);
-  // DoubleToIStub preserves any registers it needs to clobber.
-  CallStubDelayed(stub);
+  // DoubleToI preserves any registers it needs to clobber.
+  Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   Ldr(result, MemOperand(sp, 0));
 
   DCHECK_EQ(xzr.SizeInBytes(), double_input.SizeInBytes());

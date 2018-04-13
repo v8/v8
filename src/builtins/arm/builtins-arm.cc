@@ -2598,6 +2598,179 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // Finally, jump to the entrypoint.
   __ Jump(r8);
 }
+
+void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
+  Label negate, done;
+
+  UseScratchRegisterScope temps(masm);
+  Register result_reg = r7;
+  Register double_low = GetRegisterThatIsNotOneOf(result_reg);
+  Register double_high = GetRegisterThatIsNotOneOf(result_reg, double_low);
+  LowDwVfpRegister double_scratch = temps.AcquireLowD();
+
+  // Save the old values from these temporary registers on the stack.
+  __ Push(result_reg, double_high, double_low);
+
+  // Account for saved regs.
+  const int kArgumentOffset = 3 * kPointerSize;
+
+  MemOperand input_operand(sp, kArgumentOffset);
+  MemOperand result_operand = input_operand;
+
+  // Load double input.
+  __ vldr(double_scratch, input_operand);
+  __ vmov(double_low, double_high, double_scratch);
+  // Try to convert with a FPU convert instruction. This handles all
+  // non-saturating cases.
+  __ TryInlineTruncateDoubleToI(result_reg, double_scratch, &done);
+
+  Register scratch = temps.Acquire();
+  __ Ubfx(scratch, double_high, HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+  // Load scratch with exponent - 1. This is faster than loading
+  // with exponent because Bias + 1 = 1024 which is an *ARM* immediate value.
+  STATIC_ASSERT(HeapNumber::kExponentBias + 1 == 1024);
+  __ sub(scratch, scratch, Operand(HeapNumber::kExponentBias + 1));
+  // If exponent is greater than or equal to 84, the 32 less significant
+  // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
+  // the result is 0.
+  // Compare exponent with 84 (compare exponent - 1 with 83). If the exponent is
+  // greater than this, the conversion is out of range, so return zero.
+  __ cmp(scratch, Operand(83));
+  __ mov(result_reg, Operand::Zero(), LeaveCC, ge);
+  __ b(ge, &done);
+
+  // If we reach this code, 30 <= exponent <= 83.
+  // `TryInlineTruncateDoubleToI` above will have truncated any double with an
+  // exponent lower than 30.
+  if (masm->emit_debug_code()) {
+    // Scratch is exponent - 1.
+    __ cmp(scratch, Operand(30 - 1));
+    __ Check(ge, AbortReason::kUnexpectedValue);
+  }
+
+  // We don't have to handle cases where 0 <= exponent <= 20 for which we would
+  // need to shift right the high part of the mantissa.
+  // Scratch contains exponent - 1.
+  // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
+  __ rsb(scratch, scratch, Operand(51), SetCC);
+
+  // 52 <= exponent <= 83, shift only double_low.
+  // On entry, scratch contains: 52 - exponent.
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, ls);
+  __ mov(result_reg, Operand(double_low, LSL, scratch), LeaveCC, ls);
+  __ b(ls, &negate);
+
+  // 21 <= exponent <= 51, shift double_low and double_high
+  // to generate the result.
+  __ mov(double_low, Operand(double_low, LSR, scratch));
+  // Scratch contains: 52 - exponent.
+  // We needs: exponent - 20.
+  // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
+  __ rsb(scratch, scratch, Operand(32));
+  __ Ubfx(result_reg, double_high, 0, HeapNumber::kMantissaBitsInTopWord);
+  // Set the implicit 1 before the mantissa part in double_high.
+  __ orr(result_reg, result_reg,
+         Operand(1 << HeapNumber::kMantissaBitsInTopWord));
+  __ orr(result_reg, double_low, Operand(result_reg, LSL, scratch));
+
+  __ bind(&negate);
+  // If input was positive, double_high ASR 31 equals 0 and
+  // double_high LSR 31 equals zero.
+  // New result = (result eor 0) + 0 = result.
+  // If the input was negative, we have to negate the result.
+  // Input_high ASR 31 equals 0xFFFFFFFF and double_high LSR 31 equals 1.
+  // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
+  __ eor(result_reg, result_reg, Operand(double_high, ASR, 31));
+  __ add(result_reg, result_reg, Operand(double_high, LSR, 31));
+
+  __ bind(&done);
+  __ str(result_reg, result_operand);
+
+  // Restore registers corrupted in this routine and return.
+  __ Pop(result_reg, double_high, double_low);
+  __ Ret();
+}
+
+void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
+  const Register exponent = MathPowTaggedDescriptor::exponent();
+  DCHECK(exponent == r2);
+  const LowDwVfpRegister double_base = d0;
+  const LowDwVfpRegister double_exponent = d1;
+  const LowDwVfpRegister double_result = d2;
+  const LowDwVfpRegister double_scratch = d3;
+  const SwVfpRegister single_scratch = s6;
+  const Register scratch = r9;
+  const Register scratch2 = r4;
+
+  Label call_runtime, done, int_exponent;
+
+  // Detect integer exponents stored as double.
+  __ TryDoubleToInt32Exact(scratch, double_exponent, double_scratch);
+  __ b(eq, &int_exponent);
+
+  __ push(lr);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()), 0, 2);
+  }
+  __ pop(lr);
+  __ MovFromFloatResult(double_result);
+  __ b(&done);
+
+  // Calculate power with integer exponent.
+  __ bind(&int_exponent);
+
+  // Get two copies of exponent in the registers scratch and exponent.
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ mov(exponent, scratch);
+
+  __ vmov(double_scratch, double_base);  // Back up base.
+  __ vmov(double_result, Double(1.0), scratch2);
+
+  // Get absolute value of exponent.
+  __ cmp(scratch, Operand::Zero());
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, mi);
+
+  Label while_true;
+  __ bind(&while_true);
+  __ mov(scratch, Operand(scratch, LSR, 1), SetCC);
+  __ vmul(double_result, double_result, double_scratch, cs);
+  __ vmul(double_scratch, double_scratch, double_scratch, ne);
+  __ b(ne, &while_true);
+
+  __ cmp(exponent, Operand::Zero());
+  __ b(ge, &done);
+  __ vmov(double_scratch, Double(1.0), scratch);
+  __ vdiv(double_result, double_scratch, double_result);
+  // Test whether result is zero.  Bail out to check for subnormal result.
+  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
+  __ VFPCompareAndSetFlags(double_result, 0.0);
+  __ b(ne, &done);
+  // double_exponent may not containe the exponent value if the input was a
+  // smi.  We set it with exponent value before bailing out.
+  __ vmov(single_scratch, exponent);
+  __ vcvt_f64_s32(double_exponent, single_scratch);
+
+  // Returning or bailing out.
+  __ push(lr);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()), 0, 2);
+  }
+  __ pop(lr);
+  __ MovFromFloatResult(double_result);
+
+  __ bind(&done);
+  __ Ret();
+}
+
 #undef __
 
 }  // namespace internal

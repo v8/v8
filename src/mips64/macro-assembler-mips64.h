@@ -589,8 +589,8 @@ class TurboAssembler : public Assembler {
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input);
 
   // Conditional move.
   void Movz(Register rd, Register rs, Register rt);

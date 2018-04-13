@@ -2675,6 +2675,238 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   __ Jump(v0);
 }
 
+void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
+  Label out_of_range, only_low, negate, done;
+  Register result_reg = t0;
+
+  Register scratch = GetRegisterThatIsNotOneOf(result_reg);
+  Register scratch2 = GetRegisterThatIsNotOneOf(result_reg, scratch);
+  Register scratch3 = GetRegisterThatIsNotOneOf(result_reg, scratch, scratch2);
+  DoubleRegister double_scratch = kLithiumScratchDouble;
+
+  // Account for saved regs.
+  const int kArgumentOffset = 4 * kPointerSize;
+
+  __ Push(result_reg);
+  __ Push(scratch, scratch2, scratch3);
+
+  // Load double input.
+  __ Ldc1(double_scratch, MemOperand(sp, kArgumentOffset));
+
+  // Clear cumulative exception flags and save the FCSR.
+  __ cfc1(scratch2, FCSR);
+  __ ctc1(zero_reg, FCSR);
+
+  // Try a conversion to a signed integer.
+  __ Trunc_w_d(double_scratch, double_scratch);
+  // Move the converted value into the result register.
+  __ mfc1(scratch3, double_scratch);
+
+  // Retrieve and restore the FCSR.
+  __ cfc1(scratch, FCSR);
+  __ ctc1(scratch2, FCSR);
+
+  // Check for overflow and NaNs.
+  __ And(
+      scratch, scratch,
+      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+  // If we had no exceptions then set result_reg and we are done.
+  Label error;
+  __ Branch(&error, ne, scratch, Operand(zero_reg));
+  __ Move(result_reg, scratch3);
+  __ Branch(&done);
+  __ bind(&error);
+
+  // Load the double value and perform a manual truncation.
+  Register input_high = scratch2;
+  Register input_low = scratch3;
+
+  __ Lw(input_low, MemOperand(sp, kArgumentOffset + Register::kMantissaOffset));
+  __ Lw(input_high,
+        MemOperand(sp, kArgumentOffset + Register::kExponentOffset));
+
+  Label normal_exponent, restore_sign;
+  // Extract the biased exponent in result.
+  __ Ext(result_reg, input_high, HeapNumber::kExponentShift,
+         HeapNumber::kExponentBits);
+
+  // Check for Infinity and NaNs, which should return 0.
+  __ Subu(scratch, result_reg, HeapNumber::kExponentMask);
+  __ Movz(result_reg, zero_reg, scratch);
+  __ Branch(&done, eq, scratch, Operand(zero_reg));
+
+  // Express exponent as delta to (number of mantissa bits + 31).
+  __ Subu(result_reg, result_reg,
+          Operand(HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 31));
+
+  // If the delta is strictly positive, all bits would be shifted away,
+  // which means that we can return 0.
+  __ Branch(&normal_exponent, le, result_reg, Operand(zero_reg));
+  __ mov(result_reg, zero_reg);
+  __ Branch(&done);
+
+  __ bind(&normal_exponent);
+  const int kShiftBase = HeapNumber::kNonMantissaBitsInTopWord - 1;
+  // Calculate shift.
+  __ Addu(scratch, result_reg, Operand(kShiftBase + HeapNumber::kMantissaBits));
+
+  // Save the sign.
+  Register sign = result_reg;
+  result_reg = no_reg;
+  __ And(sign, input_high, Operand(HeapNumber::kSignMask));
+
+  // On ARM shifts > 31 bits are valid and will result in zero. On MIPS we need
+  // to check for this specific case.
+  Label high_shift_needed, high_shift_done;
+  __ Branch(&high_shift_needed, lt, scratch, Operand(32));
+  __ mov(input_high, zero_reg);
+  __ Branch(&high_shift_done);
+  __ bind(&high_shift_needed);
+
+  // Set the implicit 1 before the mantissa part in input_high.
+  __ Or(input_high, input_high,
+        Operand(1 << HeapNumber::kMantissaBitsInTopWord));
+  // Shift the mantissa bits to the correct position.
+  // We don't need to clear non-mantissa bits as they will be shifted away.
+  // If they weren't, it would mean that the answer is in the 32bit range.
+  __ sllv(input_high, input_high, scratch);
+
+  __ bind(&high_shift_done);
+
+  // Replace the shifted bits with bits from the lower mantissa word.
+  Label pos_shift, shift_done;
+  __ li(at, 32);
+  __ subu(scratch, at, scratch);
+  __ Branch(&pos_shift, ge, scratch, Operand(zero_reg));
+
+  // Negate scratch.
+  __ Subu(scratch, zero_reg, scratch);
+  __ sllv(input_low, input_low, scratch);
+  __ Branch(&shift_done);
+
+  __ bind(&pos_shift);
+  __ srlv(input_low, input_low, scratch);
+
+  __ bind(&shift_done);
+  __ Or(input_high, input_high, Operand(input_low));
+  // Restore sign if necessary.
+  __ mov(scratch, sign);
+  result_reg = sign;
+  sign = no_reg;
+  __ Subu(result_reg, zero_reg, input_high);
+  __ Movz(result_reg, input_high, scratch);
+
+  __ bind(&done);
+
+  __ Sd(result_reg, MemOperand(sp, kArgumentOffset));
+  __ Pop(scratch, scratch2, scratch3);
+  __ Pop(result_reg);
+  __ Ret();
+}
+
+void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
+  const Register exponent = MathPowTaggedDescriptor::exponent();
+  DCHECK(exponent == a2);
+  const DoubleRegister double_base = f2;
+  const DoubleRegister double_exponent = f4;
+  const DoubleRegister double_result = f0;
+  const DoubleRegister double_scratch = f6;
+  const FPURegister single_scratch = f8;
+  const Register scratch = t1;
+  const Register scratch2 = a7;
+
+  Label call_runtime, done, int_exponent;
+
+  Label int_exponent_convert;
+  // Detect integer exponents stored as double.
+  __ EmitFPUTruncate(kRoundToMinusInf, scratch, double_exponent, at,
+                     double_scratch, scratch2, kCheckForInexactConversion);
+  // scratch2 == 0 means there was no conversion error.
+  __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
+
+  __ push(ra);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()), 0, 2);
+  }
+  __ pop(ra);
+  __ MovFromFloatResult(double_result);
+  __ jmp(&done);
+
+  __ bind(&int_exponent_convert);
+
+  // Calculate power with integer exponent.
+  __ bind(&int_exponent);
+
+  // Get two copies of exponent in the registers scratch and exponent.
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ mov(exponent, scratch);
+
+  __ mov_d(double_scratch, double_base);  // Back up base.
+  __ Move(double_result, 1.0);
+
+  // Get absolute value of exponent.
+  Label positive_exponent, bail_out;
+  __ Branch(&positive_exponent, ge, scratch, Operand(zero_reg));
+  __ Dsubu(scratch, zero_reg, scratch);
+  // Check when Dsubu overflows and we get negative result
+  // (happens only when input is MIN_INT).
+  __ Branch(&bail_out, gt, zero_reg, Operand(scratch));
+  __ bind(&positive_exponent);
+  __ Assert(ge, AbortReason::kUnexpectedNegativeValue, scratch,
+            Operand(zero_reg));
+
+  Label while_true, no_carry, loop_end;
+  __ bind(&while_true);
+
+  __ And(scratch2, scratch, 1);
+
+  __ Branch(&no_carry, eq, scratch2, Operand(zero_reg));
+  __ mul_d(double_result, double_result, double_scratch);
+  __ bind(&no_carry);
+
+  __ dsra(scratch, scratch, 1);
+
+  __ Branch(&loop_end, eq, scratch, Operand(zero_reg));
+  __ mul_d(double_scratch, double_scratch, double_scratch);
+
+  __ Branch(&while_true);
+
+  __ bind(&loop_end);
+
+  __ Branch(&done, ge, exponent, Operand(zero_reg));
+  __ Move(double_scratch, 1.0);
+  __ div_d(double_result, double_scratch, double_result);
+  // Test whether result is zero.  Bail out to check for subnormal result.
+  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
+  __ CompareF64(EQ, double_result, kDoubleRegZero);
+  __ BranchFalseShortF(&done);
+
+  // double_exponent may not contain the exponent value if the input was a
+  // smi.  We set it with exponent value before bailing out.
+  __ bind(&bail_out);
+  __ mtc1(exponent, single_scratch);
+  __ cvt_d_w(double_exponent, single_scratch);
+
+  // Returning or bailing out.
+  __ push(ra);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()), 0, 2);
+  }
+  __ pop(ra);
+  __ MovFromFloatResult(double_result);
+
+  __ bind(&done);
+  __ Ret();
+}
+
 #undef __
 
 }  // namespace internal

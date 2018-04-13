@@ -744,24 +744,14 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
 #endif
 
 Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
-  if (!Heap::IsImmovable(*code)) {
-    DCHECK(code->kind() == Code::STUB &&
-           CodeStub::MajorKeyFromKey(code->stub_key()) == CodeStub::DoubleToI);
-    uint32_t key = code->stub_key();
-    auto copy = stubs_.find(key);
-    if (copy == stubs_.end()) {
-      WasmCode* ret = AddAnonymousCode(code, WasmCode::kCopiedStub);
-      copy = stubs_.emplace(std::make_pair(key, ret)).first;
-    }
-    return copy->second->instructions().start();
+  DCHECK(Heap::IsImmovable(*code));
+
+  Address index = code->raw_instruction_start();
+  auto trampoline_iter = trampolines_.find(index);
+  if (trampoline_iter == trampolines_.end()) {
+    return CreateTrampolineTo(code);
   } else {
-    Address index = code->raw_instruction_start();
-    auto trampoline_iter = trampolines_.find(index);
-    if (trampoline_iter == trampolines_.end()) {
-      return CreateTrampolineTo(code);
-    } else {
-      return trampoline_iter->second;
-    }
+    return trampoline_iter->second;
   }
 }
 

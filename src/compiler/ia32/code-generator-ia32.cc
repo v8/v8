@@ -210,12 +210,13 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
       : OutOfLineCode(gen),
         result_(result),
         input_(input),
+        isolate_(gen->isolate()),
         zone_(gen->zone()) {}
 
   void Generate() final {
     __ sub(esp, Immediate(kDoubleSize));
     __ movsd(MemOperand(esp, 0), input_);
-    __ SlowTruncateToIDelayed(zone_);
+    __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     __ mov(result_, MemOperand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
   }
@@ -223,6 +224,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  private:
   Register const result_;
   XMMRegister const input_;
+  Isolate* isolate_;
   Zone* zone_;
 };
 
@@ -914,7 +916,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movaps(xmm1, xmm2);
         __ movaps(xmm2, xmm0);
       }
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       __ movaps(i.OutputDoubleRegister(), xmm3);
       break;
     }
