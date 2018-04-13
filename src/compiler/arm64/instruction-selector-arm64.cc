@@ -2108,17 +2108,13 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseUniqueRegister(value)};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
-  selector->Emit(code, 1, outputs, input_count, inputs, arraysize(temps),
-                 temps);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
 }
 
 void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
@@ -2128,18 +2124,14 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
   Node* index = node->InputAt(1);
   Node* old_value = node->InputAt(2);
   Node* new_value = node->InputAt(3);
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(old_value);
-  inputs[input_count++] = g.UseUniqueRegister(new_value);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseUniqueRegister(old_value),
+                                 g.UseUniqueRegister(new_value)};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
-  selector->Emit(code, 1, outputs, input_count, inputs, arraysize(temps),
-                 temps);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
 }
 
 void VisitAtomicLoad(InstructionSelector* selector, Node* node,
@@ -2161,14 +2153,11 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseUniqueRegister(value)};
   InstructionOperand temps[] = {g.TempRegister()};
-  selector->Emit(code, 0, nullptr, input_count, inputs, arraysize(temps),
+  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps),
                  temps);
 }
 
