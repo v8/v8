@@ -1086,7 +1086,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   ExternalReference debug_execution_mode =
       ExternalReference::debug_execution_mode_address(masm->isolate());
   __ mov(r6, Operand(debug_execution_mode));
-  __ LoadB(r6, MemOperand(r6));
+  __ LoadW(r6, MemOperand(r6));
   STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
                 static_cast<int>(DebugInfo::kSideEffects));
   __ CmpP(r6, ip);
