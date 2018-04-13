@@ -584,3 +584,155 @@ TestSortOnTypedArray();
 assertThrows(() => {
   Array.prototype.sort.call(undefined);
 }, TypeError);
+
+
+// The following Tests make sure that there is no crash when the element kind
+// or the array length changes. Since comparison functions like this are not
+// consistent, we do not have to make sure that the array is actually sorted
+//
+// The assertions for the element kinds are not there to ensure that a specific
+// action causes a specific element kind change, but rather that we have most
+// of the transitions covered.
+
+function cmp_smaller(a, b) {
+  if (a < b) return -1;
+  if (b < a) return 1;
+  return 0;
+}
+
+function create_cmpfn(transformfn) {
+  let cmp_count = 0;
+  return (a, b) => {
+    ++cmp_count;
+    if (cmp_count == 2) {
+      transformfn();
+    }
+
+    return cmp_smaller(a, b);
+  }
+}
+
+function HasPackedSmi(xs) {
+  return %HasFastPackedElements(xs) && %HasSmiElements(xs);
+}
+
+function HasPackedDouble(xs) {
+  return %HasFastPackedElements(xs) && %HasDoubleElements(xs);
+}
+
+function HasPackedObject(xs) {
+  return %HasFastPackedElements(xs) && %HasObjectElements(xs);
+}
+
+function HasHoleySmi(xs) {
+  return %HasHoleyElements(xs) && %HasSmiElements(xs);
+}
+
+function HasHoleyDouble(xs) {
+  return %HasHoleyElements(xs) && %HasDoubleElements(xs);
+}
+
+function HasHoleyObject(xs) {
+  return %HasHoleyElements(xs) && %HasObjectElements(xs);
+}
+
+function TestSortCmpPackedSmiToPackedDouble() {
+  let xs = [2,1,4];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs[0] += 0.1));
+  assertTrue(HasPackedDouble(xs));
+}
+TestSortCmpPackedSmiToPackedDouble();
+
+function TestSortCmpPackedDoubleToPackedElement() {
+  let xs = [2.1, 1.2, 4.4];
+
+  assertTrue(HasPackedDouble(xs));
+  xs.sort(create_cmpfn(() => xs[0] = 'a'));
+  assertTrue(HasPackedObject(xs));
+}
+TestSortCmpPackedDoubleToPackedElement();
+
+function TestSortCmpPackedElementToDictionary() {
+  let xs = ['a', 'b', 'c'];
+
+  assertTrue(HasPackedObject(xs));
+  xs.sort(create_cmpfn(() => xs[%MaxSmi()] = 'd'));
+  assertTrue(%HasDictionaryElements(xs));
+}
+TestSortCmpPackedElementToDictionary();
+
+function TestSortCmpHoleySmiToHoleyDouble() {
+  let xs = [2, 1, 4];
+  xs[5] = 42;
+
+  assertTrue(HasHoleySmi(xs));
+  xs.sort(create_cmpfn(() => xs[0] += 0.1));
+  assertTrue(HasHoleyDouble(xs));
+}
+TestSortCmpHoleySmiToHoleyDouble();
+
+function TestSortCmpHoleyDoubleToHoleyElement() {
+  let xs = [2.1, 1.2, 4];
+  xs[5] = 42;
+
+  assertTrue(HasHoleyDouble(xs));
+  xs.sort(create_cmpfn(() => xs[0] = 'a'));
+  assertTrue(HasHoleyObject(xs));
+}
+TestSortCmpHoleyDoubleToHoleyElement();
+
+function TestSortCmpHoleyElementToDictionary() {
+  let xs = ['b', 'a', 'd'];
+  xs[5] = '42';
+
+  assertTrue(HasHoleyObject(xs));
+  xs.sort(create_cmpfn(() => xs[%MaxSmi()] = 'e'));
+  assertTrue(%HasDictionaryElements(xs));
+}
+TestSortCmpHoleyElementToDictionary();
+
+function TestSortCmpPackedSmiToHoleySmi() {
+  let xs = [2, 1, 4];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs[10] = 42));
+  assertTrue(HasHoleySmi(xs));
+}
+TestSortCmpPackedSmiToHoleySmi();
+
+function TestSortCmpPackedDoubleToHoleyDouble() {
+  let xs = [2.1, 1.2, 4];
+
+  assertTrue(HasPackedDouble(xs));
+  xs.sort(create_cmpfn(() => xs[10] = 42));
+  assertTrue(HasHoleyDouble(xs));
+}
+TestSortCmpPackedDoubleToHoleyDouble();
+
+function TestSortCmpPackedObjectToHoleyObject() {
+  let xs = ['b', 'a', 'd'];
+
+  assertTrue(HasPackedObject(xs));
+  xs.sort(create_cmpfn(() => xs[10] = '42'));
+  assertTrue(HasHoleyObject(xs));
+}
+TestSortCmpPackedObjectToHoleyObject();
+
+function TestSortCmpPackedChangesLength() {
+  let xs = [2, 1, 4];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs.length *= 2));
+  assertTrue(HasHoleySmi(xs));
+}
+TestSortCmpPackedChangesLength();
+
+function TestSortCmpPackedSetLengthToZero() {
+  let xs = [2, 1, 4, 3];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs.length = 0));
+  assertTrue(HasPackedSmi(xs));
+}
