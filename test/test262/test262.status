@@ -416,6 +416,10 @@
   'built-ins/BigInt/prototype/Symbol.toStringTag': [FAIL],
   'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-other-ctor-returns-new-typedarray': [FAIL],
 
+  # https://github.com/tc39/proposal-bigint/pull/139
+  'built-ins/BigInt/out-of-bounds-integer-rangeerror': [FAIL],
+  'built-ins/DataView/prototype/setBigInt64/set-values-return-undefined': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],

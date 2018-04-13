@@ -280,8 +280,8 @@ class ErrorUtils : public AllStatic {
   T(BadSortComparisonFunction,                                                 \
     "The comparison function must be either a function or undefined")          \
   T(BigIntFromNumber,                                                          \
-    "The number % is not a safe integer and thus cannot be converted to a "    \
-    "BigInt")                                                                  \
+    "The number % cannot be converted to a BigInt because it is not an "       \
+    "integer")                                                                 \
   T(BigIntFromObject, "Cannot convert % to a BigInt")                          \
   T(BigIntMixedTypes,                                                          \
     "Cannot mix BigInt and other types, use explicit conversions")             \
