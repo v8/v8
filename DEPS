@@ -12,15 +12,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bf6af18d01d08a090443cbb71a2a1e2a7e270284',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '77266570f15635d7563f5b8cca0b992750484893',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd888fd2a1be890f4d35e43f68d6d79f42519a357',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'aff99f5c22aded55ee29753ce049e61570294967',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'e8aa02ea839e087f2db66100d02c3b5d47993852',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '8febfea9bc7e7d9a7c6105f06f18f7f0e50cfef9',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -32,7 +32,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a2271985335430f09da172cd3589e27702f6eff1',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '67d01a21077fd59a0a64698c559b6b7491d69f47',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -40,7 +40,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '7e5f90d3780d553cb86771141fb81349f3a63508',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'b640d8743d85f5e69c16679e7ead3f31d94e31ff',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '45571de473282bd1d8b63a8dfcb1fd268d0635d2',
   'v8/third_party/markupsafe':
