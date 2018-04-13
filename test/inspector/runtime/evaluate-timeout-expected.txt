@@ -1,0 +1,9 @@
+Tests that Runtime.evaluate's timeout argument
+Run trivial expression:
+Execution was terminated
+Run expression without interrupts:
+{
+    type : undefined
+}
+Run infinite loop:
+Execution was terminated

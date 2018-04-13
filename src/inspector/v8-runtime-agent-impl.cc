@@ -214,6 +214,31 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
   return Response::OK();
 }
 
+class TerminateTask : public v8::Task {
+ public:
+  TerminateTask(V8InspectorImpl* inspector, intptr_t evaluateId)
+      : m_inspector(inspector), m_evaluateId(evaluateId) {}
+
+  void Run() {
+    if (!m_inspector->evaluateStillRunning(m_evaluateId)) return;
+    // We should call terminateExecution on the main thread.
+    m_inspector->isolate()->RequestInterrupt(
+        InterruptCallback, reinterpret_cast<void*>(m_evaluateId));
+  }
+
+  static void InterruptCallback(v8::Isolate* isolate, void* rawEvaluateId) {
+    intptr_t evaluateId = reinterpret_cast<intptr_t>(rawEvaluateId);
+    V8InspectorImpl* inspector =
+        static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+    if (!inspector->evaluateStillRunning(evaluateId)) return;
+    inspector->debugger()->terminateExecution(nullptr);
+  }
+
+ private:
+  V8InspectorImpl* m_inspector;
+  intptr_t m_evaluateId;
+};
+
 }  // namespace
 
 V8RuntimeAgentImpl::V8RuntimeAgentImpl(
@@ -233,7 +258,7 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<int> executionContextId, Maybe<bool> returnByValue,
     Maybe<bool> generatePreview, Maybe<bool> userGesture,
     Maybe<bool> awaitPromise, Maybe<bool> throwOnSideEffect,
-    std::unique_ptr<EvaluateCallback> callback) {
+    Maybe<double> timeout, std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
   int contextId = 0;
@@ -259,6 +284,21 @@ void V8RuntimeAgentImpl::evaluate(
   // Temporarily enable allow evals for inspector.
   scope.allowCodeGenerationFromStrings();
 
+  V8InspectorImpl* inspector = m_inspector;
+  intptr_t evaluateId = inspector->evaluateStarted();
+  if (timeout.isJust()) {
+    std::shared_ptr<v8::TaskRunner> taskRunner =
+        v8::debug::GetCurrentPlatform()->GetWorkerThreadsTaskRunner(
+            m_inspector->isolate());
+    if (!taskRunner) {
+      callback->sendFailure(
+          Response::Error("Timeout is not supported by embedder"));
+      return;
+    }
+    taskRunner->PostDelayedTask(
+        v8::base::make_unique<TerminateTask>(m_inspector, evaluateId),
+        timeout.fromJust() / 1000.0);
+  }
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
     v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
@@ -267,6 +307,7 @@ void V8RuntimeAgentImpl::evaluate(
         m_inspector->isolate(), toV8String(m_inspector->isolate(), expression),
         throwOnSideEffect.fromMaybe(false));
   }  // Run microtasks before returning result.
+  inspector->evaluateFinished(evaluateId);
 
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.

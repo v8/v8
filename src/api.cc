@@ -9467,6 +9467,10 @@ void debug::RemoveBreakpoint(Isolate* v8_isolate, BreakpointId id) {
   isolate->debug()->RemoveBreakpoint(id);
 }
 
+v8::Platform* debug::GetCurrentPlatform() {
+  return i::V8::GetCurrentPlatform();
+}
+
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
   CHECK(script->IsWasm());
   return static_cast<WasmScript*>(script);

@@ -1046,6 +1046,9 @@ domain Runtime
   # Number of milliseconds since epoch.
   type Timestamp extends number
 
+  # Number of milliseconds.
+  type TimeDelta extends number
+
   # Stack entry for runtime errors and assertions.
   type CallFrame extends object
     properties
@@ -1189,6 +1192,8 @@ domain Runtime
       optional boolean awaitPromise
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
       experimental optional boolean throwOnSideEffect
+      # Terminate execution after timing out (number of milliseconds).
+      experimental optional TimeDelta timeout
     returns
       # Evaluation result.
       RemoteObject result
