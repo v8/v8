@@ -5007,6 +5007,15 @@ void PatchingAssembler::PatchAdrFar(int64_t target_offset) {
   add(rd, rd, scratch);
 }
 
+void PatchingAssembler::PatchSubSp(uint32_t immediate) {
+  // The code at the current instruction should be:
+  //   sub sp, sp, #0
+
+  // Verify the expected code.
+  Instruction* expected_adr = InstructionAt(0);
+  CHECK(expected_adr->IsAddSubImmediate());
+  sub(sp, sp, immediate);
+}
 
 }  // namespace internal
 }  // namespace v8

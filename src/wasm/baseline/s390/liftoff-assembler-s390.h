@@ -23,6 +23,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   BAILOUT("PatchPrepareStackFrame");
 }
 
+void LiftoffAssembler::FinishCode() {}
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   BAILOUT("LoadConstant");

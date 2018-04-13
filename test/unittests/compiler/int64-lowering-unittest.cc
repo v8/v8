@@ -11,6 +11,7 @@
 
 #include "src/compiler/node-properties.h"
 
+#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/signature.h"
 

@@ -349,6 +349,7 @@ class LiftoffAssembler : public TurboAssembler {
   // the frame is known.
   inline uint32_t PrepareStackFrame();
   inline void PatchPrepareStackFrame(uint32_t offset, uint32_t stack_slots);
+  inline void FinishCode();
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);

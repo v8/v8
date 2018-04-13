@@ -107,6 +107,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   patching_assembler.sub_sp_32(bytes);
 }
 
+void LiftoffAssembler::FinishCode() {}
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type()) {

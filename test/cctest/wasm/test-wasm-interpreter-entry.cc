@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "src/assembler-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"

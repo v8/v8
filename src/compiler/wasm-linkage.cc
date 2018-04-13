@@ -4,6 +4,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/base/lazy-instance.h"
+#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 

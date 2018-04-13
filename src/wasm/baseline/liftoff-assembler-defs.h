@@ -64,6 +64,22 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs =
 
 constexpr Register kNoParamRegister = t0;
 
+#elif V8_TARGET_ARCH_ARM64
+
+// x16: ip0, x17: ip1, x26: root, x29: fp, x30: lr, x31: xzr.
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    CPURegister::ListOf<x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12,
+                        x13, x14, x15, x18, x19, x20, x21, x22, x23, x24, x25,
+                        x27, x28>();
+
+// d15: fp_zero, d30-d31: macro-assembler scratch V Registers.
+constexpr RegList kLiftoffAssemblerFpCacheRegs =
+    CPURegister::ListOf<d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12,
+                        d13, d14, d16, d17, d18, d19, d20, d21, d22, d23, d24,
+                        d25, d26, d27, d28, d29>();
+
+constexpr Register kNoParamRegister = x28;
+
 #else
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs = 0xff;
@@ -101,6 +117,19 @@ constexpr Condition kUnsignedLessThan = ult;
 constexpr Condition kUnsignedLessEqual = ule;
 constexpr Condition kUnsignedGreaterThan = ugt;
 constexpr Condition kUnsignedGreaterEqual = uge;
+
+#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+
+constexpr Condition kEqual = eq;
+constexpr Condition kUnequal = ne;
+constexpr Condition kSignedLessThan = lt;
+constexpr Condition kSignedLessEqual = le;
+constexpr Condition kSignedGreaterThan = gt;
+constexpr Condition kSignedGreaterEqual = ge;
+constexpr Condition kUnsignedLessThan = lo;
+constexpr Condition kUnsignedLessEqual = ls;
+constexpr Condition kUnsignedGreaterThan = hi;
+constexpr Condition kUnsignedGreaterEqual = hs;
 
 #else
 

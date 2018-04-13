@@ -3666,6 +3666,7 @@ class PatchingAssembler : public Assembler {
   static constexpr int kAdrFarPatchableNNops = 2;
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
+  void PatchSubSp(uint32_t immediate);
 };
 
 

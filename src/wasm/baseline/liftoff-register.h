@@ -296,6 +296,9 @@ class LiftoffRegList {
     return list;
   }
 
+  RegList GetGpList() { return regs_ & kGpMask; }
+  RegList GetFpList() { return (regs_ & kFpMask) >> kAfterMaxLiftoffGpRegCode; }
+
  private:
   storage_t regs_ = 0;
 

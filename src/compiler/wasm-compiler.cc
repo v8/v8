@@ -33,6 +33,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/memory-tracing.h"

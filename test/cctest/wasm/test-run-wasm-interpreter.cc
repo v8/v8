@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "src/assembler-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

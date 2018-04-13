@@ -13,15 +13,115 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace liftoff {
+
+// Liftoff Frames.
+//
+//  slot      Frame
+//       +--------------------+---------------------------
+//  n+4  | optional padding slot to keep the stack 16 byte aligned.
+//  n+3  |   parameter n      |
+//  ...  |       ...          |
+//   4   |   parameter 1      | or parameter 2
+//   3   |   parameter 0      | or parameter 1
+//   2   |  (result address)  | or parameter 0
+//  -----+--------------------+---------------------------
+//   1   | return addr (lr)   |
+//   0   | previous frame (fp)|
+//  -----+--------------------+  <-- frame ptr (fp)
+//  -1   | 0xa: WASM_COMPILED |
+//  -2   |     instance       |
+//  -----+--------------------+---------------------------
+//  -3   |     slot 0         |   ^
+//  -4   |     slot 1         |   |
+//       |                    | Frame slots
+//       |                    |   |
+//       |                    |   v
+//       | optional padding slot to keep the stack 16 byte aligned.
+//  -----+--------------------+  <-- stack ptr (sp)
+//
+
+constexpr int32_t kInstanceOffset = 2 * kPointerSize;
+constexpr int32_t kFirstStackSlotOffset = kInstanceOffset + kPointerSize;
+constexpr int32_t kConstantStackSpace = 0;
+
+inline MemOperand GetStackSlot(uint32_t index) {
+  int32_t offset =
+      kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+  return MemOperand(fp, -offset);
+}
+
+inline MemOperand GetInstanceOperand() {
+  return MemOperand(fp, -kInstanceOffset);
+}
+
+inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      return reg.gp().W();
+    case kWasmI64:
+      return reg.gp().X();
+    case kWasmF32:
+      return reg.fp().S();
+    case kWasmF64:
+      return reg.fp().D();
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline CPURegList PadRegList(RegList list) {
+  if ((base::bits::CountPopulation(list) & 1) != 0) list |= padreg.bit();
+  return CPURegList(CPURegister::kRegister, kXRegSizeInBits, list);
+}
+
+inline CPURegList PadVRegList(RegList list) {
+  if ((base::bits::CountPopulation(list) & 1) != 0) list |= fp_scratch.bit();
+  return CPURegList(CPURegister::kVRegister, kDRegSizeInBits, list);
+}
+
+}  // namespace liftoff
+
 uint32_t LiftoffAssembler::PrepareStackFrame() {
-  BAILOUT("PrepareStackFrame");
-  return 0;
+  uint32_t offset = static_cast<uint32_t>(pc_offset());
+  InstructionAccurateScope scope(this, 1);
+  sub(sp, sp, 0);
+  return offset;
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
                                               uint32_t stack_slots) {
-  BAILOUT("PatchPrepareStackFrame");
+  static_assert(kStackSlotSize == kXRegSize,
+                "kStackSlotSize must equal kXRegSize");
+  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+  // The stack pointer is required to be quadword aligned.
+  // Misalignment will cause a stack alignment fault.
+  bytes = RoundUp(bytes, kQuadWordSizeInBytes);
+  if (!IsImmAddSub(bytes)) {
+    // Round the stack to a page to try to fit a add/sub immediate.
+    bytes = RoundUp(bytes, 0x1000);
+    if (!IsImmAddSub(bytes)) {
+      // Stack greater than 4M! Because this is a quite improbable case, we
+      // just fallback to Turbofan.
+      BAILOUT("Stack too big");
+      return;
+    }
+  }
+#ifdef USE_SIMULATOR
+  // When using the simulator, deal with Liftoff which allocates the stack
+  // before checking it.
+  // TODO(arm): Remove this when the stack check mechanism will be updated.
+  if (bytes > KB / 2) {
+    BAILOUT("Stack limited to 512 bytes to avoid a bug in StackCheck");
+    return;
+  }
+#endif
+  PatchingAssembler patching_assembler(IsolateData(isolate()), buffer_ + offset,
+                                       1);
+  patching_assembler.PatchSubSp(bytes);
 }
+
+void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
@@ -34,7 +134,7 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
-  BAILOUT("SpillInstance");
+  Str(instance, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
@@ -79,21 +179,37 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
 
 void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
                                             ValueType type) {
-  BAILOUT("MoveToReturnRegister");
+  if (reg.is_gp()) {
+    Move(x0, reg.gp(), type);
+  } else {
+    Move(d0, reg.fp(), type);
+  }
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
-  BAILOUT("Move Register");
+  if (type == kWasmI32) {
+    Mov(dst.W(), src.W());
+  } else {
+    DCHECK_EQ(kWasmI64, type);
+    Mov(dst.X(), src.X());
+  }
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                             ValueType type) {
-  BAILOUT("Move DoubleRegister");
+  if (type == kWasmF32) {
+    Fmov(dst.S(), src.S());
+  } else {
+    DCHECK_EQ(kWasmF64, type);
+    Fmov(dst.D(), src.D());
+  }
 }
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  BAILOUT("Spill register");
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
+  Str(liftoff::GetRegFromType(reg, type), dst);
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
@@ -203,7 +319,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
   return true;
 }
 
-void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Label* label) { B(label); }
 
 void LiftoffAssembler::emit_jump(Register target) { BAILOUT("emit_jump"); }
 
@@ -214,12 +330,14 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  BAILOUT("emit_i32_eqz");
+  Cmp(src.W(), wzr);
+  Cset(dst.W(), eq);
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  BAILOUT("emit_i32_set_cond");
+  Cmp(lhs.W(), rhs.W());
+  Cset(dst.W(), cond);
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
@@ -244,7 +362,16 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   BAILOUT("emit_f64_set_cond");
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) { BAILOUT("StackCheck"); }
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit(isolate());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Mov(scratch, Operand(stack_limit));
+  Ldr(scratch, MemOperand(scratch));
+  Cmp(sp, scratch);
+  B(ool_code, ls);
+}
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
   BAILOUT("CallTrapCallbackForTesting");
@@ -266,15 +393,18 @@ void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
-  BAILOUT("PushRegisters");
+  PushCPURegList(liftoff::PadRegList(regs.GetGpList()));
+  PushCPURegList(liftoff::PadVRegList(regs.GetFpList()));
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  BAILOUT("PopRegisters");
+  PopCPURegList(liftoff::PadVRegList(regs.GetFpList()));
+  PopCPURegList(liftoff::PadRegList(regs.GetGpList()));
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  BAILOUT("DropStackSlotsAndRet");
+  DropSlots(num_stack_slots);
+  Ret();
 }
 
 void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,

@@ -51,25 +51,16 @@ constexpr LoadType::LoadTypeValue kPointerLoadType =
 class MovableLabel {
  public:
   Label* get() { return label_.get(); }
-  MovableLabel() : MovableLabel(new Label()) {}
-
-  operator bool() const { return label_ != nullptr; }
-
-  static MovableLabel None() { return MovableLabel(nullptr); }
+  MovableLabel() : label_(new Label()) {}
 
  private:
   std::unique_ptr<Label> label_;
-  explicit MovableLabel(Label* label) : label_(label) {}
 };
 #else
 // On all other platforms, just store the Label directly.
 class MovableLabel {
  public:
   Label* get() { return &label_; }
-
-  operator bool() const { return true; }
-
-  static MovableLabel None() { return MovableLabel(); }
 
  private:
   Label label_;
@@ -125,8 +116,7 @@ class LiftoffCompiler {
     }
     static OutOfLineCode StackCheck(wasm::WasmCodePosition pos,
                                     LiftoffRegList regs) {
-      return {{}, MovableLabel::None(), Builtins::kWasmStackGuard, pos, regs,
-              0};
+      return {{}, {}, Builtins::kWasmStackGuard, pos, regs, 0};
     }
   };
 
@@ -297,7 +287,7 @@ class LiftoffCompiler {
         OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
     OutOfLineCode& ool = out_of_line_code_.back();
     __ StackCheck(ool.label.get());
-    if (ool.continuation) __ bind(ool.continuation.get());
+    __ bind(ool.continuation.get());
   }
 
   // Inserts a check whether the optimized version of this code already exists.
@@ -488,9 +478,12 @@ class LiftoffCompiler {
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(ool);
     }
+    __ FinishCode();
     safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
                               __ GetTotalFrameSlotCount());
+    // The previous calls may have also generated a bailout.
+    DidAssemblerBailout(decoder);
   }
 
   void OnFirstError(Decoder* decoder) {
