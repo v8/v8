@@ -520,25 +520,25 @@
         {
           "name": "SortIntTypes",
           "main": "run.js",
-          "resources": ["sort-int.js"],
+          "resources": ["sort.js", "sort-int.js"],
           "test_flags": ["sort-int"]
         },
         {
           "name": "SortFloatTypes",
           "main": "run.js",
-          "resources": ["sort-float.js"],
+          "resources": ["sort.js", "sort-float.js"],
           "test_flags": ["sort-float"]
         },
         {
           "name": "SortCustomCompareFnIntTypes",
           "main": "run.js",
-          "resources": ["sort-cmpfn-int.js"],
+          "resources": ["sort.js", "sort-cmpfn-int.js"],
           "test_flags": ["sort-cmpfn-int"]
         },
         {
           "name": "SortCustomCompareFnFloatTypes",
           "main": "run.js",
-          "resources": ["sort-cmpfn-float.js"],
+          "resources": ["sort.js", "sort-cmpfn-float.js"],
           "test_flags": ["sort-cmpfn-float"]
         },
         {
