@@ -293,6 +293,20 @@
           ]
         },
         {
+          "name": "StringStartsEndsWithComparison",
+          "main": "run.js",
+          "resources": [ "string-startsendswith-comp.js" ],
+          "test_flags": [ "string-startsendswith-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "startsWith"},
+            {"name": "startsIndex"},
+            {"name": "endsWith"},
+            {"name": "endsIndex"}
+          ]
+        },
+        {
           "name": "StringSubstring",
           "main": "run.js",
           "resources": [ "string-substring.js" ],
