@@ -133,14 +133,14 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
+  Jump(static_cast<intptr_t>(target), rmode, cond);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
-  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond);
+  Jump(static_cast<intptr_t>(code.address()), rmode, cond);
 }
 
 int TurboAssembler::CallSize(Register target, Condition cond) {
@@ -159,7 +159,7 @@ void TurboAssembler::Call(Register target, Condition cond) {
 int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
                              Condition cond) {
   Instr mov_instr = cond | MOV | LeaveCC;
-  Operand mov_operand = Operand(reinterpret_cast<intptr_t>(target), rmode);
+  Operand mov_operand = Operand(target, rmode);
   return kInstrSize +
          mov_operand.InstructionsRequired(this, mov_instr) * kInstrSize;
 }
@@ -203,7 +203,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   //  blx   ip
   //                      @ return address
 
-  mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
+  mov(ip, Operand(target, rmode));
   blx(ip, cond);
 
   DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
@@ -1717,7 +1717,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
 #if defined(__thumb__)
   // Thumb mode builtin.
-  DCHECK_EQ(reinterpret_cast<intptr_t>(builtin.address()) & 1, 1);
+  DCHECK_EQ(builtin.address() & 1, 1);
 #endif
   mov(r1, Operand(builtin));
   CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
@@ -1726,8 +1726,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  mov(kOffHeapTrampolineRegister,
-      Operand(reinterpret_cast<int32_t>(entry), RelocInfo::OFF_HEAP_TARGET));
+  mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
 

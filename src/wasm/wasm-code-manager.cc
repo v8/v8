@@ -35,9 +35,9 @@ namespace {
 // given address into a code object. Use with {std::upper_bound} for example.
 struct WasmCodeUniquePtrComparator {
   bool operator()(Address pc, const std::unique_ptr<WasmCode>& code) const {
-    DCHECK_NOT_NULL(pc);
+    DCHECK_NE(kNullAddress, pc);
     DCHECK_NOT_NULL(code);
-    return pc < code->instructions().start();
+    return pc < code->instruction_start();
   }
 };
 
@@ -46,7 +46,7 @@ struct WasmCodeUniquePtrComparator {
 constexpr bool kModuleCanAllocateMoreMemory = false;
 
 void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
-  __ movq(kScratchRegister, reinterpret_cast<uint64_t>(target));
+  __ movq(kScratchRegister, static_cast<uint64_t>(target));
   __ jmp(kScratchRegister);
 }
 #undef __
@@ -65,7 +65,7 @@ const bool kModuleCanAllocateMoreMemory = true;
 
 void RelocateCode(WasmCode* code, const WasmCode* orig,
                   WasmCode::FlushICache flush_icache) {
-  intptr_t delta = code->instructions().start() - orig->instructions().start();
+  intptr_t delta = code->instruction_start() - orig->instruction_start();
   for (RelocIterator it(code->instructions(), code->reloc_info(),
                         code->constant_pool(), RelocInfo::kApplyMask);
        !it.done(); it.next()) {
@@ -141,8 +141,7 @@ DisjointAllocationPool DisjointAllocationPool::Extract(size_t size,
     auto current = it;
     ++it;
     DCHECK_LT(current->first, current->second);
-    size_t current_size = reinterpret_cast<size_t>(current->second) -
-                          reinterpret_cast<size_t>(current->first);
+    size_t current_size = static_cast<size_t>(current->second - current->first);
     if (size == current_size) {
       ret.ranges_.push_back(*current);
       ranges_.erase(current);
@@ -170,10 +169,10 @@ DisjointAllocationPool DisjointAllocationPool::Extract(size_t size,
 Address WasmCode::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     if (constant_pool_offset_ < instructions().size()) {
-      return instructions().start() + constant_pool_offset_;
+      return instruction_start() + constant_pool_offset_;
     }
   }
-  return nullptr;
+  return kNullAddress;
 }
 
 size_t WasmCode::trap_handler_index() const {
@@ -222,7 +221,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
 #endif
 
     if (!source_positions().is_empty()) {
-      LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instructions().start(),
+      LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
                                                          source_positions()));
     }
   }
@@ -347,10 +346,10 @@ NativeModule::CloneCodeHelper::CloneCodeHelper(
   }
 
   for (auto& pair : source_native_module_->stubs_) {
-    Address old_dest = pair.second->instructions().start();
+    Address old_dest = pair.second->instruction_start();
     auto local = cloning_native_module_->stubs_.find(pair.first);
     DCHECK(local != cloning_native_module_->stubs_.end());
-    Address new_dest = local->second->instructions().start();
+    Address new_dest = local->second->instruction_start();
     reverse_lookup_.emplace(old_dest, new_dest);
   }
 }
@@ -451,8 +450,7 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
       num_imported_functions_(num_imports),
       compilation_state_(NewCompilationState(
           reinterpret_cast<Isolate*>(code_manager->isolate_))),
-      free_memory_(reinterpret_cast<Address>(mem->address()),
-                   reinterpret_cast<Address>(mem->end())),
+      free_memory_(mem->address(), mem->end()),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more) {
   VirtualMemory my_mem;
@@ -510,25 +508,26 @@ WasmCode* NativeModule::AddOwnedCode(
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
   Address executable_buffer = AllocateForCode(orig_instructions.size());
-  if (executable_buffer == nullptr) {
+  if (executable_buffer == kNullAddress) {
     V8::FatalProcessOutOfMemory(nullptr, "NativeModule::AddOwnedCode");
     UNREACHABLE();
   }
-  memcpy(executable_buffer, orig_instructions.start(),
+  memcpy(reinterpret_cast<void*>(executable_buffer), orig_instructions.start(),
          orig_instructions.size());
   std::unique_ptr<WasmCode> code(new WasmCode(
-      {executable_buffer, orig_instructions.size()}, std::move(reloc_info),
-      reloc_size, std::move(source_pos), source_pos_size, this, index, kind,
-      constant_pool_offset, stack_slots, safepoint_table_offset,
-      handler_table_offset, std::move(protected_instructions), tier));
+      {reinterpret_cast<byte*>(executable_buffer), orig_instructions.size()},
+      std::move(reloc_info), reloc_size, std::move(source_pos), source_pos_size,
+      this, index, kind, constant_pool_offset, stack_slots,
+      safepoint_table_offset, handler_table_offset,
+      std::move(protected_instructions), tier));
   WasmCode* ret = code.get();
 
   // TODO(mtrofin): We allocate in increasing address order, and
   // even if we end up with segmented memory, we may end up only with a few
   // large moves - if, for example, a new segment is below the current ones.
-  auto insert_before = std::upper_bound(owned_code_.begin(), owned_code_.end(),
-                                        ret->instructions().start(),
-                                        WasmCodeUniquePtrComparator());
+  auto insert_before =
+      std::upper_bound(owned_code_.begin(), owned_code_.end(),
+                       ret->instruction_start(), WasmCodeUniquePtrComparator());
   owned_code_.insert(insert_before, std::move(code));
   if (flush_icache) {
     Assembler::FlushICache(ret->instructions().start(),
@@ -590,7 +589,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   std::shared_ptr<ProtectedInstructions> protected_instructions(
       new ProtectedInstructions(0));
   Vector<const byte> orig_instructions(
-      code->raw_instruction_start(),
+      reinterpret_cast<byte*>(code->raw_instruction_start()),
       static_cast<size_t>(code->raw_instruction_size()));
   int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
   int safepoint_table_offset =
@@ -610,7 +609,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                    protected_instructions,        // protected_instructions
                    WasmCode::kOther,              // kind
                    WasmCode::kNoFlushICache);     // flush_icache
-  intptr_t delta = ret->instructions().start() - code->raw_instruction_start();
+  intptr_t delta = ret->instruction_start() - code->raw_instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
              RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
 
@@ -731,7 +730,7 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
                                      {},  // protected_instructions
                                      WasmCode::kOther,         // tier
                                      WasmCode::kFlushICache);  // flush_icache
-  Address ret = wasm_code->instructions().start();
+  Address ret = wasm_code->instruction_start();
   trampolines_.emplace(std::make_pair(dest, ret));
   return ret;
 }
@@ -760,24 +759,22 @@ Address NativeModule::AllocateForCode(size_t size) {
   size = RoundUp(size, kCodeAlignment);
   DisjointAllocationPool mem = free_memory_.Allocate(size);
   if (mem.IsEmpty()) {
-    if (!can_request_more_memory_) return nullptr;
+    if (!can_request_more_memory_) return kNullAddress;
 
-    Address hint = owned_memory_.empty()
-                       ? nullptr
-                       : reinterpret_cast<Address>(owned_memory_.back().end());
+    Address hint =
+        owned_memory_.empty() ? kNullAddress : owned_memory_.back().end();
     VirtualMemory empty_mem;
     owned_memory_.push_back(empty_mem);
     VirtualMemory& new_mem = owned_memory_.back();
-    wasm_code_manager_->TryAllocate(size, &new_mem, hint);
-    if (!new_mem.IsReserved()) return nullptr;
-    DisjointAllocationPool mem_pool(
-        reinterpret_cast<Address>(new_mem.address()),
-        reinterpret_cast<Address>(new_mem.end()));
+    wasm_code_manager_->TryAllocate(size, &new_mem,
+                                    reinterpret_cast<void*>(hint));
+    if (!new_mem.IsReserved()) return kNullAddress;
+    DisjointAllocationPool mem_pool(new_mem.address(), new_mem.end());
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
     free_memory_.Merge(std::move(mem_pool));
     mem = free_memory_.Allocate(size);
-    if (mem.IsEmpty()) return nullptr;
+    if (mem.IsEmpty()) return kNullAddress;
   }
   Address ret = mem.ranges().front().first;
   Address end = ret + size;
@@ -801,12 +798,11 @@ Address NativeModule::AllocateForCode(size_t size) {
     for (auto it = owned_memory_.crbegin(), rend = owned_memory_.crend();
          it != rend && commit_start < commit_end; ++it) {
       if (commit_end > it->end() || it->address() >= commit_end) continue;
-      Address start =
-          std::max(commit_start, reinterpret_cast<Address>(it->address()));
+      Address start = std::max(commit_start, it->address());
       size_t commit_size = static_cast<size_t>(commit_end - start);
       DCHECK(IsAligned(commit_size, AllocatePageSize()));
       if (!wasm_code_manager_->Commit(start, commit_size)) {
-        return nullptr;
+        return kNullAddress;
       }
       committed_memory_ += commit_size;
       commit_end = start;
@@ -815,12 +811,12 @@ Address NativeModule::AllocateForCode(size_t size) {
     size_t commit_size = static_cast<size_t>(commit_end - commit_start);
     DCHECK(IsAligned(commit_size, AllocatePageSize()));
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
-      return nullptr;
+      return kNullAddress;
     }
     committed_memory_ += commit_size;
 #endif
   }
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(ret), kCodeAlignment));
+  DCHECK(IsAligned(ret, kCodeAlignment));
   allocated_memory_.Merge(std::move(mem));
   TRACE_HEAP("ID: %zu. Code alloc: %p,+%zu\n", instance_id,
              reinterpret_cast<void*>(ret), size);
@@ -835,9 +831,9 @@ WasmCode* NativeModule::Lookup(Address pc) {
   --iter;
   WasmCode* candidate = (*iter).get();
   DCHECK_NOT_NULL(candidate);
-  if (candidate->instructions().start() <= pc &&
-      pc < candidate->instructions().start() +
-               candidate->instructions().size()) {
+  Address instructions_start = candidate->instruction_start();
+  if (instructions_start <= pc &&
+      pc < instructions_start + candidate->instructions().size()) {
     return candidate;
   }
   return nullptr;
@@ -873,7 +869,7 @@ void NativeModule::CloneTrampolinesAndStubs(
     Address key = pair.first;
     Address local =
         GetLocalAddressFor(handle(Code::GetCodeFromTargetAddress(key)));
-    DCHECK_NOT_NULL(local);
+    DCHECK_NE(local, kNullAddress);
     trampolines_.emplace(std::make_pair(key, local));
   }
   for (auto& pair : other->stubs_) {
@@ -920,7 +916,7 @@ void NativeModule::UnpackAndRegisterProtectedInstructions() {
     if (code->kind() != wasm::WasmCode::kFunction) continue;
     if (code->HasTrapHandlerIndex()) continue;
 
-    Address base = code->instructions().start();
+    Address base = code->instruction_start();
 
     size_t size = code->instructions().size();
     const int index =
@@ -966,7 +962,7 @@ WasmCodeManager::WasmCodeManager(v8::Isolate* isolate, size_t max_committed)
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
-  DCHECK(IsAligned(reinterpret_cast<size_t>(start), AllocatePageSize()));
+  DCHECK(IsAligned(start, AllocatePageSize()));
   DCHECK(IsAligned(size, AllocatePageSize()));
   if (size > static_cast<size_t>(std::numeric_limits<intptr_t>::max())) {
     return false;
@@ -1014,11 +1010,9 @@ bool WasmCodeManager::WouldGCHelp() const {
   return static_cast<size_t>(remaining) < kMaxNativeFunction;
 }
 
-void WasmCodeManager::AssignRanges(void* start, void* end,
+void WasmCodeManager::AssignRanges(Address start, Address end,
                                    NativeModule* native_module) {
-  lookup_map_.insert(std::make_pair(
-      reinterpret_cast<Address>(start),
-      std::make_pair(reinterpret_cast<Address>(end), native_module)));
+  lookup_map_.insert(std::make_pair(start, std::make_pair(end, native_module)));
 }
 
 void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
@@ -1030,8 +1024,9 @@ void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
                                  hint, ret)) {
     DCHECK(!ret->IsReserved());
   }
-  TRACE_HEAP("VMem alloc: %p:%p (%zu)\n", ret->address(), ret->end(),
-             ret->size());
+  TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
+             reinterpret_cast<void*>(ret->address()),
+             reinterpret_cast<void*>(ret->end()), ret->size());
 }
 
 size_t WasmCodeManager::GetAllocationChunk(const WasmModule& module) {
@@ -1063,13 +1058,13 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   VirtualMemory mem;
   TryAllocate(size_estimate, &mem);
   if (mem.IsReserved()) {
-    void* start = mem.address();
+    Address start = mem.address();
     size_t size = mem.size();
-    void* end = mem.end();
+    Address end = mem.end();
     std::unique_ptr<NativeModule> ret(new NativeModule(
         num_functions, num_imported_functions, can_request_more, &mem, this));
-    TRACE_HEAP("New Module: ID:%zu. Mem: %p,+%zu\n", ret->instance_id, start,
-               size);
+    TRACE_HEAP("New Module: ID:%zu. Mem: %p,+%zu\n", ret->instance_id,
+               reinterpret_cast<void*>(start), size);
     AssignRanges(start, end, ret.get());
     ++active_;
     return ret;
@@ -1152,7 +1147,7 @@ void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
   --active_;
   TRACE_HEAP("Freeing %zu\n", native_module->instance_id);
   for (auto& vmem : native_module->owned_memory_) {
-    lookup_map_.erase(reinterpret_cast<Address>(vmem.address()));
+    lookup_map_.erase(vmem.address());
     Free(&vmem);
     DCHECK(!vmem.IsReserved());
   }
@@ -1177,7 +1172,7 @@ WasmCode* WasmCodeManager::GetCodeFromStartAddress(Address pc) const {
   WasmCode* code = LookupCode(pc);
   // This method can only be called for valid instruction start addresses.
   DCHECK_NOT_NULL(code);
-  DCHECK_EQ(pc, code->instructions().start());
+  DCHECK_EQ(pc, code->instruction_start());
   return code;
 }
 
@@ -1200,8 +1195,8 @@ WasmCode* WasmCodeManager::LookupCode(Address pc) const {
 
 void WasmCodeManager::Free(VirtualMemory* mem) {
   DCHECK(mem->IsReserved());
-  void* start = mem->address();
-  void* end = mem->end();
+  void* start = reinterpret_cast<void*>(mem->address());
+  void* end = reinterpret_cast<void*>(mem->end());
   size_t size = mem->size();
   mem->Free();
   TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);

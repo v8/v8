@@ -265,6 +265,7 @@ class HeapObjectsMap {
   };
 
   SnapshotObjectId next_id_;
+  // TODO(jkummerow): Use a map that uses {Address} as the key type.
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
   std::vector<TimeInterval> time_intervals_;

@@ -519,9 +519,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     args[0]->Print(os);
     JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
-    os << "fp = " << static_cast<void*>(frame->fp())
-       << ", sp = " << static_cast<void*>(frame->sp())
-       << ", caller_sp = " << static_cast<void*>(frame->caller_sp()) << ": ";
+    os << "fp = " << reinterpret_cast<void*>(frame->fp())
+       << ", sp = " << reinterpret_cast<void*>(frame->sp())
+       << ", caller_sp = " << reinterpret_cast<void*>(frame->caller_sp())
+       << ": ";
   } else {
     os << "DebugPrint: ";
     args[0]->Print(os);
@@ -873,7 +874,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, wire_bytes, 1);
 
-  Address mem_start = static_cast<Address>(buffer->backing_store());
+  uint8_t* mem_start = reinterpret_cast<uint8_t*>(buffer->backing_store());
   size_t mem_size = static_cast<size_t>(buffer->byte_length()->Number());
 
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the

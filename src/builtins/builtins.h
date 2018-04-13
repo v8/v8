@@ -39,7 +39,7 @@ class Builtins {
   void IterateBuiltins(RootVisitor* v);
 
   // Disassembler support.
-  const char* Lookup(byte* pc);
+  const char* Lookup(Address pc);
 
   enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,

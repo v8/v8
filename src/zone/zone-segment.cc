@@ -9,7 +9,7 @@ namespace internal {
 
 void Segment::ZapContents() {
 #ifdef DEBUG
-  memset(start(), kZapDeadByte, capacity());
+  memset(reinterpret_cast<void*>(start()), kZapDeadByte, capacity());
 #endif
 }
 

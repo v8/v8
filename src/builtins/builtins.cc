@@ -40,11 +40,11 @@ struct BuiltinMetadata {
                               { FUNCTION_ADDR(Builtin_##Name) }},
 #ifdef V8_TARGET_BIG_ENDIAN
 #define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-  { reinterpret_cast<Address>(static_cast<uintptr_t>(      \
+  { static_cast<Address>(static_cast<uintptr_t>(           \
                               Count) << (kBitsPerByte * (kPointerSize - 1))) }},
 #else
 #define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-                              { reinterpret_cast<Address>(Count) }},
+                              { static_cast<Address>(Count) }},
 #endif
 #define DECL_TFC(Name, ...) { #Name, Builtins::TFC, {} },
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
@@ -91,7 +91,7 @@ void Builtins::IterateBuiltins(RootVisitor* v) {
   }
 }
 
-const char* Builtins::Lookup(byte* pc) {
+const char* Builtins::Lookup(Address pc) {
   // may be called during initialization (disassembler!)
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {

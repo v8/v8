@@ -37,7 +37,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_getter(*get);
   info->set_setter(*set);
   Address redirected = info->redirected_getter();
-  if (redirected != nullptr) {
+  if (redirected != kNullAddress) {
     Handle<Object> js_get = v8::FromCData(isolate, redirected);
     info->set_js_getter(*js_get);
   }

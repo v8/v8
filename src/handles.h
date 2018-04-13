@@ -144,7 +144,7 @@ class Handle final : public HandleBase {
   // Provide function object for location hashing.
   struct hash : public std::unary_function<Handle<T>, size_t> {
     V8_INLINE size_t operator()(Handle<T> const& handle) const {
-      return base::hash<void*>()(handle.address());
+      return base::hash<Address>()(handle.address());
     }
   };
 

@@ -275,8 +275,8 @@ Address RelocInfo::embedded_address() const {
 }
 
 uint32_t RelocInfo::embedded_size() const {
-  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  return static_cast<uint32_t>(
+      Assembler::target_address_at(pc_, constant_pool_));
 }
 
 void RelocInfo::set_embedded_address(Address address,
@@ -286,7 +286,7 @@ void RelocInfo::set_embedded_address(Address address,
 
 void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(size), flush_mode);
+                                   static_cast<Address>(size), flush_mode);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,
@@ -307,7 +307,7 @@ Address RelocInfo::js_to_wasm_address() const {
 Operand::Operand(Handle<HeapObject> handle) {
   AllowHandleDereference using_location;
   rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+  value_.immediate = static_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -329,12 +329,12 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset)
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
-    Address pc = buffer_ + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_ + request.offset());
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
         object = isolate->factory()->NewHeapNumber(request.heap_number(),
                                                    IMMUTABLE, TENURED);
-        set_target_address_at(pc, static_cast<Address>(nullptr),
+        set_target_address_at(pc, kNullAddress,
                               reinterpret_cast<Address>(object.location()),
                               SKIP_ICACHE_FLUSH);
         break;
@@ -2212,18 +2212,19 @@ void Assembler::EmitRelocations() {
   for (std::vector<DeferredRelocInfo>::iterator it = relocations_.begin();
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
-    Address pc = buffer_ + it->position();
+    Address pc = reinterpret_cast<Address>(buffer_) + it->position();
     RelocInfo rinfo(pc, rmode, it->data(), nullptr);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
       // Jump table entry
-      intptr_t pos = reinterpret_cast<intptr_t>(Memory::Address_at(pc));
-      Memory::Address_at(pc) = buffer_ + pos;
+      Address pos = Memory::Address_at(pc);
+      Memory::Address_at(pc) = reinterpret_cast<Address>(buffer_) + pos;
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
-      intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, nullptr));
-      set_target_address_at(pc, nullptr, buffer_ + pos, SKIP_ICACHE_FLUSH);
+      Address pos = target_address_at(pc, 0);
+      set_target_address_at(pc, 0, reinterpret_cast<Address>(buffer_) + pos,
+                            SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);

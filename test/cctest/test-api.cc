@@ -14239,8 +14239,8 @@ void SetFunctionEntryHookTest::OnJitEvent(const v8::JitCodeEvent* event) {
 void SetFunctionEntryHookTest::OnEntryHook(
     uintptr_t function, uintptr_t return_addr_location) {
   // Get the function's code object.
-  i::Code* function_code = i::Code::GetCodeFromTargetAddress(
-      reinterpret_cast<i::Address>(function));
+  i::Code* function_code =
+      i::Code::GetCodeFromTargetAddress(static_cast<i::Address>(function));
   CHECK_NOT_NULL(function_code);
 
   // Then try and look up the caller's code object.
@@ -14249,7 +14249,7 @@ void SetFunctionEntryHookTest::OnEntryHook(
   // Count the invocation.
   SymbolInfo* caller_symbol = FindSymbolForAddr(caller);
   SymbolInfo* function_symbol =
-      FindSymbolForAddr(reinterpret_cast<i::Address>(function));
+      FindSymbolForAddr(static_cast<i::Address>(function));
   ++invocations_[std::make_pair(caller_symbol, function_symbol)];
 
   if (!bar_func_.is_null() && function_code == bar_func_->code()) {

@@ -114,9 +114,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type()) {
     case kWasmI32:
-      TurboAssembler::Move(
-          reg.gp(),
-          Immediate(reinterpret_cast<Address>(value.to_i32()), rmode));
+      TurboAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
       break;
     case kWasmI64: {
       DCHECK(RelocInfo::IsNone(rmode));

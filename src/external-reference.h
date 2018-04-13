@@ -250,9 +250,9 @@ class ExternalReference BASE_EMBEDDED {
 
   static void SetUp();
 
-  typedef void* ExternalReferenceRedirector(void* original, Type type);
+  typedef Address ExternalReferenceRedirector(Address original, Type type);
 
-  ExternalReference() : address_(nullptr) {}
+  ExternalReference() : address_(kNullAddress) {}
   explicit ExternalReference(const SCTableReference& table_ref);
   explicit ExternalReference(StatsCounter* counter);
   ExternalReference(Address address, Isolate* isolate);
@@ -276,7 +276,7 @@ class ExternalReference BASE_EMBEDDED {
   V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
   runtime_function_table_address_for_unittests(Isolate* isolate);
 
-  Address address() const { return reinterpret_cast<Address>(address_); }
+  Address address() const { return address_; }
 
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
@@ -284,12 +284,14 @@ class ExternalReference BASE_EMBEDDED {
                              ExternalReferenceRedirector* redirector);
 
  private:
-  explicit ExternalReference(void* address) : address_(address) {}
+  explicit ExternalReference(void* address)
+      : address_(reinterpret_cast<Address>(address)) {}
+  explicit ExternalReference(Address address) : address_(address) {}
 
-  static void* Redirect(Isolate* isolate, Address address_arg,
-                        Type type = ExternalReference::BUILTIN_CALL);
+  static Address Redirect(Isolate* isolate, Address address_arg,
+                          Type type = ExternalReference::BUILTIN_CALL);
 
-  void* address_;
+  Address address_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(ExternalReference, ExternalReference);

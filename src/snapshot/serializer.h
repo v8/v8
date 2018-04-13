@@ -96,12 +96,13 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
     base::HashMap::Entry* FindOrCreateEntry(Address code_address) {
-      return impl_.LookupOrInsert(code_address,
-                                  ComputePointerHash(code_address));
+      return impl_.LookupOrInsert(reinterpret_cast<void*>(code_address),
+                                  ComputeAddressHash(code_address));
     }
 
     base::HashMap::Entry* FindEntry(Address code_address) {
-      return impl_.Lookup(code_address, ComputePointerHash(code_address));
+      return impl_.Lookup(reinterpret_cast<void*>(code_address),
+                          ComputeAddressHash(code_address));
     }
 
     void RemoveEntry(base::HashMap::Entry* entry) {

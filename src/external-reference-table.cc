@@ -27,8 +27,8 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 void ExternalReferenceTable::Init(Isolate* isolate) {
   int index = 0;
 
-  // nullptr is preserved through serialization/deserialization.
-  Add(nullptr, "nullptr", &index);
+  // kNullAddress is preserved through serialization/deserialization.
+  Add(kNullAddress, "nullptr", &index);
   AddReferences(isolate, &index);
   AddBuiltins(isolate, &index);
   AddRuntimeFunctions(isolate, &index);

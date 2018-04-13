@@ -70,9 +70,9 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
   TickSampleEventRecord record(last_code_event_id_.Value());
   RegisterState regs;
   Address fp = isolate->c_entry_fp(isolate->thread_local_top());
-  regs.sp = fp - fp_to_sp_delta;
-  regs.fp = fp;
-  regs.pc = from;
+  regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
+  regs.fp = reinterpret_cast<void*>(fp);
+  regs.pc = reinterpret_cast<void*>(from);
   record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, false, false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
@@ -84,9 +84,9 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
   StackFrameIterator it(isolate);
   if (!it.done()) {
     StackFrame* frame = it.frame();
-    regs.sp = frame->sp();
-    regs.fp = frame->fp();
-    regs.pc = frame->pc();
+    regs.sp = reinterpret_cast<void*>(frame->sp());
+    regs.fp = reinterpret_cast<void*>(frame->fp());
+    regs.pc = reinterpret_cast<void*>(frame->pc());
   }
   record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, update_stats,
                      false);
@@ -235,7 +235,7 @@ void CpuProfiler::CodeEventHandler(const CodeEventsContainer& evt_rec) {
       break;
     case CodeEventRecord::CODE_DEOPT: {
       const CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-      Address pc = reinterpret_cast<Address>(rec->pc);
+      Address pc = rec->pc;
       int fp_to_sp_delta = rec->fp_to_sp_delta;
       processor_->Enqueue(evt_rec);
       processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);

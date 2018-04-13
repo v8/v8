@@ -37,7 +37,7 @@ class SimulatorBase {
 
  protected:
   template <typename Return, typename SimT, typename CallImpl, typename... Args>
-  static Return VariadicCall(SimT* sim, CallImpl call, byte* entry,
+  static Return VariadicCall(SimT* sim, CallImpl call, Address entry,
                              Args... args) {
     // Convert all arguments to intptr_t. Fails if any argument is not integral
     // or pointer.
@@ -68,8 +68,8 @@ class SimulatorBase {
 
  private:
   // Runtime call support.
-  static void* RedirectExternalReference(void* external_function,
-                                         ExternalReference::Type type);
+  static Address RedirectExternalReference(Address external_function,
+                                           ExternalReference::Type type);
 
   static base::Mutex* redirection_mutex_;
   static Redirection* redirection_;
@@ -122,7 +122,7 @@ class SimulatorBase {
 //  - V8_TARGET_ARCH_S390: svc (Supervisor Call)
 class Redirection {
  public:
-  Redirection(void* external_function, ExternalReference::Type type);
+  Redirection(Address external_function, ExternalReference::Type type);
 
   Address address_of_instruction() {
 #if ABI_USES_FUNCTION_DESCRIPTORS
@@ -132,10 +132,12 @@ class Redirection {
 #endif
   }
 
-  void* external_function() { return external_function_; }
+  void* external_function() {
+    return reinterpret_cast<void*>(external_function_);
+  }
   ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(void* external_function,
+  static Redirection* Get(Address external_function,
                           ExternalReference::Type type);
 
   static Redirection* FromInstruction(Instruction* instruction) {
@@ -160,7 +162,7 @@ class Redirection {
   }
 
  private:
-  void* external_function_;
+  Address external_function_;
   uint32_t instruction_;
   ExternalReference::Type type_;
   Redirection* next_;

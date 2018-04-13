@@ -39,7 +39,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
   } else if (info->has_shared_info()) {
     SNPrintF(filename, "turbo-%p-%i",
-             static_cast<void*>(info->shared_info()->address()),
+             reinterpret_cast<void*>(info->shared_info()->address()),
              optimization_id);
   } else {
     SNPrintF(filename, "turbo-none-%i", optimization_id);

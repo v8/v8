@@ -2619,9 +2619,8 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
   } else {
     // A call to a function in this module.
     // Just encode the function index. This will be patched at instantiation.
-    Address code = reinterpret_cast<Address>(index);
-    args[0] = jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<intptr_t>(code), RelocInfo::WASM_CALL);
+    Address code = static_cast<Address>(index);
+    args[0] = jsgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
     return BuildWasmCall(sig, args, rets, position);
   }
@@ -3071,9 +3070,9 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<WeakCell> weak_instance,
       *effect_, *control_);
 
   Address instr_start =
-      wasm_code == nullptr ? nullptr : wasm_code->instructions().start();
+      wasm_code == nullptr ? kNullAddress : wasm_code->instruction_start();
   Node* wasm_code_node = jsgraph()->RelocatableIntPtrConstant(
-      reinterpret_cast<intptr_t>(instr_start), RelocInfo::JS_TO_WASM_CALL);
+      instr_start, RelocInfo::JS_TO_WASM_CALL);
   if (!wasm::IsJSCompatibleSignature(sig_)) {
     // Throw a TypeError. Use the js_context of the calling javascript function
     // (passed as a parameter), such that the generated code is js_context

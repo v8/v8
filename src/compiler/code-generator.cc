@@ -130,7 +130,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
       GetDeoptimizationReason(deoptimization_id);
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       tasm()->isolate(), deoptimization_id, bailout_type);
-  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
+  if (deopt_entry == kNullAddress) return kTooManyDeoptimizationBailouts;
   if (info()->is_source_positions_enabled()) {
     tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }

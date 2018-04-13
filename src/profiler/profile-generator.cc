@@ -514,7 +514,7 @@ void CodeMap::MoveCode(Address from, Address to) {
 
 void CodeMap::Print() {
   for (const auto& pair : code_map_) {
-    base::OS::Print("%p %5d %s\n", static_cast<void*>(pair.first),
+    base::OS::Print("%p %5d %s\n", reinterpret_cast<void*>(pair.first),
                     pair.second.size, pair.second.entry->name());
   }
 }
@@ -625,14 +625,15 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      entries.push_back(FindEntry(sample.external_callback_entry));
+      entries.push_back(
+          FindEntry(reinterpret_cast<Address>(sample.external_callback_entry)));
     } else {
-      CodeEntry* pc_entry = FindEntry(sample.pc);
+      CodeEntry* pc_entry = FindEntry(reinterpret_cast<Address>(sample.pc));
       // If there is no pc_entry we're likely in native code.
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
       if (!pc_entry && !sample.has_external_callback) {
-        pc_entry = FindEntry(sample.tos);
+        pc_entry = FindEntry(reinterpret_cast<Address>(sample.tos));
       }
       // If pc is in the function code before it set up stack frame or after the
       // frame was destroyed SafeStackFrameIterator incorrectly thinks that
@@ -708,10 +709,6 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
 
   profiles_->AddPathToCurrentProfiles(sample.timestamp, entries, src_line,
                                       sample.update_stats);
-}
-
-CodeEntry* ProfileGenerator::FindEntry(void* address) {
-  return code_map_.FindEntry(reinterpret_cast<Address>(address));
 }
 
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {

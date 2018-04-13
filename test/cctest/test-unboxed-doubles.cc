@@ -936,7 +936,7 @@ TEST(Regress436816) {
 
   Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
 
-  Address fake_address = reinterpret_cast<Address>(~kHeapObjectTagMask);
+  Address fake_address = static_cast<Address>(~kHeapObjectTagMask);
   HeapObject* fake_object = HeapObject::FromAddress(fake_address);
   CHECK(fake_object->IsHeapObject());
 

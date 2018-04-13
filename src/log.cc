@@ -309,15 +309,14 @@ void PerfBasicLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
     return;
   }
 
-  WriteLogRecordedBuffer(reinterpret_cast<uintptr_t>(code->InstructionStart()),
+  WriteLogRecordedBuffer(static_cast<uintptr_t>(code->InstructionStart()),
                          code->InstructionSize(), name, length);
 }
 
 void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                         const char* name, int length) {
-  WriteLogRecordedBuffer(
-      reinterpret_cast<uintptr_t>(code->instructions().start()),
-      code->instructions().length(), name, length);
+  WriteLogRecordedBuffer(static_cast<uintptr_t>(code->instruction_start()),
+                         code->instructions().length(), name, length);
 }
 
 // Low-level logging support.
@@ -438,11 +437,11 @@ void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                        const char* name, int length) {
   CodeCreateStruct event;
   event.name_size = length;
-  event.code_address = code->instructions().start();
+  event.code_address = code->instruction_start();
   event.code_size = code->instructions().length();
   LogWriteStruct(event);
   LogWriteBytes(name, length);
-  LogWriteBytes(reinterpret_cast<const char*>(code->instructions().start()),
+  LogWriteBytes(reinterpret_cast<const char*>(code->instruction_start()),
                 code->instructions().length());
 }
 
@@ -503,7 +502,7 @@ void JitLogger::LogRecordedBuffer(AbstractCode* code,
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
-  event.code_start = code->InstructionStart();
+  event.code_start = reinterpret_cast<void*>(code->InstructionStart());
   event.code_type =
       code->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
   event.code_len = code->InstructionSize();
@@ -537,14 +536,14 @@ void JitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
   event.type = JitCodeEvent::CODE_MOVED;
   event.code_type =
       from->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
-  event.code_start = from->InstructionStart();
+  event.code_start = reinterpret_cast<void*>(from->InstructionStart());
   event.code_len = from->InstructionSize();
 
   // Calculate the header size.
   const size_t header_size = from->InstructionStart() - from->address();
 
   // Calculate the new start address of the instructions.
-  event.new_code_start = to + header_size;
+  event.new_code_start = reinterpret_cast<void*>(to + header_size);
 
   code_event_handler_(&event);
 }
@@ -580,7 +579,7 @@ void JitLogger::EndCodePosInfoEvent(Address start_address,
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
-  event.code_start = start_address;
+  event.code_start = reinterpret_cast<void*>(start_address);
   event.user_data = jit_handler_data;
 
   code_event_handler_(&event);
@@ -1070,7 +1069,8 @@ void AppendCodeCreateHeader(Log::MessageBuilder& msg,
 void AppendCodeCreateHeader(Log::MessageBuilder& msg,
                             CodeEventListener::LogEventsAndTags tag,
                             AbstractCode* code, base::ElapsedTimer* timer) {
-  AppendCodeCreateHeader(msg, tag, code->kind(), code->InstructionStart(),
+  AppendCodeCreateHeader(msg, tag, code->kind(),
+                         reinterpret_cast<uint8_t*>(code->InstructionStart()),
                          code->InstructionSize(), timer);
 }
 
@@ -1202,7 +1202,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   //   <fns> is the function table encoded as a sequence of strings
   //      S<shared-function-info-address>
   msg << "code-source-info" << kNext
-      << static_cast<void*>(code->InstructionStart()) << kNext << script_id
+      << reinterpret_cast<void*>(code->InstructionStart()) << kNext << script_id
       << kNext << shared->StartPosition() << kNext << shared->EndPosition()
       << kNext;
 
@@ -1250,7 +1250,8 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     msg << std::hex;
     for (int i = 0; i <= maxInlinedId; i++) {
       msg << "S"
-          << static_cast<void*>(deopt_data->GetInlinedFunction(i)->address());
+          << reinterpret_cast<void*>(
+                 deopt_data->GetInlinedFunction(i)->address());
     }
     msg << std::dec;
   }

@@ -380,8 +380,8 @@ Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count) {
 
   // Initialize the data section to 0.
   int data_size = size - FeedbackMetadata::kHeaderSize;
-  byte* data_start = data->address() + FeedbackMetadata::kHeaderSize;
-  memset(data_start, 0, data_size);
+  Address data_start = data->address() + FeedbackMetadata::kHeaderSize;
+  memset(reinterpret_cast<byte*>(data_start), 0, data_size);
   // Fields have been zeroed out but not initialized, so this object will not
   // pass object verification at this point.
   return data;
@@ -671,14 +671,13 @@ Handle<String> Factory::AllocateTwoByteInternalizedString(
   Map* map = *internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
   HeapObject* result = AllocateRawWithImmortalMap(size, TENURED, map);
-  Handle<String> answer(String::cast(result), isolate());
+  Handle<SeqTwoByteString> answer(SeqTwoByteString::cast(result), isolate());
   answer->set_length(str.length());
   answer->set_hash_field(hash_field);
   DCHECK_EQ(size, answer->Size());
 
   // Fill in the characters.
-  MemCopy(answer->address() + SeqTwoByteString::kHeaderSize, str.start(),
-          str.length() * kUC16Size);
+  MemCopy(answer->GetChars(), str.start(), str.length() * kUC16Size);
 
   return answer;
 }
@@ -1501,7 +1500,8 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
   instance->set_constant_pool(*constant_pool);
   instance->set_handler_table(*empty_byte_array());
   instance->set_source_position_table(*empty_byte_array());
-  CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
+  CopyBytes(reinterpret_cast<byte*>(instance->GetFirstBytecodeAddress()),
+            raw_bytecodes, length);
   instance->clear_padding();
 
   return instance;
@@ -1539,8 +1539,9 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
                                        isolate());
   elements->set_base_pointer(*elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
-      ExternalReference::fixed_typed_array_base_data_offset(isolate())
-          .address(),
+      reinterpret_cast<void*>(
+          ExternalReference::fixed_typed_array_base_data_offset(isolate())
+              .address()),
       SKIP_WRITE_BARRIER);
   elements->set_length(static_cast<int>(length));
   if (initialize) memset(elements->DataPtr(), 0, elements->DataSize());
@@ -2269,7 +2270,7 @@ Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
 }
 
 Handle<JSObject> Factory::NewExternal(void* value) {
-  Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));
+  Handle<Foreign> foreign = NewForeign(reinterpret_cast<Address>(value));
   Handle<JSObject> external = NewJSObjectFromMap(external_map());
   external->SetEmbedderField(0, *foreign);
   return external;
@@ -2344,7 +2345,7 @@ Handle<Code> Factory::NewCode(
 
   result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
   Handle<Code> code(Code::cast(result), isolate());
-  DCHECK(IsAligned(bit_cast<intptr_t>(code->address()), kCodeAlignment));
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
   DCHECK(!heap->memory_allocator()->code_range()->valid() ||
          heap->memory_allocator()->code_range()->contains(code->address()) ||
          object_size <= heap->code_space()->AreaSize());
@@ -2380,7 +2381,7 @@ Handle<Code> Factory::NewCode(
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) code->ObjectVerify();
 #endif
-  DCHECK(IsAligned(bit_cast<intptr_t>(code->address()), kCodeAlignment));
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
   DCHECK(!isolate()->heap()->memory_allocator()->code_range()->valid() ||
          isolate()->heap()->memory_allocator()->code_range()->contains(
              code->address()) ||
@@ -2397,7 +2398,7 @@ Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
   heap->UnprotectAndRegisterMemoryChunk(result);
   heap->ZapCodeObject(result->address(), size);
   result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-  DCHECK(IsAligned(bit_cast<intptr_t>(result->address()), kCodeAlignment));
+  DCHECK(IsAligned(result->address(), kCodeAlignment));
   DCHECK(!heap->memory_allocator()->code_range()->valid() ||
          heap->memory_allocator()->code_range()->contains(result->address()) ||
          static_cast<int>(size) <= heap->code_space()->AreaSize());
@@ -2461,7 +2462,7 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) new_code->ObjectVerify();
 #endif
-  DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
+  DCHECK(IsAligned(new_code->address(), kCodeAlignment));
   DCHECK(
       !heap->memory_allocator()->code_range()->valid() ||
       heap->memory_allocator()->code_range()->contains(new_code->address()) ||

@@ -15073,6 +15073,7 @@ TEST(call_no_relocation) {
   SETUP();
 
   START();
+  Address buf_addr = reinterpret_cast<Address>(buf);
 
   Label function;
   Label test;
@@ -15088,9 +15089,9 @@ TEST(call_no_relocation) {
   __ Push(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
-    call_start = buf + __ pc_offset();
-    __ Call(buf + function.pos(), RelocInfo::NONE);
-    return_address = buf + __ pc_offset();
+    call_start = buf_addr + __ pc_offset();
+    __ Call(buf_addr + function.pos(), RelocInfo::NONE);
+    return_address = buf_addr + __ pc_offset();
   }
   __ Pop(xzr, lr);
   END();

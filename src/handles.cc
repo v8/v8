@@ -107,7 +107,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 void HandleScope::ZapRange(Object** start, Object** end) {
   DCHECK_LE(end - start, kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
-    *reinterpret_cast<Address*>(p) = reinterpret_cast<Address>(kHandleZapValue);
+    *reinterpret_cast<Address*>(p) = static_cast<Address>(kHandleZapValue);
   }
 }
 #endif

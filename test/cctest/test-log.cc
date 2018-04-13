@@ -523,8 +523,7 @@ TEST(LogCallbacks) {
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
     i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data, ",0x%" V8PRIxPTR ",1,method1",
-                reinterpret_cast<intptr_t>(ObjMethod1_entry));
+    i::SNPrintF(ref_data, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,", ref_data.start()));
   }
   isolate->Dispose();
@@ -570,7 +569,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
-                reinterpret_cast<intptr_t>(Prop1Getter_entry));
+                Prop1Getter_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,",
                           prop1_getter_record.start()));
 
@@ -580,7 +579,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
-                reinterpret_cast<intptr_t>(Prop1Setter_entry));
+                Prop1Setter_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,",
                           prop1_setter_record.start()));
 
@@ -590,7 +589,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
-                reinterpret_cast<intptr_t>(Prop2Getter_entry));
+                Prop2Getter_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,",
                           prop2_getter_record.start()));
   }

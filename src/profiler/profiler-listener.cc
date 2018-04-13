@@ -117,7 +117,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        wasm::WasmName name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->instructions().start();
+  rec->start = code->instruction_start();
   // TODO(herhut): Instead of sanitizing here, make sure all wasm functions
   //               have names.
   const char* name_ptr =
@@ -125,7 +125,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, name_ptr, CodeEntry::kEmptyNamePrefix, CodeEntry::kEmptyResourceName,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->instructions().start());
+      nullptr, code->instruction_start());
   rec->size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
@@ -155,7 +155,7 @@ void ProfilerListener::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
   rec->start = code->address();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;
-  rec->pc = reinterpret_cast<void*>(pc);
+  rec->pc = pc;
   rec->fp_to_sp_delta = fp_to_sp_delta;
   DispatchCodeEvent(evt_rec);
 }

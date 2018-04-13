@@ -407,7 +407,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
     deoptimizing_throw_ = true;
   }
 
-  DCHECK_NOT_NULL(from);
+  DCHECK_NE(from, kNullAddress);
   compiled_code_ = FindOptimizedCode();
   DCHECK_NOT_NULL(compiled_code_);
 
@@ -495,7 +495,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
 Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate, int id,
                                             BailoutType type) {
   CHECK_GE(id, 0);
-  if (id >= kMaxNumberOfEntries) return nullptr;
+  if (id >= kMaxNumberOfEntries) return kNullAddress;
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(type, kLastBailoutType);
   CHECK_NOT_NULL(data->deopt_entry_code_[type]);
@@ -870,8 +870,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                      "context    ");
   if (context == isolate_->heap()->arguments_marker()) {
     Address output_address =
-        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
-        output_offset;
+        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
     values_to_materialize_.push_back({output_address, context_pos});
   }
   value_iterator++;
@@ -883,8 +882,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
   if (function == isolate_->heap()->arguments_marker()) {
     Address output_address =
-        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
-        output_offset;
+        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
     values_to_materialize_.push_back({output_address, function_iterator});
   }
 
@@ -972,12 +970,12 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
           ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
           : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   output_frame->SetPc(
-      reinterpret_cast<intptr_t>(dispatch_builtin->InstructionStart()));
+      static_cast<intptr_t>(dispatch_builtin->InstructionStart()));
 
   // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
-        reinterpret_cast<intptr_t>(dispatch_builtin->constant_pool());
+        static_cast<intptr_t>(dispatch_builtin->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
     if (is_topmost) {
       Register constant_pool_reg =
@@ -996,7 +994,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     // Set the continuation for the topmost frame.
     Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     output_frame->SetContinuation(
-        reinterpret_cast<intptr_t>(continuation->InstructionStart()));
+        static_cast<intptr_t>(continuation->InstructionStart()));
   }
 }
 
@@ -1106,8 +1104,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
   if (function == isolate_->heap()->arguments_marker()) {
     Address output_address =
-        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
-        output_offset;
+        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
     values_to_materialize_.push_back({output_address, function_iterator});
   }
 
@@ -1129,13 +1126,13 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   Builtins* builtins = isolate_->builtins();
   Code* adaptor_trampoline =
       builtins->builtin(Builtins::kArgumentsAdaptorTrampoline);
-  intptr_t pc_value = reinterpret_cast<intptr_t>(
+  intptr_t pc_value = static_cast<intptr_t>(
       adaptor_trampoline->InstructionStart() +
       isolate_->heap()->arguments_adaptor_deopt_pc_offset()->value());
   output_frame->SetPc(pc_value);
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
-        reinterpret_cast<intptr_t>(adaptor_trampoline->constant_pool());
+        static_cast<intptr_t>(adaptor_trampoline->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
   }
 }
@@ -1217,7 +1214,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     // a captured object, override the slot address for a captured object.
     WriteTranslatedValueToOutput(
         &value_iterator, &input_index, frame_index, output_offset, nullptr,
-        (i == 0) ? reinterpret_cast<Address>(top_address) : nullptr);
+        (i == 0) ? static_cast<Address>(top_address) : kNullAddress);
   }
 
   DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
@@ -1324,13 +1321,13 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
       bailout_id == BailoutId::ConstructStubCreate()
           ? isolate_->heap()->construct_stub_create_deopt_pc_offset()->value()
           : isolate_->heap()->construct_stub_invoke_deopt_pc_offset()->value();
-  intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
+  intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);
   output_frame->SetPc(pc_value);
 
   // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
-        reinterpret_cast<intptr_t>(construct_stub->constant_pool());
+        static_cast<intptr_t>(construct_stub->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
     if (is_topmost) {
       Register constant_pool_reg =
@@ -1354,7 +1351,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     DCHECK_EQ(LAZY, bailout_type_);
     Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     output_frame->SetContinuation(
-        reinterpret_cast<intptr_t>(continuation->InstructionStart()));
+        static_cast<intptr_t>(continuation->InstructionStart()));
   }
 }
 
@@ -1731,7 +1728,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                        "builtin JavaScript context\n");
   if (context == isolate_->heap()->arguments_marker()) {
     Address output_address =
-        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        static_cast<Address>(output_[frame_index]->GetTop()) +
         output_frame_offset;
     values_to_materialize_.push_back(
         {output_address, context_register_value.iterator_});
@@ -1767,7 +1764,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
     if (object == isolate_->heap()->arguments_marker()) {
       Address output_address =
-          reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+          static_cast<Address>(output_[frame_index]->GetTop()) +
           output_frame_offset;
       values_to_materialize_.push_back(
           {output_address, register_values[code].iterator_});
@@ -1820,16 +1817,16 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   Code* continue_to_builtin = isolate()->builtins()->builtin(
       TrampolineForBuiltinContinuation(mode, must_handle_result));
   output_frame->SetPc(
-      reinterpret_cast<intptr_t>(continue_to_builtin->InstructionStart()));
+      static_cast<intptr_t>(continue_to_builtin->InstructionStart()));
 
   Code* continuation =
       isolate()->builtins()->builtin(Builtins::kNotifyDeoptimized);
   output_frame->SetContinuation(
-      reinterpret_cast<intptr_t>(continuation->InstructionStart()));
+      static_cast<intptr_t>(continuation->InstructionStart()));
 }
 
 void Deoptimizer::MaterializeHeapObjects() {
-  translated_state_.Prepare(reinterpret_cast<Address>(stack_fp_));
+  translated_state_.Prepare(static_cast<Address>(stack_fp_));
   if (FLAG_deopt_every_n_times > 0) {
     // Doing a GC here will find problems with the deoptimized frames.
     isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
@@ -1841,7 +1838,7 @@ void Deoptimizer::MaterializeHeapObjects() {
 
     if (trace_scope_ != nullptr) {
       PrintF("Materialization [0x%08" V8PRIxPTR "] <- 0x%08" V8PRIxPTR " ;  ",
-             reinterpret_cast<intptr_t>(materialization.output_slot_address_),
+             static_cast<intptr_t>(materialization.output_slot_address_),
              reinterpret_cast<intptr_t>(*value));
       value->ShortPrint(trace_scope_->file());
       PrintF(trace_scope_->file(), "\n");
@@ -1861,7 +1858,7 @@ void Deoptimizer::MaterializeHeapObjects() {
   }
 
   isolate_->materialized_object_store()->Remove(
-      reinterpret_cast<Address>(stack_fp_));
+      static_cast<Address>(stack_fp_));
 }
 
 
@@ -1876,9 +1873,8 @@ void Deoptimizer::WriteTranslatedValueToOutput(
 
   if (value == isolate_->heap()->arguments_marker()) {
     Address output_address =
-        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
-        output_offset;
-    if (output_address_for_materialization == nullptr) {
+        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
+    if (output_address_for_materialization == kNullAddress) {
       output_address_for_materialization = output_address;
     }
     values_to_materialize_.push_back(
@@ -1910,11 +1906,10 @@ void Deoptimizer::DebugPrintOutputSlot(intptr_t value, int frame_index,
                                        const char* debug_hint_string) {
   if (trace_scope_ != nullptr) {
     Address output_address =
-        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
-        output_offset;
+        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
     PrintF(trace_scope_->file(),
            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ;  %s",
-           reinterpret_cast<intptr_t>(output_address), output_offset, value,
+           output_address, output_offset, value,
            debug_hint_string == nullptr ? "" : debug_hint_string);
   }
 }

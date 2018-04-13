@@ -320,15 +320,15 @@ void ByteArray::set(int index, byte value) {
 void ByteArray::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  byte* dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(dst_addr, buffer, length);
+  Address dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 void ByteArray::copy_out(int index, byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  const byte* src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(buffer, src_addr, length);
+  Address src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
 }
 
 int ByteArray::get_int(int index) const {
@@ -353,7 +353,7 @@ void ByteArray::set_uint32(int index, uint32_t value) {
 
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
-  memset(address() + data_size, 0, Size() - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
 }
 
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
@@ -365,8 +365,8 @@ int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 
-Address ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
+byte* ByteArray::GetDataStartAddress() {
+  return reinterpret_cast<byte*>(address() + kHeaderSize);
 }
 
 template <class T>

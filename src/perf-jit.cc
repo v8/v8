@@ -318,7 +318,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   debug_info.event_ = PerfJitCodeLoad::kDebugInfo;
   debug_info.time_stamp_ = GetTimestamp();
-  debug_info.address_ = reinterpret_cast<uint64_t>(code->InstructionStart());
+  debug_info.address_ = code->InstructionStart();
   debug_info.entry_count_ = entry_count;
 
   uint32_t size = sizeof(debug_info);
@@ -351,8 +351,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     // The entry point of the function will be placed straight after the ELF
     // header when processed by "perf inject". Adjust the position addresses
     // accordingly.
-    entry.address_ = reinterpret_cast<intptr_t>(
-        code_start + iterator.code_offset() + kElfHeaderSize);
+    entry.address_ = code_start + iterator.code_offset() + kElfHeaderSize;
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));

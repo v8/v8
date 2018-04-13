@@ -779,7 +779,8 @@ TEST(BytecodeArray) {
   CHECK_GE(array->address() + array->BytecodeArraySize(),
            array->GetFirstBytecodeAddress() + array->length());
   for (int i = 0; i < kRawBytesSize; i++) {
-    CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
+    CHECK_EQ(Memory::uint8_at(array->GetFirstBytecodeAddress() + i),
+             kRawBytes[i]);
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
 
@@ -796,7 +797,8 @@ TEST(BytecodeArray) {
   CHECK_EQ(array->frame_size(), kFrameSize);
   for (int i = 0; i < kRawBytesSize; i++) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
-    CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
+    CHECK_EQ(Memory::uint8_at(array->GetFirstBytecodeAddress() + i),
+             kRawBytes[i]);
   }
 
   // Constant pool should have been migrated.
@@ -1599,7 +1601,7 @@ TEST(TestAlignmentCalculations) {
   int max_double_unaligned_fill = Heap::GetMaximumFillToAlign(kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, max_double_unaligned_fill);
 
-  Address base = static_cast<Address>(nullptr);
+  Address base = kNullAddress;
   int fill = 0;
 
   // Word alignment never requires fill.
@@ -4460,7 +4462,7 @@ TEST(Regress507979) {
 
   for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
     // Let's not optimize the loop away.
-    CHECK_NOT_NULL(obj->address());
+    CHECK_NE(obj->address(), kNullAddress);
   }
 }
 

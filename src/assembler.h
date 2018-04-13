@@ -162,6 +162,9 @@ class AssemblerBase: public Malloced {
   static const int kMinimalBufferSize = 4*KB;
 
   static void FlushICache(void* start, size_t size);
+  static void FlushICache(Address start, size_t size) {
+    return FlushICache(reinterpret_cast<void*>(start), size);
+  }
 
  protected:
   // The buffer into which code and relocation info are generated. It could
@@ -180,6 +183,7 @@ class AssemblerBase: public Malloced {
   }
 
   // The program counter, which points into the buffer above and moves forward.
+  // TODO(jkummerow): This should probably have type {Address}.
   byte* pc_;
 
  private:
@@ -414,7 +418,7 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
+  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host)
       : pc_(pc), rmode_(rmode), data_(data), host_(host) {}
 
   static inline bool IsRealRelocMode(Mode mode) {
@@ -476,8 +480,7 @@ class RelocInfo {
   static constexpr int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
-  byte* pc() const { return pc_; }
-  void set_pc(byte* pc) { pc_ = pc; }
+  Address pc() const { return pc_; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
@@ -617,11 +620,11 @@ class RelocInfo {
   // to be relocated and not the address of the instruction
   // referencing the constant pool entry (except when rmode_ ==
   // comment).
-  byte* pc_;
+  Address pc_;
   Mode rmode_;
   intptr_t data_ = 0;
   Code* host_;
-  Address constant_pool_ = nullptr;
+  Address constant_pool_ = kNullAddress;
   Flags flags_;
   friend class RelocIterator;
 };

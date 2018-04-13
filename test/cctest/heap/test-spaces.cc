@@ -138,7 +138,7 @@ TEST(Regress3540) {
   address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &size);
-  CHECK_NOT_NULL(address);
+  CHECK_NE(address, kNullAddress);
 
   Address null_address;
   size_t null_size;
@@ -146,7 +146,7 @@ TEST(Regress3540) {
   null_address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &null_size);
-  CHECK_NULL(null_address);
+  CHECK_EQ(null_address, kNullAddress);
 
   code_range->FreeRawMemory(address, size);
   delete code_range;

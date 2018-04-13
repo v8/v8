@@ -1750,8 +1750,7 @@ class HeapObject: public Object {
 
   // Returns the address of this HeapObject.
   inline Address address() const {
-    return reinterpret_cast<Address>(const_cast<HeapObject*>(this)) -
-           kHeapObjectTag;
+    return reinterpret_cast<Address>(this) - kHeapObjectTag;
   }
 
   // Iterates over pointers contained in the object (including the Map).

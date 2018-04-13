@@ -47,7 +47,7 @@ class CodeEntry {
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
-                   Address instruction_start = nullptr);
+                   Address instruction_start = kNullAddress);
 
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
@@ -378,7 +378,7 @@ class ProfileGenerator {
   CodeMap* code_map() { return &code_map_; }
 
  private:
-  CodeEntry* FindEntry(void* address);
+  CodeEntry* FindEntry(Address address) { return code_map_.FindEntry(address); }
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;

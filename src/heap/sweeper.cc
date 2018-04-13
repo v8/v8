@@ -251,7 +251,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   ArrayBufferTracker::FreeDead(p, marking_state_);
 
   Address free_start = p->area_start();
-  DCHECK_EQ(0, reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize));
+  DCHECK_EQ(0, free_start % (32 * kPointerSize));
 
   // If we use the skip list for code space pages, we have to lock the skip
   // list because it could be accessed concurrently by the runtime or the
@@ -281,7 +281,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
       if (free_space_mode == ZAP_FREE_SPACE) {
-        memset(free_start, 0xCC, size);
+        memset(reinterpret_cast<void*>(free_start), 0xCC, size);
       }
       if (free_list_mode == REBUILD_FREE_LIST) {
         freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
@@ -321,7 +321,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     CHECK_GT(p->area_end(), free_start);
     size_t size = static_cast<size_t>(p->area_end() - free_start);
     if (free_space_mode == ZAP_FREE_SPACE) {
-      memset(free_start, 0xCC, size);
+      memset(reinterpret_cast<void*>(free_start), 0xCC, size);
     }
     if (free_list_mode == REBUILD_FREE_LIST) {
       freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(

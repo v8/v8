@@ -139,7 +139,7 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
                           CRegister cr) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(target), rmode, cond, cr);
+  Jump(static_cast<intptr_t>(target), rmode, cond, cr);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
@@ -202,7 +202,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   bind(&start);
 #endif
 
-  mov(ip, Operand(reinterpret_cast<intptr_t>(target), rmode));
+  mov(ip, Operand(target, rmode));
   basr(r14, ip);
 
   DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
@@ -1532,8 +1532,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  mov(kOffHeapTrampolineRegister,
-      Operand(reinterpret_cast<intptr_t>(entry), RelocInfo::OFF_HEAP_TARGET));
+  mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
 

@@ -132,7 +132,7 @@ bool CodeSpecialization::ApplyToWholeModule(NativeModule* native_module,
           changed = true;
           const WasmCode* new_code =
               native_module->GetIndirectlyCallableCode(exp.index);
-          it.rinfo()->set_js_to_wasm_address(new_code->instructions().start(),
+          it.rinfo()->set_js_to_wasm_address(new_code->instruction_start(),
                                              icache_flush_mode);
         } break;
         case RelocInfo::EMBEDDED_OBJECT: {
@@ -188,7 +188,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         // position iterator forward to that position to find the byte offset of
         // the respective call. Then extract the call index from the module wire
         // bytes to find the new compiled function.
-        size_t offset = it.rinfo()->pc() - code->instructions().start();
+        size_t offset = it.rinfo()->pc() - code->instruction_start();
         if (!patch_direct_calls_helper) {
           patch_direct_calls_helper.emplace(relocate_direct_calls_module_,
                                             code);
@@ -199,7 +199,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
             patch_direct_calls_helper->decoder,
             patch_direct_calls_helper->func_bytes + byte_pos);
         const WasmCode* new_code = native_module->GetCode(called_func_index);
-        it.rinfo()->set_wasm_call_address(new_code->instructions().start(),
+        it.rinfo()->set_wasm_call_address(new_code->instruction_start(),
                                           icache_flush_mode);
         changed = true;
       } break;
@@ -208,9 +208,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         WasmCode* const* code_table_entry =
             native_module->code_table().data() + code->index();
         it.rinfo()->set_wasm_code_table_entry(
-            const_cast<Address>(
-                reinterpret_cast<byte const*>(code_table_entry)),
-            icache_flush_mode);
+            reinterpret_cast<Address>(code_table_entry), icache_flush_mode);
       } break;
 
       default:

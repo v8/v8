@@ -889,7 +889,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
       Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
 
-      if (v8::ToCData<Address>(info->getter()) == nullptr ||
+      if (v8::ToCData<Address>(info->getter()) == kNullAddress ||
           !AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map) ||
           !holder->HasFastProperties() ||
           (info->is_sloppy() && !receiver->IsJSReceiver())) {
@@ -1502,8 +1502,8 @@ Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<Object> accessors = lookup->GetAccessors();
       if (accessors->IsAccessorInfo()) {
         Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-        if (v8::ToCData<Address>(info->setter()) == nullptr) {
-          set_slow_stub_reason("setter == nullptr");
+        if (v8::ToCData<Address>(info->setter()) == kNullAddress) {
+          set_slow_stub_reason("setter == kNullAddress");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return slow_stub();
         }

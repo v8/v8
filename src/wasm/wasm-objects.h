@@ -644,7 +644,7 @@ class WasmDebugInfo : public Struct {
   // Returns true if exited regularly, false if a trap occurred. In the latter
   // case, a pending exception will have been set on the isolate.
   bool RunInterpreter(Address frame_pointer, int func_index,
-                      uint8_t* arg_buffer);
+                      Address arg_buffer);
 
   // Get the stack of the wasm interpreter as pairs of <function index, byte
   // offset>. The list is ordered bottom-to-top, i.e. caller before callee.

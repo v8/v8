@@ -2167,19 +2167,19 @@ extern void _v8_internal_Print_Code(void* object) {
       !isolate->heap()->InSpaceSlow(address, i::LO_SPACE)) {
     i::PrintF(
         "%p is not within the current isolate's large object or code spaces\n",
-        static_cast<void*>(address));
+        reinterpret_cast<void*>(address));
     return;
   }
 
   i::Code* code = isolate->FindCodeObject(address);
   if (!code->IsCode()) {
     i::PrintF("No code object found containing %p\n",
-              static_cast<void*>(address));
+              reinterpret_cast<void*>(address));
     return;
   }
 #ifdef ENABLE_DISASSEMBLER
   i::OFStream os(stdout);
-  code->Disassemble(nullptr, os, address);
+  code->Disassemble(nullptr, os, reinterpret_cast<void*>(address));
 #else   // ENABLE_DISASSEMBLER
   code->Print();
 #endif  // ENABLE_DISASSEMBLER

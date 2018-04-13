@@ -222,7 +222,7 @@ struct ImmediateInitializer<ExternalReference> {
     return RelocInfo::EXTERNAL_REFERENCE;
   }
   static inline int64_t immediate_for(ExternalReference t) {;
-    return reinterpret_cast<int64_t>(t.address());
+    return static_cast<int64_t>(t.address());
   }
 };
 
@@ -671,7 +671,7 @@ Address RelocInfo::target_internal_reference() {
 
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(pc_);
+  return pc_;
 }
 
 void RelocInfo::set_wasm_code_table_entry(Address target,
@@ -705,9 +705,9 @@ void RelocInfo::WipeOut() {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = nullptr;
+    Memory::Address_at(pc_) = kNullAddress;
   } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, nullptr);
+    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }
 }
 

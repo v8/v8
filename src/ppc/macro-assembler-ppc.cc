@@ -143,14 +143,14 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
                           CRegister cr) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(target), rmode, cond, cr);
+  Jump(static_cast<intptr_t>(target), rmode, cond, cr);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, CRegister cr) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ppc code, never THUMB code
-  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond, cr);
+  Jump(static_cast<intptr_t>(code.address()), rmode, cond, cr);
 }
 
 int TurboAssembler::CallSize(Register target) { return 2 * kInstrSize; }
@@ -174,7 +174,7 @@ void MacroAssembler::CallJSEntry(Register target) {
 
 int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
                              Condition cond) {
-  Operand mov_operand = Operand(reinterpret_cast<intptr_t>(target), rmode);
+  Operand mov_operand = Operand(target, rmode);
   return (2 + instructions_required_for_mov(ip, mov_operand)) * kInstrSize;
 }
 
@@ -202,7 +202,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   // bc( BA, .... offset, LKset);
   //
 
-  mov(ip, Operand(reinterpret_cast<intptr_t>(target), rmode));
+  mov(ip, Operand(target, rmode));
   mtctr(ip);
   bctrl();
 
@@ -1633,8 +1633,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  mov(kOffHeapTrampolineRegister,
-      Operand(reinterpret_cast<intptr_t>(entry), RelocInfo::OFF_HEAP_TARGET));
+  mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
 

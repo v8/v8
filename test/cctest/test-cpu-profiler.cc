@@ -86,18 +86,18 @@ TEST(StartStop) {
 
 static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
-                                   i::Address frame2 = nullptr,
-                                   i::Address frame3 = nullptr) {
+                                   i::Address frame2 = kNullAddress,
+                                   i::Address frame3 = kNullAddress) {
   v8::TickSample* sample = proc->StartTickSample();
-  sample->pc = frame1;
-  sample->tos = frame1;
+  sample->pc = reinterpret_cast<void*>(frame1);
+  sample->tos = reinterpret_cast<void*>(frame1);
   sample->frames_count = 0;
-  if (frame2 != nullptr) {
-    sample->stack[0] = frame2;
+  if (frame2 != kNullAddress) {
+    sample->stack[0] = reinterpret_cast<void*>(frame2);
     sample->frames_count = 1;
   }
-  if (frame3 != nullptr) {
-    sample->stack[1] = frame3;
+  if (frame3 != kNullAddress) {
+    sample->stack[1] = reinterpret_cast<void*>(frame3);
     sample->frames_count = 2;
   }
   proc->FinishTickSample();
@@ -306,11 +306,11 @@ TEST(Issue1398) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
   v8::TickSample* sample = processor->StartTickSample();
-  sample->pc = code->address();
-  sample->tos = 0;
+  sample->pc = reinterpret_cast<void*>(code->address());
+  sample->tos = nullptr;
   sample->frames_count = v8::TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = code->address();
+    sample->stack[i] = reinterpret_cast<void*>(code->address());
   }
   processor->FinishTickSample();
 

@@ -139,7 +139,7 @@ void ThreadLocalTop::InitializeInternal() {
 #ifdef USE_SIMULATOR
   simulator_ = nullptr;
 #endif
-  js_entry_sp_ = nullptr;
+  js_entry_sp_ = kNullAddress;
   external_callback_scope_ = nullptr;
   current_vm_state_ = EXTERNAL;
   try_catch_handler_ = nullptr;
@@ -704,7 +704,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   if (it.done()) {
     *line = -1;
     *column = -1;
-    return nullptr;
+    return kNullAddress;
   }
   JavaScriptFrame* frame = it.frame();
   DCHECK(!frame->is_builtin());
@@ -1341,7 +1341,7 @@ Object* Isolate::UnwindAndFindHandler() {
         set_wasm_caught_exception(exception);
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
-        return FoundHandler(nullptr, wasm_code->instructions().start(), offset,
+        return FoundHandler(nullptr, wasm_code->instruction_start(), offset,
                             wasm_code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -1552,8 +1552,10 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
         Address entry_handler = frame->top_handler()->next()->address();
         // The exception has been externally caught if and only if there is an
         // external handler which is on top of the top-most JS_ENTRY handler.
-        if (external_handler != nullptr && !try_catch_handler()->is_verbose_) {
-          if (entry_handler == nullptr || entry_handler > external_handler) {
+        if (external_handler != kNullAddress &&
+            !try_catch_handler()->is_verbose_) {
+          if (entry_handler == kNullAddress ||
+              entry_handler > external_handler) {
             return CAUGHT_BY_EXTERNAL;
           }
         }
@@ -1818,12 +1820,12 @@ bool Isolate::IsJavaScriptHandlerOnTop(Object* exception) {
 
   // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
   Address entry_handler = Isolate::handler(thread_local_top());
-  if (entry_handler == nullptr) return false;
+  if (entry_handler == kNullAddress) return false;
 
   // Get the address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (external_handler == nullptr) return true;
+  if (external_handler == kNullAddress) return true;
 
   // The exception has been externally caught if and only if there is an
   // external handler which is on top of the top-most JS_ENTRY handler.
@@ -1841,14 +1843,14 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
   // Get the address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (external_handler == nullptr) return false;
+  if (external_handler == kNullAddress) return false;
 
   // For uncatchable exceptions, the external handler is always on top.
   if (!is_catchable_by_javascript(exception)) return true;
 
   // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
   Address entry_handler = Isolate::handler(thread_local_top());
-  if (entry_handler == nullptr) return true;
+  if (entry_handler == kNullAddress) return true;
 
   // The exception has been externally caught if and only if there is an
   // external handler which is on top of the top-most JS_ENTRY handler.
@@ -1920,25 +1922,25 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
 
     // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
     Address entry_handler = Isolate::handler(thread_local_top());
-    DCHECK_NOT_NULL(entry_handler);
+    DCHECK_NE(entry_handler, kNullAddress);
     entry_handler =
         reinterpret_cast<StackHandler*>(entry_handler)->next()->address();
 
     // Get the address of the external handler so we can compare the address to
     // determine which one is closer to the top of the stack.
     Address external_handler = thread_local_top()->try_catch_handler_address();
-    if (external_handler == nullptr) return true;
+    if (external_handler == kNullAddress) return true;
 
     return (entry_handler < external_handler);
   };
 
   auto IsHandledExternally = [=]() {
     Address external_handler = thread_local_top()->try_catch_handler_address();
-    if (external_handler == nullptr) return false;
+    if (external_handler == kNullAddress) return false;
 
     // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
     Address entry_handler = Isolate::handler(thread_local_top());
-    DCHECK_NOT_NULL(entry_handler);
+    DCHECK_NE(entry_handler, kNullAddress);
     entry_handler =
         reinterpret_cast<StackHandler*>(entry_handler)->next()->address();
     return (entry_handler > external_handler);
@@ -2013,7 +2015,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
     // If the exception is externally caught, clear it if there are no
     // JavaScript frames on the way to the C++ frame that has the
     // external handler.
-    DCHECK_NOT_NULL(thread_local_top()->try_catch_handler_address());
+    DCHECK_NE(thread_local_top()->try_catch_handler_address(), kNullAddress);
     Address external_handler_address =
         thread_local_top()->try_catch_handler_address();
     JavaScriptFrameIterator it(this);
@@ -2903,9 +2905,9 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
 
-    const uint8_t* instruction_start = d.InstructionStartOfBuiltin(i);
+    Address instruction_start = d.InstructionStartOfBuiltin(i);
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
-        builtins->builtin_handle(i), const_cast<Address>(instruction_start));
+        builtins->builtin_handle(i), instruction_start);
 
     // Note that references to the old, on-heap code objects may still exist on
     // the heap. This is fine for the sake of serialization, as serialization
@@ -4078,7 +4080,7 @@ void Isolate::SetIdle(bool is_idle) {
   if (!is_profiling()) return;
   StateTag state = current_vm_state();
   DCHECK(state == EXTERNAL || state == IDLE);
-  if (js_entry_sp() != nullptr) return;
+  if (js_entry_sp() != kNullAddress) return;
   if (is_idle) {
     set_current_vm_state(IDLE);
   } else if (state == IDLE) {
@@ -4091,7 +4093,7 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
 #ifdef USE_SIMULATOR
   // The simulator uses a separate JS stack.
   Address jssp_address = Simulator::current(isolate_)->get_sp();
-  uintptr_t jssp = reinterpret_cast<uintptr_t>(jssp_address);
+  uintptr_t jssp = static_cast<uintptr_t>(jssp_address);
   if (jssp - gap < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
   return GetCurrentStackPosition() - gap < stack_guard->real_climit();

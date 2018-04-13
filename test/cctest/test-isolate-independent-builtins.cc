@@ -277,7 +277,7 @@ TEST(ByteInText) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   auto f = GeneratedCode<int(int, int)>::FromAddress(
-      isolate, const_cast<char*>(test_function0_bytes));
+      isolate, reinterpret_cast<Address>(&test_function0_bytes[0]));
   CHECK_EQ(7, f.Call(3, 4));
   CHECK_EQ(11, f.Call(5, 6));
 }

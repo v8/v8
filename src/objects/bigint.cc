@@ -179,8 +179,8 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
-    byte* address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
-    (*reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address))) = value;
+    Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
+    (*reinterpret_cast<digit_t*>(address)) = value;
   }
 #include "src/objects/object-macros-undef.h"
 
@@ -238,8 +238,8 @@ Handle<MutableBigInt> MutableBigInt::Copy(Handle<BigIntBase> source) {
   // Allocating a BigInt of the same length as an existing BigInt cannot throw.
   Handle<MutableBigInt> result =
       New(source->GetIsolate(), length).ToHandleChecked();
-  memcpy(result->address() + BigIntBase::kHeaderSize,
-         source->address() + BigIntBase::kHeaderSize,
+  memcpy(reinterpret_cast<void*>(result->address() + BigIntBase::kHeaderSize),
+         reinterpret_cast<void*>(source->address() + BigIntBase::kHeaderSize),
          BigInt::SizeFor(length) - BigIntBase::kHeaderSize);
   return result;
 }

@@ -704,8 +704,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallWasmFunction: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         if (info()->IsWasm()) {
           __ near_call(wasm_code, RelocInfo::WASM_CALL);
         } else {
@@ -753,8 +753,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallWasm: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         if (info()->IsWasm()) {
           __ near_jmp(wasm_code, RelocInfo::WASM_CALL);
         } else {

@@ -55,7 +55,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                       v8::internal::CodeObjectRequired::kYes);
 
   Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
-  byte* start = code->InstructionStart();
+  Address start = code->InstructionStart();
 
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());

@@ -698,8 +698,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
         __ Call(wasm_code, rmode);
       } else {
         __ Call(i.InputRegister(0));
@@ -747,8 +747,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
         __ Jump(wasm_code, rmode);
       } else {
         __ Jump(i.InputRegister(0));

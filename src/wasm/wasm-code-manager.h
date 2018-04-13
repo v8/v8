@@ -96,6 +96,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   enum Tier : int8_t { kLiftoff, kTurbofan, kOther };
 
   Vector<byte> instructions() const { return instructions_; }
+  Address instruction_start() const {
+    return reinterpret_cast<Address>(instructions_.start());
+  }
   Vector<const byte> reloc_info() const {
     return {reloc_info_.get(), reloc_size_};
   }
@@ -282,7 +285,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   class CloneCodeHelper;
   struct AddressHasher {
     size_t operator()(const Address& addr) const {
-      return std::hash<intptr_t>()(reinterpret_cast<intptr_t>(addr));
+      return std::hash<Address>()(addr);
     }
   };
 
@@ -383,7 +386,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   void FreeNativeModuleMemories(NativeModule*);
   void Free(VirtualMemory* mem);
-  void AssignRanges(void* start, void* end, NativeModule*);
+  void AssignRanges(Address start, Address end, NativeModule*);
   size_t GetAllocationChunk(const WasmModule& module);
   bool WouldGCHelp() const;
 

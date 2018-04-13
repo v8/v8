@@ -196,7 +196,7 @@ class RememberedSet : public AllStatic {
     if (slot_set == nullptr) {
       slot_set = page->AllocateTypedSlotSet<type>();
     }
-    if (host_addr == nullptr) {
+    if (host_addr == kNullAddress) {
       host_addr = page->address();
     }
     uintptr_t offset = slot_addr - page->address();

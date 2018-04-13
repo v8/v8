@@ -215,15 +215,12 @@ void ExternalReference::set_redirector(
 }
 
 // static
-void* ExternalReference::Redirect(Isolate* isolate, Address address_arg,
-                                  Type type) {
+Address ExternalReference::Redirect(Isolate* isolate, Address address,
+                                    Type type) {
   ExternalReferenceRedirector* redirector =
       reinterpret_cast<ExternalReferenceRedirector*>(
           isolate->external_reference_redirector());
-  void* address = reinterpret_cast<void*>(address_arg);
-  void* answer =
-      (redirector == nullptr) ? address : (*redirector)(address, type);
-  return answer;
+  return (redirector == nullptr) ? address : (*redirector)(address, type);
 }
 
 ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
@@ -1018,7 +1015,7 @@ size_t hash_value(ExternalReference reference) {
 }
 
 std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
-  os << static_cast<const void*>(reference.address());
+  os << reinterpret_cast<const void*>(reference.address());
   const Runtime::Function* fn = Runtime::FunctionForEntry(reference.address());
   if (fn) os << "<" << fn->name << ".entry>";
   return os;

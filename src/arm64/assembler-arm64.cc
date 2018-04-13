@@ -290,7 +290,7 @@ bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
 }
 
 void Immediate::InitializeHandle(Handle<HeapObject> handle) {
-  value_ = reinterpret_cast<intptr_t>(handle.address());
+  value_ = static_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -570,8 +570,7 @@ void Assembler::Reset() {
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
-  reloc_info_writer.Reposition(reinterpret_cast<byte*>(buffer_ + buffer_size_),
-                               reinterpret_cast<byte*>(pc_));
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
@@ -591,7 +590,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         object = request.code_stub()->GetCode();
         break;
     }
-    Address pc = buffer_ + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory::Address_at(target_pointer_address_at(pc)) = object.address();
   }
 }
@@ -4722,7 +4721,7 @@ void Assembler::GrowBuffer() {
   DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
-  pc_ = reinterpret_cast<byte*>(pc_) + pc_delta;
+  pc_ = pc_ + pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -4745,7 +4744,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   DCHECK(!RelocInfo::IsNone(rmode));
 
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   bool write_reloc_info = true;
 
   if ((rmode == RelocInfo::COMMENT) ||
@@ -4858,8 +4857,8 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(buffer_ + location_offset, RelocInfo::VENEER_POOL,
-                  static_cast<intptr_t>(size), nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(buffer_) + location_offset,
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -4965,8 +4964,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
 
 
 int Assembler::buffer_space() const {
-  return static_cast<int>(reloc_info_writer.pos() -
-                          reinterpret_cast<byte*>(pc_));
+  return static_cast<int>(reloc_info_writer.pos() - pc_);
 }
 
 

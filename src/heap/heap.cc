@@ -247,7 +247,7 @@ Heap::Heap()
   set_encountered_weak_collections(Smi::kZero);
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
-  RememberUnmappedPage(nullptr, false);
+  RememberUnmappedPage(kNullAddress, false);
 }
 
 size_t Heap::MaxReserved() {
@@ -2733,7 +2733,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
         SKIP_WRITE_BARRIER);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
       Memory::Address_at(addr + kPointerSize) =
-          reinterpret_cast<Address>(kClearedFreeMemoryValue);
+          static_cast<Address>(kClearedFreeMemoryValue);
     }
   } else {
     DCHECK_GT(size, 2 * kPointerSize);
@@ -3809,8 +3809,7 @@ void Heap::ZapFromSpace() {
        PageRange(new_space_->FromSpaceStart(), new_space_->FromSpaceEnd())) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
-      Memory::Address_at(cursor) =
-          reinterpret_cast<Address>(kFromSpaceZapValue);
+      Memory::Address_at(cursor) = static_cast<Address>(kFromSpaceZapValue);
     }
   }
 }
@@ -5437,15 +5436,13 @@ void Heap::ExternalStringTable::TearDown() {
 
 
 void Heap::RememberUnmappedPage(Address page, bool compacted) {
-  uintptr_t p = reinterpret_cast<uintptr_t>(page);
   // Tag the page pointer to make it findable in the dump file.
   if (compacted) {
-    p ^= 0xC1EAD & (Page::kPageSize - 1);  // Cleared.
+    page ^= 0xC1EAD & (Page::kPageSize - 1);  // Cleared.
   } else {
-    p ^= 0x1D1ED & (Page::kPageSize - 1);  // I died.
+    page ^= 0x1D1ED & (Page::kPageSize - 1);  // I died.
   }
-  remembered_unmapped_pages_[remembered_unmapped_pages_index_] =
-      reinterpret_cast<Address>(p);
+  remembered_unmapped_pages_[remembered_unmapped_pages_index_] = page;
   remembered_unmapped_pages_index_++;
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }

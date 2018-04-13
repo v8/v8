@@ -146,8 +146,8 @@ class StackFrame BASE_EMBEDDED {
                 kHeapObjectTag);
 
   struct State {
-    Address sp = nullptr;
-    Address fp = nullptr;
+    Address sp = kNullAddress;
+    Address fp = kNullAddress;
     Address* pc_address = nullptr;
     Address* callee_pc_address = nullptr;
     Address* constant_pool_address = nullptr;
@@ -237,7 +237,7 @@ class StackFrame BASE_EMBEDDED {
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
   Address callee_pc() const {
-    return state_.callee_pc_address ? *state_.callee_pc_address : nullptr;
+    return state_.callee_pc_address ? *state_.callee_pc_address : kNullAddress;
   }
   Address caller_sp() const { return GetCallerStackPointer(); }
 

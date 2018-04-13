@@ -324,8 +324,7 @@ class TurboAssembler : public Assembler {
   }
 
   void Move(Register dst, ExternalReference ext) {
-    movp(dst, reinterpret_cast<void*>(ext.address()),
-         RelocInfo::EXTERNAL_REFERENCE);
+    movp(dst, ext.address(), RelocInfo::EXTERNAL_REFERENCE);
   }
 
   void Move(XMMRegister dst, uint32_t src);
@@ -342,7 +341,7 @@ class TurboAssembler : public Assembler {
             RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
   // Loads a pointer into a register with a relocation mode.
-  void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
+  void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
     DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);

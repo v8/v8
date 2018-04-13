@@ -3665,14 +3665,14 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
                           Register rs, const Operand& rt, BranchDelaySlot bd) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(target), rmode, cond, rs, rt, bd);
+  Jump(static_cast<intptr_t>(target), rmode, cond, rs, rt, bd);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, Register rs, const Operand& rt,
                           BranchDelaySlot bd) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
+  Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
 }
 
 int TurboAssembler::CallSize(Register target, int16_t offset, Condition cond,
@@ -3795,7 +3795,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Label start;
   bind(&start);
-  int32_t target_int = reinterpret_cast<int32_t>(target);
+  int32_t target_int = static_cast<int32_t>(target);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT && cond == cc_always) {
     uint32_t lui_offset, jialc_offset;
     UnpackTargetAddressUnsigned(target_int, lui_offset, jialc_offset);
@@ -4556,8 +4556,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  li(kOffHeapTrampolineRegister,
-     Operand(reinterpret_cast<int32_t>(entry), RelocInfo::OFF_HEAP_TARGET));
+  li(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
 

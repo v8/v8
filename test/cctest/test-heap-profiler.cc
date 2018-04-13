@@ -3106,9 +3106,7 @@ TEST(EmbedderGraphWithPrefix) {
   CHECK(node);
 }
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
+static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 
 TEST(AddressToTraceMap) {
   i::AddressToTraceMap map;

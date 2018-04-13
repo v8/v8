@@ -201,7 +201,8 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::clear_padding() {
-  memset(this->address() + kSize, 0, kAlignedSize - kSize);
+  memset(reinterpret_cast<void*>(this->address() + kSize), 0,
+         kAlignedSize - kSize);
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {

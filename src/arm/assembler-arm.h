@@ -1496,8 +1496,8 @@ class Assembler : public AssemblerBase {
   void instr_at_put(int pos, Instr instr) {
     *reinterpret_cast<Instr*>(buffer_ + pos) = instr;
   }
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr) {
+  static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(Address pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   static Condition GetCondition(Instr instr);

@@ -132,7 +132,7 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
     if (data == nullptr) {
       continue;
     }
-    const uintptr_t base = reinterpret_cast<uintptr_t>(data->base);
+    const Address base = data->base;
 
     if (fault_addr >= base && fault_addr < base + data->size) {
       // Hurray, we found the code object. Check for protected addresses.

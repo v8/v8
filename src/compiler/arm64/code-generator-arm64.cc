@@ -623,8 +623,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (info()->IsWasm()) scope.Open(tasm());
 
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         if (info()->IsWasm()) {
           __ Call(wasm_code, RelocInfo::WASM_CALL);
         } else {
@@ -669,8 +669,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (info()->IsWasm()) scope.Open(tasm());
 
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         if (info()->IsWasm()) {
           __ Jump(wasm_code, RelocInfo::WASM_CALL);
         } else {

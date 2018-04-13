@@ -211,7 +211,7 @@ class Code : public HeapObject {
   static inline Object* GetObjectFromCodeEntry(Address code_entry);
 
   // Returns the address of the first instruction.
-  inline byte* raw_instruction_start() const;
+  inline Address raw_instruction_start() const;
 
   // Returns the address of the first instruction. For off-heap code objects
   // this differs from instruction_start (which would point to the off-heap
@@ -222,7 +222,7 @@ class Code : public HeapObject {
 #endif
 
   // Returns the address right after the last instruction.
-  inline byte* raw_instruction_end() const;
+  inline Address raw_instruction_end() const;
 
   // Returns the address right after the last instruction. For off-heap code
   // objects this differs from instruction_end (which would point to the
@@ -281,16 +281,16 @@ class Code : public HeapObject {
   inline void set_unwinding_info_size(int value);
 
   // Returns the address of the unwinding information, if any.
-  inline byte* unwinding_info_start() const;
+  inline Address unwinding_info_start() const;
 
   // Returns the address right after the end of the unwinding information.
-  inline byte* unwinding_info_end() const;
+  inline Address unwinding_info_end() const;
 
   // Code entry point.
-  inline byte* entry() const;
+  inline Address entry() const;
 
   // Returns true if pc is inside this object's instructions.
-  inline bool contains(byte* pc);
+  inline bool contains(Address pc);
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
@@ -533,7 +533,7 @@ class AbstractCode : public HeapObject {
   inline int SizeIncludingMetadata();
 
   // Returns true if pc is inside this object's instructions.
-  inline bool contains(byte* pc);
+  inline bool contains(Address pc);
 
   // Returns the AbstractCode::Kind of the code.
   inline Kind kind();

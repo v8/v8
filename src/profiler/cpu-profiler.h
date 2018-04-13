@@ -84,7 +84,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   Address start;
   const char* deopt_reason;
   int deopt_id;
-  void* pc;
+  Address pc;
   int fp_to_sp_delta;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));

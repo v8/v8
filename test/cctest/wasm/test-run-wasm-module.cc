@@ -280,8 +280,10 @@ class WasmSerializationTest {
       Handle<WasmCompiledModule> compiled_part(module_object->compiled_module(),
                                                current_isolate());
       CHECK_EQ(
-          memcmp(compiled_part->shared()->module_bytes()->GetCharsAddress(),
-                 wire_bytes().first, wire_bytes().second),
+          memcmp(
+              reinterpret_cast<const uint8_t*>(
+                  compiled_part->shared()->module_bytes()->GetCharsAddress()),
+              wire_bytes().first, wire_bytes().second),
           0);
     }
     Handle<WasmInstanceObject> instance =
@@ -568,7 +570,7 @@ class InterruptThread : public v8::base::Thread {
   static void OnInterrupt(v8::Isolate* isolate, void* data) {
     int32_t* m = reinterpret_cast<int32_t*>(data);
     // Set the interrupt location to 0 to break the loop in {TestInterruptLoop}.
-    int32_t* ptr = &m[interrupt_location_];
+    Address ptr = reinterpret_cast<Address>(&m[interrupt_location_]);
     WriteLittleEndianValue<int32_t>(ptr, interrupt_value_);
   }
 
@@ -577,7 +579,7 @@ class InterruptThread : public v8::base::Thread {
     int32_t val = 0;
     do {
       val = memory_[0];
-      val = ReadLittleEndianValue<int32_t>(&val);
+      val = ReadLittleEndianValue<int32_t>(reinterpret_cast<Address>(&val));
     } while (val != signal_value_);
     isolate_->RequestInterrupt(&OnInterrupt, const_cast<int32_t*>(memory_));
   }
@@ -642,9 +644,10 @@ TEST(TestInterruptLoop) {
     InterruptThread thread(isolate, memory_array);
     thread.Start();
     testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
-    int32_t val = memory_array[InterruptThread::interrupt_location_];
+    Address address = reinterpret_cast<Address>(
+        &memory_array[InterruptThread::interrupt_location_]);
     CHECK_EQ(InterruptThread::interrupt_value_,
-             ReadLittleEndianValue<int32_t>(&val));
+             ReadLittleEndianValue<int32_t>(address));
   }
   Cleanup();
 }

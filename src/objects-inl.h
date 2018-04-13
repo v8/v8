@@ -932,13 +932,13 @@ bool MapWord::IsForwardingAddress() const {
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
   Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
-  return MapWord(reinterpret_cast<uintptr_t>(raw));
+  return MapWord(static_cast<uintptr_t>(raw));
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
-  return HeapObject::FromAddress(reinterpret_cast<Address>(value_));
+  return HeapObject::FromAddress(static_cast<Address>(value_));
 }
 
 
@@ -2299,15 +2299,17 @@ ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 bool AccessorInfo::has_getter() {
   bool result = getter() != Smi::kZero;
-  DCHECK_EQ(result, getter() != Smi::kZero &&
-                        Foreign::cast(getter())->foreign_address() != nullptr);
+  DCHECK_EQ(result,
+            getter() != Smi::kZero &&
+                Foreign::cast(getter())->foreign_address() != kNullAddress);
   return result;
 }
 
 bool AccessorInfo::has_setter() {
   bool result = setter() != Smi::kZero;
-  DCHECK_EQ(result, setter() != Smi::kZero &&
-                        Foreign::cast(setter())->foreign_address() != nullptr);
+  DCHECK_EQ(result,
+            setter() != Smi::kZero &&
+                Foreign::cast(setter())->foreign_address() != kNullAddress);
   return result;
 }
 
@@ -2754,7 +2756,7 @@ bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 // static
 bool Foreign::IsNormalized(Object* value) {
   if (value == Smi::kZero) return true;
-  return Foreign::cast(value)->foreign_address() != nullptr;
+  return Foreign::cast(value)->foreign_address() != kNullAddress;
 }
 
 Address Foreign::foreign_address() {

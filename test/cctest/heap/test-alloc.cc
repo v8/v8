@@ -227,7 +227,7 @@ TEST(CodeRange) {
       Address base = code_range.AllocateRawMemory(
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
-      CHECK_NOT_NULL(base);
+      CHECK_NE(base, kNullAddress);
       blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

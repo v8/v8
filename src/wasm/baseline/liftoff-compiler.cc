@@ -1458,7 +1458,7 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), false);
 
       // Just encode the function index. This will be patched at instantiation.
-      Address addr = reinterpret_cast<Address>(operand.index);
+      Address addr = static_cast<Address>(operand.index);
       __ CallNativeWasmCode(addr);
 
       safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,

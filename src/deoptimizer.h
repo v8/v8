@@ -362,7 +362,7 @@ class TranslatedState {
 
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
-  Address stack_frame_pointer_ = nullptr;
+  Address stack_frame_pointer_ = kNullAddress;
   int formal_parameter_count_;
 
   struct ObjectPosition {
@@ -398,7 +398,7 @@ class Deoptimizer : public Malloced {
     static const int kNoDeoptId = -1;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, byte* from);
+  static DeoptInfo GetDeoptInfo(Code* code, Address from);
 
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
@@ -557,7 +557,7 @@ class Deoptimizer : public Malloced {
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
       unsigned output_offset, const char* debug_hint_string = nullptr,
-      Address output_address_for_materialization = nullptr);
+      Address output_address_for_materialization = kNullAddress);
   void WriteValueToOutput(Object* value, int input_index, int frame_index,
                           unsigned output_offset,
                           const char* debug_hint_string);

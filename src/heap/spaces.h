@@ -413,7 +413,7 @@ class MemoryChunk {
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   static inline void UpdateHighWaterMark(Address mark) {
-    if (mark == nullptr) return;
+    if (mark == kNullAddress) return;
     // Need to subtract one from the mark because when a chunk is full the
     // top points to the next address after the chunk, which effectively belongs
     // to another chunk. See the comment to Page::FromTopOrLimit.
@@ -769,8 +769,7 @@ class Page : public MemoryChunk {
   }
 
   static bool IsAtObjectStart(Address addr) {
-    return (reinterpret_cast<intptr_t>(addr) & kPageAlignmentMask) ==
-           kObjectStartOffset;
+    return (addr & kPageAlignmentMask) == kObjectStartOffset;
   }
 
   static Page* ConvertNewToOld(Page* old_page);
@@ -1033,7 +1032,7 @@ class CodeRange {
   bool valid() { return virtual_memory_.IsReserved(); }
   Address start() {
     DCHECK(valid());
-    return static_cast<Address>(virtual_memory_.address());
+    return virtual_memory_.address();
   }
   size_t size() {
     DCHECK(valid());
@@ -1041,7 +1040,7 @@ class CodeRange {
   }
   bool contains(Address address) {
     if (!valid()) return false;
-    Address start = static_cast<Address>(virtual_memory_.address());
+    Address start = virtual_memory_.address();
     return start <= address && address < start + virtual_memory_.size();
   }
 
@@ -1065,7 +1064,7 @@ class CodeRange {
       DCHECK(size >= static_cast<size_t>(Page::kPageSize));
     }
     FreeBlock(void* start_arg, size_t size_arg)
-        : start(static_cast<Address>(start_arg)), size(size_arg) {
+        : start(reinterpret_cast<Address>(start_arg)), size(size_arg) {
       DCHECK(IsAddressAligned(start, MemoryChunk::kAlignment));
       DCHECK(size >= static_cast<size_t>(Page::kPageSize));
     }
@@ -1114,7 +1113,7 @@ class SkipList {
 
   void Clear() {
     for (int idx = 0; idx < kSize; idx++) {
-      starts_[idx] = reinterpret_cast<Address>(-1);
+      starts_[idx] = static_cast<Address>(-1);
     }
   }
 
@@ -1334,7 +1333,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
   // Returns an indication of whether a pointer is in a space that has
   // been allocated by this MemoryAllocator.
-  V8_INLINE bool IsOutsideAllocatedSpace(const void* address) {
+  V8_INLINE bool IsOutsideAllocatedSpace(Address address) {
     return address < lowest_ever_allocated_.Value() ||
            address >= highest_ever_allocated_.Value();
   }
@@ -1364,8 +1363,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                          size_t bytes_to_free, Address new_area_end);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
-  // the address is not nullptr, the size is greater than zero, and that the
-  // block is contained in the initial chunk.  Returns true if it succeeded
+  // the address is not kNullAddress, the size is greater than zero, and that
+  // the block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool CommitBlock(Address start, size_t size, Executability executable);
 
@@ -1376,7 +1375,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   }
 
   // Uncommit a contiguous block of memory [start..(start+size)[.
-  // start is not nullptr, the size is greater than zero, and the
+  // start is not kNullAddress, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool UncommitBlock(Address start, size_t size);
@@ -1413,11 +1412,11 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
                                PagedSpace* owner);
 
-  void UpdateAllocatedSpaceLimits(void* low, void* high) {
+  void UpdateAllocatedSpaceLimits(Address low, Address high) {
     // The use of atomic primitives does not guarantee correctness (wrt.
     // desired semantics) by default. The loop here ensures that we update the
     // values only if they did not change in between.
-    void* ptr = nullptr;
+    Address ptr = kNullAddress;
     do {
       ptr = lowest_ever_allocated_.Value();
     } while ((low < ptr) && !lowest_ever_allocated_.TrySetValue(ptr, low));
@@ -1454,8 +1453,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // conservative, i.e. not all addresses in 'allocated' space are allocated
   // to our heap. The range is [lowest, highest[, inclusive on the low end
   // and exclusive on the high end.
-  base::AtomicValue<void*> lowest_ever_allocated_;
-  base::AtomicValue<void*> highest_ever_allocated_;
+  base::AtomicValue<Address> lowest_ever_allocated_;
+  base::AtomicValue<Address> highest_ever_allocated_;
 
   VirtualMemory last_chunk_;
   Unmapper unmapper_;
@@ -1574,7 +1573,7 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
 // space.
 class LinearAllocationArea {
  public:
-  LinearAllocationArea() : top_(nullptr), limit_(nullptr) {}
+  LinearAllocationArea() : top_(kNullAddress), limit_(kNullAddress) {}
   LinearAllocationArea(Address top, Address limit) : top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
@@ -1583,14 +1582,12 @@ class LinearAllocationArea {
   }
 
   INLINE(void set_top(Address top)) {
-    SLOW_DCHECK(top == nullptr ||
-                (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
+    SLOW_DCHECK(top == kNullAddress || (top & kHeapObjectTagMask) == 0);
     top_ = top;
   }
 
   INLINE(Address top()) const {
-    SLOW_DCHECK(top_ == nullptr ||
-                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
+    SLOW_DCHECK(top_ == kNullAddress || (top_ & kHeapObjectTagMask) == 0);
     return top_;
   }
 
@@ -1952,7 +1949,7 @@ class LocalAllocationBuffer {
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
 
-  inline bool IsValid() { return allocation_info_.top() != nullptr; }
+  inline bool IsValid() { return allocation_info_.top() != kNullAddress; }
 
   // Try to merge LABs, which is only possible when they are adjacent in memory.
   // Returns true if the merge was successful, false otherwise.
@@ -1974,7 +1971,7 @@ class SpaceWithLinearArea : public Space {
  public:
   SpaceWithLinearArea(Heap* heap, AllocationSpace id, Executability executable)
       : Space(heap, id, executable), top_on_previous_step_(0) {
-    allocation_info_.Reset(nullptr, nullptr);
+    allocation_info_.Reset(kNullAddress, kNullAddress);
   }
 
   virtual bool SupportsInlineAllocation() = 0;
@@ -2354,7 +2351,7 @@ class SemiSpace : public Space {
         current_capacity_(0),
         maximum_capacity_(0),
         minimum_capacity_(0),
-        age_mark_(nullptr),
+        age_mark_(kNullAddress),
         committed_(false),
         id_(semispace),
         anchor_(this),
@@ -2618,8 +2615,8 @@ class NewSpace : public SpaceWithLinearArea {
 
   size_t AllocatedSinceLastGC() {
     const Address age_mark = to_space_.age_mark();
-    DCHECK_NOT_NULL(age_mark);
-    DCHECK_NOT_NULL(top());
+    DCHECK_NE(age_mark, kNullAddress);
+    DCHECK_NE(top(), kNullAddress);
     Page* const age_mark_page = Page::FromAllocationAreaAddress(age_mark);
     Page* const last_page = Page::FromAllocationAreaAddress(top());
     Page* current_page = age_mark_page;

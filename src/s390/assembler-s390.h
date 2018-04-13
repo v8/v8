@@ -370,7 +370,7 @@ class Operand BASE_EMBEDDED {
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
   INLINE(explicit Operand(const ExternalReference& f)
          : rmode_(RelocInfo::EXTERNAL_REFERENCE)) {
-    value_.immediate = reinterpret_cast<intptr_t>(f.address());
+    value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
   INLINE(explicit Operand(Smi* value) : rmode_(RelocInfo::NONE)) {

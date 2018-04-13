@@ -453,7 +453,7 @@ class ByteArray : public FixedArrayBase {
   }
 
   // Returns data start address.
-  inline Address GetDataStartAddress();
+  inline byte* GetDataStartAddress();
 
   inline int DataSize() const;
 

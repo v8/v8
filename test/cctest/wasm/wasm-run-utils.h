@@ -149,12 +149,12 @@ class TestingModuleBuilder {
 
   template <typename T>
   void WriteMemory(T* p, T val) {
-    WriteLittleEndianValue<T>(p, val);
+    WriteLittleEndianValue<T>(reinterpret_cast<Address>(p), val);
   }
 
   template <typename T>
   T ReadMemory(T* p) {
-    return ReadLittleEndianValue<T>(p);
+    return ReadLittleEndianValue<T>(reinterpret_cast<Address>(p));
   }
 
   // Zero-initialize the memory.
@@ -267,7 +267,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
   }
 
   void SetInnerCode(wasm::WasmCode* code) {
-    intptr_t address = reinterpret_cast<intptr_t>(code->instructions().start());
+    intptr_t address = static_cast<intptr_t>(code->instruction_start());
     compiler::NodeProperties::ChangeOp(
         inner_code_node_,
         kPointerSize == 8

@@ -313,9 +313,10 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   byte* begin_pos = pos_;
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
-  DCHECK_GE(rinfo->pc() - last_pc_, 0);
+  DCHECK_GE(rinfo->pc() - reinterpret_cast<Address>(last_pc_), 0);
   // Use unsigned delta-encoding for pc.
-  uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
+  uint32_t pc_delta =
+      static_cast<uint32_t>(rinfo->pc() - reinterpret_cast<Address>(last_pc_));
 
   // The two most common modes are given small tags, and usually fit in a byte.
   if (rmode == RelocInfo::EMBEDDED_OBJECT) {
@@ -337,7 +338,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
-  last_pc_ = rinfo->pc();
+  last_pc_ = reinterpret_cast<byte*>(rinfo->pc());
 #ifdef DEBUG
   DCHECK_LE(begin_pos - pos_, kMaxSize);
 #endif
@@ -464,7 +465,7 @@ RelocIterator::RelocIterator(Code* code, int mode_mask)
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
     : mode_mask_(mode_mask) {
-  rinfo_.pc_ = desc.buffer;
+  rinfo_.pc_ = reinterpret_cast<Address>(desc.buffer);
   // Relocation info is read backwards.
   pos_ = desc.buffer + desc.buffer_size;
   end_ = pos_ - desc.reloc_size;
@@ -476,7 +477,7 @@ RelocIterator::RelocIterator(Vector<byte> instructions,
                              Vector<const byte> reloc_info, Address const_pool,
                              int mode_mask)
     : mode_mask_(mode_mask) {
-  rinfo_.pc_ = instructions.start();
+  rinfo_.pc_ = reinterpret_cast<Address>(instructions.start());
   rinfo_.constant_pool_ = const_pool;
   rinfo_.flags_ = RelocInfo::kInNativeWasmCode;
   // Relocation info is read backwards.
@@ -551,7 +552,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
-  os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
+  os << reinterpret_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
   } else if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
@@ -565,7 +566,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     ExternalReferenceEncoder ref_encoder(isolate);
     os << " ("
        << ref_encoder.NameOfAddress(isolate, target_external_reference())
-       << ")  (" << static_cast<const void*>(target_external_reference())
+       << ")  (" << reinterpret_cast<const void*>(target_external_reference())
        << ")";
   } else if (IsCodeTarget(rmode_)) {
     const Address code_target = target_address();
@@ -582,7 +583,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
       }
       os << ") ";
     }
-    os << " (" << static_cast<const void*>(target_address()) << ")";
+    os << " (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
@@ -607,7 +608,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
-      CHECK_NOT_NULL(addr);
+      CHECK_NE(addr, kNullAddress);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
       Object* found = isolate->FindCodeObject(addr);
@@ -626,7 +627,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     }
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
-      CHECK_NOT_NULL(addr);
+      CHECK_NE(addr, kNullAddress);
       CHECK_NOT_NULL(InstructionStream::TryLookupCode(isolate, addr));
       break;
     }

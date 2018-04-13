@@ -392,7 +392,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
         HeapObject::cast(this)->map()->instance_type() ==
             Traits::kInstanceType);
   if (base_pointer() == this) {
-    CHECK(external_pointer() ==
+    CHECK(reinterpret_cast<Address>(external_pointer()) ==
           ExternalReference::fixed_typed_array_base_data_offset(GetIsolate())
               .address());
   } else {
@@ -1009,10 +1009,9 @@ void CodeDataContainer::CodeDataContainerVerify() {
 
 void Code::CodeVerify() {
   CHECK_LE(constant_pool_offset(), InstructionSize());
-  CHECK(IsAligned(reinterpret_cast<intptr_t>(InstructionStart()),
-                  kCodeAlignment));
+  CHECK(IsAligned(InstructionStart(), kCodeAlignment));
   relocation_info()->ObjectVerify();
-  Address last_gc_pc = nullptr;
+  Address last_gc_pc = kNullAddress;
   Isolate* isolate = GetIsolate();
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);

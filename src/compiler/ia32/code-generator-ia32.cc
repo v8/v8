@@ -64,7 +64,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
     Constant constant = ToConstant(operand);
     if (constant.type() == Constant::kInt32 &&
         RelocInfo::IsWasmReference(constant.rmode())) {
-      return Immediate(reinterpret_cast<Address>(constant.ToInt32()),
+      return Immediate(static_cast<Address>(constant.ToInt32()),
                        constant.rmode());
     }
     switch (constant.type()) {
@@ -600,8 +600,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallWasmFunction: {
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
         if (info()->IsWasm()) {
           __ wasm_call(wasm_code, RelocInfo::WASM_CALL);
         } else {
@@ -649,8 +649,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTailCallWasm: {
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
         if (info()->IsWasm()) {
           __ jmp(wasm_code, RelocInfo::WASM_CALL);
         } else {

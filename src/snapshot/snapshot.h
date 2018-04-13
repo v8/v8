@@ -90,7 +90,7 @@ class EmbeddedData final {
 
   void Dispose() { delete[] data_; }
 
-  const uint8_t* InstructionStartOfBuiltin(int i) const;
+  Address InstructionStartOfBuiltin(int i) const;
   uint32_t InstructionSizeOfBuiltin(int i) const;
 
   bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
@@ -194,10 +194,11 @@ class Snapshot : public AllStatic {
                                                uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
-    return ReadLittleEndianValue<uint32_t>(data->data + offset);
+    return ReadLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data->data) + offset);
   }
   static void SetHeaderValue(char* data, uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(data + offset, value);
+    WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset, value);
   }
 
   static void CheckVersion(const v8::StartupData* data);

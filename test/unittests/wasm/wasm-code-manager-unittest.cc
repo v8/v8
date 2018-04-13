@@ -14,7 +14,7 @@ namespace wasm_heap_unittest {
 
 class DisjointAllocationPoolTest : public ::testing::Test {
  public:
-  Address A(size_t n) { return reinterpret_cast<Address>(n); }
+  Address A(size_t n) { return static_cast<Address>(n); }
   void CheckLooksLike(const DisjointAllocationPool& mem,
                       std::vector<std::pair<size_t, size_t>> expectation);
   DisjointAllocationPool Make(std::vector<std::pair<size_t, size_t>> model);
@@ -307,19 +307,19 @@ TEST_P(WasmCodeManagerTest, Lookup) {
   // find any WasmCode* associated with that ptr.
   WasmCode* not_found = manager.LookupCode(reinterpret_cast<Address>(&manager));
   CHECK_NULL(not_found);
-  WasmCode* found = manager.LookupCode(code1_0->instructions().start());
+  WasmCode* found = manager.LookupCode(code1_0->instruction_start());
   CHECK_EQ(found, code1_0);
-  found = manager.LookupCode(code2_1->instructions().start() +
+  found = manager.LookupCode(code2_1->instruction_start() +
                              (code2_1->instructions().size() / 2));
   CHECK_EQ(found, code2_1);
-  found = manager.LookupCode(code2_1->instructions().start() +
+  found = manager.LookupCode(code2_1->instruction_start() +
                              code2_1->instructions().size() - 1);
   CHECK_EQ(found, code2_1);
-  found = manager.LookupCode(code2_1->instructions().start() +
+  found = manager.LookupCode(code2_1->instruction_start() +
                              code2_1->instructions().size());
   CHECK_NULL(found);
   Address mid_code1_1 =
-      code1_1->instructions().start() + (code1_1->instructions().size() / 2);
+      code1_1->instruction_start() + (code1_1->instructions().size() / 2);
   CHECK_EQ(code1_1, manager.LookupCode(mid_code1_1));
   nm1.reset();
   CHECK_NULL(manager.LookupCode(mid_code1_1));
@@ -344,8 +344,8 @@ TEST_P(WasmCodeManagerTest, MultiManagerLookup) {
   CHECK_EQ(0, code2_0->index());
   CHECK_EQ(1, code2_1->index());
 
-  CHECK_EQ(code1_0, manager1.LookupCode(code1_0->instructions().start()));
-  CHECK_NULL(manager2.LookupCode(code1_0->instructions().start()));
+  CHECK_EQ(code1_0, manager1.LookupCode(code1_0->instruction_start()));
+  CHECK_NULL(manager2.LookupCode(code1_0->instruction_start()));
 }
 
 TEST_P(WasmCodeManagerTest, LookupWorksAfterRewrite) {
@@ -357,11 +357,11 @@ TEST_P(WasmCodeManagerTest, LookupWorksAfterRewrite) {
   WasmCode* code1 = AddCode(nm1.get(), 1, kCodeAlignment);
   CHECK_EQ(0, code0->index());
   CHECK_EQ(1, code1->index());
-  CHECK_EQ(code1, manager.LookupCode(code1->instructions().start()));
+  CHECK_EQ(code1, manager.LookupCode(code1->instruction_start()));
   WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
   CHECK_EQ(1, code1_1->index());
-  CHECK_EQ(code1, manager.LookupCode(code1->instructions().start()));
-  CHECK_EQ(code1_1, manager.LookupCode(code1_1->instructions().start()));
+  CHECK_EQ(code1, manager.LookupCode(code1->instruction_start()));
+  CHECK_EQ(code1_1, manager.LookupCode(code1_1->instruction_start()));
 }
 
 }  // namespace wasm_heap_unittest

@@ -245,7 +245,7 @@ class Immediate BASE_EMBEDDED {
       : Immediate(reinterpret_cast<intptr_t>(value)) {}
   inline explicit Immediate(Address addr,
                             RelocInfo::Mode rmode = RelocInfo::NONE)
-      : Immediate(reinterpret_cast<int32_t>(addr), rmode) {}
+      : Immediate(static_cast<int32_t>(addr), rmode) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);
@@ -363,15 +363,13 @@ class Operand {
   }
 
   static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(reinterpret_cast<int32_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
+    return Operand(ext.address(), RelocInfo::EXTERNAL_REFERENCE);
   }
 
   static Operand StaticArray(Register index,
                              ScaleFactor scale,
                              const ExternalReference& arr) {
-    return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
+    return Operand(index, scale, arr.address(), RelocInfo::EXTERNAL_REFERENCE);
   }
 
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
@@ -850,7 +848,7 @@ class Assembler : public AssemblerBase {
 
   // Calls
   void call(Label* L);
-  void call(byte* entry, RelocInfo::Mode rmode);
+  void call(Address entry, RelocInfo::Mode rmode);
   int CallSize(Operand adr);
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
@@ -862,7 +860,7 @@ class Assembler : public AssemblerBase {
   // Jumps
   // unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(byte* entry, RelocInfo::Mode rmode);
+  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(Operand adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);

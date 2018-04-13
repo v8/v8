@@ -41,14 +41,16 @@ class V8NameConverter: public disasm::NameConverter {
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
   if (code_ != nullptr) {
     Isolate* isolate = code_->GetIsolate();
-    const char* name = isolate->builtins()->Lookup(pc);
+    const char* name =
+        isolate->builtins()->Lookup(reinterpret_cast<Address>(pc));
 
     if (name != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
       return v8_buffer_.start();
     }
 
-    int offs = static_cast<int>(pc - code_->raw_instruction_start());
+    int offs = static_cast<int>(reinterpret_cast<Address>(pc) -
+                                code_->raw_instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->raw_instruction_size()) {
       SNPrintF(v8_buffer_, "%p  <+0x%x>", static_cast<void*>(pc), offs);
@@ -56,7 +58,8 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     }
 
     wasm::WasmCode* wasm_code =
-        isolate->wasm_engine()->code_manager()->LookupCode(pc);
+        isolate->wasm_engine()->code_manager()->LookupCode(
+            reinterpret_cast<Address>(pc));
     if (wasm_code != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                GetWasmCodeKindAsString(wasm_code->kind()));
@@ -203,7 +206,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
                  *reinterpret_cast<int32_t*>(pc), num_const);
         constants = num_const;
         pc += 4;
-      } else if (it != nullptr && !it->done() && it->rinfo()->pc() == pc &&
+      } else if (it != nullptr && !it->done() &&
+                 it->rinfo()->pc() == reinterpret_cast<Address>(pc) &&
                  it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
@@ -219,11 +223,11 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
 
     // Collect RelocInfo for this instruction (prev_pc .. pc-1)
     std::vector<const char*> comments;
-    std::vector<byte*> pcs;
+    std::vector<Address> pcs;
     std::vector<RelocInfo::Mode> rmodes;
     std::vector<intptr_t> datas;
     if (it != nullptr) {
-      while (!it->done() && it->rinfo()->pc() < pc) {
+      while (!it->done() && it->rinfo()->pc() < reinterpret_cast<Address>(pc)) {
         if (RelocInfo::IsComment(it->rinfo()->rmode())) {
           // For comments just collect the text.
           comments.push_back(
@@ -260,7 +264,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       // Put together the reloc info
       Code* host = converter.code();
       RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], host);
-      relocinfo.set_constant_pool(host ? host->constant_pool() : nullptr);
+      relocinfo.set_constant_pool(host ? host->constant_pool() : kNullAddress);
 
       bool first_reloc_info = (i == 0);
       PrintRelocInfo(&out, isolate, ref_encoder, os, &relocinfo,
@@ -271,9 +275,10 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
     if (pcs.empty() && converter.code() != nullptr) {
-      RelocInfo dummy_rinfo(prev_pc, RelocInfo::NONE, 0, nullptr);
+      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
+                            0, nullptr);
       if (dummy_rinfo.IsInConstantPool()) {
-        byte* constant_pool_entry_address =
+        Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();
         RelocIterator reloc_it(converter.code());
         while (!reloc_it.done()) {

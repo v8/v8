@@ -37,7 +37,7 @@ class Writer {
       os << "wrote: " << (size_t)value << " sized: " << sizeof(T) << std::endl;
     }
     DCHECK_GE(buffer_.size(), sizeof(T));
-    WriteUnalignedValue(buffer_.start(), value);
+    WriteUnalignedValue(reinterpret_cast<Address>(buffer_.start()), value);
     buffer_ = buffer_ + sizeof(T);
   }
 
@@ -65,7 +65,7 @@ class Reader {
   template <typename T>
   T Read() {
     DCHECK_GE(buffer_.size(), sizeof(T));
-    T ret = ReadUnalignedValue<T>(buffer_.start());
+    T ret = ReadUnalignedValue<T>(reinterpret_cast<Address>(buffer_.start()));
     buffer_ = buffer_ + sizeof(T);
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);
@@ -130,7 +130,7 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
 #else
-  Address addr = reinterpret_cast<Address>(tag);
+  Address addr = static_cast<Address>(tag);
   if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
     rinfo->set_target_external_reference(addr, SKIP_ICACHE_FLUSH);
   } else {
@@ -146,7 +146,7 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
   Address addr = rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE
                      ? rinfo->target_external_reference()
                      : rinfo->target_address();
-  return static_cast<uint32_t>(reinterpret_cast<size_t>(addr));
+  return static_cast<uint32_t>(addr);
 #endif
 }
 
@@ -319,7 +319,7 @@ void NativeModuleSerializer::BufferCopiedStubs() {
     uint32_t key = pair.first;
     writer.Write(key);
     stub_lookup_.insert(
-        std::make_pair(pair.second->instructions().start(), stub_id));
+        std::make_pair(pair.second->instruction_start(), stub_id));
     ++stub_id;
   }
 
@@ -359,7 +359,7 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
   writer.Write(code->protected_instructions().size());
   writer.Write(code->tier());
   // next is the code, which we have to reloc.
-  Address serialized_code_start = writer.current_buffer().start();
+  byte* serialized_code_start = writer.current_buffer().start();
   // write the code and everything else
   writer.WriteVector(code->instructions());
   writer.WriteVector(code->reloc_info());
@@ -375,10 +375,11 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
-  for (RelocIterator
-           iter({serialized_code_start, code->instructions().size()},
-                code->reloc_info(),
-                serialized_code_start + code->constant_pool_offset(), mask);
+  for (RelocIterator iter({serialized_code_start, code->instructions().size()},
+                          code->reloc_info(),
+                          reinterpret_cast<Address>(serialized_code_start) +
+                              code->constant_pool_offset(),
+                          mask);
        !iter.done(); iter.next(), orig_iter.next()) {
     RelocInfo::Mode mode = orig_iter.rinfo()->rmode();
     switch (mode) {

@@ -389,7 +389,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint8_t* dst = blob + RawDataOffset() + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
               blob_size);
-    std::memcpy(dst, code->raw_instruction_start(),
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code->raw_instruction_start()),
                 code->raw_instruction_size());
   }
 
@@ -404,13 +404,13 @@ EmbeddedData EmbeddedData::FromBlob() {
   return {data, size};
 }
 
-const uint8_t* EmbeddedData::InstructionStartOfBuiltin(int i) const {
+Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
 
   const uint32_t* offsets = Offsets();
   const uint8_t* result = RawData() + offsets[i];
   DCHECK_LT(result, data_ + size_);
-  return result;
+  return reinterpret_cast<Address>(result);
 }
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {

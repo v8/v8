@@ -59,11 +59,7 @@ bool IsDisjoint(const CodeProtectionInfo* a, const CodeProtectionInfo* b) {
   if (a == nullptr || b == nullptr) {
     return true;
   }
-
-  const auto a_base = reinterpret_cast<uintptr_t>(a->base);
-  const auto b_base = reinterpret_cast<uintptr_t>(b->base);
-
-  return a_base >= b_base + b->size || b_base >= a_base + a->size;
+  return a->base >= b->base + b->size || b->base >= a->base + a->size;
 }
 #endif
 
@@ -115,7 +111,7 @@ void ValidateCodeObjects() {
 }  // namespace
 
 CodeProtectionInfo* CreateHandlerData(
-    void* base, size_t size, size_t num_protected_instructions,
+    Address base, size_t size, size_t num_protected_instructions,
     const ProtectedInstructionData* protected_instructions) {
   const size_t alloc_size = HandlerDataSize(num_protected_instructions);
   CodeProtectionInfo* data =
@@ -136,7 +132,7 @@ CodeProtectionInfo* CreateHandlerData(
 }
 
 int RegisterHandlerData(
-    void* base, size_t size, size_t num_protected_instructions,
+    Address base, size_t size, size_t num_protected_instructions,
     const ProtectedInstructionData* protected_instructions) {
   // TODO(eholk): in debug builds, make sure this data isn't already registered.
 

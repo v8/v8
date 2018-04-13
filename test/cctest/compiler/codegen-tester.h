@@ -59,7 +59,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  protected:
-  virtual byte* Generate() {
+  virtual Address Generate() {
     if (code_.is_null()) {
       Schedule* schedule = this->Export();
       auto call_descriptor = this->call_descriptor();
@@ -95,7 +95,7 @@ class BufferedRawMachineAssemblerTester
     }
   }
 
-  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -151,7 +151,7 @@ class BufferedRawMachineAssemblerTester<void>
     }
   }
 
-  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter

@@ -50,7 +50,6 @@ namespace v8 {
 namespace base {
 class Mutex;
 class RecursiveMutex;
-class VirtualMemory;
 }
 
 namespace internal {
@@ -127,7 +126,8 @@ class AllStatic {
 #define BASE_EMBEDDED
 
 typedef uint8_t byte;
-typedef byte* Address;
+typedef uintptr_t Address;
+static const Address kNullAddress = 0;
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -275,15 +275,18 @@ constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 constexpr int kSimd128Size = 16;
 
 // FUNCTION_ADDR(f) gets the address of a C function f.
-#define FUNCTION_ADDR(f)                                        \
-  (reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(f)))
-
+#define FUNCTION_ADDR(f) (reinterpret_cast<v8::internal::Address>(f))
 
 // FUNCTION_CAST<F>(addr) casts an address into a function
 // of type F. Used to invoke generated code from within C.
 template <typename F>
+F FUNCTION_CAST(byte* addr) {
+  return reinterpret_cast<F>(reinterpret_cast<Address>(addr));
+}
+
+template <typename F>
 F FUNCTION_CAST(Address addr) {
-  return reinterpret_cast<F>(reinterpret_cast<intptr_t>(addr));
+  return reinterpret_cast<F>(addr);
 }
 
 
@@ -1225,8 +1228,7 @@ inline std::ostream& operator<<(std::ostream& os,
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing
   // zeros.
-  return static_cast<uint32_t>(bit_cast<uintptr_t>(address) >>
-                               kPointerSizeLog2);
+  return static_cast<uint32_t>(address >> kPointerSizeLog2);
 }
 
 // Type feedback is encoded in such a way that, we can combine the feedback

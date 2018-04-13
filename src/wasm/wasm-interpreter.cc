@@ -1398,15 +1398,15 @@ class ThreadImpl {
   }
 
   template <typename mtype>
-  inline byte* BoundsCheckMem(uint32_t offset, uint32_t index) {
+  inline Address BoundsCheckMem(uint32_t offset, uint32_t index) {
     size_t mem_size = instance_object_->memory_size();
-    if (sizeof(mtype) > mem_size) return nullptr;
-    if (offset > (mem_size - sizeof(mtype))) return nullptr;
-    if (index > (mem_size - sizeof(mtype) - offset)) return nullptr;
+    if (sizeof(mtype) > mem_size) return kNullAddress;
+    if (offset > (mem_size - sizeof(mtype))) return kNullAddress;
+    if (index > (mem_size - sizeof(mtype) - offset)) return kNullAddress;
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
-    return instance_object_->memory_start() + offset +
-           (index & instance_object_->memory_mask());
+    return reinterpret_cast<Address>(instance_object_->memory_start()) +
+           offset + (index & instance_object_->memory_mask());
   }
 
   template <typename ctype, typename mtype>
@@ -1415,7 +1415,7 @@ class ThreadImpl {
     MemoryAccessOperand<Decoder::kNoValidate> operand(decoder, code->at(pc),
                                                       sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
-    byte* addr = BoundsCheckMem<mtype>(operand.offset, index);
+    Address addr = BoundsCheckMem<mtype>(operand.offset, index);
     if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
@@ -1444,7 +1444,7 @@ class ThreadImpl {
     ctype val = Pop().to<ctype>();
 
     uint32_t index = Pop().to<uint32_t>();
-    byte* addr = BoundsCheckMem<mtype>(operand.offset, index);
+    Address addr = BoundsCheckMem<mtype>(operand.offset, index);
     if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
@@ -1979,7 +1979,7 @@ class ThreadImpl {
   case kExpr##name: {                                               \
     uint32_t index = Pop().to<uint32_t>();                          \
     ctype result;                                                   \
-    byte* addr = BoundsCheckMem<mtype>(0, index);                   \
+    Address addr = BoundsCheckMem<mtype>(0, index);                 \
     if (!addr) {                                                    \
       result = defval;                                              \
     } else {                                                        \
@@ -2004,7 +2004,7 @@ class ThreadImpl {
   case kExpr##name: {                                                          \
     WasmValue val = Pop();                                                     \
     uint32_t index = Pop().to<uint32_t>();                                     \
-    byte* addr = BoundsCheckMem<mtype>(0, index);                              \
+    Address addr = BoundsCheckMem<mtype>(0, index);                            \
     if (addr) {                                                                \
       *(reinterpret_cast<mtype*>(addr)) = static_cast<mtype>(val.to<ctype>()); \
     }                                                                          \
@@ -2263,22 +2263,19 @@ class ThreadImpl {
       if (arg_buffer.size() < offset + param_size) {
         arg_buffer.resize(std::max(2 * arg_buffer.size(), offset + param_size));
       }
+      Address address = reinterpret_cast<Address>(arg_buffer.data()) + offset;
       switch (sig->GetParam(i)) {
         case kWasmI32:
-          WriteUnalignedValue(arg_buffer.data() + offset,
-                              wasm_args[i].to<uint32_t>());
+          WriteUnalignedValue(address, wasm_args[i].to<uint32_t>());
           break;
         case kWasmI64:
-          WriteUnalignedValue(arg_buffer.data() + offset,
-                              wasm_args[i].to<uint64_t>());
+          WriteUnalignedValue(address, wasm_args[i].to<uint64_t>());
           break;
         case kWasmF32:
-          WriteUnalignedValue(arg_buffer.data() + offset,
-                              wasm_args[i].to<float>());
+          WriteUnalignedValue(address, wasm_args[i].to<float>());
           break;
         case kWasmF64:
-          WriteUnalignedValue(arg_buffer.data() + offset,
-                              wasm_args[i].to<double>());
+          WriteUnalignedValue(address, wasm_args[i].to<double>());
           break;
         default:
           UNIMPLEMENTED();
@@ -2306,7 +2303,7 @@ class ThreadImpl {
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
     args[compiler::CWasmEntryParameters::kCodeObject] = Handle<Object>::cast(
-        isolate->factory()->NewForeign(code->instructions().start(), TENURED));
+        isolate->factory()->NewForeign(code->instruction_start(), TENURED));
     args[compiler::CWasmEntryParameters::kWasmInstance] = instance;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
@@ -2330,18 +2327,19 @@ class ThreadImpl {
     if (sig->return_count() > 0) {
       // TODO(wasm): Handle multiple returns.
       DCHECK_EQ(1, sig->return_count());
+      Address address = reinterpret_cast<Address>(arg_buffer.data());
       switch (sig->GetReturn()) {
         case kWasmI32:
-          Push(WasmValue(ReadUnalignedValue<uint32_t>(arg_buffer.data())));
+          Push(WasmValue(ReadUnalignedValue<uint32_t>(address)));
           break;
         case kWasmI64:
-          Push(WasmValue(ReadUnalignedValue<uint64_t>(arg_buffer.data())));
+          Push(WasmValue(ReadUnalignedValue<uint64_t>(address)));
           break;
         case kWasmF32:
-          Push(WasmValue(ReadUnalignedValue<float>(arg_buffer.data())));
+          Push(WasmValue(ReadUnalignedValue<float>(address)));
           break;
         case kWasmF64:
-          Push(WasmValue(ReadUnalignedValue<double>(arg_buffer.data())));
+          Push(WasmValue(ReadUnalignedValue<double>(address)));
           break;
         default:
           UNIMPLEMENTED();

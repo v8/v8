@@ -164,7 +164,7 @@ class JSToWasmWrapperCache {
       RelocIterator it(*code, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
       DCHECK(!it.done());
       it.rinfo()->set_js_to_wasm_address(
-          wasm_code == nullptr ? nullptr : wasm_code->instructions().start());
+          wasm_code == nullptr ? kNullAddress : wasm_code->instruction_start());
       return code;
     }
 
@@ -336,7 +336,8 @@ class IndirectPatcher {
         "IndirectPatcher::Patch(caller=%p, target=%p, func_index=%i, "
         "old_target=%p, "
         "new_code=%p)\n",
-        caller_instance, target_instance, func_index, old_target, new_code);
+        caller_instance, target_instance, func_index,
+        reinterpret_cast<void*>(old_target), new_code);
     if (mapping_.size() == 0 || misses_ >= kMaxMisses) {
       BuildMapping(caller_instance);
     }
@@ -408,7 +409,7 @@ class IndirectPatcher {
     size_t ift_size = caller_instance->indirect_function_table_size();
     for (unsigned i = 0; i < ift_size; i++) {
       IndirectFunctionTableEntry entry(caller_instance, i);
-      if (entry.target() == nullptr) continue;  // null IFT entry
+      if (entry.target() == kNullAddress) continue;  // null IFT entry
       WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
       if (code->kind() != WasmCode::kLazyStub) continue;
       TRACE_LAZY(" +indirect[%u] -> #%d (lazy:%p)\n", i, code->index(),
@@ -558,7 +559,7 @@ const wasm::WasmCode* LazyCompileFromJsToWasm(
                   ->code_manager()
                   ->GetCodeFromStartAddress(it.rinfo()->js_to_wasm_address())
                   ->kind());
-    it.rinfo()->set_js_to_wasm_address(callee_compiled->instructions().start());
+    it.rinfo()->set_js_to_wasm_address(callee_compiled->instruction_start());
     TRACE_LAZY("Patched 1 location in js-to-wasm %p.\n", *js_to_wasm_caller);
 
 #ifdef DEBUG
@@ -622,7 +623,7 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
          !it.done(); it.next()) {
       // TODO(clemensh): Introduce safe_cast<T, bool> which (D)CHECKS
       // (depending on the bool) against limits of T and then static_casts.
-      size_t offset_l = it.rinfo()->pc() - wasm_caller->instructions().start();
+      size_t offset_l = it.rinfo()->pc() - wasm_caller->instruction_start();
       DCHECK_GE(kMaxInt, offset_l);
       int offset = static_cast<int>(offset_l);
       int byte_pos =
@@ -692,8 +693,7 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
                     ->code_manager()
                     ->GetCodeFromStartAddress(it.rinfo()->wasm_call_address())
                     ->kind());
-      it.rinfo()->set_wasm_call_address(
-          callee_compiled->instructions().start());
+      it.rinfo()->set_wasm_call_address(callee_compiled->instruction_start());
       ++patched;
     }
     DCHECK_EQ(direct_callees.size(), pos);
@@ -758,7 +758,7 @@ Address CompileLazy(Isolate* isolate,
   } else {
     wasm_caller_code =
         isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
-    auto offset = it.frame()->pc() - wasm_caller_code->instructions().start();
+    auto offset = it.frame()->pc() - wasm_caller_code->instruction_start();
     caller_ret_offset = static_cast<int32_t>(offset);
     DCHECK_EQ(offset, caller_ret_offset);
   }
@@ -808,12 +808,12 @@ Address CompileLazy(Isolate* isolate,
     IndirectPatcher* patcher = Managed<IndirectPatcher>::cast(
                                    caller_instance->managed_indirect_patcher())
                                    ->get();
-    Address old_target = lazy_stub->instructions().start();
+    Address old_target = lazy_stub->instruction_start();
     patcher->Patch(*caller_instance, *target_instance, target_func_index,
                    old_target, result);
   }
 
-  return result->instructions().start();
+  return result->instruction_start();
 }
 
 namespace {

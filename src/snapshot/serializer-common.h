@@ -319,11 +319,12 @@ class SerializedData {
 
  protected:
   void SetHeaderValue(uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(data_ + offset, value);
+    WriteLittleEndianValue(reinterpret_cast<Address>(data_) + offset, value);
   }
 
   uint32_t GetHeaderValue(uint32_t offset) const {
-    return ReadLittleEndianValue<uint32_t>(data_ + offset);
+    return ReadLittleEndianValue<uint32_t>(reinterpret_cast<Address>(data_) +
+                                           offset);
   }
 
   void AllocateData(uint32_t size);

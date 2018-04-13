@@ -31,10 +31,14 @@ template <typename T> inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::kZero) return nullptr;
   return reinterpret_cast<T>(
-      reinterpret_cast<intptr_t>(
-          v8::internal::Foreign::cast(obj)->foreign_address()));
+      v8::internal::Foreign::cast(obj)->foreign_address());
 }
 
+template <>
+inline v8::internal::Address ToCData(v8::internal::Object* obj) {
+  if (obj == v8::internal::Smi::kZero) return v8::internal::kNullAddress;
+  return v8::internal::Foreign::cast(obj)->foreign_address();
+}
 
 template <typename T>
 inline v8::internal::Handle<v8::internal::Object> FromCData(
@@ -42,9 +46,17 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == nullptr) return handle(v8::internal::Smi::kZero, isolate);
   return isolate->factory()->NewForeign(
-      reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
+      reinterpret_cast<v8::internal::Address>(obj));
 }
 
+template <>
+inline v8::internal::Handle<v8::internal::Object> FromCData(
+    v8::internal::Isolate* isolate, v8::internal::Address obj) {
+  if (obj == v8::internal::kNullAddress) {
+    return handle(v8::internal::Smi::kZero, isolate);
+  }
+  return isolate->factory()->NewForeign(obj);
+}
 
 class ApiFunction {
  public:

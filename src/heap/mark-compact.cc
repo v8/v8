@@ -1239,7 +1239,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         base->ExecuteMigrationObservers(dest, src, dst, size);
     }
     base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
-                        reinterpret_cast<base::AtomicWord>(dst_addr));
+                        static_cast<base::AtomicWord>(dst_addr));
   }
 
   EvacuateVisitorBase(Heap* heap, LocalAllocator* local_allocator,
@@ -1284,8 +1284,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (FLAG_stress_compaction) {
       const uintptr_t mask = static_cast<uintptr_t>(FLAG_random_seed) &
                              Page::kPageAlignmentMask & ~kPointerAlignmentMask;
-      if ((reinterpret_cast<uintptr_t>(object->address()) &
-           Page::kPageAlignmentMask) == mask) {
+      if ((object->address() & Page::kPageAlignmentMask) == mask) {
         Page* page = Page::FromAddress(object->address());
         if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED_FOR_TESTING)) {
           page->ClearFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);
@@ -3740,7 +3739,7 @@ void MinorMarkCompactCollector::MakeIterable(
   // remove here.
   MarkCompactCollector* full_collector = heap()->mark_compact_collector();
   Address free_start = p->area_start();
-  DCHECK_EQ(0, reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize));
+  DCHECK_EQ(0, free_start % (32 * kPointerSize));
 
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(p, marking_state()->bitmap(p))) {
@@ -3754,7 +3753,7 @@ void MinorMarkCompactCollector::MakeIterable(
           p->AddressToMarkbitIndex(free_start),
           p->AddressToMarkbitIndex(free_end));
       if (free_space_mode == ZAP_FREE_SPACE) {
-        memset(free_start, 0xCC, size);
+        memset(reinterpret_cast<void*>(free_start), 0xCC, size);
       }
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                       ClearRecordedSlots::kNo);
@@ -3771,7 +3770,7 @@ void MinorMarkCompactCollector::MakeIterable(
         p->AddressToMarkbitIndex(free_start),
         p->AddressToMarkbitIndex(p->area_end()));
     if (free_space_mode == ZAP_FREE_SPACE) {
-      memset(free_start, 0xCC, size);
+      memset(reinterpret_cast<void*>(free_start), 0xCC, size);
     }
     p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                     ClearRecordedSlots::kNo);

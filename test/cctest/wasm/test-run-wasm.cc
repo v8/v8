@@ -3199,11 +3199,14 @@ void BinOpOnDifferentRegisters(WasmExecutionMode execution_mode, ValueType type,
         for (ctype lhs_value : inputs) {
           for (ctype rhs_value : inputs) {
             if (lhs == rhs) lhs_value = rhs_value;
-            WriteLittleEndianValue<ctype>(&memory[lhs], lhs_value);
-            WriteLittleEndianValue<ctype>(&memory[rhs], rhs_value);
+            WriteLittleEndianValue<ctype>(
+                reinterpret_cast<Address>(&memory[lhs]), lhs_value);
+            WriteLittleEndianValue<ctype>(
+                reinterpret_cast<Address>(&memory[rhs]), rhs_value);
             int64_t expect = expect_fn(lhs_value, rhs_value);
             CHECK_EQ(0, r.Call());
-            CHECK_EQ(expect, ReadLittleEndianValue<ctype>(&memory[0]));
+            CHECK_EQ(expect, ReadLittleEndianValue<ctype>(
+                                 reinterpret_cast<Address>(&memory[0])));
           }
         }
       }

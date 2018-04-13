@@ -262,11 +262,9 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(4u, node3->self_ticks());
 }
 
+static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
-
+static inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
@@ -355,24 +353,24 @@ TEST(RecordTickSample) {
   //  aaa -> bbb -> ccc  - sample2
   //      -> ccc -> aaa  - sample3
   TickSample sample1;
-  sample1.pc = ToAddress(0x1600);
-  sample1.tos = ToAddress(0x1500);
-  sample1.stack[0] = ToAddress(0x1510);
+  sample1.pc = ToPointer(0x1600);
+  sample1.tos = ToPointer(0x1500);
+  sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
-  sample2.pc = ToAddress(0x1925);
-  sample2.tos = ToAddress(0x1900);
-  sample2.stack[0] = ToAddress(0x1780);
-  sample2.stack[1] = ToAddress(0x10000);  // non-existent.
-  sample2.stack[2] = ToAddress(0x1620);
+  sample2.pc = ToPointer(0x1925);
+  sample2.tos = ToPointer(0x1900);
+  sample2.stack[0] = ToPointer(0x1780);
+  sample2.stack[1] = ToPointer(0x10000);  // non-existent.
+  sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
   generator.RecordTickSample(sample2);
   TickSample sample3;
-  sample3.pc = ToAddress(0x1510);
-  sample3.tos = ToAddress(0x1500);
-  sample3.stack[0] = ToAddress(0x1910);
-  sample3.stack[1] = ToAddress(0x1610);
+  sample3.pc = ToPointer(0x1510);
+  sample3.tos = ToPointer(0x1500);
+  sample3.stack[0] = ToPointer(0x1910);
+  sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
@@ -428,23 +426,23 @@ TEST(SampleIds) {
   //                    -> ccc #6 -> aaa #7 - sample3
   TickSample sample1;
   sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
-  sample1.pc = ToAddress(0x1600);
-  sample1.stack[0] = ToAddress(0x1510);
+  sample1.pc = ToPointer(0x1600);
+  sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
-  sample2.pc = ToAddress(0x1925);
-  sample2.stack[0] = ToAddress(0x1780);
-  sample2.stack[1] = ToAddress(0x10000);  // non-existent.
-  sample2.stack[2] = ToAddress(0x1620);
+  sample2.pc = ToPointer(0x1925);
+  sample2.stack[0] = ToPointer(0x1780);
+  sample2.stack[1] = ToPointer(0x10000);  // non-existent.
+  sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
   generator.RecordTickSample(sample2);
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
-  sample3.pc = ToAddress(0x1510);
-  sample3.stack[0] = ToAddress(0x1910);
-  sample3.stack[1] = ToAddress(0x1610);
+  sample3.pc = ToPointer(0x1510);
+  sample3.stack[0] = ToPointer(0x1910);
+  sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
@@ -479,8 +477,8 @@ TEST(NoSamples) {
   // We are building the following calls tree:
   // (root)#1 -> aaa #2 -> aaa #3 - sample1
   TickSample sample1;
-  sample1.pc = ToAddress(0x1600);
-  sample1.stack[0] = ToAddress(0x1510);
+  sample1.pc = ToPointer(0x1600);
+  sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
 

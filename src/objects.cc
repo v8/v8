@@ -1541,7 +1541,7 @@ Address AccessorInfo::redirect(Isolate* isolate, Address address,
 
 Address AccessorInfo::redirected_getter() const {
   Address accessor = v8::ToCData<Address>(getter());
-  if (accessor == nullptr) return nullptr;
+  if (accessor == kNullAddress) return kNullAddress;
   return redirect(GetIsolate(), accessor, ACCESSOR_GETTER);
 }
 
@@ -9138,7 +9138,8 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
 
       if (new_map->is_prototype_map()) {
         // For prototype maps, the PrototypeInfo is not copied.
-        DCHECK_EQ(0, memcmp(fresh->address(), new_map->address(),
+        DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
+                            reinterpret_cast<void*>(new_map->address()),
                             kTransitionsOrPrototypeInfoOffset));
         DCHECK_EQ(fresh->raw_transitions(),
                   MaybeObject::FromObject(Smi::kZero));
@@ -9148,7 +9149,8 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
                             HeapObject::RawField(*new_map, kDescriptorsOffset),
                             kDependentCodeOffset - kDescriptorsOffset));
       } else {
-        DCHECK_EQ(0, memcmp(fresh->address(), new_map->address(),
+        DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
+                            reinterpret_cast<void*>(new_map->address()),
                             Map::kDependentCodeOffset));
       }
       STATIC_ASSERT(Map::kWeakCellCacheOffset ==
@@ -9156,8 +9158,9 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
       STATIC_ASSERT(Map::kPrototypeValidityCellOffset ==
                     Map::kWeakCellCacheOffset + kPointerSize);
       int offset = Map::kPrototypeValidityCellOffset + kPointerSize;
-      DCHECK_EQ(0, memcmp(fresh->address() + offset,
-                          new_map->address() + offset, Map::kSize - offset));
+      DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
+                          reinterpret_cast<void*>(new_map->address() + offset),
+                          Map::kSize - offset));
     }
 #endif
   } else {
@@ -12038,12 +12041,14 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 
 void SeqOneByteString::clear_padding() {
   int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
-  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         SizeFor(length()) - data_size);
 }
 
 void SeqTwoByteString::clear_padding() {
   int data_size = SeqString::kHeaderSize + length() * kUC16Size;
-  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         SizeFor(length()) - data_size);
 }
 
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
@@ -13992,14 +13997,15 @@ void Code::Relocate(intptr_t delta) {
 
 void Code::CopyFrom(const CodeDesc& desc) {
   // copy code
-  CopyBytes(raw_instruction_start(), desc.buffer,
+  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
 
   // copy unwinding info, if any
   if (desc.unwinding_info) {
     DCHECK_GT(desc.unwinding_info_size, 0);
     set_unwinding_info_size(desc.unwinding_info_size);
-    CopyBytes(unwinding_info_start(), desc.unwinding_info,
+    CopyBytes(reinterpret_cast<byte*>(unwinding_info_start()),
+              desc.unwinding_info,
               static_cast<size_t>(desc.unwinding_info_size));
   }
 
@@ -14034,7 +14040,8 @@ void Code::CopyFrom(const CodeDesc& desc) {
       it.rinfo()->set_target_runtime_entry(p, UPDATE_WRITE_BARRIER,
                                            SKIP_ICACHE_FLUSH);
     } else {
-      intptr_t delta = raw_instruction_start() - desc.buffer;
+      intptr_t delta =
+          raw_instruction_start() - reinterpret_cast<Address>(desc.buffer);
       it.rinfo()->apply(delta);
     }
   }
@@ -14059,17 +14066,15 @@ Address Code::OffHeapInstructionStart() const {
   DCHECK(Builtins::IsEmbeddedBuiltin(this));
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob();
-  return reinterpret_cast<Address>(
-      const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index())));
+  return d.InstructionStartOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionEnd() const {
   DCHECK(Builtins::IsEmbeddedBuiltin(this));
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob();
-  return reinterpret_cast<Address>(
-      const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index()) +
-                           d.InstructionSizeOfBuiltin(builtin_index())));
+  return d.InstructionStartOfBuiltin(builtin_index()) +
+         d.InstructionSizeOfBuiltin(builtin_index());
 }
 #endif
 
@@ -14575,9 +14580,10 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
     int code_size =
         Min(handler_offset, Min(safepoint_offset, constant_pool_offset));
     os << "Instructions (size = " << code_size << ")\n";
-    byte* begin = InstructionStart();
-    byte* end = begin + code_size;
-    Disassembler::Decode(isolate, &os, begin, end, this, current_pc);
+    Address begin = InstructionStart();
+    Address end = begin + code_size;
+    Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
+                         reinterpret_cast<byte*>(end), this, current_pc);
 
     if (constant_pool_offset < size) {
       int constant_pool_size = safepoint_offset - constant_pool_offset;
@@ -14616,7 +14622,8 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
-      os << static_cast<const void*>(InstructionStart() + pc_offset) << "  ";
+      os << reinterpret_cast<const void*>(InstructionStart() + pc_offset)
+         << "  ";
       os << std::setw(6) << std::hex << pc_offset << "  " << std::setw(4);
       int trampoline_pc = table.GetTrampolinePcOffset(i);
       print_pc(os, trampoline_pc);
@@ -14654,8 +14661,9 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
 
   if (has_unwinding_info()) {
     os << "UnwindingInfo (size = " << unwinding_info_size() << ")\n";
-    EhFrameDisassembler eh_frame_disassembler(unwinding_info_start(),
-                                              unwinding_info_end());
+    EhFrameDisassembler eh_frame_disassembler(
+        reinterpret_cast<byte*>(unwinding_info_start()),
+        reinterpret_cast<byte*>(unwinding_info_end()));
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
   }
@@ -14667,7 +14675,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
 
-  const uint8_t* base_address = GetFirstBytecodeAddress();
+  Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
 
   interpreter::BytecodeArrayIterator iterator(handle(this));
@@ -14680,15 +14688,15 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     } else {
       os << "         ";
     }
-    const uint8_t* current_address = base_address + iterator.current_offset();
+    Address current_address = base_address + iterator.current_offset();
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(os, current_address,
-                                         parameter_count());
+    interpreter::BytecodeDecoder::Decode(
+        os, reinterpret_cast<byte*>(current_address), parameter_count());
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
-      const void* jump_target = base_address + iterator.GetJumpTargetOffset();
-      os << " (" << jump_target << " @ " << iterator.GetJumpTargetOffset()
-         << ")";
+      Address jump_target = base_address + iterator.GetJumpTargetOffset();
+      os << " (" << reinterpret_cast<void*>(jump_target) << " @ "
+         << iterator.GetJumpTargetOffset() << ")";
     }
     if (interpreter::Bytecodes::IsSwitch(iterator.current_bytecode())) {
       os << " {";
@@ -14726,7 +14734,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
 void BytecodeArray::CopyBytecodesTo(BytecodeArray* to) {
   BytecodeArray* from = this;
   DCHECK_EQ(from->length(), to->length());
-  CopyBytes(to->GetFirstBytecodeAddress(), from->GetFirstBytecodeAddress(),
+  CopyBytes(reinterpret_cast<byte*>(to->GetFirstBytecodeAddress()),
+            reinterpret_cast<byte*>(from->GetFirstBytecodeAddress()),
             from->length());
 }
 
@@ -14734,12 +14743,12 @@ void BytecodeArray::MakeOlder() {
   // BytecodeArray is aged in concurrent marker.
   // The word must be completely within the byte code array.
   Address age_addr = address() + kBytecodeAgeOffset;
-  DCHECK_LE((reinterpret_cast<uintptr_t>(age_addr) & ~kPointerAlignmentMask) +
-                kPointerSize,
-            reinterpret_cast<uintptr_t>(address() + Size()));
+  DCHECK_LE((age_addr & ~kPointerAlignmentMask) + kPointerSize,
+            address() + Size());
   Age age = bytecode_age();
   if (age < kLastBytecodeAge) {
-    base::AsAtomic8::Release_CompareAndSwap(age_addr, age, age + 1);
+    base::AsAtomic8::Release_CompareAndSwap(reinterpret_cast<byte*>(age_addr),
+                                            age, age + 1);
   }
 
   DCHECK_GE(bytecode_age(), kFirstBytecodeAge);

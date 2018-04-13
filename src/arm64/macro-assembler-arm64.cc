@@ -1775,8 +1775,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  Mov(kOffHeapTrampolineRegister,
-      Operand(reinterpret_cast<uint64_t>(entry), RelocInfo::OFF_HEAP_TARGET));
+  Mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Br(kOffHeapTrampolineRegister);
 }
 
@@ -1869,13 +1868,13 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
+  Jump(static_cast<intptr_t>(target), rmode, cond);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond);
+  Jump(static_cast<intptr_t>(code.address()), rmode, cond);
 }
 
 void TurboAssembler::Call(Register target) {
@@ -1920,14 +1919,14 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
 
   if (RelocInfo::IsNone(rmode)) {
     // Addresses are 48 bits so we never need to load the upper 16 bits.
-    uint64_t imm = reinterpret_cast<uint64_t>(target);
+    uint64_t imm = static_cast<uint64_t>(target);
     // If we don't use ARM tagged addresses, the 16 higher bits must be 0.
     DCHECK_EQ((imm >> 48) & 0xFFFF, 0);
     movz(temp, (imm >> 0) & 0xFFFF, 0);
     movk(temp, (imm >> 16) & 0xFFFF, 16);
     movk(temp, (imm >> 32) & 0xFFFF, 32);
   } else {
-    Ldr(temp, Immediate(reinterpret_cast<intptr_t>(target), rmode));
+    Ldr(temp, Immediate(static_cast<intptr_t>(target), rmode));
   }
   Blr(temp);
 #ifdef DEBUG
@@ -1973,7 +1972,7 @@ void TurboAssembler::CallForDeoptimization(Address target,
   // Deoptimisation table entries require the call address to be in x16, in
   // order to compute the entry id.
   DCHECK(temp.Is(x16));
-  Ldr(temp, Immediate(reinterpret_cast<intptr_t>(target), rmode));
+  Ldr(temp, Immediate(static_cast<intptr_t>(target), rmode));
   Blr(temp);
 
 #ifdef DEBUG

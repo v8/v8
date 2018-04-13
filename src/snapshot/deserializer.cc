@@ -72,7 +72,7 @@ void Deserializer<AllocatorT>::VisitRootPointers(Root root,
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
   ReadData(reinterpret_cast<MaybeObject**>(start),
-           reinterpret_cast<MaybeObject**>(end), NEW_SPACE, nullptr);
+           reinterpret_cast<MaybeObject**>(end), NEW_SPACE, kNullAddress);
 }
 
 template <class AllocatorT>
@@ -208,7 +208,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       ExternalString* string = ExternalString::cast(obj);
       uint32_t index = string->resource_as_uint32();
       Address address =
-          reinterpret_cast<Address>(isolate_->api_external_references()[index]);
+          static_cast<Address>(isolate_->api_external_references()[index]);
       string->set_address_as_resource(address);
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
@@ -353,7 +353,7 @@ Object* Deserializer<AllocatorT>::ReadDataSingle() {
   MaybeObject** start = &o;
   MaybeObject** end = start + 1;
   int source_space = NEW_SPACE;
-  Address current_object = nullptr;
+  Address current_object = kNullAddress;
 
   CHECK(ReadData(start, end, source_space, current_object));
   HeapObject* heap_object;
@@ -380,7 +380,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
   // are no new space objects in current boot snapshots, so it's not needed,
   // but that may change.
   bool write_barrier_needed =
-      (current_object_address != nullptr && source_space != NEW_SPACE &&
+      (current_object_address != kNullAddress && source_space != NEW_SPACE &&
        source_space != CODE_SPACE);
   while (current < limit) {
     byte data = source_.Get();
@@ -488,7 +488,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       case kSkip: {
         int size = source_.GetInt();
         current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<intptr_t>(current) + size);
+            reinterpret_cast<Address>(current) + size);
         break;
       }
 
@@ -538,20 +538,19 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
         CHECK_NOT_NULL(isolate->embedded_blob());
         EmbeddedData d = EmbeddedData::FromBlob();
-        const uint8_t* address = d.InstructionStartOfBuiltin(builtin_index);
-        CHECK_NOT_NULL(address);
+        Address address = d.InstructionStartOfBuiltin(builtin_index);
+        CHECK_NE(kNullAddress, address);
 
         if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
           Address location_of_branch_data = reinterpret_cast<Address>(current);
           Assembler::deserialization_set_special_target_at(
               location_of_branch_data,
               Code::cast(HeapObject::FromAddress(current_object_address)),
-              const_cast<Address>(address));
+              address);
           location_of_branch_data += Assembler::kSpecialTargetSize;
           current = reinterpret_cast<MaybeObject**>(location_of_branch_data);
         } else {
-          MaybeObject* o =
-              reinterpret_cast<MaybeObject*>(const_cast<uint8_t*>(address));
+          MaybeObject* o = reinterpret_cast<MaybeObject*>(address);
           UnalignedCopy(current, &o);
           current++;
         }
@@ -601,8 +600,9 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       // Do not move current.
       case kVariableRawCode: {
         int size_in_bytes = source_.GetInt();
-        source_.CopyRaw(current_object_address + Code::kDataStart,
-                        size_in_bytes);
+        source_.CopyRaw(
+            reinterpret_cast<byte*>(current_object_address + Code::kDataStart),
+            size_in_bytes);
         break;
       }
 
@@ -636,7 +636,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
           DCHECK_WITH_MSG(
               reference_id < num_api_references_,
               "too few external references provided through the API");
-          address = reinterpret_cast<Address>(
+          address = static_cast<Address>(
               isolate->api_external_references()[reference_id]);
         } else {
           address = reinterpret_cast<Address>(NoExternalReferencesCallback);

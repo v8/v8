@@ -37,7 +37,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
       heap->isolate(),
       RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
-  if (incremental_marking_.black_allocation() && addr != nullptr) {
+  if (incremental_marking_.black_allocation() && addr != kNullAddress) {
     // AdvanceIncrementalMarkingOnAllocation can start black allocation.
     // Ensure that the new object is marked black.
     HeapObject* object = HeapObject::FromAddress(addr);

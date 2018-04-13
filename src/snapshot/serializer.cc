@@ -319,9 +319,11 @@ template <class AllocatorT>
 Code* Serializer<AllocatorT>::CopyCode(Code* code) {
   code_buffer_.clear();  // Clear buffer without deleting backing store.
   int size = code->CodeSize();
-  code_buffer_.insert(code_buffer_.end(), code->address(),
-                      code->address() + size);
-  return Code::cast(HeapObject::FromAddress(&code_buffer_.front()));
+  code_buffer_.insert(code_buffer_.end(),
+                      reinterpret_cast<byte*>(code->address()),
+                      reinterpret_cast<byte*>(code->address() + size));
+  return Code::cast(HeapObject::FromAddress(
+      reinterpret_cast<Address>(&code_buffer_.front())));
 }
 
 template <class AllocatorT>
@@ -526,7 +528,7 @@ void Serializer<
   sink_->PutInt(bytes_to_output, "length");
 
   // Serialize string header (except for map).
-  Address string_start = string->address();
+  uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
   for (int i = HeapObject::kHeaderSize; i < SeqString::kHeaderSize; i++) {
     sink_->PutSection(string_start[i], "StringHeader");
   }
@@ -776,7 +778,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitExternalReference(
                "ExternalRef");
   }
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  DCHECK_NOT_NULL(target);  // Code does not reference null.
+  DCHECK_NE(target, kNullAddress);  // Code does not reference null.
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
@@ -791,18 +793,18 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitInternalReference(
   // inline. That would cause the skip to be negative. Instead, we store the
   // offset from code entry.
   Address entry = Code::cast(object_)->entry();
-  intptr_t pc_offset = rinfo->target_internal_reference_address() - entry;
-  intptr_t target_offset = rinfo->target_internal_reference() - entry;
-  DCHECK(0 <= pc_offset &&
-         pc_offset <= Code::cast(object_)->raw_instruction_size());
-  DCHECK(0 <= target_offset &&
-         target_offset <= Code::cast(object_)->raw_instruction_size());
+  DCHECK_GE(rinfo->target_internal_reference_address(), entry);
+  uintptr_t pc_offset = rinfo->target_internal_reference_address() - entry;
+  DCHECK_LE(pc_offset, Code::cast(object_)->raw_instruction_size());
+  DCHECK_GE(rinfo->target_internal_reference(), entry);
+  uintptr_t target_offset = rinfo->target_internal_reference() - entry;
+  DCHECK_LE(target_offset, Code::cast(object_)->raw_instruction_size());
   sink_->Put(rinfo->rmode() == RelocInfo::INTERNAL_REFERENCE
                  ? kInternalReference
                  : kInternalReferenceEncoded,
              "InternalRef");
-  sink_->PutInt(static_cast<uintptr_t>(pc_offset), "internal ref address");
-  sink_->PutInt(static_cast<uintptr_t>(target_offset), "internal ref value");
+  sink_->PutInt(pc_offset, "internal ref address");
+  sink_->PutInt(target_offset, "internal ref value");
 }
 
 template <class AllocatorT>
@@ -827,7 +829,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
     STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
     CHECK(Builtins::IsEmbeddedBuiltin(host));
     Address addr = rinfo->target_off_heap_target();
-    CHECK_NOT_NULL(addr);
+    CHECK_NE(kNullAddress, addr);
     CHECK_NOT_NULL(
         InstructionStream::TryLookupCode(serializer_->isolate(), addr));
   }
@@ -872,23 +874,28 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputRawData(Address up_to) {
     }
 #ifdef MEMORY_SANITIZER
     // Check that we do not serialize uninitialized memory.
-    __msan_check_mem_is_initialized(object_start + base, bytes_to_output);
+    __msan_check_mem_is_initialized(
+        reinterpret_cast<void*>(object_start + base), bytes_to_output);
 #endif  // MEMORY_SANITIZER
     if (object_->IsBytecodeArray()) {
       // The code age byte can be changed concurrently by GC.
       const int bytes_to_age_byte = BytecodeArray::kBytecodeAgeOffset - base;
       if (0 <= bytes_to_age_byte && bytes_to_age_byte < bytes_to_output) {
-        sink_->PutRaw(object_start + base, bytes_to_age_byte, "Bytes");
+        sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+                      bytes_to_age_byte, "Bytes");
         byte bytecode_age = BytecodeArray::kNoAgeBytecodeAge;
         sink_->PutRaw(&bytecode_age, 1, "Bytes");
         const int bytes_written = bytes_to_age_byte + 1;
-        sink_->PutRaw(object_start + base + bytes_written,
-                      bytes_to_output - bytes_written, "Bytes");
+        sink_->PutRaw(
+            reinterpret_cast<byte*>(object_start + base + bytes_written),
+            bytes_to_output - bytes_written, "Bytes");
       } else {
-        sink_->PutRaw(object_start + base, bytes_to_output, "Bytes");
+        sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+                      bytes_to_output, "Bytes");
       }
     } else {
-      sink_->PutRaw(object_start + base, bytes_to_output, "Bytes");
+      sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+                    bytes_to_output, "Bytes");
     }
   }
 }
@@ -936,9 +943,10 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputCode(int size) {
 
 #ifdef MEMORY_SANITIZER
   // Check that we do not serialize uninitialized memory.
-  __msan_check_mem_is_initialized(start, bytes_to_output);
+  __msan_check_mem_is_initialized(reinterpret_cast<void*>(start),
+                                  bytes_to_output);
 #endif  // MEMORY_SANITIZER
-  sink_->PutRaw(start, bytes_to_output, "Code");
+  sink_->PutRaw(reinterpret_cast<byte*>(start), bytes_to_output, "Code");
 }
 
 // Explicit instantiation.

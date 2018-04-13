@@ -1527,7 +1527,9 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
   }
   SET_FIELD_WRAPPED(obj, set_setter, setter);
   i::Address redirected = obj->redirected_getter();
-  if (redirected != nullptr) SET_FIELD_WRAPPED(obj, set_js_getter, redirected);
+  if (redirected != i::kNullAddress) {
+    SET_FIELD_WRAPPED(obj, set_js_getter, redirected);
+  }
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -6075,7 +6077,7 @@ static void* ExternalValue(i::Object* obj) {
     return nullptr;
   }
   i::Object* foreign = i::JSObject::cast(obj)->GetEmbedderField(0);
-  return i::Foreign::cast(foreign)->foreign_address();
+  return reinterpret_cast<void*>(i::Foreign::cast(foreign)->foreign_address());
 }
 
 
@@ -8847,7 +8849,8 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (isolate->heap()->memory_allocator()->code_range()->valid()) {
-    *start = isolate->heap()->memory_allocator()->code_range()->start();
+    *start = reinterpret_cast<void*>(
+        isolate->heap()->memory_allocator()->code_range()->start());
     *length_in_bytes =
         isolate->heap()->memory_allocator()->code_range()->size();
   } else {
@@ -10670,8 +10673,7 @@ void InvokeAccessorGetterCallback(
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kAccessorGetterCallback);
-  Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
-      getter));
+  Address getter_address = reinterpret_cast<Address>(getter);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, getter_address);
   getter(property, info);
@@ -10683,8 +10685,7 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kInvokeFunctionCallback);
-  Address callback_address =
-      reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
+  Address callback_address = reinterpret_cast<Address>(callback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, callback_address);
   callback(info);

@@ -339,7 +339,7 @@ void Debug::ThreadInit() {
   thread_local_.async_task_count_ = 0;
   thread_local_.last_breakpoint_id_ = 0;
   clear_suspended_generator();
-  thread_local_.restart_fp_ = nullptr;
+  thread_local_.restart_fp_ = kNullAddress;
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   UpdateHookOnFunctionCall();
