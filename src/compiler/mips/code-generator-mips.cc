@@ -19,13 +19,6 @@ namespace compiler {
 
 #define __ tasm()->
 
-// TODO(plind): Possibly avoid using these lithium names.
-#define kScratchReg kLithiumScratchReg
-#define kCompareReg kLithiumScratchReg2
-#define kScratchReg2 kLithiumScratchReg2
-#define kScratchDoubleReg kLithiumScratchDouble
-
-
 // TODO(plind): consider renaming these macros.
 #define TRACE_MSG(msg)                                                      \
   PrintF("code_gen: \'%s\' in function %s at line %d\n", msg, __FUNCTION__, \
@@ -1037,11 +1030,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
         __ ShlPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), i.InputRegister(2));
+                   i.InputRegister(1), i.InputRegister(2), kScratchReg,
+                   kScratchReg2);
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
         __ ShlPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), imm);
+                   i.InputRegister(1), imm, kScratchReg);
       }
     } break;
     case kMipsShrPair: {
@@ -1049,11 +1043,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
         __ ShrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), i.InputRegister(2));
+                   i.InputRegister(1), i.InputRegister(2), kScratchReg,
+                   kScratchReg2);
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
         __ ShrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), imm);
+                   i.InputRegister(1), imm, kScratchReg);
       }
     } break;
     case kMipsSarPair: {
@@ -1061,11 +1056,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
         __ SarPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), i.InputRegister(2));
+                   i.InputRegister(1), i.InputRegister(2), kScratchReg,
+                   kScratchReg2);
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
         __ SarPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), imm);
+                   i.InputRegister(1), imm, kScratchReg);
       }
     } break;
     case kMipsExt:
@@ -3485,7 +3481,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsStackSlot());
     Register temp_0 = kScratchReg;
-    Register temp_1 = kCompareReg;
+    Register temp_1 = kScratchReg2;
     MemOperand src = g.ToMemOperand(source);
     MemOperand dst = g.ToMemOperand(destination);
     __ lw(temp_0, src);
