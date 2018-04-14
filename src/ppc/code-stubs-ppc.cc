@@ -38,7 +38,7 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done, fastpath_done;
-  Register result_reg = destination();
+  Register result_reg = r3;
 
   // Immediate values for this stub fit in instructions, so it's safe to use ip.
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);
@@ -47,9 +47,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
       GetRegisterThatIsNotOneOf(result_reg, scratch, scratch_low);
   DoubleRegister double_scratch = kScratchDoubleReg;
 
-  __ push(scratch);
+  __ Push(result_reg, scratch);
   // Account for saved regs.
-  int argument_offset = 1 * kPointerSize;
+  int argument_offset = 2 * kPointerSize;
 
   // Load double input.
   __ lfd(double_scratch, MemOperand(sp, argument_offset));
@@ -141,9 +141,12 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ bind(&done);
   __ Pop(scratch_high, scratch_low);
+  // Account for saved regs.
+  argument_offset -= 2 * kPointerSize;
 
   __ bind(&fastpath_done);
-  __ pop(scratch);
+  __ StoreP(result_reg, MemOperand(sp, argument_offset));
+  __ Pop(result_reg, scratch);
 
   __ Ret();
 }
