@@ -238,7 +238,7 @@ void RelocInfo::WipeOut() {
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
                                      SKIP_ICACHE_FLUSH);
   } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress0);
+    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }
 }
 
