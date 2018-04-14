@@ -1445,8 +1445,9 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
   bind(&done);
 }
 
-void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                              DoubleRegister double_input) {
+void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
+                                       Register result,
+                                       DoubleRegister double_input) {
   Label done;
 
   TryInlineTruncateDoubleToI(result, double_input, &done);
@@ -1457,7 +1458,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   lay(sp, MemOperand(sp, -kDoubleSize));
   StoreDouble(double_input, MemOperand(sp));
 
-  CallStubDelayed(new (zone) DoubleToIStub(nullptr));
+  Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
 
   LoadP(result, MemOperand(sp, 0));
   la(sp, MemOperand(sp, kDoubleSize));
