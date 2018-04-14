@@ -23,7 +23,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
 #if defined(__thumb__)
   // Thumb mode builtin.
-  DCHECK_EQ(1, reinterpret_cast<intptr_t>(
+  DCHECK_EQ(1, reinterpret_cast<uintptr_t>(
                    ExternalReference(address, masm->isolate()).address()) &
                    1);
 #endif
