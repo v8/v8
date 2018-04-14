@@ -376,4 +376,18 @@ void V8InspectorImpl::forEachSession(
   }
 }
 
+intptr_t V8InspectorImpl::evaluateStarted() {
+  intptr_t id = ++m_lastEvaluateId;
+  m_runningEvaluates.insert(id);
+  return id;
+}
+
+void V8InspectorImpl::evaluateFinished(intptr_t id) {
+  m_runningEvaluates.erase(id);
+}
+
+bool V8InspectorImpl::evaluateStillRunning(intptr_t id) {
+  return m_runningEvaluates.find(id) != m_runningEvaluates.end();
+}
+
 }  // namespace v8_inspector
