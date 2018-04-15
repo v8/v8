@@ -68,6 +68,7 @@ namespace internal {
   F(BigIntBinaryOp, 3, 1)            \
   F(BigIntCompareToBigInt, 3, 1)     \
   F(BigIntCompareToNumber, 3, 1)     \
+  F(BigIntCompareToString, 3, 1)     \
   F(BigIntEqualToBigInt, 2, 1)       \
   F(BigIntEqualToNumber, 2, 1)       \
   F(BigIntEqualToString, 2, 1)       \

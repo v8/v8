@@ -9166,11 +9166,12 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
         BIND(&if_left_bigint);
         {
           Label if_right_heapnumber(this), if_right_bigint(this),
-              if_right_not_numeric(this);
+              if_right_string(this), if_right_other(this);
           GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
           Node* right_instance_type = LoadMapInstanceType(right_map);
-          Branch(IsBigIntInstanceType(right_instance_type), &if_right_bigint,
-                 &if_right_not_numeric);
+          GotoIf(IsBigIntInstanceType(right_instance_type), &if_right_bigint);
+          Branch(IsStringInstanceType(right_instance_type), &if_right_string,
+                 &if_right_other);
 
           BIND(&if_right_heapnumber);
           {
@@ -9192,7 +9193,18 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
             Goto(&end);
           }
 
-          BIND(&if_right_not_numeric);
+          BIND(&if_right_string);
+          {
+            OverwriteFeedback(var_type_feedback,
+                              CompareOperationFeedback::kAny);
+            var_result = CAST(CallRuntime(Runtime::kBigIntCompareToString,
+                                          NoContextConstant(), SmiConstant(op),
+                                          left, right));
+            Goto(&end);
+          }
+
+          // {right} is not a Number, BigInt, or String.
+          BIND(&if_right_other);
           {
             OverwriteFeedback(var_type_feedback,
                               CompareOperationFeedback::kAny);
@@ -9240,11 +9252,14 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
           {
             OverwriteFeedback(var_type_feedback,
                               CompareOperationFeedback::kAny);
-            // {left} is a String, while {right} isn't. So we call
-            // ToPrimitive(right, hint Number) if {right} is a receiver, or
-            // ToNumeric(left) and then ToNumeric(right) in the other cases.
+            // {left} is a String, while {right} isn't. Check if {right} is
+            // a BigInt, otherwise call ToPrimitive(right, hint Number) if
+            // {right} is a receiver, or ToNumeric(left) and then
+            // ToNumeric(right) in the other cases.
             STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-            Label if_right_receiver(this, Label::kDeferred);
+            Label if_right_bigint(this),
+                if_right_receiver(this, Label::kDeferred);
+            GotoIf(IsBigIntInstanceType(right_instance_type), &if_right_bigint);
             GotoIf(IsJSReceiverInstanceType(right_instance_type),
                    &if_right_receiver);
 
@@ -9252,6 +9267,14 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
                 CallBuiltin(Builtins::kNonNumberToNumeric, context, left));
             var_right.Bind(CallBuiltin(Builtins::kToNumeric, context, right));
             Goto(&loop);
+
+            BIND(&if_right_bigint);
+            {
+              var_result = CAST(CallRuntime(
+                  Runtime::kBigIntCompareToString, NoContextConstant(),
+                  SmiConstant(Reverse(op)), right, left));
+              Goto(&end);
+            }
 
             BIND(&if_right_receiver);
             {

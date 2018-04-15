@@ -659,6 +659,20 @@ MaybeHandle<BigInt> BigInt::Decrement(Handle<BigInt> x) {
   return MutableBigInt::MakeImmutable(result);
 }
 
+ComparisonResult BigInt::CompareToString(Handle<BigInt> x, Handle<String> y) {
+  Isolate* isolate = x->GetIsolate();
+  // a. Let ny be StringToBigInt(y);
+  MaybeHandle<BigInt> maybe_ny = StringToBigInt(isolate, y);
+  // b. If ny is NaN, return undefined.
+  Handle<BigInt> ny;
+  if (!maybe_ny.ToHandle(&ny)) {
+    DCHECK(!isolate->has_pending_exception());
+    return ComparisonResult::kUndefined;
+  }
+  // c. Return BigInt::lessThan(x, ny).
+  return CompareToBigInt(x, ny);
+}
+
 bool BigInt::EqualToString(Handle<BigInt> x, Handle<String> y) {
   Isolate* isolate = x->GetIsolate();
   // a. Let n be StringToBigInt(y).
