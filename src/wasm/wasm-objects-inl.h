@@ -102,15 +102,15 @@ void WasmGlobalObject::SetF64(double value) {
 
 // WasmInstanceObject
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, uintptr_t,
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, uint32_t,
                     kMemorySizeOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, uintptr_t,
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, uint32_t,
                     kMemoryMaskOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,
                     kGlobalsStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uintptr_t,
+PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,
                     kIndirectFunctionTableSizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
                     uint32_t*, kIndirectFunctionTableSigIdsOffset)
