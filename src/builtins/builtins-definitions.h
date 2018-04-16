@@ -5,6 +5,9 @@
 #ifndef V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 #define V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 
+// include generated header
+#include "builtin-definitions-from-dsl.h"  //NOLINT
+
 namespace v8 {
 namespace internal {
 
@@ -1257,6 +1260,7 @@ namespace internal {
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)        \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)         \
+  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \
                                                                \
   TFS(StringToLowerCaseIntl, kString)                          \
   /* ES #sec-string.prototype.tolowercase */                   \
@@ -1268,18 +1272,19 @@ namespace internal {
   /* ecma402 #sec-intl.numberformat.prototype.formattoparts */ \
   CPP(NumberFormatPrototypeFormatToParts)
 #else
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)  \
-                                                        \
-  /* no-op fallback version */                          \
-  CPP(StringPrototypeNormalize)                         \
-  /* same as toLowercase; fallback version */           \
-  CPP(StringPrototypeToLocaleLowerCase)                 \
-  /* same as toUppercase; fallback version */           \
-  CPP(StringPrototypeToLocaleUpperCase)                 \
-  /* (obsolete) Unibrow version */                      \
-  CPP(StringPrototypeToLowerCase)                       \
-  /* (obsolete) Unibrow version */                      \
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \
+  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
+                                                           \
+  /* no-op fallback version */                             \
+  CPP(StringPrototypeNormalize)                            \
+  /* same as toLowercase; fallback version */              \
+  CPP(StringPrototypeToLocaleLowerCase)                    \
+  /* same as toUppercase; fallback version */              \
+  CPP(StringPrototypeToLocaleUpperCase)                    \
+  /* (obsolete) Unibrow version */                         \
+  CPP(StringPrototypeToLowerCase)                          \
+  /* (obsolete) Unibrow version */                         \
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 

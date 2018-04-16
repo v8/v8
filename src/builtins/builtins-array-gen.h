@@ -5,12 +5,12 @@
 #ifndef V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "./builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-class ArrayBuiltinsAssembler : public CodeStubAssembler {
+class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   explicit ArrayBuiltinsAssembler(compiler::CodeAssemblerState* state);
 

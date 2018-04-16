@@ -23,6 +23,15 @@ group("v8_run_gcmole") {
     "../../testing/gtest/include/gtest/gtest_prod.h",
     "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
     "../../third_party/icu/source/",
+    "$target_gen_dir/../../builtin-definitions-from-dsl.h",
+    "$target_gen_dir/../../builtins-array-from-dsl-gen.cc",
+    "$target_gen_dir/../../builtins-array-from-dsl-gen.h",
+    "$target_gen_dir/../../builtins-base-from-dsl-gen.cc",
+    "$target_gen_dir/../../builtins-base-from-dsl-gen.h",
+  ]
+
+  deps = [
+    "../../:run_torque",
   ]
 
   if (v8_gcmole) {

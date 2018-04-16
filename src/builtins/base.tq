@@ -1,0 +1,251 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+type Arguments generates 'CodeStubArguments*';
+type void generates 'void';
+type never generates 'void';
+
+type Object generates 'TNode<Object>';
+type int32 generates 'TNode<Int32T>';
+type intptr generates 'TNode<IntPtrT>';
+type float64 generates 'TNode<Float64T>';
+type bit generates 'TNode<BoolT>';
+
+type int31 extends int32 generates 'TNode<Int32T>';
+type Number extends Object generates 'TNode<Number>';
+type Smi extends Number generates 'TNode<Smi>';
+type HeapObject extends Object generates 'TNode<HeapObject>';
+type Context extends HeapObject generates 'TNode<Context>';
+type String extends HeapObject generates 'TNode<String>';
+type Oddball extends HeapObject generates 'TNode<Oddball>';
+type Boolean extends Oddball generates 'TNode<Oddball>';
+type JSArray extends Object generates 'TNode<JSArray>';
+type Callable extends HeapObject generates 'TNode<Object>';
+type JSFunction extends Callable;
+type Map extends Object generates 'TNode<Map>';
+type FixedArrayBase extends Object generates 'TNode<FixedArrayBase>';
+type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
+type FixedDoubleArray extends FixedArrayBase generates
+'TNode<FixedDoubleArray>';
+
+type const_int32 generates 'int32_t';
+type const_int31 extends const_int32 generates 'int32_t';
+type const_float64 generates 'double';
+
+type InstanceType extends int32 generates 'TNode<Int32T>';
+type ElementsKind generates 'ElementsKind';
+type LanguageMode extends Smi;
+type ExtractFixedArrayFlags;
+
+type CompareOperator;
+type MessageTemplate;
+type HasPropertyFlag generates 'HasPropertyLookupMode';
+
+const PACKED_SMI_ELEMENTS: ElementsKind = 'PACKED_SMI_ELEMENTS';
+const HOLEY_SMI_ELEMENTS: ElementsKind = 'HOLEY_SMI_ELEMENTS';
+const PACKED_ELEMENTS: ElementsKind = 'PACKED_ELEMENTS';
+const HOLEY_ELEMENTS: ElementsKind = 'HOLEY_ELEMENTS';
+const PACKED_DOUBLE_ELEMENTS: ElementsKind = 'PACKED_DOUBLE_ELEMENTS';
+const HOLEY_DOUBLE_ELEMENTS: ElementsKind = 'HOLEY_DOUBLE_ELEMENTS';
+
+const kOperationLessThan: CompareOperator = 'Operation::kLessThan';
+const kOperationLessThanEqual: CompareOperator = 'Operation::kLessThanEqual';
+const kOperationGreaterThan: CompareOperator = 'Operation::kGreaterThan';
+const kOperationGreaterThanEqual: CompareOperator =
+    'Operation::kGreaterThanEqual';
+
+const kAllFixedArrays: ExtractFixedArrayFlags =
+    'ExtractFixedArrayFlag::kAllFixedArrays';
+
+const kCOWMap: Map = 'LoadRoot(Heap::kFixedCOWArrayMapRootIndex)';
+const kEmptyFixedArray: FixedArrayBase =
+    'UncheckedCast<FixedArrayBase>(LoadRoot(Heap::kEmptyFixedArrayRootIndex))';
+
+const kInvalidArrayLengthMessage: MessageTemplate =
+    'MessageTemplate::kInvalidArrayLength';
+
+const kHasProperty: HasPropertyFlag = 'kHasProperty';
+
+const kMaxSafeInteger: const_float64 = 'kMaxSafeInteger';
+
+const hole: Object = 'TheHoleConstant()';
+const null: Oddball = 'NullConstant()';
+const undefined: Oddball = 'UndefinedConstant()';
+const true: Boolean = 'TrueConstant()';
+const false: Boolean = 'FalseConstant()';
+const yes: bit = 'Int32TrueConstant()';
+const no: bit = 'Int32FalseConstant()';
+
+const receiver: Object = 'receiver';
+
+const strict: LanguageMode =
+    'SmiConstant(static_cast<int>(LanguageMode::kStrict))';
+const sloppy: LanguageMode =
+    'SmiConstant(static_cast<int>(LanguageMode::kSloppy))';
+
+extern macro Print(Object);
+extern macro Print(String, Object);
+extern macro DebugBreak();
+extern macro ToInteger_Inline(Context, Object): Number;
+extern macro ToLength_Inline(Context, Object): Number;
+extern macro ToString_Inline(Context, Object): String;
+extern macro GetProperty(Context, Object, Object): Object;
+extern macro HasProperty(HeapObject, Object, Context, HasPropertyFlag): Oddball;
+extern macro ThrowRangeError(Context, MessageTemplate): never;
+extern macro ArraySpeciesCreate(Context, Object, Number): Object;
+extern macro EnsureArrayPushable(Map): int32 labels Bailout;
+
+extern builtin ToObject(Context, Object): Object;
+
+extern runtime CreateDataProperty(Context, Object, Object, Object);
+extern runtime SetProperty(Context, Object, Object, Object, LanguageMode);
+extern runtime DeleteProperty(Context, Object, Object, LanguageMode);
+
+extern runtime StringEqual(Context, String, String): Oddball;
+
+extern operator '==' macro Word32Equal(int32, int32): bit;
+extern operator '!=' macro Word32NotEqual(int32, int32): bit;
+extern operator '<' macro Int32LessThan(int32, int32): bit;
+extern operator '>' macro Int32GreaterThan(int32, int32): bit;
+extern operator '<=' macro Int32LessThanOrEqual(int32, int32): bit;
+extern operator '>=' macro Int32GreaterThanOrEqual(int32, int32): bit;
+
+extern operator '==' macro WordEqual(Smi, Smi): bit;
+extern operator '!=' macro WordNotEqual(Smi, Smi): bit;
+extern operator '<' macro SmiLessThan(Smi, Smi): bit;
+extern operator '<=' macro SmiLessThanOrEqual(Smi, Smi): bit;
+extern operator '>' macro SmiGreaterThan(Smi, Smi): bit;
+extern operator '>=' macro SmiGreaterThanOrEqual(Smi, Smi): bit;
+
+extern macro SmiAbove(Smi, Smi): bit;
+
+extern operator '==' macro WordEqual(intptr, intptr): bit;
+extern operator '!=' macro WordNotEqual(intptr, intptr): bit;
+extern operator '<' macro IntPtrLessThan(intptr, intptr): bit;
+extern operator '>' macro IntPtrGreaterThan(intptr, intptr): bit;
+extern operator '<=' macro IntPtrLessThanOrEqual(intptr, intptr): bit;
+extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bit;
+
+extern operator
+'<' macro BranchIfNumberLessThan(Number, Number): never labels True, False;
+extern operator
+'<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never labels True,
+    False;
+extern operator
+'>' macro BranchIfNumberGreaterThan(Number, Number): never labels True, False;
+extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(Number, Number):
+    never labels True,
+    False;
+
+extern operator '==' macro WordEqual(Object, Object): bit;
+extern operator '!=' macro WordNotEqual(Object, Object): bit;
+
+extern operator '+' macro SmiAdd(Smi, Smi): Smi;
+extern operator '-' macro SmiSub(Smi, Smi): Smi;
+
+extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
+extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
+
+extern operator '+' macro NumberAdd(Number, Number): Number;
+extern operator '-' macro NumberSub(Number, Number): Number;
+extern operator 'min' macro NumberMin(Number, Number): Number;
+extern operator 'max' macro NumberMax(Number, Number): Number;
+
+extern operator '!' macro Word32BinaryNot(bit): bit;
+
+extern operator '.map' macro LoadMap(Object): Map;
+extern operator '.map=' macro StoreMap(Object, Map);
+extern operator '.instanceType' macro LoadInstanceType(Object): InstanceType;
+
+extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
+
+extern operator '.length' macro GetArgumentsLength(Arguments): intptr;
+extern operator '[]' macro GetArgumentValue(Arguments, intptr): Object;
+extern operator '[]' macro GetArgumentValue(Arguments, Smi): Object;
+
+extern operator 'is<Smi>' macro TaggedIsSmi(Object): bit;
+extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bit;
+
+extern operator
+'cast<>' macro TaggedToHeapObject(Object): HeapObject labels CastError;
+extern operator 'cast<>' macro TaggedToSmi(Object): Smi labels CastError;
+extern operator
+'cast<>' macro TaggedToJSArray(Object): JSArray labels CastError;
+extern operator
+'cast<>' macro TaggedToCallable(Object): Callable labels CastError;
+extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedArray(
+    FixedArrayBase): FixedArray labels CastError;
+extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedDoubleArray(
+    FixedArrayBase): FixedDoubleArray labels CastError;
+
+extern implicit operator
+'convert<>' macro AllocateHeapNumberWithValue(const_float64): Number;
+extern implicit operator 'convert<>' macro IntPtrConstant(const_int31): intptr;
+extern implicit operator 'convert<>' macro IntPtrConstant(const_int32): intptr;
+extern implicit operator 'convert<>' macro Int32Constant(const_int31): int32;
+extern implicit operator 'convert<>' macro Int32Constant(const_int32): int32;
+extern implicit operator 'convert<>' macro SmiConstant(const_int31): Smi;
+extern implicit operator 'convert<>' macro NumberConstant(const_int31): Number;
+extern implicit operator 'convert<>' macro NumberConstant(const_int32): Number;
+
+extern operator 'convert<>' macro ChangeInt32ToTagged(int32): Number;
+extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;
+extern operator 'convert<>' macro SmiTag(intptr): Smi;
+extern operator 'convert<>' macro SmiUntag(Smi): intptr;
+
+extern macro BranchIfFastJSArray(Object, Context): never labels True, False;
+extern macro BranchIfNotFastJSArray(Object, Context): never labels True, False;
+
+extern macro IsPrototypeInitialArrayPrototype(Context, Map): bit;
+extern macro IsNoElementsProtectorCellInvalid(): bit;
+extern macro IsSpeciesProtectorCellInvalid(): bit;
+
+extern operator '.elements_kind' macro LoadMapElementsKind(Map): int32;
+
+extern operator '.elements' macro LoadElements(Object): FixedArrayBase;
+extern operator '.elements=' macro StoreElements(Object, FixedArrayBase);
+
+extern operator '.length' macro LoadJSArrayLength(JSArray): Number;
+extern operator '.length=' macro StoreJSArrayLength(JSArray, Smi);
+
+extern operator '.length' macro LoadFixedArrayBaseLength(FixedArrayBase): Smi;
+extern operator '[]' macro LoadFixedArrayElement(FixedArray, intptr): Object;
+extern operator '[]' macro LoadFixedArrayElement(FixedArray, Smi): Object;
+extern operator
+'[]=' macro StoreFixedArrayElement(FixedArray, intptr, Object): void;
+extern operator
+'[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
+
+extern macro IsFastElementsKind(int32): bit;
+extern macro IsFastSmiOrTaggedElementsKind(int32): bit;
+extern macro IsFastSmiElementsKind(int32): bit;
+
+extern macro AllocateFixedArray(ElementsKind, Smi): FixedArray;
+extern macro AllocateFixedArray(ElementsKind, Smi, Map): FixedArray;
+
+extern macro CopyFixedArrayElements(
+    ElementsKind, FixedArray, ElementsKind, FixedArray, intptr, intptr,
+    intptr): void;
+extern macro CopyFixedArrayElements(
+    ElementsKind, FixedArray, ElementsKind, FixedArray, Smi, Smi, Smi): void;
+
+extern macro AllocateJSArray(ElementsKind, Map, intptr, Smi): JSArray;
+extern macro AllocateJSArray(ElementsKind, Map, Smi, Smi): JSArray;
+
+extern macro Call(Context, Callable, Object, ...): Object;
+
+extern macro ExtractFixedArray(
+    FixedArray, Smi, Smi, Smi, ExtractFixedArrayFlags): FixedArray;
+
+extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
+
+macro HasPropertyObject(
+    o: Object, p: Object, c: Context, f: HasPropertyFlag): Oddball {
+  try {
+    return HasProperty(cast<HeapObject>(o) otherwise CastError, p, c, f);
+  }
+  label CastError {
+    return false;
+  }
+}
