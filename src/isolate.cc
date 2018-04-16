@@ -2355,7 +2355,7 @@ Isolate::PerIsolateThreadData*
     Isolate::ThreadDataTable::Lookup(Isolate* isolate,
                                      ThreadId thread_id) {
   // Assuming thread_ids are unique per-process, not just per-isolate.
-  auto t = table_.find(thread_id);
+  auto t = table_.find(std::make_pair(isolate, thread_id));
   if (t == table_.end()) {
     return nullptr;
   }
@@ -2368,12 +2368,12 @@ Isolate::PerIsolateThreadData*
 
 
 void Isolate::ThreadDataTable::Insert(Isolate::PerIsolateThreadData* data) {
-  table_[data->thread_id_] = data;
+  table_[std::make_pair(data->isolate_, data->thread_id_)] = data;
 }
 
 
 void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
-  table_.erase(data->thread_id_);
+  table_.erase(std::make_pair(data->isolate_, data->thread_id_));
   delete data;
 }
 

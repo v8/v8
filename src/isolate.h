@@ -294,13 +294,6 @@ class ThreadId {
   friend class Isolate;
 };
 
-template <class T> struct ThreadIdHasher;
-template<> struct ThreadIdHasher<ThreadId> {
-  std::size_t operator()(ThreadId const& t) const {
-    // Pass the ThreadId integer through to std::hash
-    return std::hash<int>()(t.ToInteger());
-  }
-};
 
 #define FIELD_ACCESSOR(type, name)                 \
   inline void set_##name(type v) { name##_ = v; }  \
@@ -1427,7 +1420,17 @@ class Isolate : private HiddenFactory {
     void RemoveAllThreads(Isolate* isolate);
 
    private:
-    std::unordered_map<ThreadId, PerIsolateThreadData*, ThreadIdHasher<ThreadId> > table_;
+    typedef std::pair<Isolate*, ThreadId> IsolateThreadPair;
+
+    struct ThreadIdHasher {
+      std::size_t operator()(IsolateThreadPair const& t) const {
+        // Pass the IsolateThreadPair to std::hash
+        return (std::hash<int>()(t.second.ToInteger()) * 31) ^
+               reinterpret_cast<uintptr_t>(t.first);
+      }
+    };
+
+    std::unordered_map<IsolateThreadPair, PerIsolateThreadData*, Hasher> table_;
   };
 
   // These items form a stack synchronously with threads Enter'ing and Exit'ing
