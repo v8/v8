@@ -206,6 +206,7 @@ class PageAllocator {
    */
   enum Permission {
     kNoAccess,
+    kRead,
     kReadWrite,
     // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,

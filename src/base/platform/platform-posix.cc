@@ -112,6 +112,8 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return PROT_NONE;
+    case OS::MemoryPermission::kRead:
+      return PROT_READ;
     case OS::MemoryPermission::kReadWrite:
       return PROT_READ | PROT_WRITE;
     case OS::MemoryPermission::kReadWriteExecute:
