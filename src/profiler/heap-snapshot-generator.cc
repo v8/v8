@@ -885,7 +885,11 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
   } else if (obj->IsFeedbackVector()) {
     ExtractFeedbackVectorReferences(entry, FeedbackVector::cast(obj));
   } else if (obj->IsWeakFixedArray()) {
-    ExtractWeakFixedArrayReferences(entry, WeakFixedArray::cast(obj));
+    ExtractWeakArrayReferences(WeakFixedArray::kHeaderSize, entry,
+                               WeakFixedArray::cast(obj));
+  } else if (obj->IsWeakArrayList()) {
+    ExtractWeakArrayReferences(WeakArrayList::kHeaderSize, entry,
+                               WeakArrayList::cast(obj));
   }
   return true;
 }
@@ -1398,14 +1402,15 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
   }
 }
 
-void V8HeapExplorer::ExtractWeakFixedArrayReferences(int entry,
-                                                     WeakFixedArray* array) {
+template <typename T>
+void V8HeapExplorer::ExtractWeakArrayReferences(int header_size, int entry,
+                                                T* array) {
   for (int i = 0; i < array->length(); ++i) {
     MaybeObject* object = array->Get(i);
     HeapObject* heap_object;
     if (object->ToWeakHeapObject(&heap_object)) {
       SetWeakReference(array, entry, i, heap_object,
-                       WeakFixedArray::kHeaderSize + i * kPointerSize);
+                       header_size + i * kPointerSize);
     }
   }
 }

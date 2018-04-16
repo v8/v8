@@ -57,7 +57,7 @@ namespace internal {
   V(TransitionArray)       \
   V(WasmInstanceObject)    \
   V(WeakCell)              \
-  V(WeakFixedArray)
+  V(WeakArray)
 
 // For data objects, JS objects and structs along with generic visitor which
 // can visit object of any size we provide visitors specialized by

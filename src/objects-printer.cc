@@ -277,6 +277,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WEAK_FIXED_ARRAY_TYPE:
       WeakFixedArray::cast(this)->WeakFixedArrayPrint(os);
       break;
+    case WEAK_ARRAY_LIST_TYPE:
+      WeakArrayList::cast(this)->WeakArrayListPrint(os);
+      break;
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
@@ -735,7 +738,8 @@ void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
   os << "\n";
 }
 
-void PrintWeakFixedArrayElements(std::ostream& os, WeakFixedArray* array) {
+template <typename T>
+void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   MaybeObject* previous_value = array->length() > 0 ? array->Get(0) : nullptr;
   MaybeObject* value = nullptr;
@@ -761,7 +765,15 @@ void PrintWeakFixedArrayElements(std::ostream& os, WeakFixedArray* array) {
 void PrintWeakFixedArrayWithHeader(std::ostream& os, WeakFixedArray* array) {
   array->PrintHeader(os, "WeakFixedArray");
   os << "\n - length: " << array->length() << "\n";
-  PrintWeakFixedArrayElements(os, array);
+  PrintWeakArrayElements(os, array);
+  os << "\n";
+}
+
+void PrintWeakArrayListWithHeader(std::ostream& os, WeakArrayList* array) {
+  array->PrintHeader(os, "WeakArrayList");
+  os << "\n - capacity: " << array->capacity();
+  os << "\n - length: " << array->length() << "\n";
+  PrintWeakArrayElements(os, array);
   os << "\n";
 }
 
@@ -793,6 +805,10 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
 
 void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
   PrintWeakFixedArrayWithHeader(os, this);
+}
+
+void WeakArrayList::WeakArrayListPrint(std::ostream& os) {
+  PrintWeakArrayListWithHeader(os, this);
 }
 
 void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT

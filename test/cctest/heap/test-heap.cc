@@ -4618,17 +4618,18 @@ TEST(Regress3877) {
   CHECK(weak_prototype->cleared());
 }
 
-
-Handle<WeakCell> AddRetainedMap(Isolate* isolate, Heap* heap) {
-    HandleScope inner_scope(isolate);
-    Handle<Map> map = Map::Create(isolate, 1);
-    v8::Local<v8::Value> result =
-        CompileRun("(function () { return {x : 10}; })();");
-    Handle<JSReceiver> proto =
-        v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-    Map::SetPrototype(map, proto);
-    heap->AddRetainedMap(map);
-    return inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
+Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
+  HandleScope inner_scope(isolate);
+  Handle<Map> map = Map::Create(isolate, 1);
+  v8::Local<v8::Value> result =
+      CompileRun("(function () { return {x : 10}; })();");
+  Handle<JSReceiver> proto =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
+  Map::SetPrototype(map, proto);
+  heap->AddRetainedMap(map);
+  Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
+  array->Set(0, HeapObjectReference::Weak(*map));
+  return inner_scope.CloseAndEscape(array);
 }
 
 
@@ -4636,16 +4637,16 @@ void CheckMapRetainingFor(int n) {
   FLAG_retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  Handle<WeakCell> weak_cell = AddRetainedMap(isolate, heap);
-  CHECK(!weak_cell->cleared());
+  Handle<WeakFixedArray> array_with_map = AddRetainedMap(isolate, heap);
+  CHECK(array_with_map->Get(0)->IsWeakHeapObject());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
     CcTest::CollectGarbage(OLD_SPACE);
   }
-  CHECK(!weak_cell->cleared());
+  CHECK(array_with_map->Get(0)->IsWeakHeapObject());
   heap::SimulateIncrementalMarking(heap);
   CcTest::CollectGarbage(OLD_SPACE);
-  CHECK(weak_cell->cleared());
+  CHECK(array_with_map->Get(0)->IsClearedWeakHeapObject());
 }
 
 

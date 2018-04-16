@@ -203,6 +203,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          weak_fixed_array);
+    ALLOCATE_PARTIAL_MAP(WEAK_ARRAY_LIST_TYPE, kVariableSizeSentinel,
+                         weak_array_list);
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          fixed_cow_array)
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
@@ -233,6 +235,16 @@ bool Heap::CreateInitialMaps() {
     WeakFixedArray::cast(obj)->set_length(0);
   }
   set_empty_weak_fixed_array(WeakFixedArray::cast(obj));
+
+  {
+    AllocationResult allocation =
+        AllocateRaw(WeakArrayList::SizeForCapacity(0), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+    obj->set_map_after_allocation(weak_array_list_map(), SKIP_WRITE_BARRIER);
+    WeakArrayList::cast(obj)->set_capacity(0);
+    WeakArrayList::cast(obj)->set_length(0);
+  }
+  set_empty_weak_array_list(WeakArrayList::cast(obj));
 
   {
     AllocationResult allocation = Allocate(null_map(), OLD_SPACE);
@@ -294,6 +306,7 @@ bool Heap::CreateInitialMaps() {
   FinalizePartialMap(this, meta_map());
   FinalizePartialMap(this, fixed_array_map());
   FinalizePartialMap(this, weak_fixed_array_map());
+  FinalizePartialMap(this, weak_array_list_map());
   FinalizePartialMap(this, fixed_cow_array_map());
   FinalizePartialMap(this, descriptor_array_map());
   FinalizePartialMap(this, undefined_map());
@@ -698,7 +711,7 @@ void Heap::CreateInitialObjects() {
   }
 
   set_detached_contexts(empty_fixed_array());
-  set_retained_maps(ArrayList::cast(empty_fixed_array()));
+  set_retained_maps(empty_weak_array_list());
   set_retaining_path_targets(undefined_value());
 
   set_feedback_vectors_for_profiling_tools(undefined_value());

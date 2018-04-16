@@ -511,19 +511,21 @@ void IncrementalMarking::RetainMaps() {
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
                                    heap()->ShouldAbortIncrementalMarking() ||
                                    FLAG_retain_maps_for_n_gc == 0;
-  ArrayList* retained_maps = heap()->retained_maps();
-  int length = retained_maps->Length();
+  WeakArrayList* retained_maps = heap()->retained_maps();
+  int length = retained_maps->length();
   // The number_of_disposed_maps separates maps in the retained_maps
   // array that were created before and after context disposal.
   // We do not age and retain disposed maps to avoid memory leaks.
   int number_of_disposed_maps = heap()->number_of_disposed_maps_;
   for (int i = 0; i < length; i += 2) {
-    DCHECK(retained_maps->Get(i)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
-    if (cell->cleared()) continue;
-    int age = Smi::ToInt(retained_maps->Get(i + 1));
+    MaybeObject* value = retained_maps->Get(i);
+    HeapObject* map_heap_object;
+    if (!value->ToWeakHeapObject(&map_heap_object)) {
+      continue;
+    }
+    int age = Smi::ToInt(retained_maps->Get(i + 1)->ToSmi());
     int new_age;
-    Map* map = Map::cast(cell->value());
+    Map* map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
         marking_state()->IsWhite(map)) {
       if (ShouldRetainMap(map, age)) {
@@ -544,7 +546,7 @@ void IncrementalMarking::RetainMaps() {
     }
     // Compact the array and update the age.
     if (new_age != age) {
-      retained_maps->Set(i + 1, Smi::FromInt(new_age));
+      retained_maps->Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
     }
   }
 }

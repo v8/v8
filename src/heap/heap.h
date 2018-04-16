@@ -138,6 +138,7 @@ using v8::MemoryPressureLevel;
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, string_table_map, StringTableMap)                                     \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
+  V(Map, weak_array_list_map, WeakArrayListMap)                                \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -222,6 +223,7 @@ using v8::MemoryPressureLevel;
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
+  V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Protectors */                                                             \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)              \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
@@ -256,7 +258,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
   V(HeapObject, retaining_path_targets, RetainingPathTargets)                  \
-  V(ArrayList, retained_maps, RetainedMaps)                                    \
+  V(WeakArrayList, retained_maps, RetainedMaps)                                \
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Feedback vectors that we need for code coverage or type profile */        \
@@ -404,6 +406,7 @@ using v8::MemoryPressureLevel;
   V(UninitializedValue)                 \
   V(WeakCellMap)                        \
   V(WeakFixedArrayMap)                  \
+  V(WeakArrayListMap)                   \
   V(WithContextMap)                     \
   V(empty_string)                       \
   PRIVATE_SYMBOL_LIST(V)
@@ -1935,7 +1938,7 @@ class Heap {
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
-  void CompactRetainedMaps(ArrayList* retained_maps);
+  void CompactRetainedMaps(WeakArrayList* retained_maps);
 
   void CollectGarbageOnMemoryPressure();
 

@@ -477,6 +477,10 @@ class V8_EXPORT_PRIVATE Factory final {
       Handle<FixedArray> array, int grow_by,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<WeakArrayList> CopyWeakArrayListAndGrow(
+      Handle<WeakArrayList> array, int grow_by,
+      PretenureFlag pretenure = NOT_TENURED);
+
   Handle<PropertyArray> CopyPropertyArrayAndGrow(
       Handle<PropertyArray> array, int grow_by,
       PretenureFlag pretenure = NOT_TENURED);
@@ -902,6 +906,7 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject* AllocateRawArray(int size, PretenureFlag pretenure);
   HeapObject* AllocateRawFixedArray(int length, PretenureFlag pretenure);
+  HeapObject* AllocateRawWeakArrayList(int length, PretenureFlag pretenure);
   Handle<FixedArray> NewFixedArrayWithFiller(Heap::RootListIndex map_root_index,
                                              int length, Object* filler,
                                              PretenureFlag pretenure);

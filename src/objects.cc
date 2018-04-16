@@ -3018,7 +3018,8 @@ VisitorId Map::GetVisitorId(Map* map) {
       return kVisitFixedArray;
 
     case WEAK_FIXED_ARRAY_TYPE:
-      return kVisitWeakFixedArray;
+    case WEAK_ARRAY_LIST_TYPE:
+      return kVisitWeakArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
       return kVisitFixedDoubleArray;
@@ -10360,6 +10361,35 @@ Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
     Handle<ArrayList>::cast(ret)->SetLength(0);
   }
   return Handle<ArrayList>::cast(ret);
+}
+
+// static
+Handle<WeakArrayList> WeakArrayList::Add(Handle<WeakArrayList> array,
+                                         Handle<HeapObject> obj1, Smi* obj2) {
+  int length = array->length();
+  array = EnsureSpace(array, length + 2);
+  // Check that GC didn't remove elements from the array.
+  DCHECK_EQ(array->length(), length);
+  array->Set(length, HeapObjectReference::Weak(*obj1));
+  array->Set(length + 1, MaybeObject::FromSmi(obj2));
+  array->set_length(length + 2);
+  return array;
+}
+
+bool WeakArrayList::IsFull() { return length() == capacity(); }
+
+// static
+Handle<WeakArrayList> WeakArrayList::EnsureSpace(Handle<WeakArrayList> array,
+                                                 int length) {
+  int capacity = array->capacity();
+  if (capacity < length) {
+    Isolate* isolate = array->GetIsolate();
+    int new_capacity = length;
+    new_capacity = new_capacity + Max(new_capacity / 2, 2);
+    int grow_by = new_capacity - capacity;
+    array = isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by);
+  }
+  return array;
 }
 
 Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(

@@ -19,6 +19,11 @@ bool MaybeObject::ToSmi(Smi** value) {
   return false;
 }
 
+Smi* MaybeObject::ToSmi() {
+  DCHECK(HAS_SMI_TAG(this));
+  return Smi::cast(reinterpret_cast<Object*>(this));
+}
+
 bool MaybeObject::IsStrongOrWeakHeapObject() {
   if (IsSmi() || IsClearedWeakHeapObject()) {
     return false;

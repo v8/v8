@@ -285,16 +285,16 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WeakFixedArray::BodyDescriptor final : public BodyDescriptorBase {
+class WeakArrayBodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
-    return offset >= kHeaderSize;
+    return true;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IterateMaybeWeakPointers(obj, kHeaderSize, object_size, v);
+    IterateMaybeWeakPointers(obj, HeapObject::kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -566,6 +566,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
     case WEAK_FIXED_ARRAY_TYPE:
       return Op::template apply<WeakFixedArray::BodyDescriptor>(p1, p2, p3, p4);
+    case WEAK_ARRAY_LIST_TYPE:
+      return Op::template apply<WeakArrayList::BodyDescriptor>(p1, p2, p3, p4);
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
     case FEEDBACK_METADATA_TYPE:

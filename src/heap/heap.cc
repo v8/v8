@@ -1435,7 +1435,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
 
-  number_of_disposed_maps_ = retained_maps()->Length();
+  number_of_disposed_maps_ = retained_maps()->length();
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   return ++contexts_disposed_;
 }
@@ -5015,33 +5015,36 @@ void Heap::AddRetainedMap(Handle<Map> map) {
   if (map->is_in_retained_map_list()) {
     return;
   }
-  Handle<WeakCell> cell = Map::WeakCellForMap(map);
-  Handle<ArrayList> array(retained_maps(), isolate());
+  Handle<WeakArrayList> array(retained_maps(), isolate());
   if (array->IsFull()) {
     CompactRetainedMaps(*array);
   }
-  array = ArrayList::Add(
-      array, cell, handle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()));
+  array =
+      WeakArrayList::Add(array, map, Smi::FromInt(FLAG_retain_maps_for_n_gc));
   if (*array != retained_maps()) {
     set_retained_maps(*array);
   }
   map->set_is_in_retained_map_list(true);
 }
 
-
-void Heap::CompactRetainedMaps(ArrayList* retained_maps) {
+void Heap::CompactRetainedMaps(WeakArrayList* retained_maps) {
   DCHECK_EQ(retained_maps, this->retained_maps());
-  int length = retained_maps->Length();
+  int length = retained_maps->length();
   int new_length = 0;
   int new_number_of_disposed_maps = 0;
   // This loop compacts the array by removing cleared weak cells.
   for (int i = 0; i < length; i += 2) {
-    DCHECK(retained_maps->Get(i)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
-    Object* age = retained_maps->Get(i + 1);
-    if (cell->cleared()) continue;
+    MaybeObject* maybe_object = retained_maps->Get(i);
+    if (maybe_object->IsClearedWeakHeapObject()) {
+      continue;
+    }
+
+    DCHECK(maybe_object->IsWeakHeapObject());
+
+    MaybeObject* age = retained_maps->Get(i + 1);
+    DCHECK(age->IsSmi());
     if (i != new_length) {
-      retained_maps->Set(new_length, cell);
+      retained_maps->Set(new_length, maybe_object);
       retained_maps->Set(new_length + 1, age);
     }
     if (i < number_of_disposed_maps_) {
@@ -5050,11 +5053,11 @@ void Heap::CompactRetainedMaps(ArrayList* retained_maps) {
     new_length += 2;
   }
   number_of_disposed_maps_ = new_number_of_disposed_maps;
-  Object* undefined = undefined_value();
+  HeapObject* undefined = undefined_value();
   for (int i = new_length; i < length; i++) {
-    retained_maps->Clear(i, undefined);
+    retained_maps->Set(i, HeapObjectReference::Strong(undefined));
   }
-  if (new_length != length) retained_maps->SetLength(new_length);
+  if (new_length != length) retained_maps->set_length(new_length);
 }
 
 void Heap::FatalProcessOutOfMemory(const char* location) {

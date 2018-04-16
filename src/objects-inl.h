@@ -2242,6 +2242,10 @@ int HeapObject::SizeFromMap(Map* map) const {
     return WeakFixedArray::SizeFor(
         reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
   }
+  if (instance_type == WEAK_ARRAY_LIST_TYPE) {
+    return WeakArrayList::SizeForCapacity(
+        reinterpret_cast<const WeakArrayList*>(this)->synchronized_capacity());
+  }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
       instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
     return reinterpret_cast<const FixedTypedArrayBase*>(this)->TypedArraySize(

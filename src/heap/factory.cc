@@ -86,6 +86,14 @@ HeapObject* Factory::AllocateRawFixedArray(int length,
   return AllocateRawArray(FixedArray::SizeFor(length), pretenure);
 }
 
+HeapObject* Factory::AllocateRawWeakArrayList(int capacity,
+                                              PretenureFlag pretenure) {
+  if (capacity < 0 || capacity > WeakArrayList::kMaxCapacity) {
+    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
+  }
+  return AllocateRawArray(WeakArrayList::SizeForCapacity(capacity), pretenure);
+}
+
 HeapObject* Factory::New(Handle<Map> map, PretenureFlag pretenure) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
@@ -1835,6 +1843,29 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
                                                   int grow_by,
                                                   PretenureFlag pretenure) {
   return CopyArrayAndGrow(array, grow_by, pretenure);
+}
+
+Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
+    Handle<WeakArrayList> src, int grow_by, PretenureFlag pretenure) {
+  int old_capacity = src->capacity();
+  int new_capacity = old_capacity + grow_by;
+  DCHECK_GE(new_capacity, old_capacity);
+  HeapObject* obj = AllocateRawWeakArrayList(new_capacity, pretenure);
+  obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
+
+  WeakArrayList* result = WeakArrayList::cast(obj);
+  result->set_length(src->length());
+  result->set_capacity(new_capacity);
+
+  // Copy the content.
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < old_capacity; i++) result->Set(i, src->Get(i), mode);
+  HeapObjectReference* undefined_reference =
+      HeapObjectReference::Strong(isolate()->heap()->undefined_value());
+  MemsetPointer(result->data_start() + old_capacity, undefined_reference,
+                grow_by);
+  return Handle<WeakArrayList>(result, isolate());
 }
 
 Handle<PropertyArray> Factory::CopyPropertyArrayAndGrow(

@@ -18,6 +18,7 @@ TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(WeakFixedArray, WEAK_FIXED_ARRAY_TYPE)
+TYPE_CHECKER(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
@@ -28,11 +29,16 @@ CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(FixedArrayOfWeakCells)
 CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR(WeakArrayList)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+
+SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
+SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
+SMI_ACCESSORS(WeakArrayList, length, kLengthOffset)
 
 Object* FixedArrayBase::unchecked_synchronized_length() const {
   return ACQUIRE_READ_FIELD(this, kLengthOffset);
@@ -233,6 +239,23 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
 }
 
 MaybeObject** WeakFixedArray::data_start() {
+  return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+}
+
+MaybeObject* WeakArrayList::Get(int index) const {
+  SLOW_DCHECK(index >= 0 && index < this->capacity());
+  return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
+}
+
+void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->capacity());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
+MaybeObject** WeakArrayList::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }
 
