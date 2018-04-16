@@ -226,7 +226,7 @@ class Serializer : public SerializerDeserializer {
   void OutputStatistics(const char* name);
 
 #ifdef OBJECT_PRINT
-  void CountInstanceType(Map* map, int size);
+  void CountInstanceType(Map* map, int size, AllocationSpace space);
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -256,6 +256,8 @@ class Serializer : public SerializerDeserializer {
   static const int kInstanceTypes = LAST_TYPE + 1;
   int* instance_type_count_;
   size_t* instance_type_size_;
+  int* read_only_instance_type_count_;
+  size_t* read_only_instance_type_size_;
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
