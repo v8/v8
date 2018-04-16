@@ -1580,9 +1580,9 @@ class V8_EXPORT ScriptCompiler {
    */
   static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script);
 
-  // Deprecated.
-  static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script,
-                                     Local<String> source);
+  V8_DEPRECATED("Source string is no longer required",
+                static CachedData* CreateCodeCache(
+                    Local<UnboundScript> unbound_script, Local<String> source));
 
   /**
    * Creates and returns code cache for the specified function that was
@@ -1592,9 +1592,9 @@ class V8_EXPORT ScriptCompiler {
    */
   static CachedData* CreateCodeCacheForFunction(Local<Function> function);
 
-  // Deprecated.
-  static CachedData* CreateCodeCacheForFunction(Local<Function> function,
-                                                Local<String> source);
+  V8_DEPRECATED("Source string is no longer required",
+                static CachedData* CreateCodeCacheForFunction(
+                    Local<Function> function, Local<String> source));
 
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
