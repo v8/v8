@@ -221,8 +221,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
+  // Returns {true} if this descriptor is a call to a WebAssembly function.
+  bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+
   bool RequiresFrameAsIncoming() const {
-    return IsCFunctionCall() || IsJSFunctionCall();
+    return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();
   }
 
   // The number of return values from this call.

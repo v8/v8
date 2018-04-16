@@ -773,19 +773,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   return instance;
 }
 
-WasmInstanceObject* WasmInstanceObject::GetOwningInstance(
-    const wasm::WasmCode* code) {
-  DisallowHeapAllocation no_gc;
-  Object* weak_link = nullptr;
-  DCHECK(code->kind() == wasm::WasmCode::kFunction ||
-         code->kind() == wasm::WasmCode::kInterpreterStub);
-  weak_link = code->native_module()->compiled_module()->weak_owning_instance();
-  DCHECK(weak_link->IsWeakCell());
-  WeakCell* cell = WeakCell::cast(weak_link);
-  if (cell->cleared()) return nullptr;
-  return WasmInstanceObject::cast(cell->value());
-}
-
 void WasmInstanceObject::ValidateInstancesChainForTesting(
     Isolate* isolate, Handle<WasmModuleObject> module_obj, int instance_count) {
   CHECK_GE(instance_count, 0);

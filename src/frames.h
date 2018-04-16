@@ -979,7 +979,7 @@ class WasmCompiledFrame final : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
+  WasmInstanceObject* wasm_instance() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
@@ -1022,7 +1022,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
   // Accessors.
   WasmDebugInfo* debug_info() const;
-  WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
+  WasmInstanceObject* wasm_instance() const;
 
   Script* script() const override;
   int position() const override;

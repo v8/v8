@@ -354,6 +354,7 @@ class LiftoffCompiler {
     DCHECK(instance_loc.IsRegister());
     DCHECK(!instance_loc.IsAnyRegister());
     Register instance_reg = Register::from_code(instance_loc.AsRegister());
+    DCHECK_EQ(kWasmInstanceRegister, instance_reg);
 
     // Parameter 0 is the instance parameter.
     uint32_t num_params =

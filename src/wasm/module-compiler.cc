@@ -750,6 +750,7 @@ Address CompileLazy(Isolate* isolate,
   DCHECK(!it.done());
   DCHECK(it.frame()->is_js_to_wasm() || it.frame()->is_wasm_compiled());
   Handle<Code> js_to_wasm_caller_code;
+  Handle<WasmInstanceObject> caller_instance;
   const WasmCode* wasm_caller_code = nullptr;
   int32_t caller_ret_offset = -1;
   if (it.frame()->is_js_to_wasm()) {
@@ -757,6 +758,8 @@ Address CompileLazy(Isolate* isolate,
     // This wasn't actually an indirect call, but a JS->wasm call.
     indirectly_called = false;
   } else {
+    caller_instance =
+        handle(WasmCompiledFrame::cast(it.frame())->wasm_instance(), isolate);
     wasm_caller_code =
         isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
     auto offset = it.frame()->pc() - wasm_caller_code->instruction_start();
@@ -799,9 +802,7 @@ Address CompileLazy(Isolate* isolate,
   // Update import and indirect function tables in the caller.
   //==========================================================================
   if (indirectly_called) {
-    DCHECK_NOT_NULL(wasm_caller_code);
-    Handle<WasmInstanceObject> caller_instance(
-        WasmInstanceObject::GetOwningInstance(wasm_caller_code), isolate);
+    DCHECK(!caller_instance.is_null());
     if (!caller_instance->has_managed_indirect_patcher()) {
       auto patcher = Managed<IndirectPatcher>::Allocate(isolate);
       caller_instance->set_managed_indirect_patcher(*patcher);

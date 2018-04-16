@@ -324,11 +324,6 @@ class WasmInstanceObject : public JSObject {
 
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmCompiledModule>);
 
-  // Assumed to be called with a code object associated to a wasm module
-  // instance. Intended to be called from runtime functions. Returns nullptr on
-  // failing to get owning instance.
-  static WasmInstanceObject* GetOwningInstance(const wasm::WasmCode* code);
-
   static void ValidateInstancesChainForTesting(
       Isolate* isolate, Handle<WasmModuleObject> module_obj,
       int instance_count);

@@ -2455,6 +2455,18 @@ void CodeGenerator::AssembleConstructFrame() {
         // There is no need to leave the frame, we will not return from the
         // runtime call.
         __ EnterFrame(StackFrame::WASM_COMPILED);
+      } else {
+        // Finish the frame that hasn't been fully built yet.
+        // TODO(mstarzinger): This is a work-around, deferred frame building is
+        // actually no longer supported, remove the associated code.
+        UseScratchRegisterScope temps(tasm());
+        __ Claim(2);  // Claim extra slots for marker + instance.
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+        __ Str(kWasmInstanceRegister,
+               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       }
       __ Mov(cp, Smi::kZero);
       __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
@@ -2487,14 +2499,23 @@ void CodeGenerator::AssembleConstructFrame() {
           __ Claim(shrink_slots);
         }
         break;
-      case CallDescriptor::kCallCodeObject:
-      case CallDescriptor::kCallWasmFunction: {
+      case CallDescriptor::kCallCodeObject: {
         UseScratchRegisterScope temps(tasm());
         __ Claim(shrink_slots + 1);  // Claim extra slot for frame type marker.
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
         __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      } break;
+      case CallDescriptor::kCallWasmFunction: {
+        UseScratchRegisterScope temps(tasm());
+        __ Claim(shrink_slots + 2);  // Claim extra slots for marker + instance.
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+        __ Str(kWasmInstanceRegister,
+               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       } break;
       case CallDescriptor::kCallAddress:
         __ Claim(shrink_slots);

@@ -2647,8 +2647,6 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    auto wasm_instance_reg = a0;  // TODO(titzer): put in a common place.
-
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
@@ -2659,13 +2657,13 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ MultiPushFPU(fp_regs);
 
     // Pass the WASM instance as an explicit argument to WasmCompileLazy.
-    __ push(wasm_instance_reg);
+    __ push(kWasmInstanceRegister);
     // Initialize the JavaScript context with 0. CEntryStub will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
     // The WASM instance is the second return value.
-    __ mov(wasm_instance_reg, kReturnRegister1);
+    __ mov(kWasmInstanceRegister, kReturnRegister1);
 
     // Restore registers.
     __ MultiPopFPU(fp_regs);

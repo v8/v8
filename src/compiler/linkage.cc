@@ -123,14 +123,13 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return PushArgumentCount()
                  ? OptimizedBuiltinFrameConstants::kFixedSlotCount
                  : StandardFrameConstants::kFixedSlotCount;
-      break;
     case kCallAddress:
       return CommonFrameConstants::kFixedSlotCountAboveFp +
              CommonFrameConstants::kCPSlotCount;
-      break;
     case kCallCodeObject:
-    case kCallWasmFunction:
       return TypedFrameConstants::kFixedSlotCount;
+    case kCallWasmFunction:
+      return WasmCompiledFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
 }

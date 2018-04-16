@@ -31,6 +31,7 @@ constexpr Register kJavaScriptCallNewTargetRegister = edx;
 constexpr Register kOffHeapTrampolineRegister = ecx;
 constexpr Register kRuntimeCallFunctionRegister = ebx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
+constexpr Register kWasmInstanceRegister = esi;
 
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.

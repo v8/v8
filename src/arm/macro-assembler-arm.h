@@ -31,6 +31,7 @@ constexpr Register kJavaScriptCallNewTargetRegister = r3;
 constexpr Register kOffHeapTrampolineRegister = r6;
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
+constexpr Register kWasmInstanceRegister = r3;
 
 // ----------------------------------------------------------------------------
 // Static helper functions

@@ -30,6 +30,7 @@ constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kOffHeapTrampolineRegister = at;
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
+constexpr Register kWasmInstanceRegister = a0;
 
 // Forward declaration.
 class JumpTarget;
