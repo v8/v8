@@ -508,31 +508,23 @@ I32_SHIFTOP(shr, srlv)
 
 #undef I32_SHIFTOP
 
-void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                                    LiftoffRegister rhs) {
-  TurboAssembler::Daddu(dst.gp(), lhs.gp(), rhs.gp());
-}
-
-void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
-                                    LiftoffRegister rhs) {
-  BAILOUT("i64_sub");
-}
-
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  BAILOUT("i64_mul");
+  TurboAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
 }
 
-#define I64_BINOP(name)                                                \
+#define I64_BINOP(name, instruction)                                   \
   void LiftoffAssembler::emit_i64_##name(                              \
       LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-    BAILOUT("i64_" #name);                                             \
+    instruction(dst.gp(), lhs.gp(), rhs.gp());                         \
   }
 
 // clang-format off
-I64_BINOP(and)
-I64_BINOP(or)
-I64_BINOP(xor)
+I64_BINOP(add, daddu)
+I64_BINOP(sub, dsubu)
+I64_BINOP(and, and_)
+I64_BINOP(or, or_)
+I64_BINOP(xor, xor_)
 // clang-format on
 
 #undef I64_BINOP

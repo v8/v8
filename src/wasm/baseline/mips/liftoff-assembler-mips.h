@@ -489,16 +489,15 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
       break;
     }
     case kWasmI64: {
-      LiftoffRegister low = GetUnusedRegister(kGpReg);
-      LiftoffRegister high = GetUnusedRegister(kGpReg);
+      LiftoffRegister tmp = GetUnusedRegister(kGpRegPair);
 
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
-      TurboAssembler::li(low.gp(), Operand(low_word));
-      TurboAssembler::li(high.gp(), Operand(high_word));
+      TurboAssembler::li(tmp.low_gp(), Operand(low_word));
+      TurboAssembler::li(tmp.high_gp(), Operand(high_word));
 
-      sw(low.gp(), dst);
-      sw(high.gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      sw(tmp.low_gp(), dst);
+      sw(tmp.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
       break;
     }
     default:
@@ -581,17 +580,63 @@ I32_SHIFTOP(shr, srlv)
 
 #undef I32_SHIFTOP
 
-#define UNIMPLEMENTED_I64_BINOP(name)                                  \
-  void LiftoffAssembler::emit_i64_##name(                              \
-      LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-    BAILOUT("i64 binop: " #name);                                      \
+void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  LiftoffRegister org_dst = dst;
+  // Allocate registers for dst, to prevent overwriting source.
+  if (dst.overlaps(lhs) || dst.overlaps(rhs)) {
+    dst = GetUnusedRegister(kGpRegPair, LiftoffRegList::ForRegs(lhs, rhs));
   }
 
-UNIMPLEMENTED_I64_BINOP(add)
-UNIMPLEMENTED_I64_BINOP(sub)
-UNIMPLEMENTED_I64_BINOP(mul)
+  // Multiply.
+  TurboAssembler::Mulu(dst.high_gp(), dst.low_gp(), lhs.low_gp(), rhs.low_gp());
+  LiftoffRegister tmp =
+      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, lhs, rhs));
+  TurboAssembler::Mul(tmp.gp(), lhs.low_gp(), rhs.high_gp());
+  TurboAssembler::Addu(dst.high_gp(), dst.high_gp(), tmp.gp());
 
-#undef UNIMPLEMENTED_I64_BINOP
+  TurboAssembler::Mul(tmp.gp(), lhs.high_gp(), rhs.low_gp());
+  TurboAssembler::Addu(dst.high_gp(), dst.high_gp(), tmp.gp());
+
+  // Move result to original dst if needed.
+  if (dst != org_dst) {
+    Move(org_dst, dst, kWasmI64);
+  }
+}
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  LiftoffRegister org_dst = dst;
+  // Allocate registers for dst, to prevent overwriting source.
+  if (dst.overlaps(lhs) || dst.overlaps(rhs)) {
+    dst = GetUnusedRegister(kGpRegPair, LiftoffRegList::ForRegs(lhs, rhs));
+  }
+
+  TurboAssembler::AddPair(dst.low_gp(), dst.high_gp(), lhs.low_gp(),
+                          lhs.high_gp(), rhs.low_gp(), rhs.high_gp());
+
+  // Move result to original dst if needed.
+  if (dst != org_dst) {
+    Move(org_dst, dst, kWasmI64);
+  }
+}
+
+void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  LiftoffRegister org_dst = dst;
+  // Allocate registers for dst, to prevent overwriting source.
+  if (dst.overlaps(lhs) || dst.overlaps(rhs)) {
+    dst = GetUnusedRegister(kGpRegPair, LiftoffRegList::ForRegs(lhs, rhs));
+  }
+
+  TurboAssembler::SubPair(dst.low_gp(), dst.high_gp(), lhs.low_gp(),
+                          lhs.high_gp(), rhs.low_gp(), rhs.high_gp());
+
+  // Move result to original dst if needed.
+  if (dst != org_dst) {
+    Move(org_dst, dst, kWasmI64);
+  }
+}
 
 namespace liftoff {
 
