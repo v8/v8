@@ -248,8 +248,6 @@ class ExternalReference BASE_EMBEDDED {
       EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE);
 #undef COUNT_EXTERNAL_REFERENCE
 
-  static void SetUp();
-
   typedef Address ExternalReferenceRedirector(Address original, Type type);
 
   ExternalReference() : address_(kNullAddress) {}
