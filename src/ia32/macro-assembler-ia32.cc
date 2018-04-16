@@ -188,17 +188,6 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
   j(parity_even, is_nan, dst);
 }
 
-void TurboAssembler::LoadUint32(XMMRegister dst, Operand src) {
-  Label done;
-  cmp(src, Immediate(0));
-  ExternalReference uint32_bias =
-      ExternalReference::address_of_uint32_bias(isolate());
-  Cvtsi2sd(dst, src);
-  j(not_sign, &done, Label::kNear);
-  addsd(dst, Operand::StaticVariable(uint32_bias));
-  bind(&done);
-}
-
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       SaveFPRegsMode save_fp,
@@ -365,18 +354,23 @@ void MacroAssembler::MaybeDropFrames() {
     RelocInfo::CODE_TARGET);
 }
 
-void TurboAssembler::Cvtsi2sd(XMMRegister dst, Operand src) {
+void TurboAssembler::Cvtsi2ss(XMMRegister dst, Operand src) {
   xorps(dst, dst);
+  cvtsi2ss(dst, src);
+}
+
+void TurboAssembler::Cvtsi2sd(XMMRegister dst, Operand src) {
+  xorpd(dst, dst);
   cvtsi2sd(dst, src);
 }
 
 void TurboAssembler::Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
   Label msb_set_src;
-  Label jmp_return;
+  Label done;
   test(src, src);
   j(sign, &msb_set_src, Label::kNear);
   cvtsi2ss(dst, src);
-  jmp(&jmp_return, Label::kNear);
+  jmp(&done, Label::kNear);
   bind(&msb_set_src);
   mov(tmp, src);
   shr(src, 1);
@@ -385,7 +379,37 @@ void TurboAssembler::Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
   or_(src, tmp);
   cvtsi2ss(dst, src);
   addss(dst, dst);
-  bind(&jmp_return);
+  bind(&done);
+}
+
+void TurboAssembler::Cvttss2ui(Register dst, Operand src, XMMRegister tmp) {
+  Label done;
+  cvttss2si(dst, src);
+  test(dst, dst);
+  j(positive, &done);
+  Move(tmp, static_cast<float>(INT32_MIN));
+  addss(tmp, src);
+  cvttss2si(dst, tmp);
+  or_(dst, Immediate(0x80000000));
+  bind(&done);
+}
+
+void TurboAssembler::Cvtui2sd(XMMRegister dst, Operand src) {
+  Label done;
+  cmp(src, Immediate(0));
+  ExternalReference uint32_bias =
+      ExternalReference::address_of_uint32_bias(isolate());
+  Cvtsi2sd(dst, src);
+  j(not_sign, &done, Label::kNear);
+  addsd(dst, Operand::StaticVariable(uint32_bias));
+  bind(&done);
+}
+
+void TurboAssembler::Cvttsd2ui(Register dst, Operand src, XMMRegister tmp) {
+  Move(tmp, -2147483648.0);
+  addsd(tmp, src);
+  cvttsd2si(dst, tmp);
+  add(dst, Immediate(0x80000000));
 }
 
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {

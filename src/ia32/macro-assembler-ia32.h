@@ -285,19 +285,26 @@ class TurboAssembler : public Assembler {
   void Pinsrd(XMMRegister dst, Operand src, int8_t imm8,
               bool is_64_bits = false);
 
-  void LoadUint32(XMMRegister dst, Register src) {
-    LoadUint32(dst, Operand(src));
-  }
-  void LoadUint32(XMMRegister dst, Operand src);
-
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
   // xorps to clear the dst register before cvtsi2sd to solve this issue.
+  void Cvtsi2ss(XMMRegister dst, Register src) { Cvtsi2ss(dst, Operand(src)); }
+  void Cvtsi2ss(XMMRegister dst, Operand src);
   void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
   void Cvtsi2sd(XMMRegister dst, Operand src);
 
   void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
+  void Cvttss2ui(Register dst, XMMRegister src, XMMRegister tmp) {
+    Cvttss2ui(dst, Operand(src), tmp);
+  }
+  void Cvttss2ui(Register dst, Operand src, XMMRegister tmp);
+  void Cvtui2sd(XMMRegister dst, Register src) { Cvtui2sd(dst, Operand(src)); }
+  void Cvtui2sd(XMMRegister dst, Operand src);
+  void Cvttsd2ui(Register dst, XMMRegister src, XMMRegister tmp) {
+    Cvttsd2ui(dst, Operand(src), tmp);
+  }
+  void Cvttsd2ui(Register dst, Operand src, XMMRegister tmp);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

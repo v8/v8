@@ -1351,28 +1351,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat32ToInt32:
       __ cvttss2si(i.OutputRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat32ToUint32: {
-      Label success;
-      __ cvttss2si(i.OutputRegister(), i.InputOperand(0));
-      __ test(i.OutputRegister(), i.OutputRegister());
-      __ j(positive, &success);
-      __ Move(kScratchDoubleReg, static_cast<float>(INT32_MIN));
-      __ addss(kScratchDoubleReg, i.InputOperand(0));
-      __ cvttss2si(i.OutputRegister(), kScratchDoubleReg);
-      __ or_(i.OutputRegister(), Immediate(0x80000000));
-      __ bind(&success);
+    case kSSEFloat32ToUint32:
+      __ Cvttss2ui(i.OutputRegister(), i.InputOperand(0), kScratchDoubleReg);
       break;
-    }
     case kSSEFloat64ToInt32:
       __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat64ToUint32: {
-      __ Move(kScratchDoubleReg, -2147483648.0);
-      __ addsd(kScratchDoubleReg, i.InputOperand(0));
-      __ cvttsd2si(i.OutputRegister(), kScratchDoubleReg);
-      __ add(i.OutputRegister(), Immediate(0x80000000));
+    case kSSEFloat64ToUint32:
+      __ Cvttsd2ui(i.OutputRegister(), i.InputOperand(0), kScratchDoubleReg);
       break;
-    }
     case kSSEInt32ToFloat32:
       __ cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
@@ -1387,7 +1374,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSEUint32ToFloat64:
-      __ LoadUint32(i.OutputDoubleRegister(), i.InputOperand(0));
+      __ Cvtui2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSEFloat64ExtractLowWord32:
       if (instr->InputAt(0)->IsFPStackSlot()) {
