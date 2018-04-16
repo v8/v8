@@ -43,7 +43,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);
   Register scratch2 = GetRegisterThatIsNotOneOf(result_reg, scratch);
   Register scratch3 = GetRegisterThatIsNotOneOf(result_reg, scratch, scratch2);
-  DoubleRegister double_scratch = kLithiumScratchDouble;
+  DoubleRegister double_scratch = kScratchDoubleReg;
 
   // Account for saved regs.
   const int kArgumentOffset = 3 * kPointerSize;

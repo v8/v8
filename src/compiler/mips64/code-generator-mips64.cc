@@ -19,11 +19,6 @@ namespace compiler {
 
 #define __ tasm()->
 
-// TODO(plind): Possibly avoid using these lithium names.
-#define kScratchReg kLithiumScratchReg
-#define kScratchReg2 kLithiumScratchReg2
-#define kScratchDoubleReg kLithiumScratchDouble
-
 
 // TODO(plind): consider renaming these macros.
 #define TRACE_MSG(msg)                                                      \

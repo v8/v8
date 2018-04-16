@@ -584,22 +584,25 @@ class TurboAssembler : public Assembler {
                Register left_high, Register right_low, Register right_high);
 
   void ShlPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register shift);
+               Register src_high, Register shift, Register scratch1,
+               Register scratch2);
 
   void ShlPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, uint32_t shift);
+               Register src_high, uint32_t shift, Register scratch);
 
   void ShrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register shift);
+               Register src_high, Register shift, Register scratch1,
+               Register scratch2);
 
   void ShrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, uint32_t shift);
+               Register src_high, uint32_t shift, Register scratch);
 
   void SarPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register shift);
+               Register src_high, Register shift, Register scratch1,
+               Register scratch2);
 
   void SarPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, uint32_t shift);
+               Register src_high, uint32_t shift, Register scratch);
 
   // MIPS32 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);

@@ -1443,33 +1443,33 @@ void TurboAssembler::SubPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register shift) {
+                             Register shift, Register scratch1,
+                             Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Label done;
-  Register kScratchReg = s3;
-  Register kScratchReg2 = s4;
-  And(shift, shift, 0x3F);
-  sllv(dst_low, src_low, shift);
-  Nor(kScratchReg2, zero_reg, shift);
-  srl(kScratchReg, src_low, 1);
-  srlv(kScratchReg, kScratchReg, kScratchReg2);
-  sllv(dst_high, src_high, shift);
-  Or(dst_high, dst_high, kScratchReg);
-  And(kScratchReg, shift, 32);
+  Register scratch3 = t8;
+  And(scratch3, shift, 0x3F);
+  sllv(dst_low, src_low, scratch3);
+  Nor(scratch2, zero_reg, scratch3);
+  srl(scratch1, src_low, 1);
+  srlv(scratch1, scratch1, scratch2);
+  sllv(dst_high, src_high, scratch3);
+  Or(dst_high, dst_high, scratch1);
+  And(scratch1, scratch3, 32);
   if (IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r6)) {
-    Branch(&done, eq, kScratchReg, Operand(zero_reg));
+    Branch(&done, eq, scratch1, Operand(zero_reg));
     mov(dst_high, dst_low);
     mov(dst_low, zero_reg);
   } else {
-    movn(dst_high, dst_low, kScratchReg);
-    movn(dst_low, zero_reg, kScratchReg);
+    movn(dst_high, dst_low, scratch1);
+    movn(dst_low, zero_reg, scratch1);
   }
   bind(&done);
 }
 
 void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             uint32_t shift) {
-  Register kScratchReg = s3;
+                             uint32_t shift, Register scratch) {
   shift = shift & 0x3F;
   if (shift == 0) {
     mov(dst_low, src_low);
@@ -1482,8 +1482,8 @@ void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
     } else {
       sll(dst_high, src_high, shift);
       sll(dst_low, src_low, shift);
-      srl(kScratchReg, src_low, 32 - shift);
-      Or(dst_high, dst_high, kScratchReg);
+      srl(scratch, src_low, 32 - shift);
+      Or(dst_high, dst_high, scratch);
     }
   } else if (shift == 32) {
     mov(dst_low, zero_reg);
@@ -1497,33 +1497,33 @@ void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register shift) {
+                             Register shift, Register scratch1,
+                             Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Label done;
-  Register kScratchReg = s3;
-  Register kScratchReg2 = s4;
-  And(shift, shift, 0x3F);
-  srlv(dst_high, src_high, shift);
-  Nor(kScratchReg2, zero_reg, shift);
-  sll(kScratchReg, src_high, 1);
-  sllv(kScratchReg, kScratchReg, kScratchReg2);
-  srlv(dst_low, src_low, shift);
-  Or(dst_low, dst_low, kScratchReg);
-  And(kScratchReg, shift, 32);
+  Register scratch3 = t8;
+  And(scratch3, shift, 0x3F);
+  srlv(dst_high, src_high, scratch3);
+  Nor(scratch2, zero_reg, scratch3);
+  sll(scratch1, src_high, 1);
+  sllv(scratch1, scratch1, scratch2);
+  srlv(dst_low, src_low, scratch3);
+  Or(dst_low, dst_low, scratch1);
+  And(scratch1, scratch3, 32);
   if (IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r6)) {
-    Branch(&done, eq, kScratchReg, Operand(zero_reg));
+    Branch(&done, eq, scratch1, Operand(zero_reg));
     mov(dst_low, dst_high);
     mov(dst_high, zero_reg);
   } else {
-    movn(dst_low, dst_high, kScratchReg);
-    movn(dst_high, zero_reg, kScratchReg);
+    movn(dst_low, dst_high, scratch1);
+    movn(dst_high, zero_reg, scratch1);
   }
   bind(&done);
 }
 
 void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             uint32_t shift) {
-  Register kScratchReg = s3;
+                             uint32_t shift, Register scratch) {
   shift = shift & 0x3F;
   if (shift == 0) {
     mov(dst_low, src_low);
@@ -1537,8 +1537,8 @@ void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
       srl(dst_high, src_high, shift);
       srl(dst_low, src_low, shift);
       shift = 32 - shift;
-      sll(kScratchReg, src_high, shift);
-      Or(dst_low, dst_low, kScratchReg);
+      sll(scratch, src_high, shift);
+      Or(dst_low, dst_low, scratch);
     }
   } else if (shift == 32) {
     mov(dst_high, zero_reg);
@@ -1552,19 +1552,20 @@ void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::SarPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register shift) {
+                             Register shift, Register scratch1,
+                             Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Label done;
-  Register kScratchReg = s3;
-  Register kScratchReg2 = s4;
-  And(shift, shift, 0x3F);
-  srav(dst_high, src_high, shift);
-  Nor(kScratchReg2, zero_reg, shift);
-  sll(kScratchReg, src_high, 1);
-  sllv(kScratchReg, kScratchReg, kScratchReg2);
-  srlv(dst_low, src_low, shift);
-  Or(dst_low, dst_low, kScratchReg);
-  And(kScratchReg, shift, 32);
-  Branch(&done, eq, kScratchReg, Operand(zero_reg));
+  Register scratch3 = t8;
+  And(scratch3, shift, 0x3F);
+  srav(dst_high, src_high, scratch3);
+  Nor(scratch2, zero_reg, scratch3);
+  sll(scratch1, src_high, 1);
+  sllv(scratch1, scratch1, scratch2);
+  srlv(dst_low, src_low, scratch3);
+  Or(dst_low, dst_low, scratch1);
+  And(scratch1, scratch3, 32);
+  Branch(&done, eq, scratch1, Operand(zero_reg));
   mov(dst_low, dst_high);
   sra(dst_high, dst_high, 31);
   bind(&done);
@@ -1572,8 +1573,7 @@ void TurboAssembler::SarPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::SarPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             uint32_t shift) {
-  Register kScratchReg = s3;
+                             uint32_t shift, Register scratch) {
   shift = shift & 0x3F;
   if (shift == 0) {
     mov(dst_low, src_low);
@@ -1587,8 +1587,8 @@ void TurboAssembler::SarPair(Register dst_low, Register dst_high,
       sra(dst_high, src_high, shift);
       srl(dst_low, src_low, shift);
       shift = 32 - shift;
-      sll(kScratchReg, src_high, shift);
-      Or(dst_low, dst_low, kScratchReg);
+      sll(scratch, src_high, shift);
+      Or(dst_low, dst_low, scratch);
     }
   } else if (shift == 32) {
     sra(dst_high, src_high, 31);
@@ -2510,7 +2510,7 @@ void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
-  DoubleRegister single_scratch = kLithiumScratchDouble.low();
+  DoubleRegister single_scratch = kScratchDoubleReg.low();
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Register scratch2 = t9;

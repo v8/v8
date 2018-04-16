@@ -457,7 +457,7 @@ inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
     Register amount,
     void (TurboAssembler::*emit_shift)(Register, Register, Register, Register,
-                                       Register),
+                                       Register, Register, Register),
     LiftoffRegList pinned) {
   Label move, done;
   pinned.set(dst);
@@ -474,14 +474,14 @@ inline void Emit64BitShiftOperation(
 
     // Do the actual shift.
     (assm->*emit_shift)(tmp.low_gp(), tmp.high_gp(), src.low_gp(),
-                        src.high_gp(), amount);
+                        src.high_gp(), amount, kScratchReg, kScratchReg2);
 
     // Place result in destination register.
     assm->TurboAssembler::Move(dst.high_gp(), tmp.high_gp());
     assm->TurboAssembler::Move(dst.low_gp(), tmp.low_gp());
   } else {
     (assm->*emit_shift)(dst.low_gp(), dst.high_gp(), src.low_gp(),
-                        src.high_gp(), amount);
+                        src.high_gp(), amount, kScratchReg, kScratchReg2);
   }
   assm->TurboAssembler::Branch(&done);
 
