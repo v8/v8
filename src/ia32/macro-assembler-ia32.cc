@@ -364,20 +364,23 @@ void TurboAssembler::Cvtsi2sd(XMMRegister dst, Operand src) {
   cvtsi2sd(dst, src);
 }
 
-void TurboAssembler::Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
-  Label msb_set_src;
+void TurboAssembler::Cvtui2ss(XMMRegister dst, Operand src, Register tmp) {
   Label done;
-  test(src, src);
-  j(sign, &msb_set_src, Label::kNear);
-  cvtsi2ss(dst, src);
-  jmp(&done, Label::kNear);
-  bind(&msb_set_src);
-  mov(tmp, src);
-  shr(src, 1);
-  // Recover the least significant bit to avoid rounding errors.
-  and_(tmp, Immediate(1));
-  or_(src, tmp);
-  cvtsi2ss(dst, src);
+  Register src_reg = src.is_reg_only() ? src.reg() : tmp;
+  if (src_reg == tmp) mov(tmp, src);
+  cvtsi2ss(dst, src_reg);
+  test(src_reg, src_reg);
+  j(positive, &done, Label::kNear);
+
+  // Compute {src/2 | (src&1)} (retain the LSB to avoid rounding errors).
+  if (src_reg != tmp) mov(tmp, src_reg);
+  shr(tmp, 1);
+  // The LSB is shifted into CF. If it is set, set the LSB in {tmp}.
+  Label msb_not_set;
+  j(not_carry, &msb_not_set, Label::kNear);
+  or_(tmp, Immediate(1));
+  bind(&msb_not_set);
+  cvtsi2ss(dst, tmp);
   addss(dst, dst);
   bind(&done);
 }

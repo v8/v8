@@ -294,7 +294,10 @@ class TurboAssembler : public Assembler {
   void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
   void Cvtsi2sd(XMMRegister dst, Operand src);
 
-  void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
+  void Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
+    Cvtui2ss(dst, Operand(src), tmp);
+  }
+  void Cvtui2ss(XMMRegister dst, Operand src, Register tmp);
   void Cvttss2ui(Register dst, XMMRegister src, XMMRegister tmp) {
     Cvttss2ui(dst, Operand(src), tmp);
   }

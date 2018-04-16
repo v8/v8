@@ -905,7 +905,7 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 
 void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  InstructionOperand temps[] = {g.TempRegister()};
   Emit(kSSEUint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
        arraysize(temps), temps);
 }
