@@ -3639,6 +3639,16 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     }
   }
 
+  // Explicit calls to the super constructor using super() perform an
+  // implicit binding assignment to the 'this' variable.
+  //
+  // Default constructors don't need have to do the assignment because
+  // 'this' isn't accessed in default constructors.
+  if (!IsDefaultConstructor(info()->literal()->kind())) {
+    BuildVariableAssignment(super->this_var()->var(), Token::INIT,
+                            HoleCheckMode::kRequired);
+  }
+
   // The derived constructor has the correct bit set always, so we
   // don't emit code to load and call the initializer if not
   // required.
