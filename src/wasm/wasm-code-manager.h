@@ -330,9 +330,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // start of the trampoline.
   std::unordered_map<Address, Address, AddressHasher> trampolines_;
 
-  // Maps from stub key to wasm code (containing a copy of that stub).
-  std::unordered_map<uint32_t, WasmCode*> stubs_;
-
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
   // A phantom reference to the {WasmCompiledModule}. It is intentionally not

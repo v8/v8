@@ -292,8 +292,7 @@ size_t NativeModuleSerializer::DrainBuffer(Vector<byte> dest) {
 }
 
 size_t NativeModuleSerializer::MeasureCopiedStubs() const {
-  size_t ret = sizeof(uint32_t) +  // number of stubs
-               native_module_->stubs_.size() * sizeof(uint32_t);  // stub keys
+  size_t ret = sizeof(uint32_t);  // number of stubs
   for (auto pair : native_module_->trampolines_) {
     v8::internal::Code* code = Code::GetCodeFromTargetAddress(pair.first);
     int builtin_index = code->builtin_index();
@@ -314,14 +313,6 @@ void NativeModuleSerializer::BufferCopiedStubs() {
   writer.Write(
       static_cast<uint32_t>((buff_size - sizeof(uint32_t)) / sizeof(uint32_t)));
   uint32_t stub_id = kFirstStubId;
-
-  for (auto pair : native_module_->stubs_) {
-    uint32_t key = pair.first;
-    writer.Write(key);
-    stub_lookup_.insert(
-        std::make_pair(pair.second->instruction_start(), stub_id));
-    ++stub_id;
-  }
 
   for (auto pair : native_module_->trampolines_) {
     v8::internal::Code* code = Code::GetCodeFromTargetAddress(pair.first);

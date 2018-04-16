@@ -318,15 +318,13 @@ class NativeModule::CloneCodeHelper {
 
   void SelectForCloning(int32_t code_index);
 
-  void CloneAndPatchCode(bool patch_stub_to_stub_calls);
+  void CloneAndPatchCode();
 
   void PatchTrampolineAndStubCalls(const WasmCode* original_code,
                                    const WasmCode* new_code,
                                    WasmCode::FlushICache flush_icache);
 
  private:
-  void PatchStubToStubCalls();
-
   NativeModule* source_native_module_;
   NativeModule* cloning_native_module_;
   std::vector<uint32_t> selection_;
@@ -344,26 +342,13 @@ NativeModule::CloneCodeHelper::CloneCodeHelper(
     Address new_dest = local->second;
     reverse_lookup_.emplace(old_dest, new_dest);
   }
-
-  for (auto& pair : source_native_module_->stubs_) {
-    Address old_dest = pair.second->instruction_start();
-    auto local = cloning_native_module_->stubs_.find(pair.first);
-    DCHECK(local != cloning_native_module_->stubs_.end());
-    Address new_dest = local->second->instruction_start();
-    reverse_lookup_.emplace(old_dest, new_dest);
-  }
 }
 
 void NativeModule::CloneCodeHelper::SelectForCloning(int32_t code_index) {
   selection_.emplace_back(code_index);
 }
 
-void NativeModule::CloneCodeHelper::CloneAndPatchCode(
-    bool patch_stub_to_stub_calls) {
-  if (patch_stub_to_stub_calls) {
-    PatchStubToStubCalls();
-  }
-
+void NativeModule::CloneCodeHelper::CloneAndPatchCode() {
   WasmCode* anonymous_lazy_builtin = nullptr;
   for (uint32_t index : selection_) {
     const WasmCode* original_code = source_native_module_->GetCode(index);
@@ -397,14 +382,6 @@ void NativeModule::CloneCodeHelper::CloneAndPatchCode(
       default:
         UNREACHABLE();
     }
-  }
-}
-
-void NativeModule::CloneCodeHelper::PatchStubToStubCalls() {
-  for (auto& pair : cloning_native_module_->stubs_) {
-    WasmCode* new_stub = pair.second;
-    WasmCode* old_stub = source_native_module_->stubs_.find(pair.first)->second;
-    PatchTrampolineAndStubCalls(old_stub, new_stub, WasmCode::kFlushICache);
   }
 }
 
@@ -872,11 +849,6 @@ void NativeModule::CloneTrampolinesAndStubs(
     DCHECK_NE(local, kNullAddress);
     trampolines_.emplace(std::make_pair(key, local));
   }
-  for (auto& pair : other->stubs_) {
-    uint32_t key = pair.first;
-    WasmCode* clone = CloneCode(pair.second, flush_icache);
-    stubs_.emplace(std::make_pair(key, clone));
-  }
 }
 
 WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
@@ -1137,7 +1109,7 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
     helper.SelectForCloning(i);
   }
-  helper.CloneAndPatchCode(true);
+  helper.CloneAndPatchCode();
 
   return ret;
 }
