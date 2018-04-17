@@ -528,10 +528,10 @@ FP_BINOP(f32_mul, mul_s)
 FP_BINOP(f32_div, div_s)
 FP_UNOP(f32_abs, abs_s)
 FP_UNOP(f32_neg, neg_s)
-FP_UNOP(f32_ceil, ceil_w_s)
-FP_UNOP(f32_floor, floor_w_s)
-FP_UNOP(f32_trunc, trunc_w_s)
-FP_UNOP(f32_nearest_int, rint_s)
+FP_UNOP(f32_ceil, Ceil_s_s)
+FP_UNOP(f32_floor, Floor_s_s)
+FP_UNOP(f32_trunc, Trunc_s_s)
+FP_UNOP(f32_nearest_int, Round_s_s)
 FP_UNOP(f32_sqrt, sqrt_s)
 FP_BINOP(f64_add, add_d)
 FP_BINOP(f64_sub, sub_d)
@@ -539,14 +539,47 @@ FP_BINOP(f64_mul, mul_d)
 FP_BINOP(f64_div, div_d)
 FP_UNOP(f64_abs, abs_d)
 FP_UNOP(f64_neg, neg_d)
-FP_UNOP(f64_ceil, ceil_w_d)
-FP_UNOP(f64_floor, floor_w_d)
-FP_UNOP(f64_trunc, trunc_w_d)
-FP_UNOP(f64_nearest_int, rint_d)
 FP_UNOP(f64_sqrt, sqrt_d)
 
 #undef FP_BINOP
 #undef FP_UNOP
+
+void LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
+    Ceil_d_d(dst, src);
+  } else {
+    BAILOUT("emit_f64_ceil");
+  }
+}
+
+void LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
+    Floor_d_d(dst, src);
+  } else {
+    BAILOUT("emit_f64_floor");
+  }
+}
+
+void LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
+    Trunc_d_d(dst, src);
+  } else {
+    BAILOUT("emit_f64_trunc");
+  }
+}
+
+void LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
+    Round_d_d(dst, src);
+  } else {
+    BAILOUT("emit_f64_nearest_int");
+  }
+}
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
