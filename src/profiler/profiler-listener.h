@@ -84,16 +84,15 @@ class ProfilerListener : public CodeEventListener {
   void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
-    base::LockGuard<base::Mutex> guard(&mutex_);
     for (auto observer : observers_) {
       observer->CodeEventHandler(evt_rec);
     }
   }
 
+  Isolate* isolate_;
   StringsStorage function_and_resource_names_;
   std::vector<std::unique_ptr<CodeEntry>> code_entries_;
   std::vector<CodeEventObserver*> observers_;
-  base::Mutex mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
 };

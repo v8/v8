@@ -373,9 +373,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
   CreateEntriesForRuntimeCallStats();
-  logger->SetUpProfilerListener();
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->AddObserver(this);
+  logger->EnsureProfilerListener()->AddObserver(this);
   is_profiling_ = true;
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
@@ -410,10 +408,8 @@ void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->RemoveObserver(this);
+  logger->EnsureProfilerListener()->RemoveObserver(this);
   processor_->StopSynchronously();
-  logger->TearDownProfilerListener();
   processor_.reset();
   generator_.reset();
   logger->is_logging_ = saved_is_logging_;

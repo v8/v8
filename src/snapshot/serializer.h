@@ -21,11 +21,11 @@ namespace internal {
 class CodeAddressMap : public CodeEventLogger {
  public:
   explicit CodeAddressMap(Isolate* isolate) : isolate_(isolate) {
-    isolate->logger()->addCodeEventListener(this);
+    isolate->logger()->AddCodeEventListener(this);
   }
 
   ~CodeAddressMap() override {
-    isolate_->logger()->removeCodeEventListener(this);
+    isolate_->logger()->RemoveCodeEventListener(this);
   }
 
   void CodeMoveEvent(AbstractCode* from, Address to) override {

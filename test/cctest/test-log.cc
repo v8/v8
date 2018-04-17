@@ -708,7 +708,7 @@ TEST(Issue539892) {
 
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
-    logger.logger()->addCodeEventListener(&code_event_logger);
+    logger.logger()->AddCodeEventListener(&code_event_logger);
 
     // Function with a really large name.
     const char* source_text =
