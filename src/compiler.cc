@@ -1356,11 +1356,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
   }
 
-  // OnAfterCompile has to be called after we create the JSFunction, which we
-  // may require to recompile the eval for debugging, if we find a function
-  // that contains break points in the eval script.
-  isolate->debug()->OnAfterCompile(script);
-
   return result;
 }
 
@@ -1731,12 +1726,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
   }
 
-  // On success, report script compilation to debugger.
-  Handle<SharedFunctionInfo> result;
-  if (maybe_result.ToHandle(&result)) {
-    isolate->debug()->OnAfterCompile(handle(Script::cast(result->script())));
-  }
-
   return maybe_result;
 }
 
@@ -1815,14 +1804,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     script = Handle<Script>(Script::cast(wrapped->script()), isolate);
   }
 
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(wrapped, context,
+  return isolate->factory()->NewFunctionFromSharedFunctionInfo(wrapped, context,
                                                             NOT_TENURED);
-  // OnAfterCompile has to be called after we create the JSFunction, which we
-  // may require to recompile the eval for debugging, if we find a function
-  // that contains break points in the eval script.
-  isolate->debug()->OnAfterCompile(script);
-  return function;
 }
 
 ScriptCompiler::ScriptStreamingTask* Compiler::NewBackgroundCompileTask(
@@ -1890,12 +1873,6 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       compilation_cache->PutScript(source, isolate->native_context(),
                                    parse_info->language_mode(), result);
     }
-  }
-
-  // On success, report script compilation to debugger.
-  Handle<SharedFunctionInfo> result;
-  if (maybe_result.ToHandle(&result)) {
-    isolate->debug()->OnAfterCompile(handle(Script::cast(result->script())));
   }
 
   streaming_data->Release();

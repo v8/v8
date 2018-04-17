@@ -2254,6 +2254,11 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Compiler::PostInstantiation(result, pretenure);
   }
 
+  if (info->is_toplevel() || info->is_wrapped()) {
+    // Report script compilation to debugger.
+    isolate()->debug()->OnAfterCompile(handle(Script::cast(info->script())));
+  }
+
   return result;
 }
 
@@ -2286,6 +2291,11 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   if (context_or_undefined->IsContext()) {
     // Give compiler a chance to pre-initialize.
     Compiler::PostInstantiation(result, pretenure);
+  }
+
+  if (info->is_toplevel() || info->is_wrapped()) {
+    // Report script compilation to debugger.
+    isolate()->debug()->OnAfterCompile(handle(Script::cast(info->script())));
   }
 
   return result;
