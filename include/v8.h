@@ -7121,6 +7121,22 @@ class V8_EXPORT Isolate {
   typedef void (*UseCounterCallback)(Isolate* isolate,
                                      UseCounterFeature feature);
 
+  /**
+   * Allocates a new isolate but does not initialize it. Does not change the
+   * currently entered isolate. Initialize the isolate by calling
+   * Isolate::Initialize().
+   *
+   * When an isolate is no longer used its resources should be freed
+   * by calling Dispose().  Using the delete operator is not allowed.
+   *
+   * V8::Initialize() must have run prior to this.
+   */
+  static Isolate* Allocate();
+
+  /**
+   * Initialize an Isolate previously allocated by Isolate::Allocate().
+   */
+  static void Initialize(Isolate* isolate, const CreateParams& params);
 
   /**
    * Creates a new isolate.  Does not change the currently entered
@@ -8177,6 +8193,18 @@ class V8_EXPORT V8 {
 class V8_EXPORT SnapshotCreator {
  public:
   enum class FunctionCodeHandling { kClear, kKeep };
+
+  /**
+   * Initialize and enter an isolate, and set it up for serialization.
+   * The isolate is either created from scratch or from an existing snapshot.
+   * The caller keeps ownership of the argument snapshot.
+   * \param existing_blob existing snapshot from which to create this one.
+   * \param external_references a null-terminated array of external references
+   *        that must be equivalent to CreateParams::external_references.
+   */
+  SnapshotCreator(Isolate* isolate,
+                  const intptr_t* external_references = nullptr,
+                  StartupData* existing_blob = nullptr);
 
   /**
    * Create and enter an isolate, and set it up for serialization.

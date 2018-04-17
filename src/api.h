@@ -376,9 +376,6 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 #undef MAKE_OPEN_HANDLE
 #undef OPEN_HANDLE_LIST
 
-extern Isolate* IsolateNewImpl(internal::Isolate* isolate,
-                               const Isolate::CreateParams& params);
-
 namespace internal {
 
 class V8_EXPORT_PRIVATE DeferredHandles {

@@ -2503,7 +2503,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
 base::AtomicNumber<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
-Isolate::Isolate(bool enable_serializer)
+Isolate::Isolate()
     : embedder_data_(),
       entry_stack_(nullptr),
       stack_trace_nesting_level_(0),
@@ -2543,7 +2543,7 @@ Isolate::Isolate(bool enable_serializer)
       promise_hook_or_debug_is_active_(false),
       promise_hook_(nullptr),
       load_start_time_ms_(0),
-      serializer_enabled_(enable_serializer),
+      serializer_enabled_(false),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
       is_tail_call_elimination_enabled_(true),

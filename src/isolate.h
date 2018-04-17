@@ -1001,6 +1001,9 @@ class Isolate : private HiddenFactory {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
+
+  void enable_serializer() { serializer_enabled_ = true; }
+
   bool snapshot_available() const {
     return snapshot_blob_ != nullptr && snapshot_blob_->raw_size != 0;
   }
@@ -1382,7 +1385,7 @@ class Isolate : private HiddenFactory {
   void SetIdle(bool is_idle);
 
  protected:
-  explicit Isolate(bool enable_serializer);
+  Isolate();
   bool IsArrayOrObjectOrStringPrototype(Object* object);
 
  private:

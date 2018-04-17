@@ -91,9 +91,12 @@ class TestIsolate : public Isolate {
     bool create_heap_objects = params.snapshot_blob == nullptr;
     isolate->setup_delegate_ =
         new SetupIsolateDelegateForTests(create_heap_objects);
-    return v8::IsolateNewImpl(isolate, params);
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    v8::Isolate::Initialize(v8_isolate, params);
+    return v8_isolate;
   }
-  explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
+  explicit TestIsolate(bool with_serializer) : Isolate() {
+    if (with_serializer) enable_serializer();
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
   }
   void SetDeserializeFromSnapshot() {

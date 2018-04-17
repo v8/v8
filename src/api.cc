@@ -543,14 +543,15 @@ struct SnapshotCreatorData {
 
 }  // namespace
 
-SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
+SnapshotCreator::SnapshotCreator(Isolate* isolate,
+                                 const intptr_t* external_references,
                                  StartupData* existing_snapshot) {
-  i::Isolate* internal_isolate = new i::Isolate(true);
-  Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
   SnapshotCreatorData* data = new SnapshotCreatorData(isolate);
   data->isolate_ = isolate;
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->set_array_buffer_allocator(&data->allocator_);
   internal_isolate->set_api_external_references(external_references);
+  internal_isolate->enable_serializer();
   isolate->Enter();
   const StartupData* blob = existing_snapshot
                                 ? existing_snapshot
@@ -563,6 +564,11 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
   }
   data_ = data;
 }
+
+SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
+                                 StartupData* existing_snapshot)
+    : SnapshotCreator(reinterpret_cast<Isolate*>(new i::Isolate()),
+                      external_references, existing_snapshot) {}
 
 SnapshotCreator::~SnapshotCreator() {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
@@ -8150,22 +8156,22 @@ Isolate* Isolate::GetCurrent() {
   return reinterpret_cast<Isolate*>(isolate);
 }
 
-
-Isolate* Isolate::New(const Isolate::CreateParams& params) {
-  i::Isolate* isolate = new i::Isolate(false);
-  return IsolateNewImpl(isolate, params);
+// static
+Isolate* Isolate::Allocate() {
+  return reinterpret_cast<Isolate*>(new i::Isolate());
 }
 
+// static
 // This is separate so that tests can provide a different |isolate|.
-Isolate* IsolateNewImpl(internal::Isolate* isolate,
-                        const v8::Isolate::CreateParams& params) {
-  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+void Isolate::Initialize(Isolate* isolate,
+                         const v8::Isolate::CreateParams& params) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   CHECK_NOT_NULL(params.array_buffer_allocator);
-  isolate->set_array_buffer_allocator(params.array_buffer_allocator);
+  i_isolate->set_array_buffer_allocator(params.array_buffer_allocator);
   if (params.snapshot_blob != nullptr) {
-    isolate->set_snapshot_blob(params.snapshot_blob);
+    i_isolate->set_snapshot_blob(params.snapshot_blob);
   } else {
-    isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
+    i_isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
   }
   if (params.entry_hook) {
 #ifdef V8_USE_SNAPSHOT
@@ -8174,7 +8180,7 @@ Isolate* IsolateNewImpl(internal::Isolate* isolate,
         false, "v8::Isolate::New",
         "Setting a FunctionEntryHook is only supported in no-snapshot builds.");
 #endif
-    isolate->set_function_entry_hook(params.entry_hook);
+    i_isolate->set_function_entry_hook(params.entry_hook);
   }
   auto code_event_handler = params.code_event_handler;
 #ifdef ENABLE_GDB_JIT_INTERFACE
@@ -8183,44 +8189,48 @@ Isolate* IsolateNewImpl(internal::Isolate* isolate,
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
   if (code_event_handler) {
-    isolate->InitializeLoggingAndCounters();
-    isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
-                                           code_event_handler);
+    i_isolate->InitializeLoggingAndCounters();
+    i_isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
+                                             code_event_handler);
   }
   if (params.counter_lookup_callback) {
-    v8_isolate->SetCounterFunction(params.counter_lookup_callback);
+    isolate->SetCounterFunction(params.counter_lookup_callback);
   }
 
   if (params.create_histogram_callback) {
-    v8_isolate->SetCreateHistogramFunction(params.create_histogram_callback);
+    isolate->SetCreateHistogramFunction(params.create_histogram_callback);
   }
 
   if (params.add_histogram_sample_callback) {
-    v8_isolate->SetAddHistogramSampleFunction(
+    isolate->SetAddHistogramSampleFunction(
         params.add_histogram_sample_callback);
   }
 
-  isolate->set_api_external_references(params.external_references);
-  isolate->set_allow_atomics_wait(params.allow_atomics_wait);
+  i_isolate->set_api_external_references(params.external_references);
+  i_isolate->set_allow_atomics_wait(params.allow_atomics_wait);
 
-  SetResourceConstraints(isolate, params.constraints);
+  SetResourceConstraints(i_isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
-  Isolate::Scope isolate_scope(v8_isolate);
-  if (params.entry_hook || !i::Snapshot::Initialize(isolate)) {
+  Isolate::Scope isolate_scope(isolate);
+  if (params.entry_hook || !i::Snapshot::Initialize(i_isolate)) {
     // If snapshot data was provided and we failed to deserialize it must
     // have been corrupted.
-    CHECK_NULL(isolate->snapshot_blob());
+    CHECK_NULL(i_isolate->snapshot_blob());
     base::ElapsedTimer timer;
     if (i::FLAG_profile_deserialization) timer.Start();
-    isolate->Init(nullptr);
+    i_isolate->Init(nullptr);
     if (i::FLAG_profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();
       i::PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
     }
   }
-  return v8_isolate;
 }
 
+Isolate* Isolate::New(const Isolate::CreateParams& params) {
+  Isolate* isolate = Allocate();
+  Initialize(isolate, params);
+  return isolate;
+}
 
 void Isolate::Dispose() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
