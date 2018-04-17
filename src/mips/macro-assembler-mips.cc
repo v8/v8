@@ -1745,7 +1745,8 @@ void TurboAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     // while the sign has to be changed separately.
     neg_d(fd, fs);  // In delay slot.
     bind(&is_nan);
-    Mfhc1(scratch1, fs);
+    Move(fd, fs);
+    Mfhc1(scratch1, fd);
     li(scratch2, HeapNumber::kSignMask);
     Xor(scratch1, scratch1, scratch2);
     Mthc1(scratch1, fd);

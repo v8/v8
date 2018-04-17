@@ -669,6 +669,14 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                    &TurboAssembler::ShrPair, pinned);
 }
 
+void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
+  TurboAssembler::Neg_s(dst, src);
+}
+
+void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
+  TurboAssembler::Neg_d(dst, src);
+}
+
 #define FP_BINOP(name, instruction)                                          \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
@@ -684,7 +692,6 @@ FP_BINOP(f32_sub, sub_s)
 FP_BINOP(f32_mul, mul_s)
 FP_BINOP(f32_div, div_s)
 FP_UNOP(f32_abs, abs_s)
-FP_UNOP(f32_neg, neg_s)
 FP_UNOP(f32_ceil, Ceil_s_s)
 FP_UNOP(f32_floor, Floor_s_s)
 FP_UNOP(f32_trunc, Trunc_s_s)
@@ -695,7 +702,6 @@ FP_BINOP(f64_sub, sub_d)
 FP_BINOP(f64_mul, mul_d)
 FP_BINOP(f64_div, div_d)
 FP_UNOP(f64_abs, abs_d)
-FP_UNOP(f64_neg, neg_d)
 FP_UNOP(f64_sqrt, sqrt_d)
 
 #undef FP_BINOP
