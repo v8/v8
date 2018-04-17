@@ -55,7 +55,7 @@ def GenerateBuildFiles(options):
     flag = flag.replace("=0", "=false")
     flag = flag.replace("target_cpu=ia32", "target_cpu=\"x86\"")
     gn_args.append(flag)
-  if options.mode == "DEBUG":
+  if options.mode == "Debug":
     gn_args.append("is_debug = true")
   else:
     gn_args.append("is_debug = false")
