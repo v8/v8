@@ -113,6 +113,8 @@ class LinkageLocation {
   }
 
   int32_t GetLocation() const {
+    // We can't use LocationField::decode here because it doesn't work for
+    // negative values!
     return static_cast<int32_t>(bit_field_ & LocationField::kMask) >>
            LocationField::kShift;
   }

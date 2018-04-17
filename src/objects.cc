@@ -1194,7 +1194,8 @@ bool Object::ToInt32(int32_t* value) {
   }
   if (IsHeapNumber()) {
     double num = HeapNumber::cast(this)->value();
-    if (FastI2D(FastD2I(num)) == num) {
+    // Check range before conversion to avoid undefined behavior.
+    if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
       *value = FastD2I(num);
       return true;
     }
@@ -2267,10 +2268,13 @@ Object* GetSimpleHash(Object* object) {
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     // Use ComputeIntegerHash for all values in Signed32 range, including -0,
     // which is considered equal to 0 because collections use SameValueZero.
-    int32_t inum = FastD2I(num);
-    uint32_t hash = (FastI2D(inum) == num)
-                        ? ComputeIntegerHash(inum)
-                        : ComputeLongHash(double_to_uint64(num));
+    uint32_t hash;
+    // Check range before conversion to avoid undefined behavior.
+    if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
+      hash = ComputeIntegerHash(FastD2I(num));
+    } else {
+      hash = ComputeLongHash(double_to_uint64(num));
+    }
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object->IsName()) {

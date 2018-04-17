@@ -170,8 +170,8 @@ const int kMSALanesDword = kMSARegSize / 64;
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
-const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
-const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
+const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1u << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1u << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
 const int64_t kFPU64InvalidResultNegative =

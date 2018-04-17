@@ -1257,7 +1257,8 @@ TEST(RunInt32AddP) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       // Use uint32_t because signed overflow is UB in C.
-      int expected = static_cast<int32_t>(*i + *j);
+      int expected = static_cast<int32_t>(static_cast<uint32_t>(*i) +
+                                          static_cast<uint32_t>(*j));
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }
@@ -1721,7 +1722,7 @@ TEST(RunInt32SubP) {
 
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
-      uint32_t expected = static_cast<int32_t>(*i - *j);
+      uint32_t expected = *i - *j;
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }

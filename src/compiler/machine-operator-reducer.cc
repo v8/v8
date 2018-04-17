@@ -613,7 +613,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeFloat64ToInt32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(FastD2I(m.Value()));
+      if (m.HasValue()) return ReplaceInt32(FastD2IChecked(m.Value()));
       if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
@@ -670,7 +670,9 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kRoundFloat64ToInt32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
+      if (m.HasValue()) {
+        return ReplaceInt32(DoubleToInt32(m.Value()));
+      }
       if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }

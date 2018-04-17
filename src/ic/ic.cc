@@ -974,9 +974,13 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
     if (std::isnan(value)) {
       key = isolate->factory()->NaN_string();
     } else {
-      int int_value = FastD2I(value);
-      if (value == int_value && Smi::IsValid(int_value)) {
-        key = handle(Smi::FromInt(int_value), isolate);
+      // Check bounds first to avoid undefined behavior in the conversion
+      // to int.
+      if (value <= Smi::kMaxValue && value >= Smi::kMinValue) {
+        int int_value = FastD2I(value);
+        if (value == int_value) {
+          key = handle(Smi::FromInt(int_value), isolate);
+        }
       }
     }
   } else if (key->IsString()) {
@@ -1138,6 +1142,30 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
 
 namespace {
 
+bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
+                       uint32_t* index) {
+  if (!FLAG_use_ic) return false;
+  if (receiver->IsAccessCheckNeeded() || receiver->IsJSValue()) return false;
+
+  // For regular JSReceiver or String receivers, the {key} must be a positive
+  // array index.
+  if (receiver->IsJSReceiver() || receiver->IsString()) {
+    return key->ToArrayIndex(index);
+  }
+  // For JSTypedArray receivers, we can also support negative keys, which we
+  // just map into the [2**31, 2**32 - 1] range via a bit_cast. This is valid
+  // because JSTypedArray::length is always a Smi, so such keys will always
+  // be detected as OOB.
+  if (receiver->IsJSTypedArray()) {
+    int32_t signed_index;
+    if (key->ToInt32(&signed_index)) {
+      *index = bit_cast<uint32_t>(signed_index);
+      return true;
+    }
+  }
+  return false;
+}
+
 bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
   uint32_t length = 0;
   if (receiver->IsJSArray()) {
@@ -1210,21 +1238,11 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
-  } else if (FLAG_use_ic && !object->IsAccessCheckNeeded() &&
-             !object->IsJSValue()) {
-    // For regular JSReceiver or String {object}s the {key} must be a positive
-    // array index, for JSTypedArray {object}s we can also support negative
-    // {key}s which we just map into the [2*31,2*32-1] range (via a bit_cast).
-    // This is valid since JSTypedArray::length is always a Smi.
-    if (((object->IsJSReceiver() || object->IsString()) &&
-         key->ToArrayIndex(&index)) ||
-        (object->IsJSTypedArray() &&
-         key->ToInt32(bit_cast<int32_t*>(&index)))) {
-      KeyedAccessLoadMode load_mode = GetLoadMode(object, index);
-      UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
-      if (is_vector_set()) {
-        TraceIC("LoadIC", key);
-      }
+  } else if (ConvertKeyToIndex(object, key, &index)) {
+    KeyedAccessLoadMode load_mode = GetLoadMode(object, index);
+    UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
+    if (is_vector_set()) {
+      TraceIC("LoadIC", key);
     }
   }
 

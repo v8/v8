@@ -821,44 +821,18 @@ WASM_SIMD_TEST(I8x16ReplaceLane) {
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
-// Determines if conversion from float to int will be valid.
-bool CanRoundToZeroAndConvert(double val, bool unsigned_integer) {
-  const double max_uint = static_cast<double>(0xFFFFFFFFu);
-  const double max_int = static_cast<double>(kMaxInt);
-  const double min_int = static_cast<double>(kMinInt);
-
-  // Check for NaN.
-  if (val != val) {
-    return false;
-  }
-
-  // Round to zero and check for overflow. This code works because 32 bit
-  // integers can be exactly represented by ieee-754 64bit floating-point
-  // values.
-  return unsigned_integer ? (val < (max_uint + 1.0)) && (val > -1)
-                          : (val < (max_int + 1.0)) && (val > (min_int - 1.0));
-}
-
-int ConvertInvalidValue(double val, bool unsigned_integer) {
-  if (val != val) {
-    return 0;
-  } else {
-    if (unsigned_integer) {
-      return (val < 0) ? 0 : 0xFFFFFFFFu;
-    } else {
-      return (val < 0) ? kMinInt : kMaxInt;
-    }
-  }
-}
 
 int32_t ConvertToInt(double val, bool unsigned_integer) {
-  int32_t result =
-      unsigned_integer ? static_cast<uint32_t>(val) : static_cast<int32_t>(val);
-
-  if (!CanRoundToZeroAndConvert(val, unsigned_integer)) {
-    result = ConvertInvalidValue(val, unsigned_integer);
+  if (std::isnan(val)) return 0;
+  if (unsigned_integer) {
+    if (val < 0) return 0;
+    if (val > kMaxUInt32) return kMaxUInt32;
+    return static_cast<uint32_t>(val);
+  } else {
+    if (val < kMinInt) return kMinInt;
+    if (val > kMaxInt) return kMaxInt;
+    return static_cast<int>(val);
   }
-  return result;
 }
 
 // Tests both signed and unsigned conversion.

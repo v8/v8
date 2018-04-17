@@ -3652,6 +3652,8 @@ int VFPConversionSaturate(double val, bool unsigned_res) {
 
 int32_t Simulator::ConvertDoubleToInt(double val, bool unsigned_integer,
                                       VFPRoundingMode mode) {
+  // TODO(jkummerow): These casts are undefined behavior if the integral
+  // part of {val} does not fit into the destination type.
   int32_t result =
       unsigned_integer ? static_cast<uint32_t>(val) : static_cast<int32_t>(val);
 

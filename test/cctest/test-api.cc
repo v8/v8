@@ -1488,9 +1488,6 @@ THREADED_TEST(TinyInteger) {
   int32_t value = 239;
   Local<v8::Integer> value_obj = v8::Integer::New(isolate, value);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-  value_obj = v8::Integer::New(isolate, value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -1506,9 +1503,6 @@ THREADED_TEST(BigSmiInteger) {
     CHECK(!i::Smi::IsValid(value + 1));
 
     Local<v8::Integer> value_obj = v8::Integer::New(isolate, value);
-    CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-    value_obj = v8::Integer::New(isolate, value);
     CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
   }
 }
@@ -1530,9 +1524,6 @@ THREADED_TEST(BigInteger) {
 
     Local<v8::Integer> value_obj = v8::Integer::New(isolate, value);
     CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-    value_obj = v8::Integer::New(isolate, value);
-    CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
   }
 }
 
@@ -1545,9 +1536,6 @@ THREADED_TEST(TinyUnsignedInteger) {
   uint32_t value = 239;
 
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(isolate, value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-  value_obj = v8::Integer::NewFromUnsigned(isolate, value);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
@@ -1563,9 +1551,6 @@ THREADED_TEST(BigUnsignedSmiInteger) {
 
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(isolate, value);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-  value_obj = v8::Integer::NewFromUnsigned(isolate, value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -1580,9 +1565,6 @@ THREADED_TEST(BigUnsignedInteger) {
 
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(isolate, value);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-  value_obj = v8::Integer::NewFromUnsigned(isolate, value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -1596,9 +1578,6 @@ THREADED_TEST(OutOfSignedRangeUnsignedInteger) {
   CHECK(value > INT32_MAX_AS_UINT);  // No overflow.
 
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(isolate, value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
-
-  value_obj = v8::Integer::NewFromUnsigned(isolate, value);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 

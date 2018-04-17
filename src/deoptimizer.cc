@@ -2010,8 +2010,8 @@ void TranslationBuffer::Add(int32_t value) {
   DCHECK_NE(value, kMinInt);
   // Encode the sign bit in the least significant bit.
   bool is_negative = (value < 0);
-  uint32_t bits = ((is_negative ? -value : value) << 1) |
-      static_cast<int32_t>(is_negative);
+  uint32_t bits = (static_cast<uint32_t>(is_negative ? -value : value) << 1) |
+                  static_cast<uint32_t>(is_negative);
   // Encode the individual bytes using the least significant bit of
   // each byte to indicate whether or not more bytes follow.
   do {

@@ -8985,7 +8985,7 @@ template <> struct SmiTagging<4> {
     // in fact doesn't work correctly with gcc4.1.1 in some cases: The
     // compiler may produce undefined results in case of signed integer
     // overflow. The computation must be done w/ unsigned ints.
-    return static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U;
+    return static_cast<uintptr_t>(value) + 0x40000000U < 0x80000000U;
   }
 };
 

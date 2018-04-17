@@ -72,8 +72,7 @@ bool ExtractIntegerSetting(Isolate* isolate, Handle<JSObject> options,
   Handle<Object> object =
       JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsNumber()) {
-    object->ToInt32(value);
-    return true;
+    return object->ToInt32(value);
   }
   return false;
 }
