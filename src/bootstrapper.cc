@@ -1770,9 +1770,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install Number constants
     double kMaxValue = 1.7976931348623157e+308;
     double kMinValue = 5e-324;
-
-    double kMaxSafeInt = 9007199254740991;
-    double kMinSafeInt = -9007199254740991;
+    double kMinSafeInteger = -kMaxSafeInteger;
     double kEPS = 2.220446049250313e-16;
 
     Handle<Object> infinity = factory->infinity_value();
@@ -1800,11 +1798,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         number_fun, factory->NewStringFromAsciiChecked("MAX_SAFE_INTEGER"),
-        factory->NewNumber(kMaxSafeInt),
+        factory->NewNumber(kMaxSafeInteger),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         number_fun, factory->NewStringFromAsciiChecked("MIN_SAFE_INTEGER"),
-        factory->NewNumber(kMinSafeInt),
+        factory->NewNumber(kMinSafeInteger),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         number_fun, factory->NewStringFromAsciiChecked("EPSILON"),
