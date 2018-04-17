@@ -796,13 +796,88 @@ void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {
   Sqrtsd(dst, src);
 }
 
+namespace liftoff {
+// Used for float to int conversions. If the value in {converted_back} equals
+// {src} afterwards, the conversion succeeded.
+template <typename dst_type, typename src_type>
+inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
+                                     DoubleRegister src,
+                                     DoubleRegister converted_back) {
+  if (std::is_same<double, src_type>::value) {  // f64
+    if (std::is_signed<dst_type>::value) {      // f64 -> i32
+      assm->Cvttsd2si(dst, src);
+      assm->Cvtlsi2sd(converted_back, dst);
+    } else {  // f64 -> u32
+      assm->Cvttsd2siq(dst, src);
+      assm->movl(dst, dst);
+      assm->Cvtqsi2sd(converted_back, dst);
+    }
+  } else {                                  // f32
+    if (std::is_signed<dst_type>::value) {  // f32 -> i32
+      assm->Cvttss2si(dst, src);
+      assm->Cvtlsi2ss(converted_back, dst);
+    } else {  // f32 -> u32
+      assm->Cvttss2siq(dst, src);
+      assm->movl(dst, dst);
+      assm->Cvtqsi2ss(converted_back, dst);
+    }
+  }
+}
+
+template <typename dst_type, typename src_type>
+inline bool EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
+                                   DoubleRegister src, Label* trap) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) {
+    assm->bailout("no SSE4.1");
+    return true;
+  }
+  CpuFeatureScope feature(assm, SSE4_1);
+
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(src, dst);
+  DoubleRegister rounded =
+      pinned.set(assm->GetUnusedRegister(kFpReg, pinned)).fp();
+  DoubleRegister converted_back = assm->GetUnusedRegister(kFpReg, pinned).fp();
+
+  if (std::is_same<double, src_type>::value) {  // f64
+    assm->Roundsd(rounded, src, kRoundToZero);
+  } else {  // f32
+    assm->Roundss(rounded, src, kRoundToZero);
+  }
+  ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
+                                               converted_back);
+  if (std::is_same<double, src_type>::value) {  // f64
+    assm->Ucomisd(converted_back, rounded);
+  } else {  // f32
+    assm->Ucomiss(converted_back, rounded);
+  }
+
+  // Jump to trap if PF is 0 (one of the operands was NaN) or they are not
+  // equal.
+  assm->j(parity_even, trap);
+  assm->j(not_equal, trap);
+  return true;
+}
+}  // namespace liftoff
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
-                                            LiftoffRegister src) {
+                                            LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
       movl(dst.gp(), src.gp());
       return true;
+    case kExprI32SConvertF32:
+      return liftoff::EmitTruncateFloatToInt<int32_t, float>(this, dst.gp(),
+                                                             src.fp(), trap);
+    case kExprI32UConvertF32:
+      return liftoff::EmitTruncateFloatToInt<uint32_t, float>(this, dst.gp(),
+                                                              src.fp(), trap);
+    case kExprI32SConvertF64:
+      return liftoff::EmitTruncateFloatToInt<int32_t, double>(this, dst.gp(),
+                                                              src.fp(), trap);
+    case kExprI32UConvertF64:
+      return liftoff::EmitTruncateFloatToInt<uint32_t, double>(this, dst.gp(),
+                                                               src.fp(), trap);
     case kExprI32ReinterpretF32:
       Movd(dst.gp(), src.fp());
       return true;
@@ -920,7 +995,7 @@ void EmitFloatSetCond(LiftoffAssembler* assm, Condition cond, Register dst,
   Label not_nan;
 
   (assm->*cmp_op)(lhs, rhs);
-  // IF PF is one, one of the operands was Nan. This needs special handling.
+  // If PF is one, one of the operands was NaN. This needs special handling.
   assm->j(parity_odd, &not_nan, Label::kNear);
   // Return 1 for f32.ne, 0 for all other cases.
   if (cond == not_equal) {

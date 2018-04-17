@@ -746,7 +746,7 @@ void LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
-                                            LiftoffRegister src) {
+                                            LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
       TurboAssembler::Move(dst.gp(), src.low_gp());

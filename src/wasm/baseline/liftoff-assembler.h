@@ -471,7 +471,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // type conversions.
   inline bool emit_type_conversion(WasmOpcode opcode, LiftoffRegister dst,
-                                   LiftoffRegister src);
+                                   LiftoffRegister src, Label* trap = nullptr);
 
   inline void emit_jump(Label*);
   inline void emit_jump(Register);
@@ -565,6 +565,10 @@ class LiftoffAssembler : public TurboAssembler {
   bool did_bailout() { return bailout_reason_ != nullptr; }
   const char* bailout_reason() const { return bailout_reason_; }
 
+  void bailout(const char* reason) {
+    if (bailout_reason_ == nullptr) bailout_reason_ = reason;
+  }
+
  private:
   uint32_t num_locals_ = 0;
   static constexpr uint32_t kInlineLocalTypes = 8;
@@ -580,10 +584,6 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
                                    LiftoffRegList pinned);
-
-  void bailout(const char* reason) {
-    if (bailout_reason_ == nullptr) bailout_reason_ = reason;
-  }
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);

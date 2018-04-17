@@ -112,6 +112,7 @@ class LiftoffCompiler {
     // Named constructors:
     static OutOfLineCode Trap(Builtins::Name b, wasm::WasmCodePosition pos,
                               uint32_t pc) {
+      DCHECK_LT(0, pos);
       return {{}, {}, b, pos, {}, pc};
     }
     static OutOfLineCode StackCheck(wasm::WasmCodePosition pos,
@@ -684,17 +685,24 @@ class LiftoffCompiler {
     EmitUnOp<kWasmI32, kWasmI32>(emit_with_c_fallback);
   }
 
-  void EmitTypeConversion(WasmOpcode opcode, ValueType dst_type,
-                          ValueType src_type,
-                          ExternalReference (*fallback_fn)(Isolate*)) {
-    RegClass src_rc = reg_class_for(src_type);
-    RegClass dst_rc = reg_class_for(dst_type);
+  enum TypeConversionTrapping : bool { kCanTrap = true, kNoTrap = false };
+  template <ValueType dst_type, ValueType src_type,
+            TypeConversionTrapping can_trap>
+  void EmitTypeConversion(WasmOpcode opcode,
+                          ExternalReference (*fallback_fn)(Isolate*),
+                          wasm::WasmCodePosition trap_position) {
+    static constexpr RegClass src_rc = reg_class_for(src_type);
+    static constexpr RegClass dst_rc = reg_class_for(dst_type);
     LiftoffRegList pinned;
     LiftoffRegister src = pinned.set(__ PopToRegister());
     LiftoffRegister dst = src_rc == dst_rc
                               ? __ GetUnusedRegister(dst_rc, {src}, pinned)
                               : __ GetUnusedRegister(dst_rc, pinned);
-    if (!__ emit_type_conversion(opcode, dst, src)) {
+    Label* trap = can_trap ? AddOutOfLineTrap(
+                                 trap_position,
+                                 Builtins::kThrowWasmTrapFloatUnrepresentable)
+                           : nullptr;
+    if (!__ emit_type_conversion(opcode, dst, src, trap)) {
       DCHECK_NOT_NULL(fallback_fn);
       ExternalReference ext_ref = fallback_fn(asm_->isolate());
       ValueType sig_reps[] = {src_type};
@@ -720,10 +728,10 @@ class LiftoffCompiler {
           __ emit_##fn(dst.fp(), src.fp());             \
         });                                             \
     break;
-#define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref)       \
-  case WasmOpcode::kExpr##opcode:                                       \
-    EmitTypeConversion(kExpr##opcode, kWasm##dst_type, kWasm##src_type, \
-                       ext_ref);                                        \
+#define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref, can_trap) \
+  case WasmOpcode::kExpr##opcode:                                           \
+    EmitTypeConversion<kWasm##dst_type, kWasm##src_type, can_trap>(         \
+        kExpr##opcode, ext_ref, can_trap ? decoder->position() : 0);        \
     break;
     switch (opcode) {
       CASE_I32_UNOP(I32Eqz, i32_eqz)
@@ -743,27 +751,31 @@ class LiftoffCompiler {
       CASE_FLOAT_UNOP(F64Trunc, F64, f64_trunc)
       CASE_FLOAT_UNOP(F64NearestInt, F64, f64_nearest_int)
       CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
-      CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr)
-      CASE_TYPE_CONVERSION(I32ReinterpretF32, I32, F32, nullptr)
-      CASE_TYPE_CONVERSION(I64SConvertI32, I64, I32, nullptr)
-      CASE_TYPE_CONVERSION(I64UConvertI32, I64, I32, nullptr)
-      CASE_TYPE_CONVERSION(I64ReinterpretF64, I64, F64, nullptr)
-      CASE_TYPE_CONVERSION(F32SConvertI32, F32, I32, nullptr)
-      CASE_TYPE_CONVERSION(F32UConvertI32, F32, I32, nullptr)
+      CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I32SConvertF32, I32, F32, nullptr, kCanTrap)
+      CASE_TYPE_CONVERSION(I32UConvertF32, I32, F32, nullptr, kCanTrap)
+      CASE_TYPE_CONVERSION(I32SConvertF64, I32, F64, nullptr, kCanTrap)
+      CASE_TYPE_CONVERSION(I32UConvertF64, I32, F64, nullptr, kCanTrap)
+      CASE_TYPE_CONVERSION(I32ReinterpretF32, I32, F32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I64SConvertI32, I64, I32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I64UConvertI32, I64, I32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I64ReinterpretF64, I64, F64, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(F32SConvertI32, F32, I32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(F32UConvertI32, F32, I32, nullptr, kNoTrap)
       CASE_TYPE_CONVERSION(F32SConvertI64, F32, I64,
-                           &ExternalReference::wasm_int64_to_float32)
+                           &ExternalReference::wasm_int64_to_float32, kNoTrap)
       CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
-                           &ExternalReference::wasm_uint64_to_float32)
-      CASE_TYPE_CONVERSION(F32ConvertF64, F32, F64, nullptr)
-      CASE_TYPE_CONVERSION(F32ReinterpretI32, F32, I32, nullptr)
-      CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr)
-      CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr)
+                           &ExternalReference::wasm_uint64_to_float32, kNoTrap)
+      CASE_TYPE_CONVERSION(F32ConvertF64, F32, F64, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(F32ReinterpretI32, F32, I32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr, kNoTrap)
       CASE_TYPE_CONVERSION(F64SConvertI64, F64, I64,
-                           &ExternalReference::wasm_int64_to_float64)
+                           &ExternalReference::wasm_int64_to_float64, kNoTrap)
       CASE_TYPE_CONVERSION(F64UConvertI64, F64, I64,
-                           &ExternalReference::wasm_uint64_to_float64)
-      CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr)
-      CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr)
+                           &ExternalReference::wasm_uint64_to_float64, kNoTrap)
+      CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr, kNoTrap)
       case kExprI32Popcnt:
         EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
                                  &ExternalReference::wasm_word32_popcnt);

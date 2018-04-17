@@ -588,7 +588,7 @@ FP_UNOP(f64_sqrt, sqrt_d)
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
-                                            LiftoffRegister src) {
+                                            LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
       TurboAssembler::Ext(dst.gp(), src.gp(), 0, 32);

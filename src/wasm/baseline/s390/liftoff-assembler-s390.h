@@ -202,7 +202,7 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
-                                            LiftoffRegister src) {
+                                            LiftoffRegister src, Label* trap) {
   BAILOUT("emit_type_conversion");
   return true;
 }
