@@ -165,6 +165,7 @@ TEST(CodeEvents) {
   profiles->StartProfiling("", false);
   processor->Start();
   ProfilerListener profiler_listener(isolate);
+  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
   profiler_listener.AddObserver(&profiler);
 
   // Enqueue code creation events.
@@ -182,6 +183,7 @@ TEST(CodeEvents) {
   EnqueueTickSampleEvent(processor, aaa_code->address());
 
   profiler_listener.RemoveObserver(&profiler);
+  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
@@ -225,6 +227,7 @@ TEST(TickEvents) {
   profiles->StartProfiling("", false);
   processor->Start();
   ProfilerListener profiler_listener(isolate);
+  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
   profiler_listener.AddObserver(&profiler);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
@@ -241,6 +244,7 @@ TEST(TickEvents) {
                          frame1_code->raw_instruction_end() - 1);
 
   profiler_listener.RemoveObserver(&profiler);
+  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
@@ -261,6 +265,8 @@ TEST(TickEvents) {
   const std::vector<ProfileNode*>* top_down_ddd_children =
       top_down_stub_children->back()->children();
   CHECK(top_down_ddd_children->empty());
+
+  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
 }
 
 // http://crbug/51594
@@ -294,6 +300,7 @@ TEST(Issue1398) {
   profiles->StartProfiling("", false);
   processor->Start();
   ProfilerListener profiler_listener(isolate);
+  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
   profiler_listener.AddObserver(&profiler);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
@@ -308,6 +315,7 @@ TEST(Issue1398) {
   processor->FinishTickSample();
 
   profiler_listener.RemoveObserver(&profiler);
+  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
@@ -1079,6 +1087,7 @@ static void TickLines(bool optimize) {
   profiles->StartProfiling("", false);
   processor->Start();
   ProfilerListener profiler_listener(isolate);
+  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
   profiler_listener.AddObserver(&profiler);
 
   // Enqueue code creation events.
@@ -1092,6 +1101,7 @@ static void TickLines(bool optimize) {
   EnqueueTickSampleEvent(processor, code_address);
 
   profiler_listener.RemoveObserver(&profiler);
+  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
 
   CpuProfile* profile = profiles->StopProfiling("");
@@ -2375,7 +2385,7 @@ TEST(CodeEntriesMemoryLeak) {
     profile->Delete();
   }
   ProfilerListener* profiler_listener =
-      CcTest::i_isolate()->logger()->EnsureProfilerListener();
+      CcTest::i_isolate()->logger()->profiler_listener();
 
   CHECK_GE(10000ul, profiler_listener->entries_count_for_test());
 }
@@ -2471,15 +2481,6 @@ TEST(SourcePositionTable) {
   CHECK_EQ(2, info->GetSourceLineNumber(21));
   CHECK_EQ(3, info->GetSourceLineNumber(100));
   CHECK_EQ(3, info->GetSourceLineNumber(std::numeric_limits<int>::max()));
-}
-
-TEST(MultipleProfilers) {
-  std::unique_ptr<CpuProfiler> profiler1(new CpuProfiler(CcTest::i_isolate()));
-  std::unique_ptr<CpuProfiler> profiler2(new CpuProfiler(CcTest::i_isolate()));
-  profiler1->StartProfiling("1");
-  profiler2->StartProfiling("2");
-  profiler1->StopProfiling("1");
-  profiler2->StopProfiling("2");
 }
 
 }  // namespace test_cpu_profiler

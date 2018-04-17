@@ -814,12 +814,13 @@ Logger::~Logger() {
   delete log_;
 }
 
-void Logger::AddCodeEventListener(CodeEventListener* listener) {
+void Logger::addCodeEventListener(CodeEventListener* listener) {
   bool result = isolate_->code_event_dispatcher()->AddListener(listener);
-  CHECK(result);
+  USE(result);
+  DCHECK(result);
 }
 
-void Logger::RemoveCodeEventListener(CodeEventListener* listener) {
+void Logger::removeCodeEventListener(CodeEventListener* listener) {
   isolate_->code_event_dispatcher()->RemoveListener(listener);
 }
 
@@ -1539,7 +1540,7 @@ void Logger::StopProfiler() {
   if (profiler_ != nullptr) {
     profiler_->Pause();
     is_logging_ = false;
-    RemoveCodeEventListener(this);
+    removeCodeEventListener(this);
   }
 }
 
@@ -1891,17 +1892,17 @@ bool Logger::SetUp(Isolate* isolate) {
 
   if (FLAG_perf_basic_prof) {
     perf_basic_logger_ = new PerfBasicLogger();
-    AddCodeEventListener(perf_basic_logger_);
+    addCodeEventListener(perf_basic_logger_);
   }
 
   if (FLAG_perf_prof) {
     perf_jit_logger_ = new PerfJitLogger();
-    AddCodeEventListener(perf_jit_logger_);
+    addCodeEventListener(perf_jit_logger_);
   }
 
   if (FLAG_ll_prof) {
     ll_logger_ = new LowLevelLogger(log_file_name.str().c_str());
-    AddCodeEventListener(ll_logger_);
+    addCodeEventListener(ll_logger_);
   }
 
   ticker_ = new Ticker(isolate, FLAG_prof_sampling_interval);
@@ -1918,8 +1919,10 @@ bool Logger::SetUp(Isolate* isolate) {
     profiler_->Engage();
   }
 
+  profiler_listener_.reset();
+
   if (is_logging_) {
-    AddCodeEventListener(this);
+    addCodeEventListener(this);
   }
 
   return true;
@@ -1929,14 +1932,14 @@ bool Logger::SetUp(Isolate* isolate) {
 void Logger::SetCodeEventHandler(uint32_t options,
                                  JitCodeEventHandler event_handler) {
   if (jit_logger_) {
-    RemoveCodeEventListener(jit_logger_);
-    delete jit_logger_;
-    jit_logger_ = nullptr;
+      removeCodeEventListener(jit_logger_);
+      delete jit_logger_;
+      jit_logger_ = nullptr;
   }
 
   if (event_handler) {
     jit_logger_ = new JitLogger(event_handler);
-    AddCodeEventListener(jit_logger_);
+    addCodeEventListener(jit_logger_);
     if (options & kJitCodeEventEnumExisting) {
       HandleScope scope(isolate_);
       LogCodeObjects();
@@ -1945,11 +1948,17 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 }
 
-ProfilerListener* Logger::EnsureProfilerListener() {
-  CHECK(is_initialized_);
-  if (!profiler_listener_)
+void Logger::SetUpProfilerListener() {
+  if (!is_initialized_) return;
+  if (profiler_listener_.get() == nullptr) {
     profiler_listener_.reset(new ProfilerListener(isolate_));
-  return profiler_listener_.get();
+  }
+  addCodeEventListener(profiler_listener_.get());
+}
+
+void Logger::TearDownProfilerListener() {
+  if (profiler_listener_->HasObservers()) return;
+  removeCodeEventListener(profiler_listener_.get());
 }
 
 sampler::Sampler* Logger::sampler() {
@@ -1972,31 +1981,31 @@ FILE* Logger::TearDown() {
   ticker_ = nullptr;
 
   if (perf_basic_logger_) {
-    RemoveCodeEventListener(perf_basic_logger_);
+    removeCodeEventListener(perf_basic_logger_);
     delete perf_basic_logger_;
     perf_basic_logger_ = nullptr;
   }
 
   if (perf_jit_logger_) {
-    RemoveCodeEventListener(perf_jit_logger_);
+    removeCodeEventListener(perf_jit_logger_);
     delete perf_jit_logger_;
     perf_jit_logger_ = nullptr;
   }
 
   if (ll_logger_) {
-    RemoveCodeEventListener(ll_logger_);
+    removeCodeEventListener(ll_logger_);
     delete ll_logger_;
     ll_logger_ = nullptr;
   }
 
   if (jit_logger_) {
-    RemoveCodeEventListener(jit_logger_);
+    removeCodeEventListener(jit_logger_);
     delete jit_logger_;
     jit_logger_ = nullptr;
   }
 
   if (profiler_listener_.get() != nullptr) {
-    RemoveCodeEventListener(profiler_listener_.get());
+    removeCodeEventListener(profiler_listener_.get());
   }
 
   return log_->Close();
