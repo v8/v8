@@ -377,6 +377,8 @@ class ArrayConcatVisitor {
     return true;
   }
 
+  uint32_t index_offset() const { return index_offset_; }
+
   void increase_index_offset(uint32_t delta) {
     if (JSObject::kMaxElementCount - index_offset_ < delta) {
       index_offset_ = JSObject::kMaxElementCount;
@@ -709,6 +711,11 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     Handle<Object> val;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Object::GetLengthFromArrayLike(isolate, receiver), false);
+    if (visitor->index_offset() + val->Number() > kMaxSafeInteger) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kInvalidArrayLength));
+      return false;
+    }
     // TODO(caitp): Support larger element indexes (up to 2^53-1).
     if (!val->ToUint32(&length)) {
       length = 0;
