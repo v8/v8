@@ -14,14 +14,16 @@ Every master has an optional file named `<mastername>.pyl`. E.g.
 The structure of each file is:
 ```
 {
-  <buildername>: [
-    {
-      'name': <test-spec name>,
-      'variant': <variant name>,
-      'shards': <number of shards>,
-    },
-    ...
-  ],
+  <buildername>: {
+    'tests': [
+      {
+        'name': <test-spec name>,
+        'variant': <variant name>,
+        'shards': <number of shards>,
+      },
+      ...
+    ],
+  },
   ...
 }
 ```
@@ -36,9 +38,11 @@ the swarming shards for long-running tests.
 Example:
 ```
 {
-  'v8_linux64_rel_ng_triggered': [
-    {'name': 'v8testing', 'variant': 'nooptimization', 'shards': 2},
-  ],
+  'v8_linux64_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'variant': 'nooptimization', 'shards': 2},
+    ],
+  },
 }
 ```
 
