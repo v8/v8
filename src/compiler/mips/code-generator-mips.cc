@@ -3373,8 +3373,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ sw(zero_reg, dst);
         } else {
-          __ li(at, Operand(bit_cast<int32_t>(src.ToFloat32())));
-          __ sw(at, dst);
+          __ li(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
+          __ sw(kScratchReg, dst);
         }
       } else {
         DCHECK(destination->IsFPRegister());
