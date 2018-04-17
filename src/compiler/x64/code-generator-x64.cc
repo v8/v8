@@ -1545,89 +1545,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kSSEFloat32ToUint64: {
-      Label done;
-      Label success;
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 0);
-      }
-      // There does not exist a Float32ToUint64 instruction, so we have to use
-      // the Float32ToInt64 instruction.
+      Label fail;
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttss2uiq(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
       } else {
-        __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttss2uiq(i.OutputRegister(), i.InputOperand(0), &fail);
       }
-      // Check if the result of the Float32ToInt64 conversion is positive, we
-      // are already done.
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      __ j(positive, &success);
-      // The result of the first conversion was negative, which means that the
-      // input value was not within the positive int64 range. We subtract 2^64
-      // and convert it again to see if it is within the uint64 range.
-      __ Move(kScratchDoubleReg, -9223372036854775808.0f);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ addss(kScratchDoubleReg, i.InputDoubleRegister(0));
-      } else {
-        __ addss(kScratchDoubleReg, i.InputOperand(0));
-      }
-      __ Cvttss2siq(i.OutputRegister(), kScratchDoubleReg);
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      // The only possible negative value here is 0x80000000000000000, which is
-      // used on x64 to indicate an integer overflow.
-      __ j(negative, &done);
-      // The input value is within uint64 range and the second conversion worked
-      // successfully, but we still have to undo the subtraction we did
-      // earlier.
-      __ Set(kScratchRegister, 0x8000000000000000);
-      __ orq(i.OutputRegister(), kScratchRegister);
-      __ bind(&success);
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 1);
-      }
-      __ bind(&done);
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 1);
+      __ bind(&fail);
       break;
     }
     case kSSEFloat64ToUint64: {
-      Label done;
-      Label success;
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 0);
-      }
-      // There does not exist a Float64ToUint64 instruction, so we have to use
-      // the Float64ToInt64 instruction.
+      Label fail;
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttsd2uiq(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
       } else {
-        __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttsd2uiq(i.OutputRegister(), i.InputOperand(0), &fail);
       }
-      // Check if the result of the Float64ToInt64 conversion is positive, we
-      // are already done.
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      __ j(positive, &success);
-      // The result of the first conversion was negative, which means that the
-      // input value was not within the positive int64 range. We subtract 2^64
-      // and convert it again to see if it is within the uint64 range.
-      __ Move(kScratchDoubleReg, -9223372036854775808.0);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ addsd(kScratchDoubleReg, i.InputDoubleRegister(0));
-      } else {
-        __ addsd(kScratchDoubleReg, i.InputOperand(0));
-      }
-      __ Cvttsd2siq(i.OutputRegister(), kScratchDoubleReg);
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      // The only possible negative value here is 0x80000000000000000, which is
-      // used on x64 to indicate an integer overflow.
-      __ j(negative, &done);
-      // The input value is within uint64 range and the second conversion worked
-      // successfully, but we still have to undo the subtraction we did
-      // earlier.
-      __ Set(kScratchRegister, 0x8000000000000000);
-      __ orq(i.OutputRegister(), kScratchRegister);
-      __ bind(&success);
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 1);
-      }
-      __ bind(&done);
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 1);
+      __ bind(&fail);
       break;
     }
     case kSSEInt32ToFloat64:

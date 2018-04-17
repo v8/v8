@@ -289,6 +289,10 @@ class TurboAssembler : public Assembler {
   void Cvtlsi2ss(XMMRegister dst, Operand src);
   void Cvtqui2ss(XMMRegister dst, Register src, Register tmp);
   void Cvtqui2sd(XMMRegister dst, Register src, Register tmp);
+  void Cvttsd2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttsd2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use

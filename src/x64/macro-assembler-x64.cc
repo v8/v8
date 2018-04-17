@@ -830,6 +830,62 @@ void TurboAssembler::Cvttsd2siq(Register dst, Operand src) {
   }
 }
 
+namespace {
+template <typename OperandOrXMMRegister, bool is_double>
+void ConvertFloatToUint64(TurboAssembler* tasm, Register dst,
+                          OperandOrXMMRegister src, Label* fail) {
+  Label success;
+  // There does not exist a native float-to-uint instruction, so we have to use
+  // a float-to-int, and postprocess the result.
+  if (is_double) {
+    tasm->Cvttsd2siq(dst, src);
+  } else {
+    tasm->Cvttss2siq(dst, src);
+  }
+  // If the result of the conversion is positive, we are already done.
+  tasm->testq(dst, dst);
+  tasm->j(positive, &success);
+  // The result of the first conversion was negative, which means that the
+  // input value was not within the positive int64 range. We subtract 2^63
+  // and convert it again to see if it is within the uint64 range.
+  if (is_double) {
+    tasm->Move(kScratchDoubleReg, -9223372036854775808.0);
+    tasm->addsd(kScratchDoubleReg, src);
+    tasm->Cvttsd2siq(dst, kScratchDoubleReg);
+  } else {
+    tasm->Move(kScratchDoubleReg, -9223372036854775808.0f);
+    tasm->addss(kScratchDoubleReg, src);
+    tasm->Cvttss2siq(dst, kScratchDoubleReg);
+  }
+  tasm->testq(dst, dst);
+  // The only possible negative value here is 0x80000000000000000, which is
+  // used on x64 to indicate an integer overflow.
+  tasm->j(negative, fail ? fail : &success);
+  // The input value is within uint64 range and the second conversion worked
+  // successfully, but we still have to undo the subtraction we did
+  // earlier.
+  tasm->Set(kScratchRegister, 0x8000000000000000);
+  tasm->orq(dst, kScratchRegister);
+  tasm->bind(&success);
+}
+}  // namespace
+
+void TurboAssembler::Cvttsd2uiq(Register dst, Operand src, Label* success) {
+  ConvertFloatToUint64<Operand, true>(this, dst, src, success);
+}
+
+void TurboAssembler::Cvttsd2uiq(Register dst, XMMRegister src, Label* success) {
+  ConvertFloatToUint64<XMMRegister, true>(this, dst, src, success);
+}
+
+void TurboAssembler::Cvttss2uiq(Register dst, Operand src, Label* success) {
+  ConvertFloatToUint64<Operand, false>(this, dst, src, success);
+}
+
+void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* success) {
+  ConvertFloatToUint64<XMMRegister, false>(this, dst, src, success);
+}
+
 void MacroAssembler::Load(Register dst, Operand src, Representation r) {
   DCHECK(!r.IsDouble());
   if (r.IsInteger8()) {
