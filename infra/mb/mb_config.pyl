@@ -104,6 +104,44 @@
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
+      'V8 Clusterfuzz Win64 ASAN - release builder':
+        'release_x64_asan_no_lsan_verify_heap',
+      # Note this is called a debug builder, but it uses a release build
+      # configuration with dchecks (which enables DEBUG in V8), since win-asan
+      # debug is not supported.
+      'V8 Clusterfuzz Win64 ASAN - debug builder':
+        'release_x64_asan_no_lsan_verify_heap_dchecks',
+      'V8 Clusterfuzz Mac64 ASAN - release builder':
+          'release_x64_asan_no_lsan_edge_verify_heap',
+      'V8 Clusterfuzz Mac64 ASAN - debug builder':
+          'debug_x64_asan_no_lsan_static_edge',
+      'V8 Clusterfuzz Linux64 - release builder':
+          'release_x64_correctness_fuzzer',
+      'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
+      'V8 Clusterfuzz Linux64 - nosnap release builder': 'release_x64_no_snap',
+      'V8 Clusterfuzz Linux64 - nosnap debug builder': 'debug_x64_no_snap',
+      'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
+          'release_x64_asan_symbolized_edge_verify_heap',
+      'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_edge',
+      'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
+          'debug_simulate_arm64_asan_edge',
+      'V8 Clusterfuzz Linux ASAN arm - debug builder':
+          'debug_simulate_arm_asan_edge',
+      'V8 Clusterfuzz Linux ASAN mipsel - debug builder':
+          'debug_simulate_mipsel_asan_edge',
+      'V8 Clusterfuzz Linux64 CFI - release builder':
+          'release_x64_cfi_clusterfuzz',
+      'V8 Clusterfuzz Linux MSAN no origins':
+          'release_simulate_arm64_msan_no_origins_edge',
+      'V8 Clusterfuzz Linux MSAN chained origins':
+          'release_simulate_arm64_msan_edge',
+      'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
+      'V8 Clusterfuzz Linux64 UBSanVptr - release builder':
+          'release_x64_ubsan_vptr_recover_edge',
+      # DO NOT MAKE CHANGES to any builder configs below. Instead modify
+      # corresponding builders above.
+      # TODO(sergiyb): Remove after renaming all clusterfuzz builders on master
+      # side.
       'V8 Win64 ASAN - release builder':
         'release_x64_asan_no_lsan_verify_heap',
       # Note this is called a debug builder, but it uses a release build
