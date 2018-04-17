@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate)
-    : function_and_resource_names_(isolate->heap()) {}
+    : isolate_(isolate), function_and_resource_names_(isolate->heap()) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
@@ -308,20 +308,26 @@ CodeEntry* ProfilerListener::NewCodeEntry(
 
 void ProfilerListener::AddObserver(CodeEventObserver* observer) {
   base::LockGuard<base::Mutex> guard(&mutex_);
+  if (std::find(observers_.begin(), observers_.end(), observer) !=
+      observers_.end()) {
+    return;
+  }
   if (observers_.empty()) {
     code_entries_.clear();
+    isolate_->logger()->AddCodeEventListener(this);
   }
-  if (std::find(observers_.begin(), observers_.end(), observer) ==
-      observers_.end()) {
-    observers_.push_back(observer);
-  }
+  observers_.push_back(observer);
 }
 
 void ProfilerListener::RemoveObserver(CodeEventObserver* observer) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   auto it = std::find(observers_.begin(), observers_.end(), observer);
-  if (it == observers_.end()) return;
-  observers_.erase(it);
+  if (it != observers_.end()) {
+    observers_.erase(it);
+  }
+  if (observers_.empty()) {
+    isolate_->logger()->RemoveCodeEventListener(this);
+  }
 }
 
 }  // namespace internal

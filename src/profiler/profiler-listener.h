@@ -90,6 +90,7 @@ class ProfilerListener : public CodeEventListener {
     }
   }
 
+  Isolate* isolate_;
   StringsStorage function_and_resource_names_;
   std::vector<std::unique_ptr<CodeEntry>> code_entries_;
   std::vector<CodeEventObserver*> observers_;
