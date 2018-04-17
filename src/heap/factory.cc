@@ -1151,7 +1151,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
     map = external_one_byte_string_map();
   }
   Handle<ExternalOneByteString> external_string(
-      ExternalOneByteString::cast(New(map, NOT_TENURED)), isolate());
+      ExternalOneByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
@@ -1183,7 +1183,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
                       : external_string_map();
   }
   Handle<ExternalTwoByteString> external_string(
-      ExternalTwoByteString::cast(New(map, NOT_TENURED)), isolate());
+      ExternalTwoByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
