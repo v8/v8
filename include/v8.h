@@ -10166,6 +10166,19 @@ Float64Array* Float64Array::Cast(v8::Value* value) {
   return static_cast<Float64Array*>(value);
 }
 
+BigInt64Array* BigInt64Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<BigInt64Array*>(value);
+}
+
+BigUint64Array* BigUint64Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<BigUint64Array*>(value);
+}
 
 Uint8ClampedArray* Uint8ClampedArray::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
