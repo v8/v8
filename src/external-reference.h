@@ -286,7 +286,7 @@ class ExternalReference BASE_EMBEDDED {
       : address_(reinterpret_cast<Address>(address)) {}
   explicit ExternalReference(Address address) : address_(address) {}
 
-  static Address Redirect(Isolate* isolate, Address address_arg,
+  static Address Redirect(Address address_arg,
                           Type type = ExternalReference::BUILTIN_CALL);
 
   Address address_;

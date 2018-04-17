@@ -35,6 +35,10 @@ class SimulatorBase {
   static base::Mutex* i_cache_mutex() { return i_cache_mutex_; }
   static base::CustomMatcherHashMap* i_cache() { return i_cache_; }
 
+  // Runtime call support.
+  static Address RedirectExternalReference(Address external_function,
+                                           ExternalReference::Type type);
+
  protected:
   template <typename Return, typename SimT, typename CallImpl, typename... Args>
   static Return VariadicCall(SimT* sim, CallImpl call, Address entry,
@@ -67,10 +71,6 @@ class SimulatorBase {
       intptr_t ret) {}
 
  private:
-  // Runtime call support.
-  static Address RedirectExternalReference(Address external_function,
-                                           ExternalReference::Type type);
-
   static base::Mutex* redirection_mutex_;
   static Redirection* redirection_;
 

@@ -18,6 +18,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/simulator-base.h"
 #include "src/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
 
@@ -101,20 +102,20 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
 }
 
 ExternalReference::ExternalReference(Address address, Isolate* isolate)
-    : address_(Redirect(isolate, address)) {}
+    : address_(Redirect(address)) {}
 
 ExternalReference::ExternalReference(
     ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL,
     Isolate* isolate = nullptr)
-    : address_(Redirect(isolate, fun->address(), type)) {}
+    : address_(Redirect(fun->address(), type)) {}
 
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
     : ExternalReference(Runtime::FunctionForId(id), isolate) {}
 
 ExternalReference::ExternalReference(const Runtime::Function* f,
                                      Isolate* isolate)
-    : address_(Redirect(isolate, f->entry,
-                        BuiltinCallTypeForResultSize(f->result_size))) {}
+    : address_(
+          Redirect(f->entry, BuiltinCallTypeForResultSize(f->result_size))) {}
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
@@ -162,24 +163,24 @@ ExternalReference::ExternalReference(const SCTableReference& table_ref)
 
 ExternalReference ExternalReference::incremental_marking_record_write_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
 }
 
 ExternalReference ExternalReference::store_buffer_overflow_function(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
+      Redirect(FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
 }
 
 ExternalReference ExternalReference::delete_handle_scope_extensions(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(HandleScope::DeleteExtensions)));
+      Redirect(FUNCTION_ADDR(HandleScope::DeleteExtensions)));
 }
 
 ExternalReference ExternalReference::get_date_field_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(JSDate::GetField)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(JSDate::GetField)));
 }
 
 ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
@@ -202,12 +203,12 @@ void ExternalReference::set_redirector(
 }
 
 // static
-Address ExternalReference::Redirect(Isolate* isolate, Address address,
-                                    Type type) {
-  ExternalReferenceRedirector* redirector =
-      reinterpret_cast<ExternalReferenceRedirector*>(
-          isolate->external_reference_redirector());
-  return (redirector == nullptr) ? address : (*redirector)(address, type);
+Address ExternalReference::Redirect(Address address, Type type) {
+#ifdef USE_SIMULATOR
+  return SimulatorBase::RedirectExternalReference(address, type);
+#else
+  return address;
+#endif
 }
 
 ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
@@ -220,140 +221,126 @@ ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
 
 ExternalReference ExternalReference::new_deoptimizer_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Deoptimizer::New)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(Deoptimizer::New)));
 }
 
 ExternalReference ExternalReference::compute_output_frames_function(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
+      Redirect(FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
 }
 
 ExternalReference ExternalReference::wasm_f32_trunc(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f32_trunc_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f32_trunc_wrapper)));
 }
 ExternalReference ExternalReference::wasm_f32_floor(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f32_floor_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f32_floor_wrapper)));
 }
 ExternalReference ExternalReference::wasm_f32_ceil(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f32_ceil_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f32_ceil_wrapper)));
 }
 ExternalReference ExternalReference::wasm_f32_nearest_int(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f32_nearest_int_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::f32_nearest_int_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_f64_trunc(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f64_trunc_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f64_trunc_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_f64_floor(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f64_floor_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f64_floor_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_f64_ceil(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f64_ceil_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::f64_ceil_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_f64_nearest_int(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::f64_nearest_int_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::f64_nearest_int_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_int64_to_float32(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float32_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::int64_to_float32_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_uint64_to_float32(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float32_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::uint64_to_float32_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_int64_to_float64(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float64_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::int64_to_float64_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_uint64_to_float64(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_float32_to_int64(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::float32_to_int64_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::float32_to_int64_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_float32_to_uint64(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::float32_to_uint64_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::float32_to_uint64_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_float64_to_int64(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::float64_to_int64_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::float64_to_int64_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_float64_to_uint64(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::float64_to_uint64_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::float64_to_uint64_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_int64_div(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::int64_div_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::int64_div_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_int64_mod(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::int64_mod_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::int64_mod_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_uint64_div(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_div_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::uint64_div_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_uint64_mod(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_word32_ctz(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ctz_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_ctz_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_word64_ctz(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::word64_ctz_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word64_ctz_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_word32_popcnt(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::word32_popcnt_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::word32_popcnt_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
+      Redirect(FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_word32_rol(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::word32_rol_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_rol_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_word32_ror(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ror_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_ror_wrapper)));
 }
 
 static void f64_acos_wrapper(double* param) {
@@ -362,7 +349,7 @@ static void f64_acos_wrapper(double* param) {
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_acos_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f64_acos_wrapper)));
 }
 
 static void f64_asin_wrapper(double* param) {
@@ -371,24 +358,23 @@ static void f64_asin_wrapper(double* param) {
 
 ExternalReference ExternalReference::f64_asin_wrapper_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_float64_pow(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::float64_pow_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(wasm::float64_pow_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_set_thread_in_wasm_flag(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::set_thread_in_wasm_flag)));
+      Redirect(FUNCTION_ADDR(wasm::set_thread_in_wasm_flag)));
 }
 
 ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
+      Redirect(FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
 }
 
 static void f64_mod_wrapper(double* param0, double* param1) {
@@ -398,25 +384,23 @@ static void f64_mod_wrapper(double* param0, double* param1) {
 
 ExternalReference ExternalReference::f64_mod_wrapper_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_mod_wrapper)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f64_mod_wrapper)));
 }
 
 ExternalReference ExternalReference::wasm_call_trap_callback_for_testing(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(wasm::call_trap_callback_for_testing)));
+      Redirect(FUNCTION_ADDR(wasm::call_trap_callback_for_testing)));
 }
 
 ExternalReference ExternalReference::log_enter_external_function(
     Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(Logger::EnterExternal)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(Logger::EnterExternal)));
 }
 
 ExternalReference ExternalReference::log_leave_external_function(
     Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(Logger::LeaveExternal)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(Logger::LeaveExternal)));
 }
 
 ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
@@ -587,18 +571,17 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
 #else
   UNREACHABLE();
 #endif
-  return ExternalReference(Redirect(isolate, function));
+  return ExternalReference(Redirect(function));
 }
 
 ExternalReference ExternalReference::re_grow_stack(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(NativeRegExpMacroAssembler::GrowStack)));
+      Redirect(FUNCTION_ADDR(NativeRegExpMacroAssembler::GrowStack)));
 }
 
 ExternalReference ExternalReference::re_case_insensitive_compare_uc16(
     Isolate* isolate) {
   return ExternalReference(Redirect(
-      isolate,
       FUNCTION_ADDR(NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)));
 }
 
@@ -632,102 +615,102 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 
 ExternalReference ExternalReference::ieee754_acos_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::acos), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::acos), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_acosh_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(base::ieee754::acosh), BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::ieee754::acosh), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_asin_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::asin), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::asin), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_asinh_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(base::ieee754::asinh), BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::ieee754::asinh), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_atan_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::atan), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::atan), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_atanh_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(base::ieee754::atanh), BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::ieee754::atanh), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_cbrt_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(base::ieee754::cbrt),
-                                    BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::ieee754::cbrt), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_cos_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::cos), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::cos), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_cosh_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::cosh), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::cosh), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_exp_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::exp), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::exp), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_expm1_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(base::ieee754::expm1), BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(base::ieee754::expm1), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_log_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::log), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_log1p_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log1p), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::log1p), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_log10_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log10), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::log10), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_log2_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log2), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::log2), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_sin_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::sin), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::sin), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_sinh_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::sinh), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::sinh), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_tan_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::tan), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::tan), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_tanh_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
+      Redirect(FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
 }
 
 void* libc_memchr(void* string, int character, size_t search_length) {
@@ -735,7 +718,7 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 }
 
 ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memchr)));
 }
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
@@ -743,7 +726,7 @@ void* libc_memcpy(void* dest, const void* src, size_t n) {
 }
 
 ExternalReference ExternalReference::libc_memcpy_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memcpy)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memcpy)));
 }
 
 void* libc_memmove(void* dest, const void* src, size_t n) {
@@ -751,7 +734,7 @@ void* libc_memmove(void* dest, const void* src, size_t n) {
 }
 
 ExternalReference ExternalReference::libc_memmove_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memmove)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memmove)));
 }
 
 void* libc_memset(void* dest, int byte, size_t n) {
@@ -760,17 +743,17 @@ void* libc_memset(void* dest, int byte, size_t n) {
 }
 
 ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(libc_memset)));
 }
 
 ExternalReference ExternalReference::printf_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(std::printf)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
 
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
 ExternalReference ExternalReference::search_string_raw_one_one(
@@ -796,56 +779,55 @@ ExternalReference ExternalReference::search_string_raw_two_two(
 ExternalReference ExternalReference::orderedhashmap_gethash_raw(
     Isolate* isolate) {
   auto f = OrderedHashMap::GetHash;
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
 ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
   typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
 ExternalReference ExternalReference::jsreceiver_create_identity_hash(
     Isolate* isolate) {
   typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
   CreateIdentityHash f = JSReceiver::CreateIdentityHash;
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
 ExternalReference
 ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
     Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
 }
 
 ExternalReference ExternalReference::copy_typed_array_elements_to_typed_array(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
+      Redirect(FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
 }
 
 ExternalReference ExternalReference::copy_typed_array_elements_slice(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsSlice)));
+      Redirect(FUNCTION_ADDR(CopyTypedArrayElementsSlice)));
 }
 
 ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
 }
 
 ExternalReference ExternalReference::check_object_type(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CheckObjectType)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(CheckObjectType)));
 }
 
 #ifdef V8_INTL_SUPPORT
 ExternalReference ExternalReference::intl_convert_one_byte_to_lower(
     Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(ConvertOneByteToLower)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(ConvertOneByteToLower)));
 }
 
 ExternalReference ExternalReference::intl_to_latin1_lower_table(
@@ -907,7 +889,7 @@ ExternalReference ExternalReference::runtime_function_table_address(
 ExternalReference ExternalReference::invalidate_prototype_chains_function(
     Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
+      Redirect(FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
 }
 
 double power_helper(Isolate* isolate, double x, double y) {
@@ -960,14 +942,14 @@ double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
 ExternalReference ExternalReference::power_double_double_function(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(power_double_double),
-                                    BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(power_double_double), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::mod_two_doubles_operation(
     Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(modulo_double_double), BUILTIN_FP_FP_CALL));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(modulo_double_double), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::debug_last_step_action_address(
