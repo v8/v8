@@ -169,6 +169,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       DCHECK(CanBeDeferred(obj));
     }
   }
+
   if (obj->IsAllocationSite()) {
     // Allocation sites are present in the snapshot, and must be linked into
     // a list at deserialization time.
@@ -190,13 +191,13 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       new_code_objects_.push_back(Code::cast(obj));
     }
   } else if (obj->IsAccessorInfo()) {
-    if (isolate_->external_reference_redirector()) {
-      accessor_infos_.push_back(AccessorInfo::cast(obj));
-    }
+#ifdef USE_SIMULATOR
+    accessor_infos_.push_back(AccessorInfo::cast(obj));
+#endif
   } else if (obj->IsCallHandlerInfo()) {
-    if (isolate_->external_reference_redirector()) {
-      call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
-    }
+#ifdef USE_SIMULATOR
+    call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
+#endif
   } else if (obj->IsExternalString()) {
     if (obj->map() == isolate_->heap()->native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);

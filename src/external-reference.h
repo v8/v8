@@ -276,11 +276,6 @@ class ExternalReference BASE_EMBEDDED {
 
   Address address() const { return address_; }
 
-  // This lets you register a function that rewrites all external references.
-  // Used by the ARM simulator to catch calls to external references.
-  static void set_redirector(Isolate* isolate,
-                             ExternalReferenceRedirector* redirector);
-
  private:
   explicit ExternalReference(void* address)
       : address_(reinterpret_cast<Address>(address)) {}

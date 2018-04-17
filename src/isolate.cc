@@ -3017,11 +3017,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   // Enable logging before setting up the heap
   logger_->SetUp(this);
 
-  // Initialize other runtime facilities
-#if defined(USE_SIMULATOR)
-  Simulator::Initialize(this);
-#endif
-
   { // NOLINT
     // Ensure that the thread has a valid stack guard.  The v8::Locker object
     // will ensure this too, but we don't have to use lockers if we are only

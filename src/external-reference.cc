@@ -194,14 +194,6 @@ ExternalReference::runtime_function_table_address_for_unittests(
   return runtime_function_table_address(isolate);
 }
 
-void ExternalReference::set_redirector(
-    Isolate* isolate, ExternalReferenceRedirector* redirector) {
-  // We can't stack them.
-  DCHECK_NULL(isolate->external_reference_redirector());
-  isolate->set_external_reference_redirector(
-      reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
-}
-
 // static
 Address ExternalReference::Redirect(Address address, Type type) {
 #ifdef USE_SIMULATOR

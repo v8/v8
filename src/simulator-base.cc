@@ -59,11 +59,6 @@ void SimulatorBase::GlobalTearDown() {
 }
 
 // static
-void SimulatorBase::Initialize(Isolate* isolate) {
-  ExternalReference::set_redirector(isolate, &RedirectExternalReference);
-}
-
-// static
 Address SimulatorBase::RedirectExternalReference(Address external_function,
                                                  ExternalReference::Type type) {
   base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
