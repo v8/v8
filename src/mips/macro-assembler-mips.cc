@@ -1411,34 +1411,44 @@ void TurboAssembler::MultiPopFPU(RegList regs) {
   addiu(sp, sp, stack_offset);
 }
 
-
 void TurboAssembler::AddPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
-                             Register right_low, Register right_high) {
-  Register kScratchReg = s3;
-  if (left_low == right_low) {
-    // Special case for left = right and the sum potentially overwriting both
-    // left and right.
-    Slt(kScratchReg, left_low, zero_reg);
-    Addu(dst_low, left_low, right_low);
-  } else {
-    Addu(dst_low, left_low, right_low);
-    // If the sum overwrites right, left remains unchanged, otherwise right
-    // remains unchanged.
-    Sltu(kScratchReg, dst_low, (dst_low == right_low) ? left_low : right_low);
-  }
-  Addu(dst_high, left_high, right_high);
-  Addu(dst_high, dst_high, kScratchReg);
+                             Register right_low, Register right_high,
+                             Register scratch1, Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch3 = t8;
+  Addu(scratch1, left_low, right_low);
+  Sltu(scratch3, scratch1, left_low);
+  Addu(scratch2, left_high, right_high);
+  Addu(dst_high, scratch2, scratch3);
+  Move(dst_low, scratch1);
 }
 
 void TurboAssembler::SubPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
-                             Register right_low, Register right_high) {
-  Register kScratchReg = s3;
-  Sltu(kScratchReg, left_low, right_low);
-  Subu(dst_low, left_low, right_low);
-  Subu(dst_high, left_high, right_high);
-  Subu(dst_high, dst_high, kScratchReg);
+                             Register right_low, Register right_high,
+                             Register scratch1, Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch3 = t8;
+  Sltu(scratch3, left_low, right_low);
+  Subu(scratch1, left_low, right_low);
+  Subu(scratch2, left_high, right_high);
+  Subu(dst_high, scratch2, scratch3);
+  Move(dst_low, scratch1);
+}
+
+void TurboAssembler::MulPair(Register dst_low, Register dst_high,
+                             Register left_low, Register left_high,
+                             Register right_low, Register right_high,
+                             Register scratch1, Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch3 = t8;
+  Mulu(scratch2, scratch1, left_low, right_low);
+  Mul(scratch3, left_low, right_high);
+  Addu(scratch2, scratch2, scratch3);
+  Mul(scratch3, left_high, right_low);
+  Addu(dst_high, scratch2, scratch3);
+  Move(dst_low, scratch1);
 }
 
 void TurboAssembler::ShlPair(Register dst_low, Register dst_high,

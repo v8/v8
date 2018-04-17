@@ -1174,19 +1174,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     } break;
     case kMipsAddPair:
       __ AddPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
-                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3));
+                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3),
+                 kScratchReg, kScratchReg2);
       break;
     case kMipsSubPair:
       __ SubPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
-                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3));
+                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3),
+                 kScratchReg, kScratchReg2);
       break;
     case kMipsMulPair: {
-      __ Mulu(i.OutputRegister(1), i.OutputRegister(0), i.InputRegister(0),
-              i.InputRegister(2));
-      __ Mul(kScratchReg, i.InputRegister(0), i.InputRegister(3));
-      __ Mul(kScratchReg2, i.InputRegister(1), i.InputRegister(2));
-      __ Addu(i.OutputRegister(1), i.OutputRegister(1), kScratchReg);
-      __ Addu(i.OutputRegister(1), i.OutputRegister(1), kScratchReg2);
+      __ MulPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3),
+                 kScratchReg, kScratchReg2);
     } break;
     case kMipsAddD:
       // TODO(plind): add special case: combine mult & add.

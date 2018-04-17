@@ -579,10 +579,16 @@ class TurboAssembler : public Assembler {
 
   // Int64Lowering instructions
   void AddPair(Register dst_low, Register dst_high, Register left_low,
-               Register left_high, Register right_low, Register right_high);
+               Register left_high, Register right_low, Register right_high,
+               Register scratch1, Register scratch2);
 
   void SubPair(Register dst_low, Register dst_high, Register left_low,
-               Register left_high, Register right_low, Register right_high);
+               Register left_high, Register right_low, Register right_high,
+               Register scratch1, Register scratch2);
+
+  void MulPair(Register dst_low, Register dst_high, Register left_low,
+               Register left_high, Register right_low, Register right_high,
+               Register scratch1, Register scratch2);
 
   void ShlPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register shift, Register scratch1,
