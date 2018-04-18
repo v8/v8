@@ -162,16 +162,16 @@ void returnDataCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(info.Data());
 }
 
-void createBoundFunctionProperty(v8::Local<v8::Context> context,
-                                 v8::Local<v8::Object> console,
-                                 v8::Local<v8::Value> data, const char* name,
-                                 v8::FunctionCallback callback,
-                                 const char* description = nullptr) {
+void createBoundFunctionProperty(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> console,
+    v8::Local<v8::Value> data, const char* name, v8::FunctionCallback callback,
+    const char* description = nullptr,
+    v8::SideEffectType side_effect_type = v8::SideEffectType::kHasSideEffect) {
   v8::Local<v8::String> funcName =
       toV8StringInternalized(context->GetIsolate(), name);
   v8::Local<v8::Function> func;
   if (!v8::Function::New(context, callback, data, 0,
-                         v8::ConstructorBehavior::kThrow)
+                         v8::ConstructorBehavior::kThrow, side_effect_type)
            .ToLocal(&func))
     return;
   func->SetName(funcName);
@@ -180,7 +180,8 @@ void createBoundFunctionProperty(v8::Local<v8::Context> context,
         toV8String(context->GetIsolate(), description);
     v8::Local<v8::Function> toStringFunction;
     if (v8::Function::New(context, returnDataCallback, returnValue, 0,
-                          v8::ConstructorBehavior::kThrow)
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect)
             .ToLocal(&toStringFunction))
       createDataProperty(context, func, toV8StringInternalized(
                                             context->GetIsolate(), "toString"),
@@ -651,9 +652,9 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
   v8::Local<v8::External> data = v8::External::New(isolate, this);
   console->SetAccessorProperty(
       toV8StringInternalized(isolate, "memory"),
-      v8::Function::New(context,
-                        &V8Console::call<&V8Console::memoryGetterCallback>,
-                        data, 0, v8::ConstructorBehavior::kThrow)
+      v8::Function::New(
+          context, &V8Console::call<&V8Console::memoryGetterCallback>, data, 0,
+          v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasNoSideEffect)
           .ToLocalChecked(),
       v8::Function::New(context,
                         &V8Console::call<&V8Console::memorySetterCallback>,
@@ -701,10 +702,12 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
 
   createBoundFunctionProperty(context, commandLineAPI, data, "keys",
                               &V8Console::call<&V8Console::keysCallback>,
-                              "function keys(object) { [Command Line API] }");
+                              "function keys(object) { [Command Line API] }",
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "values",
                               &V8Console::call<&V8Console::valuesCallback>,
-                              "function values(object) { [Command Line API] }");
+                              "function values(object) { [Command Line API] }",
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "debug",
       &V8Console::call<&V8Console::debugFunctionCallback>,
@@ -734,17 +737,23 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
       "function queryObjects(constructor) { [Command Line API] }");
   createBoundFunctionProperty(
       context, commandLineAPI, data, "$_",
-      &V8Console::call<&V8Console::lastEvaluationResultCallback>);
+      &V8Console::call<&V8Console::lastEvaluationResultCallback>, nullptr,
+      v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$0",
-                              &V8Console::call<&V8Console::inspectedObject0>);
+                              &V8Console::call<&V8Console::inspectedObject0>,
+                              nullptr, v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$1",
-                              &V8Console::call<&V8Console::inspectedObject1>);
+                              &V8Console::call<&V8Console::inspectedObject1>,
+                              nullptr, v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$2",
-                              &V8Console::call<&V8Console::inspectedObject2>);
+                              &V8Console::call<&V8Console::inspectedObject2>,
+                              nullptr, v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$3",
-                              &V8Console::call<&V8Console::inspectedObject3>);
+                              &V8Console::call<&V8Console::inspectedObject3>,
+                              nullptr, v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$4",
-                              &V8Console::call<&V8Console::inspectedObject4>);
+                              &V8Console::call<&V8Console::inspectedObject4>,
+                              nullptr, v8::SideEffectType::kHasNoSideEffect);
 
   m_inspector->client()->installAdditionalCommandLineAPI(context,
                                                          commandLineAPI);
@@ -827,7 +836,8 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
              ->SetAccessor(context, v8::Local<v8::Name>::Cast(name),
                            CommandLineAPIScope::accessorGetterCallback,
                            CommandLineAPIScope::accessorSetterCallback,
-                           externalThis, v8::DEFAULT, v8::DontEnum)
+                           externalThis, v8::DEFAULT, v8::DontEnum,
+                           v8::SideEffectType::kHasNoSideEffect)
              .FromMaybe(false)) {
       bool removed = m_installedMethods->Delete(context, name).FromMaybe(false);
       DCHECK(removed);
