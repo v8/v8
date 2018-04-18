@@ -304,6 +304,11 @@ byte* Code::relocation_start() const {
   return unchecked_relocation_info()->GetDataStartAddress();
 }
 
+byte* Code::relocation_end() const {
+  return unchecked_relocation_info()->GetDataStartAddress() +
+         unchecked_relocation_info()->length();
+}
+
 int Code::relocation_size() const {
   return unchecked_relocation_info()->length();
 }

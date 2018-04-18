@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/assembler-inl.h"
+#include "src/code-reference.h"
 #include "src/code-stubs.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -27,22 +28,28 @@ namespace internal {
 
 class V8NameConverter: public disasm::NameConverter {
  public:
-  explicit V8NameConverter(Code* code) : code_(code) {}
+  explicit V8NameConverter(Code* code)
+      : isolate_(code->GetIsolate()), code_(CodeReference(handle(code))) {}
+  V8NameConverter(Isolate* isolate, const wasm::WasmCode* code)
+      : isolate_(isolate), code_(CodeReference(code)) {}
+  explicit V8NameConverter(Isolate* isolate)
+      : isolate_(isolate), code_(CodeReference()) {}
   virtual const char* NameOfAddress(byte* pc) const;
   virtual const char* NameInCode(byte* addr) const;
-  Code* code() const { return code_; }
+  const CodeReference& code() const { return code_; }
+
  private:
-  Code* code_;
+  Isolate* isolate_;
+  CodeReference code_;
 
   EmbeddedVector<char, 128> v8_buffer_;
 };
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  if (code_ != nullptr) {
-    Isolate* isolate = code_->GetIsolate();
+  if (!code_.is_null()) {
     const char* name =
-        isolate->builtins()->Lookup(reinterpret_cast<Address>(pc));
+        isolate_->builtins()->Lookup(reinterpret_cast<Address>(pc));
 
     if (name != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
@@ -50,19 +57,19 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     }
 
     int offs = static_cast<int>(reinterpret_cast<Address>(pc) -
-                                code_->raw_instruction_start());
+                                code_.instruction_start());
     // print as code offset, if it seems reasonable
-    if (0 <= offs && offs < code_->raw_instruction_size()) {
+    if (0 <= offs && offs < code_.instruction_size()) {
       SNPrintF(v8_buffer_, "%p  <+0x%x>", static_cast<void*>(pc), offs);
       return v8_buffer_.start();
     }
 
     wasm::WasmCode* wasm_code =
-        isolate->wasm_engine()->code_manager()->LookupCode(
+        isolate_->wasm_engine()->code_manager()->LookupCode(
             reinterpret_cast<Address>(pc));
     if (wasm_code != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
-               GetWasmCodeKindAsString(wasm_code->kind()));
+               wasm::GetWasmCodeKindAsString(wasm_code->kind()));
       return v8_buffer_.start();
     }
   }
@@ -74,7 +81,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
 const char* V8NameConverter::NameInCode(byte* addr) const {
   // The V8NameConverter is used for well known code, so we can "safely"
   // dereference pointers in generated code.
-  return (code_ != nullptr) ? reinterpret_cast<const char*>(addr) : "";
+  return code_.is_null() ? "" : reinterpret_cast<const char*>(addr);
 }
 
 
@@ -127,21 +134,30 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; external reference (%s)", reference_name);
   } else if (RelocInfo::IsCodeTarget(rmode)) {
     out->AddFormatted("    ;; code:");
-    Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
-    Code::Kind kind = code->kind();
-    if (kind == Code::STUB) {
-      // Get the STUB key and extract major and minor key.
-      uint32_t key = code->stub_key();
-      uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-      CodeStub::Major major_key = CodeStub::GetMajorKey(code);
-      DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
-      out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
-                        CodeStub::MajorName(major_key));
-      out->AddFormatted("minor: %d", minor_key);
-    } else if (code->is_builtin()) {
-      out->AddFormatted(" Builtin::%s", Builtins::name(code->builtin_index()));
+    wasm::WasmCode* wasmCode =
+        isolate->wasm_engine()->code_manager()->LookupCode(
+            relocinfo->target_address());
+    if (wasmCode) {
+      out->AddFormatted(" wasm(%s)",
+                        wasm::GetWasmCodeKindAsString(wasmCode->kind()));
     } else {
-      out->AddFormatted(" %s", Code::Kind2String(kind));
+      Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
+      Code::Kind kind = code->kind();
+      if (kind == Code::STUB) {
+        // Get the STUB key and extract major and minor key.
+        uint32_t key = code->stub_key();
+        uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+        CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+        DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
+        out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
+                          CodeStub::MajorName(major_key));
+        out->AddFormatted("minor: %d", minor_key);
+      } else if (code->is_builtin()) {
+        out->AddFormatted(" Builtin::%s",
+                          Builtins::name(code->builtin_index()));
+      } else {
+        out->AddFormatted(" %s", Code::Kind2String(kind));
+      }
     }
   } else if (RelocInfo::IsRuntimeEntry(rmode) &&
              isolate->deoptimizer_data() != nullptr) {
@@ -182,7 +198,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
   byte* pc = begin;
   disasm::Disassembler d(converter);
   RelocIterator* it = nullptr;
-  if (converter.code() != nullptr) {
+  if (!converter.code().is_null()) {
     it = new RelocIterator(converter.code());
   } else {
     // No relocation information when printing code stubs.
@@ -262,9 +278,10 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // Print all the reloc info for this instruction which are not comments.
     for (size_t i = 0; i < pcs.size(); i++) {
       // Put together the reloc info
-      Code* host = converter.code();
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], host);
-      relocinfo.set_constant_pool(host ? host->constant_pool() : kNullAddress);
+      const CodeReference& host = converter.code();
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr);
+      relocinfo.set_constant_pool(host.is_null() ? kNullAddress
+                                                 : host.constant_pool());
 
       bool first_reloc_info = (i == 0);
       PrintRelocInfo(&out, isolate, ref_encoder, os, &relocinfo,
@@ -274,7 +291,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // If this is a constant pool load and we haven't found any RelocInfo
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
-    if (pcs.empty() && converter.code() != nullptr) {
+    if (pcs.empty() && !converter.code().is_null()) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
                             0, nullptr);
       if (dummy_rinfo.IsInConstantPool()) {
@@ -318,6 +335,13 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, Code* code, void* current_pc) {
   V8NameConverter v8NameConverter(code);
+  return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
+}
+
+int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
+                         byte* end, const wasm::WasmCode* code,
+                         void* current_pc) {
+  V8NameConverter v8NameConverter(isolate, code);
   return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
 }
 

@@ -96,7 +96,7 @@ void AssemblerBase::FlushICache(void* start, size_t size) {
 
 void AssemblerBase::Print(Isolate* isolate) {
   OFStream os(stdout);
-  v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
+  v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -457,8 +457,20 @@ RelocIterator::RelocIterator(Code* code, int mode_mask)
   rinfo_.data_ = 0;
   rinfo_.constant_pool_ = code->constant_pool();
   // Relocation info is read backwards.
-  pos_ = code->relocation_start() + code->relocation_size();
+  pos_ = code->relocation_end();
   end_ = code->relocation_start();
+  if (mode_mask_ == 0) pos_ = end_;
+  next();
+}
+
+RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
+    : mode_mask_(mode_mask) {
+  rinfo_.pc_ = code_reference.instruction_start();
+  rinfo_.data_ = 0;
+  rinfo_.constant_pool_ = code_reference.constant_pool();
+  // Relocation info is read backwards.
+  pos_ = code_reference.relocation_end();
+  end_ = code_reference.relocation_start();
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }

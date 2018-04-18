@@ -40,6 +40,7 @@
 #include <map>
 
 #include "src/allocation.h"
+#include "src/code-reference.h"
 #include "src/contexts.h"
 #include "src/deoptimize-reason.h"
 #include "src/double.h"
@@ -686,6 +687,8 @@ class RelocIterator: public Malloced {
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(Code* code, int mode_mask = -1);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
+  explicit RelocIterator(const CodeReference code_reference,
+                         int mode_mask = -1);
   explicit RelocIterator(Vector<byte> instructions,
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);

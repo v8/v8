@@ -10,6 +10,10 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class WasmCode;
+}
+
 class Disassembler : public AllStatic {
  public:
   // Decode instructions in the the interval [begin, end) and print the
@@ -18,6 +22,8 @@ class Disassembler : public AllStatic {
   // the code object is used for name resolution and may be null.
   static int Decode(Isolate* isolate, std::ostream* os, byte* begin, byte* end,
                     Code* code = nullptr, void* current_pc = nullptr);
+  static int Decode(Isolate* isolate, std::ostream* os, byte* begin, byte* end,
+                    const wasm::WasmCode* code, void* current_pc = nullptr);
 };
 
 }  // namespace internal
