@@ -287,8 +287,14 @@ class TurboAssembler : public Assembler {
   void Cvtqsi2sd(XMMRegister dst, Operand src);
   void Cvtlsi2ss(XMMRegister dst, Register src);
   void Cvtlsi2ss(XMMRegister dst, Operand src);
-  void Cvtqui2ss(XMMRegister dst, Register src, Register tmp);
-  void Cvtqui2sd(XMMRegister dst, Register src, Register tmp);
+  void Cvtlui2ss(XMMRegister dst, Register src);
+  void Cvtlui2ss(XMMRegister dst, Operand src);
+  void Cvtlui2sd(XMMRegister dst, Register src);
+  void Cvtlui2sd(XMMRegister dst, Operand src);
+  void Cvtqui2ss(XMMRegister dst, Register src);
+  void Cvtqui2ss(XMMRegister dst, Operand src);
+  void Cvtqui2sd(XMMRegister dst, Register src);
+  void Cvtqui2sd(XMMRegister dst, Operand src);
   void Cvttsd2uiq(Register dst, Operand src, Label* fail = nullptr);
   void Cvttsd2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
   void Cvttss2uiq(Register dst, Operand src, Label* fail = nullptr);

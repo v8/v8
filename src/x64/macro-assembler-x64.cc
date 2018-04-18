@@ -723,39 +723,76 @@ void TurboAssembler::Cvtqsi2sd(XMMRegister dst, Operand src) {
   }
 }
 
-void TurboAssembler::Cvtqui2ss(XMMRegister dst, Register src, Register tmp) {
-  Label msb_set_src;
-  Label jmp_return;
-  testq(src, src);
-  j(sign, &msb_set_src, Label::kNear);
-  Cvtqsi2ss(dst, src);
-  jmp(&jmp_return, Label::kNear);
-  bind(&msb_set_src);
-  movq(tmp, src);
-  shrq(src, Immediate(1));
-  // Recover the least significant bit to avoid rounding errors.
-  andq(tmp, Immediate(1));
-  orq(src, tmp);
-  Cvtqsi2ss(dst, src);
-  addss(dst, dst);
-  bind(&jmp_return);
+void TurboAssembler::Cvtlui2ss(XMMRegister dst, Register src) {
+  // Zero-extend the 32 bit value to 64 bit.
+  movl(kScratchRegister, src);
+  Cvtqsi2ss(dst, kScratchRegister);
 }
 
-void TurboAssembler::Cvtqui2sd(XMMRegister dst, Register src, Register tmp) {
-  Label msb_set_src;
-  Label jmp_return;
+void TurboAssembler::Cvtlui2ss(XMMRegister dst, Operand src) {
+  // Zero-extend the 32 bit value to 64 bit.
+  movl(kScratchRegister, src);
+  Cvtqsi2ss(dst, kScratchRegister);
+}
+
+void TurboAssembler::Cvtlui2sd(XMMRegister dst, Register src) {
+  // Zero-extend the 32 bit value to 64 bit.
+  movl(kScratchRegister, src);
+  Cvtqsi2sd(dst, kScratchRegister);
+}
+
+void TurboAssembler::Cvtlui2sd(XMMRegister dst, Operand src) {
+  // Zero-extend the 32 bit value to 64 bit.
+  movl(kScratchRegister, src);
+  Cvtqsi2sd(dst, kScratchRegister);
+}
+
+void TurboAssembler::Cvtqui2ss(XMMRegister dst, Register src) {
+  Label done;
+  Cvtqsi2ss(dst, src);
   testq(src, src);
-  j(sign, &msb_set_src, Label::kNear);
+  j(positive, &done, Label::kNear);
+
+  // Compute {src/2 | (src&1)} (retain the LSB to avoid rounding errors).
+  if (src != kScratchRegister) movq(kScratchRegister, src);
+  shrq(kScratchRegister, Immediate(1));
+  // The LSB is shifted into CF. If it is set, set the LSB in {tmp}.
+  Label msb_not_set;
+  j(not_carry, &msb_not_set, Label::kNear);
+  orq(kScratchRegister, Immediate(1));
+  bind(&msb_not_set);
+  Cvtqsi2ss(dst, kScratchRegister);
+  addss(dst, dst);
+  bind(&done);
+}
+
+void TurboAssembler::Cvtqui2ss(XMMRegister dst, Operand src) {
+  movq(kScratchRegister, src);
+  Cvtqui2ss(dst, kScratchRegister);
+}
+
+void TurboAssembler::Cvtqui2sd(XMMRegister dst, Register src) {
+  Label done;
   Cvtqsi2sd(dst, src);
-  jmp(&jmp_return, Label::kNear);
-  bind(&msb_set_src);
-  movq(tmp, src);
-  shrq(src, Immediate(1));
-  andq(tmp, Immediate(1));
-  orq(src, tmp);
-  Cvtqsi2sd(dst, src);
+  testq(src, src);
+  j(positive, &done, Label::kNear);
+
+  // Compute {src/2 | (src&1)} (retain the LSB to avoid rounding errors).
+  if (src != kScratchRegister) movq(kScratchRegister, src);
+  shrq(kScratchRegister, Immediate(1));
+  // The LSB is shifted into CF. If it is set, set the LSB in {tmp}.
+  Label msb_not_set;
+  j(not_carry, &msb_not_set, Label::kNear);
+  orq(kScratchRegister, Immediate(1));
+  bind(&msb_not_set);
+  Cvtqsi2sd(dst, kScratchRegister);
   addsd(dst, dst);
-  bind(&jmp_return);
+  bind(&done);
+}
+
+void TurboAssembler::Cvtqui2sd(XMMRegister dst, Operand src) {
+  movq(kScratchRegister, src);
+  Cvtqui2sd(dst, kScratchRegister);
 }
 
 void TurboAssembler::Cvttss2si(Register dst, XMMRegister src) {

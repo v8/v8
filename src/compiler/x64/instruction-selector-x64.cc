@@ -1248,7 +1248,9 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                             \
   V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                             \
   V(RoundInt64ToFloat32, kSSEInt64ToFloat32)                             \
+  V(RoundUint64ToFloat32, kSSEUint64ToFloat32)                           \
   V(RoundInt64ToFloat64, kSSEInt64ToFloat64)                             \
+  V(RoundUint64ToFloat64, kSSEUint64ToFloat64)                           \
   V(RoundUint32ToFloat32, kSSEUint32ToFloat32)                           \
   V(BitcastFloat32ToInt32, kX64BitcastFI)                                \
   V(BitcastFloat64ToInt64, kX64BitcastDL)                                \
@@ -1316,21 +1318,6 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
     }
   }
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
-}
-
-void InstructionSelector::VisitRoundUint64ToFloat32(Node* node) {
-  X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEUint64ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
-       arraysize(temps), temps);
-}
-
-
-void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
-  X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEUint64ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
-       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
