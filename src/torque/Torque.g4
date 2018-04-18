@@ -79,7 +79,7 @@ NOT: '!';
 
 STRING_LITERAL : ('"' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) + '"')
                | ('\'' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) + '\'');
-fragment ESCAPE : '\\' ( '\'' | '\\' );
+fragment ESCAPE : '\\' ( '\'' | '\\' | '"' );
 
 IDENTIFIER  :   [A-Za-z][0-9A-Za-z_]* ;
 
@@ -122,7 +122,7 @@ labelParameter: IDENTIFIER typeList?;
 
 optionalType: (':' type)?;
 optionalLabelList: (LABELS labelParameter (',' labelParameter)*)?;
-poptionalOtherwise: (OTHERWISE IDENTIFIER (',' IDENTIFIER)*)?;
+optionalOtherwise: (OTHERWISE IDENTIFIER (',' IDENTIFIER)*)?;
 
 parameter: IDENTIFIER ':' type?;
 parameterList
