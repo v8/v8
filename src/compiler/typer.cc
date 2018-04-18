@@ -1241,6 +1241,10 @@ Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreateObject(Node* node) {
+  return Type::OtherObject();
+}
+
 Type* Typer::Visitor::TypeJSCreatePromise(Node* node) {
   return Type::OtherObject();
 }
@@ -1268,7 +1272,6 @@ Type* Typer::Visitor::TypeJSCreateEmptyLiteralObject(Node* node) {
 Type* Typer::Visitor::TypeJSCreateLiteralRegExp(Node* node) {
   return Type::OtherObject();
 }
-
 
 Type* Typer::Visitor::TypeJSLoadProperty(Node* node) {
   return Type::NonInternal();

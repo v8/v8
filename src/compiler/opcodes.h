@@ -144,6 +144,7 @@
   V(JSCreateIterResultObject)   \
   V(JSCreateStringIterator)     \
   V(JSCreateKeyValueArray)      \
+  V(JSCreateObject)             \
   V(JSCreatePromise)            \
   V(JSCreateTypedArray)         \
   V(JSCreateLiteralArray)       \

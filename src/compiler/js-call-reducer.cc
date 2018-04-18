@@ -794,6 +794,29 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, target);
 }
 
+// ES6 section #sec-object.create Object.create(proto, properties)
+Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
+  int arg_count = node->op()->ValueInputCount();
+  Node* properties = arg_count >= 4 ? NodeProperties::GetValueInput(node, 3)
+                                    : jsgraph()->UndefinedConstant();
+  if (properties != jsgraph()->UndefinedConstant()) return NoChange();
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* prototype = arg_count >= 3 ? NodeProperties::GetValueInput(node, 2)
+                                   : jsgraph()->UndefinedConstant();
+  node->ReplaceInput(0, prototype);
+  node->ReplaceInput(1, context);
+  node->ReplaceInput(2, frame_state);
+  node->ReplaceInput(3, effect);
+  node->ReplaceInput(4, control);
+  node->TrimInputCount(5);
+  NodeProperties::ChangeOp(node, javascript()->CreateObject());
+  return Changed(node);
+}
+
 // ES section #sec-reflect.get
 Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -3303,6 +3326,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceFunctionPrototypeHasInstance(node);
     case Builtins::kObjectConstructor:
       return ReduceObjectConstructor(node);
+    case Builtins::kObjectCreate:
+      return ReduceObjectCreate(node);
     case Builtins::kObjectGetPrototypeOf:
       return ReduceObjectGetPrototypeOf(node);
     case Builtins::kObjectIs:

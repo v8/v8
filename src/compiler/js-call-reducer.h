@@ -69,6 +69,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceObjectPrototypeHasOwnProperty(Node* node);
   Reduction ReduceObjectPrototypeIsPrototypeOf(Node* node);
+  Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceReflectApply(Node* node);
   Reduction ReduceReflectConstruct(Node* node);
   Reduction ReduceReflectGet(Node* node);

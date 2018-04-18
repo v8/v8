@@ -46,7 +46,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
-  Reduction ReduceObjectCreate(Node* node);
   Node* ToNumber(Node* value);
   Node* ToUint32(Node* value);
 

@@ -292,88 +292,6 @@ Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
   return NoChange();
 }
 
-// ES6 section #sec-object.create Object.create(proto, properties)
-Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
-  // We need exactly target, receiver and value parameters.
-  int arg_count = node->op()->ValueInputCount();
-  if (arg_count != 3) return NoChange();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* prototype = NodeProperties::GetValueInput(node, 2);
-  Type* prototype_type = NodeProperties::GetType(prototype);
-  if (!prototype_type->IsHeapConstant()) return NoChange();
-  Handle<HeapObject> prototype_const =
-      prototype_type->AsHeapConstant()->Value();
-  Handle<Map> instance_map;
-  MaybeHandle<Map> maybe_instance_map =
-      Map::TryGetObjectCreateMap(prototype_const);
-  if (!maybe_instance_map.ToHandle(&instance_map)) return NoChange();
-  Node* properties = jsgraph()->EmptyFixedArrayConstant();
-  if (instance_map->is_dictionary_map()) {
-    // Allocated an empty NameDictionary as backing store for the properties.
-    Handle<Map> map(isolate()->heap()->name_dictionary_map(), isolate());
-    int capacity =
-        NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
-    DCHECK(base::bits::IsPowerOfTwo(capacity));
-    int length = NameDictionary::EntryToIndex(capacity);
-    int size = NameDictionary::SizeFor(length);
-
-    AllocationBuilder a(jsgraph(), effect, control);
-    a.Allocate(size, NOT_TENURED, Type::Any());
-    a.Store(AccessBuilder::ForMap(), map);
-    // Initialize FixedArray fields.
-    a.Store(AccessBuilder::ForFixedArrayLength(),
-            jsgraph()->SmiConstant(length));
-    // Initialize HashTable fields.
-    a.Store(AccessBuilder::ForHashTableBaseNumberOfElements(),
-            jsgraph()->SmiConstant(0));
-    a.Store(AccessBuilder::ForHashTableBaseNumberOfDeletedElement(),
-            jsgraph()->SmiConstant(0));
-    a.Store(AccessBuilder::ForHashTableBaseCapacity(),
-            jsgraph()->SmiConstant(capacity));
-    // Initialize Dictionary fields.
-    a.Store(AccessBuilder::ForDictionaryNextEnumerationIndex(),
-            jsgraph()->SmiConstant(PropertyDetails::kInitialIndex));
-    a.Store(AccessBuilder::ForDictionaryObjectHashIndex(),
-            jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
-    // Initialize the Properties fields.
-    Node* undefined = jsgraph()->UndefinedConstant();
-    STATIC_ASSERT(NameDictionary::kElementsStartIndex ==
-                  NameDictionary::kObjectHashIndex + 1);
-    for (int index = NameDictionary::kElementsStartIndex; index < length;
-         index++) {
-      a.Store(AccessBuilder::ForFixedArraySlot(index, kNoWriteBarrier),
-              undefined);
-    }
-    properties = effect = a.Finish();
-  }
-
-  int const instance_size = instance_map->instance_size();
-  if (instance_size > kMaxRegularHeapObjectSize) return NoChange();
-  dependencies()->AssumeInitialMapCantChange(instance_map);
-
-  // Emit code to allocate the JSObject instance for the given
-  // {instance_map}.
-  AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(instance_size, NOT_TENURED, Type::Any());
-  a.Store(AccessBuilder::ForMap(), instance_map);
-  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
-  a.Store(AccessBuilder::ForJSObjectElements(),
-          jsgraph()->EmptyFixedArrayConstant());
-  // Initialize Object fields.
-  Node* undefined = jsgraph()->UndefinedConstant();
-  for (int offset = JSObject::kHeaderSize; offset < instance_size;
-       offset += kPointerSize) {
-    a.Store(AccessBuilder::ForJSObjectOffset(offset, kNoWriteBarrier),
-            undefined);
-  }
-  Node* value = effect = a.Finish();
-
-  // replace it
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
   JSCallReduction r(node);
@@ -396,9 +314,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kNumberParseInt:
       reduction = ReduceNumberParseInt(node);
-      break;
-    case kObjectCreate:
-      reduction = ReduceObjectCreate(node);
       break;
     default:
       break;

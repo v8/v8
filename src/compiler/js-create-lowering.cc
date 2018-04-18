@@ -13,6 +13,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
@@ -172,6 +173,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateBlockContext(node);
     case IrOpcode::kJSCreateGeneratorObject:
       return ReduceJSCreateGeneratorObject(node);
+    case IrOpcode::kJSCreateObject:
+      return ReduceJSCreateObject(node);
     default:
       break;
   }
@@ -1418,6 +1421,84 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   }
 
   return NoChange();
+}
+
+Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateObject, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* prototype = NodeProperties::GetValueInput(node, 0);
+  HeapObjectMatcher m(prototype);
+  if (!m.IsHeapConstant()) return NoChange();
+
+  Handle<HeapObject> prototype_const = m.Value();
+  Handle<Map> instance_map;
+  MaybeHandle<Map> maybe_instance_map =
+      Map::TryGetObjectCreateMap(prototype_const);
+  if (!maybe_instance_map.ToHandle(&instance_map)) return NoChange();
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+  if (instance_map->is_dictionary_map()) {
+    // Allocated an empty NameDictionary as backing store for the properties.
+    Handle<Map> map(isolate()->heap()->name_dictionary_map(), isolate());
+    int capacity =
+        NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
+    DCHECK(base::bits::IsPowerOfTwo(capacity));
+    int length = NameDictionary::EntryToIndex(capacity);
+    int size = NameDictionary::SizeFor(length);
+
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(size, NOT_TENURED, Type::Any());
+    a.Store(AccessBuilder::ForMap(), map);
+    // Initialize FixedArray fields.
+    a.Store(AccessBuilder::ForFixedArrayLength(),
+            jsgraph()->SmiConstant(length));
+    // Initialize HashTable fields.
+    a.Store(AccessBuilder::ForHashTableBaseNumberOfElements(),
+            jsgraph()->SmiConstant(0));
+    a.Store(AccessBuilder::ForHashTableBaseNumberOfDeletedElement(),
+            jsgraph()->SmiConstant(0));
+    a.Store(AccessBuilder::ForHashTableBaseCapacity(),
+            jsgraph()->SmiConstant(capacity));
+    // Initialize Dictionary fields.
+    a.Store(AccessBuilder::ForDictionaryNextEnumerationIndex(),
+            jsgraph()->SmiConstant(PropertyDetails::kInitialIndex));
+    a.Store(AccessBuilder::ForDictionaryObjectHashIndex(),
+            jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
+    // Initialize the Properties fields.
+    Node* undefined = jsgraph()->UndefinedConstant();
+    STATIC_ASSERT(NameDictionary::kElementsStartIndex ==
+                  NameDictionary::kObjectHashIndex + 1);
+    for (int index = NameDictionary::kElementsStartIndex; index < length;
+         index++) {
+      a.Store(AccessBuilder::ForFixedArraySlot(index, kNoWriteBarrier),
+              undefined);
+    }
+    properties = effect = a.Finish();
+  }
+
+  int const instance_size = instance_map->instance_size();
+  if (instance_size > kMaxRegularHeapObjectSize) return NoChange();
+  dependencies()->AssumeInitialMapCantChange(instance_map);
+
+  // Emit code to allocate the JSObject instance for the given
+  // {instance_map}.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(instance_size, NOT_TENURED, Type::Any());
+  a.Store(AccessBuilder::ForMap(), instance_map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  // Initialize Object fields.
+  Node* undefined = jsgraph()->UndefinedConstant();
+  for (int offset = JSObject::kHeaderSize; offset < instance_size;
+       offset += kPointerSize) {
+    a.Store(AccessBuilder::ForJSObjectOffset(offset, kNoWriteBarrier),
+            undefined);
+  }
+  Node* value = effect = a.Finish();
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 // Helper that allocates a FixedArray holding argument values recorded in the

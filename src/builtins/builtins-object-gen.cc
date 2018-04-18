@@ -1125,6 +1125,69 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
 }
 
 // ES #sec-object.create
+TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
+  Node* const prototype = Parameter(Descriptor::kPrototypeArg);
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const native_context = LoadNativeContext(context);
+  Label call_runtime(this, Label::kDeferred), prototype_null(this),
+      prototype_jsreceiver(this);
+  {
+    Comment("Argument check: prototype");
+    GotoIf(IsNull(prototype), &prototype_null);
+    BranchIfJSReceiver(prototype, &prototype_jsreceiver, &call_runtime);
+  }
+
+  VARIABLE(map, MachineRepresentation::kTagged);
+  VARIABLE(properties, MachineRepresentation::kTagged);
+  Label instantiate_map(this);
+
+  BIND(&prototype_null);
+  {
+    Comment("Prototype is null");
+    map.Bind(LoadContextElement(native_context,
+                                Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+    properties.Bind(AllocateNameDictionary(NameDictionary::kInitialCapacity));
+    Goto(&instantiate_map);
+  }
+
+  BIND(&prototype_jsreceiver);
+  {
+    Comment("Prototype is JSReceiver");
+    properties.Bind(EmptyFixedArrayConstant());
+    Node* object_function =
+        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX);
+    Node* object_function_map = LoadObjectField(
+        object_function, JSFunction::kPrototypeOrInitialMapOffset);
+    map.Bind(object_function_map);
+    GotoIf(WordEqual(prototype, LoadMapPrototype(map.value())),
+           &instantiate_map);
+    Comment("Try loading the prototype info");
+    Node* prototype_info =
+        LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
+    Node* weak_cell =
+        LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
+    GotoIf(IsUndefined(weak_cell), &call_runtime);
+    map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
+    Goto(&instantiate_map);
+  }
+
+  BIND(&instantiate_map);
+  {
+    Comment("Instantiate map");
+    Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
+    Return(instance);
+  }
+
+  BIND(&call_runtime);
+  {
+    Comment("Call Runtime (prototype is not null/jsreceiver)");
+    Node* result = CallRuntime(Runtime::kObjectCreate, context, prototype,
+                               UndefinedConstant());
+    Return(result);
+  }
+}
+
+// ES #sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;

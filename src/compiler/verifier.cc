@@ -693,6 +693,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateObject:
+      // Type is Object.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreatePromise:
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
