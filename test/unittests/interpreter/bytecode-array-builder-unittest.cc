@@ -249,7 +249,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
       .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
-      .CompareOperation(Token::Value::EQ_STRICT, reg)
       .CompareOperation(Token::Value::LT, reg, 3)
       .CompareOperation(Token::Value::GT, reg, 4)
       .CompareOperation(Token::Value::LTE, reg, 5)
@@ -257,6 +256,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
       .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
       .CompareOperation(Token::Value::IN, reg)
+      .CompareReference(reg)
       .CompareUndetectable()
       .CompareUndefined()
       .CompareNull();

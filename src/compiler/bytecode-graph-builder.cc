@@ -2413,19 +2413,12 @@ void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
   BuildCompareOp(javascript()->GreaterThanOrEqual(GetCompareOperationHint()));
 }
 
-void BytecodeGraphBuilder::VisitTestEqualStrictNoFeedback() {
-  // TODO(5310): Currently this is used with both Smi operands and with
-  // string operands. We pass string operands for static property check in
-  // VisitClassLiteralProperties. This should be changed, so we only use this
-  // for Smi operations and lower it to SpeculativeNumberEqual[kSignedSmall]
-  PrepareEagerCheckpoint();
+void BytecodeGraphBuilder::VisitTestReferenceEqual() {
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
-
-  Node* node = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                       left, right);
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+  Node* result = NewNode(simplified()->ReferenceEqual(), left, right);
+  environment()->BindAccumulator(result);
 }
 
 void BytecodeGraphBuilder::BuildTestingOp(const Operator* op) {

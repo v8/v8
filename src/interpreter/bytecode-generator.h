@@ -270,6 +270,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   FeedbackSlot GetCachedStoreGlobalICSlot(LanguageMode language_mode,
                                           Variable* variable);
   FeedbackSlot GetCachedCreateClosureSlot(FunctionLiteral* literal);
+  FeedbackSlot GetDummyCompareICSlot();
 
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 
@@ -355,6 +356,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ExpressionResultScope* execution_result_;
 
   Register incoming_new_target_or_generator_;
+
+  // Dummy feedback slot for compare operations, where we don't care about
+  // feedback
+  FeedbackSlot dummy_feedback_slot_;
 
   BytecodeJumpTable* generator_jump_table_;
   int suspend_count_;

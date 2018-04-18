@@ -1797,18 +1797,14 @@ IGNITION_HANDLER(TestGreaterThanOrEqual, InterpreterCompareOpAssembler) {
   CompareOpWithFeedback(Operation::kGreaterThanOrEqual);
 }
 
-// TestEqualStrictNoFeedback <src>
+// TestReferenceEqual <src>
 //
-// Test if the value in the <src> register is strictly equal to the accumulator.
-// Type feedback is not collected.
-IGNITION_HANDLER(TestEqualStrictNoFeedback, InterpreterAssembler) {
+// Test if the value in the <src> register is equal to the accumulator
+// by means of simple comparison. For SMIs and simple reference comparisons.
+IGNITION_HANDLER(TestReferenceEqual, InterpreterAssembler) {
   Node* lhs = LoadRegisterAtOperandIndex(0);
   Node* rhs = GetAccumulator();
-  // TODO(5310): This is called only when lhs and rhs are Smis (for ex:
-  // try-finally or generators) or strings (only when visiting
-  // ClassLiteralProperties). We should be able to optimize this and not perform
-  // the full strict equality.
-  Node* result = StrictEqual(lhs, rhs);
+  Node* result = SelectBooleanConstant(WordEqual(lhs, rhs));
   SetAccumulator(result);
   Dispatch();
 }

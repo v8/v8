@@ -548,7 +548,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kTestGreaterThanOrEqual:
     case Bytecode::kTestInstanceOf:
     case Bytecode::kTestIn:
-    case Bytecode::kTestEqualStrictNoFeedback:
+    case Bytecode::kTestReferenceEqual:
     case Bytecode::kTestUndetectable:
     case Bytecode::kTestTypeOf:
     case Bytecode::kTestUndefined:

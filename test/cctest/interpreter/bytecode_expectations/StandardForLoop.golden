@@ -500,7 +500,7 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(1), U8(1),
                 B(Star), R(8),
                 B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(8),
+                B(TestReferenceEqual), R(8),
                 B(JumpIfTrue), U8(5),
                 B(Ldar), R(7),
                 B(ReThrow),

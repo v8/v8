@@ -235,7 +235,7 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
 
       builder()
           ->LoadLiteral(Smi::FromInt(entry.token))
-          .CompareOperation(Token::EQ_STRICT, token_register_)
+          .CompareReference(token_register_)
           .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
 
       if (CommandUsesAccumulator(entry.command)) {
@@ -899,6 +899,7 @@ BytecodeGenerator::BytecodeGenerator(
       execution_context_(nullptr),
       execution_result_(nullptr),
       incoming_new_target_or_generator_(),
+      dummy_feedback_slot_(),
       generator_jump_table_(nullptr),
       suspend_count_(0),
       loop_depth_(0),
@@ -1846,10 +1847,13 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
           // computed property name case in the parser. Since this is the only
           // case where we need to check for an own read only property we
           // special case this so we do not need to do this for every property.
+
+          FeedbackSlot slot = GetDummyCompareICSlot();
           BytecodeLabel done;
           builder()
               ->LoadLiteral(ast_string_constants()->prototype_string())
-              .CompareOperation(Token::Value::EQ_STRICT, key)
+              .CompareOperation(Token::Value::EQ_STRICT, key,
+                                feedback_index(slot))
               .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
               .CallRuntime(Runtime::kThrowStaticPrototypeError)
               .Bind(&done);
@@ -3219,7 +3223,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
                           feedback_index(feedback_spec()->AddLoadICSlot()))
       .StoreAccumulatorInRegister(output_value)
       .LoadLiteral(Smi::FromInt(JSGeneratorObject::kReturn))
-      .CompareOperation(Token::EQ_STRICT, resume_mode)
+      .CompareReference(resume_mode)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &completion_is_output_value)
       .LoadAccumulatorWithRegister(output_value);
   if (iterator_type == IteratorType::kAsync) {
@@ -3288,7 +3292,7 @@ void BytecodeGenerator::BuildAwait(Expression* await_expr) {
       .CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator_object())
       .StoreAccumulatorInRegister(resume_mode)
       .LoadLiteral(Smi::FromInt(JSGeneratorObject::kNext))
-      .CompareOperation(Token::EQ_STRICT, resume_mode)
+      .CompareReference(resume_mode)
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_next);
 
   // Resume with "throw" completion (rethrow the received value).
@@ -5048,6 +5052,14 @@ FeedbackSlot BytecodeGenerator::GetCachedCreateClosureSlot(
   slot = feedback_spec()->AddCreateClosureSlot();
   feedback_slot_cache()->Put(slot_kind, literal, slot);
   return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetDummyCompareICSlot() {
+  if (!dummy_feedback_slot_.IsInvalid()) {
+    return dummy_feedback_slot_;
+  }
+  dummy_feedback_slot_ = feedback_spec()->AddCompareICSlot();
+  return dummy_feedback_slot_;
 }
 
 Runtime::FunctionId BytecodeGenerator::StoreToSuperRuntimeId() {

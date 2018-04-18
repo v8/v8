@@ -348,7 +348,7 @@ bytecodes: [
                 B(LdaNamedProperty), R(1), U8(12), U8(26),
                 B(Star), R(3),
                 B(LdaSmi), I8(1),
-                B(TestEqualStrictNoFeedback), R(2),
+                B(TestReferenceEqual), R(2),
                 B(JumpIfFalse), U8(5),
                 B(Ldar), R(3),
   /*   54 S> */ B(Return),
