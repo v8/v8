@@ -87,8 +87,6 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   if (shared->script()->IsScript()) {
     Script* script = Script::cast(shared->script());
     line_table.reset(new SourcePositionTable());
-    int offset = abstract_code->IsCode() ? Code::kHeaderSize
-                                         : BytecodeArray::kHeaderSize;
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
          !it.done(); it.Advance()) {
       // TODO(alph,tebbi) Skipping inlined positions for now, because they might
@@ -97,8 +95,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
         continue;
       int position = it.source_position().ScriptOffset();
       int line_number = script->GetLineNumber(position) + 1;
-      int pc_offset = it.code_offset() + offset;
-      line_table->SetPosition(pc_offset, line_number);
+      line_table->SetPosition(it.code_offset(), line_number);
     }
   }
   rec->entry = NewCodeEntry(
