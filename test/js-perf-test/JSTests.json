@@ -538,6 +538,12 @@
           "test_flags": ["sort-int"]
         },
         {
+          "name": "SortBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-bigint.js"],
+          "test_flags": ["sort-bigint"]
+        },
+        {
           "name": "SortFloatTypes",
           "main": "run.js",
           "resources": ["sort.js", "sort-float.js"],
@@ -548,6 +554,12 @@
           "main": "run.js",
           "resources": ["sort.js", "sort-cmpfn-int.js"],
           "test_flags": ["sort-cmpfn-int"]
+        },
+        {
+          "name": "SortCustomCompareFnBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-cmpfn-bigint.js"],
+          "test_flags": ["sort-cmpfn-bigint"]
         },
         {
           "name": "SortCustomCompareFnFloatTypes",
