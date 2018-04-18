@@ -103,7 +103,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     if options.variants != 'default':
       print ('Only default testing variant is supported with numfuzz')
-        raise base_runner.TestRunnerError()
+      raise base_runner.TestRunnerError()
 
     return True
 
