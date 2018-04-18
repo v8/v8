@@ -55,7 +55,8 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   if (decl->IsDefault()) {
     source << "#include \"src/code-stub-assembler.h\"";
   } else {
-    source << "#include \"src/builtins/builtins-" + module->name() + "-gen.h\"";
+    source << "#include \"src/builtins/builtins-" +
+                  DashifyString(module->name()) + "-gen.h\"";
   }
   source << std::endl;
   source << "#include \"src/builtins/builtins-utils-gen.h\"" << std::endl;
@@ -64,7 +65,8 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   source << "#include \"src/heap/factory-inl.h\"" << std::endl;
   source << "#include \"src/objects.h\"" << std::endl;
 
-  source << "#include \"builtins-" + module->name() + "-from-dsl-gen.h\"";
+  source << "#include \"builtins-" + DashifyString(module->name()) +
+                "-from-dsl-gen.h\"";
   source << std::endl << std::endl;
 
   source << "namespace v8 {" << std::endl
@@ -83,7 +85,8 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   if (decl->IsDefault()) {
     header << "#include \"src/code-stub-assembler.h\"";
   } else {
-    header << "#include \"src/builtins/builtins-" + module->name() + "-gen.h\""
+    header << "#include \"src/builtins/builtins-" +
+                  DashifyString(module->name()) + "-gen.h\""
            << std::endl;
   }
   header << std::endl << std::endl;
@@ -809,12 +812,13 @@ Label* ImplementationVisitor::GetLabel(SourcePosition pos,
 void ImplementationVisitor::GenerateImplementation(const std::string& dir,
                                                    Module* module) {
   std::string new_source(module->source());
-  std::string source_file_name =
-      dir + "/builtins-" + module->name() + "-from-dsl-gen.cc";
+  std::string base_file_name =
+      "builtins-" + DashifyString(module->name()) + "-from-dsl-gen";
+
+  std::string source_file_name = dir + "/" + base_file_name + ".cc";
   ReplaceFileContentsIfDifferent(source_file_name, new_source);
   std::string new_header(module->header());
-  std::string header_file_name =
-      dir + "/builtins-" + module->name() + "-from-dsl-gen.h";
+  std::string header_file_name = dir + "/" + base_file_name + ".h";
   ReplaceFileContentsIfDifferent(header_file_name, new_header);
 }
 

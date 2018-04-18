@@ -34,6 +34,12 @@ std::string CamelifyString(const std::string& underscore_string) {
   return result;
 }
 
+std::string DashifyString(const std::string& underscore_string) {
+  std::string result = underscore_string;
+  std::replace(result.begin(), result.end(), '_', '-');
+  return result;
+}
+
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents) {
   std::ifstream old_contents_stream(file_path.c_str());
