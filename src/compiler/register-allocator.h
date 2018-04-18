@@ -59,7 +59,7 @@ class LifetimePosition final {
   // Returns the index of the instruction to which this lifetime position
   // corresponds.
   int ToInstructionIndex() const {
-    DCHECK(IsValid());
+    CHECK(IsValid());
     return value_ / kStep;
   }
 
@@ -75,38 +75,38 @@ class LifetimePosition final {
 
   // Returns the lifetime position for the current START.
   LifetimePosition Start() const {
-    DCHECK(IsValid());
+    CHECK(IsValid());
     return LifetimePosition(value_ & ~(kHalfStep - 1));
   }
 
   // Returns the lifetime position for the current gap START.
   LifetimePosition FullStart() const {
-    DCHECK(IsValid());
+    CHECK(IsValid());
     return LifetimePosition(value_ & ~(kStep - 1));
   }
 
   // Returns the lifetime position for the current END.
   LifetimePosition End() const {
-    DCHECK(IsValid());
+    CHECK(IsValid());
     return LifetimePosition(Start().value_ + kHalfStep / 2);
   }
 
   // Returns the lifetime position for the beginning of the next START.
   LifetimePosition NextStart() const {
-    DCHECK(IsValid());
+    CHECK(IsValid());
     return LifetimePosition(Start().value_ + kHalfStep);
   }
 
   // Returns the lifetime position for the beginning of the next gap START.
   LifetimePosition NextFullStart() const {
-    DCHECK(IsValid());
+    CHECK(IsValid());
     return LifetimePosition(FullStart().value_ + kStep);
   }
 
   // Returns the lifetime position for the beginning of the previous START.
   LifetimePosition PrevStart() const {
-    DCHECK(IsValid());
-    DCHECK_LE(kHalfStep, value_);
+    CHECK(IsValid());
+    CHECK_LE(kHalfStep, value_);
     return LifetimePosition(Start().value_ - kHalfStep);
   }
 
@@ -177,7 +177,7 @@ class UseInterval final : public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
       : start_(start), end_(end), next_(nullptr) {
-    DCHECK(start < end);
+    CHECK(start < end);
   }
 
   LifetimePosition start() const { return start_; }
@@ -400,17 +400,17 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   UsePosition* current_hint_position() const {
-    DCHECK(current_hint_position_ == FirstHintPosition());
+    CHECK(current_hint_position_ == FirstHintPosition());
     return current_hint_position_;
   }
 
   LifetimePosition Start() const {
-    DCHECK(!IsEmpty());
+    CHECK(!IsEmpty());
     return first_interval()->start();
   }
 
   LifetimePosition End() const {
-    DCHECK(!IsEmpty());
+    CHECK(!IsEmpty());
     return last_interval_->end();
   }
 
@@ -534,17 +534,17 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   }
   SpillType spill_type() const { return SpillTypeField::decode(bits_); }
   InstructionOperand* GetSpillOperand() const {
-    DCHECK_EQ(SpillType::kSpillOperand, spill_type());
+    CHECK_EQ(SpillType::kSpillOperand, spill_type());
     return spill_operand_;
   }
 
   SpillRange* GetAllocatedSpillRange() const {
-    DCHECK_NE(SpillType::kSpillOperand, spill_type());
+    CHECK_NE(SpillType::kSpillOperand, spill_type());
     return spill_range_;
   }
 
   SpillRange* GetSpillRange() const {
-    DCHECK_EQ(SpillType::kSpillRange, spill_type());
+    CHECK_EQ(SpillType::kSpillRange, spill_type());
     return spill_range_;
   }
   bool HasNoSpillType() const {
@@ -590,7 +590,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   TopLevelLiveRange* splintered_from() const { return splintered_from_; }
   bool IsSplinter() const { return splintered_from_ != nullptr; }
   bool MayRequireSpillRange() const {
-    DCHECK(!IsSplinter());
+    CHECK(!IsSplinter());
     return !HasSpillOperand() && spill_range_ == nullptr;
   }
   void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
@@ -617,13 +617,13 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   struct SpillMoveInsertionList;
 
   SpillMoveInsertionList* GetSpillMoveInsertionLocations() const {
-    DCHECK(!IsSpilledOnlyInDeferredBlocks());
+    CHECK(!IsSpilledOnlyInDeferredBlocks());
     return spill_move_insertion_locations_;
   }
   TopLevelLiveRange* splinter() const { return splinter_; }
   void SetSplinter(TopLevelLiveRange* splinter) {
-    DCHECK_NULL(splinter_);
-    DCHECK_NOT_NULL(splinter);
+    CHECK_NULL(splinter_);
+    CHECK_NOT_NULL(splinter);
 
     splinter_ = splinter;
     splinter->relative_id_ = GetNextChildId();
@@ -635,12 +635,12 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   bool has_preassigned_slot() const { return has_preassigned_slot_; }
 
   void AddBlockRequiringSpillOperand(RpoNumber block_id) {
-    DCHECK(IsSpilledOnlyInDeferredBlocks());
+    CHECK(IsSpilledOnlyInDeferredBlocks());
     GetListOfBlocksRequiringSpillOperands()->Add(block_id.ToInt());
   }
 
   BitVector* GetListOfBlocksRequiringSpillOperands() const {
-    DCHECK(IsSpilledOnlyInDeferredBlocks());
+    CHECK(IsSpilledOnlyInDeferredBlocks());
     return list_of_blocks_requiring_spill_operands_;
   }
 
@@ -700,11 +700,11 @@ class SpillRange final : public ZoneObject {
   bool HasSlot() const { return assigned_slot_ != kUnassignedSlot; }
 
   void set_assigned_slot(int index) {
-    DCHECK_EQ(kUnassignedSlot, assigned_slot_);
+    CHECK_EQ(kUnassignedSlot, assigned_slot_);
     assigned_slot_ = index;
   }
   int assigned_slot() {
-    DCHECK_NE(kUnassignedSlot, assigned_slot_);
+    CHECK_NE(kUnassignedSlot, assigned_slot_);
     return assigned_slot_;
   }
   const ZoneVector<TopLevelLiveRange*>& live_ranges() const {
@@ -743,7 +743,7 @@ class RegisterAllocationData final : public ZoneObject {
     // For hinting.
     int assigned_register() const { return assigned_register_; }
     void set_assigned_register(int register_code) {
-      DCHECK_EQ(assigned_register_, kUnassignedRegister);
+      CHECK_EQ(assigned_register_, kUnassignedRegister);
       assigned_register_ = register_code;
     }
     void UnsetAssignedRegister() { assigned_register_ = kUnassignedRegister; }
@@ -1110,9 +1110,7 @@ class LinearScanAllocator final : public RegisterAllocator {
   ZoneVector<LiveRange*> active_live_ranges_;
   ZoneVector<LiveRange*> inactive_live_ranges_;
 
-#ifdef DEBUG
   LifetimePosition allocation_finger_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(LinearScanAllocator);
 };
