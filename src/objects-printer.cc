@@ -2024,7 +2024,7 @@ void DescriptorArray::Print() {
 }
 // static
 void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
-                                             Map* target, Object* raw_target) {
+                                             Map* target) {
   os << "\n     ";
 #ifdef OBJECT_PRINT
   key->NamePrint(os);
@@ -2054,9 +2054,6 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
     os << ")";
   }
   os << " -> " << Brief(target);
-  if (!raw_target->IsMap() && !raw_target->IsWeakCell()) {
-    os << " (handler: " << Brief(raw_target) << ")";
-  }
 }
 
 void TransitionArray::Print() {
@@ -2071,32 +2068,25 @@ void TransitionArray::Print(std::ostream& os) {
   for (int i = 0; i < num_transitions; i++) {
     Name* key = GetKey(i);
     Map* target = GetTarget(i);
-    Object* raw_target = GetRawTarget(i);
-    TransitionsAccessor::PrintOneTransition(os, key, target, raw_target);
+    TransitionsAccessor::PrintOneTransition(os, key, target);
   }
   os << "\n" << std::flush;
 }
 
 void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
-  Map* target;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
       return;
-    case kWeakRef:
-      target = Map::cast(raw_transitions_->ToWeakHeapObject());
-      break;
-    case kHandler: {
-      WeakCell* cell = GetTargetCell();
-      DCHECK(!cell->cleared());
-      target = Map::cast(cell->value());
+    case kWeakRef: {
+      Map* target = Map::cast(raw_transitions_->ToWeakHeapObject());
+      Name* key = GetSimpleTransitionKey(target);
+      PrintOneTransition(os, key, target);
       break;
     }
     case kFullTransitionArray:
       return transitions()->Print(os);
   }
-  Name* key = GetSimpleTransitionKey(target);
-  PrintOneTransition(os, key, target, raw_transitions_->GetHeapObject());
 }
 
 void TransitionsAccessor::PrintTransitionTree() {

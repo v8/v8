@@ -20,9 +20,7 @@ void TransitionsAccessor::Initialize() {
   } else if (raw_transitions_->IsWeakHeapObject()) {
     encoding_ = kWeakRef;
   } else if (raw_transitions_->ToStrongHeapObject(&heap_object)) {
-    if (heap_object->IsStoreHandler()) {
-      encoding_ = kHandler;
-    } else if (heap_object->IsTransitionArray()) {
+    if (heap_object->IsTransitionArray()) {
       encoding_ = kFullTransitionArray;
     } else {
       DCHECK(heap_object->IsPrototypeInfo());
@@ -31,7 +29,6 @@ void TransitionsAccessor::Initialize() {
   } else {
     UNREACHABLE();
   }
-  target_cell_ = nullptr;
 #if DEBUG
   needs_reload_ = false;
 #endif
@@ -41,8 +38,6 @@ Map* TransitionsAccessor::GetSimpleTransition() {
   switch (encoding()) {
     case kWeakRef:
       return Map::cast(raw_transitions_->ToWeakHeapObject());
-    case kHandler:
-      return Map::cast(GetTargetCell()->value());
     default:
       return nullptr;
   }
@@ -52,10 +47,6 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Map* map) {
   switch (encoding()) {
     case kWeakRef:
       return raw_transitions_->ToWeakHeapObject() == map;
-    case kHandler:
-      return StoreHandler::GetTransitionCell(
-                 raw_transitions_->ToStrongHeapObject())
-                 ->value() == map;
     case kPrototypeInfo:
     case kUninitialized:
     case kFullTransitionArray:
@@ -108,9 +99,6 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
       DCHECK_EQ(*map, simple_transition);
       if (encoding_ == kWeakRef) {
         result->Set(0, GetSimpleTransitionKey(simple_transition), *weak_cell);
-      } else if (encoding_ == kHandler) {
-        result->Set(0, GetSimpleTransitionKey(simple_transition),
-                    raw_transitions_->ToStrongHeapObject());
       } else {
         UNREACHABLE();
       }
@@ -224,19 +212,14 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
 Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
                                            PropertyAttributes attributes) {
   DCHECK(name->IsUniqueName());
-  Map* map = nullptr;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
       return nullptr;
-    case kWeakRef:
-      map = Map::cast(raw_transitions_->ToWeakHeapObject());
-      break;
-    case kHandler: {
-      WeakCell* cell = GetTargetCell();
-      DCHECK(!cell->cleared());
-      map = Map::cast(cell->value());
-      break;
+    case kWeakRef: {
+      Map* map = Map::cast(raw_transitions_->ToWeakHeapObject());
+      if (!IsMatchingMap(map, name, kind, attributes)) return nullptr;
+      return map;
     }
     case kFullTransitionArray: {
       int transition = transitions()->Search(kind, name, attributes);
@@ -244,8 +227,7 @@ Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
       return transitions()->GetTarget(transition);
     }
   }
-  if (!IsMatchingMap(map, name, kind, attributes)) return nullptr;
-  return map;
+  UNREACHABLE();
 }
 
 Map* TransitionsAccessor::SearchSpecial(Symbol* name) {
@@ -283,29 +265,23 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
 
 Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
   DisallowHeapAllocation no_gc;
-  Map* target = nullptr;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
     case kFullTransitionArray:
       return Handle<String>::null();
-    case kWeakRef:
-      target = Map::cast(raw_transitions_->ToWeakHeapObject());
-      break;
-    case kHandler: {
-      WeakCell* cell = GetTargetCell();
-      DCHECK(!cell->cleared());
-      target = Map::cast(cell->value());
-      break;
+    case kWeakRef: {
+      Map* target = Map::cast(raw_transitions_->ToWeakHeapObject());
+      PropertyDetails details = GetSimpleTargetDetails(target);
+      if (details.location() != kField) return Handle<String>::null();
+      DCHECK_EQ(kData, details.kind());
+      if (details.attributes() != NONE) return Handle<String>::null();
+      Name* name = GetSimpleTransitionKey(target);
+      if (!name->IsString()) return Handle<String>::null();
+      return handle(String::cast(name));
     }
   }
-  PropertyDetails details = GetSimpleTargetDetails(target);
-  if (details.location() != kField) return Handle<String>::null();
-  DCHECK_EQ(kData, details.kind());
-  if (details.attributes() != NONE) return Handle<String>::null();
-  Name* name = GetSimpleTransitionKey(target);
-  if (!name->IsString()) return Handle<String>::null();
-  return handle(String::cast(name));
+  UNREACHABLE();
 }
 
 Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
@@ -452,7 +428,6 @@ int TransitionsAccessor::NumberOfTransitions() {
     case kUninitialized:
       return 0;
     case kWeakRef:
-    case kHandler:
       return 1;
     case kFullTransitionArray:
       return transitions()->number_of_transitions();
@@ -528,17 +503,16 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
 
 void TransitionsAccessor::TraverseTransitionTreeInternal(
     TraverseCallback callback, void* data, DisallowHeapAllocation* no_gc) {
-  Map* simple_target = nullptr;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
       break;
-    case kWeakRef:
-      simple_target = Map::cast(raw_transitions_->ToWeakHeapObject());
+    case kWeakRef: {
+      Map* simple_target = Map::cast(raw_transitions_->ToWeakHeapObject());
+      TransitionsAccessor(simple_target, no_gc)
+          .TraverseTransitionTreeInternal(callback, data, no_gc);
       break;
-    case kHandler:
-      simple_target = Map::cast(GetTargetCell()->value());
-      break;
+    }
     case kFullTransitionArray: {
       if (transitions()->HasPrototypeTransitions()) {
         FixedArray* proto_trans = transitions()->GetPrototypeTransitions();
@@ -557,10 +531,6 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
       }
       break;
     }
-  }
-  if (simple_target != nullptr) {
-    TransitionsAccessor(simple_target, no_gc)
-        .TraverseTransitionTreeInternal(callback, data, no_gc);
   }
   callback(map_, data);
 }

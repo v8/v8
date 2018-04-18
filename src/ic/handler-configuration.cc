@@ -287,35 +287,5 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                holder_cell);
 }
 
-Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
-                                         Handle<Map>* out_transition) {
-  Smi* valid = Smi::FromInt(Map::kPrototypeChainValid);
-
-  DCHECK(raw_handler->IsStoreHandler());
-
-  // Check validity cell.
-  StoreHandler* handler = StoreHandler::cast(raw_handler);
-
-  Object* raw_validity_cell = handler->validity_cell();
-  // |raw_valitity_cell| can be Smi::kZero if no validity cell is required
-  // (which counts as valid).
-  if (raw_validity_cell->IsCell() &&
-      Cell::cast(raw_validity_cell)->value() != valid) {
-    return nullptr;
-  }
-  // We use this ValidHandlerOrNull() function only for transitioning store
-  // handlers which are not applicable to receivers that require access checks.
-  DCHECK(handler->smi_handler()->IsSmi());
-  DCHECK(
-      !DoAccessCheckOnReceiverBits::decode(Smi::ToInt(handler->smi_handler())));
-
-  // Check if the transition target is deprecated.
-  WeakCell* target_cell = GetTransitionCell(raw_handler);
-  Map* transition = Map::cast(target_cell->value());
-  if (transition->is_deprecated()) return nullptr;
-  *out_transition = handle(transition);
-  return raw_handler;
-}
-
 }  // namespace internal
 }  // namespace v8

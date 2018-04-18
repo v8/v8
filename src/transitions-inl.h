@@ -15,15 +15,6 @@
 namespace v8 {
 namespace internal {
 
-WeakCell* TransitionsAccessor::GetTargetCell() {
-  DCHECK(!needs_reload_);
-  if (target_cell_ == nullptr) {
-    target_cell_ =
-        StoreHandler::GetTransitionCell(raw_transitions_->ToStrongHeapObject());
-  }
-  return target_cell_;
-}
-
 TransitionArray* TransitionsAccessor::transitions() {
   DCHECK_EQ(kFullTransitionArray, encoding());
   return TransitionArray::cast(raw_transitions_->ToStrongHeapObject());
@@ -66,25 +57,19 @@ Name* TransitionArray::GetKey(int transition_number) {
 }
 
 Name* TransitionsAccessor::GetKey(int transition_number) {
-  Map* map = nullptr;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
       UNREACHABLE();
       return nullptr;
-    case kWeakRef:
-      map = Map::cast(raw_transitions_->ToWeakHeapObject());
-      break;
-    case kHandler: {
-      WeakCell* cell = GetTargetCell();
-      DCHECK(!cell->cleared());
-      map = Map::cast(cell->value());
-      break;
+    case kWeakRef: {
+      Map* map = Map::cast(raw_transitions_->ToWeakHeapObject());
+      return GetSimpleTransitionKey(map);
     }
     case kFullTransitionArray:
       return transitions()->GetKey(transition_number);
   }
-  return GetSimpleTransitionKey(map);
+  UNREACHABLE();
 }
 
 void TransitionArray::SetKey(int transition_number, Name* key) {
@@ -109,8 +94,7 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 
 // static
 Map* TransitionsAccessor::GetTargetFromRaw(Object* raw) {
-  if (raw->IsWeakCell()) return Map::cast(WeakCell::cast(raw)->value());
-  return Map::cast(StoreHandler::GetTransitionCell(raw)->value());
+  return Map::cast(WeakCell::cast(raw)->value());
 }
 
 Object* TransitionArray::GetRawTarget(int transition_number) {
@@ -131,11 +115,6 @@ Map* TransitionsAccessor::GetTarget(int transition_number) {
       return nullptr;
     case kWeakRef:
       return Map::cast(raw_transitions_->ToWeakHeapObject());
-    case kHandler: {
-      WeakCell* cell = GetTargetCell();
-      DCHECK(!cell->cleared());
-      return Map::cast(cell->value());
-    }
     case kFullTransitionArray:
       return transitions()->GetTarget(transition_number);
   }

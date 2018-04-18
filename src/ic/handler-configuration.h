@@ -243,10 +243,6 @@ class StoreHandler final : public DataHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
-  static inline WeakCell* GetTransitionCell(Object* handler);
-  static Object* ValidHandlerOrNull(Object* handler, Name* name,
-                                    Handle<Map>* out_transition);
-
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
                                        FieldIndex field_index,

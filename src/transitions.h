@@ -106,8 +106,7 @@ class TransitionsAccessor {
 
 #if DEBUG || OBJECT_PRINT
   void PrintTransitions(std::ostream& os);
-  static void PrintOneTransition(std::ostream& os, Name* key, Map* target,
-                                 Object* raw_target);
+  static void PrintOneTransition(std::ostream& os, Name* key, Map* target);
   void PrintTransitionTree();
   void PrintTransitionTree(std::ostream& os, int level,
                            DisallowHeapAllocation* no_gc);
@@ -125,9 +124,6 @@ class TransitionsAccessor {
     kPrototypeInfo,
     kUninitialized,
     kWeakRef,
-    // TODO(ishell): drop support for kHandler encoding since we use maps
-    // as transition handlers.
-    kHandler,
     kFullTransitionArray,
   };
 
@@ -170,8 +166,6 @@ class TransitionsAccessor {
 
   void ReplaceTransitions(MaybeObject* new_transitions);
 
-  inline WeakCell* GetTargetCell();
-
   inline Map* GetTargetMapFromWeakRef();
 
   void EnsureHasFullTransitionArray();
@@ -187,7 +181,6 @@ class TransitionsAccessor {
   Map* map_;
   MaybeObject* raw_transitions_;
   Encoding encoding_;
-  WeakCell* target_cell_;
 #if DEBUG
   bool needs_reload_;
 #endif
