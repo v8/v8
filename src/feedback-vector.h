@@ -249,6 +249,7 @@ class FeedbackVector : public HeapObject {
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
+  void FeedbackVectorVerifyDeep();
 
   void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);  // NOLINT
 
