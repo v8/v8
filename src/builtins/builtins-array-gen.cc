@@ -679,6 +679,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       Label* array_changed, ParameterMode mode, ForEachDirection direction,
       MissingPropertyMode missing_property_mode, TNode<Smi> length) {
     Comment("begin VisitAllFastElementsOneKind");
+    // We only use this kind of processing if the no-elements protector is
+    // in place at the start. We'll continue checking during array iteration.
+    CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
     VARIABLE(original_map, MachineRepresentation::kTagged);
     original_map.Bind(LoadMap(o()));
     VariableList list({&original_map, &a_, &k_, &to_}, zone());
@@ -730,10 +733,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
           BIND(&hole_element);
           if (missing_property_mode == MissingPropertyMode::kSkip) {
-            // Check if o's prototype change unexpectedly has elements after
-            // the callback in the case of a hole.
-            BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
-                                             array_changed);
+            // The NoElementsProtectorCell could go invalid during callbacks.
+            Branch(IsNoElementsProtectorCellInvalid(), array_changed,
+                   &one_element_done);
           } else {
             value.Bind(UndefinedConstant());
             Goto(&process_element);

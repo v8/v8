@@ -976,7 +976,7 @@ void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
   Node* elements_kind = LoadMapElementsKind(map);
   GotoIfNot(IsFastElementsKind(elements_kind), if_false);
 
-  // Check prototype chain if receiver does not have packed elements
+  // Verify that our prototype is the initial array prototype.
   GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), if_false);
 
   Branch(IsNoElementsProtectorCellInvalid(), if_false, if_true);
