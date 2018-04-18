@@ -2247,7 +2247,7 @@ void Heap::ComputeFastPromotionMode(double survival_rate) {
       !FLAG_optimize_for_size && FLAG_fast_promotion_new_space &&
       !ShouldReduceMemory() && new_space_->IsAtMaximumCapacity() &&
       survived_in_new_space >= kMinPromotedPercentForFastPromotionMode;
-  if (FLAG_trace_gc_verbose) {
+  if (FLAG_trace_gc_verbose && !FLAG_trace_gc_ignore_scavenger) {
     PrintIsolate(
         isolate(), "Fast promotion mode: %s survival rate: %" PRIuS "%%\n",
         fast_promotion_mode_ ? "true" : "false", survived_in_new_space);
