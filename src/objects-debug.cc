@@ -634,7 +634,7 @@ void DescriptorArray::DescriptorArrayVerify() {
 }
 
 void TransitionArray::TransitionArrayVerify() {
-  FixedArrayVerify();
+  WeakFixedArrayVerify();
   CHECK_LE(LengthFor(number_of_transitions()), length());
 }
 

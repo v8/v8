@@ -68,7 +68,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
       return;
     }
     // If the flag requires a full TransitionArray, allocate one.
-    Handle<TransitionArray> result = TransitionArray::Allocate(isolate, 0, 1);
+    Handle<TransitionArray> result =
+        isolate->factory()->NewTransitionArray(0, 1);
     ReplaceTransitions(MaybeObject::FromObject(*result));
     Reload();
   }
@@ -90,15 +91,16 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     }
     // Otherwise allocate a full TransitionArray with slack for a new entry.
     Handle<Map> map(simple_transition);
-    Handle<WeakCell> weak_cell = Map::WeakCellForMap(map);
-    Handle<TransitionArray> result = TransitionArray::Allocate(isolate, 1, 1);
+    Handle<TransitionArray> result =
+        isolate->factory()->NewTransitionArray(1, 1);
     // Reload state; allocations might have caused it to be cleared.
     Reload();
     simple_transition = GetSimpleTransition();
     if (simple_transition != nullptr) {
       DCHECK_EQ(*map, simple_transition);
       if (encoding_ == kWeakRef) {
-        result->Set(0, GetSimpleTransitionKey(simple_transition), *weak_cell);
+        result->Set(0, GetSimpleTransitionKey(simple_transition),
+                    HeapObjectReference::Weak(simple_transition));
       } else {
         UNREACHABLE();
       }
@@ -111,9 +113,6 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
 
   // At this point, we know that the map has a full TransitionArray.
   DCHECK_EQ(kFullTransitionArray, encoding());
-
-  Handle<WeakCell> weak_cell_with_target = Map::WeakCellForMap(target);
-  Reload();
 
   int number_of_transitions = 0;
   int new_nof = 0;
@@ -136,7 +135,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                             &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
-      array->SetTarget(index, *weak_cell_with_target);
+      array->SetRawTarget(index, HeapObjectReference::Weak(*target));
       return;
     }
 
@@ -149,18 +148,18 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
       array->SetNumberOfTransitions(new_nof);
       for (index = number_of_transitions; index > insertion_index; --index) {
         array->SetKey(index, array->GetKey(index - 1));
-        array->SetTarget(index, array->GetRawTarget(index - 1));
+        array->SetRawTarget(index, array->GetRawTarget(index - 1));
       }
       array->SetKey(index, *name);
-      array->SetTarget(index, *weak_cell_with_target);
+      array->SetRawTarget(index, HeapObjectReference::Weak(*target));
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
   }
 
   // We're gonna need a bigger TransitionArray.
-  Handle<TransitionArray> result = TransitionArray::Allocate(
-      isolate, new_nof,
+  Handle<TransitionArray> result = isolate->factory()->NewTransitionArray(
+      new_nof,
       Map::SlackForArraySize(number_of_transitions, kMaxNumberOfTransitions));
 
   // The map's transition array may have shrunk during the allocation above as
@@ -200,7 +199,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   for (int i = 0; i < insertion_index; ++i) {
     result->Set(i, array->GetKey(i), array->GetRawTarget(i));
   }
-  result->Set(insertion_index, *name, *weak_cell_with_target);
+  result->Set(insertion_index, *name, HeapObjectReference::Weak(*target));
   for (int i = insertion_index; i < number_of_transitions; ++i) {
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
@@ -436,19 +435,9 @@ int TransitionsAccessor::NumberOfTransitions() {
   return 0;  // Make GCC happy.
 }
 
-Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
-                                                  int number_of_transitions,
-                                                  int slack) {
-  Handle<FixedArray> array = isolate->factory()->NewTransitionArray(
-      LengthFor(number_of_transitions + slack));
-  array->set(kPrototypeTransitionsIndex, Smi::kZero);
-  array->set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
-  return Handle<TransitionArray>::cast(array);
-}
-
 void TransitionArray::Zap() {
   MemsetPointer(data_start() + kPrototypeTransitionsIndex,
-                GetHeap()->the_hole_value(),
+                MaybeObject::FromObject(GetHeap()->the_hole_value()),
                 length() - kPrototypeTransitionsIndex);
   SetNumberOfTransitions(0);
 }
@@ -481,7 +470,7 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
   if (encoding() == kFullTransitionArray) return;
   int nof = encoding() == kUninitialized ? 0 : 1;
   Handle<TransitionArray> result =
-      TransitionArray::Allocate(map_->GetIsolate(), nof);
+      map_->GetIsolate()->factory()->NewTransitionArray(nof);
   Reload();  // Reload after possible GC.
   if (nof == 1) {
     if (encoding() == kUninitialized) {
@@ -491,10 +480,8 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
     } else {
       // Otherwise populate the new array.
       Handle<Map> target(GetSimpleTransition());
-      Handle<WeakCell> weak_cell_with_target = Map::WeakCellForMap(target);
-      Reload();  // Reload after possible GC.
       Name* key = GetSimpleTransitionKey(*target);
-      result->Set(0, key, *weak_cell_with_target);
+      result->Set(0, key, HeapObjectReference::Weak(*target));
     }
   }
   ReplaceTransitions(MaybeObject::FromObject(*result));
@@ -601,7 +588,7 @@ void TransitionArray::Sort() {
   int length = number_of_transitions();
   for (int i = 1; i < length; i++) {
     Name* key = GetKey(i);
-    Object* target = GetRawTarget(i);
+    MaybeObject* target = GetRawTarget(i);
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key)) {
@@ -614,7 +601,7 @@ void TransitionArray::Sort() {
     int j;
     for (j = i - 1; j >= 0; j--) {
       Name* temp_key = GetKey(j);
-      Object* temp_target = GetRawTarget(j);
+      MaybeObject* temp_target = GetRawTarget(j);
       PropertyKind temp_kind = kData;
       PropertyAttributes temp_attributes = NONE;
       if (!TransitionsAccessor::IsSpecialTransition(temp_key)) {
@@ -630,13 +617,13 @@ void TransitionArray::Sort() {
                       key, key->Hash(), kind, attributes);
       if (cmp > 0) {
         SetKey(j + 1, temp_key);
-        SetTarget(j + 1, temp_target);
+        SetRawTarget(j + 1, temp_target);
       } else {
         break;
       }
     }
     SetKey(j + 1, key);
-    SetTarget(j + 1, target);
+    SetRawTarget(j + 1, target);
   }
   DCHECK(IsSortedNoDuplicates());
 }

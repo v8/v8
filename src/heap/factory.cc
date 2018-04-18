@@ -227,6 +227,29 @@ Handle<T> Factory::NewFixedArrayWithMap(Heap::RootListIndex map_root_index,
       map_root_index, length, *undefined_value(), pretenure));
 }
 
+template <typename T>
+Handle<T> Factory::NewWeakFixedArrayWithMap(Heap::RootListIndex map_root_index,
+                                            int length,
+                                            PretenureFlag pretenure) {
+  static_assert(std::is_base_of<WeakFixedArray, T>::value,
+                "T must be a descendant of WeakFixedArray");
+
+  // Zero-length case must be handled outside.
+  DCHECK_LT(0, length);
+
+  HeapObject* result =
+      AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
+  Map* map = Map::cast(isolate()->heap()->root(map_root_index));
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+
+  Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
+  array->set_length(length);
+  MemsetPointer(array->data_start(),
+                HeapObjectReference::Strong(*undefined_value()), length);
+
+  return Handle<T>::cast(array);
+}
+
 template Handle<FixedArray> Factory::NewFixedArrayWithMap<FixedArray>(
     Heap::RootListIndex, int, PretenureFlag);
 
@@ -1619,8 +1642,10 @@ Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
   return cell;
 }
 
-Handle<TransitionArray> Factory::NewTransitionArray(int capacity) {
-  Handle<TransitionArray> array = NewFixedArrayWithMap<TransitionArray>(
+Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
+                                                    int slack) {
+  int capacity = TransitionArray::LengthFor(number_of_transitions + slack);
+  Handle<TransitionArray> array = NewWeakFixedArrayWithMap<TransitionArray>(
       Heap::kTransitionArrayMapRootIndex, capacity, TENURED);
   // Transition arrays are tenured. When black allocation is on we have to
   // add the transition array to the list of encountered_transition_arrays.
@@ -1628,6 +1653,11 @@ Handle<TransitionArray> Factory::NewTransitionArray(int capacity) {
   if (heap->incremental_marking()->black_allocation()) {
     heap->mark_compact_collector()->AddTransitionArray(*array);
   }
+  array->WeakFixedArray::Set(TransitionArray::kPrototypeTransitionsIndex,
+                             MaybeObject::FromObject(Smi::kZero));
+  array->WeakFixedArray::Set(
+      TransitionArray::kTransitionLengthIndex,
+      MaybeObject::FromObject(Smi::FromInt(number_of_transitions)));
   return array;
 }
 

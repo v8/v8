@@ -573,6 +573,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(
       SloppyTNode<FixedArrayBase> array);
+  // Load the length of a WeakFixedArray.
+  TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(
+      SloppyTNode<WeakFixedArray> array);
   // Load the bit field of a Map.
   TNode<Int32T> LoadMapBitField(SloppyTNode<Map> map);
   // Load bit field 2 of a map.
@@ -647,6 +650,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void DispatchMaybeObject(Node* maybe_object, Label* if_smi, Label* if_cleared,
                            Label* if_weak, Label* if_strong,
                            Variable* extracted);
+  Node* IsStrongHeapObject(Node* value);
+  Node* ToStrongHeapObject(Node* value);
+
+  // Load an array element from a FixedArray / WeakFixedArray.
+  TNode<Object> LoadArrayElement(
+      SloppyTNode<Object> object, int array_header_size, Node* index,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
   // Load an array element from a FixedArray.
   TNode<Object> LoadFixedArrayElement(
@@ -679,6 +691,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Object> LoadFixedArrayElement(TNode<Object> object, TNode<Smi> index) {
     return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
   }
+
+  // Load an array element from a FixedArray / WeakFixedArray, untag it and
+  // return it as Word32.
+  TNode<Int32T> LoadAndUntagToWord32ArrayElement(
+      SloppyTNode<Object> object, int array_header_size, Node* index,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+
   // Load an array element from a FixedArray, untag it and return it as Word32.
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
       SloppyTNode<Object> object, Node* index, int additional_offset = 0,
@@ -1338,6 +1358,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsUndetectableMap(Node* map);
   Node* IsWeakCell(Node* object);
   Node* IsZeroOrContext(Node* object);
+
+  Node* IsNotWeakFixedArraySubclass(Node* object);
 
   inline Node* IsSharedFunctionInfo(Node* object) {
     return IsSharedFunctionInfoMap(LoadMap(object));

@@ -151,7 +151,7 @@ class TransitionsAccessor {
     return transition->instance_descriptors()->GetKey(descriptor);
   }
 
-  static inline Map* GetTargetFromRaw(Object* raw);
+  static inline Map* GetTargetFromRaw(MaybeObject* raw);
 
   void MarkNeedsReload() {
 #if DEBUG
@@ -193,30 +193,29 @@ class TransitionsAccessor {
 // The TransitionArray class exposes a very low-level interface. Most clients
 // should use TransitionsAccessors.
 // TransitionArrays have the following format:
-// [0] Link to next TransitionArray (for weak handling support)
-// [1] Smi(0) or fixed array of prototype transitions
+// [0] Link to next TransitionArray (for weak handling support) (strong ref)
+// [1] Smi(0) or fixed array of prototype transitions (strong ref)
 // [2] Number of transitions (can be zero after trimming)
-// [3] First transition key
-// [4] First transition target
+// [3] First transition key (strong ref)
+// [4] First transition target (weak ref)
 // ...
 // [3 + number of transitions * kTransitionSize]: start of slack
-class TransitionArray : public FixedArray {
+class TransitionArray : public WeakFixedArray {
  public:
   DECL_CAST(TransitionArray)
 
   inline FixedArray* GetPrototypeTransitions();
-  inline Object** GetPrototypeTransitionsSlot();
   inline bool HasPrototypeTransitions();
 
   // Accessors for fetching instance transition at transition number.
   inline void SetKey(int transition_number, Name* value);
   inline Name* GetKey(int transition_number);
-  inline Object** GetKeySlot(int transition_number);
+  inline HeapObjectReference** GetKeySlot(int transition_number);
 
   inline Map* GetTarget(int transition_number);
-  inline void SetTarget(int transition_number, Object* target);
-  inline Object* GetRawTarget(int transition_number);
-  inline Object** GetTargetSlot(int transition_number);
+  inline void SetRawTarget(int transition_number, MaybeObject* target);
+  inline MaybeObject* GetRawTarget(int transition_number);
+  inline HeapObjectReference** GetTargetSlot(int transition_number);
   inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
                                 Map** target);
 
@@ -267,6 +266,7 @@ class TransitionArray : public FixedArray {
   }
 
  private:
+  friend class Factory;
   friend class MarkCompactCollector;
   friend class TransitionsAccessor;
 
@@ -300,11 +300,6 @@ class TransitionArray : public FixedArray {
     return ToKeyIndex(number_of_transitions);
   }
 
-  // Allocates a TransitionArray.
-  static Handle<TransitionArray> Allocate(Isolate* isolate,
-                                          int number_of_transitions,
-                                          int slack = 0);
-
   // Search a  transition for a given kind, property name and attributes.
   int Search(PropertyKind kind, Name* name, PropertyAttributes attributes,
              int* out_insertion_index = nullptr);
@@ -319,10 +314,7 @@ class TransitionArray : public FixedArray {
   int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
 
-  int number_of_transitions() const {
-    if (length() < kFirstIndex) return 0;
-    return Smi::ToInt(get(kTransitionLengthIndex));
-  }
+  inline int number_of_transitions() const;
 
   static bool CompactPrototypeTransitionArray(FixedArray* array);
 
@@ -348,7 +340,7 @@ class TransitionArray : public FixedArray {
                                    PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
-  inline void Set(int transition_number, Name* key, Object* target);
+  inline void Set(int transition_number, Name* key, MaybeObject* target);
 
   void Zap();
 

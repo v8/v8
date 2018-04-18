@@ -1349,6 +1349,7 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
   auto it = array_types_.find(array);
   if (it == array_types_.end()) {
     for (int i = 0, l = array->length(); i < l; ++i) {
+      DCHECK(!HasWeakHeapObjectTag(array->get(i)));
       SetInternalReference(array, entry, i, array->get(i),
                            array->OffsetOfElementAt(i));
     }

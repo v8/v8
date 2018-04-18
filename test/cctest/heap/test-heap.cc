@@ -5497,13 +5497,14 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   heap::GcAndSweep(heap, OLD_SPACE);
 }
 
-TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+template <typename T, typename NewFunction, typename TrimFunction>
+void ContinuousRightTrimFixedArrayInBlackAreaHelper(NewFunction& new_func,
+                                                    TrimFunction& trim_func) {
   if (!FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
-  Isolate* isolate = heap->isolate();
   CcTest::CollectAllGarbage();
 
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -5522,10 +5523,10 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   // Ensure that we allocate a new page, set up a bump pointer area, and
   // perform the allocation in a black area.
   heap::SimulateFullSpace(heap->old_space());
-  isolate->factory()->NewFixedArray(10, TENURED);
+  new_func(10, TENURED);
 
   // Allocate the fixed array that will be trimmed later.
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(100, TENURED);
+  Handle<T> array = new_func(100, TENURED);
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
@@ -5539,7 +5540,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   // Trim it once by one word to make checking for white marking color uniform.
   Address previous = end_address - kPointerSize;
-  heap->RightTrimFixedArray(*array, 1);
+  trim_func(*array, 1);
   HeapObject* filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
   CHECK(marking_state->IsImpossible(filler));
@@ -5548,7 +5549,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kPointerSize * i;
-      heap->RightTrimFixedArray(*array, i);
+      trim_func(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
       CHECK(marking_state->IsWhite(filler));
@@ -5556,6 +5557,29 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   }
 
   heap::GcAndSweep(heap, OLD_SPACE);
+}
+
+TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  auto new_func = [](int size, PretenureFlag tenured) {
+    return CcTest::i_isolate()->factory()->NewFixedArray(size, tenured);
+  };
+  auto trim_func = [](FixedArray* array, int elements_to_trim) {
+    CcTest::i_isolate()->heap()->RightTrimFixedArray(array, elements_to_trim);
+  };
+  ContinuousRightTrimFixedArrayInBlackAreaHelper<FixedArray>(new_func,
+                                                             trim_func);
+}
+
+TEST(ContinuousRightTrimWeakFixedArrayInBlackArea) {
+  auto new_func = [](int size, PretenureFlag tenured) {
+    return CcTest::i_isolate()->factory()->NewWeakFixedArray(size, tenured);
+  };
+  auto trim_func = [](WeakFixedArray* array, int elements_to_trim) {
+    CcTest::i_isolate()->heap()->RightTrimWeakFixedArray(array,
+                                                         elements_to_trim);
+  };
+  ContinuousRightTrimFixedArrayInBlackAreaHelper<WeakFixedArray>(new_func,
+                                                                 trim_func);
 }
 
 TEST(Regress618958) {

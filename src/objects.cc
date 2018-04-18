@@ -10158,6 +10158,12 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 }
 #endif
 
+void WeakFixedArray::Shrink(int new_length) {
+  DCHECK(0 <= new_length && new_length <= length());
+  if (new_length < length()) {
+    GetHeap()->RightTrimWeakFixedArray(this, length() - new_length);
+  }
+}
 
 // static
 void FixedArrayOfWeakCells::Set(Handle<FixedArrayOfWeakCells> array, int index,

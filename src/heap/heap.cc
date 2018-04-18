@@ -2853,14 +2853,27 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     bytes_to_trim = elements_to_trim * kDoubleSize;
   }
 
+  CreateFillerForArray<FixedArrayBase>(object, elements_to_trim, bytes_to_trim);
+}
+
+void Heap::RightTrimWeakFixedArray(WeakFixedArray* object,
+                                   int elements_to_trim) {
+  CreateFillerForArray<WeakFixedArray>(object, elements_to_trim,
+                                       elements_to_trim * kPointerSize);
+}
+
+template <typename T>
+void Heap::CreateFillerForArray(T* object, int elements_to_trim,
+                                int bytes_to_trim) {
+  DCHECK(object->IsFixedArrayBase() || object->IsByteArray() ||
+         object->IsWeakFixedArray());
 
   // For now this trick is only applied to objects in new and paged space.
   DCHECK(object->map() != fixed_cow_array_map());
 
   if (bytes_to_trim == 0) {
-    // No need to create filler and update live bytes counters, just initialize
-    // header of the trimmed array.
-    object->synchronized_set_length(len - elements_to_trim);
+    DCHECK_EQ(elements_to_trim, 0);
+    // No need to create filler and update live bytes counters.
     return;
   }
 
@@ -2892,7 +2905,7 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // Initialize header of the trimmed array. We are storing the new length
   // using release store after creating a filler for the left-over space to
   // avoid races with the sweeper thread.
-  object->synchronized_set_length(len - elements_to_trim);
+  object->synchronized_set_length(object->length() - elements_to_trim);
 
   // Notify the heap object allocation tracker of change in object layout. The
   // array may not be moved during GC, and size has to be adjusted nevertheless.

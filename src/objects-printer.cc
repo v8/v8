@@ -815,7 +815,7 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TransitionArray");
   os << "\n - capacity: " << length();
   for (int i = 0; i < length(); i++) {
-    os << "\n  [" << i << "]: " << Brief(get(i));
+    os << "\n  [" << i << "]: " << MaybeObjectBrief(Get(i));
     if (i == kPrototypeTransitionsIndex) os << " (prototype transitions)";
     if (i == kTransitionLengthIndex) os << " (number of transitions)";
   }

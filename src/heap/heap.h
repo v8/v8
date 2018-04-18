@@ -772,6 +772,9 @@ class Heap {
       ClearFreedMemoryMode clear_memory_mode =
           ClearFreedMemoryMode::kDontClearFreedMemory);
 
+  template <typename T>
+  void CreateFillerForArray(T* object, int elements_to_trim, int bytes_to_trim);
+
   bool CanMoveObjectStart(HeapObject* object);
 
   static bool IsImmovable(HeapObject* object);
@@ -782,6 +785,7 @@ class Heap {
 
   // Trim the given array from the right.
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
+  void RightTrimWeakFixedArray(WeakFixedArray* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);

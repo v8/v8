@@ -140,6 +140,12 @@ bool HeapObject::IsFixedArray() const {
          instance_type <= LAST_FIXED_ARRAY_TYPE;
 }
 
+bool HeapObject::IsWeakFixedArray() const {
+  InstanceType instance_type = map()->instance_type();
+  return instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
+         instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE;
+}
+
 bool HeapObject::IsSloppyArgumentsElements() const {
   return IsFixedArrayExact();
 }
@@ -2238,7 +2244,8 @@ int HeapObject::SizeFromMap(Map* map) const {
         reinterpret_cast<const FeedbackMetadata*>(this)
             ->synchronized_slot_count());
   }
-  if (instance_type == WEAK_FIXED_ARRAY_TYPE) {
+  if (instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
+      instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE) {
     return WeakFixedArray::SizeFor(
         reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
   }

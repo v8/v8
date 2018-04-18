@@ -17,7 +17,6 @@ TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(WeakFixedArray, WEAK_FIXED_ARRAY_TYPE)
 TYPE_CHECKER(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 
 CAST_ACCESSOR(ArrayList)
@@ -240,6 +239,10 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
 
 MaybeObject** WeakFixedArray::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+}
+
+MaybeObject** WeakFixedArray::RawFieldOfElementAt(int index) {
+  return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
 }
 
 MaybeObject* WeakArrayList::Get(int index) const {

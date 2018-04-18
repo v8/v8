@@ -732,10 +732,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
           const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                           TransitionArray::kEntryKeyIndex) *
                                          kPointerSize;
-          TNode<WeakCell> transition_map_weak_cell = CAST(LoadFixedArrayElement(
-              transitions, var_name_index.value(), kKeyToTargetOffset));
-          var_transition_map =
-              CAST(LoadWeakCellValue(transition_map_weak_cell, slow));
+          var_transition_map = CAST(ToStrongHeapObject(
+              LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
+                               var_name_index.value(), kKeyToTargetOffset)));
           Goto(&found_handler_candidate);
         }
       }

@@ -93,6 +93,13 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<T> NewFixedArrayWithMap(Heap::RootListIndex map_root_index, int length,
                                  PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates a weak fixed array-like object with given map and initialized
+  // with undefined values.
+  template <typename T = WeakFixedArray>
+  Handle<T> NewWeakFixedArrayWithMap(Heap::RootListIndex map_root_index,
+                                     int length,
+                                     PretenureFlag pretenure = NOT_TENURED);
+
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(int length,
                                    PretenureFlag pretenure = NOT_TENURED);
@@ -441,7 +448,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
 
-  Handle<TransitionArray> NewTransitionArray(int capacity);
+  Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
+                                             int slack = 0);
 
   // Allocate a tenured AllocationSite. Its payload is null.
   Handle<AllocationSite> NewAllocationSite();
