@@ -755,9 +755,9 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
   FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(predicate, cond);
   TurboAssembler::CompareF32(fcond, lhs, rhs);
   if (predicate) {
-    TurboAssembler::Movf(dst, zero_reg);
+    TurboAssembler::LoadZeroIfNotFPUCondition(dst);
   } else {
-    TurboAssembler::Movt(dst, zero_reg);
+    TurboAssembler::LoadZeroIfFPUCondition(dst);
   }
 
   bind(&cont);
@@ -784,9 +784,9 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(predicate, cond);
   TurboAssembler::CompareF64(fcond, lhs, rhs);
   if (predicate) {
-    TurboAssembler::Movf(dst, zero_reg);
+    TurboAssembler::LoadZeroIfNotFPUCondition(dst);
   } else {
-    TurboAssembler::Movt(dst, zero_reg);
+    TurboAssembler::LoadZeroIfFPUCondition(dst);
   }
 
   bind(&cont);
