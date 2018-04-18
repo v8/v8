@@ -3355,15 +3355,19 @@ void Assembler::cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs,
 
 void Assembler::bc1eqz(int16_t offset, FPURegister ft) {
   DCHECK_EQ(kArchVariant, kMips64r6);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Instr instr = COP1 | BC1EQZ | ft.code() << kFtShift | (offset & kImm16Mask);
-  emit(instr, CompactBranchType::COMPACT_BRANCH);
+  emit(instr);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
 void Assembler::bc1nez(int16_t offset, FPURegister ft) {
   DCHECK_EQ(kArchVariant, kMips64r6);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Instr instr = COP1 | BC1NEZ | ft.code() << kFtShift | (offset & kImm16Mask);
-  emit(instr, CompactBranchType::COMPACT_BRANCH);
+  emit(instr);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 

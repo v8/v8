@@ -228,11 +228,11 @@ class TurboAssembler : public Assembler {
     CompareIsNanF(D, cmp1, cmp2);
   }
 
-  void BranchTrueShortF(Label* target);
-  void BranchFalseShortF(Label* target);
+  void BranchTrueShortF(Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchFalseShortF(Label* target, BranchDelaySlot bd = PROTECT);
 
-  void BranchTrueF(Label* target);
-  void BranchFalseF(Label* target);
+  void BranchTrueF(Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchFalseF(Label* target, BranchDelaySlot bd = PROTECT);
 
   // MSA Branches
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,

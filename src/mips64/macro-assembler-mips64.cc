@@ -2066,6 +2066,7 @@ void TurboAssembler::Neg_s(FPURegister fd, FPURegister fs) {
     neg_s(fd, fs);
   } else {
     DCHECK_EQ(kArchVariant, kMips64r2);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     Label is_nan, done;
     Register scratch1 = t8;
     Register scratch2 = t9;
@@ -2090,6 +2091,7 @@ void TurboAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     neg_d(fd, fs);
   } else {
     DCHECK_EQ(kArchVariant, kMips64r2);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     Label is_nan, done;
     Register scratch1 = t8;
     Register scratch2 = t9;
@@ -2635,49 +2637,51 @@ void TurboAssembler::CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
   CompareF(sizeField, UN, cmp1, cmp2);
 }
 
-void TurboAssembler::BranchTrueShortF(Label* target) {
+void TurboAssembler::BranchTrueShortF(Label* target, BranchDelaySlot bd) {
   if (kArchVariant == kMips64r6) {
     bc1nez(target, kDoubleCompareReg);
-    nop();
   } else {
     bc1t(target);
+  }
+  if (bd == PROTECT) {
     nop();
   }
 }
 
-void TurboAssembler::BranchFalseShortF(Label* target) {
+void TurboAssembler::BranchFalseShortF(Label* target, BranchDelaySlot bd) {
   if (kArchVariant == kMips64r6) {
     bc1eqz(target, kDoubleCompareReg);
-    nop();
   } else {
     bc1f(target);
+  }
+  if (bd == PROTECT) {
     nop();
   }
 }
 
-void TurboAssembler::BranchTrueF(Label* target) {
+void TurboAssembler::BranchTrueF(Label* target, BranchDelaySlot bd) {
   bool long_branch =
       target->is_bound() ? !is_near(target) : is_trampoline_emitted();
   if (long_branch) {
     Label skip;
     BranchFalseShortF(&skip);
-    BranchLong(target, PROTECT);
+    BranchLong(target, bd);
     bind(&skip);
   } else {
-    BranchTrueShortF(target);
+    BranchTrueShortF(target, bd);
   }
 }
 
-void TurboAssembler::BranchFalseF(Label* target) {
+void TurboAssembler::BranchFalseF(Label* target, BranchDelaySlot bd) {
   bool long_branch =
       target->is_bound() ? !is_near(target) : is_trampoline_emitted();
   if (long_branch) {
     Label skip;
     BranchTrueShortF(&skip);
-    BranchLong(target, PROTECT);
+    BranchLong(target, bd);
     bind(&skip);
   } else {
-    BranchFalseShortF(target);
+    BranchFalseShortF(target, bd);
   }
 }
 
