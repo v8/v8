@@ -786,8 +786,7 @@ THREADED_TEST(NewExternalForVeryLongString) {
   }
 }
 
-
-THREADED_TEST(ScavengeExternalString) {
+TEST(ScavengeExternalString) {
   ManualGCScope manual_gc_scope;
   i::FLAG_stress_compaction = false;
   i::FLAG_gc_global = false;
@@ -811,8 +810,7 @@ THREADED_TEST(ScavengeExternalString) {
   CHECK_EQ(1, dispose_count);
 }
 
-
-THREADED_TEST(ScavengeExternalOneByteString) {
+TEST(ScavengeExternalOneByteString) {
   ManualGCScope manual_gc_scope;
   i::FLAG_stress_compaction = false;
   i::FLAG_gc_global = false;
