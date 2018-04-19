@@ -7969,7 +7969,9 @@ class V8_EXPORT V8 {
    * Returns { NULL, 0 } on failure.
    * The caller acquires ownership of the data array in the return value.
    */
-  static StartupData CreateSnapshotDataBlob(const char* embedded_source = NULL);
+  V8_DEPRECATED("Use SnapshotCreator",
+                static StartupData CreateSnapshotDataBlob(
+                    const char* embedded_source = NULL));
 
   /**
    * Bootstrap an isolate and a context from the cold startup blob, run the
@@ -7979,8 +7981,9 @@ class V8_EXPORT V8 {
    * The caller acquires ownership of the data array in the return value.
    * The argument startup blob is untouched.
    */
-  static StartupData WarmUpSnapshotDataBlob(StartupData cold_startup_blob,
-                                            const char* warmup_source);
+  V8_DEPRECATED("Use SnapshotCreator",
+                static StartupData WarmUpSnapshotDataBlob(
+                    StartupData cold_startup_blob, const char* warmup_source));
 
   /** Set the callback to invoke in case of Dcheck failures. */
   static void SetDcheckErrorHandler(DcheckErrorCallback that);

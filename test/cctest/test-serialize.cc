@@ -120,6 +120,87 @@ struct StartupBlobs {
   }
 };
 
+namespace {
+
+bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                  const char* utf8_source, const char* name) {
+  v8::Context::Scope context_scope(context);
+  v8::TryCatch try_catch(isolate);
+  v8::Local<v8::String> source_string;
+  if (!v8::String::NewFromUtf8(isolate, utf8_source, v8::NewStringType::kNormal)
+           .ToLocal(&source_string)) {
+    return false;
+  }
+  v8::Local<v8::String> resource_name =
+      v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  v8::ScriptOrigin origin(resource_name);
+  v8::ScriptCompiler::Source source(source_string, origin);
+  v8::Local<v8::Script> script;
+  if (!v8::ScriptCompiler::Compile(context, &source).ToLocal(&script))
+    return false;
+  if (script->Run(context).IsEmpty()) return false;
+  CHECK(!try_catch.HasCaught());
+  return true;
+}
+
+v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
+  // Create a new isolate and a new context from scratch, optionally run
+  // a script to embed, and serialize to create a snapshot blob.
+  v8::StartupData result = {nullptr, 0};
+  {
+    v8::SnapshotCreator snapshot_creator;
+    v8::Isolate* isolate = snapshot_creator.GetIsolate();
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      if (embedded_source != nullptr &&
+          !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
+        return result;
+      }
+      snapshot_creator.SetDefaultContext(context);
+    }
+    result = snapshot_creator.CreateBlob(
+        v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+  return result;
+}
+
+v8::StartupData WarmUpSnapshotDataBlob(v8::StartupData cold_snapshot_blob,
+                                       const char* warmup_source) {
+  CHECK(cold_snapshot_blob.raw_size > 0 && cold_snapshot_blob.data != nullptr);
+  CHECK_NOT_NULL(warmup_source);
+  // Use following steps to create a warmed up snapshot blob from a cold one:
+  //  - Create a new isolate from the cold snapshot.
+  //  - Create a new context to run the warmup script. This will trigger
+  //    compilation of executed functions.
+  //  - Create a new context. This context will be unpolluted.
+  //  - Serialize the isolate and the second context into a new snapshot blob.
+  v8::StartupData result = {nullptr, 0};
+  {
+    v8::SnapshotCreator snapshot_creator(nullptr, &cold_snapshot_blob);
+    v8::Isolate* isolate = snapshot_creator.GetIsolate();
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      if (!RunExtraCode(isolate, context, warmup_source, "<warm-up>")) {
+        return result;
+      }
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      isolate->ContextDisposedNotification(false);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      snapshot_creator.SetDefaultContext(context);
+    }
+    result = snapshot_creator.CreateBlob(
+        v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+  }
+  return result;
+}
+
+}  // namespace
+
 static StartupBlobs Serialize(v8::Isolate* isolate) {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from self hosted JS builtins and their addresses can be
@@ -622,7 +703,7 @@ TEST(CustomSnapshotDataBlob1) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
-  v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -942,7 +1023,7 @@ TEST(CustomSnapshotDataBlob2) {
       "function g() { return 43; }"
       "/./.test('a')";
 
-  v8::StartupData data2 = v8::V8::CreateSnapshotDataBlob(source2);
+  v8::StartupData data2 = CreateSnapshotDataBlob(source2);
 
   v8::Isolate::CreateParams params2;
   params2.snapshot_blob = &data2;
@@ -985,7 +1066,7 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
 
   const char* source2 = "o.a(42)";
 
-  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source1);
+  v8::StartupData data = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
@@ -1034,7 +1115,7 @@ TEST(CustomSnapshotDataBlobWithLocker) {
 
   const char* source1 = "function f() { return 42; }";
 
-  v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -1066,7 +1147,7 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
       "  b = c;"
       "}";
 
-  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source);
+  v8::StartupData data = CreateSnapshotDataBlob(source);
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
@@ -1105,8 +1186,8 @@ TEST(SnapshotDataBlobWithWarmup) {
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
-  v8::StartupData cold = v8::V8::CreateSnapshotDataBlob();
-  v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
+  v8::StartupData cold = CreateSnapshotDataBlob();
+  v8::StartupData warm = WarmUpSnapshotDataBlob(cold, warmup);
   delete[] cold.data;
 
   v8::Isolate::CreateParams params;
@@ -1139,8 +1220,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
       "var a = 5";
   const char* warmup = "a = f()";
 
-  v8::StartupData cold = v8::V8::CreateSnapshotDataBlob(source);
-  v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
+  v8::StartupData cold = CreateSnapshotDataBlob(source);
+  v8::StartupData warm = WarmUpSnapshotDataBlob(cold, warmup);
   delete[] cold.data;
 
   v8::Isolate::CreateParams params;
@@ -1177,8 +1258,8 @@ TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
                       STATIC_CHAR_VECTOR("a.push(function() {return 7});"),
                       STATIC_CHAR_VECTOR("\0"), 10000);
 
-  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(
-      reinterpret_cast<const char*>(source.start()));
+  v8::StartupData data =
+      CreateSnapshotDataBlob(reinterpret_cast<const char*>(source.start()));
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
@@ -3328,7 +3409,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;
   FLAG_always_opt = false;
-  v8::StartupData blob = v8::V8::CreateSnapshotDataBlob();
+  v8::StartupData blob = CreateSnapshotDataBlob();
   delete[] blob.data;
 }
 
