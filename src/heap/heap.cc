@@ -1257,6 +1257,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   set_current_gc_flags(kNoGCFlags);
   new_space_->Shrink();
   UncommitFromSpace();
+  memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 
   if (FLAG_trace_duplicate_threshold_kb) {
     std::map<int, std::vector<HeapObject*>> objects_by_size;

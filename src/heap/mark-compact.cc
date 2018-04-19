@@ -816,9 +816,7 @@ void MarkCompactCollector::Prepare() {
     heap()->incremental_marking()->Stop();
   }
 
-  // If concurrent unmapping tasks are still running, we should wait for
-  // them here.
-  heap()->memory_allocator()->unmapper()->WaitUntilCompleted();
+  heap()->memory_allocator()->unmapper()->PrepareForMarkCompact();
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {

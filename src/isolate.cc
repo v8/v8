@@ -2662,7 +2662,7 @@ void Isolate::Deinit() {
   wasm_engine()->TearDown();
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
-  heap_.memory_allocator()->unmapper()->WaitUntilCompleted();
+  heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 
   DumpAndResetStats();
 

@@ -1208,7 +1208,9 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     }
 
     void FreeQueuedChunks();
-    void WaitUntilCompleted();
+    void CancelAndWaitForPendingTasks();
+    void PrepareForMarkCompact();
+    void EnsureUnmappingCompleted();
     void TearDown();
     int NumberOfChunks();
 
@@ -1248,6 +1250,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
     template <FreeMode mode>
     void PerformFreeMemoryOnQueuedChunks();
+
+    void PerformFreeMemoryOnQueuedNonRegularChunks();
 
     Heap* const heap_;
     MemoryAllocator* const allocator_;

@@ -264,7 +264,7 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  memory_allocator->unmapper()->WaitUntilCompleted();
+  memory_allocator->unmapper()->EnsureUnmappingCompleted();
   memory_allocator->TearDown();
   delete memory_allocator;
 }
