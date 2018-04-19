@@ -71,7 +71,7 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
       new (zone()) TopLevelLiveRange(1, MachineRepresentation::kTagged);
-  ASSERT_DEATH_IF_SUPPORTED(
+  V8_ASSERT_DEBUG_DEATH(
       range->AddUseInterval(LifetimePosition::FromInt(0),
                             LifetimePosition::FromInt(0), zone()),
       ".*");
@@ -79,7 +79,7 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
 
 TEST_F(LiveRangeUnitTest, SplitInvalidStart) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
-  ASSERT_DEATH_IF_SUPPORTED(Split(range, 0), ".*");
+  V8_ASSERT_DEBUG_DEATH(Split(range, 0), ".*");
 }
 
 TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(InvalidSplitEnd)) {
@@ -308,7 +308,7 @@ TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsOutside) {
 TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsInside) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 3).Add(5, 8).Build();
-  ASSERT_DEATH_IF_SUPPORTED(Splinter(range, 3, 5), ".*");
+  V8_ASSERT_DEBUG_DEATH(Splinter(range, 3, 5), ".*");
 }
 
 TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsLeft) {
