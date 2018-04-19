@@ -127,7 +127,8 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedShortOperand(
           c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           c::IsIntPtrAdd(
               c::IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
-              c::IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
+              c::IsIntPtrConstant(offset + kMsbOffset + kStep * i)),
+          needs_poisoning);
     }
     return c::IsWord32Or(
         c::IsWord32Shl(bytes[0], c::IsInt32Constant(kBitsPerByte)), bytes[1]);
