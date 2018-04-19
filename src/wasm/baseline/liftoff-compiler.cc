@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 
 #include "src/assembler-inl.h"
 #include "src/base/optional.h"
+// TODO(clemensh): Remove dependences on compiler stuff.
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
+#include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -18,8 +21,6 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-using WasmCompilationData = compiler::WasmCompilationData;
 
 constexpr auto kRegister = LiftoffAssembler::VarState::kRegister;
 constexpr auto KIntConst = LiftoffAssembler::VarState::KIntConst;
@@ -122,10 +123,10 @@ class LiftoffCompiler {
   };
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
-                  compiler::CallDescriptor* call_descriptor,
-                  compiler::ModuleEnv* env,
+                  compiler::CallDescriptor* call_descriptor, ModuleEnv* env,
                   SourcePositionTableBuilder* source_position_table_builder,
-                  WasmCompilationData* wasm_compilation_data,
+                  std::vector<trap_handler::ProtectedInstructionData>*
+                      protected_instructions,
                   Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone,
                   WasmCode* const* code_table_entry)
       : asm_(liftoff_asm),
@@ -138,7 +139,7 @@ class LiftoffCompiler {
                                : wasm::kV8MaxWasmMemoryPages} *
                   wasm::kWasmPageSize),
         source_position_table_builder_(source_position_table_builder),
-        wasm_compilation_data_(wasm_compilation_data),
+        protected_instructions_(protected_instructions),
         compilation_zone_(compilation_zone),
         codegen_zone_(codegen_zone),
         safepoint_table_builder_(compilation_zone_),
@@ -280,10 +281,7 @@ class LiftoffCompiler {
   }
 
   void StackCheck(wasm::WasmCodePosition position) {
-    if (FLAG_wasm_no_stack_checks ||
-        !wasm_compilation_data_->runtime_exception_support()) {
-      return;
-    }
+    if (FLAG_wasm_no_stack_checks || !env_->runtime_exception_support) return;
     out_of_line_code_.push_back(
         OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
     OutOfLineCode& ool = out_of_line_code_.back();
@@ -444,10 +442,11 @@ class LiftoffCompiler {
     if (is_mem_out_of_bounds && env_->use_trap_handler) {
       uint32_t pc = static_cast<uint32_t>(__ pc_offset());
       DCHECK_EQ(pc, __ pc_offset());
-      wasm_compilation_data_->AddProtectedInstruction(ool.pc, pc);
+      protected_instructions_->emplace_back(
+          trap_handler::ProtectedInstructionData{ool.pc, pc});
     }
 
-    if (!wasm_compilation_data_->runtime_exception_support()) {
+    if (!env_->runtime_exception_support) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
       // In this mode, we never generate stack checks.
@@ -1610,14 +1609,14 @@ class LiftoffCompiler {
  private:
   LiftoffAssembler* const asm_;
   compiler::CallDescriptor* const descriptor_;
-  compiler::ModuleEnv* const env_;
+  ModuleEnv* const env_;
   // {min_size_} and {max_size_} are cached values computed from the ModuleEnv.
   const uint64_t min_size_;
   const uint64_t max_size_;
   bool ok_ = true;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder* const source_position_table_builder_;
-  WasmCompilationData* wasm_compilation_data_;
+  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
@@ -1657,30 +1656,37 @@ class LiftoffCompiler {
 };
 
 }  // namespace
-}  // namespace wasm
 
-bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
+bool LiftoffCompilationUnit::ExecuteCompilation() {
   base::ElapsedTimer compile_timer;
   if (FLAG_trace_wasm_decode_time) {
     compile_timer.Start();
   }
 
-  Zone zone(isolate_->allocator(), "LiftoffCompilationZone");
-  const wasm::WasmModule* module = env_ ? env_->module : nullptr;
-  auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
+  Zone zone(wasm_unit_->isolate_->allocator(), "LiftoffCompilationZone");
+  const wasm::WasmModule* module =
+      wasm_unit_->env_ ? wasm_unit_->env_->module : nullptr;
+  auto call_descriptor =
+      compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
-      base::in_place, counters()->liftoff_compile_time());
+      base::in_place, wasm_unit_->counters_->liftoff_compile_time());
   wasm::WasmCode* const* code_table_entry =
-      native_module_->code_table().data() + func_index_;
+      wasm_unit_->native_module_->code_table().data() + wasm_unit_->func_index_;
+  DCHECK(!protected_instructions_);
+  protected_instructions_.reset(
+      new std::vector<trap_handler::ProtectedInstructionData>());
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
-      decoder(&zone, module, func_body_, &liftoff_.asm_, call_descriptor, env_,
-              &liftoff_.source_position_table_builder_, &wasm_compilation_data_,
-              &zone, &liftoff_.codegen_zone_, code_table_entry);
+      decoder(&zone, module, wasm_unit_->func_body_, &asm_, call_descriptor,
+              wasm_unit_->env_, &source_position_table_builder_,
+              protected_instructions_.get(), &zone, &codegen_zone_,
+              code_table_entry);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {
     // Liftoff compilation failed.
-    isolate_->counters()->liftoff_unsupported_functions()->Increment();
+    wasm_unit_->isolate_->counters()
+        ->liftoff_unsupported_functions()
+        ->Increment();
     return false;
   }
   if (decoder.failed()) return false;  // Validation error
@@ -1690,16 +1696,39 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
     PrintF(
         "wasm-compilation liftoff phase 1 ok: %u bytes, %0.3f ms decode and "
         "compile\n",
-        static_cast<unsigned>(func_body_.end - func_body_.start), compile_ms);
+        static_cast<unsigned>(wasm_unit_->func_body_.end -
+                              wasm_unit_->func_body_.start),
+        compile_ms);
   }
 
   // Record the memory cost this unit places on the system until
   // it is finalized.
-  memory_cost_ = liftoff_.asm_.pc_offset();
-  liftoff_.safepoint_table_offset_ =
-      decoder.interface().GetSafepointTableOffset();
-  isolate_->counters()->liftoff_compiled_functions()->Increment();
+  wasm_unit_->memory_cost_ =
+      asm_.pc_offset() +
+      protected_instructions_->size() *
+          sizeof(trap_handler::ProtectedInstructionData) +
+      (codegen_zone_ ? codegen_zone_->allocation_size() : 0);
+
+  safepoint_table_offset_ = decoder.interface().GetSafepointTableOffset();
+  wasm_unit_->isolate_->counters()->liftoff_compiled_functions()->Increment();
   return true;
+}
+
+wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
+    wasm::ErrorThrower* thrower) {
+  CodeDesc desc;
+  asm_.GetCode(wasm_unit_->isolate_, &desc);
+
+  Handle<ByteArray> source_positions =
+      source_position_table_builder_.ToSourcePositionTable(
+          wasm_unit_->isolate_);
+
+  wasm::WasmCode* code = wasm_unit_->native_module_->AddCode(
+      desc, asm_.GetTotalFrameSlotCount(), wasm_unit_->func_index_,
+      safepoint_table_offset_, 0, std::move(protected_instructions_),
+      source_positions, wasm::WasmCode::kLiftoff);
+
+  return code;
 }
 
 #undef __
@@ -1707,5 +1736,6 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
 #undef WASM_INSTANCE_OBJECT_OFFSET
 #undef LOAD_INSTANCE_FIELD
 
+}  // namespace wasm
 }  // namespace internal
 }  // namespace v8

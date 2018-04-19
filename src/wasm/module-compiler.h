@@ -20,9 +20,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-class ModuleCompiler;
-class WasmCode;
 class CompilationState;
+class ModuleCompiler;
+struct ModuleEnv;
+class WasmCode;
 
 struct CompilationStateDeleter {
   void operator()(CompilationState* compilation_state) const;
@@ -137,7 +138,7 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
-  std::unique_ptr<compiler::ModuleEnv> module_env_;
+  std::unique_ptr<ModuleEnv> module_env_;
   std::unique_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;

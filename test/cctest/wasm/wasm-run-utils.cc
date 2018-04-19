@@ -15,7 +15,7 @@ namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import,
-    WasmExecutionMode mode, compiler::RuntimeExceptionSupport exception_support,
+    WasmExecutionMode mode, RuntimeExceptionSupport exception_support,
     LowerSimd lower_simd)
     : test_module_ptr_(&test_module_),
       isolate_(CcTest::InitIsolateOnce()),
@@ -45,7 +45,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     Handle<Code> code = compiler::CompileWasmToJSWrapper(
         isolate_, maybe_import->js_function, maybe_import->sig,
         maybe_import_index, test_module_.origin(),
-        trap_handler::IsTrapHandlerEnabled());
+        trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
+                                             : kNoTrapHandler);
     native_module_->ResizeCodeTableForTesting(maybe_import_index + 1,
                                               kMaxFunctions);
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
@@ -126,7 +127,7 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
                                  isolate_);
   Handle<Code> ret_code = compiler::CompileJSToWasmWrapper(
       isolate_, &test_module_, weak_instance, code, index,
-      trap_handler::IsTrapHandlerEnabled());
+      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler);
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
       static_cast<int>(index),
@@ -192,8 +193,11 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   return bytes_offset;
 }
 
-compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
-  return {&test_module_, trap_handler::IsTrapHandlerEnabled()};
+ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
+  return {
+      &test_module_,
+      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler,
+      runtime_exception_support_};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -263,22 +267,21 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   }
 }
 
-void TestBuildingGraph(
-    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
-    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
-    const byte* start, const byte* end,
-    compiler::RuntimeExceptionSupport runtime_exception_support) {
+void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
+                       ModuleEnv* module, FunctionSig* sig,
+                       compiler::SourcePositionTable* source_position_table,
+                       const byte* start, const byte* end) {
   if (module) {
     compiler::WasmGraphBuilder builder(
         module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(),
-        jsgraph->isolate()->factory()->null_value(), sig, source_position_table,
-        runtime_exception_support);
+        jsgraph->isolate()->factory()->null_value(), sig,
+        source_position_table);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   } else {
     compiler::WasmGraphBuilder builder(
         nullptr, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(),
-        jsgraph->isolate()->factory()->null_value(), sig, source_position_table,
-        runtime_exception_support);
+        jsgraph->isolate()->factory()->null_value(), sig,
+        source_position_table);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   }
 }
@@ -422,7 +425,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   Handle<SeqOneByteString> wire_bytes(compiled_module->shared()->module_bytes(),
                                       isolate());
 
-  compiler::ModuleEnv module_env = builder_->CreateModuleEnv();
+  ModuleEnv module_env = builder_->CreateModuleEnv();
   ErrorThrower thrower(isolate(), "WasmFunctionCompiler::Build");
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.start(),
@@ -436,15 +439,14 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};
-  compiler::WasmCompilationUnit::CompilationMode comp_mode =
+  WasmCompilationUnit::CompilationMode comp_mode =
       builder_->execution_mode() == WasmExecutionMode::kExecuteLiftoff
-          ? compiler::WasmCompilationUnit::CompilationMode::kLiftoff
-          : compiler::WasmCompilationUnit::CompilationMode::kTurbofan;
-  compiler::WasmCompilationUnit unit(
-      isolate(), &module_env, native_module, func_body, func_name,
-      function_->func_index, CEntryStub(isolate(), 1).GetCode(), comp_mode,
-      isolate()->counters(), builder_->runtime_exception_support(),
-      builder_->lower_simd());
+          ? WasmCompilationUnit::CompilationMode::kLiftoff
+          : WasmCompilationUnit::CompilationMode::kTurbofan;
+  WasmCompilationUnit unit(isolate(), &module_env, native_module, func_body,
+                           func_name, function_->func_index,
+                           CEntryStub(isolate(), 1).GetCode(), comp_mode,
+                           isolate()->counters(), builder_->lower_simd());
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
   if (wasm::WasmCode::ShouldBeLogged(isolate())) {

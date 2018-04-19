@@ -80,15 +80,14 @@ class CompilationState {
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
-      std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units);
-  std::unique_ptr<compiler::WasmCompilationUnit> GetNextCompilationUnit();
-  std::unique_ptr<compiler::WasmCompilationUnit> GetNextExecutedUnit();
+      std::vector<std::unique_ptr<WasmCompilationUnit>>& units);
+  std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit();
+  std::unique_ptr<WasmCompilationUnit> GetNextExecutedUnit();
   bool HasCompilationUnitToFinish();
 
   void OnError(Handle<Object> error, NotifyCompilationCallback notify);
   void OnFinishedUnit(NotifyCompilationCallback notify);
-  void ScheduleUnitForFinishing(
-      std::unique_ptr<compiler::WasmCompilationUnit> unit);
+  void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit);
 
   void CancelAndWait();
   void OnBackgroundTaskStopped();
@@ -122,13 +121,12 @@ class CompilationState {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
 
-  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
-      compilation_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> compilation_units_;
   bool finisher_is_running_ = false;
   bool failed_ = false;
   size_t num_background_tasks_ = 0;
 
-  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> finish_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> finish_units_;
   size_t allocated_memory_ = 0;
 
   // End of fields protected by {mutex_}.
@@ -152,11 +150,9 @@ namespace {
 
 class JSToWasmWrapperCache {
  public:
-  Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
-                                             wasm::WasmModule* module,
-                                             wasm::WasmCode* wasm_code,
-                                             uint32_t index,
-                                             bool use_trap_handler) {
+  Handle<Code> CloneOrCompileJSToWasmWrapper(
+      Isolate* isolate, wasm::WasmModule* module, wasm::WasmCode* wasm_code,
+      uint32_t index, wasm::UseTrapHandler use_trap_handler) {
     const wasm::WasmFunction* func = &module->functions[index];
     int cached_idx = sig_map_.Find(func->sig);
     if (cached_idx >= 0) {
@@ -240,7 +236,10 @@ class InstanceBuilder {
 
   Counters* counters() const { return async_counters().get(); }
 
-  bool use_trap_handler() const { return compiled_module_->use_trap_handler(); }
+  wasm::UseTrapHandler use_trap_handler() const {
+    return compiled_module_->use_trap_handler() ? kUseTrapHandler
+                                                : kNoTrapHandler;
+  }
 
 // Helper routines to print out errors with imports.
 #define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
@@ -435,12 +434,13 @@ class IndirectPatcher {
   int misses_ = 0;
 };
 
-compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
+ModuleEnv CreateModuleEnvFromCompiledModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   DisallowHeapAllocation no_gc;
   WasmModule* module = compiled_module->shared()->module();
-  compiler::ModuleEnv result(module, compiled_module->use_trap_handler());
-  return result;
+  wasm::UseTrapHandler use_trap_handler =
+      compiled_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
+  return ModuleEnv(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
 }
 
 const wasm::WasmCode* LazyCompileFunction(
@@ -469,7 +469,7 @@ const wasm::WasmCode* LazyCompileFunction(
 
   TRACE_LAZY("Compiling function %s, %d.\n", func_name.c_str(), func_index);
 
-  compiler::ModuleEnv module_env =
+  ModuleEnv module_env =
       CreateModuleEnvFromCompiledModule(isolate, compiled_module);
 
   const uint8_t* module_start =
@@ -481,10 +481,10 @@ const wasm::WasmCode* LazyCompileFunction(
                     module_start + func->code.end_offset()};
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
-  compiler::WasmCompilationUnit unit(isolate, &module_env,
-                                     compiled_module->GetNativeModule(), body,
-                                     CStrVector(func_name.c_str()), func_index,
-                                     CEntryStub(isolate, 1).GetCode());
+  WasmCompilationUnit unit(isolate, &module_env,
+                           compiled_module->GetNativeModule(), body,
+                           CStrVector(func_name.c_str()), func_index,
+                           CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
@@ -885,17 +885,17 @@ double MonotonicallyIncreasingTimeInMs() {
          base::Time::kMillisecondsPerSecond;
 }
 
-std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
-    Isolate* isolate, WasmModule* module) {
+ModuleEnv CreateDefaultModuleEnv(Isolate* isolate, WasmModule* module) {
   // TODO(kschimpf): Add module-specific policy handling here (see v8:7143)?
-  bool use_trap_handler = trap_handler::IsTrapHandlerEnabled();
-  return base::make_unique<compiler::ModuleEnv>(module, use_trap_handler);
+  UseTrapHandler use_trap_handler =
+      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
+  return ModuleEnv(module, use_trap_handler, kRuntimeExceptionSupport);
 }
 
 Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
                                              WasmModule* module,
                                              Handle<FixedArray> export_wrappers,
-                                             compiler::ModuleEnv* env) {
+                                             ModuleEnv* env) {
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
       isolate, module, export_wrappers, env->use_trap_handler);
   return compiled_module;
@@ -913,7 +913,7 @@ size_t GetMaxUsableMemorySize(Isolate* isolate) {
 class CompilationUnitBuilder {
  public:
   explicit CompilationUnitBuilder(NativeModule* native_module,
-                                  compiler::ModuleEnv* module_env,
+                                  ModuleEnv* module_env,
                                   Handle<Code> centry_stub)
       : native_module_(native_module),
         compilation_state_(native_module->compilation_state()),
@@ -922,12 +922,12 @@ class CompilationUnitBuilder {
 
   void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
                Vector<const uint8_t> bytes, WasmName name) {
-    units_.emplace_back(new compiler::WasmCompilationUnit(
+    units_.emplace_back(new WasmCompilationUnit(
         compilation_state_->isolate(), module_env_, native_module_,
         wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
                            bytes.end()},
         name, function->func_index, centry_stub_,
-        compiler::WasmCompilationUnit::GetDefaultCompilationMode(),
+        WasmCompilationUnit::GetDefaultCompilationMode(),
         compilation_state_->isolate()->async_counters().get()));
   }
 
@@ -943,9 +943,9 @@ class CompilationUnitBuilder {
  private:
   NativeModule* native_module_;
   CompilationState* compilation_state_;
-  compiler::ModuleEnv* module_env_;
+  ModuleEnv* module_env_;
   Handle<Code> centry_stub_;
-  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> units_;
 };
 
 // Run by each compilation task and by the main thread (i.e. in both
@@ -958,7 +958,7 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   DisallowHandleDereference no_deref;
   DisallowCodeDependencyChange no_dependency_change;
 
-  std::unique_ptr<compiler::WasmCompilationUnit> unit =
+  std::unique_ptr<WasmCompilationUnit> unit =
       compilation_state->GetNextCompilationUnit();
   if (unit == nullptr) return false;
 
@@ -969,7 +969,7 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
 }
 
 size_t GetNumFunctionsToCompile(const std::vector<WasmFunction>& functions,
-                                compiler::ModuleEnv* module_env) {
+                                ModuleEnv* module_env) {
   // TODO(kimanh): Remove, FLAG_skip_compiling_wasm_funcs: previously used for
   // debugging, and now not necessarily working anymore.
   uint32_t start = module_env->module->num_imported_functions +
@@ -981,8 +981,7 @@ size_t GetNumFunctionsToCompile(const std::vector<WasmFunction>& functions,
 
 void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
                                 const ModuleWireBytes& wire_bytes,
-                                compiler::ModuleEnv* module_env,
-                                Handle<Code> centry_stub,
+                                ModuleEnv* module_env, Handle<Code> centry_stub,
                                 NativeModule* native_module) {
   uint32_t start = module_env->module->num_imported_functions +
                    FLAG_skip_compiling_wasm_funcs;
@@ -1006,7 +1005,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
                             ErrorThrower* thrower) {
   while (true) {
     if (compilation_state->failed()) break;
-    std::unique_ptr<compiler::WasmCompilationUnit> unit =
+    std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
     wasm::WasmCode* result = unit->FinishCompilation(thrower);
@@ -1022,8 +1021,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
-                       const ModuleWireBytes& wire_bytes,
-                       compiler::ModuleEnv* module_env,
+                       const ModuleWireBytes& wire_bytes, ModuleEnv* module_env,
                        Handle<Code> centry_stub, ErrorThrower* thrower) {
   const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
@@ -1098,8 +1096,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
 
 void CompileSequentially(Isolate* isolate, NativeModule* native_module,
                          const ModuleWireBytes& wire_bytes,
-                         compiler::ModuleEnv* module_env,
-                         ErrorThrower* thrower) {
+                         ModuleEnv* module_env, ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
   const WasmModule* module = module_env->module;
@@ -1109,7 +1106,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
-    wasm::WasmCode* code = compiler::WasmCompilationUnit::CompileWasmFunction(
+    wasm::WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
         native_module, thrower, isolate, wire_bytes, module_env, &func);
     if (code == nullptr) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
@@ -1121,8 +1118,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
 }
 
 void ValidateSequentially(Isolate* isolate, const ModuleWireBytes& wire_bytes,
-                          compiler::ModuleEnv* module_env,
-                          ErrorThrower* thrower) {
+                          ModuleEnv* module_env, ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
   const WasmModule* module = module_env->module;
@@ -1209,14 +1205,14 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
     export_wrappers->set(i, *init_builtin);
   }
-  auto env = CreateDefaultModuleEnv(isolate, wasm_module);
+  ModuleEnv env = CreateDefaultModuleEnv(isolate, wasm_module);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate, shared->module(), export_wrappers, env.get());
+      NewCompiledModule(isolate, shared->module(), export_wrappers, &env);
   NativeModule* native_module = compiled_module->GetNativeModule();
   compiled_module->set_shared(*shared);
   if (lazy_compile) {
@@ -1227,7 +1223,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
       // TODO(clemensh): According to the spec, we can actually skip validation
       // at module creation time, and return a function that always traps at
       // (lazy) compilation time.
-      ValidateSequentially(isolate, wire_bytes, env.get(), thrower);
+      ValidateSequentially(isolate, wire_bytes, &env, thrower);
       if (thrower->error()) return {};
     }
 
@@ -1241,11 +1237,10 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, wire_bytes, env.get(),
-                        centry_stub, thrower);
+      CompileInParallel(isolate, native_module, wire_bytes, &env, centry_stub,
+                        thrower);
     } else {
-      CompileSequentially(isolate, native_module, wire_bytes, env.get(),
-                          thrower);
+      CompileSequentially(isolate, native_module, wire_bytes, &env, thrower);
     }
     if (thrower->error()) return {};
 
@@ -1297,7 +1292,7 @@ class FinishCompileTask : public CancelableTask {
     while (true) {
       compilation_state_->RestartBackgroundTasks();
 
-      std::unique_ptr<compiler::WasmCompilationUnit> unit =
+      std::unique_ptr<WasmCompilationUnit> unit =
           compilation_state_->GetNextExecutedUnit();
 
       if (unit == nullptr) {
@@ -1676,8 +1671,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         native_module->GetIndirectlyCallableCode(start_index);
     FunctionSig* sig = module_->functions[start_index].sig;
     Handle<Code> wrapper_code = js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-        isolate_, module_, start_code, start_index,
-        compiled_module_->use_trap_handler());
+        isolate_, module_, start_code, start_index, use_trap_handler());
     start_function_ = WasmExportedFunction::New(
         isolate_, instance, MaybeHandle<String>(), start_index,
         static_cast<int>(sig->parameter_count()), wrapper_code);
@@ -1928,8 +1922,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           Handle<JSReceiver> js_receiver(JSReceiver::cast(*value), isolate_);
           Handle<Code> wrapper_code = compiler::CompileWasmToJSWrapper(
               isolate_, js_receiver, expected_sig, func_index,
-              module_->origin(),
-              instance->compiled_module()->use_trap_handler());
+              module_->origin(), use_trap_handler());
           RecordStats(*wrapper_code, counters());
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
@@ -2396,7 +2389,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             Handle<Code> wrapper_code =
                 js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
                     isolate_, module_, wasm_code, func_index,
-                    instance->compiled_module()->use_trap_handler());
+                    use_trap_handler());
             MaybeHandle<String> func_name;
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
@@ -2698,7 +2691,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     Isolate* isolate = job_->isolate_;
 
-    job_->module_env_ = CreateDefaultModuleEnv(isolate, module_);
+    DCHECK_NULL(job_->module_env_);
+    job_->module_env_.reset(
+        new ModuleEnv(CreateDefaultModuleEnv(isolate, module_)));
 
     Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
     {
@@ -3101,7 +3096,7 @@ void CompilationState::AddCallback(
 }
 
 void CompilationState::AddCompilationUnits(
-    std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units) {
+    std::vector<std::unique_ptr<WasmCompilationUnit>>& units) {
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
     compilation_units_.insert(compilation_units_.end(),
@@ -3111,25 +3106,23 @@ void CompilationState::AddCompilationUnits(
   RestartBackgroundTasks(units.size());
 }
 
-std::unique_ptr<compiler::WasmCompilationUnit>
+std::unique_ptr<WasmCompilationUnit>
 CompilationState::GetNextCompilationUnit() {
   base::LockGuard<base::Mutex> guard(&mutex_);
   if (!compilation_units_.empty()) {
-    std::unique_ptr<compiler::WasmCompilationUnit> unit =
+    std::unique_ptr<WasmCompilationUnit> unit =
         std::move(compilation_units_.back());
     compilation_units_.pop_back();
     return unit;
   }
 
-  return std::unique_ptr<compiler::WasmCompilationUnit>();
+  return std::unique_ptr<WasmCompilationUnit>();
 }
 
-std::unique_ptr<compiler::WasmCompilationUnit>
-CompilationState::GetNextExecutedUnit() {
+std::unique_ptr<WasmCompilationUnit> CompilationState::GetNextExecutedUnit() {
   base::LockGuard<base::Mutex> guard(&mutex_);
   if (finish_units_.empty()) return {};
-  std::unique_ptr<compiler::WasmCompilationUnit> ret =
-      std::move(finish_units_.back());
+  std::unique_ptr<WasmCompilationUnit> ret = std::move(finish_units_.back());
   finish_units_.pop_back();
   allocated_memory_ -= ret->memory_cost();
   return ret;
@@ -3162,7 +3155,7 @@ void CompilationState::OnFinishedUnit(NotifyCompilationCallback notify) {
 }
 
 void CompilationState::ScheduleUnitForFinishing(
-    std::unique_ptr<compiler::WasmCompilationUnit> unit) {
+    std::unique_ptr<WasmCompilationUnit> unit) {
   size_t cost = unit->memory_cost();
   base::LockGuard<base::Mutex> guard(&mutex_);
   finish_units_.push_back(std::move(unit));
@@ -3258,13 +3251,15 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   Handle<FixedArray> export_wrappers(compiled_module->export_wrappers(),
                                      isolate);
   NativeModule* native_module = compiled_module->GetNativeModule();
+  wasm::UseTrapHandler use_trap_handler =
+      compiled_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
   for (auto exp : compiled_module->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     wasm::WasmCode* wasm_code =
         native_module->GetIndirectlyCallableCode(exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
         isolate, compiled_module->shared()->module(), wasm_code, exp.index,
-        compiled_module->use_trap_handler());
+        use_trap_handler);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters);
     ++wrapper_index;

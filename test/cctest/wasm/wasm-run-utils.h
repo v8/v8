@@ -92,7 +92,7 @@ struct ManuallyImportedJSFunction {
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, WasmExecutionMode,
-                       compiler::RuntimeExceptionSupport, LowerSimd);
+                       RuntimeExceptionSupport, LowerSimd);
 
   void ChangeOriginToAsmjs() { test_module_.set_origin(kAsmJsOrigin); }
 
@@ -215,11 +215,11 @@ class TestingModuleBuilder {
     }
   }
 
-  compiler::ModuleEnv CreateModuleEnv();
+  ModuleEnv CreateModuleEnv();
 
   WasmExecutionMode execution_mode() const { return execution_mode_; }
 
-  compiler::RuntimeExceptionSupport runtime_exception_support() const {
+  RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
   }
 
@@ -236,7 +236,7 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   bool linked_ = false;
-  compiler::RuntimeExceptionSupport runtime_exception_support_;
+  RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
 
   const WasmGlobal* AddGlobal(ValueType type);
@@ -244,11 +244,10 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> InitInstanceObject();
 };
 
-void TestBuildingGraph(
-    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
-    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
-    const byte* start, const byte* end,
-    compiler::RuntimeExceptionSupport runtime_exception_support);
+void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
+                       ModuleEnv* module, FunctionSig* sig,
+                       compiler::SourcePositionTable* source_position_table,
+                       const byte* start, const byte* end);
 
 class WasmFunctionWrapper : private compiler::GraphAndBuilders {
  public:
@@ -348,7 +347,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
                  WasmExecutionMode execution_mode, int num_params,
-                 compiler::RuntimeExceptionSupport runtime_exception_support,
+                 RuntimeExceptionSupport runtime_exception_support,
                  LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME),
         builder_(&zone_, maybe_import, execution_mode,
@@ -431,8 +430,8 @@ class WasmRunner : public WasmRunnerBase {
   WasmRunner(WasmExecutionMode execution_mode,
              ManuallyImportedJSFunction* maybe_import = nullptr,
              const char* main_fn_name = "main",
-             compiler::RuntimeExceptionSupport runtime_exception_support =
-                 compiler::kNoRuntimeExceptionSupport,
+             RuntimeExceptionSupport runtime_exception_support =
+                 kNoRuntimeExceptionSupport,
              LowerSimd lower_simd = kNoLowerSimd)
       : WasmRunnerBase(maybe_import, execution_mode, sizeof...(ParamTypes),
                        runtime_exception_support, lower_simd) {
@@ -443,8 +442,8 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   WasmRunner(WasmExecutionMode execution_mode, LowerSimd lower_simd)
-      : WasmRunner(execution_mode, nullptr, "main",
-                   compiler::kNoRuntimeExceptionSupport, lower_simd) {}
+      : WasmRunner(execution_mode, nullptr, "main", kNoRuntimeExceptionSupport,
+                   lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);

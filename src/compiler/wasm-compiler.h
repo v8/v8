@@ -12,8 +12,8 @@
 #include "src/compiler.h"
 #include "src/optimized-compilation-info.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -43,31 +43,12 @@ class WasmCode;
 
 namespace compiler {
 
-// The {ModuleEnv} encapsulates the module data that is used by the
-// {WasmGraphBuilder} during graph building.
-// ModuleEnvs are shareable across multiple compilations.
-struct ModuleEnv {
-  // A pointer to the decoded module's static representation.
-  const wasm::WasmModule* module;
-
-  // True if trap handling should be used in compiled code, rather than
-  // compiling in bounds checks for each memory access.
-  const bool use_trap_handler;
-
-  ModuleEnv(const wasm::WasmModule* module, bool use_trap_handler)
-      : module(module), use_trap_handler(use_trap_handler) {}
-};
-
-enum RuntimeExceptionSupport : bool {
-  kRuntimeExceptionSupport = true,
-  kNoRuntimeExceptionSupport = false
-};
-
 // Information about Wasm compilation that needs to be plumbed through the
 // different layers of the compiler.
 class WasmCompilationData {
  public:
-  explicit WasmCompilationData(RuntimeExceptionSupport);
+  explicit WasmCompilationData(
+      wasm::RuntimeExceptionSupport runtime_exception_support);
 
   void AddProtectedInstruction(uint32_t instr_offset, uint32_t landing_offset);
 
@@ -76,7 +57,7 @@ class WasmCompilationData {
     return std::move(protected_instructions_);
   }
 
-  RuntimeExceptionSupport runtime_exception_support() const {
+  wasm::RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
   }
 
@@ -84,115 +65,56 @@ class WasmCompilationData {
   std::unique_ptr<std::vector<trap_handler::ProtectedInstructionData>>
       protected_instructions_;
 
-  // See WasmGraphBuilder::runtime_exception_support_.
-  const RuntimeExceptionSupport runtime_exception_support_;
+  // See ModuleEnv::runtime_exception_support_.
+  wasm::RuntimeExceptionSupport runtime_exception_support_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationData);
 };
 
-class WasmCompilationUnit final {
+class TurbofanWasmCompilationUnit {
  public:
-  enum class CompilationMode : uint8_t { kLiftoff, kTurbofan };
-  static CompilationMode GetDefaultCompilationMode();
+  explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit)
+      : wasm_unit_(wasm_unit),
+        wasm_compilation_data_(wasm_unit->env_->runtime_exception_support) {}
 
-  // If constructing from a background thread, pass in a Counters*, and ensure
-  // that the Counters live at least as long as this compilation unit (which
-  // typically means to hold a std::shared_ptr<Counters>).
-  // If no such pointer is passed, Isolate::counters() will be called. This is
-  // only allowed to happen on the foreground thread.
-  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::NativeModule*,
-                      wasm::FunctionBody, wasm::WasmName, int index,
-                      Handle<Code> centry_stub,
-                      CompilationMode = GetDefaultCompilationMode(),
-                      Counters* = nullptr,
-                      RuntimeExceptionSupport = kRuntimeExceptionSupport,
-                      bool lower_simd = false);
-
-  ~WasmCompilationUnit();
+  SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
 
   void ExecuteCompilation();
-  wasm::WasmCode* FinishCompilation(wasm::ErrorThrower* thrower);
 
-  static wasm::WasmCode* CompileWasmFunction(
-      wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-      Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-      const wasm::WasmFunction* function,
-      CompilationMode = GetDefaultCompilationMode());
-
-  size_t memory_cost() const { return memory_cost_; }
-  wasm::NativeModule* native_module() const { return native_module_; }
+  wasm::WasmCode* FinishCompilation(wasm::ErrorThrower*);
 
  private:
-  struct LiftoffData {
-    wasm::LiftoffAssembler asm_;
-    int safepoint_table_offset_;
-    SourcePositionTableBuilder source_position_table_builder_;
-    // The {codegen_zone_} needs to survive until FinishCompilation. It's only
-    // rarely used (e.g. for runtime calls), so it's only allocated when needed.
-    std::unique_ptr<Zone> codegen_zone_;
-    explicit LiftoffData(Isolate* isolate) : asm_(isolate) {}
-  };
-  struct TurbofanData {
-    // The graph zone is deallocated at the end of ExecuteCompilation by virtue
-    // of it being zone allocated.
-    JSGraph* jsgraph_ = nullptr;
-    // The compilation_zone_, info_, and job_ fields need to survive past
-    // ExecuteCompilation, onto FinishCompilation (which happens on the main
-    // thread).
-    std::unique_ptr<Zone> compilation_zone_;
-    std::unique_ptr<OptimizedCompilationInfo> info_;
-    std::unique_ptr<OptimizedCompilationJob> job_;
-    wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
-  };
-
-  // Turbofan.
-  SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
-  void ExecuteTurbofanCompilation();
-  wasm::WasmCode* FinishTurbofanCompilation(wasm::ErrorThrower*);
-
-  // Liftoff.
-  bool ExecuteLiftoffCompilation();
-  wasm::WasmCode* FinishLiftoffCompilation(wasm::ErrorThrower*);
-
-  Isolate* isolate_;
-  ModuleEnv* env_;
-  wasm::FunctionBody func_body_;
-  wasm::WasmName func_name_;
-  Counters* counters_;
-  Handle<Code> centry_stub_;
-  int func_index_;
-  bool ok_ = true;
-  size_t memory_cost_ = 0;
-  wasm::NativeModule* native_module_;
-  bool lower_simd_;
+  wasm::WasmCompilationUnit* const wasm_unit_;
   WasmCompilationData wasm_compilation_data_;
-  CompilationMode mode_;
-  // {liftoff_} is valid if mode_ == kLiftoff, tf_ if mode_ == kTurbofan.
-  union {
-    LiftoffData liftoff_;
-    TurbofanData tf_;
-  };
+  bool ok_ = true;
+  // The graph zone is deallocated at the end of {ExecuteCompilation} by virtue
+  // of it being zone allocated.
+  JSGraph* jsgraph_ = nullptr;
+  // The compilation_zone_, info_, and job_ fields need to survive past
+  // {ExecuteCompilation}, onto {FinishCompilation} (which happens on the main
+  // thread).
+  std::unique_ptr<Zone> compilation_zone_;
+  std::unique_ptr<OptimizedCompilationInfo> info_;
+  std::unique_ptr<OptimizedCompilationJob> job_;
+  wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
 
-  Counters* counters() { return counters_; }
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
+  DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
 };
 
 // Wraps a JS function, producing a code object that can be called from wasm.
-Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
-                                    wasm::FunctionSig* sig, uint32_t index,
-                                    wasm::ModuleOrigin origin,
-                                    bool use_trap_handler);
+Handle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
+                                    wasm::FunctionSig*, uint32_t index,
+                                    wasm::ModuleOrigin, wasm::UseTrapHandler);
 
 // Wraps a given wasm code object, producing a code object.
 V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(
-    Isolate* isolate, wasm::WasmModule* module, Handle<WeakCell> weak_instance,
-    wasm::WasmCode* wasm_code, uint32_t index, bool use_trap_handler);
+    Isolate*, wasm::WasmModule*, Handle<WeakCell> weak_instance,
+    wasm::WasmCode*, uint32_t index, wasm::UseTrapHandler);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
-Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
-                                         wasm::FunctionSig* sig);
+Handle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
+                                         wasm::FunctionSig*);
 
 // Helper function to get the offset into a fixed array for a given {index}.
 // TODO(titzer): access-builder.h is not accessible outside compiler. Move?
@@ -228,11 +150,10 @@ class WasmGraphBuilder {
  public:
   enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
 
-  WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
+  WasmGraphBuilder(wasm::ModuleEnv* env, Zone* zone, JSGraph* graph,
                    Handle<Code> centry_stub, Handle<Oddball> anyref_null,
                    wasm::FunctionSig* sig,
-                   compiler::SourcePositionTable* spt = nullptr,
-                   RuntimeExceptionSupport res = kRuntimeExceptionSupport);
+                   compiler::SourcePositionTable* spt = nullptr);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -423,7 +344,7 @@ class WasmGraphBuilder {
   Node* const anyref_null_node_;
   // env_ == nullptr means we're not compiling Wasm functions, such as for
   // wrappers or interpreter stubs.
-  ModuleEnv* const env_ = nullptr;
+  wasm::ModuleEnv* const env_ = nullptr;
   SetOncePointer<Node> instance_node_;
   struct FunctionTableNodes {
     Node* table_addr;
@@ -439,10 +360,6 @@ class WasmGraphBuilder {
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
   const bool untrusted_code_mitigations_ = true;
-  // If the runtime doesn't support exception propagation,
-  // we won't generate stack checks, and trap handling will also
-  // be generated differently.
-  const RuntimeExceptionSupport runtime_exception_support_;
 
   wasm::FunctionSig* const sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
