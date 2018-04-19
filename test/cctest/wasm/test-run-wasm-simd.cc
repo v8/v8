@@ -1868,11 +1868,7 @@ WASM_SIMD_TEST(S8x16Concat) {
     RunBinaryLaneOpTest(lower_simd, kExprS8x16Shuffle, expected);
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.
@@ -1960,7 +1956,7 @@ WASM_SIMD_TEST(SimdI32x4ExtractWithF32x4) {
   CHECK_EQ(1, r.Call());
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_TEST(SimdF32x4ExtractWithI32x4) {
   WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);

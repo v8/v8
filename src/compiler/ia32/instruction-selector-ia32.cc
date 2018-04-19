@@ -1808,6 +1808,16 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Neg)                    \
   V(S128Not)
 
+#define SIMD_ANYTRUE_LIST(V) \
+  V(S1x4AnyTrue)             \
+  V(S1x8AnyTrue)             \
+  V(S1x16AnyTrue)
+
+#define SIMD_ALLTRUE_LIST(V) \
+  V(S1x4AllTrue)             \
+  V(S1x8AllTrue)             \
+  V(S1x16AllTrue)
+
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
   V(I32x4ShrS)                \
@@ -1966,6 +1976,28 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 SIMD_UNOP_PREFIX_LIST(VISIT_SIMD_UNOP_PREFIX)
 #undef VISIT_SIMD_UNOP_PREFIX
 #undef SIMD_UNOP_PREFIX_LIST
+
+#define VISIT_SIMD_ANYTRUE(Opcode)                                  \
+  void InstructionSelector::Visit##Opcode(Node* node) {             \
+    IA32OperandGenerator g(this);                                   \
+    InstructionOperand temps[] = {g.TempRegister()};                \
+    Emit(kIA32##Opcode, g.DefineAsRegister(node),                   \
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
+#undef VISIT_SIMD_ANYTRUE
+#undef SIMD_ANYTRUE_LIST
+
+#define VISIT_SIMD_ALLTRUE(Opcode)                                         \
+  void InstructionSelector::Visit##Opcode(Node* node) {                    \
+    IA32OperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempRegister()};                       \
+    Emit(kIA32##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)), \
+         arraysize(temps), temps);                                         \
+  }
+SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
+#undef VISIT_SIMD_ALLTRUE
+#undef SIMD_ALLTRUE_LIST
 
 #define VISIT_SIMD_BINOP(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {    \

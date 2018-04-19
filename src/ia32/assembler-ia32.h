@@ -1109,7 +1109,8 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void ptest(XMMRegister dst, XMMRegister src);
+  void ptest(XMMRegister dst, XMMRegister src) { ptest(dst, Operand(src)); }
+  void ptest(XMMRegister dst, Operand src);
 
   void psllw(XMMRegister reg, int8_t shift);
   void pslld(XMMRegister reg, int8_t shift);
@@ -1428,6 +1429,10 @@ class Assembler : public AssemblerBase {
   }
   void vshufps(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
+  void vptest(XMMRegister dst, XMMRegister src) { vptest(dst, Operand(src)); }
+  void vptest(XMMRegister dst, Operand src) {
+    vinstr(0x17, dst, xmm0, src, k66, k0F38, kWIG);
+  }
   void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8);

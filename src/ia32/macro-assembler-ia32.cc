@@ -1323,6 +1323,20 @@ void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
   UNREACHABLE();
 }
 
+void TurboAssembler::Ptest(XMMRegister dst, Operand src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vptest(dst, src);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    ptest(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
 void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

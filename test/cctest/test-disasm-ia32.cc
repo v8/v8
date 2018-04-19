@@ -568,6 +568,8 @@ TEST(DisasmIa320) {
       __ pinsrd(xmm1, eax, 0);
       __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
+      __ ptest(xmm5, xmm1);
+      __ ptest(xmm5, Operand(edx, 4));
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
@@ -659,6 +661,9 @@ TEST(DisasmIa320) {
       __ vdivpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmaxpd(xmm0, xmm1, xmm2);
       __ vmaxpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vptest(xmm5, xmm1);
+      __ vptest(xmm5, Operand(edx, 4));
 
       __ vpsllw(xmm0, xmm7, 21);
       __ vpslld(xmm0, xmm7, 21);
