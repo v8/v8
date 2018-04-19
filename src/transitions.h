@@ -169,8 +169,8 @@ class TransitionsAccessor {
   inline Map* GetTargetMapFromWeakRef();
 
   void EnsureHasFullTransitionArray();
-  void SetPrototypeTransitions(Handle<FixedArray> proto_transitions);
-  FixedArray* GetPrototypeTransitions();
+  void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
+  WeakFixedArray* GetPrototypeTransitions();
 
   void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
                                       DisallowHeapAllocation* no_gc);
@@ -194,7 +194,7 @@ class TransitionsAccessor {
 // should use TransitionsAccessors.
 // TransitionArrays have the following format:
 // [0] Link to next TransitionArray (for weak handling support) (strong ref)
-// [1] Smi(0) or fixed array of prototype transitions (strong ref)
+// [1] Smi(0) or WeakFixedArray of prototype transitions (strong ref)
 // [2] Number of transitions (can be zero after trimming)
 // [3] First transition key (strong ref)
 // [4] First transition target (weak ref)
@@ -204,7 +204,7 @@ class TransitionArray : public WeakFixedArray {
  public:
   DECL_CAST(TransitionArray)
 
-  inline FixedArray* GetPrototypeTransitions();
+  inline WeakFixedArray* GetPrototypeTransitions();
   inline bool HasPrototypeTransitions();
 
   // Accessors for fetching instance transition at transition number.
@@ -281,14 +281,11 @@ class TransitionArray : public WeakFixedArray {
   static const int kProtoTransitionHeaderSize = 1;
   static const int kMaxCachedPrototypeTransitions = 256;
 
-  inline void SetPrototypeTransitions(FixedArray* prototype_transitions);
+  inline void SetPrototypeTransitions(WeakFixedArray* prototype_transitions);
 
-  static int NumberOfPrototypeTransitions(FixedArray* proto_transitions) {
-    if (proto_transitions->length() == 0) return 0;
-    Object* raw = proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-    return Smi::ToInt(raw);
-  }
-  static void SetNumberOfPrototypeTransitions(FixedArray* proto_transitions,
+  static inline int NumberOfPrototypeTransitions(
+      WeakFixedArray* proto_transitions);
+  static void SetNumberOfPrototypeTransitions(WeakFixedArray* proto_transitions,
                                               int value);
 
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
@@ -316,10 +313,10 @@ class TransitionArray : public WeakFixedArray {
 
   inline int number_of_transitions() const;
 
-  static bool CompactPrototypeTransitionArray(FixedArray* array);
+  static bool CompactPrototypeTransitionArray(WeakFixedArray* array);
 
-  static Handle<FixedArray> GrowPrototypeTransitionArray(
-      Handle<FixedArray> array, int new_capacity, Isolate* isolate);
+  static Handle<WeakFixedArray> GrowPrototypeTransitionArray(
+      Handle<WeakFixedArray> array, int new_capacity, Isolate* isolate);
 
   // Compares two tuples <key, kind, attributes>, returns -1 if
   // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.

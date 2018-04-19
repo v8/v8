@@ -28,12 +28,11 @@ bool TransitionArray::HasPrototypeTransitions() {
   return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::kZero);
 }
 
-
-FixedArray* TransitionArray::GetPrototypeTransitions() {
+WeakFixedArray* TransitionArray::GetPrototypeTransitions() {
   DCHECK(HasPrototypeTransitions());  // Callers must check first.
   Object* prototype_transitions =
       Get(kPrototypeTransitionsIndex)->ToStrongHeapObject();
-  return FixedArray::cast(prototype_transitions);
+  return WeakFixedArray::cast(prototype_transitions);
 }
 
 HeapObjectReference** TransitionArray::GetKeySlot(int transition_number) {
@@ -42,12 +41,19 @@ HeapObjectReference** TransitionArray::GetKeySlot(int transition_number) {
       RawFieldOfElementAt(ToKeyIndex(transition_number)));
 }
 
-void TransitionArray::SetPrototypeTransitions(FixedArray* transitions) {
-  DCHECK(transitions->IsFixedArray());
+void TransitionArray::SetPrototypeTransitions(WeakFixedArray* transitions) {
+  DCHECK(transitions->IsWeakFixedArray());
   WeakFixedArray::Set(kPrototypeTransitionsIndex,
                       HeapObjectReference::Strong(transitions));
 }
 
+int TransitionArray::NumberOfPrototypeTransitions(
+    WeakFixedArray* proto_transitions) {
+  if (proto_transitions->length() == 0) return 0;
+  MaybeObject* raw =
+      proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);
+  return Smi::ToInt(raw->ToSmi());
+}
 
 Name* TransitionArray::GetKey(int transition_number) {
   DCHECK(transition_number < number_of_transitions());

@@ -1884,6 +1884,30 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
   return CopyArrayAndGrow(array, grow_by, pretenure);
 }
 
+Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
+    Handle<WeakFixedArray> src, int grow_by, PretenureFlag pretenure) {
+  DCHECK(
+      !src->IsTransitionArray());  // Compacted by GC, this code doesn't work.
+  int old_len = src->length();
+  int new_len = old_len + grow_by;
+  DCHECK_GE(new_len, old_len);
+  HeapObject* obj = AllocateRawFixedArray(new_len, pretenure);
+  DCHECK_EQ(old_len, src->length());
+  obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
+
+  WeakFixedArray* result = WeakFixedArray::cast(obj);
+  result->set_length(new_len);
+
+  // Copy the content.
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < old_len; i++) result->Set(i, src->Get(i), mode);
+  HeapObjectReference* undefined_reference =
+      HeapObjectReference::Strong(isolate()->heap()->undefined_value());
+  MemsetPointer(result->data_start() + old_len, undefined_reference, grow_by);
+  return Handle<WeakFixedArray>(result, isolate());
+}
+
 Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
     Handle<WeakArrayList> src, int grow_by, PretenureFlag pretenure) {
   int old_capacity = src->capacity();

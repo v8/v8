@@ -486,6 +486,10 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<FixedArray> array, int grow_by,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<WeakFixedArray> CopyWeakFixedArrayAndGrow(
+      Handle<WeakFixedArray> array, int grow_by,
+      PretenureFlag pretenure = NOT_TENURED);
+
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
       Handle<WeakArrayList> array, int grow_by,
       PretenureFlag pretenure = NOT_TENURED);

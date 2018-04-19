@@ -237,6 +237,14 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
   WEAK_WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
+void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
 MaybeObject** WeakFixedArray::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }

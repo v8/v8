@@ -256,6 +256,9 @@ class WeakFixedArray : public HeapObject {
   // Setter that uses write barrier.
   inline void Set(int index, MaybeObject* value);
 
+  // Setter with explicit barrier mode.
+  inline void Set(int index, MaybeObject* value, WriteBarrierMode mode);
+
   static constexpr int SizeFor(int length) {
     return kHeaderSize + length * kPointerSize;
   }
