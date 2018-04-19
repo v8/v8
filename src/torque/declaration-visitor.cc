@@ -202,6 +202,10 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
   for (CatchBlock* block : stmt->catch_blocks) {
     Visit(block->body);
   }
+
+  for (LabelBlock* block : stmt->label_blocks) {
+    Visit(block->body);
+  }
 }
 
 }  // namespace torque
