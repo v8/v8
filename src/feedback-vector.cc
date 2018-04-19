@@ -674,6 +674,7 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
 
 void FeedbackNexus::ConfigureHandlerMode(Handle<Object> handler) {
   DCHECK(IsGlobalICKind(kind()));
+  DCHECK(IC::IsHandler(*handler));
   SetFeedback(GetIsolate()->heap()->empty_weak_cell());
   SetFeedbackExtra(*handler);
 }
@@ -722,6 +723,7 @@ float FeedbackNexus::ComputeCallFrequency() {
 void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
                                          Handle<Map> receiver_map,
                                          Handle<Object> handler) {
+  DCHECK(handler.is_null() || IC::IsHandler(*handler));
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   if (kind() == FeedbackSlotKind::kStoreDataPropertyInLiteral) {
     SetFeedback(*cell);
@@ -742,6 +744,7 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
 void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
                                          MapHandles const& maps,
                                          ObjectHandles* handlers) {
+  DCHECK_EQ(handlers->size(), maps.size());
   int receiver_count = static_cast<int>(maps.size());
   DCHECK_GT(receiver_count, 1);
   Handle<FixedArray> array;
@@ -755,6 +758,7 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
   }
 
   for (int current = 0; current < receiver_count; ++current) {
+    DCHECK(IC::IsHandler(*handlers->at(current)));
     Handle<Map> map = maps[current];
     Handle<WeakCell> cell = Map::WeakCellForMap(map);
     array->set(current * 2, *cell);
