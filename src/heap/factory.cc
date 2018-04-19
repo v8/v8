@@ -663,11 +663,7 @@ Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
 
   Map* map = *one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(length);
-  HeapObject* result = AllocateRawWithImmortalMap(
-      size,
-      isolate()->heap()->CanAllocateInReadOnlySpace() ? TENURED_READ_ONLY
-                                                      : TENURED,
-      map);
+  HeapObject* result = AllocateRawWithImmortalMap(size, TENURED, map);
   Handle<SeqOneByteString> answer(SeqOneByteString::cast(result), isolate());
   answer->set_length(length);
   answer->set_hash_field(hash_field);
@@ -711,11 +707,7 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
     size = SeqTwoByteString::SizeFor(chars);
   }
 
-  HeapObject* result = AllocateRawWithImmortalMap(
-      size,
-      isolate()->heap()->CanAllocateInReadOnlySpace() ? TENURED_READ_ONLY
-                                                      : TENURED,
-      map);
+  HeapObject* result = AllocateRawWithImmortalMap(size, TENURED, map);
   Handle<String> answer(String::cast(result), isolate());
   answer->set_length(chars);
   answer->set_hash_field(hash_field);
@@ -1615,14 +1607,13 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name) {
   return cell;
 }
 
-Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value,
-                                      PretenureFlag pretenure) {
+Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
   // It is safe to dereference the value because we are embedding it
   // in cell and not inspecting its fields.
   AllowDeferredHandleDereference convert_to_cell;
   STATIC_ASSERT(WeakCell::kSize <= kMaxRegularHeapObjectSize);
   HeapObject* result =
-      AllocateRawWithImmortalMap(WeakCell::kSize, pretenure, *weak_cell_map());
+      AllocateRawWithImmortalMap(WeakCell::kSize, TENURED, *weak_cell_map());
   Handle<WeakCell> cell(WeakCell::cast(result), isolate());
   cell->initialize(*value);
   return cell;

@@ -943,7 +943,6 @@ class Heap {
   inline void OnMoveEvent(HeapObject* target, HeapObject* source,
                           int size_in_bytes);
 
-  inline bool CanAllocateInReadOnlySpace();
   bool deserialization_complete() const { return deserialization_complete_; }
 
   bool HasLowAllocationRate();
@@ -1808,16 +1807,7 @@ class Heap {
 
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
-    switch (pretenure) {
-      case TENURED_READ_ONLY:
-        return RO_SPACE;
-      case TENURED:
-        return OLD_SPACE;
-      case NOT_TENURED:
-        return NEW_SPACE;
-      default:
-        UNREACHABLE();
-    }
+    return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
   }
 
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
@@ -2142,11 +2132,9 @@ class Heap {
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocatePartialMap(InstanceType instance_type, int instance_size);
 
-  void FinalizePartialMap(Map* map);
-
   // Allocate empty fixed typed array of given type.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateEmptyFixedTypedArray(
-      ExternalArrayType array_type, AllocationSpace space = OLD_SPACE);
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 
