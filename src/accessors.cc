@@ -76,12 +76,12 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
   }
 }
 
-
-namespace {
-
-V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
-    Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
-    Handle<Name> name, Handle<Object> value) {
+V8_WARN_UNUSED_RESULT MaybeHandle<Object>
+Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
+                                           Handle<Object> receiver,
+                                           Handle<JSObject> holder,
+                                           Handle<Name> name,
+                                           Handle<Object> value) {
   LookupIterator it(receiver, name, holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
@@ -96,7 +96,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
   return value;
 }
 
-}  // namespace
 
 //
 // Accessors::ReconfigureToDataProperty
@@ -113,8 +112,8 @@ void Accessors::ReconfigureToDataProperty(
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result =
-      ReplaceAccessorWithDataProperty(isolate, receiver, holder, name, value);
+  MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
+      isolate, receiver, holder, name, value);
   if (result.is_null()) {
     isolate->OptionalRescheduleException(false);
   } else {
@@ -122,17 +121,6 @@ void Accessors::ReconfigureToDataProperty(
   }
 }
 
-void Accessors::ReconfigureToDataPropertyGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  UNREACHABLE();
-}
-
-Handle<AccessorInfo> Accessors::MakeReconfigureToDataPropertyInfo(
-    Isolate* isolate) {
-  Handle<Name> name = isolate->factory()->ReconfigureToDataProperty_string();
-  return MakeAccessor(isolate, name, &ReconfigureToDataPropertyGetter,
-                      &ReconfigureToDataProperty);
-}
 
 //
 // Accessors::ArgumentsIterator
@@ -1194,8 +1182,8 @@ void Accessors::ErrorStackGetter(
       Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   Handle<Name> name = Utils::OpenHandle(*key);
   if (IsAccessor(receiver, name, holder)) {
-    result = ReplaceAccessorWithDataProperty(isolate, receiver, holder, name,
-                                             formatted_stack_trace);
+    result = Accessors::ReplaceAccessorWithDataProperty(
+        isolate, receiver, holder, name, formatted_stack_trace);
     if (result.is_null()) {
       isolate->OptionalRescheduleException(false);
       return;
