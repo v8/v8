@@ -341,6 +341,10 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
 
   intptr_t start_marker;
   heap_stats.start_marker = &start_marker;
+  size_t ro_space_size;
+  heap_stats.ro_space_size = &ro_space_size;
+  size_t ro_space_capacity;
+  heap_stats.ro_space_capacity = &ro_space_capacity;
   size_t new_space_size;
   heap_stats.new_space_size = &new_space_size;
   size_t new_space_capacity;

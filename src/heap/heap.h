@@ -947,6 +947,7 @@ class Heap {
   inline void OnMoveEvent(HeapObject* target, HeapObject* source,
                           int size_in_bytes);
 
+  inline bool CanAllocateInReadOnlySpace();
   bool deserialization_complete() const { return deserialization_complete_; }
 
   bool HasLowAllocationRate();
@@ -1811,7 +1812,16 @@ class Heap {
 
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
-    return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
+    switch (pretenure) {
+      case TENURED_READ_ONLY:
+        return RO_SPACE;
+      case TENURED:
+        return OLD_SPACE;
+      case NOT_TENURED:
+        return NEW_SPACE;
+      default:
+        UNREACHABLE();
+    }
   }
 
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
@@ -2136,9 +2146,11 @@ class Heap {
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocatePartialMap(InstanceType instance_type, int instance_size);
 
+  void FinalizePartialMap(Map* map);
+
   // Allocate empty fixed typed array of given type.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateEmptyFixedTypedArray(
+      ExternalArrayType array_type, AllocationSpace space = OLD_SPACE);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 
@@ -2485,30 +2497,32 @@ class HeapStats {
   static const int kEndMarker = 0xDECADE01;
 
   intptr_t* start_marker;                  //  0
-  size_t* new_space_size;                  //  1
-  size_t* new_space_capacity;              //  2
-  size_t* old_space_size;                  //  3
-  size_t* old_space_capacity;              //  4
-  size_t* code_space_size;                 //  5
-  size_t* code_space_capacity;             //  6
-  size_t* map_space_size;                  //  7
-  size_t* map_space_capacity;              //  8
-  size_t* lo_space_size;                   //  9
-  size_t* global_handle_count;             // 10
-  size_t* weak_global_handle_count;        // 11
-  size_t* pending_global_handle_count;     // 12
-  size_t* near_death_global_handle_count;  // 13
-  size_t* free_global_handle_count;        // 14
-  size_t* memory_allocator_size;           // 15
-  size_t* memory_allocator_capacity;       // 16
-  size_t* malloced_memory;                 // 17
-  size_t* malloced_peak_memory;            // 18
-  size_t* objects_per_type;                // 19
-  size_t* size_per_type;                   // 20
-  int* os_error;                           // 21
-  char* last_few_messages;                 // 22
-  char* js_stacktrace;                     // 23
-  intptr_t* end_marker;                    // 24
+  size_t* ro_space_size;                   //  1
+  size_t* ro_space_capacity;               //  2
+  size_t* new_space_size;                  //  3
+  size_t* new_space_capacity;              //  4
+  size_t* old_space_size;                  //  5
+  size_t* old_space_capacity;              //  6
+  size_t* code_space_size;                 //  7
+  size_t* code_space_capacity;             //  8
+  size_t* map_space_size;                  //  9
+  size_t* map_space_capacity;              // 10
+  size_t* lo_space_size;                   // 11
+  size_t* global_handle_count;             // 12
+  size_t* weak_global_handle_count;        // 13
+  size_t* pending_global_handle_count;     // 14
+  size_t* near_death_global_handle_count;  // 15
+  size_t* free_global_handle_count;        // 16
+  size_t* memory_allocator_size;           // 17
+  size_t* memory_allocator_capacity;       // 18
+  size_t* malloced_memory;                 // 19
+  size_t* malloced_peak_memory;            // 20
+  size_t* objects_per_type;                // 21
+  size_t* size_per_type;                   // 22
+  int* os_error;                           // 23
+  char* last_few_messages;                 // 24
+  char* js_stacktrace;                     // 25
+  intptr_t* end_marker;                    // 26
 };
 
 

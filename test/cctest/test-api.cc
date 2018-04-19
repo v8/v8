@@ -18570,6 +18570,43 @@ THREADED_TEST(GetHeapStatistics) {
   CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
 }
 
+TEST(GetHeapSpaceStatistics) {
+  LocalContext c1;
+  v8::Isolate* isolate = c1->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapStatistics heap_statistics;
+
+  // Force allocation in LO_SPACE so that every space has non-zero size.
+  v8::internal::Isolate* i_isolate =
+      reinterpret_cast<v8::internal::Isolate*>(isolate);
+  (void)i_isolate->factory()->TryNewFixedArray(512 * 1024);
+
+  isolate->GetHeapStatistics(&heap_statistics);
+
+  // Ensure that the sum of all the spaces matches the totals from
+  // GetHeapSpaceStatics.
+  size_t total_size = 0u;
+  size_t total_used_size = 0u;
+  size_t total_available_size = 0u;
+  size_t total_physical_size = 0u;
+  for (size_t i = 0; i < isolate->NumberOfHeapSpaces(); ++i) {
+    v8::HeapSpaceStatistics space_statistics;
+    isolate->GetHeapSpaceStatistics(&space_statistics, i);
+    CHECK_NOT_NULL(space_statistics.space_name());
+    CHECK_GT(space_statistics.space_size(), 0u);
+    total_size += space_statistics.space_size();
+    CHECK_GT(space_statistics.space_used_size(), 0u);
+    total_used_size += space_statistics.space_used_size();
+    total_available_size += space_statistics.space_available_size();
+    CHECK_GT(space_statistics.physical_space_size(), 0u);
+    total_physical_size += space_statistics.physical_space_size();
+  }
+  CHECK_EQ(total_size, heap_statistics.total_heap_size());
+  CHECK_EQ(total_used_size, heap_statistics.used_heap_size());
+  CHECK_EQ(total_available_size, heap_statistics.total_available_size());
+  CHECK_EQ(total_physical_size, heap_statistics.total_physical_size());
+}
+
 TEST(NumberOfNativeContexts) {
   static const size_t kNumTestContexts = 10;
   i::Isolate* isolate = CcTest::i_isolate();

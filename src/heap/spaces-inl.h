@@ -315,6 +315,7 @@ HeapObject* PagedSpace::TryAllocateLinearlyAligned(
 
 AllocationResult PagedSpace::AllocateRawUnaligned(
     int size_in_bytes, UpdateSkipList update_skip_list) {
+  DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
   if (!EnsureLinearAllocationArea(size_in_bytes)) {
     return AllocationResult::Retry(identity());
   }
@@ -330,7 +331,8 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
 
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
-  DCHECK(identity() == OLD_SPACE);
+  DCHECK(identity() == OLD_SPACE || identity() == RO_SPACE);
+  DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
   int allocation_size = size_in_bytes;
   HeapObject* object = TryAllocateLinearlyAligned(&allocation_size, alignment);
   if (object == nullptr) {

@@ -442,7 +442,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<PropertyCell> NewPropertyCell(Handle<Name> name);
 
-  Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
+  Handle<WeakCell> NewWeakCell(Handle<HeapObject> value,
+                               PretenureFlag pretenure = TENURED);
 
   Handle<FeedbackCell> NewNoClosuresCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
