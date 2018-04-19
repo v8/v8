@@ -1071,10 +1071,10 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
       new_breakpoint_infos->set(i, breakpoint_infos->get(i));
   }
 
-  // Move elements [insert_pos+1, ...] up by one.
-  for (int i = insert_pos + 1; i < breakpoint_infos->length(); ++i) {
+  // Move elements [insert_pos, ...] up by one.
+  for (int i = breakpoint_infos->length() - 1; i >= insert_pos; --i) {
     Object* entry = breakpoint_infos->get(i);
-    if (entry->IsUndefined(isolate)) break;
+    if (entry->IsUndefined(isolate)) continue;
     new_breakpoint_infos->set(i + 1, entry);
   }
 
