@@ -10,7 +10,6 @@
 #include "src/disassembler.h"
 #include "src/elements.h"
 #include "src/field-type.h"
-#include "src/ic/ic-inl.h"
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -382,171 +381,12 @@ void FeedbackCell::FeedbackCellVerify() {
   CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector());
 }
 
-namespace {
-
-void VerifyCellHandlerArray(FixedArray* array) {
-  const int increment = 2;
-  for (int i = 0; i < array->length(); i += increment) {
-    WeakCell* cell = WeakCell::cast(array->get(i));
-    CHECK(cell->cleared() || cell->value()->IsMap());
-    Object* code = array->get(i + increment - 1);
-    CHECK(IC::IsHandler(code));
-  }
-}
-
-void VerifyFeedbackNexus(FeedbackNexus* nexus, Isolate* isolate) {
-  Object* feedback = nexus->GetFeedback();
-  auto kind = nexus->kind();
-  switch (kind) {
-    case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
-      UNREACHABLE();
-      break;
-    case FeedbackSlotKind::kCreateClosure: {
-      Object* value = FeedbackCell::cast(feedback)->value();
-      CHECK(value == isolate->heap()->undefined_value() ||
-            value->IsFeedbackVector());
-      break;
-    }
-    case FeedbackSlotKind::kLiteral: {
-      CHECK(feedback->IsSmi() || feedback->IsAllocationSite() ||
-            feedback->IsJSObject());
-      break;
-    }
-    case FeedbackSlotKind::kStoreGlobalSloppy:
-    case FeedbackSlotKind::kStoreGlobalStrict:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
-      Object* extra = nexus->GetFeedbackExtra();
-      if (feedback->IsSmi()) {
-        CHECK_EQ(extra, isolate->heap()->uninitialized_symbol());
-      } else if (feedback->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(feedback);
-        CHECK(cell->cleared() || cell->value()->IsPropertyCell());
-        CHECK(extra == isolate->heap()->uninitialized_symbol() ||
-              IC::IsHandler(extra));
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    }
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
-    case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kLoadProperty:
-    case FeedbackSlotKind::kLoadKeyed: {
-      Object* extra = nexus->GetFeedbackExtra();
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate) ||
-          feedback == *FeedbackVector::PremonomorphicSentinel(isolate)) {
-        CHECK_EQ(extra, *FeedbackVector::UninitializedSentinel(isolate));
-      } else if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
-        CHECK(extra->IsSmi());
-      } else if (feedback->IsFixedArray()) {
-        FixedArray* array = FixedArray::cast(feedback);
-        VerifyCellHandlerArray(array);
-        CHECK(extra == isolate->heap()->uninitialized_symbol());
-      } else if (feedback->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(feedback);
-        CHECK(cell->cleared() || cell->value()->IsMap());
-        CHECK(IC::IsHandler(extra));
-      } else if (feedback->IsName()) {
-        CHECK(IsKeyedLoadICKind(kind) || IsKeyedStoreICKind(kind));
-        VerifyCellHandlerArray(FixedArray::cast(extra));
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    }
-    case FeedbackSlotKind::kCall: {
-      Object* extra = nexus->GetFeedbackExtra();
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-        // "extra" can be a SMI here, since We don't clear the call count even
-        // if the feedback is reset back to uninitialized.
-        CHECK(extra == isolate->heap()->uninitialized_symbol() ||
-              extra->IsSmi());
-      } else if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
-        CHECK(extra->IsSmi());
-      } else if (feedback->IsAllocationSite()) {
-        CHECK(extra->IsSmi());
-      } else if (feedback->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(feedback);
-        CHECK(cell->cleared() || cell->value()->IsFunction());
-        CHECK(extra->IsSmi());
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    }
-    case FeedbackSlotKind::kBinaryOp:
-    case FeedbackSlotKind::kCompareOp:
-    case FeedbackSlotKind::kForIn:
-      CHECK(feedback->IsSmi());
-      break;
-    case FeedbackSlotKind::kInstanceOf:
-      if (feedback->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(feedback);
-        CHECK(cell->cleared() || cell->value()->IsJSFunction() ||
-              cell->value()->IsJSBoundFunction());
-      } else {
-        CHECK(feedback == *FeedbackVector::UninitializedSentinel(isolate) ||
-              feedback == *FeedbackVector::MegamorphicSentinel(isolate));
-      }
-      break;
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
-      Object* extra = nexus->GetFeedbackExtra();
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-        CHECK(extra == isolate->heap()->uninitialized_symbol());
-      } else if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
-        CHECK(extra->IsSmi());
-      } else if (feedback->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(feedback);
-        CHECK(cell->cleared() || cell->value()->IsMap());
-        CHECK(extra == isolate->heap()->uninitialized_symbol() ||
-              extra->IsName());
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    }
-    case FeedbackSlotKind::kTypeProfile: {
-      // The "IsSimpleNumberDictionary" case is never hit in
-      // tests. TODO(yangguo): Investigate why not (
-      // https://bugs.chromium.org/p/v8/issues/detail?id=7657 ).
-      CHECK(feedback == *FeedbackVector::UninitializedSentinel(isolate) ||
-            feedback->IsSimpleNumberDictionary());
-      break;
-    }
-  }
-}
-
-}  // namespace
-
-// This function also works for abandoned FeedbackVectors which might be
-// inconsistent with their metadata.
 void FeedbackVector::FeedbackVectorVerify() {
   CHECK(IsFeedbackVector());
   MaybeObject* code = optimized_code_weak_or_smi();
   MaybeObject::VerifyMaybeObjectPointer(code);
   CHECK(code->IsSmi() || code->IsClearedWeakHeapObject() ||
         code->IsWeakHeapObject());
-}
-
-// Additional verification for FeedbackVectors which are live, i.e., attached to
-// JSFunction.
-void FeedbackVector::FeedbackVectorVerifyDeep() {
-  if (!shared_function_info()->HasFeedbackMetadata()) {
-    return;
-  }
-  FeedbackMetadataIterator iter(metadata());
-  Isolate* isolate = GetIsolate();
-  while (iter.HasNext()) {
-    FeedbackSlot slot = iter.Next();
-    FeedbackNexus nexus(this, slot);
-    VerifyFeedbackNexus(&nexus, isolate);
-  }
 }
 
 template <class Traits>
@@ -1019,12 +859,6 @@ void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
   JSObjectVerify();
   VerifyHeapPointer(feedback_cell());
-  if (feedback_cell()->value()->IsFeedbackVector()) {
-    // Do the deep verification only for FeedbackVectors attached to
-    // JSFunction. This allows abandoned FeedbackVectors to be in an
-    // inconsistent state.
-    FeedbackVector::cast(feedback_cell()->value())->FeedbackVectorVerifyDeep();
-  }
   CHECK(feedback_cell()->IsFeedbackCell());
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());

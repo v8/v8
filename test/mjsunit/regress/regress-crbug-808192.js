@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --no-verify-heap
+// Flags: --expose-gc
 
 const f = eval(`(function f(i) {
   if (i == 0) {
