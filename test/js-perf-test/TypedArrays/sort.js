@@ -17,9 +17,12 @@ let typedArrayFloatConstructors = [
   {name: "Float64", ctor: Float64Array},
 ];
 
+// "ref" builds might not yet have BigInt support, so the benchmark fails
+// gracefully during setup (the constructor will be undefined), instead of
+// a hard fail when this file is loaded.
 let typedArrayBigIntConstructors = [
-  {name: "BigUint64", ctor: BigUint64Array},
-  {name: "BigInt64", ctor: BigInt64Array}
+  {name: "BigUint64", ctor: this["BigUint64Array"]},
+  {name: "BigInt64", ctor: this["BigInt64Array"]}
 ];
 
 function CreateBenchmarks(constructors, comparefns = []) {
