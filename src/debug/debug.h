@@ -349,6 +349,7 @@ class Debug {
                               Handle<Object> receiver);
   bool PerformSideEffectCheckForCallback(Handle<Object> callback_info);
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
+  bool PerformSideEffectCheckForObject(Handle<Object> object);
 
   // Flags and states.
   DebugScope* debugger_entry() {
@@ -502,7 +503,6 @@ class Debug {
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
-  bool PerformSideEffectCheckForObject(Handle<Object> object);
 
   // Global handles.
   Handle<Context> debug_context_;
@@ -536,6 +536,8 @@ class Debug {
   // Used for side effect check to mark temporary objects.
   class TemporaryObjectsTracker;
   std::unique_ptr<TemporaryObjectsTracker> temporary_objects_;
+
+  Handle<RegExpMatchInfo> regexp_match_info_;
 
   // Used to collect histogram data on debugger feature usage.
   DebugFeatureTracker feature_tracker_;

@@ -72,19 +72,19 @@ function listener(event, exec_state, event_data, data) {
       "map", "findIndex"
     ];
     var fails = ["toString", "join", "toLocaleString", "pop", "push", "reverse",
-      "shift", "unshift", "splice", "sort", "copyWithin"];
+      "shift", "unshift", "splice", "sort", "copyWithin", "fill"];
     for (f of Object.getOwnPropertyNames(Array.prototype)) {
       if (typeof Array.prototype[f] === "function") {
         if (fails.includes(f)) {
           if (function_param.includes(f)) {
-            fail(`[1, 2, 3].${f}(()=>{});`);
+            fail(`array.${f}(()=>{});`);
           } else {
-            fail(`[1, 2, 3].${f}();`);
+            fail(`array.${f}();`);
           }
         } else if (function_param.includes(f)) {
-          exec_state.frame(0).evaluate(`[1, 2, 3].${f}(()=>{});`, true);
+          exec_state.frame(0).evaluate(`array.${f}(()=>{});`, true);
         } else {
-          exec_state.frame(0).evaluate(`[1, 2, 3].${f}();`, true);
+          exec_state.frame(0).evaluate(`array.${f}();`, true);
         }
       }
     }
@@ -200,12 +200,11 @@ function listener(event, exec_state, event_data, data) {
     fail("'abcd'.match(/a/)");
     fail("'abcd'.replace(/a/)");
     fail("'abcd'.search(/a/)");
-    fail("'abcd'.split(/a/)");
 
     // Test RegExp functions.
     fail(`/a/.compile()`);
-    fail(`/a/.exec('abc')`);
-    fail(`/a/.test('abc')`);
+    success('a', `/a/.exec('abc')[0]`);
+    success(true, `/a/.test('abc')`);
     fail(`/a/.toString()`);
 
     // Test JSON functions.

@@ -258,6 +258,11 @@ RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
+      return isolate->heap()->exception();
+    }
+  }
   if (object->IsJSProxy()) return Smi::FromInt(-1);
   return PrepareElementsForSort(Handle<JSObject>::cast(object), limit);
 }

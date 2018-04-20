@@ -349,6 +349,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(HasComplexElements)                  \
   V(NewArray)                            \
   V(NormalizeElements)                   \
+  V(RemoveArrayHoles)                    \
   V(TrySliceSimpleNonFastElements)       \
   V(TypedArrayGetBuffer)                 \
   /* Errors */                           \
@@ -413,7 +414,9 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(HasInPrototypeChain)                 \
   V(MaxSmi)                              \
   V(NewObject)                           \
+  V(SmiLexicographicCompare)             \
   V(StringMaxLength)                     \
+  V(StringToArray)                       \
   /* Test */                             \
   V(GetOptimizationStatus)               \
   V(OptimizeFunctionOnNextCall)          \
@@ -555,8 +558,9 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kTestNull:
     // Conversions.
     case Bytecode::kToObject:
-    case Bytecode::kToNumber:
     case Bytecode::kToName:
+    case Bytecode::kToNumber:
+    case Bytecode::kToNumeric:
     case Bytecode::kToString:
     // Misc.
     case Bytecode::kForInEnumerate:
@@ -853,9 +857,36 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kMakeSyntaxError:
     case Builtins::kMakeRangeError:
     case Builtins::kMakeURIError:
+    // RegExp builtins.
+    case Builtins::kRegExpConstructor:
       return SharedFunctionInfo::kHasNoSideEffect;
+    // Set builtins.
+    case Builtins::kSetIteratorPrototypeNext:
     case Builtins::kSetPrototypeAdd:
+    case Builtins::kSetPrototypeClear:
+    case Builtins::kSetPrototypeDelete:
+    // Array builtins.
     case Builtins::kArrayIteratorPrototypeNext:
+    case Builtins::kArrayPrototypePop:
+    case Builtins::kArrayPrototypePush:
+    case Builtins::kArrayPrototypeShift:
+    case Builtins::kArrayUnshift:
+    // Map builtins.
+    case Builtins::kMapIteratorPrototypeNext:
+    case Builtins::kMapPrototypeClear:
+    case Builtins::kMapPrototypeDelete:
+    case Builtins::kMapPrototypeSet:
+    // RegExp builtins.
+    case Builtins::kRegExpPrototypeTest:
+    case Builtins::kRegExpPrototypeExec:
+    case Builtins::kRegExpPrototypeSplit:
+    case Builtins::kRegExpPrototypeFlagsGetter:
+    case Builtins::kRegExpPrototypeGlobalGetter:
+    case Builtins::kRegExpPrototypeIgnoreCaseGetter:
+    case Builtins::kRegExpPrototypeMultilineGetter:
+    case Builtins::kRegExpPrototypeDotAllGetter:
+    case Builtins::kRegExpPrototypeUnicodeGetter:
+    case Builtins::kRegExpPrototypeStickyGetter:
       return SharedFunctionInfo::kRequiresRuntimeChecks;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {

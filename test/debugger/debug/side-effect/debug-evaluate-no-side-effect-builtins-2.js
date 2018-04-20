@@ -79,7 +79,7 @@ function listener(event, exec_state, event_data, data) {
     success(undefined, `map.forEach(()=>1)`);
     success(true, `map.has("c")`);
     success(2, `map.size`);
-    fail(`new Map([[1, 2]])`);
+    success(undefined, `new Map([[1, 2]])`);
     fail(`map.delete("a")`);
     fail(`map.clear()`);
     fail(`map.set("x", "y")`);

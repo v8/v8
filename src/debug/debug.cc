@@ -2327,6 +2327,10 @@ void Debug::StartSideEffectCheckMode() {
   DCHECK(!temporary_objects_);
   temporary_objects_.reset(new TemporaryObjectsTracker());
   isolate_->heap()->AddHeapObjectAllocationTracker(temporary_objects_.get());
+  Handle<FixedArray> array(
+      isolate_->native_context()->regexp_last_match_info());
+  regexp_match_info_ =
+      Handle<RegExpMatchInfo>::cast(isolate_->factory()->CopyFixedArray(array));
 }
 
 void Debug::StopSideEffectCheckMode() {
@@ -2347,6 +2351,8 @@ void Debug::StopSideEffectCheckMode() {
   DCHECK(temporary_objects_);
   isolate_->heap()->RemoveHeapObjectAllocationTracker(temporary_objects_.get());
   temporary_objects_.reset();
+  isolate_->native_context()->set_regexp_last_match_info(*regexp_match_info_);
+  regexp_match_info_ = Handle<RegExpMatchInfo>::null();
 }
 
 void Debug::ApplySideEffectChecks(Handle<DebugInfo> debug_info) {
