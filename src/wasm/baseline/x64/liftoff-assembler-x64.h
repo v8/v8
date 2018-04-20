@@ -14,8 +14,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define REQUIRE_CPU_FEATURE(name)                                   \
-  if (!CpuFeatures::IsSupported(name)) return bailout("no " #name); \
+#define REQUIRE_CPU_FEATURE(name, ...)   \
+  if (!CpuFeatures::IsSupported(name)) { \
+    bailout("no " #name);                \
+    return __VA_ARGS__;                  \
+  }                                      \
   CpuFeatureScope feature(this, name);
 
 namespace liftoff {
@@ -819,22 +822,32 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
                                      DoubleRegister src,
                                      DoubleRegister converted_back) {
   if (std::is_same<double, src_type>::value) {  // f64
-    if (std::is_signed<dst_type>::value) {      // f64 -> i32
+    if (std::is_same<int32_t, dst_type>::value) {  // f64 -> i32
       assm->Cvttsd2si(dst, src);
       assm->Cvtlsi2sd(converted_back, dst);
-    } else {  // f64 -> u32
+    } else if (std::is_same<uint32_t, dst_type>::value) {  // f64 -> u32
       assm->Cvttsd2siq(dst, src);
       assm->movl(dst, dst);
       assm->Cvtqsi2sd(converted_back, dst);
+    } else if (std::is_same<int64_t, dst_type>::value) {  // f64 -> i64
+      assm->Cvttsd2siq(dst, src);
+      assm->Cvtqsi2sd(converted_back, dst);
+    } else {
+      UNREACHABLE();
     }
   } else {                                  // f32
-    if (std::is_signed<dst_type>::value) {  // f32 -> i32
+    if (std::is_same<int32_t, dst_type>::value) {  // f32 -> i32
       assm->Cvttss2si(dst, src);
       assm->Cvtlsi2ss(converted_back, dst);
-    } else {  // f32 -> u32
+    } else if (std::is_same<uint32_t, dst_type>::value) {  // f32 -> u32
       assm->Cvttss2siq(dst, src);
       assm->movl(dst, dst);
       assm->Cvtqsi2ss(converted_back, dst);
+    } else if (std::is_same<int64_t, dst_type>::value) {  // f32 -> i64
+      assm->Cvttss2siq(dst, src);
+      assm->Cvtqsi2ss(converted_back, dst);
+    } else {
+      UNREACHABLE();
     }
   }
 }
@@ -899,6 +912,22 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64SConvertI32:
       movsxlq(dst.gp(), src.gp());
       return true;
+    case kExprI64SConvertF32:
+      return liftoff::EmitTruncateFloatToInt<int64_t, float>(this, dst.gp(),
+                                                             src.fp(), trap);
+    case kExprI64UConvertF32: {
+      REQUIRE_CPU_FEATURE(SSE4_1, true);
+      Cvttss2uiq(dst.gp(), src.fp(), trap);
+      return true;
+    }
+    case kExprI64SConvertF64:
+      return liftoff::EmitTruncateFloatToInt<int64_t, double>(this, dst.gp(),
+                                                              src.fp(), trap);
+    case kExprI64UConvertF64: {
+      REQUIRE_CPU_FEATURE(SSE4_1, true);
+      Cvttsd2uiq(dst.gp(), src.fp(), trap);
+      return true;
+    }
     case kExprI64UConvertI32:
       AssertZeroExtended(src.gp());
       if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());

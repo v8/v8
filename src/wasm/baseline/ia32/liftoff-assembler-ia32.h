@@ -45,11 +45,16 @@ static_assert(kByteRegs.GetNumRegsSet() == 4, "should have four byte regs");
 static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
               "kByteRegs only contains gp cache registers");
 
-inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
-                 ValueType type) {
+inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
+                 int32_t offset, ValueType type) {
+  Operand src(base, offset);
   switch (type) {
     case kWasmI32:
       assm->mov(dst.gp(), src);
+      break;
+    case kWasmI64:
+      assm->mov(dst.low_gp(), src);
+      assm->mov(dst.high_gp(), Operand(base, offset + 4));
       break;
     case kWasmF32:
       assm->movss(dst.fp(), src);
@@ -329,8 +334,7 @@ void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  Operand src(ebp, kPointerSize * (caller_slot_idx + 1));
-  liftoff::Load(this, dst, src, type);
+  liftoff::Load(this, dst, ebp, kPointerSize * (caller_slot_idx + 1), type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -1371,7 +1375,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
 
   // Load potential output value from the buffer on the stack.
   if (out_argument_type != kWasmStmt) {
-    liftoff::Load(this, *next_result_reg, Operand(esp, 0), out_argument_type);
+    liftoff::Load(this, *next_result_reg, esp, 0, out_argument_type);
   }
 
   add(esp, Immediate(stack_bytes));
