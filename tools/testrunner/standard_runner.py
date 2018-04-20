@@ -266,6 +266,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       variables.update({
         'gc_stress': options.gc_stress or options.random_gc_stress,
+        'gc_fuzzer': options.random_gc_stress,
         'novfp3': options.novfp3,
         'simulator_run': simulator_run,
       })
