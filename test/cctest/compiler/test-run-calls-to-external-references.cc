@@ -86,7 +86,8 @@ template <typename InType, typename OutType, typename Iterable>
 void TestExternalReference_ConvertOp(
     BufferedRawMachineAssemblerTester<int32_t>* m, ExternalReference ref,
     void (*wrapper)(Address), Iterable inputs) {
-  uint8_t buffer[std::max(sizeof(InType), sizeof(OutType))];
+  constexpr size_t kBufferSize = Max(sizeof(InType), sizeof(OutType));
+  uint8_t buffer[kBufferSize] = {0};
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
@@ -112,7 +113,8 @@ template <typename InType, typename OutType, typename Iterable>
 void TestExternalReference_ConvertOpWithOutputAndReturn(
     BufferedRawMachineAssemblerTester<int32_t>* m, ExternalReference ref,
     int32_t (*wrapper)(Address), Iterable inputs) {
-  uint8_t buffer[std::max(sizeof(InType), sizeof(OutType))];
+  constexpr size_t kBufferSize = Max(sizeof(InType), sizeof(OutType));
+  uint8_t buffer[kBufferSize] = {0};
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
@@ -138,7 +140,8 @@ template <typename InType, typename OutType, typename Iterable>
 void TestExternalReference_ConvertOpWithReturn(
     BufferedRawMachineAssemblerTester<OutType>* m, ExternalReference ref,
     OutType (*wrapper)(Address), Iterable inputs) {
-  uint8_t buffer[sizeof(InType)];
+  constexpr size_t kBufferSize = sizeof(InType);
+  uint8_t buffer[kBufferSize] = {0};
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
