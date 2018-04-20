@@ -755,6 +755,9 @@
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 
+  # Flaky crash on Odroid devices: https://crbug.com/v8/7678
+  'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
+
   # Slow tests.
   'regress/regress-2185-2': [SKIP],
 }],  # variant == stress
