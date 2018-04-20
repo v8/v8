@@ -8,11 +8,14 @@
 #include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"
-#include "src/signature.h"
 #include "src/wasm/wasm-constants.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace wasm {
 
 // We reuse the internal machine type to represent WebAssembly types.
