@@ -66,23 +66,16 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
     std::cout << decl->name << " with signature " << signature << std::endl;
   }
 
-  bool java_script = decl->javascript_linkage;
-  bool varargs = decl->parameters.has_varargs;
-  if (java_script != varargs) {
-    if (java_script) {
-      std::stringstream stream;
-      stream << "JavaScript builtin " << decl->name
-             << " must have rest parameters at " << PositionAsString(decl->pos);
-      ReportError(stream.str());
-    } else {
-      std::stringstream stream;
-      stream << "builtin " << decl->name
-             << " with rest parameters must be a JavaScript builtin at "
-             << PositionAsString(decl->pos);
-      ReportError(stream.str());
-    }
+  const bool javascript = decl->javascript_linkage;
+  const bool varargs = decl->parameters.has_varargs;
+  if (varargs && !javascript) {
+    std::stringstream stream;
+    stream << "builtin " << decl->name
+           << " with rest parameters must be a JavaScript builtin at "
+           << PositionAsString(decl->pos);
+    ReportError(stream.str());
   }
-  if (java_script && varargs) {
+  if (javascript) {
     if (signature.types().size() < 2 ||
         !signature.types()[1].Is(OBJECT_TYPE_STRING)) {
       std::stringstream stream;
@@ -99,8 +92,11 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
                                 "arguments");
   }
 
+  Builtin::Kind kind = !javascript ? Builtin::kStub
+                                   : varargs ? Builtin::kVarArgsJavaScript
+                                             : Builtin::kFixedArgsJavaScript;
   Builtin* builtin = enclosing_scope->DeclareBuiltin(
-      decl->pos, decl->name, java_script, new_scope, signature);
+      decl->pos, decl->name, kind, new_scope, signature);
   defined_builtins_.push_back(builtin);
   DeclareParameterList(decl->pos, signature);
   CurrentCallActivator activator(global_context_, builtin);

@@ -52,10 +52,10 @@ Macro* Scope::DeclareMacro(SourcePosition pos, const std::string& name,
 }
 
 Builtin* Scope::DeclareBuiltin(SourcePosition pos, const std::string& name,
-                               bool java_script, Scope* scope,
+                               Builtin::Kind kind, Scope* scope,
                                const Signature& signature) {
   CheckAlreadyDeclared(pos, name, "builtin");
-  Builtin* result = new Builtin(name, java_script, scope, signature);
+  Builtin* result = new Builtin(name, kind, scope, signature);
   lookup_[name] = result;
   if (global_context_.verbose()) {
     std::cout << "declared " << *result << "\n";

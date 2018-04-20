@@ -33,7 +33,7 @@ class Scope {
                       const Signature& signature);
 
   Builtin* DeclareBuiltin(SourcePosition pos, const std::string& name,
-                          bool java_script, Scope* scope,
+                          Builtin::Kind kind, Scope* scope,
                           const Signature& signature);
 
   Runtime* DeclareRuntime(SourcePosition pos, const std::string& name,

@@ -218,15 +218,19 @@ class MacroList : public Declarable {
 
 class Builtin : public Callable {
  public:
-  Builtin(const std::string& name, bool java_script, Scope* scope,
+  enum Kind { kStub = 0, kFixedArgsJavaScript, kVarArgsJavaScript };
+
+  Builtin(const std::string& name, Kind kind, Scope* scope,
           const Signature& signature)
-      : Callable(Declarable::kBuiltin, name, scope, signature),
-        java_script_(java_script) {}
+      : Callable(Declarable::kBuiltin, name, scope, signature), kind_(kind) {}
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin);
-  bool IsJavaScript() const { return java_script_; }
+  Kind kind() const { return kind_; }
+  bool IsStub() const { return kind_ == kStub; }
+  bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
+  bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
 
  private:
-  bool java_script_;
+  Kind kind_;
 };
 
 class Runtime : public Callable {

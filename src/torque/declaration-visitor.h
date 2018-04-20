@@ -91,22 +91,16 @@ class DeclarationVisitor : public FileVisitor {
              << PositionAsString(decl->pos);
       ReportError(stream.str());
     }
-    if (decl->javascript_linkage != decl->parameters.has_varargs) {
-      if (decl->javascript_linkage) {
-        std::stringstream stream;
-        stream << "JavaScript builtin " << decl->name
-               << " must have rest parameters at "
-               << PositionAsString(decl->pos);
-        ReportError(stream.str());
-      } else {
-        std::stringstream stream;
-        stream << "builtin " << decl->name
-               << " with rest parameters must be a JavaScript builtin at "
-               << PositionAsString(decl->pos);
-        ReportError(stream.str());
-      }
+    const bool javascript = decl->javascript_linkage;
+    const bool varargs = decl->parameters.has_varargs;
+    if (varargs && !javascript) {
+      std::stringstream stream;
+      stream << "builtin " << decl->name
+             << " with rest parameters must be a JavaScript builtin at "
+             << PositionAsString(decl->pos);
+      ReportError(stream.str());
     }
-    if (decl->javascript_linkage && decl->parameters.has_varargs) {
+    if (javascript) {
       if (signature.types().size() < 2 ||
           !signature.types()[1].Is(OBJECT_TYPE_STRING)) {
         std::stringstream stream;
@@ -116,8 +110,10 @@ class DeclarationVisitor : public FileVisitor {
         ReportError(stream.str());
       }
     }
-    TopScope()->DeclareBuiltin(decl->pos, decl->name, decl->javascript_linkage,
-                               nullptr, signature);
+    Builtin::Kind kind = !javascript ? Builtin::kStub
+                                     : varargs ? Builtin::kVarArgsJavaScript
+                                               : Builtin::kFixedArgsJavaScript;
+    TopScope()->DeclareBuiltin(decl->pos, decl->name, kind, nullptr, signature);
   }
 
   void Visit(ExternalRuntimeDeclaration* decl) {
@@ -310,19 +306,34 @@ class DeclarationVisitor : public FileVisitor {
            "#define BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) "
            "\\\n";
     for (auto builtin : defined_builtins_) {
-      bool first = true;
-      if (builtin->IsJavaScript()) {
-        new_contents_stream
-            << "TFJ(" << builtin->name()
-            << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
-      } else {
+      int firstParameterIndex = 1;
+      bool declareParameters = true;
+      if (builtin->IsStub()) {
         new_contents_stream << "TFS(" << builtin->name();
+      } else {
+        new_contents_stream << "TFJ(" << builtin->name();
+        if (builtin->IsVarArgsJavaScript()) {
+          new_contents_stream
+              << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
+          declareParameters = false;
+        } else {
+          assert(builtin->IsFixedArgsJavaScript());
+          // FixedArg javascript builtins need to offer the parameter
+          // count.
+          assert(builtin->parameter_names().size() >= 2);
+          new_contents_stream << ", "
+                              << (builtin->parameter_names().size() - 2);
+          // And the receiver is implicitly declared.
+          firstParameterIndex = 2;
+        }
+      }
+      if (declareParameters) {
+        int index = 0;
         for (auto parameter : builtin->parameter_names()) {
-          if (first) {
-            first = false;
-          } else {
+          if (index >= firstParameterIndex) {
             new_contents_stream << ", k" << CamelifyString(parameter);
           }
+          index++;
         }
       }
       new_contents_stream << ") \\\n";

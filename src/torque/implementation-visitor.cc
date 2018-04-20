@@ -212,38 +212,37 @@ void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
   GenerateIndent();
   source_out() << "TNode<Context> " << val->GetValueForDeclaration()
                << " = UncheckedCast<Context>(Parameter("
-               << (builtin->IsJavaScript() ? "Builtin" : "")
+               << (builtin->IsVarArgsJavaScript() ? "Builtin" : "")
                << "Descriptor::kContext));" << std::endl;
   GenerateIndent();
   source_out() << "USE(" << val->GetValueForDeclaration() << ");" << std::endl;
 
   size_t first = 1;
-  if (builtin->IsJavaScript()) {
-    if (decl->parameters.has_varargs) {
-      Constant* arguments = Constant::cast(
-          LookupValue(decl->pos, decl->parameters.arguments_variable));
-      std::string arguments_name = arguments->GetValueForDeclaration();
-      GenerateIndent();
-      source_out()
-          << "Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);"
-          << std::endl;
-      GenerateIndent();
-      source_out() << "CodeStubArguments arguments_impl(this, "
-                      "ChangeInt32ToIntPtr(argc));"
-                   << std::endl;
-      const Value* receiver = LookupValue(decl->pos, decl->parameters.names[1]);
-      GenerateIndent();
-      source_out() << "TNode<Object> " << receiver->GetValueForDeclaration()
-                   << " = arguments_impl.GetReceiver();" << std::endl;
-      GenerateIndent();
-      source_out() << "auto arguments = &arguments_impl;" << std::endl;
-      GenerateIndent();
-      source_out() << "USE(arguments);" << std::endl;
-      GenerateIndent();
-      source_out() << "USE(" << receiver->GetValueForDeclaration() << ");"
-                   << std::endl;
-      first = 2;
-    }
+  if (builtin->IsVarArgsJavaScript()) {
+    assert(decl->parameters.has_varargs);
+    Constant* arguments = Constant::cast(
+        LookupValue(decl->pos, decl->parameters.arguments_variable));
+    std::string arguments_name = arguments->GetValueForDeclaration();
+    GenerateIndent();
+    source_out()
+        << "Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);"
+        << std::endl;
+    GenerateIndent();
+    source_out() << "CodeStubArguments arguments_impl(this, "
+                    "ChangeInt32ToIntPtr(argc));"
+                 << std::endl;
+    const Value* receiver = LookupValue(decl->pos, decl->parameters.names[1]);
+    GenerateIndent();
+    source_out() << "TNode<Object> " << receiver->GetValueForDeclaration()
+                 << " = arguments_impl.GetReceiver();" << std::endl;
+    GenerateIndent();
+    source_out() << "auto arguments = &arguments_impl;" << std::endl;
+    GenerateIndent();
+    source_out() << "USE(arguments);" << std::endl;
+    GenerateIndent();
+    source_out() << "USE(" << receiver->GetValueForDeclaration() << ");"
+                 << std::endl;
+    first = 2;
   }
 
   GenerateParameterList(decl->pos, decl->parameters.names, first);
@@ -582,7 +581,7 @@ Type ImplementationVisitor::Visit(ReturnStatement* stmt) {
       GenerateAssignToVariable(stmt->pos, var, return_result);
       GenerateLabelGoto(end);
     } else if (current_callable->IsBuiltin()) {
-      if (Builtin::cast(current_callable)->IsJavaScript()) {
+      if (Builtin::cast(current_callable)->IsVarArgsJavaScript()) {
         GenerateIndent();
         source_out() << "arguments->PopAndReturn(" << return_result.variable()
                      << ");" << std::endl;
