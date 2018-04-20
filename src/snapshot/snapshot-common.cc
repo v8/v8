@@ -393,7 +393,17 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
                 code->raw_instruction_size());
   }
 
-  return {blob, blob_size};
+  EmbeddedData d(blob, blob_size);
+
+  // Hash the blob and store the result.
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  const size_t hash = d.CreateHash();
+  std::memcpy(blob + HashOffset(), &hash, HashSize());
+
+  DCHECK_EQ(hash, d.CreateHash());
+  DCHECK_EQ(hash, d.Hash());
+
+  return d;
 }
 
 EmbeddedData EmbeddedData::FromBlob() {
@@ -406,10 +416,10 @@ EmbeddedData EmbeddedData::FromBlob() {
 
 Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-
   const uint32_t* offsets = Offsets();
   const uint8_t* result = RawData() + offsets[i];
-  DCHECK_LT(result, data_ + size_);
+  DCHECK_LE(result, data_ + size_);
+  DCHECK_IMPLIES(result == data_ + size_, InstructionSizeOfBuiltin(i) == 0);
   return reinterpret_cast<Address>(result);
 }
 
@@ -417,6 +427,12 @@ uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const uint32_t* lengths = Lengths();
   return lengths[i];
+}
+
+size_t EmbeddedData::CreateHash() const {
+  STATIC_ASSERT(HashOffset() == 0);
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  return base::hash_range(data_ + HashSize(), data_ + size_);
 }
 #endif
 

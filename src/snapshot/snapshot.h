@@ -100,16 +100,26 @@ class EmbeddedData final {
     return RoundUp<kCodeAlignment>(InstructionSizeOfBuiltin(i));
   }
 
+  size_t CreateHash() const;
+  size_t Hash() const {
+    return *reinterpret_cast<const size_t*>(data_ + HashOffset());
+  }
+
   // The layout of the blob is as follows:
   //
-  // [0] offset of instruction stream 0
-  // ... offsets
-  // [N] length of instruction stream 0
-  // ... lengths
-  // ... instruction streams
+  // [0]     hash of the remaining blob
+  // [1]     offset of instruction stream 0
+  // ...     offsets
+  // [N + 1] length of instruction stream 0
+  // ...     lengths
+  // ...     instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
-  static constexpr uint32_t OffsetsOffset() { return 0; }
+  static constexpr uint32_t HashOffset() { return 0; }
+  static constexpr uint32_t HashSize() { return kSizetSize; }
+  static constexpr uint32_t OffsetsOffset() {
+    return HashOffset() + HashSize();
+  }
   static constexpr uint32_t OffsetsSize() { return kUInt32Size * kTableSize; }
   static constexpr uint32_t LengthsOffset() {
     return OffsetsOffset() + OffsetsSize();

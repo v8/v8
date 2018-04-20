@@ -94,6 +94,15 @@ void Isolate::SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
   embedded_blob_size_ = blob_size;
   current_embedded_blob_.store(blob, std::memory_order_relaxed);
   current_embedded_blob_size_.store(blob_size, std::memory_order_relaxed);
+
+#ifdef DEBUG
+  if (blob != nullptr) {
+    // Verify that the contents of the embedded blob are unchanged from
+    // serialization-time, just to ensure the compiler isn't messing with us.
+    EmbeddedData d = EmbeddedData::FromBlob();
+    CHECK_EQ(d.Hash(), d.CreateHash());
+  }
+#endif  // DEBUG
 }
 
 const uint8_t* Isolate::embedded_blob() const { return embedded_blob_; }

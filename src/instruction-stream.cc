@@ -69,7 +69,7 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
                        PageAllocator::kReadExecute));
 
   *data = allocated_bytes;
-  *size = allocated_size;
+  *size = d.size();
 
   d.Dispose();
 }
@@ -77,7 +77,8 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
 // static
 void InstructionStream::FreeOffHeapInstructionStream(uint8_t* data,
                                                      uint32_t size) {
-  CHECK(FreePages(data, size));
+  const uint32_t page_size = static_cast<uint32_t>(AllocatePageSize());
+  CHECK(FreePages(data, RoundUp(size, page_size)));
 }
 #endif  // V8_EMBEDDED_BUILTINS
 
