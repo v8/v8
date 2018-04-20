@@ -188,6 +188,8 @@ class TranslatedFrame {
 
     TranslatedValue& operator*() { return (*position_); }
     TranslatedValue* operator->() { return &(*position_); }
+    const TranslatedValue& operator*() const { return (*position_); }
+    const TranslatedValue* operator->() const { return &(*position_); }
 
    private:
     friend TranslatedFrame;
@@ -520,6 +522,10 @@ class Deoptimizer : public Malloced {
   Isolate* isolate() const { return isolate_; }
 
  private:
+  friend class FrameWriter;
+  void QueueValueForTranslation(Address output_address, Object* obj,
+                                const TranslatedFrame::iterator& iterator);
+
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 

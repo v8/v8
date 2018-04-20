@@ -25,6 +25,107 @@
 namespace v8 {
 namespace internal {
 
+// {FrameWriter} offers a stack writer abstraction for writing
+// FrameDescriptions. The main service the class provides is managing
+// {top_offset_}, i.e. the offset of the next slot to write to.
+class FrameWriter {
+ public:
+  static const int NO_INPUT_INDEX = -1;
+  FrameWriter(Deoptimizer* deoptimizer, FrameDescription* frame,
+              CodeTracer::Scope* trace_scope)
+      : deoptimizer_(deoptimizer),
+        frame_(frame),
+        trace_scope_(trace_scope),
+        top_offset_(frame->GetFrameSize()) {}
+
+  void PushRawValue(intptr_t value, const char* debug_hint) {
+    PushValue(value);
+
+    if (trace_scope_ != nullptr) {
+      DebugPrintOutputValue(value, debug_hint);
+    }
+  }
+
+  void PushRawObject(Object* obj, const char* debug_hint) {
+    intptr_t value = reinterpret_cast<intptr_t>(obj);
+    PushValue(value);
+    if (trace_scope_ != nullptr) {
+      DebugPrintOutputObject(obj, top_offset_, debug_hint);
+    }
+  }
+
+  void PushCallerPc(intptr_t pc) {
+    top_offset_ -= kPCOnStackSize;
+    frame_->SetCallerPc(top_offset_, pc);
+    DebugPrintOutputValue(pc, "caller's pc\n");
+  }
+
+  void PushCallerFp(intptr_t fp) {
+    top_offset_ -= kFPOnStackSize;
+    frame_->SetCallerFp(top_offset_, fp);
+    DebugPrintOutputValue(fp, "caller's fp\n");
+  }
+
+  void PushCallerConstantPool(intptr_t cp) {
+    top_offset_ -= kPointerSize;
+    frame_->SetCallerConstantPool(top_offset_, cp);
+    DebugPrintOutputValue(cp, "caller's constant_pool\n");
+  }
+
+  void PushTranslatedValue(const TranslatedFrame::iterator& iterator,
+                           const char* debug_hint = "") {
+    Object* obj = iterator->GetRawValue();
+
+    PushRawObject(obj, debug_hint);
+
+    deoptimizer_->QueueValueForTranslation(output_address(top_offset_), obj,
+                                           iterator);
+  }
+
+  unsigned top_offset() const { return top_offset_; }
+
+ private:
+  void PushValue(intptr_t value) {
+    CHECK_GE(top_offset_, 0);
+    top_offset_ -= kPointerSize;
+    frame_->SetFrameSlot(top_offset_, value);
+  }
+
+  Address output_address(unsigned output_offset) {
+    Address output_address =
+        static_cast<Address>(frame_->GetTop()) + output_offset;
+    return output_address;
+  }
+
+  void DebugPrintOutputValue(intptr_t value, const char* debug_hint = "") {
+    if (trace_scope_ != nullptr) {
+      PrintF(trace_scope_->file(),
+             "    0x%08" V8PRIxPTR ": [top + %3d] <- 0x%08" V8PRIxPTR " ;  %s",
+             output_address(top_offset_), top_offset_, value, debug_hint);
+    }
+  }
+
+  void DebugPrintOutputObject(Object* obj, unsigned output_offset,
+                              const char* debug_hint = "") {
+    if (trace_scope_ != nullptr) {
+      PrintF(trace_scope_->file(), "    0x%08" V8PRIxPTR ": [top + %3d] <- ",
+             output_address(output_offset), output_offset);
+      if (obj->IsSmi()) {
+        PrintF("0x%08" V8PRIxPTR " <Smi %d>", reinterpret_cast<Address>(obj),
+               Smi::cast(obj)->value());
+      } else {
+        obj->ShortPrint(trace_scope_->file());
+      }
+      PrintF(trace_scope_->file(), " ;  %s", debug_hint);
+    }
+  }
+
+  Deoptimizer* deoptimizer_;
+  FrameDescription* frame_;
+  CodeTracer::Scope* trace_scope_;
+  unsigned top_offset_;
+};
+
 DeoptimizerData::DeoptimizerData(Heap* heap) : heap_(heap), current_(nullptr) {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
     deopt_entry_code_[i] = nullptr;
@@ -1562,6 +1663,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, stack_param_count);
   output_[frame_index] = output_frame;
+  FrameWriter frame_writer(this, output_frame, trace_scope_);
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
@@ -1576,32 +1678,23 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // Get the possible JSFunction for the case that this is a
   // JavaScriptBuiltinContinuationFrame, which needs the JSFunction pointer
   // like a normal JavaScriptFrame.
-  intptr_t maybe_function =
+  const intptr_t maybe_function =
       reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
   ++input_index;
   ++value_iterator;
 
-  struct RegisterValue {
-    Object* raw_value_;
-    TranslatedFrame::iterator iterator_;
-  };
-  std::vector<RegisterValue> register_values;
-  int total_registers = config->num_general_registers();
-  register_values.resize(total_registers, {Smi::kZero, value_iterator});
-
-  intptr_t value;
-
-  unsigned output_frame_offset = output_frame_size;
   if (ShouldPadArguments(stack_param_count)) {
-    output_frame_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                       output_frame_offset, "padding ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "padding\n");
   }
 
   for (int i = 0; i < translated_stack_parameters; ++i) {
-    output_frame_offset -= kPointerSize;
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_frame_offset);
+    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    if (trace_scope_) {
+      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
+    }
+    value_iterator++;
+    input_index++;
   }
 
   switch (mode) {
@@ -1610,34 +1703,32 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     case BuiltinContinuationMode::JAVASCRIPT:
       break;
     case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH: {
-      output_frame_offset -= kPointerSize;
-      WriteValueToOutput(isolate()->heap()->the_hole_value(), input_index,
-                         frame_index, output_frame_offset,
-                         "placeholder for exception on lazy deopt ");
+      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                                 "placeholder for exception on lazy deopt\n");
     } break;
     case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
-      output_frame_offset -= kPointerSize;
       intptr_t accumulator_value =
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
-      WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
-                         frame_index, output_frame_offset,
-                         "exception (from accumulator)");
+      frame_writer.PushRawObject(reinterpret_cast<Object*>(accumulator_value),
+                                 "exception (from accumulator)\n");
     } break;
   }
 
   if (must_handle_result) {
-    output_frame_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), input_index,
-                       frame_index, output_frame_offset,
-                       "placeholder for return result on lazy deopt ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "placeholder for return result on lazy deopt\n");
   }
 
-  DCHECK_EQ(output_frame_offset, output_frame->GetLastArgumentSlotOffset());
+  DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
+            frame_writer.top_offset());
+
+  std::vector<TranslatedFrame::iterator> register_values;
+  int total_registers = config->num_general_registers();
+  register_values.resize(total_registers, {value_iterator});
 
   for (int i = 0; i < register_parameter_count; ++i) {
-    Object* object = value_iterator->GetRawValue();
     int code = continuation_descriptor.GetRegisterParameter(i).code();
-    register_values[code] = {object, value_iterator};
+    register_values[code] = value_iterator;
     ++input_index;
     ++value_iterator;
   }
@@ -1648,107 +1739,66 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // set (it was automatically added at the end of the FrameState by the
   // instruction selector).
   Object* context = value_iterator->GetRawValue();
-  value = reinterpret_cast<intptr_t>(context);
-  const RegisterValue context_register_value = {context, value_iterator};
-  register_values[kContextRegister.code()] = context_register_value;
+  const intptr_t value = reinterpret_cast<intptr_t>(context);
+  TranslatedFrame::iterator context_register_value = value_iterator;
+  register_values[kContextRegister.code()] = value_iterator;
   output_frame->SetContext(value);
   output_frame->SetRegister(kContextRegister.code(), value);
   ++input_index;
   ++value_iterator;
 
   // Set caller's PC (JSFunction continuation).
-  output_frame_offset -= kPCOnStackSize;
-  if (is_bottommost) {
-    value = caller_pc_;
-  } else {
-    value = output_[frame_index - 1]->GetPc();
-  }
-  output_frame->SetCallerPc(output_frame_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                       "caller's pc\n");
+  const intptr_t caller_pc =
+      is_bottommost ? caller_pc_ : output_[frame_index - 1]->GetPc();
+  frame_writer.PushCallerPc(caller_pc);
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_frame_offset -= kFPOnStackSize;
-  if (is_bottommost) {
-    value = caller_fp_;
-  } else {
-    value = output_[frame_index - 1]->GetFp();
-  }
-  output_frame->SetCallerFp(output_frame_offset, value);
-  const intptr_t fp_value = top_address + output_frame_offset;
-  output_frame->SetFp(fp_value);
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                       "caller's fp\n");
+  const intptr_t caller_fp =
+      is_bottommost ? caller_fp_ : output_[frame_index - 1]->GetFp();
+  frame_writer.PushCallerFp(caller_fp);
 
-  DCHECK_EQ(output_frame_size_above_fp, output_frame_offset);
+  const intptr_t fp_value = top_address + frame_writer.top_offset();
+  output_frame->SetFp(fp_value);
+
+  DCHECK_EQ(output_frame_size_above_fp, frame_writer.top_offset());
 
   if (FLAG_enable_embedded_constant_pool) {
     // Read the caller's constant pool from the previous frame.
-    output_frame_offset -= kPointerSize;
-    if (is_bottommost) {
-      value = caller_constant_pool_;
-    } else {
-      value = output_[frame_index - 1]->GetConstantPool();
-    }
-    output_frame->SetCallerConstantPool(output_frame_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                         "caller's constant_pool\n");
+    const intptr_t caller_cp =
+        is_bottommost ? caller_constant_pool_
+                      : output_[frame_index - 1]->GetConstantPool();
+    frame_writer.PushCallerConstantPool(caller_cp);
   }
 
   // A marker value is used in place of the context.
-  output_frame_offset -= kPointerSize;
-  intptr_t marker =
+  const intptr_t marker =
       StackFrame::TypeToMarker(BuiltinContinuationModeToFrameType(mode));
+  frame_writer.PushRawValue(marker,
+                            "context (builtin continuation sentinel)\n");
 
-  output_frame->SetFrameSlot(output_frame_offset, marker);
-  DebugPrintOutputSlot(marker, frame_index, output_frame_offset,
-                       "context (builtin continuation sentinel)\n");
-
-  output_frame_offset -= kPointerSize;
-  value = BuiltinContinuationModeIsJavaScript(mode) ? maybe_function : 0;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  DebugPrintOutputSlot(
-      value, frame_index, output_frame_offset,
-      BuiltinContinuationModeIsJavaScript(mode) ? "JSFunction\n" : "unused\n");
+  if (BuiltinContinuationModeIsJavaScript(mode)) {
+    frame_writer.PushRawValue(maybe_function, "JSFunction\n");
+  } else {
+    frame_writer.PushRawValue(0, "unused\n");
+  }
 
   // The delta from the SP to the FP; used to reconstruct SP in
   // Isolate::UnwindAndFindHandler.
-  output_frame_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(output_frame_size_above_fp));
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                       "frame height at deoptimization\n");
+  frame_writer.PushRawObject(Smi::FromInt(output_frame_size_above_fp),
+                             "frame height at deoptimization\n");
 
   // The context even if this is a stub contininuation frame. We can't use the
   // usual context slot, because we must store the frame marker there.
-  output_frame_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(context);
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                       "builtin JavaScript context\n");
-  if (context == isolate_->heap()->arguments_marker()) {
-    Address output_address =
-        static_cast<Address>(output_[frame_index]->GetTop()) +
-        output_frame_offset;
-    values_to_materialize_.push_back(
-        {output_address, context_register_value.iterator_});
-  }
+  frame_writer.PushTranslatedValue(context_register_value,
+                                   "builtin JavaScript context\n");
 
   // The builtin to continue to.
-  output_frame_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(builtin);
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                       "builtin address\n");
+  frame_writer.PushRawObject(builtin, "builtin address\n");
 
   for (int i = 0; i < allocatable_register_count; ++i) {
-    output_frame_offset -= kPointerSize;
     int code = config->GetAllocatableGeneralCode(i);
-    Object* object = register_values[code].raw_value_;
-    value = reinterpret_cast<intptr_t>(object);
-    output_frame->SetFrameSlot(output_frame_offset, value);
+    ScopedVector<char> str(128);
     if (trace_scope_ != nullptr) {
-      ScopedVector<char> str(128);
       if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {
         SNPrintF(
@@ -1759,46 +1809,36 @@ void Deoptimizer::DoComputeBuiltinContinuation(
         SNPrintF(str, "builtin register argument %s\n",
                  config->GetGeneralRegisterName(code));
       }
-      DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                           str.start());
     }
-    if (object == isolate_->heap()->arguments_marker()) {
-      Address output_address =
-          static_cast<Address>(output_[frame_index]->GetTop()) +
-          output_frame_offset;
-      values_to_materialize_.push_back(
-          {output_address, register_values[code].iterator_});
-    }
+    frame_writer.PushTranslatedValue(
+        register_values[code], trace_scope_ != nullptr ? str.start() : "");
   }
 
   // Some architectures must pad the stack frame with extra stack slots
   // to ensure the stack frame is aligned.
   for (int i = 0; i < padding_slot_count; ++i) {
-    output_frame_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                       output_frame_offset, "padding ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "padding\n");
   }
 
   if (is_topmost) {
     if (PadTopOfStackRegister()) {
-      output_frame_offset -= kPointerSize;
-      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                         output_frame_offset, "padding ");
+      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                                 "padding\n");
     }
     // Ensure the result is restored back when we return to the stub.
-    output_frame_offset -= kPointerSize;
-    Register result_reg = kReturnRegister0;
+
     if (must_handle_result) {
-      value = input_->GetRegister(result_reg.code());
+      Register result_reg = kReturnRegister0;
+      frame_writer.PushRawValue(input_->GetRegister(result_reg.code()),
+                                "callback result\n");
     } else {
-      value = reinterpret_cast<intptr_t>(isolate()->heap()->undefined_value());
+      frame_writer.PushRawObject(isolate()->heap()->undefined_value(),
+                                 "callback result\n");
     }
-    output_frame->SetFrameSlot(output_frame_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_frame_offset,
-                         "callback result\n");
   }
 
-  CHECK_EQ(0u, output_frame_offset);
+  CHECK_EQ(0u, frame_writer.top_offset());
 
   // Clear the context register. The context might be a de-materialized object
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
@@ -1861,6 +1901,13 @@ void Deoptimizer::MaterializeHeapObjects() {
       static_cast<Address>(stack_fp_));
 }
 
+void Deoptimizer::QueueValueForTranslation(
+    Address output_address, Object* obj,
+    const TranslatedFrame::iterator& iterator) {
+  if (obj == isolate_->heap()->arguments_marker()) {
+    values_to_materialize_.push_back({output_address, iterator});
+  }
+}
 
 void Deoptimizer::WriteTranslatedValueToOutput(
     TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
