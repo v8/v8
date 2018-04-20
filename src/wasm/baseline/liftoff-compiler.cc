@@ -572,90 +572,20 @@ class LiftoffCompiler {
                      ValueType out_argument_type,
                      const LiftoffRegister* arg_regs,
                      ExternalReference ext_ref) {
-    static constexpr int kMaxReturns = 1;
-    static constexpr int kMaxArgs = 2;
-    static constexpr MachineType kReps[]{
-        MachineType::Uint32(), MachineType::Pointer(), MachineType::Pointer()};
-    static_assert(arraysize(kReps) == kMaxReturns + kMaxArgs, "mismatch");
-
-    const bool has_out_argument = out_argument_type != kWasmStmt;
-    const uint32_t num_returns = static_cast<uint32_t>(sig->return_count());
-    // {total_num_args} is {num_args + 1} if the return value is stored in an
-    // out parameter, or {num_args} otherwise.
-    const uint32_t num_args = static_cast<uint32_t>(sig->parameter_count());
-    const uint32_t total_num_args = num_args + has_out_argument;
-    DCHECK_LE(num_args, kMaxArgs);
-    DCHECK_LE(num_returns, kMaxReturns);
-
-    MachineSignature machine_sig(num_returns, total_num_args,
-                                 kReps + (kMaxReturns - num_returns));
-    auto* call_descriptor = compiler::Linkage::GetSimplifiedCDescriptor(
-        compilation_zone_, &machine_sig);
-
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
 
     // Store arguments on our stack, then align the stack for calling to C.
-    __ PrepareCCall(sig, arg_regs, out_argument_type);
-
-    // The arguments to the c function are pointers to the stack slots we just
-    // pushed.
-    int num_stack_params = 0;   // Number of stack parameters.
-    int input_idx = 1;          // Input 0 is the call target.
-    int param_byte_offset = 0;  // Byte offset into the pushed arguments.
-    auto add_argument = [&](ValueType arg_type) {
-      compiler::LinkageLocation loc =
-          call_descriptor->GetInputLocation(input_idx);
-      param_byte_offset +=
-          RoundUp<kPointerSize>(WasmOpcodes::MemSize(arg_type));
-      ++input_idx;
-      if (loc.IsRegister()) {
-        Register reg = Register::from_code(loc.AsRegister());
-        // Load address of that parameter to the register.
-        __ SetCCallRegParamAddr(reg, param_byte_offset, arg_type);
-      } else {
-        DCHECK(loc.IsCallerFrameSlot());
-        __ SetCCallStackParamAddr(num_stack_params, param_byte_offset,
-                                  arg_type);
-        ++num_stack_params;
-      }
-    };
-    for (ValueType arg_type : sig->parameters()) {
-      add_argument(arg_type);
+    int param_bytes = 0;
+    for (ValueType param_type : sig->parameters()) {
+      param_bytes += WasmOpcodes::MemSize(param_type);
     }
-    if (has_out_argument) {
-      add_argument(out_argument_type);
-    }
-    DCHECK_EQ(input_idx, call_descriptor->InputCount());
-
-    // Now execute the call.
-    uint32_t c_call_arg_count =
-        static_cast<uint32_t>(sig->parameter_count()) + has_out_argument;
-    __ CallC(ext_ref, c_call_arg_count);
-
-    // Reset the stack pointer.
-    __ FinishCCall();
-
-    // Load return value.
-    const LiftoffRegister* next_result_reg = result_regs;
-    if (sig->return_count() > 0) {
-      DCHECK_EQ(1, sig->return_count());
-      compiler::LinkageLocation return_loc =
-          call_descriptor->GetReturnLocation(0);
-      DCHECK(return_loc.IsRegister());
-      Register return_reg = Register::from_code(return_loc.AsRegister());
-      if (return_reg != next_result_reg->gp()) {
-        __ Move(*next_result_reg, LiftoffRegister(return_reg),
-                sig->GetReturn(0));
-      }
-      ++next_result_reg;
-    }
-
-    // Load potential return value from output argument.
-    if (has_out_argument) {
-      __ LoadCCallOutArgument(*next_result_reg, out_argument_type,
-                              param_byte_offset);
-    }
+    int out_arg_bytes = out_argument_type == kWasmStmt
+                            ? 0
+                            : WasmOpcodes::MemSize(out_argument_type);
+    int stack_bytes = std::max(param_bytes, out_arg_bytes);
+    __ CallC(sig, arg_regs, result_regs, out_argument_type, stack_bytes,
+             ext_ref);
   }
 
   template <ValueType src_type, ValueType result_type, class EmitFn>

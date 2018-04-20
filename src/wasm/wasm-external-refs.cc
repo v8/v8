@@ -62,11 +62,15 @@ void f64_nearest_int_wrapper(double* param) {
   WriteDoubleValue(param, nearbyint(ReadDoubleValue(param)));
 }
 
-void int64_to_float32_wrapper(int64_t* input, float* output) {
-  *output = static_cast<float>(ReadUnalignedInt64(input));
+void int64_to_float32_wrapper(Address data) {
+  int64_t input = ReadUnalignedValue<int64_t>(data);
+  WriteUnalignedValue<float>(data, static_cast<float>(input));
 }
 
-void uint64_to_float32_wrapper(uint64_t* input, float* output) {
+void uint64_to_float32_wrapper(Address data) {
+  uint64_t input = ReadUnalignedValue<uint64_t>(data);
+  float result = static_cast<float>(input);
+
 #if V8_CC_MSVC
   // With MSVC we use static_cast<float>(uint32_t) instead of
   // static_cast<float>(uint64_t) to achieve round-to-nearest-ties-even
@@ -75,8 +79,8 @@ void uint64_to_float32_wrapper(uint64_t* input, float* output) {
   // achieve proper rounding in all cases we have to adjust the high_word
   // with a "rounding bit" sometimes. The rounding bit is stored in the LSB of
   // the high_word if the low_word may affect the rounding of the high_word.
-  uint32_t low_word = static_cast<uint32_t>(*input & 0xFFFFFFFF);
-  uint32_t high_word = static_cast<uint32_t>(*input >> 32);
+  uint32_t low_word = static_cast<uint32_t>(input & 0xFFFFFFFF);
+  uint32_t high_word = static_cast<uint32_t>(input >> 32);
 
   float shift = static_cast<float>(1ull << 32);
   // If the MSB of the high_word is set, then we make space for a rounding bit.
@@ -90,86 +94,88 @@ void uint64_to_float32_wrapper(uint64_t* input, float* output) {
     high_word |= 1;
   }
 
-  float result = static_cast<float>(high_word);
+  result = static_cast<float>(high_word);
   result *= shift;
   result += static_cast<float>(low_word);
-  *output = result;
-
-#else
-  *output = static_cast<float>(ReadUnalignedUint64(input));
 #endif
+
+  WriteUnalignedValue<float>(data, result);
 }
 
-void int64_to_float64_wrapper(int64_t* input, double* output) {
-  WriteDoubleValue(output, static_cast<double>(ReadUnalignedInt64(input)));
+void int64_to_float64_wrapper(Address data) {
+  int64_t input = ReadUnalignedValue<int64_t>(data);
+  WriteUnalignedValue<double>(data, static_cast<double>(input));
 }
 
-void uint64_to_float64_wrapper(uint64_t* input, double* output) {
+void uint64_to_float64_wrapper(Address data) {
+  uint64_t input = ReadUnalignedValue<uint64_t>(data);
+  double result = static_cast<double>(input);
+
 #if V8_CC_MSVC
   // With MSVC we use static_cast<double>(uint32_t) instead of
   // static_cast<double>(uint64_t) to achieve round-to-nearest-ties-even
   // semantics. The idea is to calculate
   // static_cast<double>(high_word) * 2^32 + static_cast<double>(low_word).
-  uint32_t low_word = static_cast<uint32_t>(*input & 0xFFFFFFFF);
-  uint32_t high_word = static_cast<uint32_t>(*input >> 32);
+  uint32_t low_word = static_cast<uint32_t>(input & 0xFFFFFFFF);
+  uint32_t high_word = static_cast<uint32_t>(input >> 32);
 
   double shift = static_cast<double>(1ull << 32);
 
-  double result = static_cast<double>(high_word);
+  result = static_cast<double>(high_word);
   result *= shift;
   result += static_cast<double>(low_word);
-  *output = result;
-
-#else
-  WriteDoubleValue(output, static_cast<double>(ReadUnalignedUint64(input)));
 #endif
+
+  WriteUnalignedValue<double>(data, result);
 }
 
-int32_t float32_to_int64_wrapper(float* input, int64_t* output) {
+int32_t float32_to_int64_wrapper(Address data) {
   // We use "<" here to check the upper bound because of rounding problems: With
   // "<=" some inputs would be considered within int64 range which are actually
   // not within int64 range.
-  if (*input >= static_cast<float>(std::numeric_limits<int64_t>::min()) &&
-      *input < static_cast<float>(std::numeric_limits<int64_t>::max())) {
-    WriteUnalignedInt64(output, static_cast<int64_t>(*input));
+  float input = ReadUnalignedValue<float>(data);
+  if (input >= static_cast<float>(std::numeric_limits<int64_t>::min()) &&
+      input < static_cast<float>(std::numeric_limits<int64_t>::max())) {
+    WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
     return 1;
   }
   return 0;
 }
 
-int32_t float32_to_uint64_wrapper(float* input, uint64_t* output) {
+int32_t float32_to_uint64_wrapper(Address data) {
+  float input = ReadUnalignedValue<float>(data);
   // We use "<" here to check the upper bound because of rounding problems: With
   // "<=" some inputs would be considered within uint64 range which are actually
   // not within uint64 range.
-  if (*input > -1.0 &&
-      *input < static_cast<float>(std::numeric_limits<uint64_t>::max())) {
-    WriteUnalignedUint64(output, static_cast<uint64_t>(*input));
+  if (input > -1.0 &&
+      input < static_cast<float>(std::numeric_limits<uint64_t>::max())) {
+    WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
     return 1;
   }
   return 0;
 }
 
-int32_t float64_to_int64_wrapper(double* input, int64_t* output) {
+int32_t float64_to_int64_wrapper(Address data) {
   // We use "<" here to check the upper bound because of rounding problems: With
   // "<=" some inputs would be considered within int64 range which are actually
   // not within int64 range.
-  double input_val = ReadDoubleValue(input);
-  if (input_val >= static_cast<double>(std::numeric_limits<int64_t>::min()) &&
-      input_val < static_cast<double>(std::numeric_limits<int64_t>::max())) {
-    WriteUnalignedInt64(output, static_cast<int64_t>(input_val));
+  double input = ReadUnalignedValue<double>(data);
+  if (input >= static_cast<double>(std::numeric_limits<int64_t>::min()) &&
+      input < static_cast<double>(std::numeric_limits<int64_t>::max())) {
+    WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
     return 1;
   }
   return 0;
 }
 
-int32_t float64_to_uint64_wrapper(double* input, uint64_t* output) {
+int32_t float64_to_uint64_wrapper(Address data) {
   // We use "<" here to check the upper bound because of rounding problems: With
   // "<=" some inputs would be considered within uint64 range which are actually
   // not within uint64 range.
-  double input_val = ReadDoubleValue(input);
-  if (input_val > -1.0 &&
-      input_val < static_cast<double>(std::numeric_limits<uint64_t>::max())) {
-    WriteUnalignedUint64(output, static_cast<uint64_t>(input_val));
+  double input = ReadUnalignedValue<double>(data);
+  if (input > -1.0 &&
+      input < static_cast<double>(std::numeric_limits<uint64_t>::max())) {
+    WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
     return 1;
   }
   return 0;
@@ -218,30 +224,32 @@ int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
   return 1;
 }
 
-uint32_t word32_ctz_wrapper(uint32_t* input) {
-  return base::bits::CountTrailingZeros(*input);
+uint32_t word32_ctz_wrapper(Address data) {
+  return base::bits::CountTrailingZeros(ReadUnalignedValue<uint32_t>(data));
 }
 
-uint32_t word64_ctz_wrapper(uint64_t* input) {
-  return base::bits::CountTrailingZeros(ReadUnalignedUint64(input));
+uint32_t word64_ctz_wrapper(Address data) {
+  return base::bits::CountTrailingZeros(ReadUnalignedValue<uint64_t>(data));
 }
 
-uint32_t word32_popcnt_wrapper(uint32_t* input) {
-  return base::bits::CountPopulation(*input);
+uint32_t word32_popcnt_wrapper(Address data) {
+  return base::bits::CountPopulation(ReadUnalignedValue<uint32_t>(data));
 }
 
-uint32_t word64_popcnt_wrapper(uint64_t* input) {
-  return base::bits::CountPopulation(ReadUnalignedUint64(input));
+uint32_t word64_popcnt_wrapper(Address data) {
+  return base::bits::CountPopulation(ReadUnalignedValue<uint64_t>(data));
 }
 
-uint32_t word32_rol_wrapper(uint32_t* input_p, uint32_t* shift_p) {
-  uint32_t shift = (*shift_p & 31);
-  return (*input_p << shift) | (*input_p >> (32 - shift));
+uint32_t word32_rol_wrapper(Address data) {
+  uint32_t input = ReadUnalignedValue<uint32_t>(data);
+  uint32_t shift = ReadUnalignedValue<uint32_t>(data + sizeof(input)) & 31;
+  return (input << shift) | (input >> (32 - shift));
 }
 
-uint32_t word32_ror_wrapper(uint32_t* input_p, uint32_t* shift_p) {
-  uint32_t shift = (*shift_p & 31);
-  return (*input_p >> shift) | (*input_p << (32 - shift));
+uint32_t word32_ror_wrapper(Address data) {
+  uint32_t input = ReadUnalignedValue<uint32_t>(data);
+  uint32_t shift = ReadUnalignedValue<uint32_t>(data + sizeof(input)) & 31;
+  return (input >> shift) | (input << (32 - shift));
 }
 
 void float64_pow_wrapper(double* param0, double* param1) {

@@ -378,7 +378,7 @@ uint32_t ExecuteI32Ctz(uint32_t val, TrapReason* trap) {
 }
 
 uint32_t ExecuteI32Popcnt(uint32_t val, TrapReason* trap) {
-  return word32_popcnt_wrapper(&val);
+  return base::bits::CountPopulation(val);
 }
 
 inline uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
@@ -394,7 +394,7 @@ inline uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
 }
 
 inline int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
-  return word64_popcnt_wrapper(&val);
+  return base::bits::CountPopulation(val);
 }
 
 inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
@@ -466,16 +466,32 @@ int_type ExecuteConvertSaturate(float_type a) {
                               : std::numeric_limits<int_type>::max());
 }
 
+template <typename dst_type, typename src_type, void (*fn)(Address)>
+inline dst_type CallExternalIntToFloatFunction(src_type input) {
+  uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
+  Address data_addr = reinterpret_cast<Address>(data);
+  WriteUnalignedValue<src_type>(data_addr, input);
+  fn(data_addr);
+  return ReadUnalignedValue<dst_type>(data_addr);
+}
+
+template <typename dst_type, typename src_type, int32_t (*fn)(Address)>
+inline dst_type CallExternalFloatToIntFunction(src_type input,
+                                               TrapReason* trap) {
+  uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
+  Address data_addr = reinterpret_cast<Address>(data);
+  WriteUnalignedValue<src_type>(data_addr, input);
+  if (!fn(data_addr)) *trap = kTrapFloatUnrepresentable;
+  return ReadUnalignedValue<dst_type>(data_addr);
+}
+
 inline uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<uint32_t>(a & 0xFFFFFFFF);
 }
 
 int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
-  int64_t output;
-  if (!float32_to_int64_wrapper(&a, &output)) {
-    *trap = kTrapFloatUnrepresentable;
-  }
-  return output;
+  return CallExternalFloatToIntFunction<int64_t, float,
+                                        float32_to_int64_wrapper>(a, trap);
 }
 
 int64_t ExecuteI64SConvertSatF32(float a) {
@@ -490,11 +506,8 @@ int64_t ExecuteI64SConvertSatF32(float a) {
 }
 
 int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
-  int64_t output;
-  if (!float64_to_int64_wrapper(&a, &output)) {
-    *trap = kTrapFloatUnrepresentable;
-  }
-  return output;
+  return CallExternalFloatToIntFunction<int64_t, double,
+                                        float64_to_int64_wrapper>(a, trap);
 }
 
 int64_t ExecuteI64SConvertSatF64(double a) {
@@ -509,11 +522,8 @@ int64_t ExecuteI64SConvertSatF64(double a) {
 }
 
 uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
-  uint64_t output;
-  if (!float32_to_uint64_wrapper(&a, &output)) {
-    *trap = kTrapFloatUnrepresentable;
-  }
-  return output;
+  return CallExternalFloatToIntFunction<uint64_t, float,
+                                        float32_to_uint64_wrapper>(a, trap);
 }
 
 uint64_t ExecuteI64UConvertSatF32(float a) {
@@ -528,11 +538,8 @@ uint64_t ExecuteI64UConvertSatF32(float a) {
 }
 
 uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
-  uint64_t output;
-  if (!float64_to_uint64_wrapper(&a, &output)) {
-    *trap = kTrapFloatUnrepresentable;
-  }
-  return output;
+  return CallExternalFloatToIntFunction<uint64_t, double,
+                                        float64_to_uint64_wrapper>(a, trap);
 }
 
 uint64_t ExecuteI64UConvertSatF64(double a) {
@@ -563,15 +570,12 @@ inline float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
 }
 
 inline float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
-  float output;
-  int64_to_float32_wrapper(&a, &output);
-  return output;
+  return static_cast<float>(a);
 }
 
 inline float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
-  float output;
-  uint64_to_float32_wrapper(&a, &output);
-  return output;
+  return CallExternalIntToFloatFunction<float, uint64_t,
+                                        uint64_to_float32_wrapper>(a);
 }
 
 inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
@@ -591,15 +595,12 @@ inline double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
 }
 
 inline double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
-  double output;
-  int64_to_float64_wrapper(&a, &output);
-  return output;
+  return static_cast<double>(a);
 }
 
 inline double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
-  double output;
-  uint64_to_float64_wrapper(&a, &output);
-  return output;
+  return CallExternalIntToFloatFunction<double, uint64_t,
+                                        uint64_to_float64_wrapper>(a);
 }
 
 inline double ExecuteF64ConvertF32(float a, TrapReason* trap) {

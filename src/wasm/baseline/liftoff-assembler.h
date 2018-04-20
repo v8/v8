@@ -505,25 +505,14 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 
-  // {PrepareCCall} pushes the arguments on the stack (in the caller frame),
-  // then aligns the stack to do a c call. Pointers to the pushed arguments are
-  // later loaded to registers or stack slots via {SetCCall*ParamAddr}. After
-  // the c call, the output parameter (if it exists) can be loaded via
-  // {LoadCCallOutArgument}. {FinishCCall} resets the stack pointer to the state
-  // before {PrepareCCall}.
-  // The {FunctionSig} passed to {PrepareCCall} describes the types of
-  // parameters which are then passed ot the C function via pointers, excluding
-  // the out argument.
-  inline void PrepareCCall(wasm::FunctionSig* sig, const LiftoffRegister* args,
-                           ValueType out_argument_type);
-  inline void SetCCallRegParamAddr(Register dst, int param_byte_offset,
-                                   ValueType type);
-  inline void SetCCallStackParamAddr(int stack_param_idx, int param_byte_offset,
-                                     ValueType type);
-  inline void LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
-                                   int param_byte_offset);
-  inline void CallC(ExternalReference ext_ref, uint32_t num_params);
-  inline void FinishCCall();
+  // Execute a C call. Arguments are pushed to the stack and a pointer to this
+  // region is passed to the C function. If {out_argument_type != kWasmStmt},
+  // this is the return value of the C function, stored in {rets[0]}. Further
+  // outputs (specified in {sig->returns()}) are read from the buffer and stored
+  // in the remaining {rets} registers.
+  inline void CallC(wasm::FunctionSig* sig, const LiftoffRegister* args,
+                    const LiftoffRegister* rets, ValueType out_argument_type,
+                    int stack_bytes, ExternalReference ext_ref);
 
   inline void CallNativeWasmCode(Address addr);
   inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);

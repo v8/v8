@@ -1922,25 +1922,22 @@ Node* WasmGraphBuilder::BuildIntToFloatConversionInstruction(
     Node* input, ExternalReference ref,
     MachineRepresentation parameter_representation,
     const MachineType result_type) {
-  Node* stack_slot_param = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(parameter_representation));
-  Node* stack_slot_result = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(result_type.representation()));
+  int stack_slot_size =
+      1 << std::max(ElementSizeLog2Of(parameter_representation),
+                    ElementSizeLog2Of(result_type.representation()));
+  Node* stack_slot =
+      graph()->NewNode(jsgraph()->machine()->StackSlot(stack_slot_size));
   const Operator* store_op = jsgraph()->machine()->Store(
       StoreRepresentation(parameter_representation, kNoWriteBarrier));
-  *effect_ =
-      graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
-                       input, *effect_, *control_);
-  MachineSignature::Builder sig_builder(jsgraph()->zone(), 0, 2);
-  sig_builder.AddParam(MachineType::Pointer());
-  sig_builder.AddParam(MachineType::Pointer());
+  *effect_ = graph()->NewNode(store_op, stack_slot, jsgraph()->Int32Constant(0),
+                              input, *effect_, *control_);
+  MachineType sig_types[] = {MachineType::Pointer()};
+  MachineSignature sig(0, 1, sig_types);
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
-  BuildCCall(sig_builder.Build(), function, stack_slot_param,
-             stack_slot_result);
+  BuildCCall(&sig, function, stack_slot);
   const Operator* load_op = jsgraph()->machine()->Load(result_type);
-  Node* load =
-      graph()->NewNode(load_op, stack_slot_result, jsgraph()->Int32Constant(0),
-                       *effect_, *control_);
+  Node* load = graph()->NewNode(
+      load_op, stack_slot, jsgraph()->Int32Constant(0), *effect_, *control_);
   *effect_ = load;
   return load;
 }
@@ -1979,26 +1976,24 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
   const MachineType int_ty = IntConvertType(opcode);
   const MachineType float_ty = FloatConvertType(opcode);
   ExternalReference call_ref = convert_ccall_ref(this, opcode);
-  Node* stack_slot_param = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(float_ty.representation()));
-  Node* stack_slot_result = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(int_ty.representation()));
+  int stack_slot_size =
+      1 << std::max(ElementSizeLog2Of(int_ty.representation()),
+                    ElementSizeLog2Of(float_ty.representation()));
+  Node* stack_slot =
+      graph()->NewNode(jsgraph()->machine()->StackSlot(stack_slot_size));
   const Operator* store_op = jsgraph()->machine()->Store(
       StoreRepresentation(float_ty.representation(), kNoWriteBarrier));
-  *effect_ = graph()->NewNode(store_op, stack_slot_param, Int32Constant(0),
-                              input, *effect_, *control_);
-  MachineSignature::Builder sig_builder(jsgraph()->zone(), 1, 2);
-  sig_builder.AddReturn(MachineType::Int32());
-  sig_builder.AddParam(MachineType::Pointer());
-  sig_builder.AddParam(MachineType::Pointer());
+  *effect_ = graph()->NewNode(store_op, stack_slot, Int32Constant(0), input,
+                              *effect_, *control_);
+  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
+  MachineSignature sig(1, 1, sig_types);
   Node* function =
       graph()->NewNode(jsgraph()->common()->ExternalConstant(call_ref));
-  Node* overflow = BuildCCall(sig_builder.Build(), function, stack_slot_param,
-                              stack_slot_result);
+  Node* overflow = BuildCCall(&sig, function, stack_slot);
   if (IsTrappingConvertOp(opcode)) {
     ZeroCheck32(wasm::kTrapFloatUnrepresentable, overflow, position);
     const Operator* load_op = jsgraph()->machine()->Load(int_ty);
-    Node* load = graph()->NewNode(load_op, stack_slot_result, Int32Constant(0),
+    Node* load = graph()->NewNode(load_op, stack_slot, Int32Constant(0),
                                   *effect_, *control_);
     *effect_ = load;
     return load;
@@ -2015,8 +2010,8 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
   Node* sat_val =
       sat_d.Phi(int_ty.representation(), Min(this, int_ty), Max(this, int_ty));
   const Operator* load_op = jsgraph()->machine()->Load(int_ty);
-  Node* load = graph()->NewNode(load_op, stack_slot_result, Int32Constant(0),
-                                *effect_, *control_);
+  Node* load = graph()->NewNode(load_op, stack_slot, Int32Constant(0), *effect_,
+                                *control_);
   Node* nan_val =
       nan_d.Phi(int_ty.representation(), Zero(this, int_ty), sat_val);
   return tl_d.Phi(int_ty.representation(), nan_val, load);

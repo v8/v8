@@ -286,6 +286,7 @@ class ExternalReference BASE_EMBEDDED {
 
   Address address_;
 };
+ASSERT_TRIVIALLY_COPYABLE(ExternalReference);
 
 V8_EXPORT_PRIVATE bool operator==(ExternalReference, ExternalReference);
 bool operator!=(ExternalReference, ExternalReference);
