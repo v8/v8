@@ -588,13 +588,26 @@ template <void (LiftoffAssembler::*op)(Register, Register, Register)>
 void EmitI64IndependentHalfOperation(LiftoffAssembler* assm,
                                      LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // Register pairs are either the same, or they don't overlap at all, so the
-  // low and high registers must be disjoint. Just handle them separately.
-  DCHECK_EQ(LiftoffRegList{},
-            LiftoffRegList::ForRegs(dst.low(), lhs.low(), rhs.low()) &
-                LiftoffRegList::ForRegs(dst.high(), lhs.high(), rhs.high()));
-  (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp());
+  // If {dst.low_gp()} does not overlap with {lhs.high_gp()} or {rhs.high_gp()},
+  // just first compute the lower half, then the upper half.
+  if (dst.low() != lhs.high() && dst.low() != rhs.high()) {
+    (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp());
+    (assm->*op)(dst.high_gp(), lhs.high_gp(), rhs.high_gp());
+    return;
+  }
+  // If {dst.high_gp()} does not overlap with {lhs.low_gp()} or {rhs.low_gp()},
+  // we can compute this the other way around.
+  if (dst.high() != lhs.low() && dst.high() != rhs.low()) {
+    (assm->*op)(dst.high_gp(), lhs.high_gp(), rhs.high_gp());
+    (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp());
+    return;
+  }
+  // Otherwise, we need a temporary register.
+  Register tmp =
+      assm->GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs, rhs)).gp();
+  (assm->*op)(tmp, lhs.low_gp(), rhs.low_gp());
   (assm->*op)(dst.high_gp(), lhs.high_gp(), rhs.high_gp());
+  assm->Move(dst.low_gp(), tmp, kWasmI32);
 }
 }  // namespace liftoff
 

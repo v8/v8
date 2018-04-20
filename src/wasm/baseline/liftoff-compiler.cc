@@ -592,11 +592,10 @@ class LiftoffCompiler {
   void EmitUnOp(EmitFn fn) {
     static RegClass src_rc = reg_class_for(src_type);
     static RegClass result_rc = reg_class_for(result_type);
-    LiftoffRegList pinned;
-    LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {src}, pinned)
-                              : __ GetUnusedRegister(result_rc, pinned);
+                              ? __ GetUnusedRegister(result_rc, {src})
+                              : __ GetUnusedRegister(result_rc);
     fn(dst, src);
     __ PushRegister(result_type, dst);
   }
@@ -622,11 +621,9 @@ class LiftoffCompiler {
                           wasm::WasmCodePosition trap_position) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass dst_rc = reg_class_for(dst_type);
-    LiftoffRegList pinned;
-    LiftoffRegister src = pinned.set(__ PopToRegister());
-    LiftoffRegister dst = pinned.set(
-        src_rc == dst_rc ? __ GetUnusedRegister(dst_rc, {src}, pinned)
-                         : __ GetUnusedRegister(dst_rc, pinned));
+    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegister dst = src_rc == dst_rc ? __ GetUnusedRegister(dst_rc, {src})
+                                           : __ GetUnusedRegister(dst_rc);
     DCHECK_EQ(can_trap, trap_position > 0);
     Label* trap = can_trap ? AddOutOfLineTrap(
                                  trap_position,
@@ -639,7 +636,8 @@ class LiftoffCompiler {
         // External references for potentially trapping conversions return int.
         ValueType sig_reps[] = {kWasmI32, src_type};
         FunctionSig sig(1, 1, sig_reps);
-        LiftoffRegister ret_reg = __ GetUnusedRegister(kGpReg, pinned);
+        LiftoffRegister ret_reg =
+            __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
         LiftoffRegister dst_regs[] = {ret_reg, dst};
         GenerateCCall(dst_regs, &sig, dst_type, &src, ext_ref);
         __ emit_cond_jump(kEqual, trap, kWasmI32, ret_reg.gp());
@@ -746,13 +744,11 @@ class LiftoffCompiler {
   void EmitBinOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass result_rc = reg_class_for(result_type);
-    LiftoffRegList pinned;
-    LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst =
-        src_rc == result_rc
-            ? __ GetUnusedRegister(result_rc, {lhs, rhs}, pinned)
-            : __ GetUnusedRegister(result_rc);
+    LiftoffRegister rhs = __ PopToRegister();
+    LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
+    LiftoffRegister dst = src_rc == result_rc
+                              ? __ GetUnusedRegister(result_rc, {lhs, rhs})
+                              : __ GetUnusedRegister(result_rc);
     fn(dst, lhs, rhs);
     __ PushRegister(result_type, dst);
   }
