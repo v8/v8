@@ -1957,6 +1957,45 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   }
 }
 
+void CodeStubAssembler::StoreFixedTypedArrayElementFromTagged(
+    TNode<Context> context, TNode<RawPtrT> data_pointer,
+    TNode<Object> index_node, TNode<Object> value, ElementsKind elements_kind,
+    ParameterMode parameter_mode) {
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+      StoreElement(data_pointer, elements_kind, index_node,
+                   SmiToInt32(CAST(value)), parameter_mode);
+      break;
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+      StoreElement(data_pointer, elements_kind, index_node,
+                   TruncateTaggedToWord32(context, value), parameter_mode);
+      break;
+    case FLOAT32_ELEMENTS:
+      StoreElement(data_pointer, elements_kind, index_node,
+                   TruncateFloat64ToFloat32(LoadHeapNumberValue(CAST(value))),
+                   parameter_mode);
+      break;
+    case FLOAT64_ELEMENTS:
+      StoreElement(data_pointer, elements_kind, index_node,
+                   LoadHeapNumberValue(CAST(value)), parameter_mode);
+      break;
+    case BIGUINT64_ELEMENTS:
+    case BIGINT64_ELEMENTS: {
+      TNode<IntPtrT> offset =
+          ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
+      EmitBigTypedArrayElementStore(data_pointer, offset, CAST(value));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 TNode<Object> CodeStubAssembler::LoadFeedbackVectorSlot(
     Node* object, Node* slot_index_node, int additional_offset,
     ParameterMode parameter_mode) {
@@ -8402,7 +8441,23 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
     TNode<JSTypedArray> object, TNode<FixedTypedArrayBase> elements,
     TNode<IntPtrT> intptr_key, TNode<Object> value, TNode<Context> context,
     Label* opt_if_neutered) {
+  if (opt_if_neutered != nullptr) {
+    // Check if buffer has been neutered.
+    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+    GotoIf(IsDetachedBuffer(buffer), opt_if_neutered);
+  }
+
   TNode<BigInt> bigint_value = ToBigInt(context, value);
+  TNode<RawPtrT> backing_store = LoadFixedTypedArrayBackingStore(elements);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(intptr_key, BIGINT64_ELEMENTS,
+                                                 INTPTR_PARAMETERS, 0);
+
+  EmitBigTypedArrayElementStore(backing_store, offset, bigint_value);
+}
+
+void CodeStubAssembler::EmitBigTypedArrayElementStore(
+    TNode<RawPtrT> backing_store, TNode<IntPtrT> offset,
+    TNode<BigInt> bigint_value) {
   TNode<WordT> bitfield = LoadBigIntBitfield(bigint_value);
   TNode<UintPtrT> length = DecodeWord<BigIntBase::LengthBits>(bitfield);
   TNode<UintPtrT> sign = DecodeWord<BigIntBase::SignBits>(bitfield);
@@ -8431,17 +8486,8 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
   }
   var_low = Unsigned(IntPtrSub(IntPtrConstant(0), var_low.value()));
   Goto(&do_store);
-
   BIND(&do_store);
-  if (opt_if_neutered != nullptr) {
-    // Check if buffer has been neutered.
-    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-    GotoIf(IsDetachedBuffer(buffer), opt_if_neutered);
-  }
 
-  Node* backing_store = LoadFixedTypedArrayBackingStore(elements);
-  Node* offset = ElementOffsetFromIndex(intptr_key, BIGINT64_ELEMENTS,
-                                        INTPTR_PARAMETERS, 0);
   MachineRepresentation rep = WordT::kMachineRepresentation;
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (!Is64()) {

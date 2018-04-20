@@ -738,6 +738,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFixedBigUint64ArrayElementAsTagged(Node* data_pointer,
                                                Node* offset);
 
+  void StoreFixedTypedArrayElementFromTagged(TNode<Context> context,
+                                             TNode<RawPtrT> data_pointer,
+                                             TNode<Object> index_node,
+                                             TNode<Object> value,
+                                             ElementsKind elements_kind,
+                                             ParameterMode parameter_mode);
+
   // Context manipulation
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
                                    int slot_index);
@@ -1985,6 +1992,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                      TNode<Object> value,
                                      TNode<Context> context,
                                      Label* opt_if_neutered);
+  // Part of the above, refactored out to reuse in another place
+  void EmitBigTypedArrayElementStore(TNode<RawPtrT> backing_store,
+                                     TNode<IntPtrT> offset,
+                                     TNode<BigInt> bigint_value);
 
   void EmitElementStore(Node* object, Node* key, Node* value, bool is_jsarray,
                         ElementsKind elements_kind,
