@@ -464,25 +464,34 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   }
 }
 
-#define COMMUTATIVE_I32_BINOP(name, instruction)                     \
-  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
-                                         Register rhs) {             \
-    if (dst == rhs) {                                                \
-      instruction(dst, lhs);                                         \
-    } else {                                                         \
-      if (dst != lhs) mov(dst, lhs);                                 \
-      instruction(dst, rhs);                                         \
-    }                                                                \
+namespace liftoff {
+template <void (Assembler::*op)(Register, Register)>
+void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
+                          Register rhs) {
+  if (dst == rhs) {
+    (assm->*op)(dst, lhs);
+  } else {
+    if (dst != lhs) assm->mov(dst, lhs);
+    (assm->*op)(dst, rhs);
   }
+}
+}  // namespace liftoff
 
-// clang-format off
-COMMUTATIVE_I32_BINOP(mul, imul)
-COMMUTATIVE_I32_BINOP(and, and_)
-COMMUTATIVE_I32_BINOP(or, or_)
-COMMUTATIVE_I32_BINOP(xor, xor_)
-// clang-format on
+void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::imul>(this, dst, lhs, rhs);
+}
 
-#undef COMMUTATIVE_I32_BINOP
+void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::and_>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::or_>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitCommutativeBinOp<&Assembler::xor_>(this, dst, lhs, rhs);
+}
 
 namespace liftoff {
 inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
