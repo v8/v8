@@ -59,8 +59,16 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
     objects_.insert(to);
   }
 
-  bool HasObject(Address addr) const {
-    return objects_.find(addr) != objects_.end();
+  bool HasObject(Handle<HeapObject> obj) const {
+    if (obj->IsJSObject() &&
+        Handle<JSObject>::cast(obj)->GetEmbedderFieldCount()) {
+      // Embedder may store any pointers using embedder fields and implements
+      // non trivial logic, e.g. create wrappers lazily and store pointer to
+      // native object inside embedder field. We should consider all objects
+      // with embedder fields as non temporary.
+      return false;
+    }
+    return objects_.find(obj->address()) != objects_.end();
   }
 
  private:
@@ -2462,8 +2470,7 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
 
   if (object->IsHeapObject()) {
-    Address address = Handle<HeapObject>::cast(object)->address();
-    if (temporary_objects_->HasObject(address)) {
+    if (temporary_objects_->HasObject(Handle<HeapObject>::cast(object))) {
       return true;
     }
   }
