@@ -701,14 +701,6 @@ struct MachineOperatorGlobalCache {
   };
   BitcastTaggedToWordOperator kBitcastTaggedToWord;
 
-  struct BitcastMaybeObjectToWordOperator : public Operator {
-    BitcastMaybeObjectToWordOperator()
-        : Operator(IrOpcode::kBitcastTaggedToWord,
-                   Operator::kEliminatable | Operator::kNoWrite,
-                   "BitcastMaybeObjectToWord", 1, 1, 1, 1, 1, 0) {}
-  };
-  BitcastMaybeObjectToWordOperator kBitcastMaybeObjectToWord;
-
   struct PoisonOnSpeculationTagged : public Operator {
     PoisonOnSpeculationTagged()
         : Operator(IrOpcode::kPoisonOnSpeculationTagged,
@@ -918,10 +910,6 @@ const Operator* MachineOperatorBuilder::BitcastWordToTagged() {
 
 const Operator* MachineOperatorBuilder::BitcastTaggedToWord() {
   return &cache_.kBitcastTaggedToWord;
-}
-
-const Operator* MachineOperatorBuilder::BitcastMaybeObjectToWord() {
-  return &cache_.kBitcastMaybeObjectToWord;
 }
 
 const Operator* MachineOperatorBuilder::DebugAbort() {
