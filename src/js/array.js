@@ -540,8 +540,6 @@ function ArrayShiftFallback() {
     return;
   }
 
-  if (%object_is_sealed(array)) throw %make_type_error(kArrayFunctionsOnSealed);
-
   var first = array[0];
 
   if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
@@ -635,13 +633,6 @@ function ArraySpliceFallback(start, delete_count) {
 
   var deleted_elements = ArraySpeciesCreate(array, del_count);
   deleted_elements.length = del_count;
-
-
-  if (del_count != num_elements_to_add && %object_is_sealed(array)) {
-    throw %make_type_error(kArrayFunctionsOnSealed);
-  } else if (del_count > 0 && %object_is_frozen(array)) {
-    throw %make_type_error(kArrayFunctionsOnFrozen);
-  }
 
   var changed_elements = del_count;
   if (num_elements_to_add != del_count) {
@@ -1110,10 +1101,6 @@ DEFINE_METHOD_LEN(
       if (end < 0) end = 0;
     } else {
       if (end > length) end = length;
-    }
-
-    if ((end - i) > 0 && %object_is_frozen(array)) {
-      throw %make_type_error(kArrayFunctionsOnFrozen);
     }
 
     for (; i < end; i++)

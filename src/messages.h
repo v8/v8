@@ -273,8 +273,6 @@ class ErrorUtils : public AllStatic {
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
     "ArrayBuffer subclass returned this from species constructor")             \
-  T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
-  T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadSortComparisonFunction,                                                 \

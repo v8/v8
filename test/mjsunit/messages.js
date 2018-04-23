@@ -44,19 +44,18 @@ test(function() {
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 
-// kArrayFunctionsOnFrozen
 test(function() {
   var a = [1, 2];
   Object.freeze(a);
   a.splice(1, 1, [1]);
-}, "Cannot modify frozen array elements", TypeError);
+}, "Cannot assign to read only property '1' of object '[object Array]'",
+   TypeError);
 
-// kArrayFunctionsOnSealed
 test(function() {
   var a = [1];
   Object.seal(a);
   a.shift();
-}, "Cannot add/remove sealed array elements", TypeError);
+}, "Cannot delete property '0' of [object Array]", TypeError);
 
 // kCalledNonCallable
 test(function() {

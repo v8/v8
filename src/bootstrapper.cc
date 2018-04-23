@@ -1467,14 +1467,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(object_function, "setPrototypeOf",
                           Builtins::kObjectSetPrototypeOf, 2, false);
 
-    Handle<JSFunction> object_is_extensible = SimpleInstallFunction(
-        object_function, "isExtensible", Builtins::kObjectIsExtensible,
-        1, false);
-    native_context()->set_object_is_extensible(*object_is_extensible);
-
-    Handle<JSFunction> object_is_frozen = SimpleInstallFunction(
-        object_function, "isFrozen", Builtins::kObjectIsFrozen, 1, false);
-    native_context()->set_object_is_frozen(*object_is_frozen);
+    SimpleInstallFunction(object_function, "isExtensible",
+                          Builtins::kObjectIsExtensible, 1, false);
+    SimpleInstallFunction(object_function, "isFrozen",
+                          Builtins::kObjectIsFrozen, 1, false);
 
     Handle<JSFunction> object_is_sealed = SimpleInstallFunction(
         object_function, "isSealed", Builtins::kObjectIsSealed, 1, false);
