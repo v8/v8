@@ -27,7 +27,7 @@ injected_script_externs_file = path.join(v8_inspector_path,
   'injected_script_externs.js')
 
 generate_protocol_externs.generate_protocol_externs(protocol_externs_file,
-  path.join(v8_inspector_path, 'js_protocol.pdl'))
+  path.join(v8_inspector_path, 'js_protocol.json'))
 
 error_warning_regex = re.compile(r'WARNING|ERROR')
 

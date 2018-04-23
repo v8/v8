@@ -27,7 +27,7 @@
       'templates/Imported_h.template',
       'templates/TypeBuilder_cpp.template',
       'templates/TypeBuilder_h.template',
-      'code_generator.py',
+      'CodeGenerator.py',
     ]
   }
 }

@@ -28,17 +28,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-import os.path as path
 import re
 import json
-import sys
-
-sys.path.append(
-    path.normpath(
-        path.join(
-            path.dirname(path.abspath(__file__)),
-            os.pardir, os.pardir, os.pardir, 'third_party', 'inspector_protocol')))
-import pdl  # pylint: disable=F0401
 
 type_traits = {
     "any": "*",
@@ -105,7 +96,8 @@ def param_type(domain_name, param):
 
 def load_schema(file, domains):
     input_file = open(file, "r")
-    parsed_json = pdl.loads(input_file.read(), file)
+    json_string = input_file.read()
+    parsed_json = json.loads(json_string)
     domains.extend(parsed_json["domains"])
 
 
