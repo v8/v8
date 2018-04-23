@@ -1330,39 +1330,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   TurboAssembler::AssertUnreachable(reason);
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index,
-                                           RegPairHalf half) {
-  switch (src.loc()) {
-    case VarState::kStack:
-      if (src.type() == kWasmF64) {
-        DCHECK_EQ(kLowWord, half);
-        push(liftoff::GetHalfStackSlot(2 * src_index - 1));
-      }
-      push(liftoff::GetHalfStackSlot(2 * src_index -
-                                     (half == kLowWord ? 0 : 1)));
-      break;
-    case VarState::kRegister:
-      if (src.type() == kWasmI64) {
-        PushCallerFrameSlot(
-            half == kLowWord ? src.reg().low() : src.reg().high(), kWasmI32);
-      } else {
-        PushCallerFrameSlot(src.reg(), src.type());
-      }
-      break;
-    case VarState::KIntConst:
-      // The high word is the sign extension of the low word.
-      push(Immediate(half == kLowWord ? src.i32_const()
-                                      : src.i32_const() >> 31));
-      break;
-  }
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  liftoff::push(this, reg, type);
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   while (!gp_regs.is_empty()) {
@@ -1482,6 +1449,36 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(esp, Immediate(size));
+}
+
+void LiftoffStackSlots::Construct() {
+  for (auto& slot : slots_) {
+    const LiftoffAssembler::VarState& src = slot.src_;
+    switch (src.loc()) {
+      case LiftoffAssembler::VarState::kStack:
+        if (src.type() == kWasmF64) {
+          DCHECK_EQ(kLowWord, slot.half_);
+          asm_->push(liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
+        }
+        asm_->push(liftoff::GetHalfStackSlot(2 * slot.src_index_ -
+                                             (slot.half_ == kLowWord ? 0 : 1)));
+        break;
+      case LiftoffAssembler::VarState::kRegister:
+        if (src.type() == kWasmI64) {
+          liftoff::push(
+              asm_, slot.half_ == kLowWord ? src.reg().low() : src.reg().high(),
+              kWasmI32);
+        } else {
+          liftoff::push(asm_, src.reg(), src.type());
+        }
+        break;
+      case LiftoffAssembler::VarState::KIntConst:
+        // The high word is the sign extension of the low word.
+        asm_->push(Immediate(slot.half_ == kLowWord ? src.i32_const()
+                                                    : src.i32_const() >> 31));
+        break;
+    }
+  }
 }
 
 #undef REQUIRE_CPU_FEATURE

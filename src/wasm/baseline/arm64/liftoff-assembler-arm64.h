@@ -80,6 +80,22 @@ inline CPURegList PadVRegList(RegList list) {
   return CPURegList(CPURegister::kVRegister, kDRegSizeInBits, list);
 }
 
+inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
+                                 ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      return temps->AcquireW();
+    case kWasmI64:
+      return temps->AcquireX();
+    case kWasmF32:
+      return temps->AcquireS();
+    case kWasmF64:
+      return temps->AcquireD();
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
@@ -392,17 +408,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   BAILOUT("AssertUnreachable");
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index,
-                                           RegPairHalf half) {
-  BAILOUT("PushCallerFrameSlot");
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  BAILOUT("PushCallerFrameSlot reg");
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   PushCPURegList(liftoff::PadRegList(regs.GetGpList()));
   PushCPURegList(liftoff::PadVRegList(regs.GetFpList()));
@@ -446,6 +451,37 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   BAILOUT("DeallocateStackSlot");
+}
+
+void LiftoffStackSlots::Construct() {
+  size_t slot_count = slots_.size();
+  // The stack pointer is required to be quadword aligned.
+  asm_->Claim(RoundUp(slot_count, 2));
+  size_t slot_index = 0;
+  for (auto& slot : slots_) {
+    size_t poke_offset = (slot_count - slot_index - 1) * kXRegSize;
+    switch (slot.src_.loc()) {
+      case LiftoffAssembler::VarState::kStack: {
+        UseScratchRegisterScope temps(asm_);
+        CPURegister scratch = liftoff::AcquireByType(&temps, slot.src_.type());
+        asm_->Ldr(scratch, liftoff::GetStackSlot(slot.src_index_));
+        asm_->Poke(scratch, poke_offset);
+        break;
+      }
+      case LiftoffAssembler::VarState::kRegister:
+        asm_->Poke(liftoff::GetRegFromType(slot.src_.reg(), slot.src_.type()),
+                   poke_offset);
+        break;
+      case LiftoffAssembler::VarState::KIntConst: {
+        UseScratchRegisterScope temps(asm_);
+        Register scratch = temps.AcquireW();
+        asm_->Mov(scratch, slot.src_.i32_const());
+        asm_->Poke(scratch, poke_offset);
+        break;
+      }
+    }
+    slot_index++;
+  }
 }
 
 }  // namespace wasm

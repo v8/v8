@@ -1045,44 +1045,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   if (emit_debug_code()) Abort(reason);
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index,
-                                           RegPairHalf half) {
-  switch (src.loc()) {
-    case VarState::kStack: {
-      if (src.type() == kWasmF64) {
-        DCHECK_EQ(kLowWord, half);
-        lw(at, liftoff::GetHalfStackSlot(2 * src_index - 1));
-        push(at);
-      }
-      lw(at,
-         liftoff::GetHalfStackSlot(2 * src_index + (half == kLowWord ? 0 : 1)));
-      push(at);
-      break;
-    }
-    case VarState::kRegister:
-      if (src.type() == kWasmI64) {
-        PushCallerFrameSlot(
-            half == kLowWord ? src.reg().low() : src.reg().high(), kWasmI32);
-      } else {
-        PushCallerFrameSlot(src.reg(), src.type());
-      }
-      break;
-    case VarState::KIntConst: {
-      // The high word is the sign extension of the low word.
-      li(at,
-         Operand(half == kLowWord ? src.i32_const() : src.i32_const() >> 31));
-      push(at);
-      break;
-    }
-  }
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  liftoff::push(this, reg, type);
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   unsigned num_gp_regs = gp_regs.GetNumRegsSet();
@@ -1210,6 +1172,42 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   addiu(sp, sp, size);
+}
+
+void LiftoffStackSlots::Construct() {
+  for (auto& slot : slots_) {
+    const LiftoffAssembler::VarState& src = slot.src_;
+    switch (src.loc()) {
+      case LiftoffAssembler::VarState::kStack: {
+        if (src.type() == kWasmF64) {
+          DCHECK_EQ(kLowWord, slot.half_);
+          asm_->lw(at, liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
+          asm_->push(at);
+        }
+        asm_->lw(at,
+                 liftoff::GetHalfStackSlot(2 * slot.src_index_ +
+                                           (slot.half_ == kLowWord ? 0 : 1)));
+        asm_->push(at);
+        break;
+      }
+      case LiftoffAssembler::VarState::kRegister:
+        if (src.type() == kWasmI64) {
+          liftoff::push(
+              asm_, slot.half_ == kLowWord ? src.reg().low() : src.reg().high(),
+              kWasmI32);
+        } else {
+          liftoff::push(asm_, src.reg(), src.type());
+        }
+        break;
+      case LiftoffAssembler::VarState::KIntConst: {
+        // The high word is the sign extension of the low word.
+        asm_->li(at, Operand(slot.half_ == kLowWord ? src.i32_const()
+                                                    : src.i32_const() >> 31));
+        asm_->push(at);
+        break;
+      }
+    }
+  }
 }
 
 }  // namespace wasm

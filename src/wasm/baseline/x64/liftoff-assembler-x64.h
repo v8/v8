@@ -1154,26 +1154,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   TurboAssembler::AssertUnreachable(reason);
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index, RegPairHalf) {
-  switch (src.loc()) {
-    case VarState::kStack:
-      pushq(liftoff::GetStackSlot(src_index));
-      break;
-    case VarState::kRegister:
-      PushCallerFrameSlot(src.reg(), src.type());
-      break;
-    case VarState::KIntConst:
-      pushq(Immediate(src.i32_const()));
-      break;
-  }
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  liftoff::push(this, reg, type);
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   while (!gp_regs.is_empty()) {
@@ -1294,6 +1274,23 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   addp(rsp, Immediate(size));
+}
+
+void LiftoffStackSlots::Construct() {
+  for (auto& slot : slots_) {
+    const LiftoffAssembler::VarState& src = slot.src_;
+    switch (src.loc()) {
+      case LiftoffAssembler::VarState::kStack:
+        asm_->pushq(liftoff::GetStackSlot(slot.src_index_));
+        break;
+      case LiftoffAssembler::VarState::kRegister:
+        liftoff::push(asm_, src.reg(), src.type());
+        break;
+      case LiftoffAssembler::VarState::KIntConst:
+        asm_->pushq(Immediate(src.i32_const()));
+        break;
+    }
+  }
 }
 
 #undef REQUIRE_CPU_FEATURE

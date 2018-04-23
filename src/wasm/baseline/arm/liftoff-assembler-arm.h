@@ -264,17 +264,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   BAILOUT("AssertUnreachable");
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index,
-                                           RegPairHalf half) {
-  BAILOUT("PushCallerFrameSlot");
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  BAILOUT("PushCallerFrameSlot reg");
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   BAILOUT("PushRegisters");
 }
@@ -315,6 +304,10 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   BAILOUT("DeallocateStackSlot");
+}
+
+void LiftoffStackSlots::Construct() {
+  asm_->BAILOUT("LiftoffStackSlots::Construct");
 }
 
 }  // namespace wasm

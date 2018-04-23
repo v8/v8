@@ -1302,8 +1302,10 @@ class LiftoffCompiler {
               LiftoffAssembler::kWasmIntPtr);
     } else {
       DCHECK(param_loc.IsCallerFrameSlot());
-      __ PushCallerFrameSlot(LiftoffRegister(args[0]),
-                             LiftoffAssembler::kWasmIntPtr);
+      LiftoffStackSlots stack_slots(asm_);
+      stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
+                                                 LiftoffRegister(args[0])));
+      stack_slots.Construct();
     }
 
     // Allocate the codegen zone if not done before.

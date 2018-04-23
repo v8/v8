@@ -837,30 +837,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   if (emit_debug_code()) Abort(reason);
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index,
-                                           RegPairHalf half) {
-  switch (src.loc()) {
-    case VarState::kStack:
-      ld(at, liftoff::GetStackSlot(src_index));
-      push(at);
-      break;
-    case VarState::kRegister:
-      PushCallerFrameSlot(src.reg(), src.type());
-      break;
-    case VarState::KIntConst: {
-      li(at, Operand(src.i32_const()));
-      push(at);
-      break;
-    }
-  }
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  liftoff::push(this, reg, type);
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   unsigned num_gp_regs = gp_regs.GetNumRegsSet();
@@ -988,6 +964,26 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   daddiu(sp, sp, size);
+}
+
+void LiftoffStackSlots::Construct() {
+  for (auto& slot : slots_) {
+    const LiftoffAssembler::VarState& src = slot.src_;
+    switch (src.loc()) {
+      case LiftoffAssembler::VarState::kStack:
+        asm_->ld(at, liftoff::GetStackSlot(slot.src_index_));
+        asm_->push(at);
+        break;
+      case LiftoffAssembler::VarState::kRegister:
+        liftoff::push(asm_, src.reg(), src.type());
+        break;
+      case LiftoffAssembler::VarState::KIntConst: {
+        asm_->li(at, Operand(src.i32_const()));
+        asm_->push(at);
+        break;
+      }
+    }
+  }
 }
 
 }  // namespace wasm

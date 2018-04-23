@@ -452,6 +452,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     slot.MakeStack();
   }
 
+  LiftoffStackSlots stack_slots(this);
   StackTransferRecipe stack_transfers(this);
   LiftoffRegList param_regs;
 
@@ -500,7 +501,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        PushCallerFrameSlot(slot, stack_idx, half);
+        stack_slots.Add(slot, stack_idx, half);
       }
     }
   }
@@ -518,11 +519,14 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    kWasmIntPtr);
       *target = new_target.gp();
     } else {
-      PushCallerFrameSlot(LiftoffRegister(*target), kWasmIntPtr);
+      stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
+                                                 LiftoffRegister(*target)));
       *target = no_reg;
     }
   }
 
+  // Create all the slots.
+  stack_slots.Construct();
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
 

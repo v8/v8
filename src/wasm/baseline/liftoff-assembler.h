@@ -501,10 +501,6 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void AssertUnreachable(AbortReason reason);
 
-  // Push a value to the stack (will become a caller frame slot).
-  inline void PushCallerFrameSlot(const VarState& src, uint32_t src_index,
-                                  RegPairHalf half);
-  inline void PushCallerFrameSlot(LiftoffRegister reg, ValueType type);
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
 
@@ -639,6 +635,37 @@ void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
 // End of the partially platform-independent implementations of the
 // platform-dependent part.
 // =======================================================================
+
+class LiftoffStackSlots {
+ public:
+  explicit LiftoffStackSlots(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
+
+  void Add(const LiftoffAssembler::VarState& src, uint32_t src_index,
+           RegPairHalf half) {
+    slots_.emplace_back(src, src_index, half);
+  }
+  void Add(const LiftoffAssembler::VarState& src) { slots_.emplace_back(src); }
+
+  inline void Construct();
+
+ private:
+  struct Slot {
+    // Allow move construction.
+    Slot(Slot&&) = default;
+    Slot(const LiftoffAssembler::VarState& src, uint32_t src_index,
+         RegPairHalf half)
+        : src_(src), src_index_(src_index), half_(half) {}
+    explicit Slot(const LiftoffAssembler::VarState& src)
+        : src_(src), src_index_(0), half_(kLowWord) {}
+
+    const LiftoffAssembler::VarState src_;
+    uint32_t src_index_;
+    RegPairHalf half_;
+  };
+
+  std::vector<Slot> slots_;
+  LiftoffAssembler* const asm_;
+};
 
 }  // namespace wasm
 }  // namespace internal
