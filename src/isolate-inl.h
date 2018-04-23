@@ -133,7 +133,7 @@ bool Isolate::IsArrayConstructorIntact() {
   return array_constructor_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsArraySpeciesLookupChainIntact() {
+bool Isolate::IsSpeciesLookupChainIntact() {
   // Note: It would be nice to have debug checks to make sure that the
   // species protector is accurate, but this would be hard to do for most of
   // what the protector stands for:
@@ -146,19 +146,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->array_species_protector();
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
-}
-
-bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->typed_array_species_protector();
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
-}
-
-bool Isolate::IsPromiseSpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->promise_species_protector();
+  PropertyCell* species_cell = heap()->species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }

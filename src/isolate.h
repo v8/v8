@@ -1080,9 +1080,7 @@ class Isolate : private HiddenFactory {
   bool IsNoElementsProtectorIntact(Context* context);
   bool IsNoElementsProtectorIntact();
 
-  inline bool IsArraySpeciesLookupChainIntact();
-  inline bool IsTypedArraySpeciesLookupChainIntact();
-  inline bool IsPromiseSpeciesLookupChainIntact();
+  inline bool IsSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1122,9 +1120,7 @@ class Isolate : private HiddenFactory {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void InvalidateArrayConstructorProtector();
-  void InvalidateArraySpeciesProtector();
-  void InvalidateTypedArraySpeciesProtector();
-  void InvalidatePromiseSpeciesProtector();
+  void InvalidateSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();

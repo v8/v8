@@ -247,7 +247,7 @@ BUILTIN(ArraySplice) {
           // If this is a subclass of Array, then call out to JS.
           !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
           // If anything with @@species has been messed with, call out to JS.
-          !isolate->IsArraySpeciesLookupChainIntact())) {
+          !isolate->IsSpeciesLookupChainIntact())) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -1123,7 +1123,7 @@ BUILTIN(ArrayConcat) {
   // Avoid a real species read to avoid extra lookups to the array constructor
   if (V8_LIKELY(receiver->IsJSArray() &&
                 Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
-                isolate->IsArraySpeciesLookupChainIntact())) {
+                isolate->IsSpeciesLookupChainIntact())) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }

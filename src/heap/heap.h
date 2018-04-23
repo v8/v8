@@ -228,9 +228,7 @@ using v8::MemoryPressureLevel;
   V(Cell, array_constructor_protector, ArrayConstructorProtector)              \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
-  V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
-  V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
-  V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)          \
+  V(PropertyCell, species_protector, SpeciesProtector)                         \
   V(Cell, string_length_protector, StringLengthProtector)                      \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_neutering_protector,                            \
@@ -391,9 +389,7 @@ using v8::MemoryPressureLevel;
   V(SloppyArgumentsElementsMap)         \
   V(SmallOrderedHashMapMap)             \
   V(SmallOrderedHashSetMap)             \
-  V(ArraySpeciesProtector)              \
-  V(TypedArraySpeciesProtector)         \
-  V(PromiseSpeciesProtector)            \
+  V(SpeciesProtector)                   \
   V(StaleRegister)                      \
   V(StringLengthProtector)              \
   V(StringTableMap)                     \

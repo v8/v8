@@ -985,7 +985,7 @@ void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
 void CodeStubAssembler::BranchIfFastJSArrayForCopy(Node* object, Node* context,
                                                    Label* if_true,
                                                    Label* if_false) {
-  GotoIf(IsArraySpeciesProtectorCellInvalid(), if_false);
+  GotoIf(IsSpeciesProtectorCellInvalid(), if_false);
   BranchIfFastJSArray(object, context, if_true, if_false);
 }
 
@@ -4525,23 +4525,9 @@ Node* CodeStubAssembler::IsPromiseThenProtectorCellInvalid() {
   return WordEqual(cell_value, invalid);
 }
 
-Node* CodeStubAssembler::IsArraySpeciesProtectorCellInvalid() {
+Node* CodeStubAssembler::IsSpeciesProtectorCellInvalid() {
   Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-  Node* cell = LoadRoot(Heap::kArraySpeciesProtectorRootIndex);
-  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
-  return WordEqual(cell_value, invalid);
-}
-
-Node* CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
-  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-  Node* cell = LoadRoot(Heap::kTypedArraySpeciesProtectorRootIndex);
-  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
-  return WordEqual(cell_value, invalid);
-}
-
-Node* CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
-  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-  Node* cell = LoadRoot(Heap::kPromiseSpeciesProtectorRootIndex);
+  Node* cell = LoadRoot(Heap::kSpeciesProtectorRootIndex);
   Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return WordEqual(cell_value, invalid);
 }

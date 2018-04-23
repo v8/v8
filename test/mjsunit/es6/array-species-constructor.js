@@ -18,7 +18,7 @@ assertEquals(1, x.concat([1])[0]);
 class MyArray extends Array { }
 
 x.constructor = MyArray;
-assertFalse(%ArraySpeciesProtector());
+assertFalse(%SpeciesProtector());
 
 assertEquals(MyArray, x.map(()=>{}).constructor);
 assertEquals(MyArray, x.filter(()=>{}).constructor);

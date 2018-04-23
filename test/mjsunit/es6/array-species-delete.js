@@ -19,7 +19,7 @@ class MyArray extends Array { }
 
 Object.prototype[Symbol.species] = MyArray;
 delete Array[Symbol.species];
-assertFalse(%ArraySpeciesProtector());
+assertFalse(%SpeciesProtector());
 
 assertEquals(MyArray, x.map(()=>{}).constructor);
 assertEquals(MyArray, x.filter(()=>{}).constructor);

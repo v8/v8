@@ -841,24 +841,11 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 
 #undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
 
-RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
-}
 
-RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
+RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(
-      isolate->IsTypedArraySpeciesLookupChainIntact());
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(
-      isolate->IsPromiseSpeciesLookupChainIntact());
+  return isolate->heap()->ToBoolean(isolate->IsSpeciesLookupChainIntact());
 }
 
 // Take a compiled wasm module, serialize it and copy the buffer into an array

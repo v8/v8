@@ -16,7 +16,7 @@ f("make it generic", 0, 0);
 
 (function TestSpeciesProtector() {
   function MyArray() {}
-  assertTrue(%ArraySpeciesProtector());
+  assertTrue(%SpeciesProtector());
   f(Array.prototype, "constructor", MyArray);
-  assertFalse(%ArraySpeciesProtector());
+  assertFalse(%SpeciesProtector());
 })();
