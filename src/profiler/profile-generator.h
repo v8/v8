@@ -6,11 +6,11 @@
 #define V8_PROFILER_PROFILE_GENERATOR_H_
 
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
-#include "src/base/hashmap.h"
 #include "src/log.h"
 #include "src/profiler/strings-storage.h"
 #include "src/source-position.h"
@@ -85,7 +85,7 @@ class CodeEntry {
   }
 
   uint32_t GetHash() const;
-  bool IsSameFunctionAs(CodeEntry* entry) const;
+  bool IsSameFunctionAs(const CodeEntry* entry) const;
 
   int GetSourceLine(int pc_offset) const;
 
@@ -188,7 +188,9 @@ class ProfileNode {
   unsigned id() const { return id_; }
   unsigned function_id() const;
   ProfileNode* parent() const { return parent_; }
-  unsigned int GetHitLineCount() const { return line_ticks_.occupancy(); }
+  unsigned int GetHitLineCount() const {
+    return static_cast<unsigned int>(line_ticks_.size());
+  }
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
   void CollectDeoptInfo(CodeEntry* entry);
@@ -199,25 +201,26 @@ class ProfileNode {
 
   void Print(int indent);
 
-  static bool CodeEntriesMatch(void* entry1, void* entry2) {
-    return reinterpret_cast<CodeEntry*>(entry1)
-        ->IsSameFunctionAs(reinterpret_cast<CodeEntry*>(entry2));
-  }
-
  private:
-  static uint32_t CodeEntryHash(CodeEntry* entry) { return entry->GetHash(); }
-
-  static bool LineTickMatch(void* a, void* b) { return a == b; }
+  struct CodeEntryEqual {
+    bool operator()(CodeEntry* entry1, CodeEntry* entry2) const {
+      return entry1 == entry2 || entry1->IsSameFunctionAs(entry2);
+    }
+  };
+  struct CodeEntryHash {
+    std::size_t operator()(CodeEntry* entry) const { return entry->GetHash(); }
+  };
 
   ProfileTree* tree_;
   CodeEntry* entry_;
   unsigned self_ticks_;
-  // Mapping from CodeEntry* to ProfileNode*
-  base::CustomMatcherHashMap children_;
+  std::unordered_map<CodeEntry*, ProfileNode*, CodeEntryHash, CodeEntryEqual>
+      children_;
   std::vector<ProfileNode*> children_list_;
   ProfileNode* parent_;
   unsigned id_;
-  base::CustomMatcherHashMap line_ticks_;
+  // maps line number --> number of ticks
+  std::unordered_map<int, int> line_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 
@@ -262,7 +265,7 @@ class ProfileTree {
   Isolate* isolate_;
 
   unsigned next_function_id_;
-  base::CustomMatcherHashMap function_ids_;
+  std::unordered_map<CodeEntry*, unsigned> function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };

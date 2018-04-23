@@ -35,10 +35,8 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
     : tree_(tree),
       entry_(entry),
       self_ticks_(0),
-      children_(CodeEntriesMatch),
       parent_(parent),
-      id_(tree->next_node_id()),
-      line_ticks_(LineTickMatch) {
+      id_(tree->next_node_id()) {
   tree_->EnqueueNode(this);
 }
 

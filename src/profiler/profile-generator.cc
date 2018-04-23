@@ -98,8 +98,7 @@ uint32_t CodeEntry::GetHash() const {
   return hash;
 }
 
-
-bool CodeEntry::IsSameFunctionAs(CodeEntry* entry) const {
+bool CodeEntry::IsSameFunctionAs(const CodeEntry* entry) const {
   if (this == entry) return true;
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
     return script_id_ == entry->script_id_ && position_ == entry->position_;
@@ -173,23 +172,21 @@ void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
-  base::HashMap::Entry* map_entry =
-      children_.Lookup(entry, CodeEntryHash(entry));
-  return map_entry != nullptr ? reinterpret_cast<ProfileNode*>(map_entry->value)
-                              : nullptr;
+  auto map_entry = children_.find(entry);
+  return map_entry != children_.end() ? map_entry->second : nullptr;
 }
 
 
 ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
-  base::HashMap::Entry* map_entry =
-      children_.LookupOrInsert(entry, CodeEntryHash(entry));
-  ProfileNode* node = reinterpret_cast<ProfileNode*>(map_entry->value);
-  if (!node) {
-    node = new ProfileNode(tree_, entry, this);
-    map_entry->value = node;
+  auto map_entry = children_.find(entry);
+  if (map_entry == children_.end()) {
+    ProfileNode* node = new ProfileNode(tree_, entry, this);
+    children_[entry] = node;
     children_list_.push_back(node);
+    return node;
+  } else {
+    return map_entry->second;
   }
-  return node;
 }
 
 
@@ -197,10 +194,12 @@ void ProfileNode::IncrementLineTicks(int src_line) {
   if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) return;
   // Increment a hit counter of a certain source line.
   // Add a new source line if not found.
-  base::HashMap::Entry* e =
-      line_ticks_.LookupOrInsert(reinterpret_cast<void*>(src_line), src_line);
-  DCHECK(e);
-  e->value = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(e->value) + 1);
+  auto map_entry = line_ticks_.find(src_line);
+  if (map_entry == line_ticks_.end()) {
+    line_ticks_[src_line] = 1;
+  } else {
+    line_ticks_[src_line]++;
+  }
 }
 
 
@@ -208,19 +207,16 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                                unsigned int length) const {
   if (entries == nullptr || length == 0) return false;
 
-  unsigned line_count = line_ticks_.occupancy();
+  unsigned line_count = static_cast<unsigned>(line_ticks_.size());
 
   if (line_count == 0) return true;
   if (length < line_count) return false;
 
   v8::CpuProfileNode::LineTick* entry = entries;
 
-  for (base::HashMap::Entry *p = line_ticks_.Start(); p != nullptr;
-       p = line_ticks_.Next(p), entry++) {
-    entry->line =
-        static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->key));
-    entry->hit_count =
-        static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->value));
+  for (auto p = line_ticks_.begin(); p != line_ticks_.end(); p++, entry++) {
+    entry->line = p->first;
+    entry->hit_count = p->second;
   }
 
   return true;
@@ -253,9 +249,8 @@ void ProfileNode::Print(int indent) {
     base::OS::Print("%*s bailed out due to '%s'\n", indent + 10, "",
                     bailout_reason);
   }
-  for (base::HashMap::Entry* p = children_.Start(); p != nullptr;
-       p = children_.Next(p)) {
-    reinterpret_cast<ProfileNode*>(p->value)->Print(indent + 2);
+  for (auto child : children_) {
+    child.second->Print(indent + 2);
   }
 }
 
@@ -276,8 +271,7 @@ ProfileTree::ProfileTree(Isolate* isolate)
       next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_, nullptr)),
       isolate_(isolate),
-      next_function_id_(1),
-      function_ids_(ProfileNode::CodeEntriesMatch) {}
+      next_function_id_(1) {}
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
@@ -287,12 +281,11 @@ ProfileTree::~ProfileTree() {
 
 unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
   CodeEntry* code_entry = node->entry();
-  base::HashMap::Entry* entry =
-      function_ids_.LookupOrInsert(code_entry, code_entry->GetHash());
-  if (!entry->value) {
-    entry->value = reinterpret_cast<void*>(next_function_id_++);
+  auto map_entry = function_ids_.find(code_entry);
+  if (map_entry == function_ids_.end()) {
+    return function_ids_[code_entry] = next_function_id_++;
   }
-  return static_cast<unsigned>(reinterpret_cast<uintptr_t>(entry->value));
+  return function_ids_[code_entry];
 }
 
 ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
