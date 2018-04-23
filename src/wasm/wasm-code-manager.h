@@ -127,6 +127,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return *protected_instructions_.get();
   }
 
+  // Register protected instruction information with the trap handler. Sets
+  // trap_handler_index.
+  void RegisterTrapHandlerData();
+
   void Print(Isolate* isolate) const;
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os,
                    Address current_pc = kNullAddress) const;

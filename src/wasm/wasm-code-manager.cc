@@ -184,6 +184,22 @@ void WasmCode::set_trap_handler_index(size_t value) {
   trap_handler_index_ = value;
 }
 
+void WasmCode::RegisterTrapHandlerData() {
+  if (kind() != wasm::WasmCode::kFunction) return;
+  if (HasTrapHandlerIndex()) return;
+
+  Address base = instruction_start();
+
+  size_t size = instructions().size();
+  const int index =
+      RegisterHandlerData(base, size, protected_instructions().size(),
+                          protected_instructions().data());
+
+  // TODO(eholk): if index is negative, fail.
+  CHECK_LE(0, index);
+  set_trap_handler_index(static_cast<size_t>(index));
+}
+
 bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 
 void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
@@ -884,21 +900,8 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
 void NativeModule::UnpackAndRegisterProtectedInstructions() {
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
     WasmCode* code = GetCode(i);
-
     if (code == nullptr) continue;
-    if (code->kind() != wasm::WasmCode::kFunction) continue;
-    if (code->HasTrapHandlerIndex()) continue;
-
-    Address base = code->instruction_start();
-
-    size_t size = code->instructions().size();
-    const int index =
-        RegisterHandlerData(base, size, code->protected_instructions().size(),
-                            code->protected_instructions().data());
-
-    // TODO(eholk): if index is negative, fail.
-    CHECK_LE(0, index);
-    code->set_trap_handler_index(static_cast<size_t>(index));
+    code->RegisterTrapHandlerData();
   }
 }
 

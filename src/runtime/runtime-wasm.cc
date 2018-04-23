@@ -301,6 +301,8 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_WasmCompileLazy) {
   HandleScope scope(isolate);
   Handle<WasmInstanceObject> instance(*instance_on_stack, isolate);
 
+  ClearThreadInWasmScope wasm_flag(true);
+
   Address entrypoint = wasm::CompileLazy(isolate, instance);
   return MakePair(reinterpret_cast<Object*>(entrypoint), *instance);
 }

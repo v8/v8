@@ -518,6 +518,10 @@ const wasm::WasmCode* LazyCompileFunction(
   counters->wasm_lazy_compilation_throughput()->AddSample(
       compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
                             : 0);
+
+  if (trap_handler::IsTrapHandlerEnabled()) {
+    wasm_code->RegisterTrapHandlerData();
+  }
   return wasm_code;
 }
 
