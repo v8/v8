@@ -2137,17 +2137,15 @@ DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 
 Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         Handle<SharedFunctionInfo> info,
-                                        Handle<Object> context_or_undefined,
+                                        Handle<Context> context,
                                         PretenureFlag pretenure) {
   Handle<JSFunction> function(JSFunction::cast(New(map, pretenure)), isolate());
-  DCHECK(context_or_undefined->IsContext() ||
-         context_or_undefined->IsUndefined(isolate()));
 
   function->initialize_properties();
   function->initialize_elements();
   function->set_shared(*info);
   function->set_code(info->GetCode());
-  function->set_context(*context_or_undefined);
+  function->set_context(*context);
   function->set_feedback_cell(*many_closures_cell());
   int header_size;
   if (map->has_prototype_slot()) {
@@ -2298,31 +2296,24 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, PretenureFlag pretenure) {
+    Handle<Context> context, PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
-      NewFunction(initial_map, info, context_or_undefined, pretenure);
+      NewFunction(initial_map, info, context, pretenure);
 
-  if (context_or_undefined->IsContext()) {
-    // Give compiler a chance to pre-initialize.
-    Compiler::PostInstantiation(result, pretenure);
-  }
-
-  if (info->is_toplevel() || info->is_wrapped()) {
-    // Report script compilation to debugger.
-    isolate()->debug()->OnAfterCompile(handle(Script::cast(info->script())));
-  }
+  // Give compiler a chance to pre-initialize.
+  Compiler::PostInstantiation(result, pretenure);
 
   return result;
 }
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, Handle<FeedbackCell> feedback_cell,
+    Handle<Context> context, Handle<FeedbackCell> feedback_cell,
     PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
-      NewFunction(initial_map, info, context_or_undefined, pretenure);
+      NewFunction(initial_map, info, context, pretenure);
 
   // Bump the closure count that is encoded in the feedback cell's map.
   if (feedback_cell->map() == *no_closures_cell_map()) {
@@ -2342,15 +2333,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   }
   result->set_feedback_cell(*feedback_cell);
 
-  if (context_or_undefined->IsContext()) {
-    // Give compiler a chance to pre-initialize.
-    Compiler::PostInstantiation(result, pretenure);
-  }
-
-  if (info->is_toplevel() || info->is_wrapped()) {
-    // Report script compilation to debugger.
-    isolate()->debug()->OnAfterCompile(handle(Script::cast(info->script())));
-  }
+  // Give compiler a chance to pre-initialize.
+  Compiler::PostInstantiation(result, pretenure);
 
   return result;
 }

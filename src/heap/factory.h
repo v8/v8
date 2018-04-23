@@ -682,7 +682,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Object> context_or_undefined, Handle<FeedbackCell> feedback_cell,
+      Handle<Context> context, Handle<FeedbackCell> feedback_cell,
       PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
@@ -691,7 +691,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Object> context_or_undefined, PretenureFlag pretenure = TENURED);
+      Handle<Context> context, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
@@ -701,7 +701,7 @@ class V8_EXPORT_PRIVATE Factory {
   // initialization. All other utility methods call into this.
   Handle<JSFunction> NewFunction(Handle<Map> map,
                                  Handle<SharedFunctionInfo> info,
-                                 Handle<Object> context_or_undefined,
+                                 Handle<Context> context,
                                  PretenureFlag pretenure = TENURED);
 
   // Create a serialized scope info.

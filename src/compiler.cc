@@ -1957,6 +1957,12 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
       function->set_code(code);
     }
   }
+
+  if (shared->is_toplevel() || shared->is_wrapped()) {
+    // If it's a top-level script, report compilation to the debugger.
+    Handle<Script> script(handle(Script::cast(shared->script())));
+    script->GetIsolate()->debug()->OnAfterCompile(script);
+  }
 }
 
 // ----------------------------------------------------------------------------
