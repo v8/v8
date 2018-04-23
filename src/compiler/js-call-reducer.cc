@@ -1481,7 +1481,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // Ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
@@ -1492,7 +1492,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->AssumePropertyCell(factory()->species_protector());
+  dependencies()->AssumePropertyCell(factory()->array_species_protector());
 
   Handle<JSFunction> handle_constructor(
       JSFunction::cast(
@@ -1681,7 +1681,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
   // The output array is packed (filter doesn't visit holes).
@@ -1696,7 +1696,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->AssumePropertyCell(factory()->species_protector());
+  dependencies()->AssumePropertyCell(factory()->array_species_protector());
 
   Handle<Map> initial_map(
       Map::cast(native_context()->GetInitialJSArrayMap(packed_kind)));
@@ -2274,7 +2274,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
@@ -2285,7 +2285,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->AssumePropertyCell(factory()->species_protector());
+  dependencies()->AssumePropertyCell(factory()->array_species_protector());
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2597,7 +2597,7 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
   if (receiver_maps.size() == 0) return NoChange();
 
@@ -2610,7 +2610,7 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->AssumePropertyCell(factory()->species_protector());
+  dependencies()->AssumePropertyCell(factory()->array_species_protector());
 
   Node* k = jsgraph()->ZeroConstant();
 
@@ -5730,7 +5730,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // lookup of "constructor" on JSPromise instances, whoch [[Prototype]] is
   // the initial %PromisePrototype%, and the Symbol.species lookup on the
   // %PromisePrototype%.
-  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsPromiseSpeciesLookupChainIntact()) return NoChange();
 
   // Check if we know something about {receiver} already.
   ZoneHandleSet<Map> receiver_maps;
@@ -5751,7 +5751,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // Add a code dependency on the necessary protectors.
   dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
   dependencies()->AssumePropertyCell(factory()->promise_then_protector());
-  dependencies()->AssumePropertyCell(factory()->species_protector());
+  dependencies()->AssumePropertyCell(factory()->promise_species_protector());
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -5878,7 +5878,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   // guards the "constructor" lookup on all JSPromise instances and the
   // initial Promise.prototype, as well as the  Symbol.species lookup on
   // the Promise constructor.
-  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsPromiseSpeciesLookupChainIntact()) return NoChange();
 
   // Check if we know something about {receiver} already.
   ZoneHandleSet<Map> receiver_maps;
@@ -5900,7 +5900,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
   // Add a code dependency on the necessary protectors.
   dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
-  dependencies()->AssumePropertyCell(factory()->species_protector());
+  dependencies()->AssumePropertyCell(factory()->promise_species_protector());
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.

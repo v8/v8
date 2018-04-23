@@ -2370,7 +2370,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
   Handle<Object> default_species = isolate->array_function();
   if (original_array->IsJSArray() &&
       Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
-      isolate->IsSpeciesLookupChainIntact()) {
+      isolate->IsArraySpeciesLookupChainIntact()) {
     return default_species;
   }
   Handle<Object> constructor = isolate->factory()->undefined_value();

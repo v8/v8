@@ -817,7 +817,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIfNot(IsPrototypeInitialArrayPrototype(context(), original_map),
               &runtime);
 
-    Node* species_protector = SpeciesProtectorConstant();
+    Node* species_protector = ArraySpeciesProtectorConstant();
     Node* value =
         LoadObjectField(species_protector, PropertyCell::kValueOffset);
     TNode<Smi> const protector_invalid =
@@ -862,7 +862,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIfNot(IsPrototypeInitialArrayPrototype(context(), original_map),
               &runtime);
 
-    Node* species_protector = SpeciesProtectorConstant();
+    Node* species_protector = ArraySpeciesProtectorConstant();
     Node* value =
         LoadObjectField(species_protector, PropertyCell::kValueOffset);
     Node* const protector_invalid = SmiConstant(Isolate::kProtectorInvalid);
@@ -1155,7 +1155,7 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
 
     GotoIf(IsNoElementsProtectorCellInvalid(), slow);
 
-    GotoIf(IsSpeciesProtectorCellInvalid(), slow);
+    GotoIf(IsArraySpeciesProtectorCellInvalid(), slow);
 
     // Bailout if receiver has slow elements.
     Node* elements_kind = LoadMapElementsKind(map);

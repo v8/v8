@@ -883,7 +883,7 @@ TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
   var_constructor = default_constructor;
   Node* map = LoadMap(exemplar);
   GotoIfNot(IsPrototypeTypedArrayPrototype(context, map), &slow);
-  Branch(IsSpeciesProtectorCellInvalid(), &slow, &done);
+  Branch(IsTypedArraySpeciesProtectorCellInvalid(), &slow, &done);
 
   BIND(&slow);
   var_constructor = SpeciesConstructor(context, exemplar, default_constructor);
