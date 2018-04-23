@@ -620,8 +620,6 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       : BaseCollectionsAssembler(state) {}
 
  protected:
-  template <typename CollectionType>
-  Node* AllocateOrderedHashTable();
   template <typename IteratorType>
   Node* AllocateJSCollectionIterator(Node* context, int map_index,
                                      Node* collection);
@@ -733,58 +731,6 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                    Node* const number_of_buckets,
                                    Node* const occupancy);
 };
-
-template <typename CollectionType>
-Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
-  static const int kCapacity = CollectionType::kMinCapacity;
-  static const int kBucketCount = kCapacity / CollectionType::kLoadFactor;
-  static const int kDataTableLength = kCapacity * CollectionType::kEntrySize;
-  static const int kFixedArrayLength =
-      CollectionType::kHashTableStartIndex + kBucketCount + kDataTableLength;
-  static const int kDataTableStartIndex =
-      CollectionType::kHashTableStartIndex + kBucketCount;
-
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kCapacity));
-  STATIC_ASSERT(kCapacity <= CollectionType::kMaxCapacity);
-
-  // Allocate the table and add the proper map.
-  const ElementsKind elements_kind = HOLEY_ELEMENTS;
-  Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
-  Node* const fixed_array_map = LoadRoot(
-      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex()));
-  Node* const table =
-      AllocateFixedArray(elements_kind, length_intptr, INTPTR_PARAMETERS,
-                         kAllowLargeObjectAllocation, fixed_array_map);
-
-  // Initialize the OrderedHashTable fields.
-  const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
-  StoreFixedArrayElement(table, CollectionType::kNumberOfElementsIndex,
-                         SmiConstant(0), barrier_mode);
-  StoreFixedArrayElement(table, CollectionType::kNumberOfDeletedElementsIndex,
-                         SmiConstant(0), barrier_mode);
-  StoreFixedArrayElement(table, CollectionType::kNumberOfBucketsIndex,
-                         SmiConstant(kBucketCount), barrier_mode);
-
-  // Fill the buckets with kNotFound.
-  Node* const not_found = SmiConstant(CollectionType::kNotFound);
-  STATIC_ASSERT(CollectionType::kHashTableStartIndex ==
-                CollectionType::kNumberOfBucketsIndex + 1);
-  STATIC_ASSERT((CollectionType::kHashTableStartIndex + kBucketCount) ==
-                kDataTableStartIndex);
-  for (int i = 0; i < kBucketCount; i++) {
-    StoreFixedArrayElement(table, CollectionType::kHashTableStartIndex + i,
-                           not_found, barrier_mode);
-  }
-
-  // Fill the data table with undefined.
-  STATIC_ASSERT(kDataTableStartIndex + kDataTableLength == kFixedArrayLength);
-  for (int i = 0; i < kDataTableLength; i++) {
-    StoreFixedArrayElement(table, kDataTableStartIndex + i, UndefinedConstant(),
-                           barrier_mode);
-  }
-
-  return table;
-}
 
 template <typename IteratorType>
 Node* CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
