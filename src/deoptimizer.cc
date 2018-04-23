@@ -1077,7 +1077,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator;
-  Object* function = value_iterator->GetRawValue();
   value_iterator++;
   input_index++;
   if (trace_scope_ != nullptr) {
@@ -1091,6 +1090,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
+  FrameWriter frame_writer(this, output_frame, trace_scope_);
 
   // Arguments adaptor can not be topmost.
   CHECK(frame_index < output_count_ - 1);
@@ -1107,88 +1107,58 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   }
   output_frame->SetTop(top_address);
 
-  unsigned output_offset = output_frame_size;
   if (ShouldPadArguments(parameter_count)) {
-    output_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                       output_offset, "padding ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "padding\n");
   }
 
   // Compute the incoming parameter translation.
   for (int i = 0; i < parameter_count; ++i) {
-    output_offset -= kPointerSize;
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_offset);
+    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    if (trace_scope_) {
+      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
+    }
+    value_iterator++;
+    input_index++;
   }
 
-  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
+  DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
+            frame_writer.top_offset());
+
   // Read caller's PC from the previous frame.
-  output_offset -= kPCOnStackSize;
-  intptr_t value;
-  if (is_bottommost) {
-    value = caller_pc_;
-  } else {
-    value = output_[frame_index - 1]->GetPc();
-  }
-  output_frame->SetCallerPc(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's pc\n");
+  const intptr_t caller_pc =
+      is_bottommost ? caller_pc_ : output_[frame_index - 1]->GetPc();
+  frame_writer.PushCallerPc(caller_pc);
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kFPOnStackSize;
-  if (is_bottommost) {
-    value = caller_fp_;
-  } else {
-    value = output_[frame_index - 1]->GetFp();
-  }
-  output_frame->SetCallerFp(output_offset, value);
-  intptr_t fp_value = top_address + output_offset;
+  const intptr_t caller_fp =
+      is_bottommost ? caller_fp_ : output_[frame_index - 1]->GetFp();
+  frame_writer.PushCallerFp(caller_fp);
+
+  intptr_t fp_value = top_address + frame_writer.top_offset();
   output_frame->SetFp(fp_value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
     // Read the caller's constant pool from the previous frame.
-    output_offset -= kPointerSize;
-    if (is_bottommost) {
-      value = caller_constant_pool_;
-    } else {
-      value = output_[frame_index - 1]->GetConstantPool();
-    }
-    output_frame->SetCallerConstantPool(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "caller's constant_pool\n");
+    const intptr_t caller_cp =
+        is_bottommost ? caller_constant_pool_
+                      : output_[frame_index - 1]->GetConstantPool();
+    frame_writer.PushCallerConstantPool(caller_cp);
   }
 
   // A marker value is used in place of the context.
-  output_offset -= kPointerSize;
-  intptr_t context = StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
-  output_frame->SetFrameSlot(output_offset, context);
-  DebugPrintOutputSlot(context, frame_index, output_offset,
-                       "context (adaptor sentinel)\n");
+  intptr_t marker = StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
+  frame_writer.PushRawValue(marker, "context (adaptor sentinel)\n");
 
   // The function was mentioned explicitly in the ARGUMENTS_ADAPTOR_FRAME.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(function);
-  WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
-  if (function == isolate_->heap()->arguments_marker()) {
-    Address output_address =
-        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
-    values_to_materialize_.push_back({output_address, function_iterator});
-  }
+  frame_writer.PushTranslatedValue(function_iterator, "function\n");
 
   // Number of incoming arguments.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(height - 1));
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "argc ");
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(), "(%d)\n", height - 1);
-  }
+  frame_writer.PushRawObject(Smi::FromInt(height - 1), "argc\n");
 
-  output_offset -= kPointerSize;
-  WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                     output_offset, "padding ");
+  frame_writer.PushRawObject(isolate()->heap()->the_hole_value(), "padding\n");
 
-  DCHECK_EQ(0, output_offset);
+  DCHECK_EQ(0, frame_writer.top_offset());
 
   Builtins* builtins = isolate_->builtins();
   Code* adaptor_trampoline =
