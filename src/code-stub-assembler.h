@@ -436,6 +436,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(SloppyTNode<Object> a);
+  TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
   TNode<BoolT> TaggedIsNotSmi(SloppyTNode<Object> a);
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(SloppyTNode<Object> a);
@@ -536,6 +537,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<IntPtrT> LoadAndUntagSmi(Node* base, int index);
   // Load a SMI root, untag it, and convert to Word32.
   Node* LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
+
+  TNode<MaybeObject> LoadMaybeWeakObjectField(SloppyTNode<HeapObject> object,
+                                              int offset) {
+    return UncheckedCast<MaybeObject>(
+        LoadObjectField(object, offset, MachineType::AnyTagged()));
+  }
 
   // Tag a smi and store it.
   Node* StoreAndTagSmi(Node* base, int offset, Node* value);
@@ -647,14 +654,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // pointed to)
   // - a strong reference (jump to "if_strong", "extracted" will be the object
   // pointed to)
-  void DispatchMaybeObject(Node* maybe_object, Label* if_smi, Label* if_cleared,
-                           Label* if_weak, Label* if_strong,
-                           Variable* extracted);
-  Node* IsStrongHeapObject(Node* value);
-  Node* ToStrongHeapObject(Node* value);
+  void DispatchMaybeObject(TNode<MaybeObject> maybe_object, Label* if_smi,
+                           Label* if_cleared, Label* if_weak, Label* if_strong,
+                           TVariable<Object>* extracted);
+  TNode<BoolT> IsStrongHeapObject(TNode<MaybeObject> value);
+  TNode<HeapObject> GetHeapObject(TNode<MaybeObject> value);
+  TNode<HeapObject> ToStrongHeapObject(TNode<MaybeObject> value);
+  TNode<Object> ToStrongHeapObjectOrSmi(TNode<MaybeObject> value);
 
   // Load an array element from a FixedArray / WeakFixedArray.
-  TNode<Object> LoadArrayElement(
+  TNode<MaybeObject> LoadArrayElement(
       SloppyTNode<Object> object, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
@@ -2290,6 +2299,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);
 
+  void AssertIsStrongHeapObject(SloppyTNode<MaybeObject> object);
+  void AssertIsStrongHeapObjectOrSmi(SloppyTNode<MaybeObject> object);
   void AssertIsStrongHeapObject(SloppyTNode<HeapObject> object);
 
  private:

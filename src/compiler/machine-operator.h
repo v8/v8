@@ -301,6 +301,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a tagged pointer as word.
   const Operator* BitcastTaggedToWord();
 
+  // This operator reinterprets the bits of a tagged MaybeObject pointer as
+  // word.
+  const Operator* BitcastMaybeObjectToWord();
+
   // This operator reinterprets the bits of a word as tagged pointer.
   const Operator* BitcastWordToTagged();
 

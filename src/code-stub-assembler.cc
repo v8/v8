@@ -829,6 +829,12 @@ TNode<BoolT> CodeStubAssembler::TaggedIsSmi(SloppyTNode<Object> a) {
                    IntPtrConstant(0));
 }
 
+TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
+  return WordEqual(
+      WordAnd(BitcastMaybeObjectToWord(a), IntPtrConstant(kSmiTagMask)),
+      IntPtrConstant(0));
+}
+
 TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(SloppyTNode<Object> a) {
   return WordNotEqual(
       WordAnd(BitcastTaggedToWord(a), IntPtrConstant(kSmiTagMask)),
@@ -1492,15 +1498,15 @@ TNode<PrototypeInfo> CodeStubAssembler::LoadMapPrototypeInfo(
     SloppyTNode<Map> map, Label* if_no_proto_info) {
   Label if_strong_heap_object(this);
   CSA_ASSERT(this, IsMap(map));
-  Node* maybe_prototype_info =
-      LoadObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
-  VARIABLE(prototype_info, MachineRepresentation::kTagged);
+  TNode<MaybeObject> maybe_prototype_info =
+      LoadMaybeWeakObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
+  TVARIABLE(Object, prototype_info);
   DispatchMaybeObject(maybe_prototype_info, if_no_proto_info, if_no_proto_info,
                       if_no_proto_info, &if_strong_heap_object,
                       &prototype_info);
 
   BIND(&if_strong_heap_object);
-  GotoIfNot(WordEqual(LoadMap(prototype_info.value()),
+  GotoIfNot(WordEqual(LoadMap(CAST(prototype_info.value())),
                       LoadRoot(Heap::kPrototypeInfoMapRootIndex)),
             if_no_proto_info);
   return CAST(prototype_info.value());
@@ -1681,49 +1687,62 @@ TNode<Object> CodeStubAssembler::LoadWeakCellValue(
   return value;
 }
 
-void CodeStubAssembler::DispatchMaybeObject(Node* maybe_object, Label* if_smi,
-                                            Label* if_cleared, Label* if_weak,
-                                            Label* if_strong,
-                                            Variable* extracted) {
+void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
+                                            Label* if_smi, Label* if_cleared,
+                                            Label* if_weak, Label* if_strong,
+                                            TVariable<Object>* extracted) {
   Label inner_if_smi(this), inner_if_strong(this);
 
   GotoIf(TaggedIsSmi(maybe_object), &inner_if_smi);
 
-  GotoIf(WordEqual(maybe_object, IntPtrConstant(reinterpret_cast<intptr_t>(
-                                     HeapObjectReference::ClearedValue()))),
+  GotoIf(WordEqual(BitcastMaybeObjectToWord(maybe_object),
+                   IntPtrConstant(reinterpret_cast<intptr_t>(
+                       HeapObjectReference::ClearedValue()))),
          if_cleared);
 
-  GotoIf(WordEqual(WordAnd(BitcastTaggedToWord(maybe_object),
+  GotoIf(WordEqual(WordAnd(BitcastMaybeObjectToWord(maybe_object),
                            IntPtrConstant(kWeakHeapObjectMask)),
                    IntPtrConstant(0)),
          &inner_if_strong);
 
-  extracted->Bind(
-      BitcastWordToTagged(WordAnd(BitcastTaggedToWord(maybe_object),
-                                  IntPtrConstant(~kWeakHeapObjectMask))));
+  *extracted =
+      BitcastWordToTagged(WordAnd(BitcastMaybeObjectToWord(maybe_object),
+                                  IntPtrConstant(~kWeakHeapObjectMask)));
   Goto(if_weak);
 
   BIND(&inner_if_smi);
-  extracted->Bind(maybe_object);
+  *extracted = ToStrongHeapObjectOrSmi(maybe_object);
   Goto(if_smi);
 
   BIND(&inner_if_strong);
-  extracted->Bind(maybe_object);
+  *extracted = ToStrongHeapObject(maybe_object);
   Goto(if_strong);
 }
 
-Node* CodeStubAssembler::IsStrongHeapObject(Node* value) {
-  return WordEqual(
-      WordAnd(BitcastTaggedToWord(value), IntPtrConstant(kWeakHeapObjectMask)),
-      IntPtrConstant(0));
+TNode<BoolT> CodeStubAssembler::IsStrongHeapObject(TNode<MaybeObject> value) {
+  return WordEqual(WordAnd(BitcastMaybeObjectToWord(value),
+                           IntPtrConstant(kWeakHeapObjectMask)),
+                   IntPtrConstant(0));
 }
 
-Node* CodeStubAssembler::ToStrongHeapObject(Node* value) {
-  return BitcastWordToTagged(WordAnd(BitcastTaggedToWord(value),
-                                     IntPtrConstant(~kWeakHeapObjectMask)));
+TNode<HeapObject> CodeStubAssembler::GetHeapObject(TNode<MaybeObject> value) {
+  return UncheckedCast<HeapObject>(BitcastWordToTagged(WordAnd(
+      BitcastMaybeObjectToWord(value), IntPtrConstant(~kWeakHeapObjectMask))));
 }
 
-TNode<Object> CodeStubAssembler::LoadArrayElement(
+TNode<HeapObject> CodeStubAssembler::ToStrongHeapObject(
+    TNode<MaybeObject> value) {
+  AssertIsStrongHeapObject(value);
+  return ReinterpretCast<HeapObject>(value);
+}
+
+TNode<Object> CodeStubAssembler::ToStrongHeapObjectOrSmi(
+    TNode<MaybeObject> value) {
+  AssertIsStrongHeapObjectOrSmi(value);
+  return ReinterpretCast<Object>(value);
+}
+
+TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
     SloppyTNode<Object> object, int array_header_size, Node* index_node,
     int additional_offset, ParameterMode parameter_mode,
     LoadSensitivity needs_poisoning) {
@@ -1733,7 +1752,7 @@ TNode<Object> CodeStubAssembler::LoadArrayElement(
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                                  parameter_mode, header_size);
-  return UncheckedCast<Object>(
+  return UncheckedCast<MaybeObject>(
       Load(MachineType::AnyTagged(), object, offset, needs_poisoning));
 }
 
@@ -1744,8 +1763,9 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   // and thus the reasonable assert IsFixedArraySubclass(object) is
   // untrue. TODO(marja): Fix.
   CSA_SLOW_ASSERT(this, IsNotWeakFixedArraySubclass(object));
-  return LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
-                          additional_offset, parameter_mode, needs_poisoning);
+  return ToStrongHeapObjectOrSmi(
+      LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
+                       additional_offset, parameter_mode, needs_poisoning));
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
@@ -6943,9 +6963,8 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
 
   BuildFastLoop(last_exclusive, first_inclusive,
                 [=](SloppyTNode<IntPtrT> name_index) {
-                  TNode<Name> candidate_name = CAST(
-                      LoadArrayElement(array, Array::kHeaderSize, name_index));
-                  CSA_ASSERT(this, IsStrongHeapObject(candidate_name));
+                  TNode<Name> candidate_name = CAST(ToStrongHeapObject(
+                      LoadArrayElement(array, Array::kHeaderSize, name_index)));
                   *var_name_index = name_index;
                   GotoIf(WordEqual(candidate_name, unique_name), if_found);
                 },
@@ -7014,10 +7033,9 @@ TNode<Name> CodeStubAssembler::GetKey(TNode<Array> array,
                     std::is_base_of<TransitionArray, Array>::value,
                 "T must be a descendant of FixedArray or a TransitionArray");
   const int key_offset = Array::ToKeyIndex(0) * kPointerSize;
-  TNode<Name> key =
-      CAST(LoadArrayElement(array, Array::kHeaderSize,
-                            EntryIndexToIndex<Array>(entry_index), key_offset));
-  CSA_ASSERT(this, IsStrongHeapObject(key));
+  TNode<Name> key = CAST(ToStrongHeapObject(
+      LoadArrayElement(array, Array::kHeaderSize,
+                       EntryIndexToIndex<Array>(entry_index), key_offset)));
   return key;
 }
 
@@ -11440,6 +11458,20 @@ void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
                                     TheHoleConstant());
   StoreContextElementNoWriteBarrier(context, Context::NATIVE_CONTEXT_INDEX,
                                     native_context);
+}
+
+void CodeStubAssembler::AssertIsStrongHeapObject(
+    SloppyTNode<MaybeObject> object) {
+  CSA_SLOW_ASSERT(this, WordEqual(WordAnd(BitcastMaybeObjectToWord(object),
+                                          IntPtrConstant(kHeapObjectTagMask)),
+                                  IntPtrConstant(kHeapObjectTag)));
+}
+
+void CodeStubAssembler::AssertIsStrongHeapObjectOrSmi(
+    SloppyTNode<MaybeObject> object) {
+  CSA_SLOW_ASSERT(this, WordEqual(WordAnd(BitcastMaybeObjectToWord(object),
+                                          IntPtrConstant(kWeakHeapObjectMask)),
+                                  IntPtrConstant(0)));
 }
 
 void CodeStubAssembler::AssertIsStrongHeapObject(

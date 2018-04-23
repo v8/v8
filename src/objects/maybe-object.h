@@ -50,10 +50,7 @@ class MaybeObject {
     return reinterpret_cast<MaybeObject*>(object);
   }
 
-  static MaybeObject* MakeWeak(MaybeObject* object) {
-    DCHECK(object->IsStrongOrWeakHeapObject());
-    return AddWeakHeapObjectMask(object);
-  }
+  static inline MaybeObject* MakeWeak(MaybeObject* object);
 
 #ifdef VERIFY_HEAP
   static void VerifyMaybeObjectPointer(MaybeObject* p);

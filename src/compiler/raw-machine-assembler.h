@@ -580,6 +580,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return a;
 #endif
   }
+  Node* BitcastMaybeObjectToWord(Node* a) {
+#ifdef ENABLE_VERIFY_CSA
+    return AddNode(machine()->BitcastMaybeObjectToWord(), a);
+#else
+    return a;
+#endif
+  }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }

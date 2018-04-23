@@ -91,6 +91,11 @@ HeapObject* MaybeObject::GetHeapObject() {
   return RemoveWeakHeapObjectMask(reinterpret_cast<HeapObjectReference*>(this));
 }
 
+MaybeObject* MaybeObject::MakeWeak(MaybeObject* object) {
+  DCHECK(object->IsStrongOrWeakHeapObject());
+  return AddWeakHeapObjectMask(object);
+}
+
 }  // namespace internal
 }  // namespace v8
 
