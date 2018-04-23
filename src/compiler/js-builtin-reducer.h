@@ -43,8 +43,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
 
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
-  Reduction ReduceGlobalIsFinite(Node* node);
-  Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Node* ToNumber(Node* value);
   Node* ToUint32(Node* value);

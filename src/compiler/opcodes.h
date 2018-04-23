@@ -399,6 +399,7 @@
   V(ObjectIsDetectableCallable)         \
   V(ObjectIsMinusZero)                  \
   V(ObjectIsNaN)                        \
+  V(NumberIsNaN)                        \
   V(ObjectIsNonCallable)                \
   V(ObjectIsNumber)                     \
   V(ObjectIsReceiver)                   \

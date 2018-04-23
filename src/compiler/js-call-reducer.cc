@@ -3483,6 +3483,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceNumberIsSafeInteger(node);
     case Builtins::kNumberIsNaN:
       return ReduceNumberIsNaN(node);
+    case Builtins::kGlobalIsFinite:
+      return ReduceGlobalIsFinite(node);
+    case Builtins::kGlobalIsNaN:
+      return ReduceGlobalIsNaN(node);
     case Builtins::kMapPrototypeGet:
       return ReduceMapPrototypeGet(node);
     case Builtins::kMapPrototypeHas:
@@ -6587,6 +6591,56 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     return Replace(value);
   }
   return NoChange();
+}
+
+// ES6 section 18.2.2 isFinite ( number )
+Reduction JSCallReducer::ReduceGlobalIsFinite(Node* node) {
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* input = NodeProperties::GetValueInput(node, 2);
+
+  input = effect =
+      graph()->NewNode(simplified()->SpeculativeToNumber(
+                           NumberOperationHint::kNumberOrOddball, p.feedback()),
+                       input, effect, control);
+  Node* value = graph()->NewNode(simplified()->NumberIsFinite(), input);
+  ReplaceWithValue(node, value, effect);
+  return Replace(value);
+}
+
+// ES6 section 18.2.3 isNaN ( number )
+Reduction JSCallReducer::ReduceGlobalIsNaN(Node* node) {
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->TrueConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* input = NodeProperties::GetValueInput(node, 2);
+
+  input = effect =
+      graph()->NewNode(simplified()->SpeculativeToNumber(
+                           NumberOperationHint::kNumberOrOddball, p.feedback()),
+                       input, effect, control);
+  Node* value = graph()->NewNode(simplified()->NumberIsNaN(), input);
+  ReplaceWithValue(node, value, effect);
+  return Replace(value);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

@@ -2769,7 +2769,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberIsFinite: {
-        UNREACHABLE();
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kBit);
+        return;
       }
       case IrOpcode::kObjectIsSafeInteger: {
         Type* const input_type = GetUpperBound(node->InputAt(0));
@@ -2876,17 +2878,16 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::TruncatingFloat64(),
                     MachineRepresentation::kBit);
           if (lower()) {
-            // ObjectIsNaN(x:kRepFloat64) => Word32Equal(Float64Equal(x,x),#0)
-            Node* const input = node->InputAt(0);
-            node->ReplaceInput(
-                0, jsgraph_->graph()->NewNode(
-                       lowering->machine()->Float64Equal(), input, input));
-            node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
-            NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
+            NodeProperties::ChangeOp(node, simplified()->NumberIsNaN());
           }
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         }
+        return;
+      }
+      case IrOpcode::kNumberIsNaN: {
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kBit);
         return;
       }
       case IrOpcode::kObjectIsNonCallable: {

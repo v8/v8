@@ -303,6 +303,7 @@ class Typer::Visitor : public Reducer {
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
   static Type* ObjectIsMinusZero(Type*, Typer*);
   static Type* ObjectIsNaN(Type*, Typer*);
+  static Type* NumberIsNaN(Type*, Typer*);
   static Type* ObjectIsNonCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
   static Type* ObjectIsReceiver(Type*, Typer*);
@@ -612,6 +613,12 @@ Type* Typer::Visitor::ObjectIsMinusZero(Type* type, Typer* t) {
 }
 
 Type* Typer::Visitor::ObjectIsNaN(Type* type, Typer* t) {
+  if (type->Is(Type::NaN())) return t->singleton_true_;
+  if (!type->Maybe(Type::NaN())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::NumberIsNaN(Type* type, Typer* t) {
   if (type->Is(Type::NaN())) return t->singleton_true_;
   if (!type->Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
@@ -2183,7 +2190,7 @@ Type* Typer::Visitor::TypeNumberIsFloat64Hole(Node* node) {
   return Type::Boolean();
 }
 
-Type* Typer::Visitor::TypeNumberIsFinite(Node* node) { UNREACHABLE(); }
+Type* Typer::Visitor::TypeNumberIsFinite(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeObjectIsFiniteNumber(Node* node) {
   return Type::Boolean();
@@ -2203,6 +2210,10 @@ Type* Typer::Visitor::TypeObjectIsInteger(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsNaN(Node* node) {
   return TypeUnaryOp(node, ObjectIsNaN);
+}
+
+Type* Typer::Visitor::TypeNumberIsNaN(Node* node) {
+  return TypeUnaryOp(node, NumberIsNaN);
 }
 
 Type* Typer::Visitor::TypeObjectIsNonCallable(Node* node) {

@@ -701,6 +701,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
   V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)            \
   V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                  \
+  V(NumberIsNaN, Operator::kNoProperties, 1, 0)                  \
   V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)             \

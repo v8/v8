@@ -770,6 +770,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsNaN:
       result = LowerObjectIsNaN(node);
       break;
+    case IrOpcode::kNumberIsNaN:
+      result = LowerNumberIsNaN(node);
+      break;
     case IrOpcode::kObjectIsNonCallable:
       result = LowerObjectIsNonCallable(node);
       break;
@@ -2325,6 +2328,13 @@ Node* EffectControlLinearizer::LowerObjectIsNaN(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerNumberIsNaN(Node* node) {
+  Node* number = node->InputAt(0);
+  Node* diff = __ Float64Equal(number, number);
+  Node* check = __ Word32Equal(diff, __ Int32Constant(0));
+  return check;
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
