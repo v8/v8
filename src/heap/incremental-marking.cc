@@ -952,6 +952,10 @@ size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
 }
 
 size_t IncrementalMarking::StepSizeToMakeProgress() {
+  // We increase step size gradually based on the time passed in order to
+  // leave marking work to standalone tasks. The ramp up duration and the
+  // target step count are chosen based on benchmarks.
+  const int kRampUpIntervalMs = 300;
   const size_t kTargetStepCount = 256;
   const size_t kTargetStepCountAtOOM = 32;
   size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
@@ -960,8 +964,12 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
     return heap()->PromotedSpaceSizeOfObjects() / kTargetStepCountAtOOM;
   }
 
-  return Max(initial_old_generation_size_ / kTargetStepCount,
-             IncrementalMarking::kMinStepSizeInBytes);
+  size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,
+                         IncrementalMarking::kMinStepSizeInBytes);
+  double time_passed_ms =
+      heap_->MonotonicallyIncreasingTimeInMs() - start_time_ms_;
+  double factor = Min(time_passed_ms / kRampUpIntervalMs, 1.0);
+  return static_cast<size_t>(factor * step_size);
 }
 
 void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
