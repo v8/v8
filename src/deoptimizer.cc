@@ -1206,7 +1206,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   int parameter_count = height;
   if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
 
-  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  TranslatedFrame::iterator function_iterator = value_iterator;
   value_iterator++;
   input_index++;
   if (trace_scope_ != nullptr) {
@@ -1223,6 +1223,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
+  FrameWriter frame_writer(this, output_frame, trace_scope_);
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
@@ -1235,121 +1236,91 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
-  unsigned output_offset = output_frame_size;
-
   if (ShouldPadArguments(parameter_count)) {
-    output_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                       output_offset, "padding ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "padding\n");
   }
+
+  // The allocated receiver of a construct stub frame is passed as the
+  // receiver parameter through the translation. It might be encoding
+  // a captured object, so we need save it for later.
+  TranslatedFrame::iterator receiver_iterator = value_iterator;
 
   // Compute the incoming parameter translation.
   for (int i = 0; i < parameter_count; ++i) {
-    output_offset -= kPointerSize;
-    // The allocated receiver of a construct stub frame is passed as the
-    // receiver parameter through the translation. It might be encoding
-    // a captured object, override the slot address for a captured object.
-    WriteTranslatedValueToOutput(
-        &value_iterator, &input_index, frame_index, output_offset, nullptr,
-        (i == 0) ? static_cast<Address>(top_address) : kNullAddress);
+    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    if (trace_scope_) {
+      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
+    }
+    input_index++;
+    value_iterator++;
   }
 
-  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
+  DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
+            frame_writer.top_offset());
+
   // Read caller's PC from the previous frame.
-  output_offset -= kPCOnStackSize;
-  intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetCallerPc(output_offset, callers_pc);
-  DebugPrintOutputSlot(callers_pc, frame_index, output_offset, "caller's pc\n");
+  const intptr_t caller_pc = output_[frame_index - 1]->GetPc();
+  frame_writer.PushCallerPc(caller_pc);
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kFPOnStackSize;
-  intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetCallerFp(output_offset, value);
-  intptr_t fp_value = top_address + output_offset;
+  const intptr_t caller_fp = output_[frame_index - 1]->GetFp();
+  frame_writer.PushCallerFp(caller_fp);
+
+  intptr_t fp_value = top_address + frame_writer.top_offset();
   output_frame->SetFp(fp_value);
   if (is_topmost) {
     Register fp_reg = JavaScriptFrame::fp_register();
     output_frame->SetRegister(fp_reg.code(), fp_value);
   }
-  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
     // Read the caller's constant pool from the previous frame.
-    output_offset -= kPointerSize;
-    value = output_[frame_index - 1]->GetConstantPool();
-    output_frame->SetCallerConstantPool(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "caller's constant_pool\n");
+    const intptr_t caller_cp = output_[frame_index - 1]->GetConstantPool();
+    frame_writer.PushCallerConstantPool(caller_cp);
   }
 
   // A marker value is used to mark the frame.
-  output_offset -= kPointerSize;
-  value = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset,
-                       "typed frame marker\n");
+  intptr_t marker = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
+  frame_writer.PushRawValue(marker, "context (construct stub sentinel)\n");
 
   // The context can be gotten from the previous frame.
-  output_offset -= kPointerSize;
-  value = output_[frame_index - 1]->GetContext();
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
+  Object* context =
+      reinterpret_cast<Object*>(output_[frame_index - 1]->GetContext());
+  frame_writer.PushRawObject(context, "context\n");
 
   // Number of incoming arguments.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(height - 1));
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "argc ");
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(), "(%d)\n", height - 1);
-  }
+  frame_writer.PushRawObject(Smi::FromInt(height - 1), "argc\n");
 
   // The constructor function was mentioned explicitly in the
   // CONSTRUCT_STUB_FRAME.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(function);
-  WriteValueToOutput(function, 0, frame_index, output_offset,
-                     "constructor function ");
+  frame_writer.PushTranslatedValue(function_iterator, "constuctor function\n");
 
   // The deopt info contains the implicit receiver or the new target at the
   // position of the receiver. Copy it to the top of stack, with the hole value
   // as padding to maintain alignment.
-  output_offset -= kPointerSize;
-  WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                     output_offset, "padding");
 
-  output_offset -= kPointerSize;
+  frame_writer.PushRawObject(isolate()->heap()->the_hole_value(), "padding\n");
 
-  if (ShouldPadArguments(parameter_count)) {
-    value = output_frame->GetFrameSlot(output_frame_size - 2 * kPointerSize);
-  } else {
-    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
-  }
-  output_frame->SetFrameSlot(output_offset, value);
-
-  if (bailout_id == BailoutId::ConstructStubCreate()) {
-    DebugPrintOutputSlot(value, frame_index, output_offset, "new target\n");
-  } else {
-    CHECK(bailout_id == BailoutId::ConstructStubInvoke());
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "allocated receiver\n");
-  }
+  CHECK(bailout_id == BailoutId::ConstructStubCreate() ||
+        bailout_id == BailoutId::ConstructStubInvoke());
+  const char* debug_hint = bailout_id == BailoutId::ConstructStubCreate()
+                               ? "new target\n"
+                               : "allocated receiver\n";
+  frame_writer.PushTranslatedValue(receiver_iterator, debug_hint);
 
   if (is_topmost) {
     if (PadTopOfStackRegister()) {
-      output_offset -= kPointerSize;
-      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                         output_offset, "padding ");
+      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                                 "padding\n");
     }
     // Ensure the result is restored back when we return to the stub.
-    output_offset -= kPointerSize;
     Register result_reg = kReturnRegister0;
-    value = input_->GetRegister(result_reg.code());
-    output_frame->SetFrameSlot(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset, "subcall result\n");
+    intptr_t result = input_->GetRegister(result_reg.code());
+    frame_writer.PushRawValue(result, "subcall result\n");
   }
 
-  CHECK_EQ(0u, output_offset);
+  CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
   DCHECK(bailout_id.IsValidForConstructStub());
@@ -1842,58 +1813,6 @@ void Deoptimizer::QueueValueForMaterialization(
     const TranslatedFrame::iterator& iterator) {
   if (obj == isolate_->heap()->arguments_marker()) {
     values_to_materialize_.push_back({output_address, iterator});
-  }
-}
-
-void Deoptimizer::WriteTranslatedValueToOutput(
-    TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
-    unsigned output_offset, const char* debug_hint_string,
-    Address output_address_for_materialization) {
-  Object* value = (*iterator)->GetRawValue();
-
-  WriteValueToOutput(value, *input_index, frame_index, output_offset,
-                     debug_hint_string);
-
-  if (value == isolate_->heap()->arguments_marker()) {
-    Address output_address =
-        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
-    if (output_address_for_materialization == kNullAddress) {
-      output_address_for_materialization = output_address;
-    }
-    values_to_materialize_.push_back(
-        {output_address_for_materialization, *iterator});
-  }
-
-  (*iterator)++;
-  (*input_index)++;
-}
-
-
-void Deoptimizer::WriteValueToOutput(Object* value, int input_index,
-                                     int frame_index, unsigned output_offset,
-                                     const char* debug_hint_string) {
-  output_[frame_index]->SetFrameSlot(output_offset,
-                                     reinterpret_cast<intptr_t>(value));
-
-  if (trace_scope_ != nullptr) {
-    DebugPrintOutputSlot(reinterpret_cast<intptr_t>(value), frame_index,
-                         output_offset, debug_hint_string);
-    value->ShortPrint(trace_scope_->file());
-    PrintF(trace_scope_->file(), "  (input #%d)\n", input_index);
-  }
-}
-
-
-void Deoptimizer::DebugPrintOutputSlot(intptr_t value, int frame_index,
-                                       unsigned output_offset,
-                                       const char* debug_hint_string) {
-  if (trace_scope_ != nullptr) {
-    Address output_address =
-        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
-    PrintF(trace_scope_->file(),
-           "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ;  %s",
-           output_address, output_offset, value,
-           debug_hint_string == nullptr ? "" : debug_hint_string);
   }
 }
 

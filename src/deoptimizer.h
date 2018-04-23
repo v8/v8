@@ -560,17 +560,6 @@ class Deoptimizer : public Malloced {
                                     int frame_index,
                                     BuiltinContinuationMode mode);
 
-  void WriteTranslatedValueToOutput(
-      TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
-      unsigned output_offset, const char* debug_hint_string = nullptr,
-      Address output_address_for_materialization = kNullAddress);
-  void WriteValueToOutput(Object* value, int input_index, int frame_index,
-                          unsigned output_offset,
-                          const char* debug_hint_string);
-  void DebugPrintOutputSlot(intptr_t value, int frame_index,
-                            unsigned output_offset,
-                            const char* debug_hint_string);
-
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
