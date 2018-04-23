@@ -4144,17 +4144,24 @@ AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
     : isolate_(isolate), context_(isolate->context(), isolate) {}
 #endif  // DEBUG
 
-
-bool PostponeInterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
-  // First check whether the previous scope intercepts.
-  if (prev_ && prev_->Intercept(flag)) return true;
-  // Then check whether this scope intercepts.
-  if ((flag & intercept_mask_)) {
-    intercepted_flags_ |= flag;
-    return true;
+bool InterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
+  InterruptsScope* last_postpone_scope = nullptr;
+  for (InterruptsScope* current = this; current; current = current->prev_) {
+    // We only consider scopes related to passed flag.
+    if (!(current->intercept_mask_ & flag)) continue;
+    if (current->mode_ == kRunInterrupts) {
+      // If innermost scope is kRunInterrupts scope, prevent interrupt from
+      // beeing prevented.
+      if (!last_postpone_scope) return false;
+    } else {
+      DCHECK_EQ(current->mode_, kPostponeInterrupts);
+      last_postpone_scope = current;
+    }
   }
-  return false;
+  // If there is no postpone scope for passed flag then we should not inrecept.
+  if (!last_postpone_scope) return false;
+  last_postpone_scope->intercepted_flags_ |= flag;
+  return true;
 }
-
 }  // namespace internal
 }  // namespace v8
