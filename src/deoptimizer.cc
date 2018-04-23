@@ -78,8 +78,8 @@ class FrameWriter {
 
     PushRawObject(obj, debug_hint);
 
-    deoptimizer_->QueueValueForTranslation(output_address(top_offset_), obj,
-                                           iterator);
+    deoptimizer_->QueueValueForMaterialization(output_address(top_offset_), obj,
+                                               iterator);
   }
 
   unsigned top_offset() const { return top_offset_; }
@@ -833,7 +833,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   TranslatedFrame::iterator function_iterator = value_iterator;
-  Object* function = value_iterator->GetRawValue();
   value_iterator++;
   input_index++;
   if (trace_scope_ != nullptr) {
@@ -858,6 +857,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   int parameter_count = shared->internal_formal_parameter_count() + 1;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
+  FrameWriter frame_writer(this, output_frame, trace_scope_);
 
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
@@ -874,21 +874,23 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
-  unsigned output_offset = output_frame_size;
 
   if (ShouldPadArguments(parameter_count)) {
-    output_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                       output_offset, "padding ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "padding\n");
   }
 
   for (int i = 0; i < parameter_count; ++i) {
-    output_offset -= kPointerSize;
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_offset);
+    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    if (trace_scope_) {
+      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
+    }
+    value_iterator++;
+    input_index++;
   }
 
-  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
+  DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
+            frame_writer.top_offset());
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
@@ -902,54 +904,38 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // input frame.  For all subsequent output frames, it can be read from the
   // previous one.  This frame's pc can be computed from the non-optimized
   // function code and AST id of the bailout.
-  output_offset -= kPCOnStackSize;
-  intptr_t value;
-  if (is_bottommost) {
-    value = caller_pc_;
-  } else {
-    value = output_[frame_index - 1]->GetPc();
-  }
-  output_frame->SetCallerPc(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's pc\n");
+  const intptr_t caller_pc =
+      is_bottommost ? caller_pc_ : output_[frame_index - 1]->GetPc();
+  frame_writer.PushCallerPc(caller_pc);
 
   // The caller's frame pointer for the bottommost output frame is the same
   // as in the input frame.  For all subsequent output frames, it can be
   // read from the previous one.  Also compute and set this frame's frame
   // pointer.
-  output_offset -= kFPOnStackSize;
-  if (is_bottommost) {
-    value = caller_fp_;
-  } else {
-    value = output_[frame_index - 1]->GetFp();
-  }
-  output_frame->SetCallerFp(output_offset, value);
-  intptr_t fp_value = top_address + output_offset;
+  const intptr_t caller_fp =
+      is_bottommost ? caller_fp_ : output_[frame_index - 1]->GetFp();
+  frame_writer.PushCallerFp(caller_fp);
+
+  intptr_t fp_value = top_address + frame_writer.top_offset();
   output_frame->SetFp(fp_value);
   if (is_topmost) {
     Register fp_reg = InterpretedFrame::fp_register();
     output_frame->SetRegister(fp_reg.code(), fp_value);
   }
-  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
     // For the bottommost output frame the constant pool pointer can be gotten
     // from the input frame. For subsequent output frames, it can be read from
     // the previous frame.
-    output_offset -= kPointerSize;
-    if (is_bottommost) {
-      value = caller_constant_pool_;
-    } else {
-      value = output_[frame_index - 1]->GetConstantPool();
-    }
-    output_frame->SetCallerConstantPool(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "caller's constant_pool\n");
+    const intptr_t caller_cp =
+        is_bottommost ? caller_constant_pool_
+                      : output_[frame_index - 1]->GetConstantPool();
+    frame_writer.PushCallerConstantPool(caller_cp);
   }
 
   // For the bottommost output frame the context can be gotten from the input
   // frame. For all subsequent output frames it can be gotten from the function
   // so long as we don't inline functions that need local contexts.
-  output_offset -= kPointerSize;
 
   // When deoptimizing into a catch block, we need to take the context
   // from a register that was specified in the handler table.
@@ -965,58 +951,39 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
   // Read the context from the translations.
   Object* context = context_pos->GetRawValue();
-  value = reinterpret_cast<intptr_t>(context);
-  output_frame->SetContext(value);
-  WriteValueToOutput(context, context_input_index, frame_index, output_offset,
-                     "context    ");
-  if (context == isolate_->heap()->arguments_marker()) {
-    Address output_address =
-        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
-    values_to_materialize_.push_back({output_address, context_pos});
-  }
+  output_frame->SetContext(reinterpret_cast<intptr_t>(context));
+  frame_writer.PushTranslatedValue(context_pos, "context\n");
+
   value_iterator++;
   input_index++;
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(function);
-  WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
-  if (function == isolate_->heap()->arguments_marker()) {
-    Address output_address =
-        static_cast<Address>(output_[frame_index]->GetTop()) + output_offset;
-    values_to_materialize_.push_back({output_address, function_iterator});
-  }
+  frame_writer.PushTranslatedValue(function_iterator, "function\n");
 
   // Set the bytecode array pointer.
-  output_offset -= kPointerSize;
   Object* bytecode_array = shared->HasBreakInfo()
                                ? shared->GetDebugInfo()->DebugBytecodeArray()
                                : shared->GetBytecodeArray();
-  WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
-                     "bytecode array ");
+  frame_writer.PushRawObject(bytecode_array, "bytecode array\n");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
-  output_offset -= kPointerSize;
-
   int raw_bytecode_offset =
       BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset;
   Smi* smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
-  output_[frame_index]->SetFrameSlot(
-      output_offset, reinterpret_cast<intptr_t>(smi_bytecode_offset));
+  frame_writer.PushRawObject(smi_bytecode_offset, "bytecode offset\n");
 
   if (trace_scope_ != nullptr) {
-    DebugPrintOutputSlot(reinterpret_cast<intptr_t>(smi_bytecode_offset),
-                         frame_index, output_offset, "bytecode offset @ ");
-    PrintF(trace_scope_->file(), "%d\n", bytecode_offset);
-    PrintF(trace_scope_->file(), "  (input #0)\n");
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
 
   // Translate the rest of the interpreter registers in the frame.
   for (int i = 0; i < register_count; ++i) {
-    output_offset -= kPointerSize;
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_offset);
+    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    if (trace_scope_) {
+      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
+    }
+    value_iterator++;
+    input_index++;
   }
 
   int register_slots_written = register_count;
@@ -1025,33 +992,32 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // to ensure the stack frame is aligned. Do this now.
   while (register_slots_written < register_stack_slot_count) {
     register_slots_written++;
-    output_offset -= kPointerSize;
-    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                       output_offset, "padding ");
+    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                               "padding\n");
   }
 
   // Translate the accumulator register (depending on frame position).
   if (is_topmost) {
     if (PadTopOfStackRegister()) {
-      output_offset -= kPointerSize;
-      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                         output_offset, "padding ");
+      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+                                 "padding\n");
     }
     // For topmost frame, put the accumulator on the stack. The
     // {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
     // after materialization).
-    output_offset -= kPointerSize;
     if (goto_catch_handler) {
       // If we are lazy deopting to a catch handler, we set the accumulator to
       // the exception (which lives in the result register).
       intptr_t accumulator_value =
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
-      WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
-                         frame_index, output_offset, "accumulator ");
+      frame_writer.PushRawObject(reinterpret_cast<Object*>(accumulator_value),
+                                 "accumulator\n");
       value_iterator++;
     } else {
-      WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                   output_offset, "accumulator ");
+      frame_writer.PushTranslatedValue(value_iterator, "accumulator");
+      if (trace_scope_) {
+        PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
+      }
     }
   } else {
     // For non-topmost frames, skip the accumulator translation. For those
@@ -1059,7 +1025,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     value_iterator++;
     input_index++;
   }
-  CHECK_EQ(0u, output_offset);
+  CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC and state. The PC will be a special builtin that
   // continues the bytecode dispatch. Note that non-topmost and lazy-style
@@ -1901,7 +1867,7 @@ void Deoptimizer::MaterializeHeapObjects() {
       static_cast<Address>(stack_fp_));
 }
 
-void Deoptimizer::QueueValueForTranslation(
+void Deoptimizer::QueueValueForMaterialization(
     Address output_address, Object* obj,
     const TranslatedFrame::iterator& iterator) {
   if (obj == isolate_->heap()->arguments_marker()) {

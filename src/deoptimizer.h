@@ -523,8 +523,8 @@ class Deoptimizer : public Malloced {
 
  private:
   friend class FrameWriter;
-  void QueueValueForTranslation(Address output_address, Object* obj,
-                                const TranslatedFrame::iterator& iterator);
+  void QueueValueForMaterialization(Address output_address, Object* obj,
+                                    const TranslatedFrame::iterator& iterator);
 
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
