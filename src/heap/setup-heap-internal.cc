@@ -787,7 +787,15 @@ void Heap::CreateInitialObjects() {
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_species_protector(*cell);
+  set_array_species_protector(*cell);
+
+  cell = factory->NewPropertyCell(factory->empty_string());
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_typed_array_species_protector(*cell);
+
+  cell = factory->NewPropertyCell(factory->empty_string());
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_promise_species_protector(*cell);
 
   Handle<Cell> string_length_overflow_cell = factory->NewCell(
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));

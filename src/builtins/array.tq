@@ -20,7 +20,7 @@ module array {
     let map: Map = a.map;
     if (!IsPrototypeInitialArrayPrototype(context, map)) goto Bailout;
     if (IsNoElementsProtectorCellInvalid()) goto Bailout;
-    if (IsSpeciesProtectorCellInvalid()) goto Bailout;
+    if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
 
     // Fast path only works on fast elements kind and with writable length.
     let elementsKind: int32 = EnsureArrayPushable(map) otherwise Bailout;

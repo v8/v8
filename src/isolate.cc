@@ -3573,11 +3573,28 @@ void Isolate::InvalidateArrayConstructorProtector() {
   DCHECK(!IsArrayConstructorIntact());
 }
 
-void Isolate::InvalidateSpeciesProtector() {
-  DCHECK(factory()->species_protector()->value()->IsSmi());
-  DCHECK(IsSpeciesLookupChainIntact());
-  factory()->species_protector()->set_value(Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsSpeciesLookupChainIntact());
+void Isolate::InvalidateArraySpeciesProtector() {
+  DCHECK(factory()->array_species_protector()->value()->IsSmi());
+  DCHECK(IsArraySpeciesLookupChainIntact());
+  factory()->array_species_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
+  DCHECK(!IsArraySpeciesLookupChainIntact());
+}
+
+void Isolate::InvalidateTypedArraySpeciesProtector() {
+  DCHECK(factory()->typed_array_species_protector()->value()->IsSmi());
+  DCHECK(IsTypedArraySpeciesLookupChainIntact());
+  factory()->typed_array_species_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
+  DCHECK(!IsTypedArraySpeciesLookupChainIntact());
+}
+
+void Isolate::InvalidatePromiseSpeciesProtector() {
+  DCHECK(factory()->promise_species_protector()->value()->IsSmi());
+  DCHECK(IsPromiseSpeciesLookupChainIntact());
+  factory()->promise_species_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
+  DCHECK(!IsPromiseSpeciesLookupChainIntact());
 }
 
 void Isolate::InvalidateStringLengthOverflowProtector() {

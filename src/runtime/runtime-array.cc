@@ -396,7 +396,7 @@ RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
   // implementation.
   if (receiver->IsJSArray()) {
     // This "fastish" path must make sure the destination array is a JSArray.
-    if (!isolate->IsSpeciesLookupChainIntact() ||
+    if (!isolate->IsArraySpeciesLookupChainIntact() ||
         !JSArray::cast(*receiver)->HasArrayPrototype(isolate)) {
       return Smi::FromInt(0);
     }

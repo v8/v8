@@ -588,7 +588,9 @@ namespace internal {
   F(SetForceSlowPath, 1, 1)                   \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
-  F(SpeciesProtector, 0, 1)                   \
+  F(ArraySpeciesProtector, 0, 1)              \
+  F(TypedArraySpeciesProtector, 0, 1)         \
+  F(PromiseSpeciesProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \

@@ -199,7 +199,9 @@ extern macro BranchIfNotFastJSArray(Object, Context): never labels True, False;
 
 extern macro IsPrototypeInitialArrayPrototype(Context, Map): bit;
 extern macro IsNoElementsProtectorCellInvalid(): bit;
-extern macro IsSpeciesProtectorCellInvalid(): bit;
+extern macro IsArraySpeciesProtectorCellInvalid(): bit;
+extern macro IsTypedArraySpeciesProtectorCellInvalid(): bit;
+extern macro IsPromiseSpeciesProtectorCellInvalid(): bit;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): int32;
 
