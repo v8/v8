@@ -55,6 +55,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::Debugger::Location>,
       Maybe<String16> optionalCondition, String16*,
       std::unique_ptr<protocol::Debugger::Location>* actualLocation) override;
+  Response setBreakpointOnFunctionCall(const String16& functionObjectId,
+                                       Maybe<String16> optionalCondition,
+                                       String16* outBreakpointId) override;
   Response removeBreakpoint(const String16& breakpointId) override;
   Response continueToLocation(std::unique_ptr<protocol::Debugger::Location>,
                               Maybe<String16> targetCallFrames) override;

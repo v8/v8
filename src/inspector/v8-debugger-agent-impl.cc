@@ -80,7 +80,8 @@ enum class BreakpointType {
   kByScriptHash,
   kByScriptId,
   kDebugCommand,
-  kMonitorCommand
+  kMonitorCommand,
+  kBreakpointAtEntry
 };
 
 String16 generateBreakpointId(BreakpointType type,
@@ -114,12 +115,13 @@ bool parseBreakpointId(const String16& breakpointId, BreakpointType* type,
 
   int rawType = breakpointId.substring(0, typeLineSeparator).toInteger();
   if (rawType < static_cast<int>(BreakpointType::kByUrl) ||
-      rawType > static_cast<int>(BreakpointType::kMonitorCommand)) {
+      rawType > static_cast<int>(BreakpointType::kBreakpointAtEntry)) {
     return false;
   }
   if (type) *type = static_cast<BreakpointType>(rawType);
   if (rawType == static_cast<int>(BreakpointType::kDebugCommand) ||
-      rawType == static_cast<int>(BreakpointType::kMonitorCommand)) {
+      rawType == static_cast<int>(BreakpointType::kMonitorCommand) ||
+      rawType == static_cast<int>(BreakpointType::kBreakpointAtEntry)) {
     // The script and source position is not encoded in this case.
     return true;
   }
@@ -599,6 +601,30 @@ Response V8DebuggerAgentImpl::setBreakpoint(
                                       location->getLineNumber(),
                                       location->getColumnNumber(0));
   if (!*actualLocation) return Response::Error("Could not resolve breakpoint");
+  *outBreakpointId = breakpointId;
+  return Response::OK();
+}
+
+Response V8DebuggerAgentImpl::setBreakpointOnFunctionCall(
+    const String16& functionObjectId, Maybe<String16> optionalCondition,
+    String16* outBreakpointId) {
+  InjectedScript::ObjectScope scope(m_session, functionObjectId);
+  Response response = scope.initialize();
+  if (!response.isSuccess()) return response;
+  if (!scope.object()->IsFunction()) {
+    return Response::Error("Could not find function with given id");
+  }
+  v8::Local<v8::Function> function =
+      v8::Local<v8::Function>::Cast(scope.object());
+  String16 breakpointId =
+      generateBreakpointId(BreakpointType::kBreakpointAtEntry, function);
+  if (m_breakpointIdToDebuggerBreakpointIds.find(breakpointId) !=
+      m_breakpointIdToDebuggerBreakpointIds.end()) {
+    return Response::Error("Breakpoint at specified location already exists.");
+  }
+  v8::Local<v8::String> condition =
+      toV8String(m_isolate, optionalCondition.fromMaybe(String16()));
+  setBreakpointImpl(breakpointId, function, condition);
   *outBreakpointId = breakpointId;
   return Response::OK();
 }
