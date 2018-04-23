@@ -2887,11 +2887,10 @@ void LinearScanAllocator::AddToUnhandledSorted(LiveRange* range) {
   if (range == nullptr || range->IsEmpty()) return;
   DCHECK(!range->HasRegisterAssigned() && !range->spilled());
   DCHECK(allocation_finger_ <= range->Start());
-  for (int i = static_cast<int>(unhandled_live_ranges().size() - 1); i >= 0;
-       --i) {
+  for (size_t i = unhandled_live_ranges().size(); i-- > 0;) {
     LiveRange* cur_range = unhandled_live_ranges().at(i);
     if (!range->ShouldBeAllocatedBefore(cur_range)) continue;
-    TRACE("Add live range %d:%d to unhandled at %d\n",
+    TRACE("Add live range %d:%d to unhandled at %zu\n",
           range->TopLevel()->vreg(), range->relative_id(), i + 1);
     auto it = unhandled_live_ranges().begin() + (i + 1);
     unhandled_live_ranges().insert(it, range);
