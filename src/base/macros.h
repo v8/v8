@@ -296,6 +296,14 @@ struct Use {
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 #define V8PRIuPTR V8_PTR_PREFIX "u"
 
+#ifdef V8_TARGET_ARCH_64_BIT
+#define V8_PTR_HEX_DIGITS 12
+#define V8PRIxPTR_FMT "0x%012" V8PRIxPTR
+#else
+#define V8_PTR_HEX_DIGITS 8
+#define V8PRIxPTR_FMT "0x%08" V8PRIxPTR
+#endif
+
 // ptrdiff_t is 't' according to the standard, but MSVC uses 'I'.
 #if V8_CC_MSVC
 #define V8PRIxPTRDIFF "Ix"

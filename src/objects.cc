@@ -3277,7 +3277,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  os << this << " ";
+  os << AsHex(reinterpret_cast<Address>(this), kPointerHexDigits, true) << " ";
 
   if (IsString()) {
     HeapStringAllocator allocator;
@@ -15084,7 +15084,7 @@ void Code::SetMarkedForDeoptimization(const char* reason) {
         DeoptimizationData::cast(deoptimization_data());
     CodeTracer::Scope scope(GetHeap()->isolate()->GetCodeTracer());
     PrintF(scope.file(),
-           "[marking dependent code 0x%08" V8PRIxPTR
+           "[marking dependent code " V8PRIxPTR_FMT
            " (opt #%d) for deoptimization, reason: %s]\n",
            reinterpret_cast<intptr_t>(this),
            deopt_data->OptimizationId()->value(), reason);

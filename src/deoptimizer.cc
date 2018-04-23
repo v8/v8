@@ -104,7 +104,7 @@ class FrameWriter {
   void DebugPrintOutputValue(intptr_t value, const char* debug_hint = "") {
     if (trace_scope_ != nullptr) {
       PrintF(trace_scope_->file(),
-             "    0x%08" V8PRIxPTR ": [top + %3d] <- 0x%08" V8PRIxPTR " ;  %s",
+             "    " V8PRIxPTR_FMT ": [top + %3d] <- " V8PRIxPTR_FMT " ;  %s",
              output_address(top_offset_), top_offset_, value, debug_hint);
     }
   }
@@ -112,10 +112,10 @@ class FrameWriter {
   void DebugPrintOutputObject(Object* obj, unsigned output_offset,
                               const char* debug_hint = "") {
     if (trace_scope_ != nullptr) {
-      PrintF(trace_scope_->file(), "    0x%08" V8PRIxPTR ": [top + %3d] <- ",
+      PrintF(trace_scope_->file(), "    " V8PRIxPTR_FMT ": [top + %3d] <- ",
              output_address(output_offset), output_offset);
       if (obj->IsSmi()) {
-        PrintF("0x%08" V8PRIxPTR " <Smi %d>", reinterpret_cast<Address>(obj),
+        PrintF(V8PRIxPTR_FMT " <Smi %d>", reinterpret_cast<Address>(obj),
                Smi::cast(obj)->value());
       } else {
         obj->ShortPrint(trace_scope_->file());
@@ -710,7 +710,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            MessageFor(bailout_type_));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
-           " (opt #%d) @%d, FP to SP delta: %d, caller sp: 0x%08" V8PRIxPTR
+           " (opt #%d) @%d, FP to SP delta: %d, caller sp: " V8PRIxPTR_FMT
            "]\n",
            input_data->OptimizationId()->value(), bailout_id_, fp_to_sp_delta_,
            caller_frame_top_);
@@ -806,7 +806,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            MessageFor(bailout_type_));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
-           " @%d => node=%d, pc=0x%08" V8PRIxPTR ", caller sp=0x%08" V8PRIxPTR
+           " @%d => node=%d, pc=" V8PRIxPTR_FMT ", caller sp=" V8PRIxPTR_FMT
            ", took %0.3f ms]\n",
            bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
            caller_frame_top_, ms);
@@ -1743,7 +1743,7 @@ void Deoptimizer::MaterializeHeapObjects() {
     Handle<Object> value = materialization.value_->GetValue();
 
     if (trace_scope_ != nullptr) {
-      PrintF("Materialization [0x%08" V8PRIxPTR "] <- 0x%08" V8PRIxPTR " ;  ",
+      PrintF("Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
              reinterpret_cast<intptr_t>(*value));
       value->ShortPrint(trace_scope_->file());
@@ -3027,7 +3027,7 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "0x%08" V8PRIxPTR " ; %s ", value,
+        PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", value,
                converter.NameOfCPURegister(input_reg));
         reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
       }
@@ -3133,7 +3133,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       if (trace_file != nullptr) {
-        PrintF(trace_file, "0x%08" V8PRIxPTR " ; [fp %c %d] ", value,
+        PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
         reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
       }
@@ -3148,7 +3148,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%d ; (int) [fp %c %d] ",
+        PrintF(trace_file, "%d ; (int) [fp %c %3d] ",
                static_cast<int32_t>(value), slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
       }
@@ -3162,7 +3162,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%u ; (uint) [fp %c %d] ", value,
+        PrintF(trace_file, "%u ; (uint) [fp %c %3d] ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       TranslatedValue translated_value =
@@ -3176,7 +3176,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%u ; (bool) [fp %c %d] ", value,
+        PrintF(trace_file, "%u ; (bool) [fp %c %3d] ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       TranslatedValue translated_value = TranslatedValue::NewBool(this, value);
@@ -3189,7 +3189,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       Float32 value = GetFloatSlot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value.get_scalar(),
+        PrintF(trace_file, "%e ; (float) [fp %c %3d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       TranslatedValue translated_value = TranslatedValue::NewFloat(this, value);
@@ -3215,7 +3215,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int literal_index = iterator->Next();
       Object* value = literal_array->get(literal_index);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "0x%08" V8PRIxPTR " ; (literal %d) ",
+        PrintF(trace_file, V8PRIxPTR_FMT " ; (literal %2d) ",
                reinterpret_cast<intptr_t>(value), literal_index);
         reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
       }

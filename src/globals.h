@@ -163,6 +163,7 @@ constexpr int kDoubleSize = sizeof(double);
 constexpr int kIntptrSize = sizeof(intptr_t);
 constexpr int kUIntptrSize = sizeof(uintptr_t);
 constexpr int kPointerSize = sizeof(void*);
+constexpr int kPointerHexDigits = kPointerSize == 4 ? 8 : 12;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 constexpr int kRegisterSize = kPointerSize + kPointerSize;
 #else
