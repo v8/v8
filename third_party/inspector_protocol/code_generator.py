@@ -14,6 +14,8 @@ try:
 except ImportError:
     import simplejson as json
 
+import pdl
+
 # Path handling for libraries and templates
 # Paths have to be normalized because Jinja uses the exact template path to
 # determine the hash used in the cache filename, and we need a pre-caching step
@@ -95,6 +97,7 @@ def read_config():
             ".protocol.export_macro": "",
             ".protocol.export_header": False,
             ".protocol.options": False,
+            ".protocol.file_name_prefix": "",
             ".exported": False,
             ".exported.export_macro": "",
             ".exported.export_header": False,
@@ -154,6 +157,10 @@ def format_include(config, header, file_name=None):
     if config.use_snake_file_names:
         header = to_snake_case(header)
     return header
+
+
+def format_domain_include(config, header, file_name):
+    return format_include(config, header, config.protocol.file_name_prefix + file_name)
 
 
 def to_file_name(config, file_name):
@@ -330,9 +337,8 @@ class Protocol(object):
 
     def read_protocol_file(self, file_name):
         input_file = open(file_name, "r")
-        json_string = input_file.read()
+        parsed_json = pdl.loads(input_file.read(), file_name)
         input_file.close()
-        parsed_json = json.loads(json_string)
         version = parsed_json["version"]["major"] + "." + parsed_json["version"]["minor"]
         domains = []
         for domain in parsed_json["domains"]:
@@ -571,21 +577,23 @@ def main():
 
     for domain in protocol.json_api["domains"]:
         class_name = domain["domain"]
+        file_name = config.protocol.file_name_prefix + class_name
         template_context = {
             "protocol": protocol,
             "config": config,
             "domain": domain,
             "join_arrays": join_arrays,
             "format_include": functools.partial(format_include, config),
+            "format_domain_include": functools.partial(format_domain_include, config),
         }
 
         if domain["domain"] in protocol.generate_domains:
-            outputs[os.path.join(config.protocol.output, to_file_name(config, class_name + ".h"))] = h_template.render(template_context)
-            outputs[os.path.join(config.protocol.output, to_file_name(config, class_name + ".cpp"))] = cpp_template.render(template_context)
+            outputs[os.path.join(config.protocol.output, to_file_name(config, file_name + ".h"))] = h_template.render(template_context)
+            outputs[os.path.join(config.protocol.output, to_file_name(config, file_name + ".cpp"))] = cpp_template.render(template_context)
             if domain["domain"] in protocol.exported_domains:
-                outputs[os.path.join(config.exported.output, to_file_name(config, class_name + ".h"))] = exported_template.render(template_context)
+                outputs[os.path.join(config.exported.output, to_file_name(config, file_name + ".h"))] = exported_template.render(template_context)
         if domain["domain"] in protocol.imported_domains:
-            outputs[os.path.join(config.protocol.output, to_file_name(config, class_name + ".h"))] = imported_template.render(template_context)
+            outputs[os.path.join(config.protocol.output, to_file_name(config, file_name + ".h"))] = imported_template.render(template_context)
 
     if config.lib:
         template_context = {

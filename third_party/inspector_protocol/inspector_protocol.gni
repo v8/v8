@@ -27,7 +27,7 @@ template("inspector_protocol_generate") {
   inspector_protocol_dir = invoker.inspector_protocol_dir
 
   action(target_name) {
-    script = "$inspector_protocol_dir/CodeGenerator.py"
+    script = "$inspector_protocol_dir/code_generator.py"
 
     inputs = [
       invoker.config_file,

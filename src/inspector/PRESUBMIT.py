@@ -17,8 +17,8 @@ def _CompileScripts(input_api, output_api):
   local_paths = [f.LocalPath() for f in input_api.AffectedFiles()]
 
   compilation_related_files = [
-    "js_protocol.json"
-    "compile-scripts.js",
+    "js_protocol.pdl"
+    "compile-scripts.py",
     "injected-script-source.js",
     "injected_script_externs.js",
     "check_injected_script_source.js"

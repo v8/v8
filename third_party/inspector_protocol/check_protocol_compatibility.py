@@ -50,6 +50,8 @@ import os.path
 import optparse
 import sys
 
+import pdl
+
 try:
     import json
 except ImportError:
@@ -228,8 +230,8 @@ def load_schema(file_name, domains):
     if not os.path.isfile(file_name):
         return
     input_file = open(file_name, "r")
-    json_string = input_file.read()
-    parsed_json = json.loads(json_string)
+    parsed_json = pdl.loads(input_file.read(), file_name)
+    input_file.close()
     domains += parsed_json["domains"]
     return parsed_json["version"]
 
@@ -422,6 +424,7 @@ def load_domains_and_baselines(file_name, domains, baseline_domains):
     version = load_schema(os.path.normpath(file_name), domains)
     suffix = "-%s.%s.json" % (version["major"], version["minor"])
     baseline_file = file_name.replace(".json", suffix)
+    baseline_file = file_name.replace(".pdl", suffix)
     load_schema(os.path.normpath(baseline_file), baseline_domains)
     return version
 
