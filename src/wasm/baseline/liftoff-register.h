@@ -289,10 +289,8 @@ class LiftoffRegList {
 
   template <typename... Regs>
   static LiftoffRegList ForRegs(Regs... regs) {
-    std::array<LiftoffRegister, sizeof...(regs)> regs_arr{
-        {LiftoffRegister(regs)...}};
     LiftoffRegList list;
-    for (LiftoffRegister reg : regs_arr) list.set(reg);
+    for (LiftoffRegister reg : {LiftoffRegister(regs)...}) list.set(reg);
     return list;
   }
 

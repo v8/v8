@@ -882,6 +882,33 @@ class LiftoffCompiler {
       CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
       CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
       CASE_FLOAT_BINOP(F64Div, F64, f64_div)
+      case WasmOpcode::kExprI32DivS: {
+        LiftoffRegister rhs = __ PopToRegister();
+        LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
+        LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {lhs, rhs});
+        WasmCodePosition position = decoder->position();
+        // Add two traps. Adding the second one might invalidate the pointer
+        // returned for the first one, thus get both pointers afterwards.
+        AddOutOfLineTrap(position, Builtins::kThrowWasmTrapDivByZero);
+        AddOutOfLineTrap(position, Builtins::kThrowWasmTrapDivUnrepresentable);
+        Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
+        Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
+        __ emit_i32_divs(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero,
+                         div_unrepresentable);
+        __ PushRegister(kWasmI32, dst);
+        break;
+      }
+      case WasmOpcode::kExprI32DivU: {
+        LiftoffRegister rhs = __ PopToRegister();
+        LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
+        LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {lhs, rhs});
+        WasmCodePosition position = decoder->position();
+        Label* div_by_zero =
+            AddOutOfLineTrap(position, Builtins::kThrowWasmTrapDivByZero);
+        __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
+        __ PushRegister(kWasmI32, dst);
+        break;
+      }
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }

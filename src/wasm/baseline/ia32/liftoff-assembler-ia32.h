@@ -111,6 +111,13 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   }
 }
 
+template <typename... Regs>
+inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
+  for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
+    if (assm->cache_state()->is_used(r)) assm->SpillRegister(r);
+  }
+}
+
 }  // namespace liftoff
 
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
@@ -481,6 +488,66 @@ void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::imul>(this, dst, lhs, rhs);
 }
 
+namespace liftoff {
+template <bool is_signed>
+void EmitInt32Div(LiftoffAssembler* assm, Register dst, Register lhs,
+                  Register rhs, Label* trap_div_by_zero,
+                  Label* trap_div_unrepresentable) {
+  DCHECK_EQ(is_signed, trap_div_unrepresentable != nullptr);
+
+  // Check for division by zero.
+  assm->test(rhs, rhs);
+  assm->j(zero, trap_div_by_zero);
+
+  if (is_signed) {
+    // Check for kMinInt / -1. This is unrepresentable.
+    Label do_div;
+    assm->cmp(rhs, -1);
+    assm->j(not_equal, &do_div);
+    assm->cmp(lhs, kMinInt);
+    assm->j(equal, trap_div_unrepresentable);
+    assm->bind(&do_div);
+  }
+
+  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
+  // these registers are unused. If {rhs} is stored in one of them, move it to
+  // another temporary register.
+  liftoff::SpillRegisters(assm, eax, edx);
+  if (rhs == eax || rhs == edx) {
+    LiftoffRegList unavailable = LiftoffRegList::ForRegs(eax, edx, lhs);
+    Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
+    assm->mov(tmp, rhs);
+    rhs = tmp;
+  }
+
+  // Now move {lhs} into {eax}, then zero-extend or sign-extend into {edx}, then
+  // do the division.
+  if (lhs != eax) assm->mov(eax, lhs);
+  if (is_signed) {
+    assm->cdq();
+    assm->idiv(rhs);
+  } else {
+    assm->xor_(edx, edx);
+    assm->div(rhs);
+  }
+
+  // Move back the result (in {eax}) into the dst register.
+  if (dst != eax) assm->mov(dst, eax);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  liftoff::EmitInt32Div<true>(this, dst, lhs, rhs, trap_div_by_zero,
+                              trap_div_unrepresentable);
+}
+
+void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitInt32Div<false>(this, dst, lhs, rhs, trap_div_by_zero, nullptr);
+}
+
 void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::and_>(this, dst, lhs, rhs);
 }
@@ -650,10 +717,7 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Register rhs_lo = ebx;
 
   // Spill all these registers if they are still holding other values.
-  for (Register r : {dst_hi, dst_lo, lhs_hi, rhs_lo}) {
-    if (!cache_state_.is_used(LiftoffRegister(r))) continue;
-    SpillRegister(LiftoffRegister(r));
-  }
+  liftoff::SpillRegisters(this, dst_hi, dst_lo, lhs_hi, rhs_lo);
 
   // Move lhs and rhs into the respective registers.
   ParallelRegisterMove(

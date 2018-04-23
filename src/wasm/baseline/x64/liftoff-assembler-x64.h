@@ -106,6 +106,13 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   }
 }
 
+template <typename... Regs>
+inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
+  for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
+    if (assm->cache_state()->is_used(r)) assm->SpillRegister(r);
+  }
+}
+
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
@@ -434,6 +441,66 @@ void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::imull, &Assembler::movl>(this, dst,
                                                                      lhs, rhs);
+}
+
+namespace liftoff {
+template <bool is_signed>
+void EmitInt32Div(LiftoffAssembler* assm, Register dst, Register lhs,
+                  Register rhs, Label* trap_div_by_zero,
+                  Label* trap_div_unrepresentable) {
+  DCHECK_EQ(is_signed, trap_div_unrepresentable != nullptr);
+
+  // Check for division by zero.
+  assm->testl(rhs, rhs);
+  assm->j(zero, trap_div_by_zero);
+
+  if (is_signed) {
+    // Check for kMinInt / -1. This is unrepresentable.
+    Label do_div;
+    assm->cmpl(rhs, Immediate(-1));
+    assm->j(not_equal, &do_div);
+    assm->cmpl(lhs, Immediate(kMinInt));
+    assm->j(equal, trap_div_unrepresentable);
+    assm->bind(&do_div);
+  }
+
+  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
+  // these registers are unused. If {rhs} is stored in one of them, move it to
+  // another temporary register.
+  liftoff::SpillRegisters(assm, rdx, rax);
+  if (rhs == rax || rhs == rdx) {
+    LiftoffRegList unavailable = LiftoffRegList::ForRegs(rax, rdx, lhs);
+    Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
+    assm->movl(tmp, rhs);
+    rhs = tmp;
+  }
+
+  // Now move {lhs} into {eax}, then zero-extend or sign-extend into {edx}, then
+  // do the division.
+  if (lhs != rax) assm->movl(rax, lhs);
+  if (is_signed) {
+    assm->cdq();
+    assm->idivl(rhs);
+  } else {
+    assm->xorl(rdx, rdx);
+    assm->divl(rhs);
+  }
+
+  // Move back the result (in {eax}) into the dst register.
+  if (dst != rax) assm->movl(dst, rax);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  liftoff::EmitInt32Div<true>(this, dst, lhs, rhs, trap_div_by_zero,
+                              trap_div_unrepresentable);
+}
+
+void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitInt32Div<false>(this, dst, lhs, rhs, trap_div_by_zero, nullptr);
 }
 
 void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
