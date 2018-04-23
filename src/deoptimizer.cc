@@ -78,6 +78,10 @@ class FrameWriter {
 
     PushRawObject(obj, debug_hint);
 
+    if (trace_scope_) {
+      PrintF(trace_scope_->file(), " (input #%d)\n", iterator.input_index());
+    }
+
     deoptimizer_->QueueValueForMaterialization(output_address(top_offset_), obj,
                                                iterator);
   }
@@ -817,7 +821,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   bool is_bottommost = (0 == frame_index);
   bool is_topmost = (output_count_ - 1 == frame_index);
-  int input_index = 0;
 
   int bytecode_offset = translated_frame->node_id().ToInt();
   int height = translated_frame->height();
@@ -832,9 +835,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
-  TranslatedFrame::iterator function_iterator = value_iterator;
-  value_iterator++;
-  input_index++;
+  TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
     std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
@@ -880,13 +881,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                "padding\n");
   }
 
-  for (int i = 0; i < parameter_count; ++i) {
+  for (int i = 0; i < parameter_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-    if (trace_scope_) {
-      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
-    }
-    value_iterator++;
-    input_index++;
   }
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
@@ -939,23 +935,18 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // When deoptimizing into a catch block, we need to take the context
   // from a register that was specified in the handler table.
-  TranslatedFrame::iterator context_pos = value_iterator;
-  int context_input_index = input_index;
+  TranslatedFrame::iterator context_pos = value_iterator++;
   if (goto_catch_handler) {
     // Skip to the translated value of the register specified
     // in the handler table.
     for (int i = 0; i < catch_handler_data_ + 1; ++i) {
       context_pos++;
-      context_input_index++;
     }
   }
   // Read the context from the translations.
   Object* context = context_pos->GetRawValue();
   output_frame->SetContext(reinterpret_cast<intptr_t>(context));
   frame_writer.PushTranslatedValue(context_pos, "context\n");
-
-  value_iterator++;
-  input_index++;
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
   frame_writer.PushTranslatedValue(function_iterator, "function\n");
@@ -977,13 +968,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // Translate the rest of the interpreter registers in the frame.
-  for (int i = 0; i < register_count; ++i) {
+  for (int i = 0; i < register_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-    if (trace_scope_) {
-      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
-    }
-    value_iterator++;
-    input_index++;
   }
 
   int register_slots_written = register_count;
@@ -1012,19 +998,16 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
       frame_writer.PushRawObject(reinterpret_cast<Object*>(accumulator_value),
                                  "accumulator\n");
-      value_iterator++;
+      ++value_iterator;  // Skip the accumulator.
     } else {
-      frame_writer.PushTranslatedValue(value_iterator, "accumulator");
-      if (trace_scope_) {
-        PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
-      }
+      frame_writer.PushTranslatedValue(value_iterator++, "accumulator");
     }
   } else {
     // For non-topmost frames, skip the accumulator translation. For those
     // frames, the return value from the callee will become the accumulator.
-    value_iterator++;
-    input_index++;
+    ++value_iterator;
   }
+  CHECK_EQ(translated_frame->end(), value_iterator);
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC and state. The PC will be a special builtin that
@@ -1069,16 +1052,13 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
     TranslatedFrame* translated_frame, int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   bool is_bottommost = (0 == frame_index);
-  int input_index = 0;
 
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
   int parameter_count = height;
   if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
 
-  TranslatedFrame::iterator function_iterator = value_iterator;
-  value_iterator++;
-  input_index++;
+  TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating arguments adaptor => height=%d\n", height_in_bytes);
@@ -1113,13 +1093,8 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   }
 
   // Compute the incoming parameter translation.
-  for (int i = 0; i < parameter_count; ++i) {
+  for (int i = 0; i < parameter_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-    if (trace_scope_) {
-      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
-    }
-    value_iterator++;
-    input_index++;
   }
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
@@ -1158,6 +1133,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   frame_writer.PushRawObject(isolate()->heap()->the_hole_value(), "padding\n");
 
+  CHECK_EQ(translated_frame->end(), value_iterator);
   DCHECK_EQ(0, frame_writer.top_offset());
 
   Builtins* builtins = isolate_->builtins();
@@ -1182,7 +1158,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // call which does a tail call (otherwise the tail callee's frame would be
   // the topmost one). So it could only be the LAZY case.
   CHECK(!is_topmost || bailout_type_ == LAZY);
-  int input_index = 0;
 
   Builtins* builtins = isolate_->builtins();
   Code* construct_stub = builtins->builtin(
@@ -1206,9 +1181,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   int parameter_count = height;
   if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
 
-  TranslatedFrame::iterator function_iterator = value_iterator;
-  value_iterator++;
-  input_index++;
+  TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating construct stub => bailout_id=%d (%s), height=%d\n",
@@ -1247,13 +1220,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator receiver_iterator = value_iterator;
 
   // Compute the incoming parameter translation.
-  for (int i = 0; i < parameter_count; ++i) {
+  for (int i = 0; i < parameter_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-    if (trace_scope_) {
-      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
-    }
-    input_index++;
-    value_iterator++;
   }
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
@@ -1320,6 +1288,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     frame_writer.PushRawValue(result, "subcall result\n");
   }
 
+  CHECK_EQ(translated_frame->end(), value_iterator);
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
@@ -1482,7 +1451,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     TranslatedFrame* translated_frame, int frame_index,
     BuiltinContinuationMode mode) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
-  int input_index = 0;
 
   // The output frame must have room for all of the parameters that need to be
   // passed to the builtin continuation.
@@ -1587,7 +1555,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // like a normal JavaScriptFrame.
   const intptr_t maybe_function =
       reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
-  ++input_index;
   ++value_iterator;
 
   if (ShouldPadArguments(stack_param_count)) {
@@ -1595,13 +1562,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                                "padding\n");
   }
 
-  for (int i = 0; i < translated_stack_parameters; ++i) {
+  for (int i = 0; i < translated_stack_parameters; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-    if (trace_scope_) {
-      PrintF(trace_scope_->file(), " (input #%d)\n", input_index);
-    }
-    value_iterator++;
-    input_index++;
   }
 
   switch (mode) {
@@ -1633,11 +1595,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   int total_registers = config->num_general_registers();
   register_values.resize(total_registers, {value_iterator});
 
-  for (int i = 0; i < register_parameter_count; ++i) {
+  for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
     int code = continuation_descriptor.GetRegisterParameter(i).code();
     register_values[code] = value_iterator;
-    ++input_index;
-    ++value_iterator;
   }
 
   // The context register is always implicit in the CallInterfaceDescriptor but
@@ -1647,12 +1607,10 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // instruction selector).
   Object* context = value_iterator->GetRawValue();
   const intptr_t value = reinterpret_cast<intptr_t>(context);
-  TranslatedFrame::iterator context_register_value = value_iterator;
-  register_values[kContextRegister.code()] = value_iterator;
+  TranslatedFrame::iterator context_register_value = value_iterator++;
+  register_values[kContextRegister.code()] = context_register_value;
   output_frame->SetContext(value);
   output_frame->SetRegister(kContextRegister.code(), value);
-  ++input_index;
-  ++value_iterator;
 
   // Set caller's PC (JSFunction continuation).
   const intptr_t caller_pc =
@@ -1745,6 +1703,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
   }
 
+  CHECK_EQ(translated_frame->end(), value_iterator);
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Clear the context register. The context might be a de-materialized object

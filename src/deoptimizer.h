@@ -171,17 +171,20 @@ class TranslatedFrame {
   class iterator {
    public:
     iterator& operator++() {
+      ++input_index_;
       AdvanceIterator(&position_);
       return *this;
     }
 
     iterator operator++(int) {
+      ++input_index_;
       iterator original(position_);
       AdvanceIterator(&position_);
       return original;
     }
 
     bool operator==(const iterator& other) const {
+      // Ignore {input_index_} for equality.
       return position_ == other.position_;
     }
     bool operator!=(const iterator& other) const { return !(*this == other); }
@@ -191,13 +194,16 @@ class TranslatedFrame {
     const TranslatedValue& operator*() const { return (*position_); }
     const TranslatedValue* operator->() const { return &(*position_); }
 
+    int input_index() const { return input_index_; }
+
    private:
     friend TranslatedFrame;
 
     explicit iterator(std::deque<TranslatedValue>::iterator position)
-        : position_(position) {}
+        : position_(position), input_index_(0) {}
 
     std::deque<TranslatedValue>::iterator position_;
+    int input_index_;
   };
 
   typedef TranslatedValue& reference;
