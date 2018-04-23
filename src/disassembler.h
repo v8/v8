@@ -21,9 +21,10 @@ class Disassembler : public AllStatic {
   // instruction could be decoded.
   // the code object is used for name resolution and may be null.
   static int Decode(Isolate* isolate, std::ostream* os, byte* begin, byte* end,
-                    Code* code = nullptr, void* current_pc = nullptr);
+                    Code* code = nullptr, Address current_pc = kNullAddress);
   static int Decode(Isolate* isolate, std::ostream* os, byte* begin, byte* end,
-                    const wasm::WasmCode* code, void* current_pc = nullptr);
+                    const wasm::WasmCode* code,
+                    Address current_pc = kNullAddress);
 };
 
 }  // namespace internal

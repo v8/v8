@@ -2165,7 +2165,8 @@ extern void _v8_internal_Print_Code(void* object) {
   i::wasm::WasmCode* wasm_code =
       isolate->wasm_engine()->code_manager()->LookupCode(address);
   if (wasm_code) {
-    wasm_code->Print(isolate);
+    i::OFStream os(stdout);
+    wasm_code->Disassemble(nullptr, isolate, os, address);
     return;
   }
 
@@ -2173,19 +2174,18 @@ extern void _v8_internal_Print_Code(void* object) {
       !isolate->heap()->InSpaceSlow(address, i::LO_SPACE)) {
     i::PrintF(
         "%p is not within the current isolate's large object or code spaces\n",
-        reinterpret_cast<void*>(address));
+        object);
     return;
   }
 
   i::Code* code = isolate->FindCodeObject(address);
   if (!code->IsCode()) {
-    i::PrintF("No code object found containing %p\n",
-              reinterpret_cast<void*>(address));
+    i::PrintF("No code object found containing %p\n", object);
     return;
   }
 #ifdef ENABLE_DISASSEMBLER
   i::OFStream os(stdout);
-  code->Disassemble(nullptr, os, reinterpret_cast<void*>(address));
+  code->Disassemble(nullptr, os, address);
 #else   // ENABLE_DISASSEMBLER
   code->Print();
 #endif  // ENABLE_DISASSEMBLER

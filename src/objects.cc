@@ -14586,8 +14586,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   }
 }
 
-
-void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
+void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   os << "kind = " << Kind2String(kind()) << "\n";
   if (is_stub()) {
     const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this));

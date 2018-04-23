@@ -187,7 +187,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
 
 static int DecodeIt(Isolate* isolate, std::ostream* os,
                     const V8NameConverter& converter, byte* begin, byte* end,
-                    void* current_pc) {
+                    Address current_pc) {
   SealHandleScope shs(isolate);
   DisallowHeapAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder(isolate);
@@ -265,7 +265,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     }
 
     // Instruction address and instruction offset.
-    if (FLAG_log_colour && prev_pc == current_pc) {
+    if (FLAG_log_colour && reinterpret_cast<Address>(prev_pc) == current_pc) {
       // If this is the given "current" pc, make it yellow and bold.
       out.AddFormatted("\033[33;1m");
     }
@@ -310,7 +310,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       }
     }
 
-    if (FLAG_log_colour && prev_pc == current_pc) {
+    if (FLAG_log_colour && reinterpret_cast<Address>(prev_pc) == current_pc) {
       out.AddFormatted("\033[m");
     }
 
@@ -333,14 +333,14 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
 }
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
-                         byte* end, Code* code, void* current_pc) {
+                         byte* end, Code* code, Address current_pc) {
   V8NameConverter v8NameConverter(code);
   return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
 }
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, const wasm::WasmCode* code,
-                         void* current_pc) {
+                         Address current_pc) {
   V8NameConverter v8NameConverter(isolate, code);
   return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
 }
@@ -348,7 +348,7 @@ int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
 #else  // ENABLE_DISASSEMBLER
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
-                         byte* end, Code* code, void* current_pc) {
+                         byte* end, Code* code, Address current_pc) {
   return 0;
 }
 

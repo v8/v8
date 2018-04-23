@@ -128,7 +128,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
 
   void Print(Isolate* isolate) const;
-  void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
+  void Disassemble(const char* name, Isolate* isolate, std::ostream& os,
+                   Address current_pc = kNullAddress) const;
 
   static bool ShouldBeLogged(Isolate* isolate);
   void LogCode(Isolate* isolate) const;

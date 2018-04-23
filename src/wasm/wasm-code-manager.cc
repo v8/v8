@@ -232,8 +232,8 @@ void WasmCode::Print(Isolate* isolate) const {
   Disassemble(nullptr, isolate, os);
 }
 
-void WasmCode::Disassemble(const char* name, Isolate* isolate,
-                           std::ostream& os) const {
+void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
+                           Address current_pc) const {
   if (name) os << "name: " << name << "\n";
   if (index_.IsJust()) os << "index: " << index_.FromJust() << "\n";
   os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
@@ -255,7 +255,8 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate,
   // TODO(mtrofin): rework the dependency on isolate and code in
   // Disassembler::Decode.
   Disassembler::Decode(isolate, &os, instructions().start(),
-                       instructions().start() + instruction_size, this);
+                       instructions().start() + instruction_size, this,
+                       current_pc);
   os << "\n";
 
   if (!source_positions().is_empty()) {

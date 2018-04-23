@@ -49,7 +49,7 @@ class Code : public HeapObject {
 
 #ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, std::ostream& os,
-                   void* current_pc = nullptr);  // NOLINT
+                   Address current_pc = kNullAddress);
 #endif
 
   // [instruction_size]: Size of the native instructions, including embedded
