@@ -194,179 +194,175 @@ void TestExternalReference_BinOpWithReturn(
 
 TEST(RunCallF32Trunc) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f32_trunc(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f32_trunc();
   TestExternalReference_UnOp<float>(&m, ref, wasm::f32_trunc_wrapper,
                                     ValueHelper::float32_vector());
 }
 
 TEST(RunCallF32Floor) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f32_floor(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f32_floor();
   TestExternalReference_UnOp<float>(&m, ref, wasm::f32_floor_wrapper,
                                     ValueHelper::float32_vector());
 }
 
 TEST(RunCallF32Ceil) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f32_ceil(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f32_ceil();
   TestExternalReference_UnOp<float>(&m, ref, wasm::f32_ceil_wrapper,
                                     ValueHelper::float32_vector());
 }
 
 TEST(RunCallF32RoundTiesEven) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f32_nearest_int(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f32_nearest_int();
   TestExternalReference_UnOp<float>(&m, ref, wasm::f32_nearest_int_wrapper,
                                     ValueHelper::float32_vector());
 }
 
 TEST(RunCallF64Trunc) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f64_trunc(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f64_trunc();
   TestExternalReference_UnOp<double>(&m, ref, wasm::f64_trunc_wrapper,
                                      ValueHelper::float64_vector());
 }
 
 TEST(RunCallF64Floor) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f64_floor(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f64_floor();
   TestExternalReference_UnOp<double>(&m, ref, wasm::f64_floor_wrapper,
                                      ValueHelper::float64_vector());
 }
 
 TEST(RunCallF64Ceil) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f64_ceil(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f64_ceil();
   TestExternalReference_UnOp<double>(&m, ref, wasm::f64_ceil_wrapper,
                                      ValueHelper::float64_vector());
 }
 
 TEST(RunCallF64RoundTiesEven) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_f64_nearest_int(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_f64_nearest_int();
   TestExternalReference_UnOp<double>(&m, ref, wasm::f64_nearest_int_wrapper,
                                      ValueHelper::float64_vector());
 }
 
 TEST(RunCallInt64ToFloat32) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_int64_to_float32(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_int64_to_float32();
   TestExternalReference_ConvertOp<int64_t, float>(
       &m, ref, wasm::int64_to_float32_wrapper, ValueHelper::int64_vector());
 }
 
 TEST(RunCallUint64ToFloat32) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref =
-      ExternalReference::wasm_uint64_to_float32(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_uint64_to_float32();
   TestExternalReference_ConvertOp<uint64_t, float>(
       &m, ref, wasm::uint64_to_float32_wrapper, ValueHelper::uint64_vector());
 }
 
 TEST(RunCallInt64ToFloat64) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_int64_to_float64(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_int64_to_float64();
   TestExternalReference_ConvertOp<int64_t, double>(
       &m, ref, wasm::int64_to_float64_wrapper, ValueHelper::int64_vector());
 }
 
 TEST(RunCallUint64ToFloat64) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref =
-      ExternalReference::wasm_uint64_to_float64(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_uint64_to_float64();
   TestExternalReference_ConvertOp<uint64_t, double>(
       &m, ref, wasm::uint64_to_float64_wrapper, ValueHelper::uint64_vector());
 }
 
 TEST(RunCallFloat32ToInt64) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_float32_to_int64(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_float32_to_int64();
   TestExternalReference_ConvertOpWithOutputAndReturn<float, int64_t>(
       &m, ref, wasm::float32_to_int64_wrapper, ValueHelper::float32_vector());
 }
 
 TEST(RunCallFloat32ToUint64) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref =
-      ExternalReference::wasm_float32_to_uint64(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_float32_to_uint64();
   TestExternalReference_ConvertOpWithOutputAndReturn<float, uint64_t>(
       &m, ref, wasm::float32_to_uint64_wrapper, ValueHelper::float32_vector());
 }
 
 TEST(RunCallFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_float64_to_int64(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_float64_to_int64();
   TestExternalReference_ConvertOpWithOutputAndReturn<double, int64_t>(
       &m, ref, wasm::float64_to_int64_wrapper, ValueHelper::float64_vector());
 }
 
 TEST(RunCallFloat64ToUint64) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref =
-      ExternalReference::wasm_float64_to_uint64(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_float64_to_uint64();
   TestExternalReference_ConvertOpWithOutputAndReturn<double, uint64_t>(
       &m, ref, wasm::float64_to_uint64_wrapper, ValueHelper::float64_vector());
 }
 
 TEST(RunCallInt64Div) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_int64_div(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_int64_div();
   TestExternalReference_BinOpWithReturn<int64_t>(
       &m, ref, wasm::int64_div_wrapper, ValueHelper::int64_vector());
 }
 
 TEST(RunCallInt64Mod) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_int64_mod(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_int64_mod();
   TestExternalReference_BinOpWithReturn<int64_t>(
       &m, ref, wasm::int64_mod_wrapper, ValueHelper::int64_vector());
 }
 
 TEST(RunCallUint64Div) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_uint64_div(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_uint64_div();
   TestExternalReference_BinOpWithReturn<uint64_t>(
       &m, ref, wasm::uint64_div_wrapper, ValueHelper::uint64_vector());
 }
 
 TEST(RunCallUint64Mod) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_uint64_mod(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_uint64_mod();
   TestExternalReference_BinOpWithReturn<uint64_t>(
       &m, ref, wasm::uint64_mod_wrapper, ValueHelper::uint64_vector());
 }
 
 TEST(RunCallWord32Ctz) {
   BufferedRawMachineAssemblerTester<uint32_t> m;
-  ExternalReference ref = ExternalReference::wasm_word32_ctz(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_word32_ctz();
   TestExternalReference_ConvertOpWithReturn<int32_t, uint32_t>(
       &m, ref, wasm::word32_ctz_wrapper, ValueHelper::int32_vector());
 }
 
 TEST(RunCallWord64Ctz) {
   BufferedRawMachineAssemblerTester<uint32_t> m;
-  ExternalReference ref = ExternalReference::wasm_word64_ctz(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_word64_ctz();
   TestExternalReference_ConvertOpWithReturn<int64_t, uint32_t>(
       &m, ref, wasm::word64_ctz_wrapper, ValueHelper::int64_vector());
 }
 
 TEST(RunCallWord32Popcnt) {
   BufferedRawMachineAssemblerTester<uint32_t> m;
-  ExternalReference ref = ExternalReference::wasm_word32_popcnt(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_word32_popcnt();
   TestExternalReference_ConvertOpWithReturn<uint32_t, uint32_t>(
       &m, ref, wasm::word32_popcnt_wrapper, ValueHelper::int32_vector());
 }
 
 TEST(RunCallWord64Popcnt) {
   BufferedRawMachineAssemblerTester<uint32_t> m;
-  ExternalReference ref = ExternalReference::wasm_word64_popcnt(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_word64_popcnt();
   TestExternalReference_ConvertOpWithReturn<int64_t, uint32_t>(
       &m, ref, wasm::word64_popcnt_wrapper, ValueHelper::int64_vector());
 }
 
 TEST(RunCallFloat64Pow) {
   BufferedRawMachineAssemblerTester<int32_t> m;
-  ExternalReference ref = ExternalReference::wasm_float64_pow(m.isolate());
+  ExternalReference ref = ExternalReference::wasm_float64_pow();
   TestExternalReference_BinOp<double>(&m, ref, wasm::float64_pow_wrapper,
                                       ValueHelper::float64_vector());
 }

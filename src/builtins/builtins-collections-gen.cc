@@ -766,8 +766,8 @@ Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
 }
 
 Node* CollectionsBuiltinsAssembler::CallGetHashRaw(Node* const key) {
-  Node* const function_addr = ExternalConstant(
-      ExternalReference::orderedhashmap_gethash_raw(isolate()));
+  Node* const function_addr =
+      ExternalConstant(ExternalReference::orderedhashmap_gethash_raw());
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 

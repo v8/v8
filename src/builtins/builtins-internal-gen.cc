@@ -383,8 +383,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
     BIND(&overflow);
     {
-      Node* function = ExternalConstant(
-          ExternalReference::store_buffer_overflow_function(this->isolate()));
+      Node* function =
+          ExternalConstant(ExternalReference::store_buffer_overflow_function());
       CallCFunction1WithCallerSavedRegistersMode(MachineType::Int32(),
                                                  MachineType::Pointer(),
                                                  function, isolate, mode, next);
@@ -467,8 +467,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     BIND(&call_incremental_wb);
     {
       Node* function = ExternalConstant(
-          ExternalReference::incremental_marking_record_write_function(
-              this->isolate()));
+          ExternalReference::incremental_marking_record_write_function());
       CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
           MachineType::Pointer(), function, object, slot, isolate, fp_mode,
@@ -670,12 +669,12 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
                       SloppyTNode<HeapObject> payload);
 
   TNode<Object> GetPendingException() {
-    auto ref = ExternalReference(kPendingExceptionAddress, isolate());
+    auto ref = ExternalReference::Create(kPendingExceptionAddress, isolate());
     return TNode<Object>::UncheckedCast(
         Load(MachineType::AnyTagged(), ExternalConstant(ref)));
   }
   void ClearPendingException() {
-    auto ref = ExternalReference(kPendingExceptionAddress, isolate());
+    auto ref = ExternalReference::Create(kPendingExceptionAddress, isolate());
     StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                         TheHoleConstant());
   }
@@ -726,13 +725,13 @@ void InternalBuiltinsAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
 }
 
 TNode<Context> InternalBuiltinsAssembler::GetCurrentContext() {
-  auto ref = ExternalReference(kContextAddress, isolate());
+  auto ref = ExternalReference::Create(kContextAddress, isolate());
   return TNode<Context>::UncheckedCast(
       Load(MachineType::AnyTagged(), ExternalConstant(ref)));
 }
 
 void InternalBuiltinsAssembler::SetCurrentContext(TNode<Context> context) {
-  auto ref = ExternalReference(kContextAddress, isolate());
+  auto ref = ExternalReference::Create(kContextAddress, isolate());
   StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                       context);
 }

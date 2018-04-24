@@ -400,8 +400,7 @@ void TurboAssembler::Cvttss2ui(Register dst, Operand src, XMMRegister tmp) {
 void TurboAssembler::Cvtui2sd(XMMRegister dst, Operand src) {
   Label done;
   cmp(src, Immediate(0));
-  ExternalReference uint32_bias =
-      ExternalReference::address_of_uint32_bias(isolate());
+  ExternalReference uint32_bias = ExternalReference::address_of_uint32_bias();
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, Operand::StaticVariable(uint32_bias));
@@ -668,12 +667,12 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(IsolateAddressId::kCEntryFPAddress,
-                                       isolate());
-  ExternalReference context_address(IsolateAddressId::kContextAddress,
-                                    isolate());
-  ExternalReference c_function_address(IsolateAddressId::kCFunctionAddress,
-                                       isolate());
+  ExternalReference c_entry_fp_address =
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  ExternalReference context_address =
+      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
+  ExternalReference c_function_address =
+      ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
   mov(Operand::StaticVariable(c_function_address), ebx);
@@ -755,8 +754,8 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
 
 void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(IsolateAddressId::kContextAddress,
-                                    isolate());
+  ExternalReference context_address =
+      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
   mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address),
@@ -764,8 +763,8 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address(IsolateAddressId::kCEntryFPAddress,
-                                       isolate());
+  ExternalReference c_entry_fp_address =
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
 
@@ -785,8 +784,8 @@ void MacroAssembler::PushStackHandler() {
   push(Immediate(0));  // Padding.
 
   // Link the current handler as the next handler.
-  ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
-                                    isolate());
+  ExternalReference handler_address =
+      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   push(Operand::StaticVariable(handler_address));
 
   // Set this new handler as the current one.
@@ -796,8 +795,8 @@ void MacroAssembler::PushStackHandler() {
 
 void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
-                                    isolate());
+  ExternalReference handler_address =
+      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   pop(Operand::StaticVariable(handler_address));
   add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
@@ -834,7 +833,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Move(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ExternalReference(f, isolate())));
+  mov(ebx, Immediate(ExternalReference::Create(f)));
   CEntryStub ces(isolate(), 1, save_doubles);
   CallStub(&ces);
 }
@@ -847,7 +846,7 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Move(eax, Immediate(f->nargs));
-  mov(ebx, Immediate(ExternalReference(f, isolate())));
+  mov(ebx, Immediate(ExternalReference::Create(f)));
   CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
 }
 
@@ -871,7 +870,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
     // smarter.
     mov(eax, Immediate(function->nargs));
   }
-  JumpToExternalReference(ExternalReference(fid, isolate()));
+  JumpToExternalReference(ExternalReference::Create(fid));
 }
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
@@ -1473,7 +1472,8 @@ void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand operand = Operand::StaticVariable(ExternalReference(counter));
+    Operand operand =
+        Operand::StaticVariable(ExternalReference::Create(counter));
     if (value == 1) {
       inc(operand);
     } else {
@@ -1486,7 +1486,8 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand operand = Operand::StaticVariable(ExternalReference(counter));
+    Operand operand =
+        Operand::StaticVariable(ExternalReference::Create(counter));
     if (value == 1) {
       dec(operand);
     } else {

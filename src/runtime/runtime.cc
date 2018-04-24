@@ -169,8 +169,8 @@ const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
     memcpy(redirected_functions, kIntrinsicFunctions,
            sizeof(kIntrinsicFunctions));
     for (size_t i = 0; i < function_count; i++) {
-      ExternalReference redirected_entry(static_cast<Runtime::FunctionId>(i),
-                                         isolate);
+      ExternalReference redirected_entry =
+          ExternalReference::Create(static_cast<Runtime::FunctionId>(i));
       redirected_functions[i].entry = redirected_entry.address();
     }
     isolate->runtime_state()->set_redirected_intrinsic_functions(

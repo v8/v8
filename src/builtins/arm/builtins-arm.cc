@@ -23,11 +23,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
 #if defined(__thumb__)
   // Thumb mode builtin.
-  DCHECK_EQ(1, reinterpret_cast<uintptr_t>(
-                   ExternalReference(address, masm->isolate()).address()) &
-                   1);
+  DCHECK_EQ(
+      1, reinterpret_cast<uintptr_t>(ExternalReference(address).address()) & 1);
 #endif
-  __ mov(r5, Operand(ExternalReference(address, masm->isolate())));
+  __ mov(r5, Operand(ExternalReference::Create(address)));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -625,8 +624,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address(IsolateAddressId::kContextAddress,
-                                      masm->isolate());
+    ExternalReference context_address = ExternalReference::Create(
+        IsolateAddressId::kContextAddress, masm->isolate());
     __ mov(cp, Operand(context_address));
     __ ldr(cp, MemOperand(cp));
 
@@ -850,9 +849,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
 
-  __ mov(
-      bytecode_size_table,
-      Operand(ExternalReference::bytecode_size_table_address(masm->isolate())));
+  __ mov(bytecode_size_table,
+         Operand(ExternalReference::bytecode_size_table_address()));
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -2712,8 +2710,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ PrepareCallCFunction(0, 2);
     __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()), 0, 2);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
   }
   __ pop(lr);
   __ MovFromFloatResult(double_result);
@@ -2759,8 +2756,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ PrepareCallCFunction(0, 2);
     __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()), 0, 2);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
   }
   __ pop(lr);
   __ MovFromFloatResult(double_result);
