@@ -85,6 +85,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceSpeculativeNumberMultiply(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
+  Reduction ReduceObjectIsArray(Node* node);
 
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);

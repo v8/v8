@@ -389,6 +389,10 @@ void JSGenericLowering::LowerJSCreateBoundFunction(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSObjectIsArray(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSCreateObject(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = Builtins::CallableFor(

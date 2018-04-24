@@ -207,6 +207,7 @@
   V(JSRejectPromise)                   \
   V(JSResolvePromise)                  \
   V(JSStackCheck)                      \
+  V(JSObjectIsArray)                   \
   V(JSDebugger)
 
 #define JS_OP_LIST(V)     \

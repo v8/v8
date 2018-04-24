@@ -3384,6 +3384,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayIterator(node, IterationKind::kValues);
     case Builtins::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
+    case Builtins::kArrayIsArray:
+      return ReduceArrayIsArray(node);
     case Builtins::kArrayBufferIsView:
       return ReduceArrayBufferIsView(node);
     case Builtins::kDataViewPrototypeGetByteLength:
@@ -4633,6 +4635,30 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
+}
+
+// ES6 section 22.1.2.2 Array.isArray ( arg )
+Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
+  // We certainly know that undefined is not an array.
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 2);
+  node->ReplaceInput(0, object);
+  node->ReplaceInput(1, context);
+  node->ReplaceInput(2, frame_state);
+  node->ReplaceInput(3, effect);
+  node->ReplaceInput(4, control);
+  node->TrimInputCount(5);
+  NodeProperties::ChangeOp(node, javascript()->ObjectIsArray());
+  return Changed(node);
 }
 
 Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {

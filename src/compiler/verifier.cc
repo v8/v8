@@ -899,6 +899,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Any());
       CheckTypeIs(node, Type::Undefined());
       break;
+    case IrOpcode::kJSObjectIsArray:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Boolean());
+      break;
 
     case IrOpcode::kComment:
     case IrOpcode::kDebugAbort:

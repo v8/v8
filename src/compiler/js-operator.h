@@ -839,6 +839,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateWithContext(const Handle<ScopeInfo>& scope_info);
   const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);
 
+  const Operator* ObjectIsArray();
+
  private:
   Zone* zone() const { return zone_; }
 
