@@ -6,8 +6,7 @@
 #define V8_TORQUE_UTILS_H_
 
 #include <string>
-
-#include "src/objects.h"
+#include <vector>
 
 namespace v8 {
 namespace internal {

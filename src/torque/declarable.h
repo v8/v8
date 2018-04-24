@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 

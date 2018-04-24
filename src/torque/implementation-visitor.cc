@@ -4,6 +4,8 @@
 
 #include "src/torque/implementation-visitor.h"
 
+#include "include/v8.h"
+
 namespace v8 {
 namespace internal {
 namespace torque {
