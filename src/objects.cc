@@ -14629,8 +14629,16 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     os << "Instructions (size = " << code_size << ")\n";
     Address begin = InstructionStart();
     Address end = begin + code_size;
-    Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
-                         reinterpret_cast<byte*>(end), this, current_pc);
+    {
+      // TODO(mstarzinger): Refactor CodeReference to avoid the
+      // unhandlified->handlified transition.
+      AllowHandleAllocation allow_handles;
+      DisallowHeapAllocation no_gc;
+      HandleScope handle_scope(isolate);
+      Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
+                           reinterpret_cast<byte*>(end),
+                           CodeReference(handle(this, isolate)), current_pc);
+    }
 
     if (constant_pool_offset < size) {
       int constant_pool_size = safepoint_offset - constant_pool_offset;

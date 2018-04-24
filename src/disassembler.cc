@@ -28,12 +28,8 @@ namespace internal {
 
 class V8NameConverter: public disasm::NameConverter {
  public:
-  explicit V8NameConverter(Code* code)
-      : isolate_(code->GetIsolate()), code_(CodeReference(handle(code))) {}
-  V8NameConverter(Isolate* isolate, const wasm::WasmCode* code)
-      : isolate_(isolate), code_(CodeReference(code)) {}
-  explicit V8NameConverter(Isolate* isolate)
-      : isolate_(isolate), code_(CodeReference()) {}
+  explicit V8NameConverter(Isolate* isolate, CodeReference code = {})
+      : isolate_(isolate), code_(code) {}
   virtual const char* NameOfAddress(byte* pc) const;
   virtual const char* NameInCode(byte* addr) const;
   const CodeReference& code() const { return code_; }
@@ -333,14 +329,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
 }
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
-                         byte* end, Code* code, Address current_pc) {
-  V8NameConverter v8NameConverter(code);
-  return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
-}
-
-int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
-                         byte* end, const wasm::WasmCode* code,
-                         Address current_pc) {
+                         byte* end, CodeReference code, Address current_pc) {
   V8NameConverter v8NameConverter(isolate, code);
   return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
 }
@@ -348,7 +337,7 @@ int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
 #else  // ENABLE_DISASSEMBLER
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
-                         byte* end, Code* code, Address current_pc) {
+                         byte* end, CodeReference code, Address current_pc) {
   return 0;
 }
 

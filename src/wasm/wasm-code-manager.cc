@@ -271,8 +271,8 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
   // TODO(mtrofin): rework the dependency on isolate and code in
   // Disassembler::Decode.
   Disassembler::Decode(isolate, &os, instructions().start(),
-                       instructions().start() + instruction_size, this,
-                       current_pc);
+                       instructions().start() + instruction_size,
+                       CodeReference(this), current_pc);
   os << "\n";
 
   if (!source_positions().is_empty()) {
