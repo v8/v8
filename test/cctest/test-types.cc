@@ -42,7 +42,7 @@ struct Tests {
         zone(isolate->allocator(), ZONE_NAME),
         T(&zone, isolate, isolate->random_number_generator()) {}
 
-  bool IsBitset(Type* type) { return type->IsBitsetForTesting(); }
+  bool IsBitset(Type* type) { return type->IsBitset(); }
   bool IsUnion(Type* type) { return type->IsUnionForTesting(); }
   BitsetType::bitset AsBitset(Type* type) { return type->AsBitsetForTesting(); }
   UnionType* AsUnion(Type* type) { return type->AsUnionForTesting(); }
@@ -404,7 +404,7 @@ struct Tests {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
       if (type->IsRange()) {
-        Type* lub = BitsetType::NewForTesting(BitsetType::Lub(type));
+        Type* lub = type->BitsetLubForTesting();
         CHECK(lub->Min() <= type->Min() && type->Max() <= lub->Max());
       }
     }
@@ -422,7 +422,7 @@ struct Tests {
     // Lower: (T->BitsetGlb())->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
-      Type* glb = BitsetType::NewForTesting(BitsetType::Glb(type));
+      Type* glb = type->BitsetGlbForTesting();
       CHECK(glb->Is(type));
     }
 
@@ -431,7 +431,7 @@ struct Tests {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         Type* type1 = *it1;
         Type* type2 = *it2;
-        Type* glb2 = BitsetType::NewForTesting(BitsetType::Glb(type2));
+        Type* glb2 = type2->BitsetGlbForTesting();
         CHECK(!this->IsBitset(type1) || !type1->Is(type2) || type1->Is(glb2));
       }
     }
@@ -441,8 +441,8 @@ struct Tests {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         Type* type1 = *it1;
         Type* type2 = *it2;
-        Type* glb1 = BitsetType::NewForTesting(BitsetType::Glb(type1));
-        Type* glb2 = BitsetType::NewForTesting(BitsetType::Glb(type2));
+        Type* glb1 = type1->BitsetGlbForTesting();
+        Type* glb2 = type2->BitsetGlbForTesting();
         CHECK(!type1->Is(type2) || glb1->Is(glb2));
       }
     }
@@ -452,7 +452,7 @@ struct Tests {
     // Upper: T->Is(T->BitsetLub())
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
-      Type* lub = BitsetType::NewForTesting(BitsetType::Lub(type));
+      Type* lub = type->BitsetLubForTesting();
       CHECK(type->Is(lub));
     }
 
@@ -461,7 +461,7 @@ struct Tests {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         Type* type1 = *it1;
         Type* type2 = *it2;
-        Type* lub1 = BitsetType::NewForTesting(BitsetType::Lub(type1));
+        Type* lub1 = type1->BitsetLubForTesting();
         CHECK(!this->IsBitset(type2) || !type1->Is(type2) || lub1->Is(type2));
       }
     }
@@ -471,8 +471,8 @@ struct Tests {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         Type* type1 = *it1;
         Type* type2 = *it2;
-        Type* lub1 = BitsetType::NewForTesting(BitsetType::Lub(type1));
-        Type* lub2 = BitsetType::NewForTesting(BitsetType::Lub(type2));
+        Type* lub1 = type1->BitsetLubForTesting();
+        Type* lub2 = type2->BitsetLubForTesting();
         CHECK(!type1->Is(type2) || lub1->Is(lub2));
       }
     }
@@ -601,7 +601,7 @@ struct Tests {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
       if (type->IsRange()) {
-        Type* lub = BitsetType::NewForTesting(BitsetType::Lub(type));
+        Type* lub = type->BitsetLubForTesting();
         CHECK(lub->Is(T.PlainNumber));
       }
     }

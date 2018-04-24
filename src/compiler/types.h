@@ -217,7 +217,11 @@ namespace compiler {
   INTERNAL_BITSET_TYPE_LIST(V) \
   PROPER_BITSET_TYPE_LIST(V)
 
+class HeapConstantType;
+class OtherNumberConstantType;
+class TupleType;
 class Type;
+class UnionType;
 
 // -----------------------------------------------------------------------------
 // Bitset types (internal).
@@ -249,9 +253,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static double Min(bitset);
   static double Max(bitset);
 
-  static bitset Glb(Type* type);  // greatest lower bound that's a bitset
   static bitset Glb(double min, double max);
-  static bitset Lub(Type* type);  // least upper bound that's a bitset
   static bitset Lub(i::Map* map);
   static bitset Lub(i::Object* value);
   static bitset Lub(double value);
@@ -266,19 +268,7 @@ class V8_EXPORT_PRIVATE BitsetType {
 
   static bitset NumberBits(bitset bits);
 
-  static bool IsBitset(Type* type) {
-    return reinterpret_cast<uintptr_t>(type) & 1;
-  }
-
-  static Type* NewForTesting(bitset bits) { return New(bits); }
-
  private:
-  friend class Type;
-
-  static Type* New(bitset bits) {
-    return reinterpret_cast<Type*>(static_cast<uintptr_t>(bits | 1u));
-  }
-
   struct Boundary {
     bitset internal;
     bitset external;
@@ -300,81 +290,10 @@ class TypeBase {
   Kind kind() const { return kind_; }
   explicit TypeBase(Kind kind) : kind_(kind) {}
 
-  static bool IsKind(Type* type, Kind kind) {
-    if (BitsetType::IsBitset(type)) return false;
-    TypeBase* base = reinterpret_cast<TypeBase*>(type);
-    return base->kind() == kind;
-  }
-
-  // The hacky conversion to/from Type*.
-  static Type* AsType(TypeBase* type) { return reinterpret_cast<Type*>(type); }
-  static TypeBase* FromType(Type* type) {
-    return reinterpret_cast<TypeBase*>(type);
-  }
+  static bool IsKind(Type* type, Kind kind);
 
  private:
   Kind kind_;
-};
-
-// -----------------------------------------------------------------------------
-// Constant types.
-
-class OtherNumberConstantType : public TypeBase {
- public:
-  double Value() { return value_; }
-
-  static bool IsOtherNumberConstant(double value);
-  static bool IsOtherNumberConstant(Object* value);
-
- private:
-  friend class Type;
-  friend class BitsetType;
-
-  static Type* New(double value, Zone* zone) {
-    return AsType(new (zone->New(sizeof(OtherNumberConstantType)))
-                      OtherNumberConstantType(value));  // NOLINT
-  }
-
-  static OtherNumberConstantType* cast(Type* type) {
-    DCHECK(IsKind(type, kOtherNumberConstant));
-    return static_cast<OtherNumberConstantType*>(FromType(type));
-  }
-
-  explicit OtherNumberConstantType(double value)
-      : TypeBase(kOtherNumberConstant), value_(value) {
-    CHECK(IsOtherNumberConstant(value));
-  }
-
-  BitsetType::bitset Lub() { return BitsetType::kOtherNumber; }
-
-  double value_;
-};
-
-class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
- public:
-  i::Handle<i::HeapObject> Value() { return object_; }
-
- private:
-  friend class Type;
-  friend class BitsetType;
-
-  static Type* New(i::Handle<i::HeapObject> value, Zone* zone) {
-    BitsetType::bitset bitset = BitsetType::Lub(*value);
-    return AsType(new (zone->New(sizeof(HeapConstantType)))
-                      HeapConstantType(bitset, value));
-  }
-
-  static HeapConstantType* cast(Type* type) {
-    DCHECK(IsKind(type, kHeapConstant));
-    return static_cast<HeapConstantType*>(FromType(type));
-  }
-
-  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::HeapObject> object);
-
-  BitsetType::bitset Lub() { return bitset_; }
-
-  BitsetType::bitset bitset_;
-  Handle<i::HeapObject> object_;
 };
 
 // -----------------------------------------------------------------------------
@@ -401,7 +320,7 @@ class RangeType : public TypeBase {
   friend class BitsetType;
   friend class UnionType;
 
-  static Type* New(double min, double max, Zone* zone) {
+  static RangeType* New(double min, double max, Zone* zone) {
     return New(Limits(min, max), zone);
   }
 
@@ -409,17 +328,12 @@ class RangeType : public TypeBase {
     return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
   }
 
-  static Type* New(Limits lim, Zone* zone) {
+  static RangeType* New(Limits lim, Zone* zone) {
     DCHECK(IsInteger(lim.min) && IsInteger(lim.max));
     DCHECK(lim.min <= lim.max);
     BitsetType::bitset bits = BitsetType::Lub(lim.min, lim.max);
 
-    return AsType(new (zone->New(sizeof(RangeType))) RangeType(bits, lim));
-  }
-
-  static RangeType* cast(Type* type) {
-    DCHECK(IsKind(type, kRange));
-    return static_cast<RangeType*>(FromType(type));
+    return new (zone->New(sizeof(RangeType))) RangeType(bits, lim);
   }
 
   RangeType(BitsetType::bitset bitset, Limits limits)
@@ -429,6 +343,215 @@ class RangeType : public TypeBase {
 
   BitsetType::bitset bitset_;
   Limits limits_;
+};
+
+// -----------------------------------------------------------------------------
+// The actual type.
+
+class V8_EXPORT_PRIVATE Type {
+ public:
+  typedef BitsetType::bitset bitset;  // Internal
+
+// Constructors.
+#define DEFINE_TYPE_CONSTRUCTOR(type, value) \
+  static Type* type() { return NewBitset(BitsetType::k##type); }
+  PROPER_BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
+#undef DEFINE_TYPE_CONSTRUCTOR
+
+  static Type* SignedSmall() { return NewBitset(BitsetType::SignedSmall()); }
+  static Type* UnsignedSmall() {
+    return NewBitset(BitsetType::UnsignedSmall());
+  }
+
+  static Type* OtherNumberConstant(double value, Zone* zone);
+  static Type* HeapConstant(i::Handle<i::HeapObject> value, Zone* zone);
+  static Type* Range(double min, double max, Zone* zone);
+  static Type* Range(RangeType::Limits lims, Zone* zone);
+  static Type* Tuple(Type* first, Type* second, Type* third, Zone* zone);
+  static Type* Union(int length, Zone* zone);
+
+  // NewConstant is a factory that returns Constant, Range or Number.
+  static Type* NewConstant(i::Handle<i::Object> value, Zone* zone);
+  static Type* NewConstant(double value, Zone* zone);
+
+  static Type* Union(Type* type1, Type* type2, Zone* zone);
+  static Type* Intersect(Type* type1, Type* type2, Zone* zone);
+
+  static Type* Of(double value, Zone* zone) {
+    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
+  }
+  static Type* Of(i::Object* value, Zone* zone) {
+    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
+  }
+  static Type* Of(i::Handle<i::Object> value, Zone* zone) {
+    return Of(*value, zone);
+  }
+
+  static Type* For(i::Map* map) {
+    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(map)));
+  }
+  static Type* For(i::Handle<i::Map> map) { return For(*map); }
+
+  // Predicates.
+  bool IsNone() { return this == None(); }
+
+  bool Is(Type* that) { return this == that || this->SlowIs(that); }
+  bool Maybe(Type* that);
+  bool Equals(Type* that) { return this->Is(that) && that->Is(this); }
+
+  // Inspection.
+  bool IsBitset() { return reinterpret_cast<uintptr_t>(this) & 1; }
+  bool IsRange() { return IsKind(TypeBase::kRange); }
+  bool IsHeapConstant() { return IsKind(TypeBase::kHeapConstant); }
+  bool IsOtherNumberConstant() {
+    return IsKind(TypeBase::kOtherNumberConstant);
+  }
+  bool IsTuple() { return IsKind(TypeBase::kTuple); }
+
+  HeapConstantType* AsHeapConstant();
+  OtherNumberConstantType* AsOtherNumberConstant();
+  RangeType* AsRange();
+  TupleType* AsTuple();
+
+  // Minimum and maximum of a numeric type.
+  // These functions do not distinguish between -0 and +0.  NaN is ignored.
+  // Only call them on subtypes of Number whose intersection with OrderedNumber
+  // is not empty.
+  double Min();
+  double Max();
+
+  // Extracts a range from the type: if the type is a range or a union
+  // containing a range, that range is returned; otherwise, nullptr is returned.
+  Type* GetRange();
+
+  static bool IsInteger(i::Object* x);
+  static bool IsInteger(double x) {
+    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
+  }
+
+  int NumConstants();
+
+  // Printing.
+
+  void PrintTo(std::ostream& os);
+
+#ifdef DEBUG
+  void Print();
+#endif
+
+  // Helpers for testing.
+  bool IsUnionForTesting() { return IsUnion(); }
+  bitset AsBitsetForTesting() { return AsBitset(); }
+  UnionType* AsUnionForTesting() { return AsUnion(); }
+  Type* BitsetGlbForTesting() { return NewBitset(BitsetGlb()); }
+  Type* BitsetLubForTesting() { return NewBitset(BitsetLub()); }
+
+ private:
+  // Friends.
+  template <class>
+  friend class Iterator;
+  friend BitsetType;
+  friend UnionType;
+
+  // Internal inspection.
+  bool IsKind(TypeBase::Kind kind) {
+    if (IsBitset()) return false;
+    TypeBase* base = reinterpret_cast<TypeBase*>(this);
+    return base->kind() == kind;
+  }
+
+  TypeBase* ToTypeBase() { return reinterpret_cast<TypeBase*>(this); }
+  static Type* FromTypeBase(TypeBase* type) {
+    return reinterpret_cast<Type*>(type);
+  }
+
+  bool IsAny() { return this == Any(); }
+  bool IsUnion() { return IsKind(TypeBase::kUnion); }
+
+  bitset AsBitset() {
+    DCHECK(this->IsBitset());
+    return reinterpret_cast<BitsetType*>(this)->Bitset();
+  }
+
+  UnionType* AsUnion();
+
+  bitset BitsetGlb();  // greatest lower bound that's a bitset
+  bitset BitsetLub();  // least upper bound that's a bitset
+
+  bool SlowIs(Type* that);
+
+  static Type* NewBitset(bitset bits) {
+    return reinterpret_cast<Type*>(static_cast<uintptr_t>(bits | 1u));
+  }
+
+  static bool Overlap(RangeType* lhs, RangeType* rhs);
+  static bool Contains(RangeType* lhs, RangeType* rhs);
+  static bool Contains(RangeType* range, i::Object* val);
+
+  static int UpdateRange(Type* type, UnionType* result, int size, Zone* zone);
+
+  static RangeType::Limits IntersectRangeAndBitset(Type* range, Type* bits,
+                                                   Zone* zone);
+  static RangeType::Limits ToLimits(bitset bits, Zone* zone);
+
+  bool SimplyEquals(Type* that);
+
+  static int AddToUnion(Type* type, UnionType* result, int size, Zone* zone);
+  static int IntersectAux(Type* type, Type* other, UnionType* result, int size,
+                          RangeType::Limits* limits, Zone* zone);
+  static Type* NormalizeUnion(Type* unioned, int size, Zone* zone);
+  static Type* NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone);
+};
+
+// -----------------------------------------------------------------------------
+// Constant types.
+
+class OtherNumberConstantType : public TypeBase {
+ public:
+  double Value() { return value_; }
+
+  static bool IsOtherNumberConstant(double value);
+  static bool IsOtherNumberConstant(Object* value);
+
+ private:
+  friend class Type;
+  friend class BitsetType;
+
+  static OtherNumberConstantType* New(double value, Zone* zone) {
+    return new (zone->New(sizeof(OtherNumberConstantType)))
+        OtherNumberConstantType(value);  // NOLINT
+  }
+
+  explicit OtherNumberConstantType(double value)
+      : TypeBase(kOtherNumberConstant), value_(value) {
+    CHECK(IsOtherNumberConstant(value));
+  }
+
+  BitsetType::bitset Lub() { return BitsetType::kOtherNumber; }
+
+  double value_;
+};
+
+class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
+ public:
+  i::Handle<i::HeapObject> Value() { return object_; }
+
+ private:
+  friend class Type;
+  friend class BitsetType;
+
+  static HeapConstantType* New(i::Handle<i::HeapObject> value, Zone* zone) {
+    BitsetType::bitset bitset = BitsetType::Lub(*value);
+    return new (zone->New(sizeof(HeapConstantType)))
+        HeapConstantType(bitset, value);
+  }
+
+  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::HeapObject> object);
+
+  BitsetType::bitset Lub() { return bitset_; }
+
+  BitsetType::bitset bitset_;
+  Handle<i::HeapObject> object_;
 };
 
 // -----------------------------------------------------------------------------
@@ -482,13 +605,8 @@ class TupleType : public StructuralType {
 
   TupleType(int length, Zone* zone) : StructuralType(kTuple, length, zone) {}
 
-  static Type* New(int length, Zone* zone) {
-    return AsType(new (zone->New(sizeof(TupleType))) TupleType(length, zone));
-  }
-
-  static TupleType* cast(Type* type) {
-    DCHECK(IsKind(type, kTuple));
-    return static_cast<TupleType*>(FromType(type));
+  static TupleType* New(int length, Zone* zone) {
+    return new (zone->New(sizeof(TupleType))) TupleType(length, zone);
   }
 };
 
@@ -506,170 +624,11 @@ class UnionType : public StructuralType {
 
   UnionType(int length, Zone* zone) : StructuralType(kUnion, length, zone) {}
 
-  static Type* New(int length, Zone* zone) {
-    return AsType(new (zone->New(sizeof(UnionType))) UnionType(length, zone));
-  }
-
-  static UnionType* cast(Type* type) {
-    DCHECK(IsKind(type, kUnion));
-    return static_cast<UnionType*>(FromType(type));
+  static UnionType* New(int length, Zone* zone) {
+    return new (zone->New(sizeof(UnionType))) UnionType(length, zone);
   }
 
   bool Wellformed();
-};
-
-class V8_EXPORT_PRIVATE Type {
- public:
-  typedef BitsetType::bitset bitset;  // Internal
-
-// Constructors.
-#define DEFINE_TYPE_CONSTRUCTOR(type, value) \
-  static Type* type() { return BitsetType::New(BitsetType::k##type); }
-  PROPER_BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
-#undef DEFINE_TYPE_CONSTRUCTOR
-
-  static Type* SignedSmall() {
-    return BitsetType::New(BitsetType::SignedSmall());
-  }
-  static Type* UnsignedSmall() {
-    return BitsetType::New(BitsetType::UnsignedSmall());
-  }
-
-  static Type* OtherNumberConstant(double value, Zone* zone) {
-    return OtherNumberConstantType::New(value, zone);
-  }
-  static Type* HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
-    return HeapConstantType::New(value, zone);
-  }
-  static Type* Range(double min, double max, Zone* zone) {
-    return RangeType::New(min, max, zone);
-  }
-  static Type* Tuple(Type* first, Type* second, Type* third, Zone* zone) {
-    Type* tuple = TupleType::New(3, zone);
-    tuple->AsTuple()->InitElement(0, first);
-    tuple->AsTuple()->InitElement(1, second);
-    tuple->AsTuple()->InitElement(2, third);
-    return tuple;
-  }
-
-  // NewConstant is a factory that returns Constant, Range or Number.
-  static Type* NewConstant(i::Handle<i::Object> value, Zone* zone);
-  static Type* NewConstant(double value, Zone* zone);
-
-  static Type* Union(Type* type1, Type* type2, Zone* zone);
-  static Type* Intersect(Type* type1, Type* type2, Zone* zone);
-
-  static Type* Of(double value, Zone* zone) {
-    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(value)));
-  }
-  static Type* Of(i::Object* value, Zone* zone) {
-    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(value)));
-  }
-  static Type* Of(i::Handle<i::Object> value, Zone* zone) {
-    return Of(*value, zone);
-  }
-
-  static Type* For(i::Map* map) {
-    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(map)));
-  }
-  static Type* For(i::Handle<i::Map> map) { return For(*map); }
-
-  // Predicates.
-  bool IsNone() { return this == None(); }
-
-  bool Is(Type* that) { return this == that || this->SlowIs(that); }
-  bool Maybe(Type* that);
-  bool Equals(Type* that) { return this->Is(that) && that->Is(this); }
-
-  // Inspection.
-  bool IsRange() { return IsKind(TypeBase::kRange); }
-  bool IsHeapConstant() { return IsKind(TypeBase::kHeapConstant); }
-  bool IsOtherNumberConstant() {
-    return IsKind(TypeBase::kOtherNumberConstant);
-  }
-  bool IsTuple() { return IsKind(TypeBase::kTuple); }
-
-  HeapConstantType* AsHeapConstant() { return HeapConstantType::cast(this); }
-  OtherNumberConstantType* AsOtherNumberConstant() {
-    return OtherNumberConstantType::cast(this);
-  }
-  RangeType* AsRange() { return RangeType::cast(this); }
-  TupleType* AsTuple() { return TupleType::cast(this); }
-
-  // Minimum and maximum of a numeric type.
-  // These functions do not distinguish between -0 and +0.  NaN is ignored.
-  // Only call them on subtypes of Number whose intersection with OrderedNumber
-  // is not empty.
-  double Min();
-  double Max();
-
-  // Extracts a range from the type: if the type is a range or a union
-  // containing a range, that range is returned; otherwise, nullptr is returned.
-  Type* GetRange();
-
-  static bool IsInteger(i::Object* x);
-  static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
-  }
-
-  int NumConstants();
-
-  // Printing.
-
-  void PrintTo(std::ostream& os);
-
-#ifdef DEBUG
-  void Print();
-#endif
-
-  // Helpers for testing.
-  bool IsBitsetForTesting() { return IsBitset(); }
-  bool IsUnionForTesting() { return IsUnion(); }
-  bitset AsBitsetForTesting() { return AsBitset(); }
-  UnionType* AsUnionForTesting() { return AsUnion(); }
-
- private:
-  // Friends.
-  template <class>
-  friend class Iterator;
-  friend BitsetType;
-  friend UnionType;
-
-  // Internal inspection.
-  bool IsKind(TypeBase::Kind kind) { return TypeBase::IsKind(this, kind); }
-
-  bool IsAny() { return this == Any(); }
-  bool IsBitset() { return BitsetType::IsBitset(this); }
-  bool IsUnion() { return IsKind(TypeBase::kUnion); }
-
-  bitset AsBitset() {
-    DCHECK(this->IsBitset());
-    return reinterpret_cast<BitsetType*>(this)->Bitset();
-  }
-  UnionType* AsUnion() { return UnionType::cast(this); }
-
-  bitset BitsetGlb() { return BitsetType::Glb(this); }
-  bitset BitsetLub() { return BitsetType::Lub(this); }
-
-  bool SlowIs(Type* that);
-
-  static bool Overlap(RangeType* lhs, RangeType* rhs);
-  static bool Contains(RangeType* lhs, RangeType* rhs);
-  static bool Contains(RangeType* range, i::Object* val);
-
-  static int UpdateRange(Type* type, UnionType* result, int size, Zone* zone);
-
-  static RangeType::Limits IntersectRangeAndBitset(Type* range, Type* bits,
-                                                   Zone* zone);
-  static RangeType::Limits ToLimits(bitset bits, Zone* zone);
-
-  bool SimplyEquals(Type* that);
-
-  static int AddToUnion(Type* type, UnionType* result, int size, Zone* zone);
-  static int IntersectAux(Type* type, Type* other, UnionType* result, int size,
-                          RangeType::Limits* limits, Zone* zone);
-  static Type* NormalizeUnion(Type* unioned, int size, Zone* zone);
-  static Type* NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone);
 };
 
 }  // namespace compiler
