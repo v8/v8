@@ -241,15 +241,15 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   BAILOUT("FillI64Half");
 }
 
-#define UNIMPLEMENTED_GP_BINOP(name)                             \
+#define I32_BINOP(name, instruction)                             \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
-    BAILOUT("gp binop: " #name);                                 \
+    instruction(dst.W(), lhs.W(), rhs.W());                      \
   }
-#define UNIMPLEMENTED_I64_BINOP(name)                                          \
+#define I64_BINOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
-    BAILOUT("i64 binop: " #name);                                              \
+    instruction(dst.gp().X(), lhs.gp().X(), rhs.gp().X());                     \
   }
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
@@ -265,35 +265,35 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     BAILOUT("fp unop: " #name);                                                \
   }
-#define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
+#define I32_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i32 shiftop: " #name);                                            \
+    instruction(dst.W(), src.W(), amount.W());                                 \
   }
-#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
+#define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i64 shiftop: " #name);                                            \
+    instruction(dst.gp().X(), src.gp().X(), amount.X());                       \
   }
 
-UNIMPLEMENTED_GP_BINOP(i32_add)
-UNIMPLEMENTED_GP_BINOP(i32_sub)
-UNIMPLEMENTED_GP_BINOP(i32_mul)
-UNIMPLEMENTED_GP_BINOP(i32_and)
-UNIMPLEMENTED_GP_BINOP(i32_or)
-UNIMPLEMENTED_GP_BINOP(i32_xor)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
-UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_add)
-UNIMPLEMENTED_I64_BINOP(i64_sub)
-UNIMPLEMENTED_I64_BINOP(i64_mul)
-UNIMPLEMENTED_I64_BINOP(i64_and)
-UNIMPLEMENTED_I64_BINOP(i64_or)
-UNIMPLEMENTED_I64_BINOP(i64_xor)
-UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
-UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
-UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
+I32_BINOP(i32_add, Add)
+I32_BINOP(i32_sub, Sub)
+I32_BINOP(i32_mul, Mul)
+I32_BINOP(i32_and, And)
+I32_BINOP(i32_or, Orr)
+I32_BINOP(i32_xor, Eor)
+I32_SHIFTOP(i32_shl, Lsl)
+I32_SHIFTOP(i32_sar, Asr)
+I32_SHIFTOP(i32_shr, Lsr)
+I64_BINOP(i64_add, Add)
+I64_BINOP(i64_sub, Sub)
+I64_BINOP(i64_mul, Mul)
+I64_BINOP(i64_and, And)
+I64_BINOP(i64_or, Orr)
+I64_BINOP(i64_xor, Eor)
+I64_SHIFTOP(i64_shl, Lsl)
+I64_SHIFTOP(i64_sar, Asr)
+I64_SHIFTOP(i64_shr, Lsr)
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_GP_UNOP(i32_popcnt)
@@ -324,13 +324,13 @@ UNIMPLEMENTED_FP_UNOP(f64_trunc)
 UNIMPLEMENTED_FP_UNOP(f64_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
-#undef UNIMPLEMENTED_GP_BINOP
-#undef UNIMPLEMENTED_I64_BINOP
+#undef I32_BINOP
+#undef I64_BINOP
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
-#undef UNIMPLEMENTED_I32_SHIFTOP
-#undef UNIMPLEMENTED_I64_SHIFTOP
+#undef I32_SHIFTOP
+#undef I64_SHIFTOP
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
