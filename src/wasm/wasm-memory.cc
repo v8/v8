@@ -13,10 +13,13 @@ namespace internal {
 namespace wasm {
 
 namespace {
+
 void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
                               size_t size, bool require_guard_regions,
                               void** allocation_base,
                               size_t* allocation_length) {
+  using AllocationStatus = WasmMemoryTracker::AllocationStatus;
+
 #if V8_TARGET_ARCH_32_BIT
   DCHECK(!require_guard_regions);
 #endif
@@ -36,10 +39,12 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   // Try up to three times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs.
   // TODO(gc): Fix this to only require one GC (crbug.com/v8/7621).
+  bool did_retry = false;
   for (int trial = 0;; ++trial) {
     if (memory_tracker->ReserveAddressSpace(*allocation_length)) break;
     // Collect garbage and retry.
     heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+    did_retry = true;
     // After first and second GC: retry.
     if (trial < 2) continue;
     // We are over the address space limit. Fail.
@@ -51,6 +56,8 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     if (FLAG_abort_on_stack_or_string_length_overflow) {
       FATAL("could not allocate wasm memory");
     }
+    memory_tracker->AddAllocationStatusSample(
+        AllocationStatus::kAddressSpaceLimitReachedFailure);
     return nullptr;
   }
 
@@ -59,6 +66,7 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
                                    PageAllocator::kNoAccess);
   if (*allocation_base == nullptr) {
     memory_tracker->ReleaseReservation(*allocation_length);
+    memory_tracker->AddAllocationStatusSample(AllocationStatus::kOtherFailure);
     return nullptr;
   }
   void* memory = *allocation_base;
@@ -71,6 +79,9 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 
   memory_tracker->RegisterAllocation(*allocation_base, *allocation_length,
                                      memory, size);
+  memory_tracker->AddAllocationStatusSample(
+      did_retry ? AllocationStatus::kSuccessAfterRetry
+                : AllocationStatus::kSuccess);
   return memory;
 }
 }  // namespace
@@ -126,6 +137,7 @@ void WasmMemoryTracker::RegisterAllocation(void* allocation_base,
   base::LockGuard<base::Mutex> scope_lock(&mutex_);
 
   allocated_address_space_ += allocation_length;
+  AddAddressSpaceSample();
 
   allocations_.emplace(buffer_start,
                        AllocationData{allocation_base, allocation_length,
@@ -153,6 +165,7 @@ WasmMemoryTracker::AllocationData WasmMemoryTracker::InternalReleaseAllocation(
     DCHECK_LE(num_bytes, allocated_address_space_);
     reserved_address_space_ -= num_bytes;
     allocated_address_space_ -= num_bytes;
+    AddAddressSpaceSample();
 
     AllocationData allocation_data = find_result->second;
     allocations_.erase(find_result);
@@ -214,6 +227,21 @@ bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(const void* buffer_start) {
     return true;
   }
   return false;
+}
+
+void WasmMemoryTracker::AddAllocationStatusSample(AllocationStatus status) {
+  if (allocation_result_) {
+    allocation_result_->AddSample(static_cast<int>(status));
+  }
+}
+
+void WasmMemoryTracker::AddAddressSpaceSample() {
+  if (address_space_usage_mb_) {
+    // Report address space usage in MiB so the full range fits in an int on all
+    // platforms.
+    address_space_usage_mb_->AddSample(
+        static_cast<int>(allocated_address_space_ >> 20));
+  }
 }
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,

@@ -3020,6 +3020,10 @@ bool Isolate::Init(StartupDeserializer* des) {
   wasm_engine_.reset(new wasm::WasmEngine(
       std::unique_ptr<wasm::WasmCodeManager>(new wasm::WasmCodeManager(
           reinterpret_cast<v8::Isolate*>(this), max_code_size))));
+  wasm_engine_->memory_tracker()->SetAllocationResultHistogram(
+      counters()->wasm_memory_allocation_result());
+  wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
+      counters()->wasm_address_space_usage_mb());
 
 // Initialize the interface descriptors ahead of time.
 #define INTERFACE_DESCRIPTOR(Name, ...) \

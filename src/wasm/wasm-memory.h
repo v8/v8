@@ -14,6 +14,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Histogram;  // defined in counters.h
+
 namespace wasm {
 
 class WasmMemoryTracker {
@@ -82,8 +85,32 @@ class WasmMemoryTracker {
   // free the buffer manually.
   bool FreeMemoryIfIsWasmMemory(const void* buffer_start);
 
+  void SetAllocationResultHistogram(Histogram* allocation_result) {
+    allocation_result_ = allocation_result;
+  }
+  void SetAddressSpaceUsageHistogram(Histogram* address_space_usage) {
+    address_space_usage_mb_ = address_space_usage;
+  }
+
+  // Allocation results are reported to UMA
+  //
+  // See wasm_memory_allocation_result in counters.h
+  enum class AllocationStatus {
+    kSuccess,  // Succeeded on the first try
+
+    kSuccessAfterRetry,  // Succeeded after garbage collection
+
+    kAddressSpaceLimitReachedFailure,  // Failed because Wasm is at its address
+                                       // space limit
+
+    kOtherFailure  // Failed for an unknown reason
+  };
+
+  void AddAllocationStatusSample(AllocationStatus status);
+
  private:
   AllocationData InternalReleaseAllocation(const void* buffer_start);
+  void AddAddressSpaceSample();
 
   // Clients use a two-part process. First they "reserve" the address space,
   // which signifies an intent to actually allocate it. This determines whether
@@ -109,6 +136,10 @@ class WasmMemoryTracker {
   // trap handlers. Because this could eat up address space quickly, we keep a
   // shared backing store here.
   AllocationData empty_backing_store_;
+
+  // Keep pointers to
+  Histogram* allocation_result_;
+  Histogram* address_space_usage_mb_;  // in MiB
 
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };
