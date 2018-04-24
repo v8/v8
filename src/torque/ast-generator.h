@@ -142,6 +142,12 @@ class AstGenerator : public TorqueBaseVisitor {
     return {};
   }
 
+  template <class T>
+  T* RegisterNode(T* node) {
+    ast_.AddNode(std::unique_ptr<AstNode>(node));
+    return node;
+  }
+
   void visitSourceFile(SourceFileContext* context);
 
   SourcePosition Pos(antlr4::ParserRuleContext* context);

@@ -135,7 +135,6 @@ class DeclarationVisitor : public FileVisitor {
     Signature signature{{},
                         {parameter_types, decl->parameters.has_varargs},
                         return_type,
-                        {},
                         {}};
     TopScope()->DeclareRuntime(decl->pos, decl->name, nullptr,
                                std::move(signature));
@@ -392,16 +391,25 @@ class DeclarationVisitor : public FileVisitor {
     return was_live_in_preceeding_split;
   }
 
-  void DeclareParameterList(SourcePosition pos, const Signature& signature) {
+  void DeclareParameterList(SourcePosition pos, const Signature& signature,
+                            base::Optional<LabelAndTypesVector> labels) {
     auto name_iterator = signature.parameter_names.begin();
     for (auto t : signature.types()) {
       const std::string& name(*name_iterator++);
       TopScope()->DeclareParameter(pos, name,
                                    GetParameterVariableFromName(name), t);
     }
-    size_t i = 0;
-    for (auto definition : signature.label_defintions) {
-      TopScope()->DeclareLabel(pos, definition.name, signature.labels[i++]);
+    if (labels) {
+      for (auto label : *labels) {
+        auto label_params = GetTypeVector(label.types);
+        Label* new_label = TopScope()->DeclareLabel(pos, label.name);
+        size_t i = 0;
+        for (auto var_type : label_params) {
+          std::string var_name = label.name + std::to_string(i++);
+          new_label->AddVariable(
+              TopScope()->DeclareVariable(pos, var_name, var_type));
+        }
+      }
     }
   }
 

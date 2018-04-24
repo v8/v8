@@ -17,20 +17,20 @@ class TypeOracle {
   void RegisterTypeImpl(const std::string& name, const std::string& generated,
                         const std::string* parent = nullptr) {
     TypeImpl* parent_class = nullptr;
-    if (type_imples_.find(name) != type_imples_.end()) {
+    if (type_impls_.find(name) != type_impls_.end()) {
       ReportError(std::string("cannot redefine type class ") + name);
     }
     if (parent != nullptr) {
-      auto i = type_imples_.find(*parent);
-      if (i == type_imples_.end()) {
+      auto i = type_impls_.find(*parent);
+      if (i == type_impls_.end()) {
         std::stringstream s;
         s << "cannot find parent type class " << *parent << " for " << name;
         ReportError(s.str());
       }
-      parent_class = i->second;
+      parent_class = i->second.get();
     }
     TypeImpl* new_class = new TypeImpl(parent_class, name, generated);
-    type_imples_[name] = new_class;
+    type_impls_[name] = std::unique_ptr<TypeImpl>(new_class);
   }
 
   void RegisterImplicitConversion(Type to, Type from) {
@@ -38,13 +38,13 @@ class TypeOracle {
   }
 
   Type GetType(const std::string& type_name) {
-    auto i = type_imples_.find(type_name);
-    if (i == type_imples_.end()) {
+    auto i = type_impls_.find(type_name);
+    if (i == type_impls_.end()) {
       std::stringstream s;
       s << "no type class found for type " << type_name;
       ReportError(s.str());
     }
-    return Type(i->second);
+    return Type(i->second.get());
   }
 
   Type GetArgumentsType() { return GetType(ARGUMENTS_TYPE_STRING); }
@@ -99,7 +99,7 @@ class TypeOracle {
   }
 
  private:
-  std::map<std::string, TypeImpl*> type_imples_;
+  std::map<std::string, std::unique_ptr<TypeImpl>> type_impls_;
   std::vector<std::pair<Type, Type>> implicit_conversions_;
 };
 

@@ -26,9 +26,6 @@ std::ostream& operator<<(std::ostream& os, const Signature& sig) {
   if (!sig.return_type.IsVoid()) {
     os << ": " << sig.return_type;
   }
-  for (size_t i = 0; i < sig.labels.size(); ++i) {
-    os << (i == 0 ? " labels " : ", ") << sig.labels[i];
-  }
   return os;
 }
 

@@ -98,7 +98,7 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
   Builtin* builtin = enclosing_scope->DeclareBuiltin(
       decl->pos, decl->name, kind, new_scope, signature);
   defined_builtins_.push_back(builtin);
-  DeclareParameterList(decl->pos, signature);
+  DeclareParameterList(decl->pos, signature, {});
   CurrentCallActivator activator(global_context_, builtin);
   Visit(decl->body);
 }
@@ -127,7 +127,7 @@ void DeclarationVisitor::Visit(MacroDeclaration* decl) {
 
   Macro* macro = enclosing_scope->DeclareMacro(decl->pos, decl->name, new_scope,
                                                signature);
-  DeclareParameterList(decl->pos, signature);
+  DeclareParameterList(decl->pos, signature, decl->labels);
   CurrentCallActivator activator(global_context_, macro);
   Visit(decl->body);
 
@@ -164,7 +164,7 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
 
     // Declare catch labels
     for (LabelBlock* block : stmt->label_blocks) {
-      std::vector<Variable*> parameters;
+      Label* shared_label = TopScope()->DeclareLabel(stmt->pos, block->label);
       {
         Scope::Activator s(global_context_, block->body);
         if (block->parameters.has_varargs) {
@@ -176,14 +176,12 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
 
         size_t i = 0;
         for (auto p : block->parameters.names) {
-          parameters.push_back(TopScope()->DeclareVariable(
+          shared_label->AddVariable(TopScope()->DeclareVariable(
               stmt->pos, p,
               GetTypeOracle().GetType(block->parameters.types[i])));
           ++i;
         }
       }
-      Label* shared_label = new Label(block->label, parameters);
-      TopScope()->DeclareLabel(stmt->pos, block->label, shared_label);
       if (global_context_.verbose()) {
         std::cout << " declaring catch for exception " << block->label << "\n";
       }

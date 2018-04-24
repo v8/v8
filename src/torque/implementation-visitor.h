@@ -231,7 +231,6 @@ class ImplementationVisitor : public FileVisitor {
 
   size_t indent_;
   int32_t next_temp_;
-  std::ostream* current_source_out_;
 };
 
 }  // namespace torque

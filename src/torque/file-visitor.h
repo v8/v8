@@ -44,9 +44,7 @@ class FileVisitor {
   static constexpr const char* kFalseLabelName = "False";
   static constexpr const char* kReturnValueVariable = "return";
   static constexpr const char* kConditionValueVariable = "condition";
-  static constexpr const char* kBreakLabelName = "break";
   static constexpr const char* kDoneLabelName = "done";
-  static constexpr const char* kContinueLabelName = "continue";
   static constexpr const char* kForIndexValueVariable = "for_index";
 
   Module* CurrentModule() const { return module_; }
@@ -81,10 +79,10 @@ class FileVisitor {
       } else if (declarable->IsRuntime()) {
         result = Runtime::cast(declarable);
       } else if (declarable->IsMacroList()) {
-        for (auto m : MacroList::cast(declarable)->list()) {
+        for (auto& m : MacroList::cast(declarable)->list()) {
           if (GetTypeOracle().IsCompatibleSignature(
                   m->signature().parameter_types, parameter_types)) {
-            result = m;
+            result = m.get();
             break;
           }
         }
@@ -115,10 +113,10 @@ class FileVisitor {
     Declarable* declarable = global_context_.Lookup(name);
     if (declarable != nullptr) {
       if (declarable->IsMacroList()) {
-        for (auto m : MacroList::cast(declarable)->list()) {
+        for (auto& m : MacroList::cast(declarable)->list()) {
           if (m->signature().parameter_types.types == types &&
               !m->signature().parameter_types.var_args) {
-            return m;
+            return m.get();
           }
         }
       }
@@ -154,7 +152,7 @@ class FileVisitor {
 
   Signature MakeSignature(const ParameterList& parameters,
                           const std::string& return_type,
-                          const LabelAndTypesVector& exceptions);
+                          const LabelAndTypesVector& labels);
 
   GlobalContext& global_context_;
   Callable* current_callable_;

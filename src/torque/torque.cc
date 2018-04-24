@@ -61,12 +61,16 @@ int WrappedMain(int argc, const char** argv) {
     // file, parse it and
     // remember the syntax tree
     context.name = argv[i];
-    context.stream = new antlr4::ANTLRFileStream(context.name.c_str());
-    context.lexer = new TorqueLexer(context.stream);
-    context.tokens = new antlr4::CommonTokenStream(context.lexer);
+    context.stream = std::unique_ptr<antlr4::ANTLRFileStream>(
+        new antlr4::ANTLRFileStream(context.name.c_str()));
+    context.lexer =
+        std::unique_ptr<TorqueLexer>(new TorqueLexer(context.stream.get()));
+    context.tokens = std::unique_ptr<antlr4::CommonTokenStream>(
+        new antlr4::CommonTokenStream(context.lexer.get()));
     context.tokens->fill();
     lexer_errors += context.lexer->getNumberOfSyntaxErrors();
-    context.parser = new TorqueParser(context.tokens);
+    context.parser =
+        std::unique_ptr<TorqueParser>(new TorqueParser(context.tokens.get()));
     context.parser->setErrorHandler(error_strategy);
     context.file = context.parser->file();
     ast_generator.visitSourceFile(&context);
@@ -93,7 +97,7 @@ int WrappedMain(int argc, const char** argv) {
     visitor.Visit(global_context.ast());
 
     for (auto& module : global_context.GetModules()) {
-      visitor.GenerateImplementation(output_directory, module.second);
+      visitor.GenerateImplementation(output_directory, module.second.get());
     }
   }
   return 0;

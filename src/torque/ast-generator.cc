@@ -104,8 +104,8 @@ antlrcpp::Any AstGenerator::visitTypeListMaybeVarArgs(
 
 antlrcpp::Any AstGenerator::visitModuleDeclaration(
     TorqueParser::ModuleDeclarationContext* context) {
-  ModuleDeclaration* result = new ExplicitModuleDeclaration{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText(), {}};
+  ModuleDeclaration* result = RegisterNode(new ExplicitModuleDeclaration{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(), {}});
   for (auto* declaration : context->declaration()) {
     result->declarations.push_back(
         declaration->accept(this).as<Declaration*>());
@@ -115,27 +115,27 @@ antlrcpp::Any AstGenerator::visitModuleDeclaration(
 
 antlrcpp::Any AstGenerator::visitMacroDeclaration(
     TorqueParser::MacroDeclarationContext* context) {
-  return base::implicit_cast<Declaration*>(new MacroDeclaration{
+  return base::implicit_cast<Declaration*>(RegisterNode(new MacroDeclaration{
       Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
       std::move(context->parameterList()->accept(this).as<ParameterList>()),
       GetOptionalType(context->optionalType()),
       GetOptionalLabelAndTypeList(context->optionalLabelList()),
-      context->helperBody()->accept(this).as<Statement*>()});
+      context->helperBody()->accept(this).as<Statement*>()}));
 }
 
 antlrcpp::Any AstGenerator::visitBuiltinDeclaration(
     TorqueParser::BuiltinDeclarationContext* context) {
-  return base::implicit_cast<Declaration*>(new BuiltinDeclaration{
+  return base::implicit_cast<Declaration*>(RegisterNode(new BuiltinDeclaration{
       Pos(context), context->JAVASCRIPT() != nullptr,
       context->IDENTIFIER()->getSymbol()->getText(),
       std::move(context->parameterList()->accept(this).as<ParameterList>()),
       GetOptionalType(context->optionalType()),
-      context->helperBody()->accept(this).as<Statement*>()});
+      context->helperBody()->accept(this).as<Statement*>()}));
 }
 
 antlrcpp::Any AstGenerator::visitExternalMacro(
     TorqueParser::ExternalMacroContext* context) {
-  ExternalMacroDeclaration* result = new ExternalMacroDeclaration{
+  ExternalMacroDeclaration* result = RegisterNode(new ExternalMacroDeclaration{
       Pos(context),
       context->IDENTIFIER()->getSymbol()->getText(),
       context->IMPLICIT() != nullptr,
@@ -143,7 +143,7 @@ antlrcpp::Any AstGenerator::visitExternalMacro(
       std::move(
           context->typeListMaybeVarArgs()->accept(this).as<ParameterList>()),
       GetOptionalType(context->optionalType()),
-      GetOptionalLabelAndTypeList(context->optionalLabelList())};
+      GetOptionalLabelAndTypeList(context->optionalLabelList())});
   if (auto* op = context->STRING_LITERAL())
     result->op = StringLiteralUnquote(op->getSymbol()->getText());
   return base::implicit_cast<Declaration*>(result);
@@ -151,34 +151,38 @@ antlrcpp::Any AstGenerator::visitExternalMacro(
 
 antlrcpp::Any AstGenerator::visitExternalBuiltin(
     TorqueParser::ExternalBuiltinContext* context) {
-  return base::implicit_cast<Declaration*>(new ExternalBuiltinDeclaration{
-      Pos(context), context->JAVASCRIPT() != nullptr,
-      context->IDENTIFIER()->getSymbol()->getText(),
-      std::move(context->typeList()->accept(this).as<ParameterList>()),
-      GetOptionalType(context->optionalType())});
+  return base::implicit_cast<Declaration*>(
+      RegisterNode(new ExternalBuiltinDeclaration{
+          Pos(context), context->JAVASCRIPT() != nullptr,
+          context->IDENTIFIER()->getSymbol()->getText(),
+          std::move(context->typeList()->accept(this).as<ParameterList>()),
+          GetOptionalType(context->optionalType())}));
 }
 
 antlrcpp::Any AstGenerator::visitExternalRuntime(
     TorqueParser::ExternalRuntimeContext* context) {
-  return base::implicit_cast<Declaration*>(new ExternalRuntimeDeclaration{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
-      std::move(
-          context->typeListMaybeVarArgs()->accept(this).as<ParameterList>()),
-      GetOptionalType(context->optionalType())});
+  return base::implicit_cast<Declaration*>(
+      RegisterNode(new ExternalRuntimeDeclaration{
+          Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+          std::move(context->typeListMaybeVarArgs()
+                        ->accept(this)
+                        .as<ParameterList>()),
+          GetOptionalType(context->optionalType())}));
 }
 
 antlrcpp::Any AstGenerator::visitConstDeclaration(
     TorqueParser::ConstDeclarationContext* context) {
-  return base::implicit_cast<Declaration*>(new ConstDeclaration{
+  return base::implicit_cast<Declaration*>(RegisterNode(new ConstDeclaration{
       Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
       context->type()->IDENTIFIER()->getSymbol()->getText(),
-      StringLiteralUnquote(context->STRING_LITERAL()->getSymbol()->getText())});
+      StringLiteralUnquote(
+          context->STRING_LITERAL()->getSymbol()->getText())}));
 }
 
 antlrcpp::Any AstGenerator::visitTypeDeclaration(
     TorqueParser::TypeDeclarationContext* context) {
-  TypeDeclaration* result = new TypeDeclaration{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText(), {}, {}};
+  TypeDeclaration* result = RegisterNode(new TypeDeclaration{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(), {}, {}});
   if (context->extendsDeclaration())
     result->extends =
         context->extendsDeclaration()->IDENTIFIER()->getSymbol()->getText();
@@ -193,11 +197,11 @@ antlrcpp::Any AstGenerator::visitTypeDeclaration(
 
 antlrcpp::Any AstGenerator::visitVariableDeclaration(
     TorqueParser::VariableDeclarationContext* context) {
-  return new VarDeclarationStatement{
+  return RegisterNode(new VarDeclarationStatement{
       Pos(context),
       context->IDENTIFIER()->getSymbol()->getText(),
       context->type()->IDENTIFIER()->getSymbol()->getText(),
-      {}};
+      {}});
 }
 
 antlrcpp::Any AstGenerator::visitVariableDeclarationWithInitialization(
@@ -223,8 +227,8 @@ antlrcpp::Any AstGenerator::visitHelperCall(
   for (auto label : context->optionalOtherwise()->IDENTIFIER()) {
     labels.push_back(label->getSymbol()->getText());
   }
-  CallExpression* result = new CallExpression{
-      Pos(context), callee->getSymbol()->getText(), is_operator, {}, labels};
+  CallExpression* result = RegisterNode(new CallExpression{
+      Pos(context), callee->getSymbol()->getText(), is_operator, {}, labels});
   for (auto* arg : context->argumentList()->argument()) {
     result->arguments.push_back(arg->accept(this).as<Expression*>());
   }
@@ -235,21 +239,21 @@ antlrcpp::Any AstGenerator::visitHelperCallStatement(
     TorqueParser::HelperCallStatementContext* context) {
   Statement* result;
   if (context->TAIL()) {
-    result = new TailCallStatement{
+    result = RegisterNode(new TailCallStatement{
         Pos(context),
         CallExpression::cast(
-            context->helperCall()->accept(this).as<Expression*>())};
+            context->helperCall()->accept(this).as<Expression*>())});
   } else {
-    result = new ExpressionStatement{
-        Pos(context), context->helperCall()->accept(this).as<Expression*>()};
+    result = RegisterNode(new ExpressionStatement{
+        Pos(context), context->helperCall()->accept(this).as<Expression*>()});
   }
   return result;
 }
 
 antlrcpp::Any AstGenerator::visitStatementScope(
     TorqueParser::StatementScopeContext* context) {
-  BlockStatement* result =
-      new BlockStatement{Pos(context), context->DEFERRED() != nullptr, {}};
+  BlockStatement* result = RegisterNode(
+      new BlockStatement{Pos(context), context->DEFERRED() != nullptr, {}});
   for (auto* child : context->statementList()->statement()) {
     result->statements.push_back(child->accept(this).as<Statement*>());
   }
@@ -258,29 +262,31 @@ antlrcpp::Any AstGenerator::visitStatementScope(
 
 antlrcpp::Any AstGenerator::visitExpressionStatement(
     TorqueParser::ExpressionStatementContext* context) {
-  return base::implicit_cast<Statement*>(new ExpressionStatement{
-      Pos(context), context->assignment()->accept(this).as<Expression*>()});
+  return base::implicit_cast<Statement*>(RegisterNode(new ExpressionStatement{
+      Pos(context), context->assignment()->accept(this).as<Expression*>()}));
 }
 
 antlrcpp::Any AstGenerator::visitReturnStatement(
     TorqueParser::ReturnStatementContext* context) {
-  return base::implicit_cast<Statement*>(new ReturnStatement{
-      Pos(context), context->expression()->accept(this).as<Expression*>()});
+  return base::implicit_cast<Statement*>(RegisterNode(new ReturnStatement{
+      Pos(context), context->expression()->accept(this).as<Expression*>()}));
 }
 
 antlrcpp::Any AstGenerator::visitBreakStatement(
     TorqueParser::BreakStatementContext* context) {
-  return base::implicit_cast<Statement*>(new BreakStatement{Pos(context)});
+  return base::implicit_cast<Statement*>(
+      RegisterNode(new BreakStatement{Pos(context)}));
 }
 
 antlrcpp::Any AstGenerator::visitContinueStatement(
     TorqueParser::ContinueStatementContext* context) {
-  return base::implicit_cast<Statement*>(new ContinueStatement{Pos(context)});
+  return base::implicit_cast<Statement*>(
+      RegisterNode(new ContinueStatement{Pos(context)}));
 }
 
 antlrcpp::Any AstGenerator::visitGotoStatement(
     TorqueParser::GotoStatementContext* context) {
-  GotoStatement* result = new GotoStatement{Pos(context), {}, {}};
+  GotoStatement* result = RegisterNode(new GotoStatement{Pos(context), {}, {}});
   if (context->labelReference())
     result->label =
         context->labelReference()->IDENTIFIER()->getSymbol()->getText();
@@ -294,11 +300,11 @@ antlrcpp::Any AstGenerator::visitGotoStatement(
 
 antlrcpp::Any AstGenerator::visitIfStatement(
     TorqueParser::IfStatementContext* context) {
-  IfStatement* result = new IfStatement{
+  IfStatement* result = RegisterNode(new IfStatement{
       Pos(context),
       std::move(context->expression()->accept(this).as<Expression*>()),
       std::move(context->statementBlock(0)->accept(this).as<Statement*>()),
-      {}};
+      {}});
   if (context->statementBlock(1))
     result->if_false =
         std::move(context->statementBlock(1)->accept(this).as<Statement*>());
@@ -307,19 +313,19 @@ antlrcpp::Any AstGenerator::visitIfStatement(
 
 antlrcpp::Any AstGenerator::visitWhileLoop(
     TorqueParser::WhileLoopContext* context) {
-  return base::implicit_cast<Statement*>(new WhileStatement{
+  return base::implicit_cast<Statement*>(RegisterNode(new WhileStatement{
       Pos(context), context->expression()->accept(this).as<Expression*>(),
-      context->statementBlock()->accept(this).as<Statement*>()});
+      context->statementBlock()->accept(this).as<Statement*>()}));
 }
 
 antlrcpp::Any AstGenerator::visitForLoop(
     TorqueParser::ForLoopContext* context) {
-  ForLoopStatement* result = new ForLoopStatement{
+  ForLoopStatement* result = RegisterNode(new ForLoopStatement{
       Pos(context),
       {},
       context->expression()->accept(this).as<Expression*>(),
       context->assignment()->accept(this).as<Expression*>(),
-      context->statementBlock()->accept(this).as<Statement*>()};
+      context->statementBlock()->accept(this).as<Statement*>()});
   if (auto* init = context->forInitialization()
                        ->variableDeclarationWithInitialization()) {
     result->var_declaration =
@@ -330,7 +336,7 @@ antlrcpp::Any AstGenerator::visitForLoop(
 
 antlrcpp::Any AstGenerator::visitForOfLoop(
     TorqueParser::ForOfLoopContext* context) {
-  ForOfLoopStatement* result = new ForOfLoopStatement{
+  ForOfLoopStatement* result = RegisterNode(new ForOfLoopStatement{
       Pos(context),
       context->variableDeclaration()
           ->accept(this)
@@ -338,7 +344,7 @@ antlrcpp::Any AstGenerator::visitForOfLoop(
       context->expression()->accept(this).as<Expression*>(),
       {},
       {},
-      context->statementBlock()->accept(this).as<Statement*>()};
+      context->statementBlock()->accept(this).as<Statement*>()});
   if (auto* range = context->forOfRange()->rangeSpecifier()) {
     if (auto* begin = range->begin) {
       result->begin = begin->accept(this).as<Expression*>();
@@ -352,16 +358,16 @@ antlrcpp::Any AstGenerator::visitForOfLoop(
 
 antlrcpp::Any AstGenerator::visitTryCatch(
     TorqueParser::TryCatchContext* context) {
-  TryCatchStatement* result = new TryCatchStatement{
+  TryCatchStatement* result = RegisterNode(new TryCatchStatement{
       Pos(context),
       context->statementBlock()->accept(this).as<Statement*>(),
-      {}};
+      {}});
   for (auto* handler : context->handlerWithStatement()) {
     if (handler->CATCH() != nullptr) {
-      CatchBlock* catch_block = new CatchBlock{
+      CatchBlock* catch_block = RegisterNode(new CatchBlock{
           Pos(handler->statementBlock()),
           {},
-          handler->statementBlock()->accept(this).as<Statement*>()};
+          handler->statementBlock()->accept(this).as<Statement*>()});
       catch_block->caught = handler->IDENTIFIER()->getSymbol()->getText();
       result->catch_blocks.push_back(catch_block);
     } else {
@@ -373,11 +379,11 @@ antlrcpp::Any AstGenerator::visitTryCatch(
                                                  ->parameterList()
                                                  ->accept(this)
                                                  .as<ParameterList>();
-      LabelBlock* label_block = new LabelBlock{
+      LabelBlock* label_block = RegisterNode(new LabelBlock{
           Pos(handler->statementBlock()),
           handler->labelDeclaration()->IDENTIFIER()->getSymbol()->getText(),
           label_parameters,
-          handler->statementBlock()->accept(this).as<Statement*>()};
+          handler->statementBlock()->accept(this).as<Statement*>()});
       result->label_blocks.push_back(label_block);
     }
   }
@@ -388,20 +394,20 @@ antlrcpp::Any AstGenerator::visitPrimaryExpression(
     TorqueParser::PrimaryExpressionContext* context) {
   if (auto* e = context->helperCall()) return e->accept(this);
   if (auto* e = context->DECIMAL_LITERAL())
-    return base::implicit_cast<Expression*>(
-        new NumberLiteralExpression{Pos(context), e->getSymbol()->getText()});
+    return base::implicit_cast<Expression*>(RegisterNode(
+        new NumberLiteralExpression{Pos(context), e->getSymbol()->getText()}));
   if (auto* e = context->STRING_LITERAL())
-    return base::implicit_cast<Expression*>(
-        new StringLiteralExpression{Pos(context), e->getSymbol()->getText()});
+    return base::implicit_cast<Expression*>(RegisterNode(
+        new StringLiteralExpression{Pos(context), e->getSymbol()->getText()}));
   if (context->CONVERT_KEYWORD())
-    return base::implicit_cast<Expression*>(new ConvertExpression{
+    return base::implicit_cast<Expression*>(RegisterNode(new ConvertExpression{
         Pos(context), context->type()->IDENTIFIER()->getSymbol()->getText(),
-        context->expression()->accept(this).as<Expression*>()});
+        context->expression()->accept(this).as<Expression*>()}));
   if (context->CAST_KEYWORD())
-    return base::implicit_cast<Expression*>(new CastExpression{
+    return base::implicit_cast<Expression*>(RegisterNode(new CastExpression{
         Pos(context), context->type()->IDENTIFIER()->getSymbol()->getText(),
         context->IDENTIFIER()->getSymbol()->getText(),
-        context->expression()->accept(this).as<Expression*>()});
+        context->expression()->accept(this).as<Expression*>()}));
   return context->expression()->accept(this);
 }
 
@@ -411,8 +417,8 @@ antlrcpp::Any AstGenerator::visitAssignment(
   LocationExpression* location = LocationExpression::cast(
       context->locationExpression()->accept(this).as<Expression*>());
   if (auto* e = context->expression()) {
-    AssignmentExpression* result = new AssignmentExpression{
-        Pos(context), location, {}, e->accept(this).as<Expression*>()};
+    AssignmentExpression* result = RegisterNode(new AssignmentExpression{
+        Pos(context), location, {}, e->accept(this).as<Expression*>()});
     if (auto* op_node = context->ASSIGNMENT_OPERATOR()) {
       std::string op = op_node->getSymbol()->getText();
       result->op = op.substr(0, op.length() - 1);
@@ -425,13 +431,14 @@ antlrcpp::Any AstGenerator::visitAssignment(
 antlrcpp::Any AstGenerator::visitIncrementDecrement(
     TorqueParser::IncrementDecrementContext* context) {
   bool postfix = context->op;
-  return base::implicit_cast<Expression*>(new IncrementDecrementExpression{
-      Pos(context),
-      LocationExpression::cast(
-          context->locationExpression()->accept(this).as<Expression*>()),
-      context->INCREMENT() ? IncrementDecrementOperator::kIncrement
-                           : IncrementDecrementOperator::kDecrement,
-      postfix});
+  return base::implicit_cast<Expression*>(
+      RegisterNode(new IncrementDecrementExpression{
+          Pos(context),
+          LocationExpression::cast(
+              context->locationExpression()->accept(this).as<Expression*>()),
+          context->INCREMENT() ? IncrementDecrementOperator::kIncrement
+                               : IncrementDecrementOperator::kDecrement,
+          postfix}));
 }
 
 antlrcpp::Any AstGenerator::visitLocationExpression(
@@ -439,14 +446,17 @@ antlrcpp::Any AstGenerator::visitLocationExpression(
   if (auto* l = context->locationExpression()) {
     Expression* location = l->accept(this).as<Expression*>();
     if (auto* e = context->expression()) {
-      return base::implicit_cast<Expression*>(new ElementAccessExpression{
-          Pos(context), location, e->accept(this).as<Expression*>()});
+      return base::implicit_cast<Expression*>(
+          RegisterNode(new ElementAccessExpression{
+              Pos(context), location, e->accept(this).as<Expression*>()}));
     }
-    return base::implicit_cast<Expression*>(new FieldAccessExpression{
-        Pos(context), location, context->IDENTIFIER()->getSymbol()->getText()});
+    return base::implicit_cast<Expression*>(
+        RegisterNode(new FieldAccessExpression{
+            Pos(context), location,
+            context->IDENTIFIER()->getSymbol()->getText()}));
   }
-  return base::implicit_cast<Expression*>(new IdentifierExpression{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText()});
+  return base::implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText()}));
 }
 
 antlrcpp::Any AstGenerator::visitUnaryExpression(
@@ -454,8 +464,8 @@ antlrcpp::Any AstGenerator::visitUnaryExpression(
   if (auto* e = context->assignmentExpression()) return e->accept(this);
   std::vector<Expression*> args;
   args.push_back(context->unaryExpression()->accept(this).as<Expression*>());
-  return base::implicit_cast<Expression*>(new CallExpression{
-      Pos(context), context->op->getText(), true, std::move(args), {}});
+  return base::implicit_cast<Expression*>(RegisterNode(new CallExpression{
+      Pos(context), context->op->getText(), true, std::move(args), {}}));
 }
 
 antlrcpp::Any AstGenerator::visitMultiplicativeExpression(
@@ -463,12 +473,12 @@ antlrcpp::Any AstGenerator::visitMultiplicativeExpression(
   auto* right = context->unaryExpression();
   if (auto* left = context->multiplicativeExpression()) {
     return base::implicit_cast<Expression*>(
-        new CallExpression{Pos(context),
-                           context->op->getText(),
-                           true,
-                           {left->accept(this).as<Expression*>(),
-                            right->accept(this).as<Expression*>()},
-                           {}});
+        RegisterNode(new CallExpression{Pos(context),
+                                        context->op->getText(),
+                                        true,
+                                        {left->accept(this).as<Expression*>(),
+                                         right->accept(this).as<Expression*>()},
+                                        {}}));
   }
   return right->accept(this);
 }
@@ -478,12 +488,12 @@ antlrcpp::Any AstGenerator::visitAdditiveExpression(
   auto* right = context->multiplicativeExpression();
   if (auto* left = context->additiveExpression()) {
     return base::implicit_cast<Expression*>(
-        new CallExpression{Pos(context),
-                           context->op->getText(),
-                           true,
-                           {left->accept(this).as<Expression*>(),
-                            right->accept(this).as<Expression*>()},
-                           {}});
+        RegisterNode(new CallExpression{Pos(context),
+                                        context->op->getText(),
+                                        true,
+                                        {left->accept(this).as<Expression*>(),
+                                         right->accept(this).as<Expression*>()},
+                                        {}}));
   }
   return right->accept(this);
 }
@@ -493,12 +503,12 @@ antlrcpp::Any AstGenerator::visitShiftExpression(
   auto* right = context->additiveExpression();
   if (auto* left = context->shiftExpression()) {
     return base::implicit_cast<Expression*>(
-        new CallExpression{Pos(context),
-                           context->op->getText(),
-                           true,
-                           {left->accept(this).as<Expression*>(),
-                            right->accept(this).as<Expression*>()},
-                           {}});
+        RegisterNode(new CallExpression{Pos(context),
+                                        context->op->getText(),
+                                        true,
+                                        {left->accept(this).as<Expression*>(),
+                                         right->accept(this).as<Expression*>()},
+                                        {}}));
   }
   return right->accept(this);
 }
@@ -508,12 +518,12 @@ antlrcpp::Any AstGenerator::visitRelationalExpression(
   auto* right = context->shiftExpression();
   if (auto* left = context->relationalExpression()) {
     return base::implicit_cast<Expression*>(
-        new CallExpression{Pos(context),
-                           context->op->getText(),
-                           true,
-                           {left->accept(this).as<Expression*>(),
-                            right->accept(this).as<Expression*>()},
-                           {}});
+        RegisterNode(new CallExpression{Pos(context),
+                                        context->op->getText(),
+                                        true,
+                                        {left->accept(this).as<Expression*>(),
+                                         right->accept(this).as<Expression*>()},
+                                        {}}));
   }
   return right->accept(this);
 }
@@ -523,12 +533,12 @@ antlrcpp::Any AstGenerator::visitEqualityExpression(
   auto* right = context->relationalExpression();
   if (auto* left = context->equalityExpression()) {
     return base::implicit_cast<Expression*>(
-        new CallExpression{Pos(context),
-                           context->op->getText(),
-                           true,
-                           {left->accept(this).as<Expression*>(),
-                            right->accept(this).as<Expression*>()},
-                           {}});
+        RegisterNode(new CallExpression{Pos(context),
+                                        context->op->getText(),
+                                        true,
+                                        {left->accept(this).as<Expression*>(),
+                                         right->accept(this).as<Expression*>()},
+                                        {}}));
   }
   return right->accept(this);
 }
@@ -538,12 +548,12 @@ antlrcpp::Any AstGenerator::visitBitwiseExpression(
   auto* right = context->equalityExpression();
   if (auto* left = context->bitwiseExpression()) {
     return base::implicit_cast<Expression*>(
-        new CallExpression{Pos(context),
-                           context->op->getText(),
-                           true,
-                           {left->accept(this).as<Expression*>(),
-                            right->accept(this).as<Expression*>()},
-                           {}});
+        RegisterNode(new CallExpression{Pos(context),
+                                        context->op->getText(),
+                                        true,
+                                        {left->accept(this).as<Expression*>(),
+                                         right->accept(this).as<Expression*>()},
+                                        {}}));
   }
   return right->accept(this);
 }
@@ -552,9 +562,10 @@ antlrcpp::Any AstGenerator::visitLogicalANDExpression(
     TorqueParser::LogicalANDExpressionContext* context) {
   auto* right = context->bitwiseExpression();
   if (auto* left = context->logicalANDExpression()) {
-    return base::implicit_cast<Expression*>(new LogicalAndExpression{
-        Pos(context), left->accept(this).as<Expression*>(),
-        right->accept(this).as<Expression*>()});
+    return base::implicit_cast<Expression*>(
+        RegisterNode(new LogicalAndExpression{
+            Pos(context), left->accept(this).as<Expression*>(),
+            right->accept(this).as<Expression*>()}));
   }
   return right->accept(this);
 }
@@ -563,9 +574,10 @@ antlrcpp::Any AstGenerator::visitLogicalORExpression(
     TorqueParser::LogicalORExpressionContext* context) {
   auto* right = context->logicalANDExpression();
   if (auto* left = context->logicalORExpression()) {
-    return base::implicit_cast<Expression*>(new LogicalOrExpression{
-        Pos(context), left->accept(this).as<Expression*>(),
-        right->accept(this).as<Expression*>()});
+    return base::implicit_cast<Expression*>(
+        RegisterNode(new LogicalOrExpression{
+            Pos(context), left->accept(this).as<Expression*>(),
+            right->accept(this).as<Expression*>()}));
   }
   return right->accept(this);
 }
@@ -573,12 +585,13 @@ antlrcpp::Any AstGenerator::visitLogicalORExpression(
 antlrcpp::Any AstGenerator::visitConditionalExpression(
     TorqueParser::ConditionalExpressionContext* context) {
   if (auto* condition = context->conditionalExpression()) {
-    return base::implicit_cast<Expression*>(new ConditionalExpression{
-        Pos(context), condition->accept(this).as<Expression*>(),
+    return base::implicit_cast<Expression*>(
+        RegisterNode(new ConditionalExpression{
+            Pos(context), condition->accept(this).as<Expression*>(),
 
-        context->logicalORExpression(0)->accept(this).as<Expression*>(),
+            context->logicalORExpression(0)->accept(this).as<Expression*>(),
 
-        context->logicalORExpression(1)->accept(this).as<Expression*>()});
+            context->logicalORExpression(1)->accept(this).as<Expression*>()}));
   }
   return context->logicalORExpression(0)->accept(this);
 }

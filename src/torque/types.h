@@ -160,8 +160,7 @@ struct Signature {
   NameVector parameter_names;
   ParameterTypes parameter_types;
   Type return_type;
-  LabelDeclarationVector label_defintions;
-  std::vector<Label*> labels;
+  LabelDeclarationVector labels;
 };
 
 struct Arguments {

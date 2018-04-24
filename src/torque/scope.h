@@ -45,8 +45,9 @@ class Scope {
   Parameter* DeclareParameter(SourcePosition pos, const std::string& name,
                               const std::string& mangled_name, Type type);
 
-  Label* DeclareLabel(SourcePosition pos, const std::string& name,
-                      Label* already_defined = nullptr);
+  Label* DeclareLabel(SourcePosition pos, const std::string& name);
+
+  Label* DeclarePrivateLabel(SourcePosition pos, const std::string& name);
 
   void DeclareConstant(SourcePosition pos, const std::string& name, Type type,
                        const std::string& value);
@@ -56,12 +57,12 @@ class Scope {
     if (i == lookup_.end()) {
       return nullptr;
     }
-    return i->second;
+    return i->second.get();
   }
 
   void Stream(std::ostream& stream) const {
     stream << "scope " << std::to_string(scope_number_) << " {";
-    for (auto c : lookup_) {
+    for (auto& c : lookup_) {
       stream << c.first << ",";
     }
     stream << "}";
@@ -81,7 +82,8 @@ class Scope {
 
   GlobalContext& global_context_;
   int scope_number_;
-  std::map<std::string, Declarable*> lookup_;
+  int private_label_number_;
+  std::map<std::string, std::unique_ptr<Declarable>> lookup_;
 };
 
 class Scope::Activator {

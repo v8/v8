@@ -81,6 +81,7 @@ struct AstNode {
   };
 
   AstNode(Kind k, SourcePosition p) : kind(k), pos(p) {}
+  virtual ~AstNode() {}
 
   const Kind kind;
   SourcePosition pos;
@@ -167,6 +168,9 @@ class Ast {
   const std::vector<Declaration*>& declarations() const {
     return default_module_.declarations;
   }
+  void AddNode(std::unique_ptr<AstNode> node) {
+    nodes_.emplace_back(std::move(node));
+  }
   SourceId AddSource(std::string path) {
     sources_.push_back(std::move(path));
     return static_cast<SourceId>(sources_.size() - 1);
@@ -183,6 +187,7 @@ class Ast {
  private:
   DefaultModuleDeclaration default_module_;
   std::vector<std::string> sources_;
+  std::vector<std::unique_ptr<AstNode>> nodes_;
 };
 
 struct CallExpression : Expression {

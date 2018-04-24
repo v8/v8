@@ -21,19 +21,7 @@ Signature FileVisitor::MakeSignature(const ParameterList& parameters,
   Signature result{parameters.names,
                    {GetTypeVector(parameters.types), parameters.has_varargs},
                    GetType(return_type),
-                   definition_vector,
-                   {}};
-  for (auto label : labels) {
-    auto label_params = GetTypeVector(label.types);
-    std::vector<Variable*> vars;
-    size_t i = 0;
-    for (auto var_type : label_params) {
-      std::string name = label.name + std::to_string(i++);
-      Variable* var = new Variable(label.name, name, var_type);
-      vars.push_back(var);
-    }
-    result.labels.push_back(new Label(label.name, vars));
-  }
+                   definition_vector};
   return result;
 }
 

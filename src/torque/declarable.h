@@ -61,8 +61,6 @@ class Declarable {
 
 class Value : public Declarable {
  public:
-  Value(Kind kind, Type type, const std::string& name)
-      : Declarable(kind), type_(type), name_(name) {}
   const std::string& name() const { return name_; }
   virtual bool IsConst() const { return true; }
   virtual std::string GetValueForDeclaration() const = 0;
@@ -73,6 +71,10 @@ class Value : public Declarable {
   DECLARE_DECLARABLE_BOILERPLATE(Value, value);
   Type type() const { return type_; }
 
+ protected:
+  Value(Kind kind, Type type, const std::string& name)
+      : Declarable(kind), type_(type), name_(name) {}
+
  private:
   Type type_;
   std::string name_;
@@ -80,21 +82,19 @@ class Value : public Declarable {
 
 class Parameter : public Value {
  public:
-  Parameter(const std::string& name, Type type, const std::string& var_name)
-      : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
   DECLARE_DECLARABLE_BOILERPLATE(Parameter, parameter);
   std::string GetValueForDeclaration() const override { return var_name_; }
 
  private:
+  friend class Scope;
+  Parameter(const std::string& name, Type type, const std::string& var_name)
+      : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
+
   std::string var_name_;
 };
 
 class Variable : public Value {
  public:
-  Variable(const std::string& name, const std::string& value, Type type)
-      : Value(Declarable::kVariable, type, name),
-        value_(value),
-        defined_(false) {}
   DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
   bool IsConst() const override { return false; }
   std::string GetValueForDeclaration() const override { return value_; }
@@ -106,19 +106,19 @@ class Variable : public Value {
   bool IsDefined() const { return defined_; }
 
  private:
+  friend class Scope;
+  Variable(const std::string& name, const std::string& value, Type type)
+      : Value(Declarable::kVariable, type, name),
+        value_(value),
+        defined_(false) {}
+
   std::string value_;
   bool defined_;
 };
 
 class Label : public Value {
  public:
-  explicit Label(const std::string& name) : Label(name, {}) {}
-  Label(const std::string& name, const std::vector<Variable*>& parameters)
-      : Value(Declarable::kLabel, Type(),
-              "label_" + name + "_" + std::to_string(next_id_++)),
-        source_name_(name),
-        parameters_(parameters),
-        used_(false) {}
+  void AddVariable(Variable* var) { parameters_.push_back(var); }
   std::string GetSourceName() const { return source_name_; }
   std::string GetValueForDeclaration() const override { return name(); }
   Variable* GetParameter(size_t i) const { return parameters_[i]; }
@@ -130,6 +130,13 @@ class Label : public Value {
   bool IsUsed() const { return used_; }
 
  private:
+  friend class Scope;
+  explicit Label(const std::string& name)
+      : Value(Declarable::kLabel, Type(),
+              "label_" + name + "_" + std::to_string(next_id_++)),
+        source_name_(name),
+        used_(false) {}
+
   std::string source_name_;
   std::vector<Variable*> parameters_;
   static size_t next_id_;
@@ -138,25 +145,20 @@ class Label : public Value {
 
 class Constant : public Value {
  public:
-  explicit Constant(const std::string& name, Type type,
-                    const std::string& value)
-      : Value(Declarable::kConstant, type, name), value_(value) {}
   DECLARE_DECLARABLE_BOILERPLATE(Constant, constant);
   std::string GetValueForDeclaration() const override { return value_; }
 
  private:
+  friend class Scope;
+  explicit Constant(const std::string& name, Type type,
+                    const std::string& value)
+      : Value(Declarable::kConstant, type, name), value_(value) {}
+
   std::string value_;
 };
 
 class Callable : public Declarable {
  public:
-  Callable(Declarable::Kind kind, const std::string& name, Scope* scope,
-           const Signature& signature)
-      : Declarable(kind),
-        name_(name),
-        scope_(scope),
-        signature_(signature),
-        returns_(0) {}
   static Callable* cast(Declarable* declarable) {
     assert(declarable->IsMacro() || declarable->IsBuiltin() ||
            declarable->IsRuntime());
@@ -179,6 +181,15 @@ class Callable : public Declarable {
   void IncrementReturns() { ++returns_; }
   bool HasReturns() const { return returns_; }
 
+ protected:
+  Callable(Declarable::Kind kind, const std::string& name, Scope* scope,
+           const Signature& signature)
+      : Declarable(kind),
+        name_(name),
+        scope_(scope),
+        signature_(signature),
+        returns_(0) {}
+
  private:
   std::string name_;
   Scope* scope_;
@@ -188,13 +199,7 @@ class Callable : public Declarable {
 
 class Macro : public Callable {
  public:
-  Macro(const std::string& name, Scope* scope, const Signature& signature)
-      : Macro(Declarable::kMacro, name, scope, signature) {}
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
-
-  void AddLabel(const LabelDeclaration& label) { labels_.push_back(label); }
-
-  const LabelDeclarationVector& GetLabels() { return labels_; }
 
  protected:
   Macro(Declarable::Kind type, const std::string& name, Scope* scope,
@@ -202,27 +207,31 @@ class Macro : public Callable {
       : Callable(type, name, scope, signature) {}
 
  private:
-  LabelDeclarationVector labels_;
+  friend class Scope;
+  Macro(const std::string& name, Scope* scope, const Signature& signature)
+      : Macro(Declarable::kMacro, name, scope, signature) {}
 };
 
 class MacroList : public Declarable {
  public:
-  MacroList() : Declarable(Declarable::kMacroList) {}
   DECLARE_DECLARABLE_BOILERPLATE(MacroList, macro_list);
-  const std::vector<Macro*>& list() { return list_; }
-  void AddMacro(Macro* macro) { list_.push_back(macro); }
+  const std::vector<std::unique_ptr<Macro>>& list() { return list_; }
+  Macro* AddMacro(std::unique_ptr<Macro> macro) {
+    Macro* result = macro.get();
+    list_.emplace_back(std::move(macro));
+    return result;
+  }
 
  private:
-  std::vector<Macro*> list_;
+  friend class Scope;
+  MacroList() : Declarable(Declarable::kMacroList) {}
+
+  std::vector<std::unique_ptr<Macro>> list_;
 };
 
 class Builtin : public Callable {
  public:
   enum Kind { kStub = 0, kFixedArgsJavaScript, kVarArgsJavaScript };
-
-  Builtin(const std::string& name, Kind kind, Scope* scope,
-          const Signature& signature)
-      : Callable(Declarable::kBuiltin, name, scope, signature), kind_(kind) {}
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin);
   Kind kind() const { return kind_; }
   bool IsStub() const { return kind_ == kStub; }
@@ -230,14 +239,22 @@ class Builtin : public Callable {
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
 
  private:
+  friend class Scope;
+  Builtin(const std::string& name, Builtin::Kind kind, Scope* scope,
+          const Signature& signature)
+      : Callable(Declarable::kBuiltin, name, scope, signature), kind_(kind) {}
+
   Kind kind_;
 };
 
 class Runtime : public Callable {
  public:
+  DECLARE_DECLARABLE_BOILERPLATE(Runtime, runtime);
+
+ private:
+  friend class Scope;
   Runtime(const std::string& name, Scope* scope, const Signature& signature)
       : Callable(Declarable::kRuntime, name, scope, signature) {}
-  DECLARE_DECLARABLE_BOILERPLATE(Runtime, runtime);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Callable& m) {

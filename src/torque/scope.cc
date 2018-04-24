@@ -16,13 +16,16 @@ namespace torque {
 
 Scope::Scope(GlobalContext& global_context)
     : global_context_(global_context),
-      scope_number_(global_context.GetNextScopeNumber()) {}
+      scope_number_(global_context.GetNextScopeNumber()),
+      private_label_number_(0) {
+  global_context.RegisterScope(this);
+}
 
 Macro* Scope::DeclareMacro(SourcePosition pos, const std::string& name,
                            Scope* scope, const Signature& signature) {
   auto i = lookup_.find(name);
   if (i == lookup_.end()) {
-    lookup_[name] = new MacroList();
+    lookup_[name] = std::unique_ptr<MacroList>(new MacroList());
     i = lookup_.find(name);
   } else if (i->second->kind() != Declarable::kMacroList) {
     std::stringstream s;
@@ -30,8 +33,8 @@ Macro* Scope::DeclareMacro(SourcePosition pos, const std::string& name,
       << global_context_.PositionAsString(pos);
     ReportError(s.str());
   }
-  MacroList* macro_list = MacroList::cast(i->second);
-  for (auto macro : macro_list->list()) {
+  MacroList* macro_list = MacroList::cast(i->second.get());
+  for (auto& macro : macro_list->list()) {
     if (signature.parameter_types.types ==
             macro->signature().parameter_types.types &&
         signature.parameter_types.var_args ==
@@ -43,8 +46,8 @@ Macro* Scope::DeclareMacro(SourcePosition pos, const std::string& name,
       ReportError(s.str());
     }
   }
-  Macro* result = new Macro(name, scope, signature);
-  macro_list->AddMacro(result);
+  Macro* result = macro_list->AddMacro(
+      std::unique_ptr<Macro>(new Macro(name, scope, signature)));
   if (global_context_.verbose()) {
     std::cout << "declared " << *result << "\n";
   }
@@ -56,7 +59,7 @@ Builtin* Scope::DeclareBuiltin(SourcePosition pos, const std::string& name,
                                const Signature& signature) {
   CheckAlreadyDeclared(pos, name, "builtin");
   Builtin* result = new Builtin(name, kind, scope, signature);
-  lookup_[name] = result;
+  lookup_[name] = std::unique_ptr<Builtin>(result);
   if (global_context_.verbose()) {
     std::cout << "declared " << *result << "\n";
   }
@@ -67,7 +70,7 @@ Runtime* Scope::DeclareRuntime(SourcePosition pos, const std::string& name,
                                Scope* scope, const Signature& signature) {
   CheckAlreadyDeclared(pos, name, "runtime");
   Runtime* result = new Runtime(name, scope, signature);
-  lookup_[name] = result;
+  lookup_[name] = std::unique_ptr<Runtime>(result);
   if (global_context_.verbose()) {
     std::cout << "declared " << *result << "\n";
   }
@@ -80,7 +83,7 @@ Variable* Scope::DeclareVariable(SourcePosition pos, const std::string& var,
                    std::to_string(scope_number_));
   CheckAlreadyDeclared(pos, var, "variable");
   Variable* result = new Variable(var, name, type);
-  lookup_[var] = result;
+  lookup_[var] = std::unique_ptr<Variable>(result);
   if (global_context_.verbose()) {
     std::cout << "declared " << var << " (type " << type << ")\n";
   }
@@ -91,29 +94,36 @@ Parameter* Scope::DeclareParameter(SourcePosition pos, const std::string& name,
                                    const std::string& var_name, Type type) {
   CheckAlreadyDeclared(pos, name, "parameter");
   Parameter* result = new Parameter(name, type, var_name);
-  lookup_[name] = result;
+  lookup_[name] = std::unique_ptr<Parameter>(result);
   return result;
 }
 
-Label* Scope::DeclareLabel(SourcePosition pos, const std::string& name,
-                           Label* already_defined) {
+Label* Scope::DeclareLabel(SourcePosition pos, const std::string& name) {
   CheckAlreadyDeclared(pos, name, "label");
-  Label* result =
-      already_defined == nullptr ? new Label(name) : already_defined;
-  lookup_[name] = result;
+  Label* result = new Label(name);
+  lookup_[name] = std::unique_ptr<Label>(result);
+  return result;
+}
+
+Label* Scope::DeclarePrivateLabel(SourcePosition pos,
+                                  const std::string& raw_name) {
+  std::string name = raw_name + "_" + std::to_string(private_label_number_++);
+  CheckAlreadyDeclared(pos, name, "label");
+  Label* result = new Label(name);
+  lookup_[name] = std::unique_ptr<Label>(result);
   return result;
 }
 
 void Scope::DeclareConstant(SourcePosition pos, const std::string& name,
                             Type type, const std::string& value) {
   CheckAlreadyDeclared(pos, name, "constant, parameter or arguments");
-  lookup_[name] = new Constant(name, type, value);
+  lookup_[name] = std::unique_ptr<Constant>(new Constant(name, type, value));
 }
 
 void Scope::AddLiveVariables(std::set<const Variable*>& set) {
-  for (auto current : lookup_) {
+  for (auto& current : lookup_) {
     if (current.second->IsVariable()) {
-      set.insert(Variable::cast(current.second));
+      set.insert(Variable::cast(current.second.get()));
     }
   }
 }
@@ -132,8 +142,8 @@ void Scope::CheckAlreadyDeclared(SourcePosition pos, const std::string& name,
 
 void Scope::Print() {
   std::cout << "scope #" << std::to_string(scope_number_) << "\n";
-  for (auto i : lookup_) {
-    std::cout << i.first << ": " << i.second << "\n";
+  for (auto& i : lookup_) {
+    std::cout << i.first << ": " << i.second.get() << "\n";
   }
 }
 
