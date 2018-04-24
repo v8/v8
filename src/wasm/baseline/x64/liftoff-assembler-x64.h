@@ -444,24 +444,39 @@ void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
 }
 
 namespace liftoff {
-template <bool is_signed>
-void EmitInt32Div(LiftoffAssembler* assm, Register dst, Register lhs,
-                  Register rhs, Label* trap_div_by_zero,
-                  Label* trap_div_unrepresentable) {
-  DCHECK_EQ(is_signed, trap_div_unrepresentable != nullptr);
+enum class DivOrRem : uint8_t { kDiv, kRem };
+template <bool is_signed, DivOrRem div_or_rem>
+void EmitInt32DivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
+                       Register rhs, Label* trap_div_by_zero,
+                       Label* trap_div_unrepresentable) {
+  constexpr bool needs_unrepresentable_check =
+      is_signed && div_or_rem == DivOrRem::kDiv;
+  constexpr bool special_case_minus_1 =
+      is_signed && div_or_rem == DivOrRem::kRem;
+  DCHECK_EQ(needs_unrepresentable_check, trap_div_unrepresentable != nullptr);
 
   // Check for division by zero.
   assm->testl(rhs, rhs);
   assm->j(zero, trap_div_by_zero);
 
-  if (is_signed) {
-    // Check for kMinInt / -1. This is unrepresentable.
+  Label done;
+  if (needs_unrepresentable_check) {
+    // Check for {kMinInt / -1}. This is unrepresentable.
     Label do_div;
     assm->cmpl(rhs, Immediate(-1));
     assm->j(not_equal, &do_div);
     assm->cmpl(lhs, Immediate(kMinInt));
     assm->j(equal, trap_div_unrepresentable);
     assm->bind(&do_div);
+  } else if (special_case_minus_1) {
+    // {lhs % -1} is always 0 (needs to be special cased because {kMinInt / -1}
+    // cannot be computed).
+    Label do_rem;
+    assm->cmpl(rhs, Immediate(-1));
+    assm->j(not_equal, &do_rem);
+    assm->xorl(dst, dst);
+    assm->jmp(&done);
+    assm->bind(&do_rem);
   }
 
   // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
@@ -486,21 +501,36 @@ void EmitInt32Div(LiftoffAssembler* assm, Register dst, Register lhs,
     assm->divl(rhs);
   }
 
-  // Move back the result (in {eax}) into the dst register.
-  if (dst != rax) assm->movl(dst, rax);
+  // Move back the result (in {eax} or {edx}) into the {dst} register.
+  constexpr Register kResultReg = div_or_rem == DivOrRem::kDiv ? rax : rdx;
+  if (dst != kResultReg) assm->movl(dst, kResultReg);
+  if (special_case_minus_1) assm->bind(&done);
 }
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  liftoff::EmitInt32Div<true>(this, dst, lhs, rhs, trap_div_by_zero,
-                              trap_div_unrepresentable);
+  liftoff::EmitInt32DivOrRem<true, liftoff::DivOrRem::kDiv>(
+      this, dst, lhs, rhs, trap_div_by_zero, trap_div_unrepresentable);
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  liftoff::EmitInt32Div<false>(this, dst, lhs, rhs, trap_div_by_zero, nullptr);
+  liftoff::EmitInt32DivOrRem<false, liftoff::DivOrRem::kDiv>(
+      this, dst, lhs, rhs, trap_div_by_zero, nullptr);
+}
+
+void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitInt32DivOrRem<true, liftoff::DivOrRem::kRem>(
+      this, dst, lhs, rhs, trap_div_by_zero, nullptr);
+}
+
+void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitInt32DivOrRem<false, liftoff::DivOrRem::kRem>(
+      this, dst, lhs, rhs, trap_div_by_zero, nullptr);
 }
 
 void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {

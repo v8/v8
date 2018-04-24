@@ -567,6 +567,16 @@ void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
   BAILOUT("i32_divu");
 }
 
+void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i32_rems");
+}
+
+void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i32_remu");
+}
+
 #define I32_BINOP(name, instruction)                                 \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
                                          Register rhs) {             \

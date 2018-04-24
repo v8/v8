@@ -393,6 +393,10 @@ class LiftoffAssembler : public TurboAssembler {
                             Label* trap_div_unrepresentable);
   inline void emit_i32_divu(Register dst, Register lhs, Register rhs,
                             Label* trap_div_by_zero);
+  inline void emit_i32_rems(Register dst, Register lhs, Register rhs,
+                            Label* trap_rem_by_zero);
+  inline void emit_i32_remu(Register dst, Register lhs, Register rhs,
+                            Label* trap_rem_by_zero);
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
