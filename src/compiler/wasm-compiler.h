@@ -441,7 +441,7 @@ class WasmGraphBuilder {
   Node* BuildI64DivU(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI64RemU(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildDiv64Call(Node* left, Node* right, ExternalReference ref,
-                       MachineType result_type, int trap_zero,
+                       MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
   Node* BuildJavaScriptToNumber(Node* node, Node* js_context);

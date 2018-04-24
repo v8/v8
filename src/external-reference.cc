@@ -335,8 +335,9 @@ ExternalReference ExternalReference::wasm_word32_ror(Isolate* isolate) {
   return ExternalReference(Redirect(FUNCTION_ADDR(wasm::word32_ror_wrapper)));
 }
 
-static void f64_acos_wrapper(double* param) {
-  WriteDoubleValue(param, base::ieee754::acos(ReadDoubleValue(param)));
+static void f64_acos_wrapper(Address data) {
+  double input = ReadUnalignedValue<double>(data);
+  WriteUnalignedValue(data, base::ieee754::acos(input));
 }
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(
@@ -344,8 +345,9 @@ ExternalReference ExternalReference::f64_acos_wrapper_function(
   return ExternalReference(Redirect(FUNCTION_ADDR(f64_acos_wrapper)));
 }
 
-static void f64_asin_wrapper(double* param) {
-  WriteDoubleValue(param, base::ieee754::asin(ReadDoubleValue(param)));
+static void f64_asin_wrapper(Address data) {
+  double input = ReadUnalignedValue<double>(data);
+  WriteUnalignedValue<double>(data, base::ieee754::asin(input));
 }
 
 ExternalReference ExternalReference::f64_asin_wrapper_function(
@@ -369,9 +371,10 @@ ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag(
       Redirect(FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
 }
 
-static void f64_mod_wrapper(double* param0, double* param1) {
-  WriteDoubleValue(param0,
-                   Modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
+static void f64_mod_wrapper(Address data) {
+  double dividend = ReadUnalignedValue<double>(data);
+  double divisor = ReadUnalignedValue<double>(data + sizeof(dividend));
+  WriteUnalignedValue<double>(data, Modulo(dividend, divisor));
 }
 
 ExternalReference ExternalReference::f64_mod_wrapper_function(

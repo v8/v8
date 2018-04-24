@@ -1610,16 +1610,8 @@ static inline double ReadDoubleValue(Address p) {
   return ReadUnalignedValue<double>(p);
 }
 
-inline double ReadDoubleValue(const double* address) {
-  return ReadUnalignedValue<double>(reinterpret_cast<Address>(address));
-}
-
 static inline void WriteDoubleValue(Address p, double value) {
   WriteUnalignedValue(p, value);
-}
-
-inline void WriteDoubleValue(double* address, double value) {
-  WriteUnalignedValue(reinterpret_cast<Address>(address), value);
 }
 
 static inline uint16_t ReadUnalignedUInt16(Address p) {

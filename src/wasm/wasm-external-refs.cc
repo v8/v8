@@ -18,48 +18,37 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-namespace {
-
-inline int64_t ReadUnalignedInt64(int64_t* address) {
-  return ReadUnalignedValue<int64_t>(reinterpret_cast<Address>(address));
+void f32_trunc_wrapper(Address data) {
+  WriteUnalignedValue<float>(data, truncf(ReadUnalignedValue<float>(data)));
 }
 
-inline uint64_t ReadUnalignedUint64(uint64_t* address) {
-  return ReadUnalignedValue<uint64_t>(reinterpret_cast<Address>(address));
+void f32_floor_wrapper(Address data) {
+  WriteUnalignedValue<float>(data, floorf(ReadUnalignedValue<float>(data)));
 }
 
-inline void WriteUnalignedInt64(int64_t* address, int64_t value) {
-  WriteUnalignedValue<int64_t>(reinterpret_cast<Address>(address), value);
+void f32_ceil_wrapper(Address data) {
+  WriteUnalignedValue<float>(data, ceilf(ReadUnalignedValue<float>(data)));
 }
 
-inline void WriteUnalignedUint64(uint64_t* address, uint64_t value) {
-  WriteUnalignedValue<uint64_t>(reinterpret_cast<Address>(address), value);
+void f32_nearest_int_wrapper(Address data) {
+  WriteUnalignedValue<float>(data, nearbyintf(ReadUnalignedValue<float>(data)));
 }
 
-}  // namespace
-
-void f32_trunc_wrapper(float* param) { *param = truncf(*param); }
-
-void f32_floor_wrapper(float* param) { *param = floorf(*param); }
-
-void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
-
-void f32_nearest_int_wrapper(float* param) { *param = nearbyintf(*param); }
-
-void f64_trunc_wrapper(double* param) {
-  WriteDoubleValue(param, trunc(ReadDoubleValue(param)));
+void f64_trunc_wrapper(Address data) {
+  WriteUnalignedValue<double>(data, trunc(ReadUnalignedValue<double>(data)));
 }
 
-void f64_floor_wrapper(double* param) {
-  WriteDoubleValue(param, floor(ReadDoubleValue(param)));
+void f64_floor_wrapper(Address data) {
+  WriteUnalignedValue<double>(data, floor(ReadUnalignedValue<double>(data)));
 }
 
-void f64_ceil_wrapper(double* param) {
-  WriteDoubleValue(param, ceil(ReadDoubleValue(param)));
+void f64_ceil_wrapper(Address data) {
+  WriteUnalignedValue<double>(data, ceil(ReadUnalignedValue<double>(data)));
 }
 
-void f64_nearest_int_wrapper(double* param) {
-  WriteDoubleValue(param, nearbyint(ReadDoubleValue(param)));
+void f64_nearest_int_wrapper(Address data) {
+  WriteUnalignedValue<double>(data,
+                              nearbyint(ReadUnalignedValue<double>(data)));
 }
 
 void int64_to_float32_wrapper(Address data) {
@@ -181,46 +170,46 @@ int32_t float64_to_uint64_wrapper(Address data) {
   return 0;
 }
 
-int32_t int64_div_wrapper(int64_t* dst, int64_t* src) {
-  int64_t src_val = ReadUnalignedInt64(src);
-  int64_t dst_val = ReadUnalignedInt64(dst);
-  if (src_val == 0) {
+int32_t int64_div_wrapper(Address data) {
+  int64_t dividend = ReadUnalignedValue<int64_t>(data);
+  int64_t divisor = ReadUnalignedValue<int64_t>(data + sizeof(dividend));
+  if (divisor == 0) {
     return 0;
   }
-  if (src_val == -1 && dst_val == std::numeric_limits<int64_t>::min()) {
+  if (divisor == -1 && dividend == std::numeric_limits<int64_t>::min()) {
     return -1;
   }
-  WriteUnalignedInt64(dst, dst_val / src_val);
+  WriteUnalignedValue<int64_t>(data, dividend / divisor);
   return 1;
 }
 
-int32_t int64_mod_wrapper(int64_t* dst, int64_t* src) {
-  int64_t src_val = ReadUnalignedInt64(src);
-  int64_t dst_val = ReadUnalignedInt64(dst);
-  if (src_val == 0) {
+int32_t int64_mod_wrapper(Address data) {
+  int64_t dividend = ReadUnalignedValue<int64_t>(data);
+  int64_t divisor = ReadUnalignedValue<int64_t>(data + sizeof(dividend));
+  if (divisor == 0) {
     return 0;
   }
-  WriteUnalignedInt64(dst, dst_val % src_val);
+  WriteUnalignedValue<int64_t>(data, dividend % divisor);
   return 1;
 }
 
-int32_t uint64_div_wrapper(uint64_t* dst, uint64_t* src) {
-  uint64_t src_val = ReadUnalignedUint64(src);
-  uint64_t dst_val = ReadUnalignedUint64(dst);
-  if (src_val == 0) {
+int32_t uint64_div_wrapper(Address data) {
+  uint64_t dividend = ReadUnalignedValue<uint64_t>(data);
+  uint64_t divisor = ReadUnalignedValue<uint64_t>(data + sizeof(dividend));
+  if (divisor == 0) {
     return 0;
   }
-  WriteUnalignedUint64(dst, dst_val / src_val);
+  WriteUnalignedValue<uint64_t>(data, dividend / divisor);
   return 1;
 }
 
-int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
-  uint64_t src_val = ReadUnalignedUint64(src);
-  uint64_t dst_val = ReadUnalignedUint64(dst);
-  if (src_val == 0) {
+int32_t uint64_mod_wrapper(Address data) {
+  uint64_t dividend = ReadUnalignedValue<uint64_t>(data);
+  uint64_t divisor = ReadUnalignedValue<uint64_t>(data + sizeof(dividend));
+  if (divisor == 0) {
     return 0;
   }
-  WriteUnalignedUint64(dst, dst_val % src_val);
+  WriteUnalignedValue<uint64_t>(data, dividend % divisor);
   return 1;
 }
 
@@ -252,10 +241,10 @@ uint32_t word32_ror_wrapper(Address data) {
   return (input >> shift) | (input << (32 - shift));
 }
 
-void float64_pow_wrapper(double* param0, double* param1) {
-  double x = ReadDoubleValue(param0);
-  double y = ReadDoubleValue(param1);
-  WriteDoubleValue(param0, Pow(x, y));
+void float64_pow_wrapper(Address data) {
+  double x = ReadUnalignedValue<double>(data);
+  double y = ReadUnalignedValue<double>(data + sizeof(x));
+  WriteUnalignedValue<double>(data, Pow(x, y));
 }
 
 void set_thread_in_wasm_flag() { trap_handler::SetThreadInWasm(); }

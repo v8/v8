@@ -1719,13 +1719,12 @@ Node* WasmGraphBuilder::BuildBitCountingCall(Node* input, ExternalReference ref,
       graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
                        input, *effect_, *control_);
 
-  MachineSignature::Builder sig_builder(jsgraph()->zone(), 1, 1);
-  sig_builder.AddReturn(MachineType::Int32());
-  sig_builder.AddParam(MachineType::Pointer());
+  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
+  MachineSignature sig(1, 1, sig_types);
 
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
 
-  return BuildCCall(sig_builder.Build(), function, stack_slot_param);
+  return BuildCCall(&sig, function, stack_slot_param);
 }
 
 Node* WasmGraphBuilder::BuildI32Ctz(Node* input) {
@@ -1845,52 +1844,37 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
                                               MachineType type, Node* input0,
                                               Node* input1) {
   // We do truncation by calling a C function which calculates the result.
-  // The input is passed to the C function as a double*'s to avoid double
-  // parameters. For this we reserve slots on the stack, store the parameters
-  // in those slots, pass pointers to the slot to the C function,
-  // and after calling the C function we collect the return value from
-  // the stack slot.
+  // The input is passed to the C function as a byte buffer holding the two
+  // input doubles. We reserve this byte buffer as a stack slot, store the
+  // parameters in this buffer slots, pass a pointer to the buffer to the C
+  // function, and after calling the C function we collect the return value from
+  // the buffer.
 
-  Node* stack_slot_param0 =
-      graph()->NewNode(jsgraph()->machine()->StackSlot(type.representation()));
+  const int type_size = 1 << ElementSizeLog2Of(type.representation());
+  const int stack_slot_bytes = (input1 == nullptr ? 1 : 2) * type_size;
+  Node* stack_slot =
+      graph()->NewNode(jsgraph()->machine()->StackSlot(stack_slot_bytes));
 
-  const Operator* store_op0 = jsgraph()->machine()->Store(
+  const Operator* store_op = jsgraph()->machine()->Store(
       StoreRepresentation(type.representation(), kNoWriteBarrier));
-  *effect_ = graph()->NewNode(store_op0, stack_slot_param0,
-                              jsgraph()->Int32Constant(0), input0, *effect_,
-                              *control_);
+  *effect_ = graph()->NewNode(store_op, stack_slot, jsgraph()->Int32Constant(0),
+                              input0, *effect_, *control_);
 
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
 
-  if (input1 == nullptr) {
-    const int input_count = 1;
-    Signature<MachineType>::Builder sig_builder(jsgraph()->zone(), 0,
-                                                input_count);
-    sig_builder.AddParam(MachineType::Pointer());
-    BuildCCall(sig_builder.Build(), function, stack_slot_param0);
-  } else {
-    Node* stack_slot_param1 = graph()->NewNode(
-        jsgraph()->machine()->StackSlot(type.representation()));
-    const Operator* store_op1 = jsgraph()->machine()->Store(
-        StoreRepresentation(type.representation(), kNoWriteBarrier));
-    *effect_ = graph()->NewNode(store_op1, stack_slot_param1,
-                                jsgraph()->Int32Constant(0), input1, *effect_,
-                                *control_);
-
-    const int input_count = 2;
-    Signature<MachineType>::Builder sig_builder(jsgraph()->zone(), 0,
-                                                input_count);
-    sig_builder.AddParam(MachineType::Pointer());
-    sig_builder.AddParam(MachineType::Pointer());
-    BuildCCall(sig_builder.Build(), function, stack_slot_param0,
-               stack_slot_param1);
+  if (input1 != nullptr) {
+    *effect_ = graph()->NewNode(store_op, stack_slot,
+                                jsgraph()->Int32Constant(type_size), input1,
+                                *effect_, *control_);
   }
 
-  const Operator* load_op = jsgraph()->machine()->Load(type);
+  MachineType sig_types[] = {MachineType::Pointer()};
+  MachineSignature sig(0, 1, sig_types);
+  BuildCCall(&sig, function, stack_slot);
 
-  Node* load =
-      graph()->NewNode(load_op, stack_slot_param0, jsgraph()->Int32Constant(0),
-                       *effect_, *control_);
+  const Operator* load_op = jsgraph()->machine()->Load(type);
+  Node* load = graph()->NewNode(
+      load_op, stack_slot, jsgraph()->Int32Constant(0), *effect_, *control_);
   *effect_ = load;
   return load;
 }
@@ -2493,37 +2477,31 @@ Node* WasmGraphBuilder::BuildI64RemU(Node* left, Node* right,
 
 Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
                                        ExternalReference ref,
-                                       MachineType result_type, int trap_zero,
+                                       MachineType result_type,
+                                       wasm::TrapReason trap_zero,
                                        wasm::WasmCodePosition position) {
-  Node* stack_slot_dst = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(MachineRepresentation::kWord64));
-  Node* stack_slot_src = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(MachineRepresentation::kWord64));
+  Node* stack_slot =
+      graph()->NewNode(jsgraph()->machine()->StackSlot(2 * sizeof(double)));
 
   const Operator* store_op = jsgraph()->machine()->Store(
       StoreRepresentation(MachineRepresentation::kWord64, kNoWriteBarrier));
-  *effect_ =
-      graph()->NewNode(store_op, stack_slot_dst, jsgraph()->Int32Constant(0),
-                       left, *effect_, *control_);
-  *effect_ =
-      graph()->NewNode(store_op, stack_slot_src, jsgraph()->Int32Constant(0),
-                       right, *effect_, *control_);
+  *effect_ = graph()->NewNode(store_op, stack_slot, jsgraph()->Int32Constant(0),
+                              left, *effect_, *control_);
+  *effect_ = graph()->NewNode(store_op, stack_slot,
+                              jsgraph()->Int32Constant(sizeof(double)), right,
+                              *effect_, *control_);
 
-  MachineSignature::Builder sig_builder(jsgraph()->zone(), 1, 2);
-  sig_builder.AddReturn(MachineType::Int32());
-  sig_builder.AddParam(MachineType::Pointer());
-  sig_builder.AddParam(MachineType::Pointer());
+  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
+  MachineSignature sig(1, 1, sig_types);
 
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
-  Node* call =
-      BuildCCall(sig_builder.Build(), function, stack_slot_dst, stack_slot_src);
+  Node* call = BuildCCall(&sig, function, stack_slot);
 
-  ZeroCheck32(static_cast<wasm::TrapReason>(trap_zero), call, position);
+  ZeroCheck32(trap_zero, call, position);
   TrapIfEq32(wasm::kTrapDivUnrepresentable, call, -1, position);
   const Operator* load_op = jsgraph()->machine()->Load(result_type);
-  Node* load =
-      graph()->NewNode(load_op, stack_slot_dst, jsgraph()->Int32Constant(0),
-                       *effect_, *control_);
+  Node* load = graph()->NewNode(
+      load_op, stack_slot, jsgraph()->Int32Constant(0), *effect_, *control_);
   *effect_ = load;
   return load;
 }
@@ -3089,9 +3067,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<WeakCell> weak_instance,
     args[pos++] = *control_;
 
     // We only need a dummy call descriptor.
-    wasm::FunctionSig::Builder dummy_sig_builder(jsgraph()->zone(), 0, 0);
-    auto call_descriptor =
-        GetWasmCallDescriptor(jsgraph()->zone(), dummy_sig_builder.Build());
+    wasm::FunctionSig dummy_sig(0, 0, nullptr);
+    auto call_descriptor = GetWasmCallDescriptor(jsgraph()->zone(), &dummy_sig);
     *effect_ =
         graph()->NewNode(jsgraph()->common()->Call(call_descriptor), pos, args);
     Return(jsgraph()->UndefinedConstant());
@@ -3633,10 +3610,9 @@ Node* WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
                       jsgraph()->isolate())
                 : ExternalReference::wasm_clear_thread_in_wasm_flag(
                       jsgraph()->isolate());
-  MachineSignature::Builder sig_builder(jsgraph()->zone(), 0, 0);
+  MachineSignature sig(0, 0, nullptr);
   return BuildCCall(
-      sig_builder.Build(),
-      graph()->NewNode(jsgraph()->common()->ExternalConstant(ref)));
+      &sig, graph()->NewNode(jsgraph()->common()->ExternalConstant(ref)));
 }
 
 // Only call this function for code which is not reused across instantiations,
