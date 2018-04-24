@@ -3348,7 +3348,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(uint32_t func_index) {
   } else {
     // TODO(wasm): Implement multi-return.
     DCHECK_EQ(1, sig_->return_count());
-    MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(sig_->GetReturn());
+    MachineType load_rep = wasm::ValueTypes::MachineTypeFor(sig_->GetReturn());
     Node* val =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
                          Int32Constant(0), *effect_, *control_);
@@ -3661,7 +3661,7 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
 
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
   MachineType mem_type =
-      wasm::WasmOpcodes::MachineTypeFor(env_->module->globals[index].type);
+      wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
   Node* base = nullptr;
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(mem_type, env_->module->globals[index].offset, &base,
@@ -3674,7 +3674,7 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
 
 Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
   MachineType mem_type =
-      wasm::WasmOpcodes::MachineTypeFor(env_->module->globals[index].type);
+      wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
   Node* base = nullptr;
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(mem_type, env_->module->globals[index].offset, &base,
@@ -3770,7 +3770,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
                                                       wasm::ValueType type) {
   int alignment = offset % (1 << ElementSizeLog2Of(type));
-  MachineType mach_type = wasm::WasmOpcodes::MachineTypeFor(type);
+  MachineType mach_type = wasm::ValueTypes::MachineTypeFor(type);
   if (alignment == 0 || jsgraph()->machine()->UnalignedLoadSupported(type)) {
     return jsgraph()->machine()->Load(mach_type);
   }
@@ -3826,7 +3826,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
 
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
-  index = BoundsCheckMem(wasm::WasmOpcodes::MemSize(memtype), index, offset,
+  index = BoundsCheckMem(wasm::ValueTypes::MemSize(memtype), index, offset,
                          position, kCanOmitBoundsCheck);
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
@@ -3879,7 +3879,7 @@ Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
                                  wasm::ValueType type) {
   Node* store;
 
-  index = BoundsCheckMem(wasm::WasmOpcodes::MemSize(mem_rep), index, offset,
+  index = BoundsCheckMem(wasm::ValueTypes::MemSize(mem_rep), index, offset,
                          position, kCanOmitBoundsCheck);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
@@ -4531,7 +4531,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #define BUILD_ATOMIC_BINOP(Name, Operation, Type, Prefix)                     \
   case wasm::kExpr##Name: {                                                   \
     Node* index =                                                             \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),       \
+        BoundsCheckMem(wasm::ValueTypes::MemSize(MachineType::Type()),        \
                        inputs[0], offset, position, kNeedsBoundsCheck);       \
     node = graph()->NewNode(                                                  \
         jsgraph()->machine()->Prefix##Atomic##Operation(MachineType::Type()), \
@@ -4544,7 +4544,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #define BUILD_ATOMIC_CMP_EXCHG(Name, Type, Prefix)                            \
   case wasm::kExpr##Name: {                                                   \
     Node* index =                                                             \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),       \
+        BoundsCheckMem(wasm::ValueTypes::MemSize(MachineType::Type()),        \
                        inputs[0], offset, position, kNeedsBoundsCheck);       \
     node = graph()->NewNode(                                                  \
         jsgraph()->machine()->Prefix##AtomicCompareExchange(                  \
@@ -4558,7 +4558,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #define BUILD_ATOMIC_LOAD_OP(Name, Type, Prefix)                        \
   case wasm::kExpr##Name: {                                             \
     Node* index =                                                       \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), \
+        BoundsCheckMem(wasm::ValueTypes::MemSize(MachineType::Type()),  \
                        inputs[0], offset, position, kNeedsBoundsCheck); \
     node = graph()->NewNode(                                            \
         jsgraph()->machine()->Prefix##AtomicLoad(MachineType::Type()),  \
@@ -4571,7 +4571,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #define BUILD_ATOMIC_STORE_OP(Name, Type, Rep, Prefix)                         \
   case wasm::kExpr##Name: {                                                    \
     Node* index =                                                              \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),        \
+        BoundsCheckMem(wasm::ValueTypes::MemSize(MachineType::Type()),         \
                        inputs[0], offset, position, kNeedsBoundsCheck);        \
     node = graph()->NewNode(                                                   \
         jsgraph()->machine()->Prefix##AtomicStore(MachineRepresentation::Rep), \
@@ -4900,11 +4900,11 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
     if (name_len + 1 < kMaxNameLen) debug_name[name_len++] = c;
   };
   for (wasm::ValueType t : sig->parameters()) {
-    append_name_char(wasm::WasmOpcodes::ShortNameOf(t));
+    append_name_char(wasm::ValueTypes::ShortNameOf(t));
   }
   append_name_char(':');
   for (wasm::ValueType t : sig->returns()) {
-    append_name_char(wasm::WasmOpcodes::ShortNameOf(t));
+    append_name_char(wasm::ValueTypes::ShortNameOf(t));
   }
   debug_name[name_len] = '\0';
   Vector<const char> debug_name_vec(debug_name, name_len);

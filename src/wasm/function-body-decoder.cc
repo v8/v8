@@ -929,7 +929,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         if (decls.type_list[pos] == type) {
           ++count;
         } else {
-          os << " " << count << " " << WasmOpcodes::TypeName(type);
+          os << " " << count << " " << ValueTypes::TypeName(type);
           type = decls.type_list[pos];
           count = 1;
         }
@@ -1003,7 +1003,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         BlockTypeOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << "   // @" << i.pc_offset();
         for (unsigned i = 0; i < operand.out_arity(); i++) {
-          os << " " << WasmOpcodes::TypeName(operand.out_type(i));
+          os << " " << ValueTypes::TypeName(operand.out_type(i));
         }
         control_depth++;
         break;

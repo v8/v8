@@ -1957,7 +1957,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (WasmOpcodes::IsPrefixOpcode(opcode)) {
             opcode = static_cast<WasmOpcode>(opcode << 8 | *(val.pc + 1));
           }
-          TRACE_PART(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
+          TRACE_PART(" %c@%d:%s", ValueTypes::ShortNameOf(val.type),
                      static_cast<int>(val.pc - this->start_),
                      WasmOpcodes::OpcodeName(opcode));
           // If the decoder failed, don't try to decode the operands, as this
@@ -2311,8 +2311,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                   expected == kWasmVar)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
                    SafeOpcodeNameAt(this->pc_), index,
-                   WasmOpcodes::TypeName(expected), SafeOpcodeNameAt(val.pc),
-                   WasmOpcodes::TypeName(val.type));
+                   ValueTypes::TypeName(expected), SafeOpcodeNameAt(val.pc),
+                   ValueTypes::TypeName(val.type));
     }
     return val;
   }
@@ -2358,7 +2358,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(val.type == kWasmVar)) {
           this->errorf(
               this->pc_, "type error in merge[%u] (expected %s, got %s)", i,
-              WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
+              ValueTypes::TypeName(old.type), ValueTypes::TypeName(val.type));
           return false;
         }
         val.type = old.type;

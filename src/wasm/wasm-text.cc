@@ -54,13 +54,12 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
   if (fun->sig->parameter_count()) {
     os << " (param";
     for (auto param : fun->sig->parameters())
-      os << ' ' << WasmOpcodes::TypeName(param);
+      os << ' ' << ValueTypes::TypeName(param);
     os << ')';
   }
   if (fun->sig->return_count()) {
     os << " (result";
-    for (auto ret : fun->sig->returns())
-      os << ' ' << WasmOpcodes::TypeName(ret);
+    for (auto ret : fun->sig->returns()) os << ' ' << ValueTypes::TypeName(ret);
     os << ')';
   }
   os << "\n";
@@ -74,7 +73,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
   if (!decls.type_list.empty()) {
     os << "(local";
     for (const ValueType &v : decls.type_list) {
-      os << ' ' << WasmOpcodes::TypeName(v);
+      os << ' ' << ValueTypes::TypeName(v);
     }
     os << ")\n";
     ++line_nr;
@@ -106,7 +105,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         if (operand.type == kWasmVar) {
           os << " (type " << operand.sig_index << ")";
         } else if (operand.out_arity() > 0) {
-          os << " " << WasmOpcodes::TypeName(operand.out_type(0));
+          os << " " << ValueTypes::TypeName(operand.out_type(0));
         }
         control_depth++;
         break;

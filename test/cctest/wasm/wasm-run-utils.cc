@@ -201,7 +201,7 @@ ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
-  byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
+  byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(type));
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
   test_module_.globals.push_back(
       {type, true, WasmInitExpr(), global_offset, false, false});
@@ -488,10 +488,10 @@ FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
   // Convert machine types to local types, and check that there are no
   // MachineType::None()'s in the parameters.
   int idx = 0;
-  if (return_count) sig_types[idx++] = WasmOpcodes::ValueTypeFor(return_type);
+  if (return_count) sig_types[idx++] = ValueTypes::ValueTypeFor(return_type);
   for (MachineType param : param_types) {
     CHECK_NE(MachineType::None(), param);
-    sig_types[idx++] = WasmOpcodes::ValueTypeFor(param);
+    sig_types[idx++] = ValueTypes::ValueTypeFor(param);
   }
   return new (&zone_) FunctionSig(return_count, param_count, sig_types);
 }

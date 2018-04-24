@@ -1110,7 +1110,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
     liftoff::Store(this, sp, arg_bytes, *args++, param_type);
-    arg_bytes += WasmOpcodes::MemSize(param_type);
+    arg_bytes += ValueTypes::MemSize(param_type);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

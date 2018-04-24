@@ -170,8 +170,7 @@ class LiftoffCompiler {
     for (ValueType supported : supported_types) {
       if (type == supported) return true;
     }
-    SNPrintF(ArrayVector(buffer), "%s %s", WasmOpcodes::TypeName(type),
-             context);
+    SNPrintF(ArrayVector(buffer), "%s %s", ValueTypes::TypeName(type), context);
     unsupported(decoder, buffer);
     return false;
   }
@@ -578,11 +577,11 @@ class LiftoffCompiler {
     // Store arguments on our stack, then align the stack for calling to C.
     int param_bytes = 0;
     for (ValueType param_type : sig->parameters()) {
-      param_bytes += WasmOpcodes::MemSize(param_type);
+      param_bytes += ValueTypes::MemSize(param_type);
     }
     int out_arg_bytes = out_argument_type == kWasmStmt
                             ? 0
-                            : WasmOpcodes::MemSize(out_argument_type);
+                            : ValueTypes::MemSize(out_argument_type);
     int stack_bytes = std::max(param_bytes, out_arg_bytes);
     __ CallC(sig, arg_regs, result_regs, out_argument_type, stack_bytes,
              ext_ref);

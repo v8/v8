@@ -958,14 +958,14 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos,
                "type mismatch in global initialization "
                "(from global #%u), expected %s, got %s",
-               other_index, WasmOpcodes::TypeName(global->type),
-               WasmOpcodes::TypeName(module->globals[other_index].type));
+               other_index, ValueTypes::TypeName(global->type),
+               ValueTypes::TypeName(module->globals[other_index].type));
       }
     } else {
       if (global->type != TypeOf(module, global->init)) {
         errorf(pos, "type error in global initialization, expected %s, got %s",
-               WasmOpcodes::TypeName(global->type),
-               WasmOpcodes::TypeName(TypeOf(module, global->init)));
+               ValueTypes::TypeName(global->type),
+               ValueTypes::TypeName(TypeOf(module, global->init)));
       }
     }
   }
@@ -991,8 +991,7 @@ class ModuleDecoderImpl : public Decoder {
       return;
     }
     for (WasmGlobal& global : module->globals) {
-      byte size =
-          WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(global.type));
+      byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
       offset = (offset + size - 1) & ~(size - 1);  // align
       global.offset = offset;
       offset += size;
@@ -1223,8 +1222,8 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (expected != kWasmStmt && TypeOf(module, expr) != kWasmI32) {
       errorf(pos, "type error in init expression, expected %s, got %s",
-             WasmOpcodes::TypeName(expected),
-             WasmOpcodes::TypeName(TypeOf(module, expr)));
+             ValueTypes::TypeName(expected),
+             ValueTypes::TypeName(TypeOf(module, expr)));
     }
     return expr;
   }

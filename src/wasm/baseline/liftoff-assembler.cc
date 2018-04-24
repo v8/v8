@@ -629,7 +629,7 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
 }
 
 std::ostream& operator<<(std::ostream& os, VarState slot) {
-  os << WasmOpcodes::TypeName(slot.type()) << ":";
+  os << ValueTypes::TypeName(slot.type()) << ":";
   switch (slot.loc()) {
     case VarState::kStack:
       return os << "s";

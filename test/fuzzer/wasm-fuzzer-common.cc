@@ -205,7 +205,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         ValueType type = decls.type_list[pos];
         while (pos + count < locals && decls.type_list[pos + count] == type)
           ++count;
-        os << ".addLocals({" << WasmOpcodes::TypeName(type)
+        os << ".addLocals({" << ValueTypes::TypeName(type)
            << "_count: " << count << "})";
       }
       os << "\n";

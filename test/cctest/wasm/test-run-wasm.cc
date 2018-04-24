@@ -1531,7 +1531,7 @@ WASM_EXEC_TEST(LoadMem_offset_oob) {
 
     constexpr byte offset = 8;
     uint32_t boundary =
-        num_bytes - offset - WasmOpcodes::MemSize(machineTypes[m]);
+        num_bytes - offset - ValueTypes::MemSize(machineTypes[m]);
 
     BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], offset, WASM_GET_LOCAL(0)),
           WASM_DROP, WASM_ZERO);
@@ -1674,7 +1674,7 @@ WASM_EXEC_TEST(StoreMem_offset_oob) {
                                    WASM_LOAD_MEM(machineTypes[m], WASM_ZERO)),
           WASM_ZERO);
 
-    byte memsize = WasmOpcodes::MemSize(machineTypes[m]);
+    byte memsize = ValueTypes::MemSize(machineTypes[m]);
     uint32_t boundary = num_bytes - 8 - memsize;
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
@@ -2345,9 +2345,9 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // Build the selector function.
     // =========================================================================
     FunctionSig::Builder b(&zone, 1, num_params);
-    b.AddReturn(WasmOpcodes::ValueTypeFor(result));
+    b.AddReturn(ValueTypes::ValueTypeFor(result));
     for (int i = 0; i < num_params; ++i) {
-      b.AddParam(WasmOpcodes::ValueTypeFor(memtypes[i]));
+      b.AddParam(ValueTypes::ValueTypeFor(memtypes[i]));
     }
     WasmFunctionCompiler& t = r.NewFunction(b.Build());
     BUILD(t, WASM_GET_LOCAL(which));
@@ -2367,7 +2367,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
     // Store the result in a local.
-    byte local_index = r.AllocateLocal(WasmOpcodes::ValueTypeFor(result));
+    byte local_index = r.AllocateLocal(ValueTypes::ValueTypeFor(result));
     ADD_CODE(code, kExprSetLocal, local_index);
 
     // Store the result in memory.
@@ -2384,7 +2384,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
       r.builder().RandomizeMemory();
       CHECK_EQ(kExpected, r.Call());
 
-      int size = WasmOpcodes::MemSize(result);
+      int size = ValueTypes::MemSize(result);
       for (int i = 0; i < size; ++i) {
         int base = (which + 1) * kElemSize;
         byte expected = r.builder().raw_mem_at<byte>(base + i);
@@ -2442,7 +2442,7 @@ WASM_EXEC_TEST(MultiReturnSub) {
 template <typename T>
 void RunMultiReturnSelect(WasmExecutionMode execution_mode, const T* inputs) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
-  ValueType type = WasmOpcodes::ValueTypeFor(MachineTypeForC<T>());
+  ValueType type = ValueTypes::ValueTypeFor(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
   const size_t kNumReturns = 2;
   const size_t kNumParams = arraysize(storage) - kNumReturns;
@@ -3176,7 +3176,7 @@ void BinOpOnDifferentRegisters(WasmExecutionMode execution_mode, ValueType type,
     for (int i = 0; i < num_locals; ++i) {
       ADD_CODE(
           init_locals_code,
-          WASM_SET_LOCAL(i, WASM_LOAD_MEM(WasmOpcodes::MachineTypeFor(type),
+          WASM_SET_LOCAL(i, WASM_LOAD_MEM(ValueTypes::MachineTypeFor(type),
                                           WASM_I32V_2(sizeof(ctype) * i))));
     }
     for (int lhs = 0; lhs < num_locals; ++lhs) {
@@ -3189,7 +3189,7 @@ void BinOpOnDifferentRegisters(WasmExecutionMode execution_mode, ValueType type,
         std::vector<byte> code(init_locals_code);
         ADD_CODE(code,
                  // Store the result of the binary operation at memory 0.
-                 WASM_STORE_MEM(WasmOpcodes::MachineTypeFor(type), WASM_ZERO,
+                 WASM_STORE_MEM(ValueTypes::MachineTypeFor(type), WASM_ZERO,
                                 WASM_BINOP(opcode, WASM_GET_LOCAL(lhs),
                                            WASM_GET_LOCAL(rhs))),
                  // Return 0.

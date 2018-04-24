@@ -1811,7 +1811,7 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
   double num = value->Number();
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
         reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset,
-        num, WasmOpcodes::TypeName(global.type));
+        num, ValueTypes::TypeName(global.type));
   switch (global.type) {
     case kWasmI32:
       *GetRawGlobalPtr<int32_t>(global) = static_cast<int32_t>(num);
