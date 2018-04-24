@@ -3008,6 +3008,82 @@ Node* CodeStubAssembler::AllocateOrderedHashTable() {
 template Node* CodeStubAssembler::AllocateOrderedHashTable<OrderedHashMap>();
 template Node* CodeStubAssembler::AllocateOrderedHashTable<OrderedHashSet>();
 
+template <typename CollectionType>
+void CodeStubAssembler::FindOrderedHashTableEntry(
+    Node* table, Node* hash,
+    std::function<void(Node*, Label*, Label*)> key_compare,
+    Variable* entry_start_position, Label* entry_found, Label* not_found) {
+  // Get the index of the bucket.
+  Node* const number_of_buckets = SmiUntag(CAST(
+      LoadFixedArrayElement(table, CollectionType::kNumberOfBucketsIndex)));
+  Node* const bucket =
+      WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
+  Node* const first_entry = SmiUntag(CAST(LoadFixedArrayElement(
+      table, bucket, CollectionType::kHashTableStartIndex * kPointerSize)));
+
+  // Walk the bucket chain.
+  Node* entry_start;
+  Label if_key_found(this);
+  {
+    VARIABLE(var_entry, MachineType::PointerRepresentation(), first_entry);
+    Label loop(this, {&var_entry, entry_start_position}),
+        continue_next_entry(this);
+    Goto(&loop);
+    BIND(&loop);
+
+    // If the entry index is the not-found sentinel, we are done.
+    GotoIf(
+        WordEqual(var_entry.value(), IntPtrConstant(CollectionType::kNotFound)),
+        not_found);
+
+    // Make sure the entry index is within range.
+    CSA_ASSERT(
+        this,
+        UintPtrLessThan(
+            var_entry.value(),
+            SmiUntag(SmiAdd(
+                CAST(LoadFixedArrayElement(
+                    table, CollectionType::kNumberOfElementsIndex)),
+                CAST(LoadFixedArrayElement(
+                    table, CollectionType::kNumberOfDeletedElementsIndex))))));
+
+    // Compute the index of the entry relative to kHashTableStartIndex.
+    entry_start =
+        IntPtrAdd(IntPtrMul(var_entry.value(),
+                            IntPtrConstant(CollectionType::kEntrySize)),
+                  number_of_buckets);
+
+    // Load the key from the entry.
+    Node* const candidate_key = LoadFixedArrayElement(
+        table, entry_start,
+        CollectionType::kHashTableStartIndex * kPointerSize);
+
+    key_compare(candidate_key, &if_key_found, &continue_next_entry);
+
+    BIND(&continue_next_entry);
+    // Load the index of the next entry in the bucket chain.
+    var_entry.Bind(SmiUntag(CAST(LoadFixedArrayElement(
+        table, entry_start,
+        (CollectionType::kHashTableStartIndex + CollectionType::kChainOffset) *
+            kPointerSize))));
+
+    Goto(&loop);
+  }
+
+  BIND(&if_key_found);
+  entry_start_position->Bind(entry_start);
+  Goto(entry_found);
+}
+
+template void CodeStubAssembler::FindOrderedHashTableEntry<OrderedHashMap>(
+    Node* table, Node* hash,
+    std::function<void(Node*, Label*, Label*)> key_compare,
+    Variable* entry_start_position, Label* entry_found, Label* not_found);
+template void CodeStubAssembler::FindOrderedHashTableEntry<OrderedHashSet>(
+    Node* table, Node* hash,
+    std::function<void(Node*, Label*, Label*)> key_compare,
+    Variable* entry_start_position, Label* entry_found, Label* not_found);
+
 Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
   Comment("AllocateStruct");
   CSA_ASSERT(this, IsMap(map));
