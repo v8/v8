@@ -684,14 +684,14 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       TVARIABLE(Map, var_transition_map);
       Label simple_transition(this), transition_array(this),
           found_handler_candidate(this);
-      TNode<Object> maybe_handler =
-          LoadObjectField(receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
+      TNode<MaybeObject> maybe_handler = LoadMaybeWeakObjectField(
+          receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
 
       // SMI -> slow
       // cleared weak reference -> slow
       // weak reference -> simple_transition
       // strong reference -> transition_array
-      VARIABLE(var_transition_map_or_array, MachineRepresentation::kTagged);
+      TVARIABLE(Object, var_transition_map_or_array);
       DispatchMaybeObject(maybe_handler, slow, slow, &simple_transition,
                           &transition_array, &var_transition_map_or_array);
 
@@ -732,7 +732,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
           const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                           TransitionArray::kEntryKeyIndex) *
                                          kPointerSize;
-          var_transition_map = CAST(ToStrongHeapObject(
+          var_transition_map = CAST(GetHeapObject(
               LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
                                var_name_index.value(), kKeyToTargetOffset)));
           Goto(&found_handler_candidate);
