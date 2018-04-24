@@ -1493,7 +1493,7 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   node->InsertInput(zone, cursor++, new_target);
 
   Address entry = Builtins::CppEntryOf(builtin_index);
-  ExternalReference entry_ref = ExternalReference::Create(entry);
+  ExternalReference entry_ref(ExternalReference(entry, isolate));
   Node* entry_node = jsgraph->ExternalConstant(entry_ref);
 
   node->InsertInput(zone, cursor++, entry_node);

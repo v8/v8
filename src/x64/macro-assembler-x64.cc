@@ -472,7 +472,7 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(rax, f->nargs);
-  LoadAddress(rbx, ExternalReference::Create(f));
+  LoadAddress(rbx, ExternalReference(f, isolate()));
   CallStubDelayed(new (zone) CEntryStub(nullptr, f->result_size, save_doubles));
 }
 
@@ -489,7 +489,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(rax, num_arguments);
-  LoadAddress(rbx, ExternalReference::Create(f));
+  LoadAddress(rbx, ExternalReference(f, isolate()));
   CEntryStub ces(isolate(), f->result_size, save_doubles);
   CallStub(&ces);
 }
@@ -510,7 +510,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   if (function->nargs >= 0) {
     Set(rax, function->nargs);
   }
-  JumpToExternalReference(ExternalReference::Create(fid));
+  JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
@@ -1266,23 +1266,23 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
 // ----------------------------------------------------------------------------
 
 void MacroAssembler::Absps(XMMRegister dst) {
-  Andps(dst,
-        ExternalOperand(ExternalReference::address_of_float_abs_constant()));
+  Andps(dst, ExternalOperand(
+                 ExternalReference::address_of_float_abs_constant(isolate())));
 }
 
 void MacroAssembler::Negps(XMMRegister dst) {
-  Xorps(dst,
-        ExternalOperand(ExternalReference::address_of_float_neg_constant()));
+  Xorps(dst, ExternalOperand(
+                 ExternalReference::address_of_float_neg_constant(isolate())));
 }
 
 void MacroAssembler::Abspd(XMMRegister dst) {
-  Andps(dst,
-        ExternalOperand(ExternalReference::address_of_double_abs_constant()));
+  Andps(dst, ExternalOperand(
+                 ExternalReference::address_of_double_abs_constant(isolate())));
 }
 
 void MacroAssembler::Negpd(XMMRegister dst) {
-  Xorps(dst,
-        ExternalOperand(ExternalReference::address_of_double_neg_constant()));
+  Xorps(dst, ExternalOperand(
+                 ExternalReference::address_of_double_neg_constant(isolate())));
 }
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
@@ -1813,8 +1813,8 @@ void MacroAssembler::PushStackHandler() {
   Push(Immediate(0));  // Padding.
 
   // Link the current handler as the next handler.
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
+  ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
+                                    isolate());
   Push(ExternalOperand(handler_address));
 
   // Set this new handler as the current one.
@@ -1824,8 +1824,8 @@ void MacroAssembler::PushStackHandler() {
 
 void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
+  ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
+                                    isolate());
   Pop(ExternalOperand(handler_address));
   addp(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
@@ -1990,8 +1990,7 @@ void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand counter_operand =
-        ExternalOperand(ExternalReference::Create(counter));
+    Operand counter_operand = ExternalOperand(ExternalReference(counter));
     if (value == 1) {
       incl(counter_operand);
     } else {
@@ -2004,8 +2003,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand counter_operand =
-        ExternalOperand(ExternalReference::Create(counter));
+    Operand counter_operand = ExternalOperand(ExternalReference(counter));
     if (value == 1) {
       decl(counter_operand);
     } else {
@@ -2338,14 +2336,9 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
     movp(r14, rax);  // Backup rax in callee-save register.
   }
 
-  Store(
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()),
-      rbp);
-  Store(ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()),
-        rsi);
-  Store(
-      ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate()),
-      rbx);
+  Store(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
+  Store(ExternalReference(IsolateAddressId::kContextAddress, isolate()), rsi);
+  Store(ExternalReference(IsolateAddressId::kCFunctionAddress, isolate()), rbx);
 }
 
 
@@ -2442,8 +2435,8 @@ void MacroAssembler::LeaveApiExitFrame() {
 
 void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
+  ExternalReference context_address(IsolateAddressId::kContextAddress,
+                                    isolate());
   Operand context_operand = ExternalOperand(context_address);
   movp(rsi, context_operand);
 #ifdef DEBUG
@@ -2451,8 +2444,8 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address =
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  ExternalReference c_entry_fp_address(IsolateAddressId::kCEntryFPAddress,
+                                       isolate());
   Operand c_entry_fp_operand = ExternalOperand(c_entry_fp_address);
   movp(c_entry_fp_operand, Immediate(0));
 }

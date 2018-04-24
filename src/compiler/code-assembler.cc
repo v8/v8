@@ -1095,7 +1095,7 @@ TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
 
   Node* centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference::Create(function));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
   Node* arity = Int32Constant(argc);
 
   Node* nodes[] = {centry, args..., ref, arity, context};
@@ -1126,7 +1126,7 @@ TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
 
   Node* centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference::Create(function));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
   Node* arity = Int32Constant(argc);
 
   Node* nodes[] = {centry, args..., ref, arity, context};

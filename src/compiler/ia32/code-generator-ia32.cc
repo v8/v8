@@ -345,33 +345,35 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                                 \
   } while (0)
 
-#define ASSEMBLE_IEEE754_BINOP(name)                                     \
-  do {                                                                   \
-    /* Pass two doubles as arguments on the stack. */                    \
-    __ PrepareCallCFunction(4, eax);                                     \
-    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));   \
-    __ movsd(Operand(esp, 1 * kDoubleSize), i.InputDoubleRegister(1));   \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 4); \
-    /* Return value is in st(0) on ia32. */                              \
-    /* Store it into the result register. */                             \
-    __ sub(esp, Immediate(kDoubleSize));                                 \
-    __ fstp_d(Operand(esp, 0));                                          \
-    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                 \
-    __ add(esp, Immediate(kDoubleSize));                                 \
+#define ASSEMBLE_IEEE754_BINOP(name)                                    \
+  do {                                                                  \
+    /* Pass two doubles as arguments on the stack. */                   \
+    __ PrepareCallCFunction(4, eax);                                    \
+    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));  \
+    __ movsd(Operand(esp, 1 * kDoubleSize), i.InputDoubleRegister(1));  \
+    __ CallCFunction(                                                   \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 4); \
+    /* Return value is in st(0) on ia32. */                             \
+    /* Store it into the result register. */                            \
+    __ sub(esp, Immediate(kDoubleSize));                                \
+    __ fstp_d(Operand(esp, 0));                                         \
+    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                \
+    __ add(esp, Immediate(kDoubleSize));                                \
   } while (false)
 
-#define ASSEMBLE_IEEE754_UNOP(name)                                      \
-  do {                                                                   \
-    /* Pass one double as argument on the stack. */                      \
-    __ PrepareCallCFunction(2, eax);                                     \
-    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));   \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 2); \
-    /* Return value is in st(0) on ia32. */                              \
-    /* Store it into the result register. */                             \
-    __ sub(esp, Immediate(kDoubleSize));                                 \
-    __ fstp_d(Operand(esp, 0));                                          \
-    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                 \
-    __ add(esp, Immediate(kDoubleSize));                                 \
+#define ASSEMBLE_IEEE754_UNOP(name)                                     \
+  do {                                                                  \
+    /* Pass one double as argument on the stack. */                     \
+    __ PrepareCallCFunction(2, eax);                                    \
+    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));  \
+    __ CallCFunction(                                                   \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 2); \
+    /* Return value is in st(0) on ia32. */                             \
+    /* Store it into the result register. */                            \
+    __ sub(esp, Immediate(kDoubleSize));                                \
+    __ fstp_d(Operand(esp, 0));                                         \
+    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                \
+    __ add(esp, Immediate(kDoubleSize));                                \
   } while (false)
 
 #define ASSEMBLE_BINOP(asm_instr)                                     \
@@ -3361,8 +3363,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
         __ PrepareCallCFunction(0, esi);
-        __ CallCFunction(
-            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
+        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
+                             __ isolate()),
+                         0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;

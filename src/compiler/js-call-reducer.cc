@@ -2885,8 +2885,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Node* holder = lookup == CallOptimization::kHolderFound
                      ? jsgraph()->HeapConstant(api_holder)
                      : receiver;
-  ExternalReference function_reference = ExternalReference::Create(
-      &api_function, ExternalReference::DIRECT_API_CALL);
+  ExternalReference function_reference(
+      &api_function, ExternalReference::DIRECT_API_CALL, isolate());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(stub.GetCode()));
   node->ReplaceInput(1, context);
@@ -4602,8 +4602,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       Node* stub_code =
           jsgraph()->CEntryStubConstant(1, kDontSaveFPRegs, kArgvOnStack, true);
       Address builtin_entry = Builtins::CppEntryOf(builtin_index);
-      Node* entry =
-          jsgraph()->ExternalConstant(ExternalReference::Create(builtin_entry));
+      Node* entry = jsgraph()->ExternalConstant(
+          ExternalReference(builtin_entry, isolate()));
       Node* argc =
           jsgraph()->Constant(BuiltinArguments::kNumExtraArgsWithReceiver);
       if_false1 = efalse1 = vfalse1 =

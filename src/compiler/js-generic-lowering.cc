@@ -122,7 +122,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   int nargs = (nargs_override < 0) ? fun->nargs : nargs_override;
   auto call_descriptor =
       Linkage::GetRuntimeCallDescriptor(zone(), f, nargs, properties, flags);
-  Node* ref = jsgraph()->ExternalConstant(ExternalReference::Create(f));
+  Node* ref = jsgraph()->ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = jsgraph()->Int32Constant(nargs);
   node->InsertInput(zone(), 0, jsgraph()->CEntryStubConstant(fun->result_size));
   node->InsertInput(zone(), nargs + 1, ref);

@@ -1352,7 +1352,8 @@ void LiftoffAssembler::StackCheck(Label* ool_code) {
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
   PrepareCallCFunction(0, GetUnusedRegister(kGpReg).gp());
-  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
+  CallCFunction(
+      ExternalReference::wasm_call_trap_callback_for_testing(isolate()), 0);
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {

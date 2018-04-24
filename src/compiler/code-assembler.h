@@ -588,7 +588,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #ifdef DEBUG
       if (FLAG_debug_code) {
         Node* function = code_assembler_->ExternalConstant(
-            ExternalReference::check_object_type());
+            ExternalReference::check_object_type(code_assembler_->isolate()));
         code_assembler_->CallCFunction3(
             MachineType::AnyTagged(), MachineType::AnyTagged(),
             MachineType::TaggedSigned(), MachineType::AnyTagged(), function,

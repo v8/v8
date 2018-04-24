@@ -1728,98 +1728,115 @@ Node* WasmGraphBuilder::BuildBitCountingCall(Node* input, ExternalReference ref,
 }
 
 Node* WasmGraphBuilder::BuildI32Ctz(Node* input) {
-  return BuildBitCountingCall(input, ExternalReference::wasm_word32_ctz(),
-                              MachineRepresentation::kWord32);
+  return BuildBitCountingCall(
+      input, ExternalReference::wasm_word32_ctz(jsgraph()->isolate()),
+      MachineRepresentation::kWord32);
 }
 
 Node* WasmGraphBuilder::BuildI64Ctz(Node* input) {
-  return Unop(wasm::kExprI64UConvertI32,
-              BuildBitCountingCall(input, ExternalReference::wasm_word64_ctz(),
-                                   MachineRepresentation::kWord64));
+  return Unop(
+      wasm::kExprI64UConvertI32,
+      BuildBitCountingCall(
+          input, ExternalReference::wasm_word64_ctz(jsgraph()->isolate()),
+          MachineRepresentation::kWord64));
 }
 
 Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
-  return BuildBitCountingCall(input, ExternalReference::wasm_word32_popcnt(),
-                              MachineRepresentation::kWord32);
+  return BuildBitCountingCall(
+      input, ExternalReference::wasm_word32_popcnt(jsgraph()->isolate()),
+      MachineRepresentation::kWord32);
 }
 
 Node* WasmGraphBuilder::BuildI64Popcnt(Node* input) {
   return Unop(
       wasm::kExprI64UConvertI32,
-      BuildBitCountingCall(input, ExternalReference::wasm_word64_popcnt(),
-                           MachineRepresentation::kWord64));
+      BuildBitCountingCall(
+          input, ExternalReference::wasm_word64_popcnt(jsgraph()->isolate()),
+          MachineRepresentation::kWord64));
 }
 
 Node* WasmGraphBuilder::BuildF32Trunc(Node* input) {
   MachineType type = MachineType::Float32();
-  ExternalReference ref = ExternalReference::wasm_f32_trunc();
+  ExternalReference ref =
+      ExternalReference::wasm_f32_trunc(jsgraph()->isolate());
 
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32Floor(Node* input) {
   MachineType type = MachineType::Float32();
-  ExternalReference ref = ExternalReference::wasm_f32_floor();
+  ExternalReference ref =
+      ExternalReference::wasm_f32_floor(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32Ceil(Node* input) {
   MachineType type = MachineType::Float32();
-  ExternalReference ref = ExternalReference::wasm_f32_ceil();
+  ExternalReference ref =
+      ExternalReference::wasm_f32_ceil(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32NearestInt(Node* input) {
   MachineType type = MachineType::Float32();
-  ExternalReference ref = ExternalReference::wasm_f32_nearest_int();
+  ExternalReference ref =
+      ExternalReference::wasm_f32_nearest_int(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Trunc(Node* input) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::wasm_f64_trunc();
+  ExternalReference ref =
+      ExternalReference::wasm_f64_trunc(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Floor(Node* input) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::wasm_f64_floor();
+  ExternalReference ref =
+      ExternalReference::wasm_f64_floor(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Ceil(Node* input) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::wasm_f64_ceil();
+  ExternalReference ref =
+      ExternalReference::wasm_f64_ceil(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64NearestInt(Node* input) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::wasm_f64_nearest_int();
+  ExternalReference ref =
+      ExternalReference::wasm_f64_nearest_int(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Acos(Node* input) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::f64_acos_wrapper_function();
+  ExternalReference ref =
+      ExternalReference::f64_acos_wrapper_function(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Asin(Node* input) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::f64_asin_wrapper_function();
+  ExternalReference ref =
+      ExternalReference::f64_asin_wrapper_function(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Pow(Node* left, Node* right) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::wasm_float64_pow();
+  ExternalReference ref =
+      ExternalReference::wasm_float64_pow(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, left, right);
 }
 
 Node* WasmGraphBuilder::BuildF64Mod(Node* left, Node* right) {
   MachineType type = MachineType::Float64();
-  ExternalReference ref = ExternalReference::f64_mod_wrapper_function();
+  ExternalReference ref =
+      ExternalReference::f64_mod_wrapper_function(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, left, right);
 }
 
@@ -1865,23 +1882,23 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
 Node* WasmGraphBuilder::BuildF32SConvertI64(Node* input) {
   // TODO(titzer/bradnelson): Check handlng of asm.js case.
   return BuildIntToFloatConversionInstruction(
-      input, ExternalReference::wasm_int64_to_float32(),
+      input, ExternalReference::wasm_int64_to_float32(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float32());
 }
 Node* WasmGraphBuilder::BuildF32UConvertI64(Node* input) {
   // TODO(titzer/bradnelson): Check handlng of asm.js case.
   return BuildIntToFloatConversionInstruction(
-      input, ExternalReference::wasm_uint64_to_float32(),
+      input, ExternalReference::wasm_uint64_to_float32(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float32());
 }
 Node* WasmGraphBuilder::BuildF64SConvertI64(Node* input) {
   return BuildIntToFloatConversionInstruction(
-      input, ExternalReference::wasm_int64_to_float64(),
+      input, ExternalReference::wasm_int64_to_float64(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float64());
 }
 Node* WasmGraphBuilder::BuildF64UConvertI64(Node* input) {
   return BuildIntToFloatConversionInstruction(
-      input, ExternalReference::wasm_uint64_to_float64(),
+      input, ExternalReference::wasm_uint64_to_float64(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float64());
 }
 
@@ -1916,16 +1933,20 @@ ExternalReference convert_ccall_ref(WasmGraphBuilder* builder,
   switch (opcode) {
     case wasm::kExprI64SConvertF32:
     case wasm::kExprI64SConvertSatF32:
-      return ExternalReference::wasm_float32_to_int64();
+      return ExternalReference::wasm_float32_to_int64(
+          builder->jsgraph()->isolate());
     case wasm::kExprI64UConvertF32:
     case wasm::kExprI64UConvertSatF32:
-      return ExternalReference::wasm_float32_to_uint64();
+      return ExternalReference::wasm_float32_to_uint64(
+          builder->jsgraph()->isolate());
     case wasm::kExprI64SConvertF64:
     case wasm::kExprI64SConvertSatF64:
-      return ExternalReference::wasm_float64_to_int64();
+      return ExternalReference::wasm_float64_to_int64(
+          builder->jsgraph()->isolate());
     case wasm::kExprI64UConvertF64:
     case wasm::kExprI64UConvertSatF64:
-      return ExternalReference::wasm_float64_to_uint64();
+      return ExternalReference::wasm_float64_to_uint64(
+          builder->jsgraph()->isolate());
     default:
       UNREACHABLE();
   }
@@ -2388,8 +2409,9 @@ Node* WasmGraphBuilder::BuildI32AsmjsRemU(Node* left, Node* right) {
 Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   if (jsgraph()->machine()->Is32()) {
-    return BuildDiv64Call(left, right, ExternalReference::wasm_int64_div(),
-                          MachineType::Int64(), wasm::kTrapDivByZero, position);
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_int64_div(jsgraph()->isolate()),
+        MachineType::Int64(), wasm::kTrapDivByZero, position);
   }
   ZeroCheck64(wasm::kTrapDivByZero, right, position);
   Node* before = *control_;
@@ -2414,8 +2436,9 @@ Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right,
 Node* WasmGraphBuilder::BuildI64RemS(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   if (jsgraph()->machine()->Is32()) {
-    return BuildDiv64Call(left, right, ExternalReference::wasm_int64_mod(),
-                          MachineType::Int64(), wasm::kTrapRemByZero, position);
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_int64_mod(jsgraph()->isolate()),
+        MachineType::Int64(), wasm::kTrapRemByZero, position);
   }
   ZeroCheck64(wasm::kTrapRemByZero, right, position);
   Diamond d(jsgraph()->graph(), jsgraph()->common(),
@@ -2434,8 +2457,9 @@ Node* WasmGraphBuilder::BuildI64RemS(Node* left, Node* right,
 Node* WasmGraphBuilder::BuildI64DivU(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   if (jsgraph()->machine()->Is32()) {
-    return BuildDiv64Call(left, right, ExternalReference::wasm_uint64_div(),
-                          MachineType::Int64(), wasm::kTrapDivByZero, position);
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_uint64_div(jsgraph()->isolate()),
+        MachineType::Int64(), wasm::kTrapDivByZero, position);
   }
   return graph()->NewNode(jsgraph()->machine()->Uint64Div(), left, right,
                           ZeroCheck64(wasm::kTrapDivByZero, right, position));
@@ -2443,8 +2467,9 @@ Node* WasmGraphBuilder::BuildI64DivU(Node* left, Node* right,
 Node* WasmGraphBuilder::BuildI64RemU(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   if (jsgraph()->machine()->Is32()) {
-    return BuildDiv64Call(left, right, ExternalReference::wasm_uint64_mod(),
-                          MachineType::Int64(), wasm::kTrapRemByZero, position);
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_uint64_mod(jsgraph()->isolate()),
+        MachineType::Int64(), wasm::kTrapRemByZero, position);
   }
   return graph()->NewNode(jsgraph()->machine()->Uint64Mod(), left, right,
                           ZeroCheck64(wasm::kTrapRemByZero, right, position));
@@ -3581,8 +3606,10 @@ Node* WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
   // Using two functions instead of taking the new value as a parameter saves
   // one instruction on each call to set up the parameter.
   ExternalReference ref =
-      new_value ? ExternalReference::wasm_set_thread_in_wasm_flag()
-                : ExternalReference::wasm_clear_thread_in_wasm_flag();
+      new_value ? ExternalReference::wasm_set_thread_in_wasm_flag(
+                      jsgraph()->isolate())
+                : ExternalReference::wasm_clear_thread_in_wasm_flag(
+                      jsgraph()->isolate());
   MachineSignature sig(0, 0, nullptr);
   return BuildCCall(
       &sig, graph()->NewNode(jsgraph()->common()->ExternalConstant(ref)));
@@ -3611,8 +3638,8 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
   for (int i = 0; i < parameter_count; i++) {
     inputs[count++] = parameters[i];
   }
-  inputs[count++] =
-      jsgraph()->ExternalConstant(ExternalReference::Create(f));  // ref
+  inputs[count++] = jsgraph()->ExternalConstant(
+      ExternalReference(f, jsgraph()->isolate()));         // ref
   inputs[count++] = jsgraph()->Int32Constant(fun->nargs);  // arity
   inputs[count++] = js_context;                            // js_context
   inputs[count++] = *effect_;

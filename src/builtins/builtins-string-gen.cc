@@ -98,7 +98,8 @@ Node* StringBuiltinsAssembler::CallSearchStringRaw(Node* const subject_ptr,
                                                    Node* const search_length,
                                                    Node* const start_position) {
   Node* const function_addr = ExternalConstant(
-      ExternalReference::search_string_raw<SubjectChar, PatternChar>());
+      ExternalReference::search_string_raw<SubjectChar, PatternChar>(
+          isolate()));
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
@@ -830,7 +831,7 @@ void StringBuiltinsAssembler::StringIndexOf(
           ChangeInt32ToIntPtr(Load(MachineType::Uint8(), adjusted_search_ptr));
 
       Node* const memchr =
-          ExternalConstant(ExternalReference::libc_memchr_function());
+          ExternalConstant(ExternalReference::libc_memchr_function(isolate()));
       Node* const result_address =
           CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
                          MachineType::IntPtr(), MachineType::UintPtr(), memchr,

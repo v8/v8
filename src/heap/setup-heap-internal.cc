@@ -177,7 +177,8 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
       reinterpret_cast<void*>(
-          ExternalReference::fixed_typed_array_base_data_offset().address()),
+          ExternalReference::fixed_typed_array_base_data_offset(isolate())
+              .address()),
       SKIP_WRITE_BARRIER);
   elements->set_length(0);
   return elements;

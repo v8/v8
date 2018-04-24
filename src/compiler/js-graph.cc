@@ -285,7 +285,7 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
 
 
 Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
-  return ExternalConstant(ExternalReference::Create(function_id));
+  return ExternalConstant(ExternalReference(function_id, isolate()));
 }
 
 Node* JSGraph::EmptyStateValues() {

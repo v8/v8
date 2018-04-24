@@ -1748,8 +1748,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* data = jsgraph()->Constant(call_data_object);
   ApiFunction function(v8::ToCData<Address>(call_handler_info->callback()));
   Node* function_reference =
-      graph()->NewNode(common()->ExternalConstant(ExternalReference::Create(
-          &function, ExternalReference::DIRECT_API_CALL)));
+      graph()->NewNode(common()->ExternalConstant(ExternalReference(
+          &function, ExternalReference::DIRECT_API_CALL, isolate())));
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.

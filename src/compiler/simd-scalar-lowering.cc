@@ -610,7 +610,8 @@ Node* SimdScalarLowering::BuildF64Trunc(Node* input) {
   if (machine()->Float64RoundTruncate().IsSupported()) {
     return graph()->NewNode(machine()->Float64RoundTruncate().op(), input);
   } else {
-    ExternalReference ref = ExternalReference::wasm_f64_trunc();
+    ExternalReference ref =
+        ExternalReference::wasm_f64_trunc(jsgraph_->isolate());
     Node* stack_slot =
         graph()->NewNode(machine()->StackSlot(MachineRepresentation::kFloat64));
     const Operator* store_op = machine()->Store(

@@ -62,13 +62,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate, int* index) {
   CHECK_EQ(kSpecialReferenceCount, *index);
 
 #define ADD_EXTERNAL_REFERENCE(name, desc) \
-  Add(ExternalReference::name().address(), desc, index);
-  EXTERNAL_REFERENCE_LIST(ADD_EXTERNAL_REFERENCE)
-#undef ADD_EXTERNAL_REFERENCE
-
-#define ADD_EXTERNAL_REFERENCE(name, desc) \
   Add(ExternalReference::name(isolate).address(), desc, index);
-  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(ADD_EXTERNAL_REFERENCE)
+  EXTERNAL_REFERENCE_LIST(ADD_EXTERNAL_REFERENCE)
 #undef ADD_EXTERNAL_REFERENCE
 
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
@@ -87,7 +82,7 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
 #undef DEF_ENTRY
   };
   for (unsigned i = 0; i < arraysize(c_builtins); ++i) {
-    Add(ExternalReference::Create(c_builtins[i].address).address(),
+    Add(ExternalReference(c_builtins[i].address, isolate).address(),
         c_builtins[i].name, index);
   }
 
@@ -113,7 +108,7 @@ void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate, int* index) {
   };
 
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
-    ExternalReference ref = ExternalReference::Create(runtime_functions[i].id);
+    ExternalReference ref(runtime_functions[i].id, isolate);
     Add(ref.address(), runtime_functions[i].name, index);
   }
 

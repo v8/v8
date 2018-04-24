@@ -58,7 +58,7 @@ TEST(CallCFunction9) {
 
   {
     Node* const fun_constant = m.ExternalConstant(
-        ExternalReference::Create(reinterpret_cast<Address>(sum9)));
+        ExternalReference(reinterpret_cast<Address>(sum9), isolate));
 
     MachineType type_intptr = MachineType::IntPtr();
 
@@ -87,7 +87,7 @@ TEST(CallCFunction3WithCallerSavedRegisters) {
 
   {
     Node* const fun_constant = m.ExternalConstant(
-        ExternalReference::Create(reinterpret_cast<Address>(sum3)));
+        ExternalReference(reinterpret_cast<Address>(sum3), isolate));
 
     MachineType type_intptr = MachineType::IntPtr();
 

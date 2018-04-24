@@ -962,11 +962,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   StoreP(r8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  mov(r8, Operand(ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                            isolate())));
+  mov(r8, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                    isolate())));
   StoreP(fp, MemOperand(r8));
-  mov(r8, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                            isolate())));
+  mov(r8,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   StoreP(cp, MemOperand(r8));
 
   // Optionally save all volatile double registers.
@@ -1028,19 +1028,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 
   // Clear top frame.
   li(r6, Operand::Zero());
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                            isolate())));
+  mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                    isolate())));
   StoreP(r6, MemOperand(ip));
 
   // Restore current context from top and clear it in debug mode.
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                            isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   LoadP(cp, MemOperand(ip));
 
 #ifdef DEBUG
   mov(r6, Operand(Context::kInvalidContext));
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                            isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   StoreP(r6, MemOperand(ip));
 #endif
 
@@ -1341,8 +1341,8 @@ void MacroAssembler::PushStackHandler() {
 
   // Link the current handler as the next handler.
   // Preserve r3-r7.
-  mov(r8, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate())));
+  mov(r8,
+      Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   LoadP(r0, MemOperand(r8));
   push(r0);
 
@@ -1356,8 +1356,8 @@ void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
 
   pop(r4);
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate())));
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   StoreP(r4, MemOperand(ip));
 
   Drop(1);  // Drop padding.
@@ -1581,7 +1581,7 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // should remove this need and make the runtime routine entry code
   // smarter.
   mov(r3, Operand(f->nargs));
-  mov(r4, Operand(ExternalReference::Create(f)));
+  mov(r4, Operand(ExternalReference(f, isolate())));
   CallStubDelayed(new (zone) CEntryStub(nullptr,
 #if V8_TARGET_ARCH_PPC64
                                         f->result_size,
@@ -1605,7 +1605,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // should remove this need and make the runtime routine entry code
   // smarter.
   mov(r3, Operand(num_arguments));
-  mov(r4, Operand(ExternalReference::Create(f)));
+  mov(r4, Operand(ExternalReference(f, isolate())));
   CEntryStub stub(isolate(),
 #if V8_TARGET_ARCH_PPC64
                   f->result_size,
@@ -1622,7 +1622,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   if (function->nargs >= 0) {
     mov(r3, Operand(function->nargs));
   }
-  JumpToExternalReference(ExternalReference::Create(fid));
+  JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
 
@@ -1652,7 +1652,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    mov(scratch2, Operand(ExternalReference::Create(counter)));
+    mov(scratch2, Operand(ExternalReference(counter)));
     lwz(scratch1, MemOperand(scratch2));
     addi(scratch1, scratch1, Operand(value));
     stw(scratch1, MemOperand(scratch2));
@@ -1664,7 +1664,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    mov(scratch2, Operand(ExternalReference::Create(counter)));
+    mov(scratch2, Operand(ExternalReference(counter)));
     lwz(scratch1, MemOperand(scratch2));
     subi(scratch1, scratch1, Operand(value));
     stw(scratch1, MemOperand(scratch2));

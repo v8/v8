@@ -257,7 +257,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     Node* backing_store = IntPtrAdd(BitcastTaggedToWord(elements),
                                     IntPtrConstant(fta_base_data_offset));
     // Call out to memset to perform initialization.
-    Node* memset = ExternalConstant(ExternalReference::libc_memset_function());
+    Node* memset =
+        ExternalConstant(ExternalReference::libc_memset_function(isolate()));
     CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                    MachineType::IntPtr(), MachineType::UintPtr(), memset,
                    backing_store, IntPtrConstant(0), word_byte_length);
@@ -607,7 +608,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
                          byte_length_intptr,
                          IntPtrConstant(FixedTypedArrayBase::kMaxByteLength)));
 
-    Node* memcpy = ExternalConstant(ExternalReference::libc_memcpy_function());
+    Node* memcpy =
+        ExternalConstant(ExternalReference::libc_memcpy_function(isolate()));
     CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                    MachineType::Pointer(), MachineType::UintPtr(), memcpy,
                    holder_data_ptr, source_data_ptr, byte_length_intptr);
@@ -1111,7 +1113,7 @@ void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<IntPtrT> dest_ptr,
                                                TNode<IntPtrT> src_ptr,
                                                TNode<IntPtrT> byte_length) {
   TNode<ExternalReference> memmove =
-      ExternalConstant(ExternalReference::libc_memmove_function());
+      ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
   CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                  MachineType::Pointer(), MachineType::UintPtr(), memmove,
                  dest_ptr, src_ptr, byte_length);
@@ -1125,7 +1127,8 @@ void TypedArrayBuiltinsAssembler::
                                                    TNode<IntPtrT> offset) {
   CSA_ASSERT(this, Word32Not(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
-      ExternalReference::copy_fast_number_jsarray_elements_to_typed_array());
+      ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+          isolate()));
   CallCFunction5(MachineType::AnyTagged(), MachineType::AnyTagged(),
                  MachineType::AnyTagged(), MachineType::AnyTagged(),
                  MachineType::UintPtr(), MachineType::UintPtr(), f, context,
@@ -1136,7 +1139,7 @@ void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
     TNode<JSTypedArray> source, TNode<JSTypedArray> dest,
     TNode<IntPtrT> source_length, TNode<IntPtrT> offset) {
   TNode<ExternalReference> f = ExternalConstant(
-      ExternalReference::copy_typed_array_elements_to_typed_array());
+      ExternalReference::copy_typed_array_elements_to_typed_array(isolate()));
   CallCFunction4(MachineType::AnyTagged(), MachineType::AnyTagged(),
                  MachineType::AnyTagged(), MachineType::UintPtr(),
                  MachineType::UintPtr(), f, source, dest, source_length,
@@ -1146,8 +1149,8 @@ void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
 void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
     TNode<JSTypedArray> source, TNode<JSTypedArray> dest, TNode<IntPtrT> start,
     TNode<IntPtrT> end) {
-  TNode<ExternalReference> f =
-      ExternalConstant(ExternalReference::copy_typed_array_elements_slice());
+  TNode<ExternalReference> f = ExternalConstant(
+      ExternalReference::copy_typed_array_elements_slice(isolate()));
   CallCFunction4(MachineType::AnyTagged(), MachineType::AnyTagged(),
                  MachineType::AnyTagged(), MachineType::UintPtr(),
                  MachineType::UintPtr(), f, source, dest, start, end);

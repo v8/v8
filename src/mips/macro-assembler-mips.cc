@@ -4050,8 +4050,8 @@ void MacroAssembler::PushStackHandler() {
   Push(Smi::kZero);  // Padding.
 
   // Link the current handler as the next handler.
-  li(t2, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                           isolate())));
+  li(t2,
+     Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   lw(t1, MemOperand(t2));
   push(t1);
 
@@ -4066,8 +4066,8 @@ void MacroAssembler::PopStackHandler() {
   Addu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  li(scratch, Operand(ExternalReference::Create(
-                  IsolateAddressId::kHandlerAddress, isolate())));
+  li(scratch,
+     Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   sw(a1, MemOperand(scratch));
 }
 
@@ -4541,7 +4541,7 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // should remove this need and make the runtime routine entry code
   // smarter.
   PrepareCEntryArgs(f->nargs);
-  PrepareCEntryFunction(ExternalReference::Create(f));
+  PrepareCEntryFunction(ExternalReference(f, isolate()));
   CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
 }
 
@@ -4560,7 +4560,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // should remove this need and make the runtime routine entry code
   // smarter.
   PrepareCEntryArgs(num_arguments);
-  PrepareCEntryFunction(ExternalReference::Create(f));
+  PrepareCEntryFunction(ExternalReference(f, isolate()));
   CEntryStub stub(isolate(), 1, save_doubles);
   CallStub(&stub, al, zero_reg, Operand(zero_reg), bd);
 }
@@ -4571,7 +4571,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   if (function->nargs >= 0) {
     PrepareCEntryArgs(function->nargs);
   }
-  JumpToExternalReference(ExternalReference::Create(fid));
+  JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
@@ -4604,7 +4604,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    li(scratch2, Operand(ExternalReference::Create(counter)));
+    li(scratch2, Operand(ExternalReference(counter)));
     lw(scratch1, MemOperand(scratch2));
     Addu(scratch1, scratch1, Operand(value));
     sw(scratch1, MemOperand(scratch2));
@@ -4616,7 +4616,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    li(scratch2, Operand(ExternalReference::Create(counter)));
+    li(scratch2, Operand(ExternalReference(counter)));
     lw(scratch1, MemOperand(scratch2));
     Subu(scratch1, scratch1, Operand(value));
     sw(scratch1, MemOperand(scratch2));
@@ -4788,11 +4788,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   sw(t8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  li(t8, Operand(ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                           isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate())));
   sw(fp, MemOperand(t8));
-  li(t8, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                           isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   sw(cp, MemOperand(t8));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
@@ -4844,18 +4844,18 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   }
 
   // Clear top frame.
-  li(t8, Operand(ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                           isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate())));
   sw(zero_reg, MemOperand(t8));
 
   // Restore current context from top and clear it in debug mode.
-  li(t8, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                           isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   lw(cp, MemOperand(t8));
 
 #ifdef DEBUG
-  li(t8, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                           isolate())));
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   sw(a3, MemOperand(t8));
 #endif
 

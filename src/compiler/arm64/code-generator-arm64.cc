@@ -443,16 +443,18 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ Cbnz(i.TempRegister32(2), &binop);                                    \
   } while (0)
 
-#define ASSEMBLE_IEEE754_BINOP(name)                                        \
-  do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2); \
+#define ASSEMBLE_IEEE754_BINOP(name)                                       \
+  do {                                                                     \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                          \
+    __ CallCFunction(                                                      \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 2); \
   } while (0)
 
-#define ASSEMBLE_IEEE754_UNOP(name)                                         \
-  do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1); \
+#define ASSEMBLE_IEEE754_UNOP(name)                                        \
+  do {                                                                     \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                          \
+    __ CallCFunction(                                                      \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 1); \
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1370,7 +1372,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(d1.is(i.InputDoubleRegister(1)));
       DCHECK(d0.is(i.OutputDoubleRegister()));
       // TODO(dcarney): make sure this saves all relevant registers.
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+      __ CallCFunction(
+          ExternalReference::mod_two_doubles_operation(__ isolate()), 0, 2);
       break;
     }
     case kArm64Float32Max: {
@@ -2281,8 +2284,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       if (trap_id == Builtins::builtin_count) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
-        __ CallCFunction(
-            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
+        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
+                             __ isolate()),
+                         0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =

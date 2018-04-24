@@ -1376,9 +1376,10 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Runtime::FunctionId id = Runtime::kTryMigrateInstance;
       auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-      Node* result = __ Call(call_descriptor, __ CEntryStubConstant(1), value,
-                             __ ExternalConstant(ExternalReference::Create(id)),
-                             __ Int32Constant(1), __ NoContextConstant());
+      Node* result =
+          __ Call(call_descriptor, __ CEntryStubConstant(1), value,
+                  __ ExternalConstant(ExternalReference(id, isolate())),
+                  __ Int32Constant(1), __ NoContextConstant());
       Node* check = ObjectIsSmi(result);
       __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, p.feedback(),
                       check, frame_state);
@@ -2908,10 +2909,11 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
       Runtime::FunctionId id = Runtime::kStringCharCodeAt;
       auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
-      Node* result = __ Call(call_descriptor, __ CEntryStubConstant(1),
-                             receiver, ChangeInt32ToSmi(position),
-                             __ ExternalConstant(ExternalReference::Create(id)),
-                             __ Int32Constant(2), __ NoContextConstant());
+      Node* result =
+          __ Call(call_descriptor, __ CEntryStubConstant(1), receiver,
+                  ChangeInt32ToSmi(position),
+                  __ ExternalConstant(ExternalReference(id, isolate())),
+                  __ Int32Constant(2), __ NoContextConstant());
       __ Goto(&loop_done, ChangeSmiToInt32(result));
     }
 
@@ -3057,7 +3059,7 @@ Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
   return __ Call(call_descriptor, __ CEntryStubConstant(1), receiver,
-                 __ ExternalConstant(ExternalReference::Create(id)),
+                 __ ExternalConstant(ExternalReference(id, isolate())),
                  __ Int32Constant(1), __ NoContextConstant());
 }
 
@@ -3355,7 +3357,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
       builder.AddReturn(MachineType::AnyTagged());
       builder.AddParam(MachineType::AnyTagged());
       Node* try_internalize_string_function = __ ExternalConstant(
-          ExternalReference::try_internalize_string_function());
+          ExternalReference::try_internalize_string_function(isolate()));
       auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
       Node* val_internalized = __ Call(common()->Call(call_descriptor),
@@ -3617,7 +3619,7 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
       auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
       __ Call(call_descriptor, __ CEntryStubConstant(1), object, target_map,
-              __ ExternalConstant(ExternalReference::Create(id)),
+              __ ExternalConstant(ExternalReference(id, isolate())),
               __ Int32Constant(2), __ NoContextConstant());
       break;
     }
@@ -3794,7 +3796,7 @@ void EffectControlLinearizer::TransitionElementsTo(Node* node, Node* array,
     auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
         graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
     __ Call(call_descriptor, __ CEntryStubConstant(1), array, target_map,
-            __ ExternalConstant(ExternalReference::Create(id)),
+            __ ExternalConstant(ExternalReference(id, isolate())),
             __ Int32Constant(2), __ NoContextConstant());
   }
 }
@@ -4142,7 +4144,7 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
   __ Call(call_descriptor, __ CEntryStubConstant(1),
           jsgraph()->SmiConstant(static_cast<int>(reason)),
-          __ ExternalConstant(ExternalReference::Create(id)),
+          __ ExternalConstant(ExternalReference(id, isolate())),
           __ Int32Constant(1), __ NoContextConstant());
 }
 

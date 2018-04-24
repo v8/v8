@@ -6637,8 +6637,7 @@ Node* CodeStubAssembler::UpdateWord(Node* word, Node* value, uint32_t shift,
 
 void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Node* counter_address =
-        ExternalConstant(ExternalReference::Create(counter));
+    Node* counter_address = ExternalConstant(ExternalReference(counter));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address,
                         Int32Constant(value));
   }
@@ -6647,8 +6646,7 @@ void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
 void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
   DCHECK_GT(delta, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Node* counter_address =
-        ExternalConstant(ExternalReference::Create(counter));
+    Node* counter_address = ExternalConstant(ExternalReference(counter));
     Node* value = Load(MachineType::Int32(), counter_address);
     value = Int32Add(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
@@ -6658,8 +6656,7 @@ void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
 void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
   DCHECK_GT(delta, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Node* counter_address =
-        ExternalConstant(ExternalReference::Create(counter));
+    Node* counter_address = ExternalConstant(ExternalReference(counter));
     Node* value = Load(MachineType::Int32(), counter_address);
     value = Int32Sub(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
@@ -6743,8 +6740,8 @@ void CodeStubAssembler::TryInternalizeString(
   DCHECK(var_index->rep() == MachineType::PointerRepresentation());
   DCHECK_EQ(var_internalized->rep(), MachineRepresentation::kTagged);
   CSA_SLOW_ASSERT(this, IsString(string));
-  Node* function =
-      ExternalConstant(ExternalReference::try_internalize_string_function());
+  Node* function = ExternalConstant(
+      ExternalReference::try_internalize_string_function(isolate()));
   Node* result = CallCFunction1(MachineType::AnyTagged(),
                                 MachineType::AnyTagged(), function, string);
   Label internalized(this);

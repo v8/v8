@@ -19,7 +19,7 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
-  __ LoadAddress(rbx, ExternalReference::Create(address));
+  __ LoadAddress(rbx, ExternalReference(address, masm->isolate()));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -446,8 +446,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address = ExternalReference::Create(
-        IsolateAddressId::kContextAddress, masm->isolate());
+    ExternalReference context_address(IsolateAddressId::kContextAddress,
+                                      masm->isolate());
     __ movp(rsi, masm->ExternalOperand(context_address));
 
     // Push the function and the receiver onto the stack.
@@ -483,8 +483,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address = ExternalReference::Create(
-        IsolateAddressId::kContextAddress, masm->isolate());
+    ExternalReference context_address(IsolateAddressId::kContextAddress,
+                                      masm->isolate());
     __ movp(rsi, masm->ExternalOperand(context_address));
 
     // Push the function and receiver onto the stack.
@@ -853,7 +853,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                      bytecode));
 
   __ Move(bytecode_size_table,
-          ExternalReference::bytecode_size_table_address());
+          ExternalReference::bytecode_size_table_address(masm->isolate()));
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -2939,7 +2939,8 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ PrepareCallCFunction(2);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 2);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()), 2);
   }
   // Return value is in xmm0.
   __ Movsd(double_result, xmm0);

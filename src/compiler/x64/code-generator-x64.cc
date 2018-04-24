@@ -297,8 +297,9 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
       __ PrepareCallCFunction(0);
-      __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(),
-                       0);
+      __ CallCFunction(
+          ExternalReference::wasm_call_trap_callback_for_testing(__ isolate()),
+          0);
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
       size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
@@ -499,16 +500,18 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                                  \
   } while (0)
 
-#define ASSEMBLE_IEEE754_BINOP(name)                                     \
-  do {                                                                   \
-    __ PrepareCallCFunction(2);                                          \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 2); \
+#define ASSEMBLE_IEEE754_BINOP(name)                                    \
+  do {                                                                  \
+    __ PrepareCallCFunction(2);                                         \
+    __ CallCFunction(                                                   \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 2); \
   } while (false)
 
-#define ASSEMBLE_IEEE754_UNOP(name)                                      \
-  do {                                                                   \
-    __ PrepareCallCFunction(1);                                          \
-    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 1); \
+#define ASSEMBLE_IEEE754_UNOP(name)                                     \
+  do {                                                                  \
+    __ PrepareCallCFunction(1);                                         \
+    __ CallCFunction(                                                   \
+        ExternalReference::ieee754_##name##_function(__ isolate()), 1); \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \

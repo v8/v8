@@ -1744,7 +1744,7 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Mov(x0, f->nargs);
-  Mov(x1, ExternalReference::Create(f));
+  Mov(x1, ExternalReference(f, isolate()));
   CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
 }
 
@@ -1760,7 +1760,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 
   // Place the necessary arguments.
   Mov(x0, num_arguments);
-  Mov(x1, ExternalReference::Create(f));
+  Mov(x1, ExternalReference(f, isolate()));
 
   CEntryStub stub(isolate(), 1, save_doubles);
   CallStub(&stub);
@@ -1789,7 +1789,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
     // smarter.
     Mov(x0, function->nargs);
   }
-  JumpToExternalReference(ExternalReference::Create(fid));
+  JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
 int TurboAssembler::ActivationFrameAlignment() {
@@ -2438,11 +2438,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   STATIC_ASSERT((-4 * kPointerSize) == ExitFrameConstants::kPaddingOffset);
 
   // Save the frame pointer and context pointer in the top frame.
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kCEntryFPAddress, isolate())));
+  Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                         isolate())));
   Str(fp, MemOperand(scratch));
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kContextAddress, isolate())));
+  Mov(scratch,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   Str(cp, MemOperand(scratch));
 
   STATIC_ASSERT((-4 * kPointerSize) == ExitFrameConstants::kLastExitFrameField);
@@ -2484,20 +2484,20 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   }
 
   // Restore the context pointer from the top frame.
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kContextAddress, isolate())));
+  Mov(scratch,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   Ldr(cp, MemOperand(scratch));
 
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
     Mov(scratch2, Operand(Context::kInvalidContext));
-    Mov(scratch, Operand(ExternalReference::Create(
-                     IsolateAddressId::kContextAddress, isolate())));
+    Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
+                                           isolate())));
     Str(scratch2, MemOperand(scratch));
   }
   // Clear the frame pointer from the top frame.
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kCEntryFPAddress, isolate())));
+  Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                         isolate())));
   Str(xzr, MemOperand(scratch));
 
   // Pop the exit frame.
@@ -2519,7 +2519,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_NE(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Mov(scratch2, ExternalReference::Create(counter));
+    Mov(scratch2, ExternalReference(counter));
     Ldr(scratch1.W(), MemOperand(scratch2));
     Add(scratch1.W(), scratch1.W(), value);
     Str(scratch1.W(), MemOperand(scratch2));
@@ -3119,7 +3119,7 @@ void TurboAssembler::CallPrintf(int arg_count, const CPURegister* args) {
     dc32(arg_pattern_list);   // kPrintfArgPatternListOffset
   }
 #else
-  Call(ExternalReference::printf_function());
+  Call(ExternalReference::printf_function(isolate()));
 #endif
 }
 

@@ -1545,7 +1545,7 @@ Address AccessorInfo::redirect(Isolate* isolate, Address address,
   ApiFunction fun(address);
   DCHECK_EQ(ACCESSOR_GETTER, component);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
-  return ExternalReference::Create(&fun, type).address();
+  return ExternalReference(&fun, type, isolate).address();
 }
 
 Address AccessorInfo::redirected_getter() const {
@@ -1558,7 +1558,7 @@ Address CallHandlerInfo::redirected_callback() const {
   Address address = v8::ToCData<Address>(callback());
   ApiFunction fun(address);
   ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
-  return ExternalReference::Create(&fun, type).address();
+  return ExternalReference(&fun, type, GetIsolate()).address();
 }
 
 bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
