@@ -225,9 +225,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       WasmSharedModuleData::New(isolate_, module_wrapper, empty_string, script,
                                 Handle<ByteArray>::null());
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
+  ModuleEnv env = CreateModuleEnv();
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate_, test_module_ptr_, export_wrappers,
-                              trap_handler::IsTrapHandlerEnabled());
+      WasmCompiledModule::New(isolate_, test_module_ptr_, export_wrappers, env);
   compiled_module->set_shared(*shared_module_data);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the

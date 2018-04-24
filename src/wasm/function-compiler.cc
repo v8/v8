@@ -14,6 +14,19 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
+const char* GetCompilationModeAsString(
+    WasmCompilationUnit::CompilationMode mode) {
+  switch (mode) {
+    case WasmCompilationUnit::CompilationMode::kLiftoff:
+      return "liftoff";
+    case WasmCompilationUnit::CompilationMode::kTurbofan:
+      return "turbofan";
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
 // static
 WasmCompilationUnit::CompilationMode
 WasmCompilationUnit::GetDefaultCompilationMode() {
@@ -56,7 +69,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
-    PrintF("Compiling wasm function %d\n\n", func_index_);
+    PrintF("Compiling wasm function %d with %s\n\n", func_index_,
+           GetCompilationModeAsString(mode_));
   }
 
   switch (mode_) {

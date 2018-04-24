@@ -13,6 +13,7 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/utils.h"
 #include "src/version.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -702,9 +703,14 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
   Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
       static_cast<int>(export_wrappers_size), TENURED);
 
+  // TODO(eholk): We need to properly preserve the flag whether the trap
+  // handler was used or not when serializing.
+  UseTrapHandler use_trap_handler =
+      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
+  wasm::ModuleEnv env(shared->module(), use_trap_handler,
+                      wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, shared->module(), export_wrappers,
-                              trap_handler::IsTrapHandlerEnabled());
+      WasmCompiledModule::New(isolate, shared->module(), export_wrappers, env);
   compiled_module->set_shared(*shared);
   script->set_wasm_compiled_module(*compiled_module);
   NativeModuleDeserializer deserializer(isolate,

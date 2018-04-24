@@ -344,6 +344,11 @@ class LiftoffCompiler {
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
+    for (uint32_t i = 0; i < __ num_locals(); ++i) {
+      if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
+        return;
+    }
+
     // Input 0 is the call target, the instance is at 1.
     constexpr int kInstanceParameterIndex = 1;
     // Store the instance parameter to a special stack slot.
@@ -383,10 +388,6 @@ class LiftoffCompiler {
     // finish compilation without errors even if we hit unimplemented
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
-    for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
-        return;
-    }
 
     __ SpillInstance(instance_reg);
     // Input 0 is the code target, 1 is the instance. First parameter at 2.

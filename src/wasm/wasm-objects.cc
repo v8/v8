@@ -1357,13 +1357,13 @@ MaybeHandle<FixedArray> WasmSharedModuleData::CheckBreakPoints(
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, WasmModule* module, Handle<FixedArray> export_wrappers,
-    bool use_trap_handler) {
+    wasm::ModuleEnv& env) {
   Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   Handle<WeakCell> weak_native_context =
       isolate->factory()->NewWeakCell(isolate->native_context());
   compiled_module->set_weak_native_context(*weak_native_context);
-  compiled_module->set_use_trap_handler(use_trap_handler);
+  compiled_module->set_use_trap_handler(env.use_trap_handler);
   if (!export_wrappers.is_null()) {
     compiled_module->set_export_wrappers(*export_wrappers);
   }
@@ -1371,7 +1371,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   wasm::NativeModule* native_module = nullptr;
   {
     std::unique_ptr<wasm::NativeModule> native_module_ptr =
-        isolate->wasm_engine()->code_manager()->NewNativeModule(*module);
+        isolate->wasm_engine()->code_manager()->NewNativeModule(*module, env);
     native_module = native_module_ptr.release();
     Handle<Foreign> native_module_wrapper =
         Managed<wasm::NativeModule>::From(isolate, native_module);

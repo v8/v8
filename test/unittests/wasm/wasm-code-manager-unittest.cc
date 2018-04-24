@@ -5,6 +5,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
@@ -161,11 +162,15 @@ class WasmCodeManagerTest : public TestWithContext,
   // We pretend all our modules have 10 functions and no imports, just so
   // we can size up the code_table.
   NativeModulePtr AllocFixedModule(WasmCodeManager* manager, size_t size) {
-    return manager->NewNativeModule(size, 10, 0, false);
+    wasm::ModuleEnv env(nullptr, UseTrapHandler::kNoTrapHandler,
+                        RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
+    return manager->NewNativeModule(size, 10, 0, false, env);
   }
 
   NativeModulePtr AllocGrowableModule(WasmCodeManager* manager, size_t size) {
-    return manager->NewNativeModule(size, 10, 0, true);
+    wasm::ModuleEnv env(nullptr, UseTrapHandler::kNoTrapHandler,
+                        RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
+    return manager->NewNativeModule(size, 10, 0, true, env);
   }
 
   NativeModulePtr AllocModule(WasmCodeManager* manager, size_t size,

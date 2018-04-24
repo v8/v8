@@ -247,6 +247,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* GetCode(uint32_t index) const;
   void SetCode(uint32_t index, WasmCode* wasm_code);
 
+  // Clones higher tier code from a {source_native_module} to
+  // this native module.
+  void CloneHigherTierCodeFrom(const NativeModule* source_native_module);
+
   // Register/release the protected instructions in all code objects with the
   // global trap handler for this process.
   void UnpackAndRegisterProtectedInstructions();
@@ -297,7 +301,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   static base::AtomicNumber<size_t> next_id_;
   NativeModule(uint32_t num_functions, uint32_t num_imports,
                bool can_request_more, VirtualMemory* vmem,
-               WasmCodeManager* code_manager);
+               WasmCodeManager* code_manager, ModuleEnv& env);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
   Address AllocateForCode(size_t size);
@@ -367,11 +371,13 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // which will be page size aligned. The size of the initial memory
   // is determined with a heuristic based on the total size of wasm
   // code. The native module may later request more memory.
-  std::unique_ptr<NativeModule> NewNativeModule(const WasmModule&);
+  std::unique_ptr<NativeModule> NewNativeModule(const WasmModule& module,
+                                                ModuleEnv& env);
   std::unique_ptr<NativeModule> NewNativeModule(size_t memory_estimate,
                                                 uint32_t num_functions,
                                                 uint32_t num_imported_functions,
-                                                bool can_request_more);
+                                                bool can_request_more,
+                                                ModuleEnv& env);
 
   WasmCode* LookupCode(Address pc) const;
   WasmCode* GetCodeFromStartAddress(Address pc) const;

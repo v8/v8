@@ -58,10 +58,12 @@ namespace wasm {
 
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
-  kFailedCompilation
+  kFinishedTopTierCompilation,
+  kFailedCompilation,
+  kDestroyed
 };
 
-enum class NotifyCompilationCallback : uint8_t { kNotify, kNoNotify };
+enum class CompileMode : uint8_t { kRegular, kTiering };
 
 // The CompilationState keeps track of the compilation state of the
 // owning NativeModule, i.e. which functions are left to be compiled.
@@ -69,7 +71,7 @@ enum class NotifyCompilationCallback : uint8_t { kNotify, kNoNotify };
 // compilation of functions.
 class CompilationState {
  public:
-  explicit CompilationState(internal::Isolate* isolate);
+  CompilationState(internal::Isolate* isolate, ModuleEnv& env);
   ~CompilationState();
 
   // Needs to be set before {AddCompilationUnits} is run, which triggers
@@ -80,14 +82,17 @@ class CompilationState {
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
-      std::vector<std::unique_ptr<WasmCompilationUnit>>& units);
+      std::vector<std::unique_ptr<WasmCompilationUnit>>& baseline_units,
+      std::vector<std::unique_ptr<WasmCompilationUnit>>& tiering_units);
   std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit();
   std::unique_ptr<WasmCompilationUnit> GetNextExecutedUnit();
+
   bool HasCompilationUnitToFinish();
 
-  void OnError(Handle<Object> error, NotifyCompilationCallback notify);
-  void OnFinishedUnit(NotifyCompilationCallback notify);
-  void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit);
+  void OnError(Handle<Object> error);
+  void OnFinishedUnit();
+  void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
+                                WasmCompilationUnit::CompilationMode mode);
 
   void CancelAndWait();
   void OnBackgroundTaskStopped();
@@ -108,11 +113,48 @@ class CompilationState {
     return failed_;
   }
 
+  bool baseline_compilation_finished() const {
+    return baseline_compilation_finished_;
+  }
+
+  CompileMode compile_mode() const { return compile_mode_; }
+
+  ModuleEnv* module_env() { return &module_env_; }
+
+  const ModuleWireBytes& wire_bytes() const { return wire_bytes_; }
+
+  void SetWireBytes(const ModuleWireBytes& wire_bytes) {
+    DCHECK_NULL(bytes_copy_);
+    DCHECK_EQ(0, wire_bytes_.length());
+    bytes_copy_ = std::unique_ptr<byte[]>(new byte[wire_bytes.length()]);
+    memcpy(bytes_copy_.get(), wire_bytes.start(), wire_bytes.length());
+    wire_bytes_ = ModuleWireBytes(bytes_copy_.get(),
+                                  bytes_copy_.get() + wire_bytes.length());
+  }
+
  private:
   void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
 
+  std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
+    return baseline_compilation_finished_ ? tiering_finish_units_
+                                          : baseline_finish_units_;
+  }
+
+  size_t GetNumCompilationUnitsScheduled() const {
+    return baseline_compilation_units_.size() +
+           tiering_compilation_units_.size();
+  }
+
   Isolate* const isolate_;
+  ModuleEnv module_env_;
   const size_t max_memory_;
+  const CompileMode compile_mode_;
+  bool baseline_compilation_finished_ = false;
+
+  // TODO(wasm): eventually we want to get rid of this
+  // additional copy (see AsyncCompileJob).
+  std::unique_ptr<byte[]> bytes_copy_;
+  ModuleWireBytes wire_bytes_;
 
   // This mutex protects all information of this CompilationState which is being
   // accessed concurrently.
@@ -121,12 +163,16 @@ class CompilationState {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
 
-  std::vector<std::unique_ptr<WasmCompilationUnit>> compilation_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_compilation_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_compilation_units_;
+
   bool finisher_is_running_ = false;
   bool failed_ = false;
   size_t num_background_tasks_ = 0;
 
-  std::vector<std::unique_ptr<WasmCompilationUnit>> finish_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
+
   size_t allocated_memory_ = 0;
 
   // End of fields protected by {mutex_}.
@@ -144,6 +190,7 @@ class CompilationState {
   const size_t max_background_tasks_ = 0;
 
   size_t outstanding_units_ = 0;
+  size_t num_tiering_units_ = 0;
 };
 
 namespace {
@@ -889,7 +936,7 @@ double MonotonicallyIncreasingTimeInMs() {
          base::Time::kMillisecondsPerSecond;
 }
 
-ModuleEnv CreateDefaultModuleEnv(Isolate* isolate, WasmModule* module) {
+ModuleEnv CreateDefaultModuleEnv(WasmModule* module) {
   // TODO(kschimpf): Add module-specific policy handling here (see v8:7143)?
   UseTrapHandler use_trap_handler =
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
@@ -899,9 +946,9 @@ ModuleEnv CreateDefaultModuleEnv(Isolate* isolate, WasmModule* module) {
 Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
                                              WasmModule* module,
                                              Handle<FixedArray> export_wrappers,
-                                             ModuleEnv* env) {
-  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate, module, export_wrappers, env->use_trap_handler);
+                                             ModuleEnv& env) {
+  Handle<WasmCompiledModule> compiled_module =
+      WasmCompiledModule::New(isolate, module, export_wrappers, env);
   return compiled_module;
 }
 
@@ -917,39 +964,62 @@ size_t GetMaxUsableMemorySize(Isolate* isolate) {
 class CompilationUnitBuilder {
  public:
   explicit CompilationUnitBuilder(NativeModule* native_module,
-                                  ModuleEnv* module_env,
                                   Handle<Code> centry_stub)
       : native_module_(native_module),
         compilation_state_(native_module->compilation_state()),
-        module_env_(module_env),
         centry_stub_(centry_stub) {}
 
   void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
                Vector<const uint8_t> bytes, WasmName name) {
-    units_.emplace_back(new WasmCompilationUnit(
-        compilation_state_->isolate(), module_env_, native_module_,
-        wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                           bytes.end()},
-        name, function->func_index, centry_stub_,
-        WasmCompilationUnit::GetDefaultCompilationMode(),
-        compilation_state_->isolate()->async_counters().get()));
+    switch (compilation_state_->compile_mode()) {
+      case CompileMode::kTiering:
+        tiering_units_.emplace_back(
+            CreateUnit(function, buffer_offset, bytes, name,
+                       WasmCompilationUnit::CompilationMode::kTurbofan));
+        baseline_units_.emplace_back(
+            CreateUnit(function, buffer_offset, bytes, name,
+                       WasmCompilationUnit::CompilationMode::kLiftoff));
+        return;
+      case CompileMode::kRegular:
+        baseline_units_.emplace_back(
+            CreateUnit(function, buffer_offset, bytes, name,
+                       WasmCompilationUnit::GetDefaultCompilationMode()));
+        return;
+    }
+    UNREACHABLE();
   }
 
   bool Commit() {
-    if (units_.empty()) return false;
-    compilation_state_->AddCompilationUnits(units_);
-    units_.clear();
+    if (baseline_units_.empty() && tiering_units_.empty()) return false;
+    compilation_state_->AddCompilationUnits(baseline_units_, tiering_units_);
+    Clear();
     return true;
   }
 
-  void Clear() { units_.clear(); }
+  void Clear() {
+    baseline_units_.clear();
+    tiering_units_.clear();
+  }
 
  private:
+  std::unique_ptr<WasmCompilationUnit> CreateUnit(
+      const WasmFunction* function, uint32_t buffer_offset,
+      Vector<const uint8_t> bytes, WasmName name,
+      WasmCompilationUnit::CompilationMode mode) {
+    return base::make_unique<WasmCompilationUnit>(
+        compilation_state_->isolate(), compilation_state_->module_env(),
+        native_module_,
+        wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
+                           bytes.end()},
+        name, function->func_index, centry_stub_, mode,
+        compilation_state_->isolate()->async_counters().get());
+  }
+
   NativeModule* native_module_;
   CompilationState* compilation_state_;
-  ModuleEnv* module_env_;
   Handle<Code> centry_stub_;
-  std::vector<std::unique_ptr<WasmCompilationUnit>> units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
 };
 
 // Run by each compilation task and by the main thread (i.e. in both
@@ -966,39 +1036,45 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
       compilation_state->GetNextCompilationUnit();
   if (unit == nullptr) return false;
 
+  // TODO(kimanh): We need to find out in which mode the unit
+  // should be compiled in before compiling it, as it might fallback
+  // to Turbofan if it cannot be compiled using Liftoff. This can be removed
+  // later as soon as Liftoff can compile any function. Then, we can directly
+  // access {unit->mode()} within {ScheduleUnitForFinishing()}.
+  WasmCompilationUnit::CompilationMode mode = unit->mode();
   unit->ExecuteCompilation();
-  compilation_state->ScheduleUnitForFinishing(std::move(unit));
+  compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
 
   return true;
 }
 
-size_t GetNumFunctionsToCompile(const std::vector<WasmFunction>& functions,
-                                ModuleEnv* module_env) {
+size_t GetNumFunctionsToCompile(const WasmModule* wasm_module) {
   // TODO(kimanh): Remove, FLAG_skip_compiling_wasm_funcs: previously used for
   // debugging, and now not necessarily working anymore.
-  uint32_t start = module_env->module->num_imported_functions +
-                   FLAG_skip_compiling_wasm_funcs;
-  uint32_t num_funcs = static_cast<uint32_t>(functions.size());
+  uint32_t start =
+      wasm_module->num_imported_functions + FLAG_skip_compiling_wasm_funcs;
+  uint32_t num_funcs = static_cast<uint32_t>(wasm_module->functions.size());
   uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
   return funcs_to_compile;
 }
 
 void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
                                 const ModuleWireBytes& wire_bytes,
-                                ModuleEnv* module_env, Handle<Code> centry_stub,
+                                const WasmModule* wasm_module,
+                                Handle<Code> centry_stub,
                                 NativeModule* native_module) {
-  uint32_t start = module_env->module->num_imported_functions +
-                   FLAG_skip_compiling_wasm_funcs;
+  uint32_t start =
+      wasm_module->num_imported_functions + FLAG_skip_compiling_wasm_funcs;
   uint32_t num_funcs = static_cast<uint32_t>(functions.size());
 
-  CompilationUnitBuilder builder(native_module, module_env, centry_stub);
+  CompilationUnitBuilder builder(native_module, centry_stub);
   for (uint32_t i = start; i < num_funcs; ++i) {
     const WasmFunction* func = &functions[i];
     uint32_t buffer_offset = func->code.offset();
     Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
                                 func->code.end_offset() - func->code.offset());
 
-    WasmName name = wire_bytes.GetName(func, module_env->module);
+    WasmName name = wire_bytes.GetName(func, wasm_module);
     DCHECK_NOT_NULL(native_module);
     builder.AddUnit(func, buffer_offset, bytes, name);
   }
@@ -1014,13 +1090,64 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     if (unit == nullptr) break;
     wasm::WasmCode* result = unit->FinishCompilation(thrower);
 
+    if (thrower->error()) {
+      compilation_state->Abort();
+      break;
+    }
+
     // Update the compilation state.
-    compilation_state->OnFinishedUnit(NotifyCompilationCallback::kNoNotify);
+    compilation_state->OnFinishedUnit();
     DCHECK_IMPLIES(result == nullptr, thrower->error());
     if (result == nullptr) break;
   }
   if (!compilation_state->failed()) {
     compilation_state->RestartBackgroundTasks();
+  }
+}
+
+void PatchNativeModule(NativeModule* cloning_module,
+                       const NativeModule* source_module) {
+  // Clone optimized code into {cloning_module}.
+  if (source_module != cloning_module) {
+    cloning_module->CloneHigherTierCodeFrom(source_module);
+  }
+
+  // Link.
+  CodeSpecialization code_specialization;
+  code_specialization.RelocateDirectCalls(cloning_module);
+  code_specialization.ApplyToWholeModule(cloning_module);
+}
+
+void UpdateAllCompiledModulesWithTopTierCode(
+    Handle<WasmCompiledModule> compiled_module) {
+  // We want to disallow heap allocation here, as this might interfere with
+  // iterating over the chain of compiled modules for updating all native
+  // modules.
+  DisallowHeapAllocation no_gc;
+
+  WasmModule* module = compiled_module->shared()->module();
+  DCHECK_GT(module->functions.size() - module->num_imported_functions, 0);
+  USE(module);
+
+  CodeSpaceMemoryModificationScope modification_scope(
+      compiled_module->GetIsolate()->heap());
+  NativeModule* updated_module = compiled_module->GetNativeModule();
+
+  Handle<WasmCompiledModule> current = compiled_module;
+  PatchNativeModule(current->GetNativeModule(), updated_module);
+
+  // Go through the chain of compiled modules to update each (next in chain).
+  while (current->has_next_instance()) {
+    current = handle(current->next_instance());
+    PatchNativeModule(current->GetNativeModule(), updated_module);
+  }
+
+  // Go through the chain of compiled modules to update each (previous in
+  // chain).
+  current = compiled_module;
+  while (current->has_prev_instance()) {
+    current = handle(current->prev_instance());
+    PatchNativeModule(current->GetNativeModule(), updated_module);
   }
 }
 
@@ -1040,12 +1167,15 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
   //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {finish_units_}.
-  // 2.b) If {finish_units_} contains a compilation unit, the main thread
-  //      dequeues it and finishes the compilation.
+  //      result is enqueued in {baseline_finish_units_}.
+  // 2.b) If {baseline_finish_units_} contains a compilation unit, the main
+  //      thread dequeues it and finishes the compilation.
   // 3) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {BackgroundCompileTasks} instances to finish.
-  // 4) The main thread finishes the compilation.
+  //    main thread continues to finish all compilation units as long as
+  //    baseline-compilation units are left to be processed.
+  // 4) If tier-up is enabled, the main thread restarts background tasks
+  //    that take care of compiling and finishing the top-tier compilation
+  //    units.
 
   // Turn on the {CanonicalHandleScope} so that the background threads can
   // use the node cache.
@@ -1056,45 +1186,102 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   // the compilation units. This foreground thread will be
   // responsible for finishing compilation.
   compilation_state->SetFinisherIsRunning(true);
-  size_t functions_count =
-      GetNumFunctionsToCompile(module->functions, module_env);
+  size_t functions_count = GetNumFunctionsToCompile(module);
   compilation_state->SetNumberOfFunctionsToCompile(functions_count);
+  compilation_state->SetWireBytes(wire_bytes);
+
+  DeferredHandles* deferred_handles = nullptr;
+  Handle<Code> centry_deferred = centry_stub;
+  Handle<WasmCompiledModule> compiled_module_deferred;
+  if (compilation_state->compile_mode() == CompileMode::kTiering) {
+    // Open a deferred handle scope for the centry_stub, in order to allow
+    // for background tiering compilation.
+    DeferredHandleScope deferred(isolate);
+    centry_deferred = Handle<Code>(*centry_stub, isolate);
+    compiled_module_deferred =
+        handle(native_module->compiled_module(), compilation_state->isolate());
+    deferred_handles = deferred.Detach();
+  }
+  compilation_state->AddCallback(
+      [compiled_module_deferred, deferred_handles](
+          // Callback is called from a foreground thread.
+          CompilationEvent event, Handle<Object> error) mutable {
+        switch (event) {
+          case CompilationEvent::kFinishedBaselineCompilation:
+            // Nothing to do, since we are finishing baseline compilation
+            // in this foreground thread.
+            return;
+          case CompilationEvent::kFinishedTopTierCompilation:
+            UpdateAllCompiledModulesWithTopTierCode(compiled_module_deferred);
+            // TODO(wasm): Currently compilation has to finish before the
+            // {deferred_handles} can be removed. We need to make sure that
+            // we can clean it up at a time when the native module
+            // should die (but currently cannot, since it's kept alive
+            // through the {deferred_handles} themselves).
+            delete deferred_handles;
+            deferred_handles = nullptr;
+            return;
+          case CompilationEvent::kFailedCompilation:
+            // If baseline compilation failed, we will reflect this without
+            // a callback, in this thread through {thrower}.
+            // Tier-up compilation should not fail if baseline compilation
+            // did not fail.
+            DCHECK(!compiled_module_deferred->GetNativeModule()
+                        ->compilation_state()
+                        ->baseline_compilation_finished());
+            delete deferred_handles;
+            deferred_handles = nullptr;
+            return;
+          case CompilationEvent::kDestroyed:
+            if (deferred_handles) delete deferred_handles;
+            return;
+        }
+        UNREACHABLE();
+      });
 
   // 1) The main thread allocates a compilation unit for each wasm function
   //    and stores them in the vector {compilation_units} within the
   //    {compilation_state}. By adding units to the {compilation_state}, new
   //    {BackgroundCompileTask} instances are spawned which run on
   //    background threads.
-  InitializeCompilationUnits(module->functions, wire_bytes, module_env,
-                             centry_stub, native_module);
+  InitializeCompilationUnits(module->functions, compilation_state->wire_bytes(),
+                             module, centry_deferred, native_module);
 
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
   //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {finish_units_}.
+  //      result is enqueued in {baseline_finish_units_}.
   //      The foreground task bypasses waiting on memory threshold, because
   //      its results will immediately be converted to code (below).
-  while (FetchAndExecuteCompilationUnit(compilation_state)) {
-    // 2.b) If {finish_units_} contains a compilation unit, the main thread
-    //      dequeues it and finishes the compilation unit. Compilation units
-    //      are finished concurrently to the background threads to save
+  while (FetchAndExecuteCompilationUnit(compilation_state) &&
+         !compilation_state->baseline_compilation_finished()) {
+    // 2.b) If {baseline_finish_units_} contains a compilation unit, the main
+    //      thread dequeues it and finishes the compilation unit. Compilation
+    //      units are finished concurrently to the background threads to save
     //      memory.
     FinishCompilationUnits(compilation_state, thrower);
 
     if (compilation_state->failed()) break;
   }
 
-  // 3) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {BackgroundCompileTasks} instances to finish -
-  //    which happens once they all realize there's no next work item to
-  //    process. If compilation already failed, all background tasks have
-  //    already been canceled in {FinishCompilationUnits}, and there are
-  //    no units to finish.
-  if (!compilation_state->failed()) {
-    compilation_state->CancelAndWait();
-
-    // 4) Finish all compilation units which have been executed while we waited.
+  while (!compilation_state->failed()) {
+    // 3) After the parallel phase of all compilation units has started, the
+    //    main thread continues to finish compilation units as long as
+    //    baseline compilation units are left to be processed. If compilation
+    //    already failed, all background tasks have already been canceled
+    //    in {FinishCompilationUnits}, and there are no units to finish.
     FinishCompilationUnits(compilation_state, thrower);
+
+    if (compilation_state->baseline_compilation_finished()) break;
+  }
+
+  // 4) If tiering-compilation is enabled, we need to set the finisher
+  //    to false, such that the background threads will spawn a foreground
+  //    thread to finish the top-tier compilation units.
+  if (!compilation_state->failed() &&
+      compilation_state->compile_mode() == CompileMode::kTiering) {
+    compilation_state->SetFinisherIsRunning(false);
+    compilation_state->RestartBackgroundTasks();
   }
 }
 
@@ -1209,14 +1396,14 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
     export_wrappers->set(i, *init_builtin);
   }
-  ModuleEnv env = CreateDefaultModuleEnv(isolate, wasm_module);
+  ModuleEnv env = CreateDefaultModuleEnv(wasm_module);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate, shared->module(), export_wrappers, &env);
+      NewCompiledModule(isolate, shared->module(), export_wrappers, env);
   NativeModule* native_module = compiled_module->GetNativeModule();
   compiled_module->set_shared(*shared);
   if (lazy_compile) {
@@ -1314,21 +1501,33 @@ class FinishCompileTask : public CancelableTask {
       ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
       wasm::WasmCode* result = unit->FinishCompilation(&thrower);
 
+      NativeModule* native_module = unit->native_module();
       if (thrower.error()) {
         DCHECK_NULL(result);
         USE(result);
         SaveContext saved_context(isolate);
         isolate->set_context(
-            unit->native_module()->compiled_module()->native_context());
+            native_module->compiled_module()->native_context());
         Handle<Object> error = thrower.Reify();
-        compilation_state_->OnError(error, NotifyCompilationCallback::kNotify);
+        compilation_state_->OnError(error);
         compilation_state_->SetFinisherIsRunning(false);
         break;
       }
 
+      if (compilation_state_->baseline_compilation_finished()) {
+        // If Liftoff compilation finishes it will directly start executing.
+        // As soon as we have Turbofan-compiled code available, it will
+        // directly be used by Liftoff-compiled code. Therefore we need
+        // to patch the compiled Turbofan function directly after finishing it.
+        DCHECK_EQ(CompileMode::kTiering, compilation_state_->compile_mode());
+        CodeSpecialization code_specialization;
+        code_specialization.RelocateDirectCalls(native_module);
+        code_specialization.ApplyToWasmCode(result);
+      }
+
       // Update the compilation state, and possibly notify
       // threads waiting for events.
-      compilation_state_->OnFinishedUnit(NotifyCompilationCallback::kNotify);
+      compilation_state_->OnFinishedUnit();
 
       if (deadline < MonotonicallyIncreasingTimeInMs()) {
         // We reached the deadline. We reschedule this task and return
@@ -2498,7 +2697,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   void OnAbort() override;
 
  private:
-  // Finishes the AsyncCOmpileJob with an error.
+  // Finishes the AsyncCompileJob with an error.
   void FinishAsyncCompileJobWithError(ResultBase result);
 
   void CommitCompilationUnits();
@@ -2532,9 +2731,6 @@ void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
-  // {job} keeps the {this} pointer alive.
-  std::shared_ptr<AsyncCompileJob> job =
-      isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
   MaybeHandle<Object> promise_result =
       JSPromise::Resolve(module_promise_, result);
   CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
@@ -2695,10 +2891,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     Isolate* isolate = job_->isolate_;
 
-    DCHECK_NULL(job_->module_env_);
-    job_->module_env_.reset(
-        new ModuleEnv(CreateDefaultModuleEnv(isolate, module_)));
-
     Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
     {
       // Now reopen the handles in a deferred scope in order to use
@@ -2717,8 +2909,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     Handle<FixedArray> export_wrappers =
         job_->isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
 
-    job_->compiled_module_ = NewCompiledModule(
-        job_->isolate_, module_, export_wrappers, job_->module_env_.get());
+    ModuleEnv env = CreateDefaultModuleEnv(module_);
+    job_->compiled_module_ =
+        NewCompiledModule(job_->isolate_, module_, export_wrappers, env);
 
     {
       DeferredHandleScope deferred(job_->isolate_);
@@ -2729,6 +2922,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
         module_->functions.size() - module_->num_imported_functions;
 
     if (num_functions == 0) {
+      // Tiering has nothing to do if module is empty.
+      job_->tiering_completed_ = true;
+
       // Degenerate case of an empty module.
       job_->DoSync<FinishCompile>();
       return;
@@ -2744,17 +2940,41 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       AsyncCompileJob* job = job_;
       compilation_state->AddCallback(
           [job](CompilationEvent event, Handle<Object> error) {
+            // Callback is called from a foreground thread.
             switch (event) {
               case CompilationEvent::kFinishedBaselineCompilation:
                 if (job->DecrementAndCheckFinisherCount()) {
                   job->DoSync<FinishCompile>();
                 }
                 return;
-              case CompilationEvent::kFailedCompilation:
+              case CompilationEvent::kFinishedTopTierCompilation:
+                // It is only safe to schedule the UpdateToTopTierCompiledCode
+                // step if no foreground task is currently pending, and no
+                // finisher is outstanding (streaming compilation).
+                if (job->num_pending_foreground_tasks_ == 0 &&
+                    job->outstanding_finishers_.Value() == 0) {
+                  job->DoSync<UpdateToTopTierCompiledCode>();
+                }
+                // If a foreground task was pending or a finsher was pending,
+                // we will rely on FinishModule to switch the step to
+                // UpdateToTopTierCompiledCode.
+                job->tiering_completed_ = true;
+                return;
+              case CompilationEvent::kFailedCompilation: {
+                // Tier-up compilation should not fail if baseline compilation
+                // did not fail.
+                DCHECK(!job->compiled_module_->GetNativeModule()
+                            ->compilation_state()
+                            ->baseline_compilation_finished());
+
                 DeferredHandleScope deferred(job->isolate());
                 error = handle(*error, job->isolate());
                 job->deferred_handles_.push_back(deferred.Detach());
                 job->DoSync<CompileFailed>(error);
+                return;
+              }
+              case CompilationEvent::kDestroyed:
+                // Nothing to do.
                 return;
             }
             UNREACHABLE();
@@ -2766,12 +2986,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // InitializeCompilationUnits always returns 0 for streaming compilation,
       // then DoAsync would do the same as NextStep already.
 
-      size_t functions_count =
-          GetNumFunctionsToCompile(module_->functions, job_->module_env_.get());
+      size_t functions_count = GetNumFunctionsToCompile(env.module);
       compilation_state->SetNumberOfFunctionsToCompile(functions_count);
       // Add compilation units and kick off compilation.
       InitializeCompilationUnits(module_->functions, job_->wire_bytes_,
-                                 job_->module_env_.get(), job_->centry_stub_,
+                                 env.module, job_->centry_stub_,
                                  job_->compiled_module_->GetNativeModule());
     }
   }
@@ -2870,8 +3089,40 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     TRACE_COMPILE("(7) Finish module...\n");
     Handle<WasmModuleObject> result =
         WasmModuleObject::New(job_->isolate_, job_->compiled_module_);
-    // {job_} is deleted in AsyncCompileSucceeded, therefore the {return}.
-    return job_->AsyncCompileSucceeded(result);
+    job_->AsyncCompileSucceeded(result);
+
+    WasmModule* module = job_->compiled_module_->shared()->module();
+    size_t num_functions =
+        module->functions.size() - module->num_imported_functions;
+    if (job_->compiled_module_->GetNativeModule()
+                ->compilation_state()
+                ->compile_mode() == CompileMode::kRegular ||
+        num_functions == 0) {
+      // If we do not tier up, the async compile job is done here and
+      // can be deleted.
+      job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
+      return;
+    }
+    // If background tiering compilation finished before we resolved the
+    // promise, switch to patching now. Otherwise, patching will be scheduled
+    // by a callback.
+    DCHECK_EQ(CompileMode::kTiering, job_->compiled_module_->GetNativeModule()
+                                         ->compilation_state()
+                                         ->compile_mode());
+    if (job_->tiering_completed_) {
+      job_->DoSync<UpdateToTopTierCompiledCode>();
+    }
+  }
+};
+
+//==========================================================================
+// Step 8 (sync): Update with top tier code.
+//==========================================================================
+class AsyncCompileJob::UpdateToTopTierCompiledCode : public CompileStep {
+  void RunInForeground() override {
+    TRACE_COMPILE("(8) Update native module to use optimized code...\n");
+    UpdateAllCompiledModulesWithTopTierCode(job_->compiled_module_);
+    job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
   }
 };
 
@@ -2987,8 +3238,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.SetValue(2);
-  compilation_unit_builder_.reset(new CompilationUnitBuilder(
-      native_module, job_->module_env_.get(), job_->centry_stub_));
+  compilation_unit_builder_.reset(
+      new CompilationUnitBuilder(native_module, job_->centry_stub_));
   return true;
 }
 
@@ -3063,14 +3314,22 @@ void CompilationStateDeleter::operator()(
 }
 
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate) {
+    Isolate* isolate, ModuleEnv& env) {
   return std::unique_ptr<CompilationState, CompilationStateDeleter>(
-      new CompilationState(isolate));
+      new CompilationState(isolate, env));
 }
 
-CompilationState::CompilationState(internal::Isolate* isolate)
+ModuleEnv* GetModuleEnv(CompilationState* compilation_state) {
+  return compilation_state->module_env();
+}
+
+CompilationState::CompilationState(internal::Isolate* isolate, ModuleEnv& env)
     : isolate_(isolate),
+      module_env_(env),
       max_memory_(GetMaxUsableMemorySize(isolate) / 2),
+      compile_mode_(FLAG_wasm_tier_up ? CompileMode::kTiering
+                                      : CompileMode::kRegular),
+      wire_bytes_(ModuleWireBytes(nullptr, nullptr)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
@@ -3082,16 +3341,24 @@ CompilationState::CompilationState(internal::Isolate* isolate)
 
   // Register task manager for clean shutdown in case of an isolate shutdown.
   isolate_->wasm_engine()->Register(&background_task_manager_);
+  isolate_->wasm_engine()->Register(&foreground_task_manager_);
 }
 
 CompilationState::~CompilationState() {
   CancelAndWait();
   foreground_task_manager_.CancelAndWait();
+  isolate_->wasm_engine()->Unregister(&foreground_task_manager_);
+  NotifyOnEvent(CompilationEvent::kDestroyed, Handle<Object>::null());
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
   DCHECK(!failed());
   outstanding_units_ = num_functions;
+
+  if (compile_mode_ == CompileMode::kTiering) {
+    outstanding_units_ += num_functions;
+    num_tiering_units_ = num_functions;
+  }
 }
 
 void CompilationState::AddCallback(
@@ -3100,23 +3367,43 @@ void CompilationState::AddCallback(
 }
 
 void CompilationState::AddCompilationUnits(
-    std::vector<std::unique_ptr<WasmCompilationUnit>>& units) {
+    std::vector<std::unique_ptr<WasmCompilationUnit>>& baseline_units,
+    std::vector<std::unique_ptr<WasmCompilationUnit>>& tiering_units) {
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
-    compilation_units_.insert(compilation_units_.end(),
-                              std::make_move_iterator(units.begin()),
-                              std::make_move_iterator(units.end()));
+
+    if (compile_mode_ == CompileMode::kTiering) {
+      DCHECK_EQ(baseline_units.size(), tiering_units.size());
+      DCHECK_EQ(tiering_units.back()->mode(),
+                WasmCompilationUnit::CompilationMode::kTurbofan);
+      tiering_compilation_units_.insert(
+          tiering_compilation_units_.end(),
+          std::make_move_iterator(tiering_units.begin()),
+          std::make_move_iterator(tiering_units.end()));
+    } else {
+      DCHECK(tiering_compilation_units_.empty());
+    }
+
+    baseline_compilation_units_.insert(
+        baseline_compilation_units_.end(),
+        std::make_move_iterator(baseline_units.begin()),
+        std::make_move_iterator(baseline_units.end()));
   }
-  RestartBackgroundTasks(units.size());
+
+  RestartBackgroundTasks(GetNumCompilationUnitsScheduled());
 }
 
 std::unique_ptr<WasmCompilationUnit>
 CompilationState::GetNextCompilationUnit() {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  if (!compilation_units_.empty()) {
-    std::unique_ptr<WasmCompilationUnit> unit =
-        std::move(compilation_units_.back());
-    compilation_units_.pop_back();
+
+  std::vector<std::unique_ptr<WasmCompilationUnit>>& units =
+      baseline_compilation_units_.empty() ? tiering_compilation_units_
+                                          : baseline_compilation_units_;
+
+  if (!units.empty()) {
+    std::unique_ptr<WasmCompilationUnit> unit = std::move(units.back());
+    units.pop_back();
     return unit;
   }
 
@@ -3125,44 +3412,67 @@ CompilationState::GetNextCompilationUnit() {
 
 std::unique_ptr<WasmCompilationUnit> CompilationState::GetNextExecutedUnit() {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  if (finish_units_.empty()) return {};
-  std::unique_ptr<WasmCompilationUnit> ret = std::move(finish_units_.back());
-  finish_units_.pop_back();
+  std::vector<std::unique_ptr<WasmCompilationUnit>>& units = finish_units();
+  if (units.empty()) return {};
+  std::unique_ptr<WasmCompilationUnit> ret = std::move(units.back());
+  units.pop_back();
   allocated_memory_ -= ret->memory_cost();
   return ret;
 }
 
 bool CompilationState::HasCompilationUnitToFinish() {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  return !finish_units_.empty();
+  return !finish_units().empty();
 }
 
-void CompilationState::OnError(Handle<Object> error,
-                               NotifyCompilationCallback notify) {
+void CompilationState::OnError(Handle<Object> error) {
   Abort();
-  if (notify == NotifyCompilationCallback::kNotify) {
-    NotifyOnEvent(CompilationEvent::kFailedCompilation, error);
-  }
+  NotifyOnEvent(CompilationEvent::kFailedCompilation, error);
 }
 
-void CompilationState::OnFinishedUnit(NotifyCompilationCallback notify) {
+void CompilationState::OnFinishedUnit() {
   DCHECK_GT(outstanding_units_, 0);
   --outstanding_units_;
 
   if (outstanding_units_ == 0) {
     CancelAndWait();
-    if (notify == NotifyCompilationCallback::kNotify) {
-      NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation,
-                    Handle<Object>::null());
-    }
+    baseline_compilation_finished_ = true;
+
+    DCHECK(compile_mode_ == CompileMode::kRegular ||
+           compile_mode_ == CompileMode::kTiering);
+    NotifyOnEvent(compile_mode_ == CompileMode::kRegular
+                      ? CompilationEvent::kFinishedBaselineCompilation
+                      : CompilationEvent::kFinishedTopTierCompilation,
+                  Handle<Object>::null());
+
+  } else if (outstanding_units_ == num_tiering_units_) {
+    DCHECK_EQ(compile_mode_, CompileMode::kTiering);
+    baseline_compilation_finished_ = true;
+
+    // TODO(wasm): For streaming compilation, we want to start top tier
+    // compilation before all functions have been compiled with Liftoff, e.g.
+    // in the case when all received functions have been compiled with Liftoff
+    // and we are waiting for new functions to compile.
+
+    // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
+    // this case is already caught by the previous check.
+    NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation,
+                  Handle<Object>::null());
+    RestartBackgroundTasks(GetNumCompilationUnitsScheduled());
   }
 }
 
 void CompilationState::ScheduleUnitForFinishing(
-    std::unique_ptr<WasmCompilationUnit> unit) {
+    std::unique_ptr<WasmCompilationUnit> unit,
+    WasmCompilationUnit::CompilationMode mode) {
   size_t cost = unit->memory_cost();
   base::LockGuard<base::Mutex> guard(&mutex_);
-  finish_units_.push_back(std::move(unit));
+  if (compile_mode_ == CompileMode::kTiering &&
+      mode == WasmCompilationUnit::CompilationMode::kTurbofan) {
+    tiering_finish_units_.push_back(std::move(unit));
+  } else {
+    baseline_finish_units_.push_back(std::move(unit));
+  }
   allocated_memory_ += cost;
 
   if (!finisher_is_running_ && !failed_) {
@@ -3192,7 +3502,7 @@ void CompilationState::RestartBackgroundTasks(size_t max) {
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
     if (num_background_tasks_ == max_background_tasks_) return;
     num_restart = std::min(
-        num_restart, std::min(compilation_units_.size(),
+        num_restart, std::min(GetNumCompilationUnitsScheduled(),
                               max_background_tasks_ - num_background_tasks_));
     num_background_tasks_ += num_restart;
   }

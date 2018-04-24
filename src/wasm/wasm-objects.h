@@ -26,6 +26,7 @@ namespace internal {
 namespace wasm {
 class InterpretedFrame;
 class NativeModule;
+struct ModuleEnv;
 class WasmCode;
 struct WasmModule;
 class SignatureMap;
@@ -545,10 +546,10 @@ class WasmCompiledModule : public Struct {
   WCM_SMALL_CONST_NUMBER(bool, use_trap_handler)
 
  public:
-  static Handle<WasmCompiledModule> New(
-      Isolate* isolate, wasm::WasmModule* module,
-      Handle<FixedArray> export_wrappers,
-      bool use_trap_hander);
+  static Handle<WasmCompiledModule> New(Isolate* isolate,
+                                        wasm::WasmModule* module,
+                                        Handle<FixedArray> export_wrappers,
+                                        wasm::ModuleEnv& env);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);

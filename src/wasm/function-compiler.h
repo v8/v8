@@ -80,6 +80,7 @@ class WasmCompilationUnit final {
 
   size_t memory_cost() const { return memory_cost_; }
   wasm::NativeModule* native_module() const { return native_module_; }
+  CompilationMode mode() const { return mode_; }
 
  private:
   friend class LiftoffCompilationUnit;

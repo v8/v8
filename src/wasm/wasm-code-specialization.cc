@@ -205,6 +205,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
       } break;
       case RelocInfo::WASM_CODE_TABLE_ENTRY: {
         DCHECK(FLAG_wasm_tier_up);
+        DCHECK(code->is_liftoff());
         WasmCode* const* code_table_entry =
             native_module->code_table().data() + code->index();
         it.rinfo()->set_wasm_code_table_entry(
