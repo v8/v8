@@ -426,10 +426,9 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
 
 VisitResult ImplementationVisitor::Visit(StringLiteralExpression* expr) {
   std::string temp = GenerateNewTempVariable(GetTypeOracle().GetStringType());
-  source_out()
-      << "HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(\""
-      << expr->literal.substr(1, expr->literal.size() - 2) << "\"));"
-      << std::endl;
+  source_out() << "StringConstant(\""
+               << expr->literal.substr(1, expr->literal.size() - 2) << "\");"
+               << std::endl;
   return VisitResult{GetTypeOracle().GetStringType(), temp};
 }
 
