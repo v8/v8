@@ -625,7 +625,7 @@ class ModuleDecoderImpl : public Decoder {
           WasmGlobal* global = nullptr;
           exp->index = consume_global_index(module_.get(), &global);
           if (global) {
-            if (global->mutability) {
+            if (!FLAG_experimental_wasm_mut_global && global->mutability) {
               error("mutable globals cannot be exported");
             }
             global->exported = true;

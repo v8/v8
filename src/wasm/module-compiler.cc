@@ -325,7 +325,8 @@ class InstanceBuilder {
   // Load data segments into the memory.
   void LoadDataSegments(Handle<WasmInstanceObject> instance);
 
-  void WriteGlobalValue(WasmGlobal& global, Handle<Object> value);
+  void WriteGlobalValue(WasmGlobal& global, double value);
+  void WriteGlobalValue(WasmGlobal& global, Handle<WasmGlobalObject> value);
 
   void SanitizeImports();
 
@@ -2010,9 +2011,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
   }
 }
 
-void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
-                                       Handle<Object> value) {
-  double num = value->Number();
+void InstanceBuilder::WriteGlobalValue(WasmGlobal& global, double num) {
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
         reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset,
         num, ValueTypes::TypeName(global.type));
@@ -2033,6 +2032,42 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
     default:
       UNREACHABLE();
   }
+}
+
+void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
+                                       Handle<WasmGlobalObject> value) {
+  TRACE("init [globals_start=%p + %u] = ",
+        reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset);
+  switch (global.type) {
+    case kWasmI32: {
+      int32_t num = value->GetI32();
+      *GetRawGlobalPtr<int32_t>(global) = num;
+      TRACE("%d", num);
+      break;
+    }
+    case kWasmI64: {
+      int64_t num = value->GetI64();
+      *GetRawGlobalPtr<int64_t>(global) = num;
+      TRACE("%" PRId64, num);
+      break;
+    }
+    case kWasmF32: {
+      float num = value->GetF32();
+      *GetRawGlobalPtr<float>(global) = num;
+      TRACE("%f", num);
+      break;
+    }
+    case kWasmF64: {
+      double num = value->GetF64();
+      *GetRawGlobalPtr<double>(global) = num;
+      TRACE("%lf", num);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  TRACE(", type = %s (from WebAssembly.Global)\n",
+        ValueTypes::TypeName(global.type));
 }
 
 void InstanceBuilder::SanitizeImports() {
@@ -2268,7 +2303,12 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
       case kExternalGlobal: {
         // Global imports are converted to numbers and written into the
         // {globals_} array buffer.
-        if (module_->globals[import.index].type == kWasmI64) {
+        WasmGlobal& global = module_->globals[import.index];
+
+        // The mutable-global proposal allows importing i64 values, but only if
+        // they are passed as a WebAssembly.Global object.
+        if (global.type == kWasmI64 && !(FLAG_experimental_wasm_mut_global &&
+                                         value->IsWasmGlobalObject())) {
           ReportLinkError("global import cannot have type i64", index,
                           module_name, import_name);
           return -1;
@@ -2282,19 +2322,28 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           // or friends are patched, we might need to check for that as well.
           if (value->IsJSFunction()) value = isolate_->factory()->nan_value();
           if (value->IsPrimitive() && !value->IsSymbol()) {
-            if (module_->globals[import.index].type == kWasmI32) {
+            if (global.type == kWasmI32) {
               value = Object::ToInt32(isolate_, value).ToHandleChecked();
             } else {
               value = Object::ToNumber(value).ToHandleChecked();
             }
           }
         }
-        if (!value->IsNumber()) {
+        if (FLAG_experimental_wasm_mut_global && value->IsWasmGlobalObject()) {
+          auto global_object = Handle<WasmGlobalObject>::cast(value);
+          if (global_object->type() != global.type) {
+            ReportLinkError("imported global does not match the expected type",
+                            index, module_name, import_name);
+            return -1;
+          }
+          WriteGlobalValue(global, global_object);
+        } else if (value->IsNumber()) {
+          WriteGlobalValue(global, value->Number());
+        } else {
           ReportLinkError("global import must be a number", index, module_name,
                           import_name);
           return -1;
         }
-        WriteGlobalValue(module_->globals[import.index], value);
         break;
       }
       default:
@@ -2498,27 +2547,40 @@ void InstanceBuilder::ProcessExports(
         break;
       }
       case kExternalGlobal: {
-        // Export the value of the global variable as a number.
         WasmGlobal& global = module_->globals[exp.index];
-        double num = 0;
-        switch (global.type) {
-          case kWasmI32:
-            num = *GetRawGlobalPtr<int32_t>(global);
-            break;
-          case kWasmF32:
-            num = *GetRawGlobalPtr<float>(global);
-            break;
-          case kWasmF64:
-            num = *GetRawGlobalPtr<double>(global);
-            break;
-          case kWasmI64:
-            thrower_->LinkError(
-                "export of globals of type I64 is not allowed.");
-            return;
-          default:
-            UNREACHABLE();
+        if (FLAG_experimental_wasm_mut_global) {
+          const bool is_mutable = false;
+          Handle<JSArrayBuffer> globals_buffer(instance->globals_buffer(),
+                                               isolate_);
+          // Since the global's array buffer is always provided, allocation
+          // should never fail.
+          Handle<WasmGlobalObject> global_obj =
+              WasmGlobalObject::New(isolate_, globals_buffer, global.type,
+                                    global.offset, is_mutable)
+                  .ToHandleChecked();
+          desc.set_value(global_obj);
+        } else {
+          // Export the value of the global variable as a number.
+          double num = 0;
+          switch (global.type) {
+            case kWasmI32:
+              num = *GetRawGlobalPtr<int32_t>(global);
+              break;
+            case kWasmF32:
+              num = *GetRawGlobalPtr<float>(global);
+              break;
+            case kWasmF64:
+              num = *GetRawGlobalPtr<double>(global);
+              break;
+            case kWasmI64:
+              thrower_->LinkError(
+                  "export of globals of type I64 is not allowed.");
+              return;
+            default:
+              UNREACHABLE();
+          }
+          desc.set_value(isolate_->factory()->NewNumber(num));
         }
-        desc.set_value(isolate_->factory()->NewNumber(num));
         break;
       }
       default:

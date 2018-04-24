@@ -240,10 +240,12 @@ class WasmGlobalObject : public JSObject {
   inline uint32_t type_size() const;
 
   inline int32_t GetI32();
+  inline int64_t GetI64();
   inline float GetF32();
   inline double GetF64();
 
   inline void SetI32(int32_t value);
+  inline void SetI64(int64_t value);
   inline void SetF32(float value);
   inline void SetF64(double value);
 

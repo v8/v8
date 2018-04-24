@@ -84,12 +84,18 @@ Address WasmGlobalObject::address() const {
 
 int32_t WasmGlobalObject::GetI32() { return Memory::int32_at(address()); }
 
+int64_t WasmGlobalObject::GetI64() { return Memory::int64_at(address()); }
+
 float WasmGlobalObject::GetF32() { return Memory::float_at(address()); }
 
 double WasmGlobalObject::GetF64() { return Memory::double_at(address()); }
 
 void WasmGlobalObject::SetI32(int32_t value) {
   Memory::int32_at(address()) = value;
+}
+
+void WasmGlobalObject::SetI64(int64_t value) {
+  Memory::int64_at(address()) = value;
 }
 
 void WasmGlobalObject::SetF32(float value) {

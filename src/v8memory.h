@@ -33,6 +33,10 @@ class Memory {
     return *reinterpret_cast<uint64_t*>(addr);
   }
 
+  static int64_t& int64_at(Address addr) {
+    return *reinterpret_cast<int64_t*>(addr);
+  }
+
   static int& int_at(Address addr)  {
     return *reinterpret_cast<int*>(addr);
   }
