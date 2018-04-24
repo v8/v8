@@ -89,8 +89,8 @@ def FetchDeps(v8_path):
         os.path.join(v8_path, os.pardir, ".gclient_entries"))
     if os.path.isfile(gclient_entries):
       os.remove(gclient_entries)
-  # Enable building with GN for configure script.
-  return True
+
+  return depot_tools
 
 
 if __name__ == "__main__":
