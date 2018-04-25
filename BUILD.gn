@@ -865,6 +865,7 @@ action("run_torque") {
   inputs = [
     "src/builtins/base.tq",
     "src/builtins/array.tq",
+    "src/builtins/typed-array.tq",
   ]
 
   outputs = [
@@ -873,6 +874,8 @@ action("run_torque") {
     "$target_gen_dir/builtins-array-from-dsl-gen.h",
     "$target_gen_dir/builtins-base-from-dsl-gen.cc",
     "$target_gen_dir/builtins-base-from-dsl-gen.h",
+    "$target_gen_dir/builtins-typed-array-from-dsl-gen.cc",
+    "$target_gen_dir/builtins-typed-array-from-dsl-gen.h",
   ]
 
   args = [
@@ -883,6 +886,7 @@ action("run_torque") {
     rebase_path("$target_gen_dir", root_build_dir),
     rebase_path("src/builtins/base.tq", root_build_dir),
     rebase_path("src/builtins/array.tq", root_build_dir),
+    rebase_path("src/builtins/typed-array.tq", root_build_dir),
   ]
 }
 
@@ -1196,6 +1200,7 @@ v8_source_set("v8_initializers") {
   sources = [
     "$target_gen_dir/builtins-array-from-dsl-gen.cc",
     "$target_gen_dir/builtins-base-from-dsl-gen.cc",
+    "$target_gen_dir/builtins-typed-array-from-dsl-gen.cc",
 
     ### gcmole(all) ###
     "src/builtins/builtins-arguments-gen.cc",

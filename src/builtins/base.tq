@@ -13,6 +13,7 @@ type float64 generates 'TNode<Float64T>';
 type bit generates 'TNode<BoolT>';
 
 type int31 extends int32 generates 'TNode<Int32T>';
+type RawPtr generates 'TNode<RawPtrT>';
 type Number extends Object generates 'TNode<Number>';
 type Smi extends Number generates 'TNode<Smi>';
 type HeapObject extends Object generates 'TNode<HeapObject>';
@@ -29,12 +30,16 @@ type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
 type FixedDoubleArray extends FixedArrayBase generates
 'TNode<FixedDoubleArray>';
 
+type JSArrayBuffer extends Object generates 'TNode<JSArrayBuffer>';
+type JSArrayBufferView extends Object generates 'TNode<JSArrayBufferView>';
+type JSTypedArray extends JSArrayBufferView generates 'TNode<JSTypedArray>';
+
 type const_int32 generates 'int32_t';
 type const_int31 extends const_int32 generates 'int32_t';
 type const_float64 generates 'double';
 
 type InstanceType extends int32 generates 'TNode<Int32T>';
-type ElementsKind generates 'ElementsKind';
+type ElementsKind extends const_int32 generates 'ElementsKind';
 type LanguageMode extends Smi;
 type ExtractFixedArrayFlags;
 
@@ -48,6 +53,18 @@ const PACKED_ELEMENTS: ElementsKind = 'PACKED_ELEMENTS';
 const HOLEY_ELEMENTS: ElementsKind = 'HOLEY_ELEMENTS';
 const PACKED_DOUBLE_ELEMENTS: ElementsKind = 'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS: ElementsKind = 'HOLEY_DOUBLE_ELEMENTS';
+
+const UINT8_ELEMENTS: ElementsKind = 'UINT8_ELEMENTS';
+const INT8_ELEMENTS: ElementsKind = 'INT8_ELEMENTS';
+const UINT16_ELEMENTS: ElementsKind = 'UINT16_ELEMENTS';
+const INT16_ELEMENTS: ElementsKind = 'INT16_ELEMENTS';
+const UINT32_ELEMENTS: ElementsKind = 'UINT32_ELEMENTS';
+const INT32_ELEMENTS: ElementsKind = 'INT32_ELEMENTS';
+const FLOAT32_ELEMENTS: ElementsKind = 'FLOAT32_ELEMENTS';
+const FLOAT64_ELEMENTS: ElementsKind = 'FLOAT64_ELEMENTS';
+const UINT8_CLAMPED_ELEMENTS: ElementsKind = 'UINT8_CLAMPED_ELEMENTS';
+const BIGUINT64_ELEMENTS: ElementsKind = 'BIGUINT64_ELEMENTS';
+const BIGINT64_ELEMENTS: ElementsKind = 'BIGINT64_ELEMENTS';
 
 const kOperationLessThan: CompareOperator = 'Operation::kLessThan';
 const kOperationLessThanEqual: CompareOperator = 'Operation::kLessThanEqual';
@@ -69,6 +86,12 @@ const kHasProperty: HasPropertyFlag = 'kHasProperty';
 
 const kMaxSafeInteger: const_float64 = 'kMaxSafeInteger';
 
+const kNotTypedArray: MessageTemplate = 'MessageTemplate::kNotTypedArray';
+const kDetachedOperation: MessageTemplate =
+    'MessageTemplate::kDetachedOperation';
+const kBadSortComparisonFunction: MessageTemplate =
+    'MessageTemplate::kBadSortComparisonFunction';
+
 const hole: Object = 'TheHoleConstant()';
 const null: Oddball = 'NullConstant()';
 const undefined: Oddball = 'UndefinedConstant()';
@@ -89,10 +112,13 @@ extern macro Print(String, Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
 extern macro ToLength_Inline(Context, Object): Number;
+extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
 extern macro GetProperty(Context, Object, Object): Object;
 extern macro HasProperty(HeapObject, Object, Context, HasPropertyFlag): Oddball;
 extern macro ThrowRangeError(Context, MessageTemplate): never;
+extern macro ThrowTypeError(Context, MessageTemplate): never;
+extern macro ThrowTypeError(Context, MessageTemplate, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): Object;
 extern macro EnsureArrayPushable(Map): int32 labels Bailout;
 
@@ -127,6 +153,8 @@ extern operator '>' macro IntPtrGreaterThan(intptr, intptr): bit;
 extern operator '<=' macro IntPtrLessThanOrEqual(intptr, intptr): bit;
 extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bit;
 
+extern operator '==' macro Float64Equal(float64, float64): bit;
+
 extern operator
 '<' macro BranchIfNumberLessThan(Number, Number): never labels True, False;
 extern operator
@@ -143,9 +171,11 @@ extern operator '!=' macro WordNotEqual(Object, Object): bit;
 
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
+extern operator '>>>' macro SmiShr(Smi, const_int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
+extern operator '>>>' macro WordShr(intptr, intptr): intptr;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -194,6 +224,7 @@ extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;
 extern operator 'convert<>' macro SmiTag(intptr): Smi;
 extern operator 'convert<>' macro SmiUntag(Smi): intptr;
 
+
 extern macro BranchIfFastJSArray(Object, Context): never labels True, False;
 extern macro BranchIfNotFastJSArray(Object, Context): never labels True, False;
 
@@ -203,11 +234,18 @@ extern macro IsArraySpeciesProtectorCellInvalid(): bit;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bit;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bit;
 
+extern operator
+  '.buffer' macro LoadTypedArrayBuffer(JSTypedArray): JSArrayBuffer;
+
+extern operator '.data_ptr' macro LoadDataPtr(JSTypedArray): RawPtr;
+
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): int32;
+extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray): int32;
 
 extern operator '.elements' macro LoadElements(Object): FixedArrayBase;
 extern operator '.elements=' macro StoreElements(Object, FixedArrayBase);
 
+extern operator '.length' macro LoadTypedArrayLength(JSTypedArray): Smi;
 extern operator '.length' macro LoadJSArrayLength(JSArray): Number;
 extern operator '.length=' macro StoreJSArrayLength(JSArray, Smi);
 
@@ -251,3 +289,13 @@ macro HasPropertyObject(
     return false;
   }
 }
+
+extern macro IsCallable(Object): bit;
+extern macro IsDetachedBuffer(JSArrayBuffer): bit;
+
+type ParameterMode;
+const kSmiParameters: ParameterMode = 'ParameterMode::SMI_PARAMETERS';
+extern macro LoadFixedTypedArrayElementAsTagged(
+    RawPtr, Smi, ElementsKind, ParameterMode): Object;
+extern macro StoreFixedTypedArrayElementFromTagged(
+    Context, RawPtr, Smi, Object, ElementsKind, ParameterMode);

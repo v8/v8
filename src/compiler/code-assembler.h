@@ -406,6 +406,7 @@ class SloppyTNode : public TNode<T> {
   V(Float32GreaterThan, BoolT, Float32T, Float32T)        \
   V(Float32GreaterThanOrEqual, BoolT, Float32T, Float32T) \
   V(Float64Equal, BoolT, Float64T, Float64T)              \
+  V(Float64NotEqual, BoolT, Float64T, Float64T)           \
   V(Float64LessThan, BoolT, Float64T, Float64T)           \
   V(Float64LessThanOrEqual, BoolT, Float64T, Float64T)    \
   V(Float64GreaterThan, BoolT, Float64T, Float64T)        \
@@ -698,6 +699,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool ToInt64Constant(Node* node, int64_t& out_value);
   bool ToSmiConstant(Node* node, Smi*& out_value);
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
+
+  bool IsUndefinedConstant(TNode<Object> node);
+  bool IsNullConstant(TNode<Object> node);
 
   TNode<Int32T> Signed(TNode<Word32T> x) { return UncheckedCast<Int32T>(x); }
   TNode<IntPtrT> Signed(TNode<WordT> x) { return UncheckedCast<IntPtrT>(x); }

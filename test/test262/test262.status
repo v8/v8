@@ -136,8 +136,6 @@
   'built-ins/TypedArray/prototype/reduceRight/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
-  'built-ins/TypedArray/prototype/sort/BigInt/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
   'built-ins/ArrayBuffer/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/detached-buffer': [FAIL],

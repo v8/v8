@@ -394,6 +394,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class... TArgs>
   TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
                      TNode<Object> receiver, TArgs... args) {
+    if (IsUndefinedConstant(receiver) || IsNullConstant(receiver)) {
+      return UncheckedCast<Object>(CallJS(
+          CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+          context, callable, receiver, args...));
+    }
     return UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
                                         callable, receiver, args...));
   }

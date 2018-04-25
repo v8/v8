@@ -71,6 +71,15 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns the byte size of an element for a TypedArray elements kind.
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
 
+  TNode<Smi> LoadTypedArrayLength(TNode<JSTypedArray> typed_array) {
+    return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
+  }
+
+  TNode<JSArrayBuffer> LoadTypedArrayBuffer(TNode<JSTypedArray> typed_array) {
+    return LoadObjectField<JSArrayBuffer>(typed_array,
+                                          JSTypedArray::kBufferOffset);
+  }
+
   TNode<Object> GetDefaultConstructor(TNode<Context> context,
                                       TNode<JSTypedArray> exemplar);
 
@@ -126,6 +135,14 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
+
+  // Returns true iff number is NaN.
+  // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
+  TNode<BoolT> NumberIsNaN(TNode<Number> number);
+
+  // Always CSA_ASSERTs false.
+  // TODO(szuend): Remove when Unreachable is supported in Torque.
+  void AssertUnreachable() { CSA_ASSERT(this, Int32FalseConstant()); }
 };
 
 }  // namespace internal

@@ -422,6 +422,16 @@ bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
   return m.HasValue();
 }
 
+bool CodeAssembler::IsUndefinedConstant(TNode<Object> node) {
+  compiler::HeapObjectMatcher m(node);
+  return m.Is(isolate()->factory()->undefined_value());
+}
+
+bool CodeAssembler::IsNullConstant(TNode<Object> node) {
+  compiler::HeapObjectMatcher m(node);
+  return m.Is(isolate()->factory()->null_value());
+}
+
 Node* CodeAssembler::Parameter(int value) {
   return raw_assembler()->Parameter(value);
 }
