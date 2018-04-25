@@ -1961,7 +1961,7 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
     GotoIf(TaggedIsSmi(maybe_prototype_info), &cont);
 
     Node* function = ExternalConstant(
-        ExternalReference::invalidate_prototype_chains_function(isolate()));
+        ExternalReference::invalidate_prototype_chains_function());
     CallCFunction1(MachineType::AnyTagged(), MachineType::AnyTagged(), function,
                    map);
     Goto(&cont);
@@ -2246,8 +2246,8 @@ void AccessorAssembler::TryProbeStubCacheTable(StubCache* stub_cache,
   entry_offset = IntPtrMul(entry_offset, IntPtrConstant(kMultiplier));
 
   // Check that the key in the entry matches the name.
-  Node* key_base =
-      ExternalConstant(ExternalReference(stub_cache->key_reference(table)));
+  Node* key_base = ExternalConstant(
+      ExternalReference::Create(stub_cache->key_reference(table)));
   Node* entry_key = Load(MachineType::Pointer(), key_base, entry_offset);
   GotoIf(WordNotEqual(name, entry_key), if_miss);
 
@@ -2651,7 +2651,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
     {
       // Try to internalize the {name}.
       Node* function = ExternalConstant(
-          ExternalReference::try_internalize_string_function(isolate()));
+          ExternalReference::try_internalize_string_function());
       var_name.Bind(CallCFunction1(MachineType::AnyTagged(),
                                    MachineType::AnyTagged(), function, name));
       Goto(&if_internalized);

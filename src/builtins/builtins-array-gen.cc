@@ -1551,7 +1551,7 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
       int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
       Node* memmove =
-          ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
+          ExternalConstant(ExternalReference::libc_memmove_function());
       Node* start = IntPtrAdd(
           BitcastTaggedToWord(elements),
           ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_DOUBLE_ELEMENTS,

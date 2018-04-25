@@ -423,8 +423,7 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     __ PrepareCallCFunction(0, 2);                                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
-    __ CallCFunction(                                                          \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 2);     \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2);    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
@@ -437,8 +436,7 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     FrameScope scope(tasm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 1);                                             \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
-    __ CallCFunction(                                                          \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 1);     \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1);    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
@@ -1357,8 +1355,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ PrepareCallCFunction(0, 2);
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
-      __ CallCFunction(
-          ExternalReference::mod_two_doubles_operation(__ isolate()), 0, 2);
+      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputDoubleRegister());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -2816,9 +2813,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // We use the context register as the scratch register, because we do
         // not have a context here.
         __ PrepareCallCFunction(0, 0);
-        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
-                             __ isolate()),
-                         0);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =

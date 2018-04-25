@@ -312,7 +312,7 @@ class CodeStubDescriptor {
 
   void SetMissHandler(Runtime::FunctionId id) {
     miss_handler_id_ = id;
-    miss_handler_ = ExternalReference(Runtime::FunctionForId(id), isolate_);
+    miss_handler_ = ExternalReference::Create(Runtime::FunctionForId(id));
     has_miss_handler_ = true;
     // Our miss handler infrastructure doesn't currently support
     // variable stack parameter counts.

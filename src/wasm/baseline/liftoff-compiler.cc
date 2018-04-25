@@ -601,10 +601,10 @@ class LiftoffCompiler {
 
   void EmitI32UnOpWithCFallback(bool (LiftoffAssembler::*emit_fn)(Register,
                                                                   Register),
-                                ExternalReference (*fallback_fn)(Isolate*)) {
+                                ExternalReference (*fallback_fn)()) {
     auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
       if (emit_fn && (asm_->*emit_fn)(dst.gp(), src.gp())) return;
-      ExternalReference ext_ref = fallback_fn(asm_->isolate());
+      ExternalReference ext_ref = fallback_fn();
       ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
       FunctionSig sig_i_i(1, 1, sig_i_i_reps);
       GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src, ext_ref);
@@ -615,8 +615,7 @@ class LiftoffCompiler {
   enum TypeConversionTrapping : bool { kCanTrap = true, kNoTrap = false };
   template <ValueType dst_type, ValueType src_type,
             TypeConversionTrapping can_trap>
-  void EmitTypeConversion(WasmOpcode opcode,
-                          ExternalReference (*fallback_fn)(Isolate*),
+  void EmitTypeConversion(WasmOpcode opcode, ExternalReference (*fallback_fn)(),
                           WasmCodePosition trap_position) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass dst_rc = reg_class_for(dst_type);
@@ -630,7 +629,7 @@ class LiftoffCompiler {
                            : nullptr;
     if (!__ emit_type_conversion(opcode, dst, src, trap)) {
       DCHECK_NOT_NULL(fallback_fn);
-      ExternalReference ext_ref = fallback_fn(asm_->isolate());
+      ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
         // External references for potentially trapping conversions return int.
         ValueType sig_reps[] = {kWasmI32, src_type};
@@ -815,7 +814,7 @@ class LiftoffCompiler {
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
-          auto ext_ref = ExternalReference::ext_ref_fn(__ isolate());        \
+          auto ext_ref = ExternalReference::ext_ref_fn();                    \
           ValueType sig_i_ii_reps[] = {kWasmI32, kWasmI32, kWasmI32};        \
           FunctionSig sig_i_ii(1, 2, sig_i_ii_reps);                         \
           GenerateCCall(&dst, &sig_i_ii, kWasmStmt, args, ext_ref);          \

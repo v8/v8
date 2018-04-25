@@ -18,7 +18,7 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
-  __ mov(ebx, Immediate(ExternalReference(address, masm->isolate())));
+  __ mov(ebx, Immediate(ExternalReference::Create(address)));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -426,8 +426,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address(IsolateAddressId::kContextAddress,
-                                      masm->isolate());
+    ExternalReference context_address = ExternalReference::Create(
+        IsolateAddressId::kContextAddress, masm->isolate());
     __ mov(esi, Operand::StaticVariable(context_address));
 
     // Load the previous frame pointer (ebx) to access C arguments
@@ -790,8 +790,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                      bytecode));
 
   __ Move(bytecode_size_table,
-          Immediate(
-              ExternalReference::bytecode_size_table_address(masm->isolate())));
+          Immediate(ExternalReference::bytecode_size_table_address()));
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -3010,8 +3009,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
     __ PrepareCallCFunction(4, scratch);
     __ movsd(Operand(esp, 0 * kDoubleSize), double_base);
     __ movsd(Operand(esp, 1 * kDoubleSize), double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()), 4);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
   }
   // Return value is in st(0) on ia32.
   // Store it into the (fixed) result register.

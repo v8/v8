@@ -159,7 +159,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     Label okay;
-    ExternalReference pending_exception_address(
+    ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, isolate());
 
     __ mov(r6, Operand(pending_exception_address));
@@ -186,21 +186,23 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Handling of exception.
   __ bind(&exception_returned);
 
-  ExternalReference pending_handler_context_address(
+  ExternalReference pending_handler_context_address = ExternalReference::Create(
       IsolateAddressId::kPendingHandlerContextAddress, isolate());
-  ExternalReference pending_handler_entrypoint_address(
-      IsolateAddressId::kPendingHandlerEntrypointAddress, isolate());
-  ExternalReference pending_handler_constant_pool_address(
-      IsolateAddressId::kPendingHandlerConstantPoolAddress, isolate());
-  ExternalReference pending_handler_fp_address(
+  ExternalReference pending_handler_entrypoint_address =
+      ExternalReference::Create(
+          IsolateAddressId::kPendingHandlerEntrypointAddress, isolate());
+  ExternalReference pending_handler_constant_pool_address =
+      ExternalReference::Create(
+          IsolateAddressId::kPendingHandlerConstantPoolAddress, isolate());
+  ExternalReference pending_handler_fp_address = ExternalReference::Create(
       IsolateAddressId::kPendingHandlerFPAddress, isolate());
-  ExternalReference pending_handler_sp_address(
+  ExternalReference pending_handler_sp_address = ExternalReference::Create(
       IsolateAddressId::kPendingHandlerSPAddress, isolate());
 
   // Ask the runtime for help to determine the handler. This will set r3 to
   // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler(Runtime::kUnwindAndFindExceptionHandler,
-                                 isolate());
+  ExternalReference find_handler =
+      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(3, 0, r3);
@@ -290,8 +292,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ push(r0);
   __ push(r0);
   // Save copies of the top frame descriptor on the stack.
-  __ mov(r8, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
-                                       isolate())));
+  __ mov(r8, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate())));
   __ LoadP(r0, MemOperand(r8));
   __ push(r0);
 
@@ -300,8 +302,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
-  ExternalReference js_entry_sp(IsolateAddressId::kJSEntrySPAddress, isolate());
-  __ mov(r8, Operand(ExternalReference(js_entry_sp)));
+  ExternalReference js_entry_sp =
+      ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate());
+  __ mov(r8, Operand(js_entry_sp));
   __ LoadP(r9, MemOperand(r8));
   __ cmpi(r9, Operand::Zero());
   __ bne(&non_outermost_js);
@@ -324,7 +327,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(
+  __ mov(ip, Operand(ExternalReference::Create(
                  IsolateAddressId::kPendingExceptionAddress, isolate())));
 
   __ StoreP(r3, MemOperand(ip));
@@ -362,14 +365,14 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ cmpi(r8, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ bne(&non_outermost_js_2);
   __ mov(r9, Operand::Zero());
-  __ mov(r8, Operand(ExternalReference(js_entry_sp)));
+  __ mov(r8, Operand(js_entry_sp));
   __ StoreP(r9, MemOperand(r8));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(r6);
-  __ mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
-                                       isolate())));
+  __ mov(ip, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate())));
   __ StoreP(r6, MemOperand(ip));
 
   // Reset the stack to the callee saved registers.
@@ -490,8 +493,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  ExternalReference entry_hook = ExternalReference(
-      &dispatcher, ExternalReference::BUILTIN_CALL, isolate());
+  ExternalReference entry_hook =
+      ExternalReference::Create(&dispatcher, ExternalReference::BUILTIN_CALL);
 
   // It additionally takes an isolate as a third parameter
   __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
@@ -720,7 +723,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ StorePX(r4, MemOperand(sp, r0));
   __ addi(r3, r3, Operand(3));
   __ Push(r6, r5);
-  __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
+  __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
 }
 
 
@@ -861,8 +864,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, r3);
     __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(ExternalReference::log_enter_external_function(isolate),
-                     1);
+    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
 
@@ -877,8 +879,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, r3);
     __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(ExternalReference::log_leave_external_function(isolate),
-                     1);
+    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
 
@@ -933,8 +934,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ mr(r14, r3);
   __ PrepareCallCFunction(1, r15);
   __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
-  __ CallCFunction(ExternalReference::delete_handle_scope_extensions(isolate),
-                   1);
+  __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
   __ mr(r3, r14);
   __ b(&leave_exit_frame);
 }
@@ -1014,8 +1014,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ li(ip, Operand(argc()));
   __ stw(ip, MemOperand(r3, 2 * kPointerSize));
 
-  ExternalReference thunk_ref =
-      ExternalReference::invoke_function_callback(masm->isolate());
+  ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
   AllowExternalCallThatCantCauseGC scope(masm);
   // Stores return the first js argument
@@ -1107,7 +1106,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // r4 = v8::PropertyCallbackInfo&
 
   ExternalReference thunk_ref =
-      ExternalReference::invoke_accessor_getter_callback(isolate());
+      ExternalReference::invoke_accessor_getter_callback();
 
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
   __ LoadP(api_function_address,
