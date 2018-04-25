@@ -439,7 +439,7 @@
   'intl402/NumberFormat/currency-digits': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7473
-  'intl402/language-tags-canonicalized': [FAIL],
+  'intl402/language-tags-canonicalized': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7474
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
@@ -465,7 +465,7 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-variant': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7513
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size': [FAIL],
