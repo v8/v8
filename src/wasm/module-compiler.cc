@@ -1753,9 +1753,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     memory->set_is_neuterable(false);
 
-    DCHECK_IMPLIES(use_trap_handler(), module_->is_asm_js() ||
-                                           memory->is_wasm_memory() ||
-                                           memory->backing_store() == nullptr);
+    DCHECK_IMPLIES(use_trap_handler(),
+                   module_->is_asm_js() || memory->is_wasm_memory() ||
+                       memory->backing_store() == nullptr ||
+                       // TODO(836800) Remove once is_wasm_memory transfers over
+                       // post-message.
+                       (FLAG_experimental_wasm_threads && memory->is_shared()));
   } else if (initial_pages > 0 || use_trap_handler()) {
     // We need to unconditionally create a guard region if using trap handlers,
     // even when the size is zero to prevent null-derefence issues
