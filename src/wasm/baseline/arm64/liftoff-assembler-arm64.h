@@ -141,12 +141,34 @@ void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  BAILOUT("LoadConstant");
+  switch (value.type()) {
+    case kWasmI32:
+      Mov(reg.gp().W(), Immediate(value.to_i32(), rmode));
+      break;
+    case kWasmI64:
+      Mov(reg.gp().X(), Immediate(value.to_i64(), rmode));
+      break;
+    case kWasmF32:
+      Fmov(reg.fp().S(), value.to_f32_boxed().get_scalar());
+      break;
+    case kWasmF64:
+      Fmov(reg.fp().D(), value.to_f64_boxed().get_scalar());
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
                                         int size) {
-  BAILOUT("LoadFromInstance");
+  DCHECK_LE(offset, kMaxInt);
+  Ldr(dst, liftoff::GetInstanceOperand());
+  DCHECK(size == 4 || size == 8);
+  if (size == 4) {
+    Ldr(dst.W(), MemOperand(dst, offset));
+  } else {
+    Ldr(dst, MemOperand(dst, offset));
+  }
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -154,7 +176,7 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
-  BAILOUT("FillInstanceInto");
+  Ldr(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
