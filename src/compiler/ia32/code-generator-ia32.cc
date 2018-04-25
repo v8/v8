@@ -2265,6 +2265,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputInt8(1));
       break;
     }
+    case kSSEI16x8SConvertI32x4: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ packssdw(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI16x8SConvertI32x4: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpackssdw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputOperand(1));
+      break;
+    }
     case kSSEI16x8Add: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddw(i.OutputSimd128Register(), i.InputOperand(1));
@@ -2419,6 +2430,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputInt8(1));
       break;
     }
+    case kSSEI16x8UConvertI32x4: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      // Change negative lanes to 0x7FFFFFFF
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrld(kScratchDoubleReg, 1);
+      __ pminud(dst, kScratchDoubleReg);
+      __ pminud(kScratchDoubleReg, i.InputOperand(1));
+      __ packusdw(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXI16x8UConvertI32x4: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      // Change negative lanes to 0x7FFFFFFF
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 1);
+      __ vpminud(dst, kScratchDoubleReg, i.InputSimd128Register(0));
+      __ vpminud(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(1));
+      __ vpackusdw(dst, dst, kScratchDoubleReg);
+      break;
+    }
     case kSSEI16x8AddSaturateU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddusw(i.OutputSimd128Register(), i.InputOperand(1));
@@ -2527,6 +2561,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpinsrb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kSSEI8x16SConvertI16x8: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ packsswb(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI8x16SConvertI16x8: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpacksswb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputOperand(1));
       break;
     }
     case kIA32I8x16Neg: {
@@ -2864,6 +2909,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand src2 = i.InputOperand(1);
       __ vpminsb(kScratchDoubleReg, src1, src2);
       __ vpcmpeqb(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      break;
+    }
+    case kSSEI8x16UConvertI16x8: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      // Change negative lanes to 0x7FFF
+      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlw(kScratchDoubleReg, 1);
+      __ pminuw(dst, kScratchDoubleReg);
+      __ pminuw(kScratchDoubleReg, i.InputOperand(1));
+      __ packuswb(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXI8x16UConvertI16x8: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      // Change negative lanes to 0x7FFF
+      __ vpcmpeqw(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 1);
+      __ vpminuw(dst, kScratchDoubleReg, i.InputSimd128Register(0));
+      __ vpminuw(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(1));
+      __ vpackuswb(dst, dst, kScratchDoubleReg);
       break;
     }
     case kSSEI8x16AddSaturateU: {

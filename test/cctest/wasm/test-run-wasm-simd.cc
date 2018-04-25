@@ -1087,7 +1087,7 @@ WASM_SIMD_TEST(I16x8Neg) {
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion from I32x4 (packing).
 WASM_SIMD_TEST(I16x8ConvertI32x4) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteTurbofan,
@@ -1117,7 +1117,7 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
   }
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 void RunI16x8BinOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
                        Int16BinOp expected_op) {
@@ -1281,7 +1281,7 @@ WASM_SIMD_TEST(I8x16Neg) {
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion from I16x8 (packing).
 WASM_SIMD_TEST(I8x16ConvertI16x8) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteTurbofan,
@@ -1311,7 +1311,7 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
   }
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 void RunI8x16BinOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
                        Int8BinOp expected_op) {

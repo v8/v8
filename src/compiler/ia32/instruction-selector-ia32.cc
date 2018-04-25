@@ -1757,6 +1757,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
+  V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
   V(I16x8AddHoriz)         \
@@ -1769,12 +1770,14 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Ne)               \
   V(I16x8GtS)              \
   V(I16x8GeS)              \
+  V(I16x8UConvertI32x4)    \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
   V(I16x8GtU)              \
   V(I16x8GeU)              \
+  V(I8x16SConvertI16x8)    \
   V(I8x16Add)              \
   V(I8x16AddSaturateS)     \
   V(I8x16Sub)              \
@@ -1785,6 +1788,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16Ne)               \
   V(I8x16GtS)              \
   V(I8x16GeS)              \
+  V(I8x16UConvertI16x8)    \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
