@@ -33,11 +33,16 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }
 
-inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
-                 ValueType type) {
+inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
+                 int32_t offset, ValueType type) {
+  MemOperand src(base, offset);
   switch (type) {
     case kWasmI32:
       assm->lw(dst.gp(), src);
+      break;
+    case kWasmI64:
+      assm->lw(dst.low_gp(), src);
+      assm->lw(dst.high_gp(), MemOperand(base, offset + 4));
       break;
     case kWasmF32:
       assm->lwc1(dst.fp(), src);
@@ -441,8 +446,8 @@ void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  MemOperand src(fp, kPointerSize * (caller_slot_idx + 1));
-  liftoff::Load(this, dst, src, type);
+  int32_t offset = kPointerSize * (caller_slot_idx + 1);
+  liftoff::Load(this, dst, fp, offset, type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -1147,7 +1152,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
 
   // Load potential output value from the buffer on the stack.
   if (out_argument_type != kWasmStmt) {
-    liftoff::Load(this, *next_result_reg, MemOperand(sp, 0), out_argument_type);
+    liftoff::Load(this, *next_result_reg, sp, 0, out_argument_type);
   }
 
   addiu(sp, sp, stack_bytes);
