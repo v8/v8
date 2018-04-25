@@ -1839,6 +1839,12 @@ wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
   return code;
 }
 
+void LiftoffCompilationUnit::AbortCompilation() {
+  // The compilation is aborted. Put the assembler in a clean mode before
+  // its deletion.
+  asm_.FinishCode();
+}
+
 #undef __
 #undef TRACE
 #undef WASM_INSTANCE_OBJECT_OFFSET
