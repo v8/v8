@@ -32,6 +32,7 @@
 
 #include <vector>
 
+#include "src/base/platform/mutex.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
@@ -43,6 +44,8 @@
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+
+#include "include/v8-platform.h"
 
 namespace v8_inspector {
 
@@ -376,18 +379,53 @@ void V8InspectorImpl::forEachSession(
   }
 }
 
-intptr_t V8InspectorImpl::evaluateStarted() {
-  intptr_t id = ++m_lastEvaluateId;
-  m_runningEvaluates.insert(id);
-  return id;
+V8InspectorImpl::EvaluateScope::EvaluateScope(v8::Isolate* isolate)
+    : m_isolate(isolate), m_safeForTerminationScope(isolate) {}
+
+struct V8InspectorImpl::EvaluateScope::CancelToken {
+  v8::base::Mutex m_mutex;
+  bool m_canceled = false;
+};
+
+V8InspectorImpl::EvaluateScope::~EvaluateScope() {
+  if (m_cancelToken) {
+    v8::base::LockGuard<v8::base::Mutex> lock(&m_cancelToken->m_mutex);
+    m_cancelToken->m_canceled = true;
+    m_isolate->CancelTerminateExecution();
+  }
 }
 
-void V8InspectorImpl::evaluateFinished(intptr_t id) {
-  m_runningEvaluates.erase(id);
-}
+class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
+ public:
+  TerminateTask(v8::Isolate* isolate, std::shared_ptr<CancelToken> token)
+      : m_isolate(isolate), m_token(token) {}
 
-bool V8InspectorImpl::evaluateStillRunning(intptr_t id) {
-  return m_runningEvaluates.find(id) != m_runningEvaluates.end();
+  void Run() {
+    // CancelToken contains m_canceled bool which may be changed from main
+    // thread, so lock mutex first.
+    v8::base::LockGuard<v8::base::Mutex> lock(&m_token->m_mutex);
+    if (m_token->m_canceled) return;
+    m_isolate->TerminateExecution();
+  }
+
+ private:
+  v8::Isolate* m_isolate;
+  std::shared_ptr<CancelToken> m_token;
+};
+
+protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
+  if (m_isolate->IsExecutionTerminating()) {
+    return protocol::Response::Error("Execution was terminated");
+  }
+  std::shared_ptr<v8::TaskRunner> taskRunner =
+      v8::debug::GetCurrentPlatform()->GetWorkerThreadsTaskRunner(m_isolate);
+  if (!taskRunner) {
+    return protocol::Response::Error("Timeout is not supported by embedder");
+  }
+  m_cancelToken.reset(new CancelToken());
+  taskRunner->PostDelayedTask(
+      v8::base::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
+  return protocol::Response::OK();
 }
 
 }  // namespace v8_inspector
