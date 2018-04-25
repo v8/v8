@@ -440,7 +440,9 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
   V(int, last_stack_frame_info_id, 0)                                         \
   V(int, last_console_context_id, 0)                                          \
-  V(v8_inspector::V8Inspector*, inspector, nullptr)
+  V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
+  V(bool, next_v8_call_is_safe_for_termination, false)                        \
+  V(bool, only_terminate_in_safe_scope, false)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \

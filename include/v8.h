@@ -6896,7 +6896,8 @@ class V8_EXPORT Isolate {
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
           external_references(nullptr),
-          allow_atomics_wait(true) {}
+          allow_atomics_wait(true),
+          only_terminate_in_safe_scope(false) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6959,6 +6960,11 @@ class V8_EXPORT Isolate {
      * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
     bool allow_atomics_wait;
+
+    /**
+     * Termination is postponed when there is no active SafeForTerminationScope.
+     */
+    bool only_terminate_in_safe_scope;
   };
 
 
@@ -7041,6 +7047,24 @@ class V8_EXPORT Isolate {
 
    private:
     internal::Isolate* const isolate_;
+  };
+
+  /**
+   * This scope allows terminations inside direct V8 API calls and forbid them
+   * inside any recursice API calls without explicit SafeForTerminationScope.
+   */
+  class V8_EXPORT SafeForTerminationScope {
+   public:
+    explicit SafeForTerminationScope(v8::Isolate* isolate);
+    ~SafeForTerminationScope();
+
+    // Prevent copying of Scope objects.
+    SafeForTerminationScope(const SafeForTerminationScope&) = delete;
+    SafeForTerminationScope& operator=(const SafeForTerminationScope&) = delete;
+
+   private:
+    internal::Isolate* isolate_;
+    bool prev_value_;
   };
 
   /**
