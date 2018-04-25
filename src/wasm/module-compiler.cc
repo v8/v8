@@ -2720,6 +2720,48 @@ AsyncCompileJob::~AsyncCompileJob() {
   for (auto d : deferred_handles_) delete d;
 }
 
+void AsyncCompileJob::FinishCompile() {
+  RecordStats(compiled_module_->GetNativeModule(), counters());
+
+  // Create heap objects for script and module bytes to be stored in the
+  // shared module data. Asm.js is not compiled asynchronously.
+  Handle<Script> script = CreateWasmScript(isolate_, wire_bytes_);
+  Handle<ByteArray> asm_js_offset_table;
+  // TODO(wasm): Improve efficiency of storing module wire bytes.
+  //   1. Only store relevant sections, not function bodies
+  //   2. Don't make a second copy of the bytes here; reuse the copy made
+  //      for asynchronous compilation and store it as an external one
+  //      byte string for serialization/deserialization.
+  Handle<String> module_bytes =
+      isolate_->factory()
+          ->NewStringFromOneByte({wire_bytes_.start(), wire_bytes_.length()},
+                                 TENURED)
+          .ToHandleChecked();
+  DCHECK(module_bytes->IsSeqOneByteString());
+
+  // The {module_wrapper} will take ownership of the {WasmModule} object,
+  // and it will be destroyed when the GC reclaims the wrapper object.
+  Handle<WasmModuleWrapper> module_wrapper =
+      WasmModuleWrapper::From(isolate_, module_.release());
+
+  // Create the shared module data.
+  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // only have one WasmSharedModuleData. Otherwise, we might only set
+  // breakpoints on a (potentially empty) subset of the instances.
+  Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
+      isolate_, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
+      script, asm_js_offset_table);
+  compiled_module_->set_shared(*shared);
+  script->set_wasm_compiled_module(*compiled_module_);
+
+  // Finish the wasm script now and make it public to the debugger.
+  isolate_->debug()->OnAfterCompile(
+      handle(compiled_module_->shared()->script()));
+
+  // TODO(wasm): compiling wrappers should be made async as well.
+  DoSync<CompileWrappers>();
+}
+
 void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
   if (stream_) stream_->NotifyError();
   // {job} keeps the {this} pointer alive.
@@ -2926,7 +2968,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job_->tiering_completed_ = true;
 
       // Degenerate case of an empty module.
-      job_->DoSync<FinishCompile>();
+      job_->FinishCompile();
       return;
     }
 
@@ -2944,7 +2986,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
             switch (event) {
               case CompilationEvent::kFinishedBaselineCompilation:
                 if (job->DecrementAndCheckFinisherCount()) {
-                  job->DoSync<FinishCompile>();
+                  SaveContext saved_context(job->isolate());
+                  job->isolate()->set_context(
+                      job->compiled_module_->native_context());
+
+                  job->FinishCompile();
                 }
                 return;
               case CompilationEvent::kFinishedTopTierCompilation:
@@ -3014,64 +3060,13 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
 };
 
 //==========================================================================
-// Step 5 (sync): Finish heap-allocated data structures.
-//==========================================================================
-class AsyncCompileJob::FinishCompile : public CompileStep {
-  void RunInForeground() override {
-    TRACE_COMPILE("(5b) Finish compile...\n");
-    RecordStats(job_->compiled_module_->GetNativeModule(), job_->counters());
-
-    // Create heap objects for script and module bytes to be stored in the
-    // shared module data. Asm.js is not compiled asynchronously.
-    Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_);
-    Handle<ByteArray> asm_js_offset_table;
-    // TODO(wasm): Improve efficiency of storing module wire bytes.
-    //   1. Only store relevant sections, not function bodies
-    //   2. Don't make a second copy of the bytes here; reuse the copy made
-    //      for asynchronous compilation and store it as an external one
-    //      byte string for serialization/deserialization.
-    Handle<String> module_bytes =
-        job_->isolate_->factory()
-            ->NewStringFromOneByte(
-                {job_->wire_bytes_.start(), job_->wire_bytes_.length()},
-                TENURED)
-            .ToHandleChecked();
-    DCHECK(module_bytes->IsSeqOneByteString());
-
-    // The {module_wrapper} will take ownership of the {WasmModule} object,
-    // and it will be destroyed when the GC reclaims the wrapper object.
-    Handle<WasmModuleWrapper> module_wrapper =
-        WasmModuleWrapper::From(job_->isolate_, job_->module_.release());
-
-    // Create the shared module data.
-    // TODO(clemensh): For the same module (same bytes / same hash), we should
-    // only have one WasmSharedModuleData. Otherwise, we might only set
-    // breakpoints on a (potentially empty) subset of the instances.
-
-    Handle<WasmSharedModuleData> shared =
-        WasmSharedModuleData::New(job_->isolate_, module_wrapper,
-                                  Handle<SeqOneByteString>::cast(module_bytes),
-                                  script, asm_js_offset_table);
-    job_->compiled_module_->set_shared(*shared);
-    script->set_wasm_compiled_module(*job_->compiled_module_);
-
-    // Finish the wasm script now and make it public to the debugger.
-    job_->isolate_->debug()->OnAfterCompile(
-        handle(job_->compiled_module_->shared()->script()));
-
-    // TODO(wasm): compiling wrappers should be made async as well.
-    job_->DoSync<CompileWrappers>();
-  }
-};
-
-//==========================================================================
-// Step 6 (sync): Compile JS->wasm wrappers.
+// Step 5 (sync): Compile JS->wasm wrappers.
 //==========================================================================
 class AsyncCompileJob::CompileWrappers : public CompileStep {
   // TODO(wasm): Compile all wrappers here, including the start function wrapper
   // and the wrappers for the function table elements.
   void RunInForeground() override {
-    TRACE_COMPILE("(6) Compile wrappers...\n");
+    TRACE_COMPILE("(5) Compile wrappers...\n");
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(job_->isolate_->heap());
     // Compile JS->wasm wrappers for exported functions.
@@ -3082,11 +3077,11 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
 };
 
 //==========================================================================
-// Step 7 (sync): Finish the module and resolve the promise.
+// Step 6 (sync): Finish the module and resolve the promise.
 //==========================================================================
 class AsyncCompileJob::FinishModule : public CompileStep {
   void RunInForeground() override {
-    TRACE_COMPILE("(7) Finish module...\n");
+    TRACE_COMPILE("(6) Finish module...\n");
     Handle<WasmModuleObject> result =
         WasmModuleObject::New(job_->isolate_, job_->compiled_module_);
     job_->AsyncCompileSucceeded(result);
@@ -3116,11 +3111,11 @@ class AsyncCompileJob::FinishModule : public CompileStep {
 };
 
 //==========================================================================
-// Step 8 (sync): Update with top tier code.
+// Step 7 (sync): Update with top tier code.
 //==========================================================================
 class AsyncCompileJob::UpdateToTopTierCompiledCode : public CompileStep {
   void RunInForeground() override {
-    TRACE_COMPILE("(8) Update native module to use optimized code...\n");
+    TRACE_COMPILE("(7) Update native module to use optimized code...\n");
     UpdateAllCompiledModulesWithTopTierCode(job_->compiled_module_);
     job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
   }
@@ -3292,7 +3287,7 @@ void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
       job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(job_->module_.get(),
                                                             true);
     } else {
-      job_->DoSync<AsyncCompileJob::FinishCompile>();
+      job_->FinishCompile();
     }
   }
 }

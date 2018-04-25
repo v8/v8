@@ -94,9 +94,6 @@ class AsyncCompileJob {
   class DecodeFail;
   class PrepareAndStartCompile;
   class CompileFailed;
-  class WaitForBackgroundTasks;
-  class FinishCompilationUnits;
-  class FinishCompile;
   class CompileWrappers;
   class FinishModule;
   class AbortCompilation;
@@ -106,6 +103,8 @@ class AsyncCompileJob {
     return async_counters_;
   }
   Counters* counters() const { return async_counters().get(); }
+
+  void FinishCompile();
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 
