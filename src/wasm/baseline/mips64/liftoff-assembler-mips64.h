@@ -552,6 +552,35 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   TurboAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
 }
 
+bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  BAILOUT("i64_divs");
+  return true;
+}
+
+bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i64_divu");
+  return true;
+}
+
+bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i64_rems");
+  return true;
+}
+
+bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i64_remu");
+  return true;
+}
+
 #define I64_BINOP(name, instruction)                                   \
   void LiftoffAssembler::emit_i64_##name(                              \
       LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \

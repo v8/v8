@@ -216,6 +216,31 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   BAILOUT("i32_remu");
 }
 
+bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {

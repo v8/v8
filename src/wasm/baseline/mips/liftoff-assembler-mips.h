@@ -632,6 +632,31 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                           kScratchReg, kScratchReg2);
 }
 
+bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   TurboAssembler::AddPair(dst.low_gp(), dst.high_gp(), lhs.low_gp(),

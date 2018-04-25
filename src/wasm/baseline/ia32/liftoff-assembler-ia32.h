@@ -770,6 +770,31 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   if (dst != dst_tmp) Move(dst, dst_tmp, kWasmI64);
 }
 
+bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
 namespace liftoff {
 inline bool PairContains(LiftoffRegister pair, Register reg) {
   return pair.low_gp() == reg || pair.high_gp() == reg;

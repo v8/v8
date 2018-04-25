@@ -445,36 +445,49 @@ void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
 
 namespace liftoff {
 enum class DivOrRem : uint8_t { kDiv, kRem };
-template <bool is_signed, DivOrRem div_or_rem>
-void EmitInt32DivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
-                       Register rhs, Label* trap_div_by_zero,
-                       Label* trap_div_unrepresentable) {
+template <typename type, DivOrRem div_or_rem>
+void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
+                     Register rhs, Label* trap_div_by_zero,
+                     Label* trap_div_unrepresentable) {
   constexpr bool needs_unrepresentable_check =
-      is_signed && div_or_rem == DivOrRem::kDiv;
+      std::is_signed<type>::value && div_or_rem == DivOrRem::kDiv;
   constexpr bool special_case_minus_1 =
-      is_signed && div_or_rem == DivOrRem::kRem;
+      std::is_signed<type>::value && div_or_rem == DivOrRem::kRem;
   DCHECK_EQ(needs_unrepresentable_check, trap_div_unrepresentable != nullptr);
 
+#define iop(name, ...)            \
+  do {                            \
+    if (sizeof(type) == 4) {      \
+      assm->name##l(__VA_ARGS__); \
+    } else {                      \
+      assm->name##q(__VA_ARGS__); \
+    }                             \
+  } while (false)
+
   // Check for division by zero.
-  assm->testl(rhs, rhs);
+  iop(test, rhs, rhs);
   assm->j(zero, trap_div_by_zero);
 
   Label done;
   if (needs_unrepresentable_check) {
     // Check for {kMinInt / -1}. This is unrepresentable.
     Label do_div;
-    assm->cmpl(rhs, Immediate(-1));
+    iop(cmp, rhs, Immediate(-1));
     assm->j(not_equal, &do_div);
-    assm->cmpl(lhs, Immediate(kMinInt));
-    assm->j(equal, trap_div_unrepresentable);
+    // {lhs} is min int if {lhs - 1} overflows.
+    iop(cmp, lhs, Immediate(1));
+    assm->j(overflow, trap_div_unrepresentable);
     assm->bind(&do_div);
   } else if (special_case_minus_1) {
     // {lhs % -1} is always 0 (needs to be special cased because {kMinInt / -1}
     // cannot be computed).
     Label do_rem;
-    assm->cmpl(rhs, Immediate(-1));
+    iop(cmp, rhs, Immediate(-1));
     assm->j(not_equal, &do_rem);
-    assm->xorl(dst, dst);
+    // clang-format off
+    // (conflicts with presubmit checks because it is confused about "xor")
+    iop(xor, dst, dst);
+    // clang-format on
     assm->jmp(&done);
     assm->bind(&do_rem);
   }
@@ -486,24 +499,32 @@ void EmitInt32DivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
   if (rhs == rax || rhs == rdx) {
     LiftoffRegList unavailable = LiftoffRegList::ForRegs(rax, rdx, lhs);
     Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
-    assm->movl(tmp, rhs);
+    iop(mov, tmp, rhs);
     rhs = tmp;
   }
 
   // Now move {lhs} into {eax}, then zero-extend or sign-extend into {edx}, then
   // do the division.
-  if (lhs != rax) assm->movl(rax, lhs);
-  if (is_signed) {
+  if (lhs != rax) iop(mov, rax, lhs);
+  if (std::is_same<int32_t, type>::value) {  // i32
     assm->cdq();
     assm->idivl(rhs);
-  } else {
+  } else if (std::is_same<uint32_t, type>::value) {  // u32
     assm->xorl(rdx, rdx);
     assm->divl(rhs);
+  } else if (std::is_same<int64_t, type>::value) {  // i64
+    assm->cqo();
+    assm->idivq(rhs);
+  } else {  // u64
+    assm->xorq(rdx, rdx);
+    assm->divq(rhs);
   }
 
   // Move back the result (in {eax} or {edx}) into the {dst} register.
   constexpr Register kResultReg = div_or_rem == DivOrRem::kDiv ? rax : rdx;
-  if (dst != kResultReg) assm->movl(dst, kResultReg);
+  if (dst != kResultReg) {
+    iop(mov, dst, kResultReg);
+  }
   if (special_case_minus_1) assm->bind(&done);
 }
 }  // namespace liftoff
@@ -511,25 +532,25 @@ void EmitInt32DivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  liftoff::EmitInt32DivOrRem<true, liftoff::DivOrRem::kDiv>(
+  liftoff::EmitIntDivOrRem<int32_t, liftoff::DivOrRem::kDiv>(
       this, dst, lhs, rhs, trap_div_by_zero, trap_div_unrepresentable);
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  liftoff::EmitInt32DivOrRem<false, liftoff::DivOrRem::kDiv>(
+  liftoff::EmitIntDivOrRem<uint32_t, liftoff::DivOrRem::kDiv>(
       this, dst, lhs, rhs, trap_div_by_zero, nullptr);
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  liftoff::EmitInt32DivOrRem<true, liftoff::DivOrRem::kRem>(
+  liftoff::EmitIntDivOrRem<int32_t, liftoff::DivOrRem::kRem>(
       this, dst, lhs, rhs, trap_div_by_zero, nullptr);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  liftoff::EmitInt32DivOrRem<false, liftoff::DivOrRem::kRem>(
+  liftoff::EmitIntDivOrRem<uint32_t, liftoff::DivOrRem::kRem>(
       this, dst, lhs, rhs, trap_div_by_zero, nullptr);
 }
 
@@ -667,6 +688,40 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::imulq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
+bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  liftoff::EmitIntDivOrRem<int64_t, liftoff::DivOrRem::kDiv>(
+      this, dst.gp(), lhs.gp(), rhs.gp(), trap_div_by_zero,
+      trap_div_unrepresentable);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitIntDivOrRem<uint64_t, liftoff::DivOrRem::kDiv>(
+      this, dst.gp(), lhs.gp(), rhs.gp(), trap_div_by_zero, nullptr);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitIntDivOrRem<int64_t, liftoff::DivOrRem::kRem>(
+      this, dst.gp(), lhs.gp(), rhs.gp(), trap_div_by_zero, nullptr);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  liftoff::EmitIntDivOrRem<uint64_t, liftoff::DivOrRem::kRem>(
+      this, dst.gp(), lhs.gp(), rhs.gp(), trap_div_by_zero, nullptr);
+  return true;
 }
 
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,

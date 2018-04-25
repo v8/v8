@@ -419,6 +419,15 @@ class LiftoffAssembler : public TurboAssembler {
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline bool emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs, Label* trap_div_by_zero,
+                            Label* trap_div_unrepresentable);
+  inline bool emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs, Label* trap_div_by_zero);
+  inline bool emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs, Label* trap_rem_by_zero);
+  inline bool emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs, Label* trap_rem_by_zero);
   inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,

@@ -452,7 +452,8 @@ class LiftoffCompiler {
       DCHECK(!is_stack_check);
       __ CallTrapCallbackForTesting();
       __ LeaveFrame(StackFrame::WASM_COMPILED);
-      __ Ret();
+      __ DropStackSlotsAndRet(
+          static_cast<uint32_t>(descriptor_->StackParameterCount()));
       return;
     }
 
@@ -751,6 +752,30 @@ class LiftoffCompiler {
     __ PushRegister(result_type, dst);
   }
 
+  void EmitDivOrRem64CCall(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs, ExternalReference ext_ref,
+                           Label* trap_by_zero,
+                           Label* trap_unrepresentable = nullptr) {
+    // Cannot emit native instructions, build C call.
+    LiftoffRegister ret =
+        __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
+    LiftoffRegister tmp =
+        __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, ret));
+    LiftoffRegister arg_regs[] = {lhs, rhs};
+    LiftoffRegister result_regs[] = {ret, dst};
+    ValueType sig_types[] = {kWasmI32, kWasmI64, kWasmI64};
+    // <i64, i64> -> i32 (with i64 output argument)
+    FunctionSig sig(1, 2, sig_types);
+    GenerateCCall(result_regs, &sig, kWasmI64, arg_regs, ext_ref);
+    __ LoadConstant(tmp, WasmValue(int32_t{0}));
+    __ emit_cond_jump(kEqual, trap_by_zero, kWasmI32, ret.gp(), tmp.gp());
+    if (trap_unrepresentable) {
+      __ LoadConstant(tmp, WasmValue(int32_t{-1}));
+      __ emit_cond_jump(kEqual, trap_unrepresentable, kWasmI32, ret.gp(),
+                        tmp.gp());
+    }
+  }
+
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
              const Value& lhs, const Value& rhs, Value* result) {
 #define CASE_I32_BINOP(opcode, fn)                                           \
@@ -921,6 +946,62 @@ class LiftoffCompiler {
           Label* rem_by_zero = AddOutOfLineTrap(
               decoder->position(), Builtins::kThrowWasmTrapRemByZero);
           __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
+        });
+        break;
+      case WasmOpcode::kExprI64DivS:
+        EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
+                                                      LiftoffRegister lhs,
+                                                      LiftoffRegister rhs) {
+          WasmCodePosition position = decoder->position();
+          AddOutOfLineTrap(position, Builtins::kThrowWasmTrapDivByZero);
+          // Adding the second trap might invalidate the pointer returned for
+          // the first one, thus get both pointers afterwards.
+          AddOutOfLineTrap(position,
+                           Builtins::kThrowWasmTrapDivUnrepresentable);
+          Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
+          Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
+          if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero,
+                                div_unrepresentable)) {
+            ExternalReference ext_ref = ExternalReference::wasm_int64_div();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero,
+                                div_unrepresentable);
+          }
+        });
+        break;
+      case WasmOpcode::kExprI64DivU:
+        EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
+                                                      LiftoffRegister lhs,
+                                                      LiftoffRegister rhs) {
+          Label* div_by_zero = AddOutOfLineTrap(
+              decoder->position(), Builtins::kThrowWasmTrapDivByZero);
+          if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
+            ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
+          }
+        });
+        break;
+      case WasmOpcode::kExprI64RemS:
+        EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
+                                                      LiftoffRegister lhs,
+                                                      LiftoffRegister rhs) {
+          Label* rem_by_zero = AddOutOfLineTrap(
+              decoder->position(), Builtins::kThrowWasmTrapRemByZero);
+          if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
+            ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+          }
+        });
+        break;
+      case WasmOpcode::kExprI64RemU:
+        EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
+                                                      LiftoffRegister lhs,
+                                                      LiftoffRegister rhs) {
+          Label* rem_by_zero = AddOutOfLineTrap(
+              decoder->position(), Builtins::kThrowWasmTrapRemByZero);
+          if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
+            ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+          }
         });
         break;
       default:
