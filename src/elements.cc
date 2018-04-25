@@ -2298,6 +2298,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       if (IsDoubleElementsKind(KindTraits::Kind)) {
         MemMove(dst_elms->data_start() + dst_index,
                 dst_elms->data_start() + src_index, len * kDoubleSize);
+      } else if (IsSmiElementsKind(KindTraits::Kind)) {
+        MemMove(dst_elms->data_start() + dst_index,
+                dst_elms->data_start() + src_index, len * kPointerSize);
       } else {
         DisallowHeapAllocation no_gc;
         heap->MoveElements(FixedArray::cast(*dst_elms), dst_index, src_index,
