@@ -3580,6 +3580,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceCollectionIteratorPrototypeNext(
           node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
           FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE);
+    case Builtins::kDatePrototypeGetTime:
+      return ReduceDatePrototypeGetTime(node);
+    case Builtins::kDateNow:
+      return ReduceDateNow(node);
     default:
       break;
   }
@@ -6666,6 +6670,31 @@ Reduction JSCallReducer::ReduceGlobalIsNaN(Node* node) {
                        input, effect, control);
   Node* value = graph()->NewNode(simplified()->NumberIsNaN(), input);
   ReplaceWithValue(node, value, effect);
+  return Replace(value);
+}
+
+// ES6 section 20.3.4.10 Date.prototype.getTime ( )
+Reduction JSCallReducer::ReduceDatePrototypeGetTime(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_DATE_TYPE)) {
+    Node* value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSDateValue()), receiver,
+        effect, control);
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.3.3.1 Date.now ( )
+Reduction JSCallReducer::ReduceDateNow(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* value = effect =
+      graph()->NewNode(simplified()->DateNow(), effect, control);
+  ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
 

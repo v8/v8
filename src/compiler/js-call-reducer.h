@@ -180,6 +180,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                           InstanceType instance_type,
                                           FieldAccess const& access);
 
+  Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDateNow(Node* node);
+
   // Returns the updated {to} node, and updates control and effect along the
   // way.
   Node* DoFilterPostCallbackWork(ElementsKind kind, Node** control,

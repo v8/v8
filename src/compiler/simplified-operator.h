@@ -729,6 +729,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort (for terminating execution on internal error).
   const Operator* RuntimeAbort(AbortReason reason);
 
+  const Operator* DateNow();
+
  private:
   Zone* zone() const { return zone_; }
 

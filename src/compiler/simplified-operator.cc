@@ -726,9 +726,10 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NewConsString, Operator::kNoProperties, 3, 0)                \
   V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
 
-#define EFFECT_DEPENDENT_OP_LIST(V)                     \
-  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)    \
-  V(StringSubstring, Operator::kNoProperties, 3, 1)
+#define EFFECT_DEPENDENT_OP_LIST(V)                  \
+  V(StringCharCodeAt, Operator::kNoProperties, 2, 1) \
+  V(StringSubstring, Operator::kNoProperties, 3, 1)  \
+  V(DateNow, Operator::kNoProperties, 0, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \

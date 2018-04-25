@@ -115,29 +115,6 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
       native_context_(native_context),
       type_cache_(TypeCache::Get()) {}
 
-// ES6 section 20.3.3.1 Date.now ( )
-Reduction JSBuiltinReducer::ReduceDateNow(Node* node) {
-  NodeProperties::RemoveValueInputs(node);
-  NodeProperties::ChangeOp(
-      node, javascript()->CallRuntime(Runtime::kDateCurrentTime));
-  return Changed(node);
-}
-
-// ES6 section 20.3.4.10 Date.prototype.getTime ( )
-Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_DATE_TYPE)) {
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSDateValue()), receiver,
-        effect, control);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 20.1.2.13 Number.parseInt ( string, radix )
 Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
   JSCallReduction r(node);
@@ -162,10 +139,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   if (!r.HasBuiltinFunctionId()) return NoChange();
   if (!r.BuiltinCanBeInlined()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
-    case kDateNow:
-      return ReduceDateNow(node);
-    case kDateGetTime:
-      return ReduceDateGetTime(node);
     case kNumberParseInt:
       reduction = ReduceNumberParseInt(node);
       break;

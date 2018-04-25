@@ -421,7 +421,8 @@
   V(FindOrderedHashMapEntry)            \
   V(FindOrderedHashMapEntryForInt32Key) \
   V(MaskIndexWithBound)                 \
-  V(RuntimeAbort)
+  V(RuntimeAbort)                       \
+  V(DateNow)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

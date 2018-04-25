@@ -3033,6 +3033,9 @@ class RepresentationSelector {
                   MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
+      case IrOpcode::kDateNow:
+        VisitInputs(node);
+        return SetOutput(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kFrameState:
         return VisitFrameState(node);
       case IrOpcode::kStateValues:

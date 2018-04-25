@@ -1537,6 +1537,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTypeGuard:
       CheckTypeIs(node, TypeGuardTypeOf(node->op()));
       break;
+    case IrOpcode::kDateNow:
+      CHECK_EQ(0, value_count);
+      CheckTypeIs(node, Type::Number());
+      break;
 
     // Machine operators
     // -----------------------

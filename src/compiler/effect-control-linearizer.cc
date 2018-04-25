@@ -976,6 +976,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
         return false;
       }
       break;
+    case IrOpcode::kDateNow:
+      result = LowerDateNow(node);
+      break;
     default:
       return false;
   }
@@ -4668,6 +4671,16 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerDateNow(Node* node) {
+  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+  Runtime::FunctionId id = Runtime::kDateCurrentTime;
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), id, 0, properties, CallDescriptor::kNoFlags);
+  return __ Call(call_descriptor, __ CEntryStubConstant(1),
+                 __ ExternalConstant(ExternalReference::Create(id)),
+                 __ Int32Constant(0), __ NoContextConstant());
 }
 
 #undef __
