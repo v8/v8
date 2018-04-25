@@ -9786,14 +9786,16 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
 
   TransitionFlag flag = INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
-  if (!FLAG_track_constant_fields && value->IsJSFunction()) {
-    maybe_map = Map::CopyWithConstant(map, name, value, attributes, flag);
-  } else if (!map->TooManyFastProperties(store_mode)) {
-    Isolate* isolate = name->GetIsolate();
-    Representation representation = value->OptimalRepresentation();
-    Handle<FieldType> type = value->OptimalType(isolate, representation);
-    maybe_map = Map::CopyWithField(map, name, type, attributes, constness,
-                                   representation, flag);
+  if (!map->TooManyFastProperties(store_mode)) {
+    if (!FLAG_track_constant_fields && value->IsJSFunction()) {
+      maybe_map = Map::CopyWithConstant(map, name, value, attributes, flag);
+    } else {
+      Isolate* isolate = name->GetIsolate();
+      Representation representation = value->OptimalRepresentation();
+      Handle<FieldType> type = value->OptimalType(isolate, representation);
+      maybe_map = Map::CopyWithField(map, name, type, attributes, constness,
+                                     representation, flag);
+    }
   }
 
   Handle<Map> result;
