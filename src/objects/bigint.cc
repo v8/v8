@@ -1825,10 +1825,20 @@ int BigInt::DigitsByteLengthForBitfield(uint32_t bitfield) {
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!
 void BigInt::SerializeDigits(uint8_t* storage) {
-  int bytelength = length() * kDigitSize;
   void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(this) +
                                          kDigitsOffset - kHeapObjectTag);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  int bytelength = length() * kDigitSize;
   memcpy(storage, digits, bytelength);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  digit_t* digit_storage = reinterpret_cast<digit_t*>(storage);
+  const digit_t* digit = reinterpret_cast<const digit_t*>(digits);
+  for (int i = 0; i < length(); i++) {
+    *digit_storage = ByteReverse(*digit);
+    digit_storage++;
+    digit++;
+  }
+#endif  // V8_TARGET_BIG_ENDIAN
 }
 
 // The serialization format MUST NOT CHANGE without updating the format
@@ -1845,10 +1855,33 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
   result->initialize_bitfield(sign, length);
   void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(*result) +
                                          kDigitsOffset - kHeapObjectTag);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   memcpy(digits, digits_storage.start(), bytelength);
   void* padding_start =
       reinterpret_cast<void*>(reinterpret_cast<Address>(digits) + bytelength);
   memset(padding_start, 0, length * kDigitSize - bytelength);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  digit_t* digit = reinterpret_cast<digit_t*>(digits);
+  const digit_t* digit_storage =
+      reinterpret_cast<const digit_t*>(digits_storage.start());
+  for (int i = 0; i < bytelength / kDigitSize; i++) {
+    *digit = ByteReverse(*digit_storage);
+    digit_storage++;
+    digit++;
+  }
+  if (bytelength % kDigitSize) {
+    *digit = 0;
+    byte* digit_byte = reinterpret_cast<byte*>(digit);
+    digit_byte += sizeof(*digit) - 1;
+    const byte* digit_storage_byte =
+        reinterpret_cast<const byte*>(digit_storage);
+    for (int i = 0; i < bytelength % kDigitSize; i++) {
+      *digit_byte = *digit_storage_byte;
+      digit_byte--;
+      digit_storage_byte++;
+    }
+  }
+#endif  // V8_TARGET_BIG_ENDIAN
   return MutableBigInt::MakeImmutable(result);
 }
 

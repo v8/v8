@@ -1658,6 +1658,49 @@ static inline void WriteLittleEndianValue(Address p, V value) {
 #endif  // V8_TARGET_LITTLE_ENDIAN
 }
 
+template <typename V>
+static inline V ByteReverse(V value) {
+  size_t size_of_v = sizeof(value);
+  switch (size_of_v) {
+    case 2:
+#if V8_HAS_BUILTIN_BSWAP16
+      return __builtin_bswap16(value);
+#else
+      return value << 8 | (value >> 8 & 0x00FF);
+#endif
+    case 4:
+#if V8_HAS_BUILTIN_BSWAP32
+      return __builtin_bswap32(value);
+#else
+    {
+      size_t bits_of_v = size_of_v * kBitsPerByte;
+      return value << (bits_of_v - 8) |
+             ((value << (bits_of_v - 24)) & 0x00FF0000) |
+             ((value >> (bits_of_v - 24)) & 0x0000FF00) |
+             ((value >> (bits_of_v - 8)) & 0x00000FF);
+    }
+#endif
+    case 8:
+#if V8_HAS_BUILTIN_BSWAP64
+      return __builtin_bswap64(value);
+#else
+    {
+      size_t bits_of_v = size_of_v * kBitsPerByte;
+      return value << (bits_of_v - 8) |
+             ((value << (bits_of_v - 24)) & 0x00FF000000000000) |
+             ((value << (bits_of_v - 40)) & 0x0000FF0000000000) |
+             ((value << (bits_of_v - 56)) & 0x000000FF00000000) |
+             ((value >> (bits_of_v - 56)) & 0x00000000FF000000) |
+             ((value >> (bits_of_v - 40)) & 0x0000000000FF0000) |
+             ((value >> (bits_of_v - 24)) & 0x000000000000FF00) |
+             ((value >> (bits_of_v - 8)) & 0x00000000000000FF);
+    }
+#endif
+    default:
+      UNREACHABLE();
+  }
+}
+
 // Represents a linked list that threads through the nodes in the linked list.
 // Entries in the list are pointers to nodes. The nodes need to have a T**
 // next() method that returns the location where the next value is stored.
