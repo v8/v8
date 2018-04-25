@@ -435,12 +435,6 @@
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7471
-  'intl402/DateTimeFormat/prototype/format/time-clip-near-time-boundaries': [FAIL],
-  'intl402/DateTimeFormat/prototype/format/time-clip-to-integer': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatToParts/time-clip-near-time-boundaries': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatToParts/time-clip-to-integer': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 

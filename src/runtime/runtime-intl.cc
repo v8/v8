@@ -14,6 +14,7 @@
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/date.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/intl.h"
@@ -260,9 +261,8 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(date, 1);
 
-  double date_value = date->Number();
-  // Check for +-Infinity and Nan
-  if (!std::isfinite(date_value)) {
+  double date_value = DateCache::TimeClip(date->Number());
+  if (std::isnan(date_value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
@@ -366,8 +366,8 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(date, 1);
 
-  double date_value = date->Number();
-  if (!std::isfinite(date_value)) {
+  double date_value = DateCache::TimeClip(date->Number());
+  if (std::isnan(date_value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
