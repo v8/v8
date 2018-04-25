@@ -215,24 +215,21 @@ const f64_values = [
 ];
 
 function GlobalI32(value) {
-  return new WebAssembly.Global({type: 'i32', value});
+  return new WebAssembly.Global({type: 'i32'}, value);
 }
 
 function GlobalF32(value) {
-  return new WebAssembly.Global({type: 'f32', value});
+  return new WebAssembly.Global({type: 'f32'}, value);
 }
 
 function GlobalF64(value) {
-  return new WebAssembly.Global({type: 'f64', value});
+  return new WebAssembly.Global({type: 'f64'}, value);
 }
 
 (function TestDefaultValue() {
   assertSame(0, GlobalI32().value);
-  // TODO(binji): The spec currently requires the default value to be NaN, but
-  // I think we should change this to 0. See
-  // https://github.com/WebAssembly/mutable-global/issues/6
-  assertSame(NaN, GlobalF32().value);
-  assertSame(NaN, GlobalF64().value);
+  assertSame(0, GlobalF32().value);
+  assertSame(0, GlobalF64().value);
 })();
 
 (function TestValueOf() {

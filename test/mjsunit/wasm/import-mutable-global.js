@@ -8,7 +8,7 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestBasic() {
-  let global = new WebAssembly.Global({type: 'i32', value: 1});
+  let global = new WebAssembly.Global({type: 'i32'}, 1);
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmI32);
   builder.addFunction("main", kSig_i_v)
@@ -20,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestTypeMismatch() {
-  let global = new WebAssembly.Global({type: 'f32', value: 1});
+  let global = new WebAssembly.Global({type: 'f32'}, 1);
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmI32);
   builder.addFunction("main", kSig_i_v)
