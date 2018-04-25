@@ -499,11 +499,11 @@ class ModuleDecoderImpl : public Decoder {
           // ===== Imported global =========================================
           import->index = static_cast<uint32_t>(module_->globals.size());
           module_->globals.push_back(
-              {kWasmStmt, false, WasmInitExpr(), 0, true, false});
+              {kWasmStmt, false, WasmInitExpr(), {0}, true, false});
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
           global->mutability = consume_mutability();
-          if (global->mutability) {
+          if (!FLAG_experimental_wasm_mut_global && global->mutability) {
             error("mutable globals cannot be imported");
           }
           break;
@@ -571,7 +571,7 @@ class ModuleDecoderImpl : public Decoder {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       // Add an uninitialized global and pass a pointer to it.
       module_->globals.push_back(
-          {kWasmStmt, false, WasmInitExpr(), 0, false, false});
+          {kWasmStmt, false, WasmInitExpr(), {0}, false, false});
       WasmGlobal* global = &module_->globals.back();
       DecodeGlobalInModule(module_.get(), i + imported_globals, global);
     }
@@ -988,13 +988,19 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t offset = 0;
     if (module->globals.size() == 0) {
       module->globals_size = 0;
+      module->num_imported_mutable_globals = 0;
       return;
     }
     for (WasmGlobal& global : module->globals) {
       byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
-      offset = (offset + size - 1) & ~(size - 1);  // align
-      global.offset = offset;
-      offset += size;
+      if (global.mutability && global.imported) {
+        DCHECK(FLAG_experimental_wasm_mut_global);
+        global.index = module->num_imported_mutable_globals++;
+      } else {
+        offset = (offset + size - 1) & ~(size - 1);  // align
+        global.offset = offset;
+        offset += size;
+      }
     }
     module->globals_size = offset;
   }

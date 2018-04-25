@@ -116,6 +116,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,
                     kGlobalsStartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_mutable_globals, Address*,
+                    kImportedMutableGlobalsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,
                     kIndirectFunctionTableSizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
@@ -130,6 +132,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
 ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
           kGlobalsBufferOffset)
+ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers, FixedArray,
+          kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,

@@ -208,7 +208,8 @@ class TestModuleBuilder {
     mod.set_origin(origin);
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
-    mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
+    mod.globals.push_back(
+        {type, mutability, WasmInitExpr(), {0}, false, false});
     CHECK_LE(mod.globals.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.globals.size() - 1);
   }

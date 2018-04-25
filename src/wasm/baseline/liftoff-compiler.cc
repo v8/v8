@@ -1149,18 +1149,35 @@ class LiftoffCompiler {
     SetLocal(operand.index, true);
   }
 
+  LiftoffRegister GetGlobalBaseAndOffset(const WasmGlobal* global,
+                                         LiftoffRegList& pinned,
+                                         uint32_t* offset) {
+    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg));
+    if (global->mutability && global->imported) {
+      DCHECK(FLAG_experimental_wasm_mut_global);
+      LOAD_INSTANCE_FIELD(addr, ImportedMutableGlobals, kPointerLoadType);
+      __ Load(addr, addr.gp(), no_reg, global->index * sizeof(Address),
+              kPointerLoadType, pinned);
+      *offset = 0;
+    } else {
+      LOAD_INSTANCE_FIELD(addr, GlobalsStart, kPointerLoadType);
+      *offset = global->offset;
+    }
+    return addr;
+  }
+
   void GetGlobal(Decoder* decoder, Value* result,
                  const GlobalIndexOperand<validate>& operand) {
     const auto* global = &env_->module->globals[operand.index];
     if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
       return;
     LiftoffRegList pinned;
-    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg));
-    LOAD_INSTANCE_FIELD(addr, GlobalsStart, kPointerLoadType);
+    uint32_t offset = 0;
+    LiftoffRegister addr = GetGlobalBaseAndOffset(global, pinned, &offset);
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(global->type), pinned));
     LoadType type = LoadType::ForValueType(global->type);
-    __ Load(value, addr.gp(), no_reg, global->offset, type, pinned);
+    __ Load(value, addr.gp(), no_reg, offset, type, pinned);
     __ PushRegister(global->type, value);
   }
 
@@ -1170,11 +1187,11 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
       return;
     LiftoffRegList pinned;
-    LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg));
-    LOAD_INSTANCE_FIELD(addr, GlobalsStart, kPointerLoadType);
+    uint32_t offset = 0;
+    LiftoffRegister addr = GetGlobalBaseAndOffset(global, pinned, &offset);
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type = StoreType::ForValueType(global->type);
-    __ Store(addr.gp(), no_reg, global->offset, reg, type, pinned);
+    __ Store(addr.gp(), no_reg, offset, reg, type, pinned);
   }
 
   void Unreachable(Decoder* decoder) { unsupported(decoder, "unreachable"); }

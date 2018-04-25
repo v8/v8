@@ -1701,6 +1701,19 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
+  // Set up the array of references to imported globals' array buffers.
+  //--------------------------------------------------------------------------
+  if (module_->num_imported_mutable_globals > 0) {
+    DCHECK(FLAG_experimental_wasm_mut_global);
+    // TODO(binji): This allocates one slot for each mutable global, which is
+    // more than required if multiple globals are imported from the same
+    // module.
+    Handle<FixedArray> buffers_array = isolate_->factory()->NewFixedArray(
+        module_->num_imported_mutable_globals, TENURED);
+    instance->set_imported_mutable_globals_buffers(*buffers_array);
+  }
+
+  //--------------------------------------------------------------------------
   // Reserve the metadata for indirect function tables.
   //--------------------------------------------------------------------------
   int function_table_count = static_cast<int>(module_->function_tables.size());
@@ -2116,6 +2129,7 @@ void InstanceBuilder::SanitizeImports() {
 int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imported_functions = 0;
   int num_imported_tables = 0;
+  int num_imported_mutable_globals = 0;
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());
@@ -2301,8 +2315,12 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalGlobal: {
-        // Global imports are converted to numbers and written into the
-        // {globals_} array buffer.
+        // Immutable global imports are converted to numbers and written into
+        // the {globals_} array buffer.
+        //
+        // Mutable global imports instead have their backing array buffers
+        // referenced by this instance, and store the address of the imported
+        // global in the {imported_mutable_globals_} array.
         WasmGlobal& global = module_->globals[import.index];
 
         // The mutable-global proposal allows importing i64 values, but only if
@@ -2329,20 +2347,50 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             }
           }
         }
-        if (FLAG_experimental_wasm_mut_global && value->IsWasmGlobalObject()) {
-          auto global_object = Handle<WasmGlobalObject>::cast(value);
-          if (global_object->type() != global.type) {
-            ReportLinkError("imported global does not match the expected type",
-                            index, module_name, import_name);
+        if (FLAG_experimental_wasm_mut_global) {
+          if (value->IsWasmGlobalObject()) {
+            auto global_object = Handle<WasmGlobalObject>::cast(value);
+            if (global_object->type() != global.type) {
+              ReportLinkError(
+                  "imported global does not match the expected type", index,
+                  module_name, import_name);
+              return -1;
+            }
+            if (global.mutability) {
+              Handle<JSArrayBuffer> buffer(global_object->array_buffer(),
+                                           isolate_);
+              int index = num_imported_mutable_globals++;
+              instance->imported_mutable_globals_buffers()->set(index, *buffer);
+              // It is safe in this case to store the raw pointer to the buffer
+              // since the backing store of the JSArrayBuffer will not be
+              // relocated.
+              instance->imported_mutable_globals()[index] =
+                  reinterpret_cast<Address>(
+                      raw_buffer_ptr(buffer, global_object->offset()));
+            } else {
+              WriteGlobalValue(global, global_object);
+            }
+          } else if (value->IsNumber()) {
+            if (global.mutability) {
+              ReportLinkError(
+                  "imported mutable global must be a WebAssembly.Global object",
+                  index, module_name, import_name);
+            }
+            WriteGlobalValue(global, value->Number());
+          } else {
+            ReportLinkError(
+                "global import must be a number or WebAssembly.Global object",
+                index, module_name, import_name);
             return -1;
           }
-          WriteGlobalValue(global, global_object);
-        } else if (value->IsNumber()) {
-          WriteGlobalValue(global, value->Number());
         } else {
-          ReportLinkError("global import must be a number", index, module_name,
-                          import_name);
-          return -1;
+          if (value->IsNumber()) {
+            WriteGlobalValue(global, value->Number());
+          } else {
+            ReportLinkError("global import must be a number", index,
+                            module_name, import_name);
+            return -1;
+          }
         }
         break;
       }
@@ -2351,6 +2399,9 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         break;
     }
   }
+
+  DCHECK_EQ(module_->num_imported_mutable_globals,
+            num_imported_mutable_globals);
 
   return num_imported_functions;
 }
@@ -2363,6 +2414,11 @@ T* InstanceBuilder::GetRawGlobalPtr(WasmGlobal& global) {
 // Process initialization of globals.
 void InstanceBuilder::InitGlobals() {
   for (auto global : module_->globals) {
+    if (global.mutability && global.imported) {
+      DCHECK(FLAG_experimental_wasm_mut_global);
+      continue;
+    }
+
     switch (global.init.kind) {
       case WasmInitExpr::kI32Const:
         *GetRawGlobalPtr<int32_t>(global) = global.init.val.i32_const;

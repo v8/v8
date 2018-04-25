@@ -1595,6 +1595,16 @@ class ThreadImpl {
     return true;
   }
 
+  byte* GetGlobalPtr(const WasmGlobal* global) {
+    if (global->mutability && global->imported) {
+      DCHECK(FLAG_experimental_wasm_mut_global);
+      return reinterpret_cast<byte*>(
+          instance_object_->imported_mutable_globals()[global->index]);
+    } else {
+      return instance_object_->globals_start() + global->offset;
+    }
+  }
+
   // Check if our control stack (frames_) exceeds the limit. Trigger stack
   // overflow if it does, and unwinding the current frame.
   // Returns true if execution can continue, false if the current activation was
@@ -1898,7 +1908,7 @@ class ThreadImpl {
           GlobalIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
-          byte* ptr = instance_object_->globals_start() + global->offset;
+          byte* ptr = GetGlobalPtr(global);
           WasmValue val;
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                       \
@@ -1918,7 +1928,7 @@ class ThreadImpl {
           GlobalIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
-          byte* ptr = instance_object_->globals_start() + global->offset;
+          byte* ptr = GetGlobalPtr(global);
           WasmValue val = Pop();
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                        \

@@ -284,7 +284,7 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
-  void GetGlobalBaseAndOffset(MachineType mem_type, uint32_t offset,
+  void GetGlobalBaseAndOffset(MachineType mem_type, const wasm::WasmGlobal&,
                               Node** base_node, Node** offset_node);
 
   // Utilities to manipulate sets of instance cache nodes.
@@ -354,6 +354,7 @@ class WasmGraphBuilder {
   Node** effect_ = nullptr;
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
   SetOncePointer<Node> globals_start_;
+  SetOncePointer<Node> imported_mutable_globals_;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];

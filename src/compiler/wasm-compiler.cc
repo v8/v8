@@ -3515,35 +3515,56 @@ Node* WasmGraphBuilder::CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode,
 }
 
 void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
-                                              uint32_t offset, Node** base_node,
+                                              const wasm::WasmGlobal& global,
+                                              Node** base_node,
                                               Node** offset_node) {
   DCHECK_NOT_NULL(instance_node_);
-  if (globals_start_ == nullptr) {
-    // Load globals_start from the instance object at runtime.
-    // TODO(wasm): we currently generate only one load of the {globals_start}
-    // start per graph, which means it can be placed anywhere by the scheduler.
-    // This is legal because the globals_start should never change.
-    // However, in some cases (e.g. if the instance object is already in a
-    // register), it is slightly more efficient to reload this value from the
-    // instance object. Since this depends on register allocation, it is not
-    // possible to express in the graph, and would essentially constitute a
-    // "mem2reg" optimization in TurboFan.
-    globals_start_ = graph()->NewNode(
+  if (global.mutability && global.imported) {
+    DCHECK(FLAG_experimental_wasm_mut_global);
+    if (imported_mutable_globals_ == nullptr) {
+      // Load imported_mutable_globals_ from the instance object at runtime.
+      imported_mutable_globals_ = graph()->NewNode(
+          jsgraph()->machine()->Load(MachineType::UintPtr()),
+          instance_node_.get(),
+          jsgraph()->Int32Constant(
+              WASM_INSTANCE_OBJECT_OFFSET(ImportedMutableGlobals)),
+          graph()->start(), graph()->start());
+    }
+    *base_node = graph()->NewNode(
         jsgraph()->machine()->Load(MachineType::UintPtr()),
-        instance_node_.get(),
-        jsgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(GlobalsStart)),
-        graph()->start(), graph()->start());
-  }
-  *base_node = globals_start_.get();
-  *offset_node = jsgraph()->Int32Constant(offset);
-
-  if (mem_type == MachineType::Simd128() && offset != 0) {
-    // TODO(titzer,bbudge): code generation for SIMD memory offsets is broken.
-    *base_node =
-        graph()->NewNode(kPointerSize == 4 ? jsgraph()->machine()->Int32Add()
-                                           : jsgraph()->machine()->Int64Add(),
-                         *base_node, *offset_node);
+        imported_mutable_globals_.get(),
+        jsgraph()->Int32Constant(global.index * sizeof(Address)), *effect_,
+        *control_);
     *offset_node = jsgraph()->Int32Constant(0);
+    *effect_ = *base_node;
+  } else {
+    if (globals_start_ == nullptr) {
+      // Load globals_start from the instance object at runtime.
+      // TODO(wasm): we currently generate only one load of the {globals_start}
+      // start per graph, which means it can be placed anywhere by the
+      // scheduler. This is legal because the globals_start should never change.
+      // However, in some cases (e.g. if the instance object is already in a
+      // register), it is slightly more efficient to reload this value from the
+      // instance object. Since this depends on register allocation, it is not
+      // possible to express in the graph, and would essentially constitute a
+      // "mem2reg" optimization in TurboFan.
+      globals_start_ = graph()->NewNode(
+          jsgraph()->machine()->Load(MachineType::UintPtr()),
+          instance_node_.get(),
+          jsgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(GlobalsStart)),
+          graph()->start(), graph()->start());
+    }
+    *base_node = globals_start_.get();
+    *offset_node = jsgraph()->Int32Constant(global.offset);
+
+    if (mem_type == MachineType::Simd128() && global.offset != 0) {
+      // TODO(titzer,bbudge): code generation for SIMD memory offsets is broken.
+      *base_node =
+          graph()->NewNode(kPointerSize == 4 ? jsgraph()->machine()->Int32Add()
+                                             : jsgraph()->machine()->Int64Add(),
+                           *base_node, *offset_node);
+      *offset_node = jsgraph()->Int32Constant(0);
+    }
   }
 }
 
@@ -3637,7 +3658,7 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
       wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
   Node* base = nullptr;
   Node* offset = nullptr;
-  GetGlobalBaseAndOffset(mem_type, env_->module->globals[index].offset, &base,
+  GetGlobalBaseAndOffset(mem_type, env_->module->globals[index], &base,
                          &offset);
   Node* node = graph()->NewNode(jsgraph()->machine()->Load(mem_type), base,
                                 offset, *effect_, *control_);
@@ -3650,7 +3671,7 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
       wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
   Node* base = nullptr;
   Node* offset = nullptr;
-  GetGlobalBaseAndOffset(mem_type, env_->module->globals[index].offset, &base,
+  GetGlobalBaseAndOffset(mem_type, env_->module->globals[index], &base,
                          &offset);
   const Operator* op = jsgraph()->machine()->Store(
       StoreRepresentation(mem_type.representation(), kNoWriteBarrier));

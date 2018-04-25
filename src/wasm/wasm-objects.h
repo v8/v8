@@ -265,6 +265,7 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(exports_object, JSObject)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
   DECL_ACCESSORS(imported_function_instances, FixedArray)
@@ -277,6 +278,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(memory_mask, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
+  DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
@@ -287,6 +289,7 @@ class WasmInstanceObject : public JSObject {
   V(kExportsObjectOffset, kPointerSize)                                 \
   V(kMemoryObjectOffset, kPointerSize)                                  \
   V(kGlobalsBufferOffset, kPointerSize)                                 \
+  V(kImportedMutableGlobalsBuffersOffset, kPointerSize)                 \
   V(kDebugInfoOffset, kPointerSize)                                     \
   V(kTableObjectOffset, kPointerSize)                                   \
   V(kFunctionTablesOffset, kPointerSize)                                \
@@ -301,6 +304,7 @@ class WasmInstanceObject : public JSObject {
   V(kMemoryMaskOffset, kUInt32Size)                      /* untagged */ \
   V(kImportedFunctionTargetsOffset, kPointerSize)        /* untagged */ \
   V(kGlobalsStartOffset, kPointerSize)                   /* untagged */ \
+  V(kImportedMutableGlobalsOffset, kPointerSize)         /* untagged */ \
   V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
   V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \

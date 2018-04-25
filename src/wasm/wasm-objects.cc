@@ -61,10 +61,14 @@ class WasmInstanceNativeAllocations {
 
   // Allocates initial native storage for a given instance.
   WasmInstanceNativeAllocations(Handle<WasmInstanceObject> instance,
-                                size_t num_imported_functions) {
+                                size_t num_imported_functions,
+                                size_t num_imported_mutable_globals) {
     SET(instance, imported_function_targets,
         reinterpret_cast<Address*>(
             calloc(num_imported_functions, sizeof(Address))));
+    SET(instance, imported_mutable_globals,
+        reinterpret_cast<Address*>(
+            calloc(num_imported_mutable_globals, sizeof(Address))));
   }
   ~WasmInstanceNativeAllocations() { free(); }
   // Frees natively-allocated storage.
@@ -72,9 +76,11 @@ class WasmInstanceNativeAllocations {
     ::free(indirect_function_table_sig_ids_);
     ::free(indirect_function_table_targets_);
     ::free(imported_function_targets_);
+    ::free(imported_mutable_globals_);
     indirect_function_table_sig_ids_ = nullptr;
     indirect_function_table_targets_ = nullptr;
     imported_function_targets_ = nullptr;
+    imported_mutable_globals_ = nullptr;
   }
   // Resizes the indirect function table.
   void resize_indirect_function_table(Isolate* isolate,
@@ -117,6 +123,7 @@ class WasmInstanceNativeAllocations {
   uint32_t* indirect_function_table_sig_ids_ = nullptr;
   Address* indirect_function_table_targets_ = nullptr;
   Address* imported_function_targets_ = nullptr;
+  Address* imported_mutable_globals_ = nullptr;
 #undef SET
 };
 
@@ -750,8 +757,10 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   // Initialize the imported function arrays.
   auto num_imported_functions =
       compiled_module->shared()->module()->num_imported_functions;
+  auto num_imported_mutable_globals =
+      compiled_module->shared()->module()->num_imported_mutable_globals;
   auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
-      isolate, instance, num_imported_functions);
+      isolate, instance, num_imported_functions, num_imported_mutable_globals);
   instance->set_managed_native_allocations(*native_allocations);
 
   Handle<FixedArray> imported_function_instances =

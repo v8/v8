@@ -50,12 +50,15 @@ struct WasmFunction {
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
-  ValueType type;        // type of the global.
-  bool mutability;       // {true} if mutable.
-  WasmInitExpr init;     // the initialization expression of the global.
-  uint32_t offset;       // offset into global memory.
-  bool imported;         // true if imported.
-  bool exported;         // true if exported.
+  ValueType type;     // type of the global.
+  bool mutability;    // {true} if mutable.
+  WasmInitExpr init;  // the initialization expression of the global.
+  union {
+    uint32_t index;   // index of imported mutable global.
+    uint32_t offset;  // offset into global memory (if not imported & mutable).
+  };
+  bool imported;  // true if imported.
+  bool exported;  // true if exported.
 };
 
 // Note: An exception signature only uses the params portion of a
@@ -141,7 +144,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   int start_function_index = -1;   // start function, >= 0 if any
 
   std::vector<WasmGlobal> globals;
+  // Size of the buffer required for all globals that are not imported and
+  // mutable.
+  // TODO(wasm): Rename for clarity?
   uint32_t globals_size = 0;
+  uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_declared_functions = 0;
   uint32_t num_exported_functions = 0;
