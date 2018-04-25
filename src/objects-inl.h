@@ -915,7 +915,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   return true;
 }
 
-Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
+Object** HeapObject::RawField(const HeapObject* obj, int byte_offset) {
   return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
 }
 
