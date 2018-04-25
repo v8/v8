@@ -1798,13 +1798,28 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - length = 0\n";
     return;
   }
+  int flags = Flags();
+
+  os << "\n - parameters: " << ParameterCount();
+  os << "\n - stack locals: " << StackLocalCount();
+  os << "\n - context locals : " << ContextLocalCount();
 
   os << "\n - scope type: " << scope_type();
+  if (CallsSloppyEval()) os << "\n - sloppy eval";
   os << "\n - language mode: " << language_mode();
-  os << "\n - local count: " << LocalCount();
-  os << "\n - stack slot count: " << StackSlotCount();
-  if (HasReceiver()) os << "\n - has receiver";
+  if (is_declaration_scope()) os << "\n - declaration scope";
+  if (HasReceiver()) {
+    os << "\n - receiver: " << ReceiverVariableField::decode(flags);
+  }
   if (HasNewTarget()) os << "\n - needs new target";
+  if (HasFunctionName()) {
+    os << "\n - function name(" << FunctionVariableField::decode(flags)
+       << "): ";
+    FunctionName()->ShortPrint(os);
+  }
+  if (IsAsmModule()) os << "\n - asm module";
+  if (HasSimpleParameters()) os << "\n - simple parameters";
+  os << "\n - function kind: " << function_kind();
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }

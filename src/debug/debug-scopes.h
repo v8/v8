@@ -78,7 +78,14 @@ class ScopeIterator {
   Handle<StringSet> GetNonLocals();
 
   // Return function which represents closure for current scope.
-  Handle<JSFunction> GetClosure();
+  Handle<JSFunction> GetFunction() { return function_; }
+  // Similar to JSFunction::GetName return the function's name or it's inferred
+  // name.
+  Handle<Object> GetFunctionDebugName() const;
+
+  Handle<Script> GetScript() const { return script_; }
+
+  bool HasPositionInfo();
   int start_position();
   int end_position();
 
@@ -102,7 +109,10 @@ class ScopeIterator {
   Isolate* isolate_;
   FrameInspector* const frame_inspector_ = nullptr;
   Handle<JSGeneratorObject> generator_;
+  Handle<JSFunction> function_;
+  Handle<ScopeInfo> function_scope_info_;
   Handle<Context> context_;
+  Handle<Script> script_;
   std::vector<ExtendedScopeInfo> nested_scope_chain_;
   Handle<StringSet> non_locals_;
   bool seen_script_scope_;
@@ -112,7 +122,6 @@ class ScopeIterator {
   }
 
   Handle<Context> GetContext();
-  Handle<JSFunction> GetFunction();
   int GetSourcePosition();
 
   void MaterializeStackLocals(Handle<JSObject> local_scope,
@@ -176,7 +185,7 @@ class ScopeIterator {
   void GetNestedScopeChain(Isolate* isolate, Scope* scope,
                            int statement_position);
 
-  bool HasNestedScopeChain();
+  bool HasNestedScopeChain() const;
   ExtendedScopeInfo& LastNestedScopeChain();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);

@@ -764,7 +764,8 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 
   BIND(&throwtypeerror);
   {
-    Node* name = CallRuntime(Runtime::kGetFunctionName, context, target);
+    TNode<String> name =
+        CAST(CallRuntime(Runtime::kGetFunctionName, context, target));
     ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, name);
   }
 }

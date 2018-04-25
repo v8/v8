@@ -653,6 +653,11 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     v8::Local<v8::Function> closure = iterator->GetFunction();
     if (!closure.IsEmpty()) {
       name = toProtocolStringWithTypeCheck(closure->GetDebugName());
+    } else {
+      v8::Local<v8::Value> maybe_name = iterator->GetFunctionDebugName();
+      if (!maybe_name->IsUndefined()) {
+        name = toProtocolStringWithTypeCheck(maybe_name);
+      }
     }
     v8::Local<v8::Object> object = iterator->GetObject();
     createDataProperty(context, scope,

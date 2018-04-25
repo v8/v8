@@ -114,6 +114,11 @@ JSReceiver* Context::extension_receiver() {
                          : extension_object();
 }
 
+ScopeInfo* Context::raw_scope_info() {
+  DCHECK(!IsNativeContext());
+  return closure()->shared()->scope_info();
+}
+
 ScopeInfo* Context::scope_info() {
   DCHECK(!IsNativeContext());
   if (IsFunctionContext() || IsModuleContext() || IsEvalContext()) {

@@ -125,7 +125,7 @@ v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   return Utils::ToLocal(isolate_->debug()->return_value_handle());
 }
 
-v8::Local<v8::String> DebugStackTraceIterator::GetFunctionName() const {
+v8::Local<v8::String> DebugStackTraceIterator::GetFunctionDebugName() const {
   DCHECK(!Done());
   return Utils::ToLocal(frame_inspector_->GetFunctionName());
 }

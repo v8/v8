@@ -13692,8 +13692,10 @@ void SharedFunctionInfo::set_debugger_hints(int value) {
 }
 
 String* SharedFunctionInfo::DebugName() {
-  if (Name()->length() == 0) return inferred_name();
-  return Name();
+  DisallowHeapAllocation no_gc;
+  String* function_name = Name();
+  if (function_name->length() > 0) return function_name;
+  return inferred_name();
 }
 
 // static
