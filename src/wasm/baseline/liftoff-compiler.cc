@@ -1100,7 +1100,27 @@ class LiftoffCompiler {
 
   void Select(Decoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
-    unsupported(decoder, "select");
+    LiftoffRegList pinned;
+    Register condition = pinned.set(__ PopToRegister()).gp();
+    ValueType type = __ cache_state()->stack_state.end()[-1].type();
+    DCHECK_EQ(type, __ cache_state()->stack_state.end()[-2].type());
+    LiftoffRegister false_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister true_value = __ PopToRegister(pinned);
+    LiftoffRegister dst =
+        __ GetUnusedRegister(true_value.reg_class(), {true_value, false_value});
+    __ PushRegister(type, dst);
+
+    // Now emit the actual code to move either {true_value} or {false_value}
+    // into {dst}.
+    Label cont;
+    Label case_false;
+    __ emit_cond_jump(kEqual, &case_false, kWasmI32, condition);
+    if (dst != true_value) __ Move(dst, true_value, type);
+    __ emit_jump(&cont);
+
+    __ bind(&case_false);
+    if (dst != false_value) __ Move(dst, false_value, type);
+    __ bind(&cont);
   }
 
   void Br(Control* target) {
