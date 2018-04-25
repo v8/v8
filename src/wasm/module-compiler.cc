@@ -1520,9 +1520,14 @@ class FinishCompileTask : public CancelableTask {
         // directly be used by Liftoff-compiled code. Therefore we need
         // to patch the compiled Turbofan function directly after finishing it.
         DCHECK_EQ(CompileMode::kTiering, compilation_state_->compile_mode());
+        DCHECK(!result->is_liftoff());
         CodeSpecialization code_specialization;
         code_specialization.RelocateDirectCalls(native_module);
         code_specialization.ApplyToWasmCode(result);
+
+        // Update the counters to include the top-tier code.
+        RecordStats(result,
+                    compilation_state_->isolate()->async_counters().get());
       }
 
       // Update the compilation state, and possibly notify
@@ -3116,6 +3121,7 @@ class AsyncCompileJob::FinishModule : public CompileStep {
 class AsyncCompileJob::UpdateToTopTierCompiledCode : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(7) Update native module to use optimized code...\n");
+
     UpdateAllCompiledModulesWithTopTierCode(job_->compiled_module_);
     job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
   }
