@@ -96,6 +96,22 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
   }
 }
 
+inline MemOperand GetMemOp(LiftoffAssembler* assm,
+                           UseScratchRegisterScope* temps, Register addr,
+                           Register offset, uint32_t offset_imm) {
+  // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
+  // immediate value (in 31 bits, interpreted as signed value).
+  // If the offset is bigger, we always trap and this code is not reached.
+  DCHECK(is_uint31(offset_imm));
+  if (offset.IsValid()) {
+    if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
+    Register tmp = temps->AcquireW();
+    assm->Add(tmp, offset.W(), offset_imm);
+    return MemOperand(addr.X(), tmp, UXTW);
+  }
+  return MemOperand(addr.X(), offset_imm);
+}
+
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
@@ -183,25 +199,96 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  BAILOUT("Load");
+  UseScratchRegisterScope temps(this);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+  if (protected_load_pc) *protected_load_pc = pc_offset();
+  switch (type.value()) {
+    case LoadType::kI32Load8U:
+    case LoadType::kI64Load8U:
+      Ldrb(dst.gp().W(), src_op);
+      break;
+    case LoadType::kI32Load8S:
+      Ldrsb(dst.gp().W(), src_op);
+      break;
+    case LoadType::kI64Load8S:
+      Ldrsb(dst.gp().X(), src_op);
+      break;
+    case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
+      Ldrh(dst.gp().W(), src_op);
+      break;
+    case LoadType::kI32Load16S:
+      Ldrsh(dst.gp().W(), src_op);
+      break;
+    case LoadType::kI64Load16S:
+      Ldrsh(dst.gp().X(), src_op);
+      break;
+    case LoadType::kI32Load:
+    case LoadType::kI64Load32U:
+      Ldr(dst.gp().W(), src_op);
+      break;
+    case LoadType::kI64Load32S:
+      Ldrsw(dst.gp().X(), src_op);
+      break;
+    case LoadType::kI64Load:
+      Ldr(dst.gp().X(), src_op);
+      break;
+    case LoadType::kF32Load:
+      Ldr(dst.fp().S(), src_op);
+      break;
+    case LoadType::kF64Load:
+      Ldr(dst.fp().D(), src_op);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  BAILOUT("Store");
+  UseScratchRegisterScope temps(this);
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      Strb(src.gp().W(), dst_op);
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      Strh(src.gp().W(), dst_op);
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      Str(src.gp().W(), dst_op);
+      break;
+    case StoreType::kI64Store:
+      Str(src.gp().X(), dst_op);
+      break;
+    case StoreType::kF32Store:
+      Str(src.fp().S(), dst_op);
+      break;
+    case StoreType::kF64Store:
+      Str(src.fp().D(), dst_op);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
                                             LiftoffRegList pinned) {
-  BAILOUT("ChangeEndiannessLoad");
+  // Nop.
 }
 
 void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
                                              StoreType type,
                                              LiftoffRegList pinned) {
-  BAILOUT("ChangeEndiannessStore");
+  // Nop.
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
