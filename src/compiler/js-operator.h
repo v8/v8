@@ -840,6 +840,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);
 
   const Operator* ObjectIsArray();
+  const Operator* ParseInt();
 
  private:
   Zone* zone() const { return zone_; }

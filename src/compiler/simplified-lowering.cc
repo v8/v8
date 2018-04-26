@@ -3130,6 +3130,7 @@ class RepresentationSelector {
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToObject:
       case IrOpcode::kJSToString:
+      case IrOpcode::kJSParseInt:
         VisitInputs(node);
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);

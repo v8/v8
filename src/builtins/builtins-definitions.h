@@ -731,6 +731,7 @@ namespace internal {
   TFJ(NumberParseFloat, 1, kString)                                            \
   /* ES6 #sec-number.parseint */                                               \
   TFJ(NumberParseInt, 2, kString, kRadix)                                      \
+  TFS(ParseInt, kString, kRadix)                                               \
   CPP(NumberPrototypeToExponential)                                            \
   CPP(NumberPrototypeToFixed)                                                  \
   CPP(NumberPrototypeToLocaleString)                                           \

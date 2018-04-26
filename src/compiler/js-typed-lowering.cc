@@ -2220,6 +2220,22 @@ Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
   return Replace(value);
 }
 
+Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Type* value_type = NodeProperties::GetType(value);
+  Node* radix = NodeProperties::GetValueInput(node, 1);
+  Type* radix_type = NodeProperties::GetType(radix);
+  if (value_type->Is(type_cache_.kSafeInteger) &&
+      radix_type->Is(type_cache_.kZeroOrTenOrUndefined)) {
+    // Number.parseInt(a:safe-integer) -> a
+    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
+    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
@@ -2324,6 +2340,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceSpeculativeNumberComparison(node);
     case IrOpcode::kJSObjectIsArray:
       return ReduceObjectIsArray(node);
+    case IrOpcode::kJSParseInt:
+      return ReduceJSParseInt(node);
     default:
       break;
   }

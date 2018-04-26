@@ -31,7 +31,6 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/instruction.h"
-#include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-create-lowering.h"
@@ -1196,9 +1195,6 @@ struct TypedLoweringPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
-    JSBuiltinReducer builtin_reducer(
-        &graph_reducer, data->jsgraph(),
-        data->info()->dependencies(), data->native_context());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
         data->native_context(), temp_zone);
@@ -1211,7 +1207,6 @@ struct TypedLoweringPhase {
                                          data->common(), data->machine(),
                                          temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &builtin_reducer);
     AddReducer(data, &graph_reducer, &create_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &typed_lowering);

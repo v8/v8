@@ -3485,6 +3485,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceNumberIsSafeInteger(node);
     case Builtins::kNumberIsNaN:
       return ReduceNumberIsNaN(node);
+    case Builtins::kNumberParseInt:
+      return ReduceNumberParseInt(node);
     case Builtins::kGlobalIsFinite:
       return ReduceGlobalIsFinite(node);
     case Builtins::kGlobalIsNaN:
@@ -6696,6 +6698,34 @@ Reduction JSCallReducer::ReduceDateNow(Node* node) {
       graph()->NewNode(simplified()->DateNow(), effect, control);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
+}
+
+// ES6 section 20.1.2.13 Number.parseInt ( string, radix )
+Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
+  // We certainly know that undefined is not an array.
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->NaNConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+
+  int arg_count = node->op()->ValueInputCount();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 2);
+  Node* radix = arg_count >= 4 ? NodeProperties::GetValueInput(node, 3)
+                               : jsgraph()->UndefinedConstant();
+  node->ReplaceInput(0, object);
+  node->ReplaceInput(1, radix);
+  node->ReplaceInput(2, context);
+  node->ReplaceInput(3, frame_state);
+  node->ReplaceInput(4, effect);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node, javascript()->ParseInt());
+  return Changed(node);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

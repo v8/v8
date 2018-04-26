@@ -408,6 +408,8 @@ Matcher<Node*> IsInt64Mul(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsJSParseInt(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsBitcastTaggedToWord(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsBitcastWordToTagged(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsBitcastWordToTaggedSigned(const Matcher<Node*>& input_matcher);

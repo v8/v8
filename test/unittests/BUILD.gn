@@ -107,7 +107,6 @@ v8_source_set("unittests_sources") {
     "compiler/instruction-sequence-unittest.h",
     "compiler/instruction-unittest.cc",
     "compiler/int64-lowering-unittest.cc",
-    "compiler/js-builtin-reducer-unittest.cc",
     "compiler/js-call-reducer-unittest.cc",
     "compiler/js-create-lowering-unittest.cc",
     "compiler/js-intrinsic-lowering-unittest.cc",

@@ -400,6 +400,12 @@ void JSGenericLowering::LowerJSCreateObject(Node* node) {
   ReplaceWithStubCall(node, callable, flags);
 }
 
+void JSGenericLowering::LowerJSParseInt(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kParseInt);
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> const shared_info = p.shared_info();

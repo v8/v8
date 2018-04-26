@@ -582,6 +582,26 @@ TEST_F(JSCallReducerTest, GlobalIsNaN) {
   EXPECT_THAT(r.replacement(), IsNumberIsNaN(IsSpeculativeToNumber(p0)));
 }
 
+// -----------------------------------------------------------------------------
+// Number.parseInt
+
+TEST_F(JSCallReducerTest, NumberParseInt) {
+  Node* function = NumberFunction("parseInt");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* p1 = Parameter(Type::Any(), 1);
+  Node* call = graph()->NewNode(Call(4), function, UndefinedConstant(), p0, p1,
+                                context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsJSParseInt(p0, p1));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

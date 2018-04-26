@@ -280,7 +280,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
 }
 
 // ES6 #sec-number.parseint
-TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
+TF_BUILTIN(ParseInt, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kString);
   Node* radix = Parameter(Descriptor::kRadix);
@@ -355,6 +355,14 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
     Node* result = CallRuntime(Runtime::kStringParseInt, context, input, radix);
     Return(result);
   }
+}
+
+// ES6 #sec-number.parseint
+TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kString);
+  Node* radix = Parameter(Descriptor::kRadix);
+  Return(CallBuiltin(Builtins::kParseInt, context, input, radix));
 }
 
 // ES6 #sec-number.prototype.valueof

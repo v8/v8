@@ -182,6 +182,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceDatePrototypeGetTime(Node* node);
   Reduction ReduceDateNow(Node* node);
+  Reduction ReduceNumberParseInt(Node* node);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.
