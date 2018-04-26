@@ -1526,6 +1526,8 @@ class FinishCompileTask : public CancelableTask {
         code_specialization.RelocateDirectCalls(native_module);
         code_specialization.ApplyToWasmCode(result);
 
+        if (wasm::WasmCode::ShouldBeLogged(isolate)) result->LogCode(isolate);
+
         // Update the counters to include the top-tier code.
         RecordStats(result,
                     compilation_state_->isolate()->async_counters().get());
