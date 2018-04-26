@@ -919,6 +919,67 @@ void LiftoffAssembler::emit_f32_div(DoubleRegister dst, DoubleRegister lhs,
   }
 }
 
+namespace liftoff {
+enum class MinOrMax : uint8_t { kMin, kMax };
+inline void EmitF32MinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
+                            DoubleRegister lhs, DoubleRegister rhs,
+                            MinOrMax min_or_max) {
+  Label is_nan;
+  Label lhs_below_rhs;
+  Label lhs_above_rhs;
+  Label done;
+
+  // We need one tmp register to extract the sign bit. Get it right at the
+  // beginning, such that the spilling code is not accidentially jumped over.
+  Register tmp = assm->GetUnusedRegister(kGpReg).gp();
+
+  // Check the easy cases first: nan (e.g. unordered), smaller and greater.
+  // NaN has to be checked first, because PF=1 implies CF=1.
+  assm->ucomiss(lhs, rhs);
+  assm->j(parity_even, &is_nan, Label::kNear);   // PF=1
+  assm->j(below, &lhs_below_rhs, Label::kNear);  // CF=1
+  assm->j(above, &lhs_above_rhs, Label::kNear);  // CF=0 && ZF=0
+
+  // If we get here, then either
+  // a) {lhs == rhs},
+  // b) {lhs == -0.0} and {rhs == 0.0}, or
+  // c) {lhs == 0.0} and {rhs == -0.0}.
+  // For a), it does not matter whether we return {lhs} or {rhs}. Check the sign
+  // bit of {rhs} to differentiate b) and c).
+  assm->movmskps(tmp, rhs);
+  assm->test(tmp, Immediate(1));
+  assm->j(zero, &lhs_below_rhs, Label::kNear);
+  assm->jmp(&lhs_above_rhs, Label::kNear);
+
+  assm->bind(&is_nan);
+  // Create a NaN output.
+  assm->xorps(dst, dst);
+  assm->divss(dst, dst);
+  assm->jmp(&done, Label::kNear);
+
+  assm->bind(&lhs_below_rhs);
+  DoubleRegister lhs_below_rhs_src = min_or_max == MinOrMax::kMin ? lhs : rhs;
+  if (dst != lhs_below_rhs_src) assm->movss(dst, lhs_below_rhs_src);
+  assm->jmp(&done, Label::kNear);
+
+  assm->bind(&lhs_above_rhs);
+  DoubleRegister lhs_above_rhs_src = min_or_max == MinOrMax::kMin ? rhs : lhs;
+  if (dst != lhs_above_rhs_src) assm->movss(dst, lhs_above_rhs_src);
+
+  assm->bind(&done);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitF32MinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMin);
+}
+
+void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitF32MinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMax);
+}
+
 void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
