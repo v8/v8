@@ -103,6 +103,7 @@ class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
 class TracingCpuProfilerImpl;
 class UnicodeCache;
+struct ManagedPtrDestructor;
 
 template <StateTag Tag> class VMState;
 
@@ -550,7 +551,7 @@ class Isolate : private HiddenFactory {
   // for legacy API reasons.
   void TearDown();
 
-  void ReleaseManagedObjects();
+  void ReleaseSharedPtrs();
 
   void ClearSerializerData();
 
@@ -1350,41 +1351,11 @@ class Isolate : private HiddenFactory {
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
-  // List of native heap values allocated by the runtime as part of its
-  // implementation that must be freed at isolate deinit.
-  class ManagedObjectFinalizer {
-   public:
-    using Deleter = void (*)(ManagedObjectFinalizer*);
-
-    ManagedObjectFinalizer(void* value, Deleter deleter)
-        : value_(value), deleter_(deleter) {}
-
-    void Dispose() { deleter_(this); }
-
-    void* value() const { return value_; }
-
-   private:
-    friend class Isolate;
-
-    ManagedObjectFinalizer() = default;
-
-    void* value_ = nullptr;
-    Deleter deleter_ = nullptr;
-    ManagedObjectFinalizer* prev_ = nullptr;
-    ManagedObjectFinalizer* next_ = nullptr;
-  };
-
-  static_assert(offsetof(ManagedObjectFinalizer, value_) == 0,
-                "value_ must be the first member");
-
   // Register a finalizer to be called at isolate teardown.
-  void RegisterForReleaseAtTeardown(ManagedObjectFinalizer*);
+  void RegisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
-  // Unregister a previously registered value from release at
-  // isolate teardown.
-  // This transfers the responsibility of the previously managed value's
-  // deletion to the caller.
-  void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer*);
+  // Removes a previously-registered shared object finalizer.
+  void UnregisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
   size_t elements_deletion_counter() { return elements_deletion_counter_; }
   void set_elements_deletion_counter(size_t value) {
@@ -1698,7 +1669,7 @@ class Isolate : private HiddenFactory {
 
   bool allow_atomics_wait_;
 
-  ManagedObjectFinalizer managed_object_finalizers_list_;
+  ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_;
 

@@ -861,7 +861,7 @@ Address CompileLazy(Isolate* isolate,
     }
     IndirectPatcher* patcher = Managed<IndirectPatcher>::cast(
                                    caller_instance->managed_indirect_patcher())
-                                   ->get();
+                                   ->raw();
     Address old_target = lazy_stub->instruction_start();
     patcher->Patch(*caller_instance, *target_instance, target_func_index,
                    old_target, result);
@@ -1378,7 +1378,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
   Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::From(isolate, module.release());
+      WasmModuleWrapper::FromUniquePtr(isolate, std::move(module));
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -2867,8 +2867,8 @@ void AsyncCompileJob::FinishCompile() {
 
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
-  Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::From(isolate_, module_.release());
+  Handle<Managed<WasmModule>> module_wrapper =
+      Managed<WasmModule>::FromUniquePtr(isolate_, std::move(module_));
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should

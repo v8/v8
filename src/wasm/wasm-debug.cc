@@ -293,7 +293,7 @@ class InterpreterHandle {
     // interpreter.
     DCHECK_EQ(this, Managed<wasm::InterpreterHandle>::cast(
                         instance_obj->debug_info()->interpreter_handle())
-                        ->get());
+                        ->raw());
     return instance_obj;
   }
 
@@ -539,19 +539,19 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
     debug_info->set_interpreter_handle(*handle);
   }
 
-  return Handle<Managed<wasm::InterpreterHandle>>::cast(handle)->get();
+  return Handle<Managed<wasm::InterpreterHandle>>::cast(handle)->raw();
 }
 
 wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
   Object* handle_obj = debug_info->interpreter_handle();
   DCHECK(!handle_obj->IsUndefined(debug_info->GetIsolate()));
-  return Managed<wasm::InterpreterHandle>::cast(handle_obj)->get();
+  return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
 }
 
 wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
   Object* handle_obj = debug_info->interpreter_handle();
   if (handle_obj->IsUndefined(debug_info->GetIsolate())) return nullptr;
-  return Managed<wasm::InterpreterHandle>::cast(handle_obj)->get();
+  return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
 }
 
 int GetNumFunctions(WasmInstanceObject* instance) {
@@ -638,7 +638,7 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   auto interp_handle =
       Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate, *debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
-  auto ret = interp_handle->get()->interpreter();
+  auto ret = interp_handle->raw()->interpreter();
   ret->SetCallIndirectTestMode();
   return ret;
 }
@@ -759,7 +759,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
     debug_info->set_c_wasm_entry_map(*managed_map);
   }
   Handle<FixedArray> entries(debug_info->c_wasm_entries(), isolate);
-  wasm::SignatureMap* map = debug_info->c_wasm_entry_map()->get();
+  wasm::SignatureMap* map = debug_info->c_wasm_entry_map()->raw();
   int32_t index = map->Find(sig);
   if (index == -1) {
     index = static_cast<int32_t>(map->FindOrInsert(sig));

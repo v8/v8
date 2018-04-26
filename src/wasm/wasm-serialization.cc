@@ -693,7 +693,7 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
   Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::From(isolate, decode_result.val.release());
+      WasmModuleWrapper::FromUniquePtr(isolate, std::move(decode_result.val));
   Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
   Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
       isolate, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),

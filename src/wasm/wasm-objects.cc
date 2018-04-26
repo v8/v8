@@ -131,7 +131,7 @@ WasmInstanceNativeAllocations* GetNativeAllocations(
     WasmInstanceObject* instance) {
   return reinterpret_cast<Managed<WasmInstanceNativeAllocations>*>(
              instance->managed_native_allocations())
-      ->get();
+      ->raw();
 }
 
 // An iterator that returns first the module itself, then all modules linked via
@@ -974,13 +974,7 @@ wasm::WasmCode* WasmExportedFunction::GetWasmCode() {
 }
 
 WasmModule* WasmSharedModuleData::module() const {
-  // We populate the kModuleWrapper field with a Foreign holding the
-  // address to the address of a WasmModule. This is because we can
-  // handle both cases when the WasmModule's lifetime is managed through
-  // a Managed<WasmModule> object, as well as cases when it's managed
-  // by the embedder. CcTests fall into the latter case.
-  return *(reinterpret_cast<WasmModule**>(
-      Foreign::cast(module_wrapper())->foreign_address()));
+  return Managed<WasmModule>::cast(module_wrapper())->raw();
 }
 
 Handle<WasmSharedModuleData> WasmSharedModuleData::New(
@@ -1377,13 +1371,12 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     compiled_module->set_export_wrappers(*export_wrappers);
   }
   compiled_module->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
-  wasm::NativeModule* native_module = nullptr;
   {
-    std::unique_ptr<wasm::NativeModule> native_module_ptr =
+    auto native_module =
         isolate->wasm_engine()->code_manager()->NewNativeModule(*module, env);
-    native_module = native_module_ptr.release();
     Handle<Foreign> native_module_wrapper =
-        Managed<wasm::NativeModule>::From(isolate, native_module);
+        Managed<wasm::NativeModule>::FromUniquePtr(isolate,
+                                                   std::move(native_module));
     compiled_module->set_native_module(*native_module_wrapper);
     compiled_module->GetNativeModule()->SetCompiledModule(compiled_module);
   }
@@ -1410,12 +1403,12 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
       handle(module->export_wrappers(), isolate));
   ret->set_export_wrappers(*export_copy);
 
-  std::unique_ptr<wasm::NativeModule> native_module =
-      module->GetNativeModule()->Clone();
+  auto native_module = module->GetNativeModule()->Clone();
   // construct the wrapper in 2 steps, because its construction may trigger GC,
   // which would shift the this pointer in set_native_module.
   Handle<Foreign> native_module_wrapper =
-      Managed<wasm::NativeModule>::From(isolate, native_module.release());
+      Managed<wasm::NativeModule>::FromUniquePtr(isolate,
+                                                 std::move(native_module));
   ret->set_native_module(*native_module_wrapper);
   ret->GetNativeModule()->SetCompiledModule(ret);
 
@@ -1424,7 +1417,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
 
 wasm::NativeModule* WasmCompiledModule::GetNativeModule() const {
   if (!has_native_module()) return nullptr;
-  return Managed<wasm::NativeModule>::cast(native_module())->get();
+  return Managed<wasm::NativeModule>::cast(native_module())->raw();
 }
 
 void WasmCompiledModule::Reset(Isolate* isolate,

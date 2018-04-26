@@ -94,7 +94,7 @@ class TestingModuleBuilder {
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, WasmExecutionMode,
                        RuntimeExceptionSupport, LowerSimd);
 
-  void ChangeOriginToAsmjs() { test_module_.set_origin(kAsmJsOrigin); }
+  void ChangeOriginToAsmjs() { test_module_->set_origin(kAsmJsOrigin); }
 
   byte* AddMemory(uint32_t size);
 
@@ -114,12 +114,12 @@ class TestingModuleBuilder {
   }
 
   byte AddSignature(FunctionSig* sig) {
-    DCHECK_EQ(test_module_.signatures.size(),
-              test_module_.signature_ids.size());
-    test_module_.signatures.push_back(sig);
-    auto canonical_sig_num = test_module_.signature_map.FindOrInsert(sig);
-    test_module_.signature_ids.push_back(canonical_sig_num);
-    size_t size = test_module_.signatures.size();
+    DCHECK_EQ(test_module_->signatures.size(),
+              test_module_->signature_ids.size());
+    test_module_->signatures.push_back(sig);
+    auto canonical_sig_num = test_module_->signature_map.FindOrInsert(sig);
+    test_module_->signature_ids.push_back(canonical_sig_num);
+    size_t size = test_module_->signatures.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
   }
@@ -173,13 +173,13 @@ class TestingModuleBuilder {
   }
 
   void SetMaxMemPages(uint32_t maximum_pages) {
-    test_module_.maximum_pages = maximum_pages;
+    test_module_->maximum_pages = maximum_pages;
     if (instance_object()->has_memory_object()) {
       instance_object()->memory_object()->set_maximum_pages(maximum_pages);
     }
   }
 
-  void SetHasSharedMemory() { test_module_.has_shared_memory = true; }
+  void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
 
   uint32_t AddFunction(FunctionSig* sig, const char* name);
 
@@ -193,7 +193,7 @@ class TestingModuleBuilder {
   uint32_t AddBytes(Vector<const byte> bytes);
 
   WasmFunction* GetFunctionAt(int index) {
-    return &test_module_.functions[index];
+    return &test_module_->functions[index];
   }
 
   WasmInterpreter* interpreter() { return interpreter_; }
@@ -224,7 +224,7 @@ class TestingModuleBuilder {
   }
 
  private:
-  WasmModule test_module_;
+  std::shared_ptr<WasmModule> test_module_;
   WasmModule* test_module_ptr_;
   Isolate* isolate_;
   uint32_t global_offset = 0;

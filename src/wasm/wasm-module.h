@@ -10,7 +10,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/managed.h"
+#include "src/objects/managed.h"
 #include "src/parsing/preparse-data.h"
 
 #include "src/wasm/decoder.h"

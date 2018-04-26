@@ -2303,43 +2303,39 @@ Isolate::ThreadDataTable::ThreadDataTable() : table_() {}
 
 Isolate::ThreadDataTable::~ThreadDataTable() {}
 
-void Isolate::ReleaseManagedObjects() {
-  Isolate::ManagedObjectFinalizer* current =
-      managed_object_finalizers_list_.next_;
-  managed_object_finalizers_list_.next_ = nullptr;
-  while (current != nullptr) {
-    Isolate::ManagedObjectFinalizer* next = current->next_;
-    current->Dispose();
-    current = next;
+void Isolate::ReleaseSharedPtrs() {
+  while (managed_ptr_destructors_head_) {
+    ManagedPtrDestructor* l = managed_ptr_destructors_head_;
+    ManagedPtrDestructor* n = nullptr;
+    managed_ptr_destructors_head_ = nullptr;
+    for (; l != nullptr; l = n) {
+      l->destructor_(l->shared_ptr_ptr_);
+      n = l->next_;
+      delete l;
+    }
   }
-  // No new managed objects should pop up during finalization.
-  DCHECK_NULL(managed_object_finalizers_list_.next_);
 }
 
-void Isolate::RegisterForReleaseAtTeardown(
-    Isolate::ManagedObjectFinalizer* finalizer) {
-  DCHECK_NOT_NULL(finalizer->value_);
-  DCHECK_NOT_NULL(finalizer->deleter_);
-  DCHECK_NULL(finalizer->prev_);
-  DCHECK_NULL(finalizer->next_);
-
-  // Insert at head. We keep the head alive for the lifetime of the Isolate
-  // because otherwise we can't reset the head, should we delete it before
-  // the isolate expires
-  Isolate::ManagedObjectFinalizer* next = managed_object_finalizers_list_.next_;
-  managed_object_finalizers_list_.next_ = finalizer;
-  finalizer->prev_ = &managed_object_finalizers_list_;
-  finalizer->next_ = next;
-  if (next != nullptr) next->prev_ = finalizer;
+void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  DCHECK_NULL(destructor->prev_);
+  DCHECK_NULL(destructor->next_);
+  if (managed_ptr_destructors_head_) {
+    managed_ptr_destructors_head_->prev_ = destructor;
+  }
+  destructor->next_ = managed_ptr_destructors_head_;
+  managed_ptr_destructors_head_ = destructor;
 }
 
-void Isolate::UnregisterFromReleaseAtTeardown(
-    Isolate::ManagedObjectFinalizer* finalizer) {
-  DCHECK_NOT_NULL(finalizer);
-  DCHECK_NOT_NULL(finalizer->prev_);
-
-  finalizer->prev_->next_ = finalizer->next_;
-  if (finalizer->next_ != nullptr) finalizer->next_->prev_ = finalizer->prev_;
+void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  if (destructor->prev_) {
+    destructor->prev_->next_ = destructor->next_;
+  } else {
+    DCHECK_EQ(destructor, managed_ptr_destructors_head_);
+    managed_ptr_destructors_head_ = destructor->next_;
+  }
+  if (destructor->next_) destructor->next_->prev_ = destructor->prev_;
+  destructor->prev_ = nullptr;
+  destructor->next_ = nullptr;
 }
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
@@ -2662,9 +2658,8 @@ void Isolate::Deinit() {
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
   heap_.StartTearDown();
-  // Release managed objects before shutting down the heap. The finalizer might
-  // need to access heap objects.
-  ReleaseManagedObjects();
+
+  ReleaseSharedPtrs();
 
   delete deoptimizer_data_;
   deoptimizer_data_ = nullptr;
