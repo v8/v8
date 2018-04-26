@@ -357,8 +357,12 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
  private:
   bool has_frame_ = false;
+  bool root_array_available_ = false;
   Isolate* const isolate_;
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;

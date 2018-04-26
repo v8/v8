@@ -75,7 +75,7 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
   // JumpToExternalReference because rbx is loaded by Generate_adaptor.
   CEntryStub ces(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                  exit_frame_type == Builtins::BUILTIN_EXIT);
-  __ jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+  __ Jump(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 }  // namespace
 
@@ -740,7 +740,7 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Runtime::FunctionId function_id) {
   Label no_match;
   __ SmiCompare(smi_entry, Smi::FromEnum(marker));
-  __ j(not_equal, &no_match, Label::kNear);
+  __ j(not_equal, &no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
@@ -2335,7 +2335,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
           // Patch receiver to global proxy.
           __ LoadGlobalProxy(rcx);
         }
-        __ jmp(&convert_receiver, Label::kNear);
+        __ jmp(&convert_receiver);
       }
       __ bind(&convert_to_object);
       {
@@ -2500,17 +2500,25 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // -----------------------------------
   StackArgumentsAccessor args(rsp, rax);
 
-  Label non_callable, non_function, non_smi;
+  // TODO(jgruber): Support conditional jumps (Assembler::j) with Code targets.
+
+  Label non_js_function, non_js_bound_function, non_callable, non_function,
+      non_smi;
   __ JumpIfSmi(rdi, &non_callable);
   __ bind(&non_smi);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(equal, masm->isolate()->builtins()->CallFunction(mode),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_js_function, Label::kNear);
+  __ Jump(masm->isolate()->builtins()->CallFunction(mode),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&non_js_function);
   __ CmpInstanceType(rcx, JS_BOUND_FUNCTION_TYPE);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), CallBoundFunction),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_js_bound_function, Label::kNear);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
+          RelocInfo::CODE_TARGET);
 
   // Check if target has a [[Call]] internal method.
+  __ bind(&non_js_bound_function);
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
            Immediate(Map::IsCallableBit::kMask));
   __ j(zero, &non_callable, Label::kNear);
@@ -2610,26 +2618,33 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy;
-  __ JumpIfSmi(rdi, &non_constructor, Label::kNear);
+  __ JumpIfSmi(rdi, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
   __ movq(rcx, FieldOperand(rdi, HeapObject::kMapOffset));
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
            Immediate(Map::IsConstructorBit::kMask));
-  __ j(zero, &non_constructor, Label::kNear);
+  __ j(zero, &non_constructor);
+
+  // TODO(jgruber): Support conditional jumps (Assembler::j) with Code targets.
+  Label non_js_function, non_js_bound_function;
 
   // Dispatch based on instance type.
   __ CmpInstanceType(rcx, JS_FUNCTION_TYPE);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), ConstructFunction),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_js_function);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
+          RelocInfo::CODE_TARGET);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
+  __ bind(&non_js_function);
   __ CmpInstanceType(rcx, JS_BOUND_FUNCTION_TYPE);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_js_bound_function);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
+          RelocInfo::CODE_TARGET);
 
   // Only dispatch to proxies after checking whether they are constructors.
+  __ bind(&non_js_bound_function);
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
   __ j(not_equal, &non_proxy, Label::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),

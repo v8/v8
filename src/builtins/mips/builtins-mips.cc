@@ -20,7 +20,7 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
-  __ li(s2, Operand(ExternalReference::Create(address)));
+  __ li(s2, ExternalReference::Create(address));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -466,8 +466,6 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  // Called from JSEntryStub::GenerateBody
-
   // ----------- S t a t e -------------
   //  -- a0: new.target
   //  -- a1: function
@@ -832,8 +830,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
 
-  __ li(bytecode_size_table,
-        Operand(ExternalReference::bytecode_size_table_address()));
+  __ li(bytecode_size_table, ExternalReference::bytecode_size_table_address());
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -999,8 +996,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Label do_dispatch;
   __ bind(&do_dispatch);
   __ li(kInterpreterDispatchTableRegister,
-        Operand(ExternalReference::interpreter_dispatch_table_address(
-            masm->isolate())));
+        ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
   __ Addu(a0, kInterpreterBytecodeArrayRegister,
           kInterpreterBytecodeOffsetRegister);
   __ lbu(t3, MemOperand(a0));
@@ -1223,7 +1219,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Branch(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
-  __ li(t0, Operand(BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline)));
+  __ li(t0, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
 
   __ bind(&trampoline_loaded);
   __ Addu(ra, t0, Operand(interpreter_entry_return_pc_offset->value() +
@@ -1231,8 +1227,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   // Initialize the dispatch table register.
   __ li(kInterpreterDispatchTableRegister,
-        Operand(ExternalReference::interpreter_dispatch_table_address(
-            masm->isolate())));
+        ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
 
   // Get the bytecode array pointer from the frame.
   __ lw(kInterpreterBytecodeArrayRegister,
@@ -1325,8 +1320,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsSmi: Is builtin
   __ JumpIfNotSmi(sfi_data, &check_is_bytecode_array);
-  __ li(scratch1,
-        Operand(ExternalReference::builtins_address(masm->isolate())));
+  __ li(scratch1, ExternalReference::builtins_address(masm->isolate()));
   // Avoid untagging the Smi.
   STATIC_ASSERT(kPointerSizeLog2 > kSmiTagSize);
   STATIC_ASSERT(kSmiShiftSize == 0);
@@ -1462,8 +1456,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
     // Load the code object at builtins_table[builtin_id] into scratch1.
 
     __ SmiUntag(scratch1);
-    __ li(scratch0,
-          Operand(ExternalReference::builtins_address(masm->isolate())));
+    __ li(scratch0, ExternalReference::builtins_address(masm->isolate()));
     __ Lsa(scratch1, scratch0, scratch1, kPointerSizeLog2);
     __ lw(scratch1, MemOperand(scratch1));
 

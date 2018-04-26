@@ -654,13 +654,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
 #ifdef V8_EMBEDDED_BUILTINS
-  // Off-heap builtins cannot embed constants within the code object itself,
-  // and thus need to load them from the root list.
-  bool ShouldLoadConstantsFromRootList() const {
-    return (isolate()->serializer_enabled() &&
-            isolate()->builtins_constants_table_builder() != nullptr);
-  }
-
   TNode<HeapObject> LookupConstant(Handle<HeapObject> object);
   TNode<ExternalReference> LookupExternalReference(ExternalReference reference);
 #endif

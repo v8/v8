@@ -1267,6 +1267,17 @@ class Isolate : private HiddenFactory {
     return &partial_snapshot_cache_;
   }
 
+  // Off-heap builtins cannot embed constants within the code object itself,
+  // and thus need to load them from the root list.
+  bool ShouldLoadConstantsFromRootList() const {
+#ifdef V8_EMBEDDED_BUILTINS
+    return (serializer_enabled() &&
+            builtins_constants_table_builder() != nullptr);
+#else
+    return false;
+#endif  // V8_EMBEDDED_BUILTINS
+  }
+
 #ifdef V8_EMBEDDED_BUILTINS
   // Called only prior to serialization.
   // This function copies off-heap-safe builtins off the heap, creates off-heap

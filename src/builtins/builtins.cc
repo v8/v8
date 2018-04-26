@@ -291,34 +291,28 @@ bool Builtins::IsLazy(int index) {
 bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
   switch (index) {
-#ifdef DEBUG
+    case kAbort:
     case kAbortJS:
-    case kContinueToCodeStubBuiltin:
-    case kContinueToCodeStubBuiltinWithResult:
-    case kContinueToJavaScriptBuiltin:
-    case kContinueToJavaScriptBuiltinWithResult:
-    case kKeyedLoadIC_Slow:
-    case kKeyedStoreIC_Slow:
-    case kLoadGlobalIC_Slow:
-    case kLoadIC_Slow:
-    case kStoreGlobalIC_Slow:
-    case kWasmStackGuard:
-    case kThrowWasmTrapUnreachable:
-    case kThrowWasmTrapMemOutOfBounds:
-    case kThrowWasmTrapDivByZero:
-    case kThrowWasmTrapDivUnrepresentable:
-    case kThrowWasmTrapRemByZero:
-    case kThrowWasmTrapFloatUnrepresentable:
-    case kThrowWasmTrapFuncInvalid:
-    case kThrowWasmTrapFuncSigMismatch:
-#else
-    case kAbortJS:
+    case kAdaptorWithBuiltinExitFrame:
+    case kAdaptorWithExitFrame:
     case kAdd:
     case kAllocateHeapNumber:
+    case kAllocateInNewSpace:
+    case kAllocateInOldSpace:
+    case kArgumentsAdaptorTrampoline:
+    case kArrayBufferConstructor:
+    case kArrayBufferConstructor_DoNotInitialize:
+    case kArrayBufferIsView:
+    case kArrayBufferPrototypeGetByteLength:
+    case kArrayBufferPrototypeSlice:
+    case kArrayConcat:
+    case kArrayConstructor:
     case kArrayEvery:
     case kArrayEveryLoopContinuation:
     case kArrayEveryLoopEagerDeoptContinuation:
     case kArrayEveryLoopLazyDeoptContinuation:
+    case kArrayFilter:
+    case kArrayFilterLoopContinuation:
     case kArrayFilterLoopEagerDeoptContinuation:
     case kArrayFilterLoopLazyDeoptContinuation:
     case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
@@ -335,18 +329,33 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kArrayForEachLoopLazyDeoptContinuation:
     case kArrayFrom:
     case kArrayIncludes:
+    case kArrayIncludesHoleyDoubles:
+    case kArrayIncludesPackedDoubles:
+    case kArrayIncludesSmiOrObject:
     case kArrayIndexOf:
+    case kArrayIndexOfHoleyDoubles:
+    case kArrayIndexOfPackedDoubles:
+    case kArrayIndexOfSmiOrObject:
     case kArrayIsArray:
+    case kArrayIteratorPrototypeNext:
+    case kArrayMap:
     case kArrayMapLoopContinuation:
     case kArrayMapLoopEagerDeoptContinuation:
     case kArrayMapLoopLazyDeoptContinuation:
     case kArrayOf:
+    case kArrayPop:
     case kArrayPrototypeEntries:
     case kArrayPrototypeFind:
     case kArrayPrototypeFindIndex:
+    case kArrayPrototypeFlatMap:
+    case kArrayPrototypeFlatten:
     case kArrayPrototypeKeys:
+    case kArrayPrototypePop:
+    case kArrayPrototypePush:
+    case kArrayPrototypeShift:
     case kArrayPrototypeSlice:
     case kArrayPrototypeValues:
+    case kArrayPush:
     case kArrayReduce:
     case kArrayReduceLoopContinuation:
     case kArrayReduceLoopEagerDeoptContinuation:
@@ -357,35 +366,159 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kArrayReduceRightLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopLazyDeoptContinuation:
     case kArrayReduceRightPreLoopEagerDeoptContinuation:
+    case kArrayShift:
     case kArraySome:
     case kArraySomeLoopContinuation:
     case kArraySomeLoopEagerDeoptContinuation:
     case kArraySomeLoopLazyDeoptContinuation:
+    case kArraySplice:
+    case kArraySpliceTorque:
+    case kArrayUnshift:
     case kAsyncFromSyncIteratorPrototypeNext:
     case kAsyncFromSyncIteratorPrototypeReturn:
     case kAsyncFromSyncIteratorPrototypeThrow:
+    case kAsyncFunctionAwaitCaught:
     case kAsyncFunctionAwaitFulfill:
     case kAsyncFunctionAwaitReject:
+    case kAsyncFunctionAwaitUncaught:
+    case kAsyncFunctionConstructor:
     case kAsyncFunctionPromiseCreate:
     case kAsyncFunctionPromiseRelease:
+    case kAsyncGeneratorAwaitCaught:
     case kAsyncGeneratorAwaitFulfill:
     case kAsyncGeneratorAwaitReject:
+    case kAsyncGeneratorAwaitUncaught:
+    case kAsyncGeneratorFunctionConstructor:
+    case kAsyncGeneratorPrototypeNext:
+    case kAsyncGeneratorPrototypeReturn:
+    case kAsyncGeneratorPrototypeThrow:
+    case kAsyncGeneratorReject:
+    case kAsyncGeneratorResolve:
     case kAsyncGeneratorResumeNext:
+    case kAsyncGeneratorReturn:
     case kAsyncGeneratorReturnClosedFulfill:
     case kAsyncGeneratorReturnClosedReject:
     case kAsyncGeneratorReturnFulfill:
+    case kAsyncGeneratorYield:
     case kAsyncGeneratorYieldFulfill:
     case kAsyncIteratorValueUnwrap:
+    case kAtomicsAdd:
+    case kAtomicsAnd:
+    case kAtomicsCompareExchange:
+    case kAtomicsExchange:
+    case kAtomicsIsLockFree:
+    case kAtomicsLoad:
+    case kAtomicsOr:
+    case kAtomicsStore:
+    case kAtomicsSub:
+    case kAtomicsWait:
+    case kAtomicsWake:
+    case kAtomicsXor:
+    case kBigIntAsIntN:
+    case kBigIntAsUintN:
+    case kBigIntConstructor:
+    case kBigIntPrototypeToLocaleString:
+    case kBigIntPrototypeToString:
+    case kBigIntPrototypeValueOf:
+    case kBitwiseAnd:
     case kBitwiseNot:
+    case kBitwiseOr:
+    case kBitwiseXor:
+    case kBooleanConstructor:
     case kBooleanPrototypeToString:
     case kBooleanPrototypeValueOf:
+    case kCallForwardVarargs:
+    case kCallFunctionForwardVarargs:
+    case kCallProxy:
+    case kCallSitePrototypeGetColumnNumber:
+    case kCallSitePrototypeGetEvalOrigin:
+    case kCallSitePrototypeGetFileName:
+    case kCallSitePrototypeGetFunction:
+    case kCallSitePrototypeGetFunctionName:
+    case kCallSitePrototypeGetLineNumber:
+    case kCallSitePrototypeGetMethodName:
+    case kCallSitePrototypeGetPosition:
+    case kCallSitePrototypeGetScriptNameOrSourceURL:
+    case kCallSitePrototypeGetThis:
+    case kCallSitePrototypeGetTypeName:
+    case kCallSitePrototypeIsConstructor:
+    case kCallSitePrototypeIsEval:
+    case kCallSitePrototypeIsNative:
+    case kCallSitePrototypeIsToplevel:
+    case kCallSitePrototypeToString:
+    case kCallVarargs:
+    case kCallWithArrayLike:
+    case kCallWithSpread:
+    case kCloneFastJSArray:
+    case kConsoleAssert:
+    case kConsoleClear:
+    case kConsoleContext:
+    case kConsoleCount:
+    case kConsoleDebug:
+    case kConsoleDir:
+    case kConsoleDirXml:
+    case kConsoleError:
+    case kConsoleGroup:
+    case kConsoleGroupCollapsed:
+    case kConsoleGroupEnd:
+    case kConsoleInfo:
+    case kConsoleLog:
+    case kConsoleMarkTimeline:
+    case kConsoleProfile:
+    case kConsoleProfileEnd:
+    case kConsoleTable:
+    case kConsoleTime:
+    case kConsoleTimeEnd:
+    case kConsoleTimeline:
+    case kConsoleTimelineEnd:
+    case kConsoleTimeStamp:
+    case kConsoleTrace:
+    case kConsoleWarn:
+    case kConstruct:
+    case kConstructFunction:
+    case kConstructProxy:
+    case kConstructVarargs:
+    case kConstructWithArrayLike:
+    case kConstructWithSpread:
     case kContinueToCodeStubBuiltin:
     case kContinueToCodeStubBuiltinWithResult:
     case kContinueToJavaScriptBuiltin:
     case kContinueToJavaScriptBuiltinWithResult:
+    case kCopyFastSmiOrObjectElements:
+    case kCreateEmptyArrayLiteral:
     case kCreateGeneratorObject:
     case kCreateIterResultObject:
     case kCreateRegExpLiteral:
+    case kCreateShallowArrayLiteral:
+    case kCreateShallowObjectLiteral:
+    case kCreateTypedArray:
+    case kDataViewConstructor:
+    case kDataViewPrototypeGetBigInt64:
+    case kDataViewPrototypeGetBigUint64:
+    case kDataViewPrototypeGetBuffer:
+    case kDataViewPrototypeGetByteLength:
+    case kDataViewPrototypeGetByteOffset:
+    case kDataViewPrototypeGetFloat32:
+    case kDataViewPrototypeGetFloat64:
+    case kDataViewPrototypeGetInt16:
+    case kDataViewPrototypeGetInt32:
+    case kDataViewPrototypeGetInt8:
+    case kDataViewPrototypeGetUint16:
+    case kDataViewPrototypeGetUint32:
+    case kDataViewPrototypeGetUint8:
+    case kDataViewPrototypeSetBigInt64:
+    case kDataViewPrototypeSetBigUint64:
+    case kDataViewPrototypeSetFloat32:
+    case kDataViewPrototypeSetFloat64:
+    case kDataViewPrototypeSetInt16:
+    case kDataViewPrototypeSetInt32:
+    case kDataViewPrototypeSetInt8:
+    case kDataViewPrototypeSetUint16:
+    case kDataViewPrototypeSetUint32:
+    case kDataViewPrototypeSetUint8:
+    case kDateConstructor:
+    case kDateNow:
+    case kDateParse:
     case kDatePrototypeGetDate:
     case kDatePrototypeGetDay:
     case kDatePrototypeGetFullYear:
@@ -404,36 +537,112 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kDatePrototypeGetUTCMinutes:
     case kDatePrototypeGetUTCMonth:
     case kDatePrototypeGetUTCSeconds:
+    case kDatePrototypeGetYear:
+    case kDatePrototypeSetDate:
+    case kDatePrototypeSetFullYear:
+    case kDatePrototypeSetHours:
+    case kDatePrototypeSetMilliseconds:
+    case kDatePrototypeSetMinutes:
+    case kDatePrototypeSetMonth:
+    case kDatePrototypeSetSeconds:
+    case kDatePrototypeSetTime:
+    case kDatePrototypeSetUTCDate:
+    case kDatePrototypeSetUTCFullYear:
+    case kDatePrototypeSetUTCHours:
+    case kDatePrototypeSetUTCMilliseconds:
+    case kDatePrototypeSetUTCMinutes:
+    case kDatePrototypeSetUTCMonth:
+    case kDatePrototypeSetUTCSeconds:
+    case kDatePrototypeSetYear:
+    case kDatePrototypeToDateString:
+    case kDatePrototypeToISOString:
+    case kDatePrototypeToJson:
     case kDatePrototypeToPrimitive:
+    case kDatePrototypeToString:
+    case kDatePrototypeToTimeString:
+    case kDatePrototypeToUTCString:
     case kDatePrototypeValueOf:
+    case kDateUTC:
+    case kDebugBreakTrampoline:
     case kDecrement:
     case kDeleteProperty:
     case kDivide:
+    case kDoubleToI:
+    case kEmptyFunction:
+    case kEnqueueMicrotask:
     case kEqual:
+    case kErrorCaptureStackTrace:
+    case kErrorConstructor:
+    case kErrorPrototypeToString:
+    case kExponentiate:
+    case kExtractFastJSArray:
     case kFastConsoleAssert:
+    case kFastFunctionPrototypeBind:
     case kFastNewClosure:
     case kFastNewFunctionContextEval:
     case kFastNewFunctionContextFunction:
     case kFastNewObject:
     case kFindOrderedHashMapEntry:
+    case kFlatMapIntoArray:
+    case kFlattenIntoArray:
     case kForInEnumerate:
     case kForInFilter:
+    case kFulfillPromise:
+    case kFunctionConstructor:
+    case kFunctionPrototypeApply:
+    case kFunctionPrototypeBind:
+    case kFunctionPrototypeCall:
     case kFunctionPrototypeHasInstance:
+    case kFunctionPrototypeToString:
+    case kGeneratorFunctionConstructor:
     case kGeneratorPrototypeNext:
     case kGeneratorPrototypeReturn:
     case kGeneratorPrototypeThrow:
     case kGetSuperConstructor:
+    case kGlobalDecodeURI:
+    case kGlobalDecodeURIComponent:
+    case kGlobalEncodeURI:
+    case kGlobalEncodeURIComponent:
+    case kGlobalEscape:
+    case kGlobalEval:
     case kGlobalIsFinite:
     case kGlobalIsNaN:
+    case kGlobalUnescape:
     case kGreaterThan:
     case kGreaterThanOrEqual:
+    case kGrowFastDoubleElements:
+    case kGrowFastSmiOrObjectElements:
+    case kHandleApiCall:
+    case kHandleApiCallAsConstructor:
+    case kHandleApiCallAsFunction:
     case kHasProperty:
+    case kIllegal:
     case kIncrement:
     case kInstanceOf:
+    case kInternalArrayConstructor:
+    case kInterpreterEnterBytecodeAdvance:
+    case kInterpreterEnterBytecodeDispatch:
+    case kInterpreterPushArgsThenCall:
+    case kInterpreterPushArgsThenCallWithFinalSpread:
+    case kInterpreterPushArgsThenConstruct:
+    case kInterpreterPushArgsThenConstructArrayFunction:
+    case kInterpreterPushArgsThenConstructWithFinalSpread:
+    case kInterpreterPushUndefinedAndArgsThenCall:
+    case kInterruptCheck:
+    case kIsPromise:
+    case kIterableToList:
+    case kJSBuiltinsConstructStub:
+    case kJSConstructStubGenericRestrictedReturn:
+    case kJSConstructStubGenericUnrestrictedReturn:
+    case kJsonParse:
+    case kJsonStringify:
+    case kKeyedLoadIC:
     case kKeyedLoadIC_Megamorphic:
     case kKeyedLoadIC_PolymorphicName:
     case kKeyedLoadIC_Slow:
     case kKeyedLoadICTrampoline:
+    case kKeyedStoreIC:
+    case kKeyedStoreIC_Megamorphic:
     case kKeyedStoreIC_Slow:
     case kKeyedStoreICTrampoline:
     case kLessThan:
@@ -451,61 +660,136 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kLoadIC_StringWrapperLength:
     case kLoadICTrampoline:
     case kLoadIC_Uninitialized:
+    case kMakeError:
+    case kMakeRangeError:
+    case kMakeSyntaxError:
+    case kMakeTypeError:
+    case kMakeURIError:
+    case kMapConstructor:
+    case kMapIteratorPrototypeNext:
+    case kMapPrototypeClear:
+    case kMapPrototypeDelete:
     case kMapPrototypeEntries:
     case kMapPrototypeForEach:
     case kMapPrototypeGet:
     case kMapPrototypeGetSize:
     case kMapPrototypeHas:
     case kMapPrototypeKeys:
+    case kMapPrototypeSet:
     case kMapPrototypeValues:
+    case kMathAbs:
+    case kMathAcos:
+    case kMathAcosh:
+    case kMathAsin:
+    case kMathAsinh:
+    case kMathAtan:
+    case kMathAtan2:
+    case kMathAtanh:
+    case kMathCbrt:
     case kMathCeil:
+    case kMathClz32:
+    case kMathCos:
+    case kMathCosh:
+    case kMathExp:
+    case kMathExpm1:
     case kMathFloor:
     case kMathFround:
+    case kMathHypot:
+    case kMathImul:
+    case kMathLog:
+    case kMathLog10:
+    case kMathLog1p:
+    case kMathLog2:
     case kMathMax:
     case kMathMin:
+    case kMathPow:
+    case kMathPowInternal:
+    case kMathRandom:
     case kMathRound:
     case kMathSign:
+    case kMathSin:
+    case kMathSinh:
     case kMathSqrt:
+    case kMathTan:
+    case kMathTanh:
     case kMathTrunc:
+    case kModulus:
     case kMultiply:
     case kNegate:
     case kNewArgumentsElements:
+    case kNewPromiseCapability:
     case kNonNumberToNumber:
     case kNonNumberToNumeric:
     case kNonPrimitiveToPrimitive_Default:
     case kNonPrimitiveToPrimitive_Number:
     case kNonPrimitiveToPrimitive_String:
+    case kNumberConstructor:
     case kNumberIsFinite:
     case kNumberIsInteger:
     case kNumberIsNaN:
     case kNumberIsSafeInteger:
     case kNumberParseFloat:
+    case kNumberParseInt:
+    case kNumberPrototypeToExponential:
+    case kNumberPrototypeToFixed:
+    case kNumberPrototypeToLocaleString:
+    case kNumberPrototypeToPrecision:
+    case kNumberPrototypeToString:
     case kNumberPrototypeValueOf:
     case kNumberToString:
+    case kObjectAssign:
     case kObjectConstructor:
     case kObjectCreate:
+    case kObjectDefineGetter:
+    case kObjectDefineProperties:
+    case kObjectDefineProperty:
+    case kObjectDefineSetter:
+    case kObjectEntries:
+    case kObjectFreeze:
+    case kObjectGetOwnPropertyDescriptor:
+    case kObjectGetOwnPropertyDescriptors:
+    case kObjectGetOwnPropertyNames:
+    case kObjectGetOwnPropertySymbols:
+    case kObjectGetPrototypeOf:
     case kObjectIs:
+    case kObjectIsExtensible:
+    case kObjectIsFrozen:
+    case kObjectIsSealed:
     case kObjectKeys:
+    case kObjectLookupGetter:
+    case kObjectLookupSetter:
+    case kObjectPreventExtensions:
+    case kObjectPrototypeGetProto:
     case kObjectPrototypeHasOwnProperty:
     case kObjectPrototypeIsPrototypeOf:
+    case kObjectPrototypePropertyIsEnumerable:
+    case kObjectPrototypeSetProto:
     case kObjectPrototypeToLocaleString:
     case kObjectPrototypeToString:
     case kObjectPrototypeValueOf:
+    case kObjectSeal:
+    case kObjectSetPrototypeOf:
+    case kObjectValues:
     case kOrderedHashTableHealIndex:
     case kOrdinaryHasInstance:
     case kOrdinaryToPrimitive_Number:
     case kOrdinaryToPrimitive_String:
+    case kPerformPromiseThen:
+    case kPromiseAll:
+    case kPromiseAllResolveElementClosure:
     case kPromiseCapabilityDefaultReject:
     case kPromiseCapabilityDefaultResolve:
     case kPromiseCatchFinally:
     case kPromiseConstructor:
     case kPromiseConstructorLazyDeoptContinuation:
     case kPromiseFulfillReactionJob:
+    case kPromiseGetCapabilitiesExecutor:
     case kPromiseInternalConstructor:
     case kPromiseInternalReject:
     case kPromiseInternalResolve:
     case kPromisePrototypeCatch:
     case kPromisePrototypeFinally:
+    case kPromisePrototypeThen:
     case kPromiseRace:
     case kPromiseReject:
     case kPromiseRejectReactionJob:
@@ -515,51 +799,120 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kPromiseThenFinally:
     case kPromiseThrowerFinally:
     case kPromiseValueThunkFinally:
+    case kProxyConstructor:
     case kProxyGetProperty:
     case kProxyHasProperty:
+    case kProxyRevocable:
+    case kProxyRevoke:
     case kProxySetProperty:
+    case kRecordWrite:
+    case kReflectApply:
+    case kReflectConstruct:
+    case kReflectDefineProperty:
+    case kReflectDeleteProperty:
+    case kReflectGet:
+    case kReflectGetOwnPropertyDescriptor:
+    case kReflectGetPrototypeOf:
     case kReflectHas:
+    case kReflectIsExtensible:
+    case kReflectOwnKeys:
+    case kReflectPreventExtensions:
+    case kReflectSet:
+    case kReflectSetPrototypeOf:
+    case kRegExpCapture1Getter:
+    case kRegExpCapture2Getter:
+    case kRegExpCapture3Getter:
+    case kRegExpCapture4Getter:
+    case kRegExpCapture5Getter:
+    case kRegExpCapture6Getter:
+    case kRegExpCapture7Getter:
+    case kRegExpCapture8Getter:
+    case kRegExpCapture9Getter:
     case kRegExpConstructor:
+    case kRegExpExecAtom:
+    case kRegExpInputGetter:
+    case kRegExpInputSetter:
+    case kRegExpInternalMatch:
+    case kRegExpLastMatchGetter:
+    case kRegExpLastParenGetter:
+    case kRegExpLeftContextGetter:
+    case kRegExpMatchFast:
     case kRegExpPrototypeCompile:
     case kRegExpPrototypeDotAllGetter:
+    case kRegExpPrototypeExec:
+    case kRegExpPrototypeExecSlow:
     case kRegExpPrototypeFlagsGetter:
     case kRegExpPrototypeGlobalGetter:
     case kRegExpPrototypeIgnoreCaseGetter:
+    case kRegExpPrototypeMatch:
+    case kRegExpPrototypeMatchAll:
     case kRegExpPrototypeMultilineGetter:
     case kRegExpPrototypeReplace:
     case kRegExpPrototypeSearch:
     case kRegExpPrototypeSourceGetter:
     case kRegExpPrototypeSplit:
     case kRegExpPrototypeStickyGetter:
+    case kRegExpPrototypeTest:
+    case kRegExpPrototypeToString:
     case kRegExpPrototypeUnicodeGetter:
+    case kRegExpReplace:
+    case kRegExpRightContextGetter:
+    case kRegExpSearchFast:
+    case kRegExpSplit:
+    case kRegExpStringIteratorPrototypeNext:
+    case kRejectPromise:
     case kResolvePromise:
     case kReturnReceiver:
     case kRunMicrotasks:
     case kSameValue:
+    case kSetConstructor:
+    case kSetIteratorPrototypeNext:
+    case kSetPrototypeAdd:
+    case kSetPrototypeClear:
+    case kSetPrototypeDelete:
     case kSetPrototypeEntries:
     case kSetPrototypeForEach:
     case kSetPrototypeGetSize:
     case kSetPrototypeHas:
     case kSetPrototypeValues:
+    case kSharedArrayBufferPrototypeGetByteLength:
+    case kSharedArrayBufferPrototypeSlice:
+    case kShiftLeft:
+    case kShiftRight:
+    case kShiftRightLogical:
+    case kStackCheck:
+    case kStoreGlobalIC:
     case kStoreGlobalIC_Slow:
     case kStoreGlobalICTrampoline:
+    case kStoreIC:
     case kStoreICTrampoline:
+    case kStoreIC_Uninitialized:
+    case kStoreInArrayLiteralIC:
+    case kStoreInArrayLiteralIC_Slow:
     case kStrictEqual:
+    case kStrictPoisonPillThrower:
+    case kStringCharAt:
     case kStringCodePointAtUTF16:
     case kStringCodePointAtUTF32:
+    case kStringConstructor:
     case kStringEqual:
+    case kStringFromCharCode:
+    case kStringFromCodePoint:
     case kStringGreaterThan:
     case kStringGreaterThanOrEqual:
     case kStringIndexOf:
+    case kStringIteratorPrototypeNext:
     case kStringLessThan:
     case kStringLessThanOrEqual:
     case kStringPrototypeAnchor:
     case kStringPrototypeBig:
     case kStringPrototypeBlink:
     case kStringPrototypeBold:
+    case kStringPrototypeCharAt:
     case kStringPrototypeCharCodeAt:
     case kStringPrototypeCodePointAt:
     case kStringPrototypeConcat:
+    case kStringPrototypeEndsWith:
     case kStringPrototypeFixed:
     case kStringPrototypeFontcolor:
     case kStringPrototypeFontsize:
@@ -567,26 +920,38 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kStringPrototypeIndexOf:
     case kStringPrototypeItalics:
     case kStringPrototypeIterator:
+    case kStringPrototypeLastIndexOf:
     case kStringPrototypeLink:
+    case kStringPrototypeLocaleCompare:
     case kStringPrototypeMatch:
+    case kStringPrototypeMatchAll:
     case kStringPrototypePadEnd:
     case kStringPrototypePadStart:
     case kStringPrototypeRepeat:
     case kStringPrototypeReplace:
     case kStringPrototypeSearch:
+    case kStringPrototypeSlice:
     case kStringPrototypeSmall:
+    case kStringPrototypeSplit:
+    case kStringPrototypeStartsWith:
     case kStringPrototypeStrike:
     case kStringPrototypeSub:
+    case kStringPrototypeSubstr:
+    case kStringPrototypeSubstring:
     case kStringPrototypeSup:
-#ifdef V8_INTL_SUPPORT
-    case kStringPrototypeToLowerCaseIntl:
-    case kStringToLowerCaseIntl:
-#endif
     case kStringPrototypeToString:
+    case kStringPrototypeTrim:
+    case kStringPrototypeTrimEnd:
+    case kStringPrototypeTrimStart:
     case kStringPrototypeValueOf:
+    case kStringRaw:
     case kStringRepeat:
+    case kStringSubstring:
     case kStringToNumber:
     case kSubtract:
+    case kSymbolConstructor:
+    case kSymbolFor:
+    case kSymbolKeyFor:
     case kSymbolPrototypeToPrimitive:
     case kSymbolPrototypeToString:
     case kSymbolPrototypeValueOf:
@@ -602,22 +967,39 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kToBooleanLazyDeoptContinuation:
     case kToInteger:
     case kToInteger_TruncateMinusZero:
+    case kToLength:
     case kToName:
     case kToNumber:
     case kToNumeric:
+    case kToObject:
     case kToString:
+    case kTypedArrayBaseConstructor:
     case kTypedArrayConstructor:
+    case kTypedArrayConstructorLazyDeoptContinuation:
+    case kTypedArrayFrom:
+    case kTypedArrayInitialize:
+    case kTypedArrayInitializeWithBuffer:
+    case kTypedArrayOf:
+    case kTypedArrayPrototypeBuffer:
     case kTypedArrayPrototypeByteLength:
     case kTypedArrayPrototypeByteOffset:
+    case kTypedArrayPrototypeCopyWithin:
     case kTypedArrayPrototypeEntries:
     case kTypedArrayPrototypeEvery:
+    case kTypedArrayPrototypeFill:
+    case kTypedArrayPrototypeFilter:
     case kTypedArrayPrototypeFind:
     case kTypedArrayPrototypeFindIndex:
     case kTypedArrayPrototypeForEach:
+    case kTypedArrayPrototypeIncludes:
+    case kTypedArrayPrototypeIndexOf:
     case kTypedArrayPrototypeKeys:
+    case kTypedArrayPrototypeLastIndexOf:
     case kTypedArrayPrototypeLength:
+    case kTypedArrayPrototypeMap:
     case kTypedArrayPrototypeReduce:
     case kTypedArrayPrototypeReduceRight:
+    case kTypedArrayPrototypeReverse:
     case kTypedArrayPrototypeSet:
     case kTypedArrayPrototypeSlice:
     case kTypedArrayPrototypeSome:
@@ -625,16 +1007,27 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kTypedArrayPrototypeToStringTag:
     case kTypedArrayPrototypeValues:
     case kTypeof:
+    case kUnsupportedThrower:
     case kWasmStackGuard:
+    case kWeakCollectionDelete:
+    case kWeakCollectionSet:
+    case kWeakMapConstructor:
     case kWeakMapGet:
     case kWeakMapHas:
     case kWeakMapLookupHashIndex:
     case kWeakMapPrototypeDelete:
     case kWeakMapPrototypeSet:
+    case kWeakSetConstructor:
     case kWeakSetHas:
     case kWeakSetPrototypeAdd:
     case kWeakSetPrototypeDelete:
-#endif  // !DEBUG
+#ifdef V8_INTL_SUPPORT
+    case kNumberFormatPrototypeFormatToParts:
+    case kStringPrototypeNormalizeIntl:
+    case kStringPrototypeToLowerCaseIntl:
+    case kStringPrototypeToUpperCaseIntl:
+    case kStringToLowerCaseIntl:
+#endif
       return true;
     default:
       return false;

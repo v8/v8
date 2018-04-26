@@ -72,21 +72,19 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
     for (int i = 0; i < Builtins::builtin_count; i++) {
       Code* code = isolate->builtins()->builtin(i);
 
-      if (kVerbose) {
-        printf("%s %s\n", Builtins::KindNameOf(i),
-               isolate->builtins()->name(i));
-      }
-
       bool is_isolate_independent = true;
       for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-        is_isolate_independent = false;
-
-#ifdef ENABLE_DISASSEMBLER
         if (kVerbose) {
+          if (is_isolate_independent) {
+            printf("%s %s\n", Builtins::KindNameOf(i),
+                   isolate->builtins()->name(i));
+          }
+#ifdef ENABLE_DISASSEMBLER
           RelocInfo::Mode mode = it.rinfo()->rmode();
           printf("  %s\n", RelocInfo::RelocModeName(mode));
-        }
 #endif
+        }
+        is_isolate_independent = false;
       }
 
       // Relaxed condition only checks whether the isolate-independent list is

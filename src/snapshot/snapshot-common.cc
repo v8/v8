@@ -343,11 +343,11 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     if (Builtins::IsIsolateIndependent(i)) {
       DCHECK(!Builtins::IsLazy(i));
 
-      // Sanity-check that the given builtin is process-independent and does not
+      // Sanity-check that the given builtin is isolate-independent and does not
       // use the trampoline register in its calling convention.
       if (!code->IsProcessIndependent()) {
         saw_unsafe_builtin = true;
-        fprintf(stderr, "%s is not process-independent.\n", Builtins::name(i));
+        fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
       }
       if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
         saw_unsafe_builtin = true;
@@ -368,7 +368,12 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       lengths[i] = 0;
     }
   }
-  CHECK(!saw_unsafe_builtin);
+  CHECK_WITH_MSG(
+      !saw_unsafe_builtin,
+      "One or more builtins marked as isolate-independent either contains "
+      "isolate-dependent code or aliases the off-heap trampoline register. "
+      "If in doubt, ask jgruber@ or remove the affected builtin from the "
+      "Builtins::IsIsolateIndependent whitelist");
 
   const uint32_t blob_size = RawDataOffset() + raw_data_size;
   uint8_t* blob = new uint8_t[blob_size];
