@@ -602,6 +602,21 @@ TEST(SafeForTerminateException) {
     }  // safe -> postpone
   }    // postpone -> no scope
   AssertFinishedCodeRun(isolate);
+
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    {  // postpone -> safe
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      {  // safe -> postpone
+        i::PostponeInterruptsScope p3(CcTest::i_isolate(),
+                                      i::StackGuard::TERMINATE_EXECUTION);
+        isolate->TerminateExecution();
+      }  // postpone -> safe
+      AssertTerminatedCodeRun(isolate);
+    }  // safe -> postpone
+  }    // postpone -> no scope
 }
 
 void RequestTermianteAndCallAPI(
