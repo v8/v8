@@ -632,7 +632,7 @@ class TurboAssembler : public Assembler {
 
   // Convert single to unsigned word.
   void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_uw_s(Register rd, FPURegister fs, FPURegister scratch);
 
   void Trunc_w_d(FPURegister fd, FPURegister fs);
   void Round_w_d(FPURegister fd, FPURegister fs);
@@ -820,7 +820,7 @@ class TurboAssembler : public Assembler {
 
   // Convert double to unsigned word.
   void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_uw_d(Register rd, FPURegister fs, FPURegister scratch);
 
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,

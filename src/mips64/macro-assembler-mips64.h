@@ -630,7 +630,7 @@ class TurboAssembler : public Assembler {
 
   // Convert single to unsigned word.
   void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_uw_s(Register rd, FPURegister fs, FPURegister scratch);
 
   // Change endianness
   void ByteSwapSigned(Register dest, Register src, int operand_size);
@@ -814,18 +814,18 @@ class TurboAssembler : public Assembler {
 
   // Convert double to unsigned word.
   void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_uw_d(Register rd, FPURegister fs, FPURegister scratch);
 
   // Convert double to unsigned long.
   void Trunc_ul_d(FPURegister fd, FPURegister fs, FPURegister scratch,
                   Register result = no_reg);
-  void Trunc_ul_d(FPURegister fd, Register rs, FPURegister scratch,
+  void Trunc_ul_d(Register rd, FPURegister fs, FPURegister scratch,
                   Register result = no_reg);
 
   // Convert single to unsigned long.
   void Trunc_ul_s(FPURegister fd, FPURegister fs, FPURegister scratch,
                   Register result = no_reg);
-  void Trunc_ul_s(FPURegister fd, Register rs, FPURegister scratch,
+  void Trunc_ul_s(Register rd, FPURegister fs, FPURegister scratch,
                   Register result = no_reg);
 
   // Round double functions

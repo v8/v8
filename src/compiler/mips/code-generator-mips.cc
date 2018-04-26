@@ -1410,14 +1410,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMipsTruncUwD: {
       FPURegister scratch = kScratchDoubleReg;
-      // TODO(plind): Fix wrong param order of Trunc_uw_d() macro-asm function.
-      __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      __ Trunc_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       break;
     }
     case kMipsTruncUwS: {
       FPURegister scratch = kScratchDoubleReg;
-      // TODO(plind): Fix wrong param order of Trunc_uw_s() macro-asm function.
-      __ Trunc_uw_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
       // because 0 allows easier out-of-bounds detection.
       __ Addu(kScratchReg, i.OutputRegister(), 1);

@@ -2249,25 +2249,29 @@ void MacroAssembler::Trunc_l_ud(FPURegister fd,
 
 void TurboAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs,
                                 FPURegister scratch) {
-  Trunc_uw_d(fs, t8, scratch);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Trunc_uw_d(t8, fs, scratch);
   mtc1(t8, fd);
 }
 
 void TurboAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs,
                                 FPURegister scratch) {
-  Trunc_uw_s(fs, t8, scratch);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Trunc_uw_s(t8, fs, scratch);
   mtc1(t8, fd);
 }
 
 void TurboAssembler::Trunc_ul_d(FPURegister fd, FPURegister fs,
                                 FPURegister scratch, Register result) {
-  Trunc_ul_d(fs, t8, scratch, result);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Trunc_ul_d(t8, fs, scratch, result);
   dmtc1(t8, fd);
 }
 
 void TurboAssembler::Trunc_ul_s(FPURegister fd, FPURegister fs,
                                 FPURegister scratch, Register result) {
-  Trunc_ul_s(fs, t8, scratch, result);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Trunc_ul_s(t8, fs, scratch, result);
   dmtc1(t8, fd);
 }
 
@@ -2291,10 +2295,10 @@ void MacroAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
   ceil_w_d(fd, fs);
 }
 
-void TurboAssembler::Trunc_uw_d(FPURegister fd, Register rs,
+void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs,
                                 FPURegister scratch) {
-  DCHECK(fd != scratch);
-  DCHECK(rs != at);
+  DCHECK(fs != scratch);
+  DCHECK(rd != at);
 
   {
     // Load 2^31 into scratch as its float representation.
@@ -2307,30 +2311,30 @@ void TurboAssembler::Trunc_uw_d(FPURegister fd, Register rs,
   // Test if scratch > fd.
   // If fd < 2^31 we can convert it normally.
   Label simple_convert;
-  CompareF64(OLT, fd, scratch);
+  CompareF64(OLT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
   // First we subtract 2^31 from fd, then trunc it to rs
   // and add 2^31 to rs.
-  sub_d(scratch, fd, scratch);
+  sub_d(scratch, fs, scratch);
   trunc_w_d(scratch, scratch);
-  mfc1(rs, scratch);
-  Or(rs, rs, 1 << 31);
+  mfc1(rd, scratch);
+  Or(rd, rd, 1 << 31);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_d(scratch, fd);
-  mfc1(rs, scratch);
+  trunc_w_d(scratch, fs);
+  mfc1(rd, scratch);
 
   bind(&done);
 }
 
-void TurboAssembler::Trunc_uw_s(FPURegister fd, Register rs,
+void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
                                 FPURegister scratch) {
-  DCHECK(fd != scratch);
-  DCHECK(rs != at);
+  DCHECK(fs != scratch);
+  DCHECK(rd != at);
 
   {
     // Load 2^31 into scratch as its float representation.
@@ -2339,42 +2343,42 @@ void TurboAssembler::Trunc_uw_s(FPURegister fd, Register rs,
     li(scratch1, 0x4F000000);
     mtc1(scratch1, scratch);
   }
-  // Test if scratch > fd.
-  // If fd < 2^31 we can convert it normally.
+  // Test if scratch > fs.
+  // If fs < 2^31 we can convert it normally.
   Label simple_convert;
-  CompareF32(OLT, fd, scratch);
+  CompareF32(OLT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fd, then trunc it to rs
-  // and add 2^31 to rs.
-  sub_s(scratch, fd, scratch);
+  // First we subtract 2^31 from fs, then trunc it to rd
+  // and add 2^31 to rd.
+  sub_s(scratch, fs, scratch);
   trunc_w_s(scratch, scratch);
-  mfc1(rs, scratch);
-  Or(rs, rs, 1 << 31);
+  mfc1(rd, scratch);
+  Or(rd, rd, 1 << 31);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_s(scratch, fd);
-  mfc1(rs, scratch);
+  trunc_w_s(scratch, fs);
+  mfc1(rd, scratch);
 
   bind(&done);
 }
 
-void TurboAssembler::Trunc_ul_d(FPURegister fd, Register rs,
+void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
-  DCHECK(fd != scratch);
-  DCHECK(!AreAliased(rs, result, at));
+  DCHECK(fs != scratch);
+  DCHECK(!AreAliased(rd, result, at));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
     mov(result, zero_reg);
     Move(scratch, -1.0);
     // If fd =< -1 or unordered, then the conversion fails.
-    CompareF64(OLE, fd, scratch);
+    CompareF64(OLE, fs, scratch);
     BranchTrueShortF(&fail);
-    CompareIsNanF64(fd, scratch);
+    CompareIsNanF64(fs, scratch);
     BranchTrueShortF(&fail);
   }
 
@@ -2382,23 +2386,23 @@ void TurboAssembler::Trunc_ul_d(FPURegister fd, Register rs,
   li(at, 0x43E0000000000000);
   dmtc1(at, scratch);
 
-  // Test if scratch > fd.
-  // If fd < 2^63 we can convert it normally.
-  CompareF64(OLT, fd, scratch);
+  // Test if scratch > fs.
+  // If fs < 2^63 we can convert it normally.
+  CompareF64(OLT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^63 from fd, then trunc it to rs
-  // and add 2^63 to rs.
-  sub_d(scratch, fd, scratch);
+  // First we subtract 2^63 from fs, then trunc it to rd
+  // and add 2^63 to rd.
+  sub_d(scratch, fs, scratch);
   trunc_l_d(scratch, scratch);
-  dmfc1(rs, scratch);
-  Or(rs, rs, Operand(1UL << 63));
+  dmfc1(rd, scratch);
+  Or(rd, rd, Operand(1UL << 63));
   Branch(&done);
 
   // Simple conversion.
   bind(&simple_convert);
-  trunc_l_d(scratch, fd);
-  dmfc1(rs, scratch);
+  trunc_l_d(scratch, fs);
+  dmfc1(rd, scratch);
 
   bind(&done);
   if (result.is_valid()) {
@@ -2417,19 +2421,19 @@ void TurboAssembler::Trunc_ul_d(FPURegister fd, Register rs,
   bind(&fail);
 }
 
-void TurboAssembler::Trunc_ul_s(FPURegister fd, Register rs,
+void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
-  DCHECK(fd != scratch);
-  DCHECK(!AreAliased(rs, result, at));
+  DCHECK(fs != scratch);
+  DCHECK(!AreAliased(rd, result, at));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
     mov(result, zero_reg);
     Move(scratch, -1.0f);
     // If fd =< -1 or unordered, then the conversion fails.
-    CompareF32(OLE, fd, scratch);
+    CompareF32(OLE, fs, scratch);
     BranchTrueShortF(&fail);
-    CompareIsNanF32(fd, scratch);
+    CompareIsNanF32(fs, scratch);
     BranchTrueShortF(&fail);
   }
 
@@ -2441,23 +2445,23 @@ void TurboAssembler::Trunc_ul_s(FPURegister fd, Register rs,
     mtc1(scratch1, scratch);
   }
 
-  // Test if scratch > fd.
-  // If fd < 2^63 we can convert it normally.
-  CompareF32(OLT, fd, scratch);
+  // Test if scratch > fs.
+  // If fs < 2^63 we can convert it normally.
+  CompareF32(OLT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^63 from fd, then trunc it to rs
-  // and add 2^63 to rs.
-  sub_s(scratch, fd, scratch);
+  // First we subtract 2^63 from fs, then trunc it to rd
+  // and add 2^63 to rd.
+  sub_s(scratch, fs, scratch);
   trunc_l_s(scratch, scratch);
-  dmfc1(rs, scratch);
-  Or(rs, rs, Operand(1UL << 63));
+  dmfc1(rd, scratch);
+  Or(rd, rd, Operand(1UL << 63));
   Branch(&done);
 
   // Simple conversion.
   bind(&simple_convert);
-  trunc_l_s(scratch, fd);
-  dmfc1(rs, scratch);
+  trunc_l_s(scratch, fs);
+  dmfc1(rd, scratch);
 
   bind(&done);
   if (result.is_valid()) {

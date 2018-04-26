@@ -1797,13 +1797,15 @@ void TurboAssembler::Cvt_d_uw(FPURegister fd, Register rs,
 
 void TurboAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs,
                                 FPURegister scratch) {
-  Trunc_uw_d(fs, t8, scratch);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Trunc_uw_d(t8, fs, scratch);
   mtc1(t8, fd);
 }
 
 void TurboAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs,
                                 FPURegister scratch) {
-  Trunc_uw_s(fs, t8, scratch);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Trunc_uw_s(t8, fs, scratch);
   mtc1(t8, fd);
 }
 
@@ -1847,10 +1849,10 @@ void TurboAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
   }
 }
 
-void TurboAssembler::Trunc_uw_d(FPURegister fd, Register rs,
+void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs,
                                 FPURegister scratch) {
-  DCHECK(fd != scratch);
-  DCHECK(rs != at);
+  DCHECK(fs != scratch);
+  DCHECK(rd != at);
 
   {
     // Load 2^31 into scratch as its float representation.
@@ -1860,33 +1862,33 @@ void TurboAssembler::Trunc_uw_d(FPURegister fd, Register rs,
     mtc1(zero_reg, scratch);
     Mthc1(scratch1, scratch);
   }
-  // Test if scratch > fd.
-  // If fd < 2^31 we can convert it normally.
+  // Test if scratch > fs.
+  // If fs < 2^31 we can convert it normally.
   Label simple_convert;
-  CompareF64(OLT, fd, scratch);
+  CompareF64(OLT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fd, then trunc it to rs
-  // and add 2^31 to rs.
-  sub_d(scratch, fd, scratch);
+  // First we subtract 2^31 from fs, then trunc it to rd
+  // and add 2^31 to rd.
+  sub_d(scratch, fs, scratch);
   trunc_w_d(scratch, scratch);
-  mfc1(rs, scratch);
-  Or(rs, rs, 1 << 31);
+  mfc1(rd, scratch);
+  Or(rd, rd, 1 << 31);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_d(scratch, fd);
-  mfc1(rs, scratch);
+  trunc_w_d(scratch, fs);
+  mfc1(rd, scratch);
 
   bind(&done);
 }
 
-void TurboAssembler::Trunc_uw_s(FPURegister fd, Register rs,
+void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
                                 FPURegister scratch) {
-  DCHECK(fd != scratch);
-  DCHECK(rs != at);
+  DCHECK(fs != scratch);
+  DCHECK(rd != at);
 
   {
     // Load 2^31 into scratch as its float representation.
@@ -1895,25 +1897,25 @@ void TurboAssembler::Trunc_uw_s(FPURegister fd, Register rs,
     li(scratch1, 0x4F000000);
     mtc1(scratch1, scratch);
   }
-  // Test if scratch > fd.
-  // If fd < 2^31 we can convert it normally.
+  // Test if scratch > fs.
+  // If fs < 2^31 we can convert it normally.
   Label simple_convert;
-  CompareF32(OLT, fd, scratch);
+  CompareF32(OLT, fs, scratch);
   BranchTrueShortF(&simple_convert);
 
-  // First we subtract 2^31 from fd, then trunc it to rs
-  // and add 2^31 to rs.
-  sub_s(scratch, fd, scratch);
+  // First we subtract 2^31 from fs, then trunc it to rd
+  // and add 2^31 to rd.
+  sub_s(scratch, fs, scratch);
   trunc_w_s(scratch, scratch);
-  mfc1(rs, scratch);
-  Or(rs, rs, 1 << 31);
+  mfc1(rd, scratch);
+  Or(rd, rd, 1 << 31);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_s(scratch, fd);
-  mfc1(rs, scratch);
+  trunc_w_s(scratch, fs);
+  mfc1(rd, scratch);
 
   bind(&done);
 }

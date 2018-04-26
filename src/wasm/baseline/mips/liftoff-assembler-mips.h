@@ -821,6 +821,97 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32ConvertI64:
       TurboAssembler::Move(dst.gp(), src.low_gp());
       return true;
+    case kExprI32SConvertF32: {
+      LiftoffRegister rounded =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister converted_back =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+
+      // Real conversion.
+      TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
+      trunc_w_s(kScratchDoubleReg, rounded.fp());
+      mfc1(dst.gp(), kScratchDoubleReg);
+      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+      // because INT32_MIN allows easier out-of-bounds detection.
+      TurboAssembler::Addu(kScratchReg, dst.gp(), 1);
+      TurboAssembler::Slt(kScratchReg2, kScratchReg, dst.gp());
+      TurboAssembler::Movn(dst.gp(), kScratchReg, kScratchReg2);
+
+      // Checking if trap.
+      mtc1(dst.gp(), kScratchDoubleReg);
+      cvt_s_w(converted_back.fp(), kScratchDoubleReg);
+      TurboAssembler::CompareF32(EQ, rounded.fp(), converted_back.fp());
+      TurboAssembler::BranchFalseF(trap);
+      return true;
+    }
+    case kExprI32UConvertF32: {
+      LiftoffRegister rounded =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister converted_back =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+
+      // Real conversion.
+      TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
+      TurboAssembler::Trunc_uw_s(dst.gp(), rounded.fp(), kScratchDoubleReg);
+      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+      // because 0 allows easier out-of-bounds detection.
+      TurboAssembler::Addu(kScratchReg, dst.gp(), 1);
+      TurboAssembler::Movz(dst.gp(), zero_reg, kScratchReg);
+
+      // Checking if trap.
+      TurboAssembler::Cvt_d_uw(converted_back.fp(), dst.gp(),
+                               kScratchDoubleReg);
+      cvt_s_d(converted_back.fp(), converted_back.fp());
+      TurboAssembler::CompareF32(EQ, rounded.fp(), converted_back.fp());
+      TurboAssembler::BranchFalseF(trap);
+      return true;
+    }
+    case kExprI32SConvertF64: {
+      if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+          IsFp64Mode()) {
+        LiftoffRegister rounded =
+            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+        LiftoffRegister converted_back =
+            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+
+        // Real conversion.
+        TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
+        TurboAssembler::Trunc_w_d(kScratchDoubleReg, rounded.fp());
+        mfc1(dst.gp(), kScratchDoubleReg);
+
+        // Checking if trap.
+        cvt_d_w(converted_back.fp(), kScratchDoubleReg);
+        TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
+        TurboAssembler::BranchFalseF(trap);
+        return true;
+      } else {
+        BAILOUT("emit_type_conversion kExprI32SConvertF64");
+        return true;
+      }
+    }
+    case kExprI32UConvertF64: {
+      if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+          IsFp64Mode()) {
+        LiftoffRegister rounded =
+            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+        LiftoffRegister converted_back =
+            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+
+        // Real conversion.
+        TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
+        TurboAssembler::Trunc_uw_d(dst.gp(), rounded.fp(), kScratchDoubleReg);
+
+        // Checking if trap.
+        TurboAssembler::Cvt_d_uw(converted_back.fp(), dst.gp(),
+                                 kScratchDoubleReg);
+        TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
+        TurboAssembler::BranchFalseF(trap);
+        return true;
+      } else {
+        BAILOUT("emit_type_conversion kExprI32UConvertF64");
+        return true;
+      }
+    }
     case kExprI32ReinterpretF32:
       mfc1(dst.gp(), src.fp());
       return true;
