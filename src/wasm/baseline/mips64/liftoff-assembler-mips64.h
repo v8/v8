@@ -789,6 +789,70 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64UConvertI32:
       TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
       return true;
+    case kExprI64SConvertF32: {
+      LiftoffRegister rounded =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister converted_back =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+
+      // Real conversion.
+      TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
+      trunc_l_s(kScratchDoubleReg, rounded.fp());
+      dmfc1(dst.gp(), kScratchDoubleReg);
+      // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
+      // because INT64_MIN allows easier out-of-bounds detection.
+      TurboAssembler::Daddu(kScratchReg, dst.gp(), 1);
+      TurboAssembler::Slt(kScratchReg2, kScratchReg, dst.gp());
+      TurboAssembler::Movn(dst.gp(), kScratchReg, kScratchReg2);
+
+      // Checking if trap.
+      dmtc1(dst.gp(), kScratchDoubleReg);
+      cvt_s_l(converted_back.fp(), kScratchDoubleReg);
+      TurboAssembler::CompareF32(EQ, rounded.fp(), converted_back.fp());
+      TurboAssembler::BranchFalseF(trap);
+      return true;
+    }
+    case kExprI64UConvertF32: {
+      // Real conversion.
+      TurboAssembler::Trunc_ul_s(dst.gp(), src.fp(), kScratchDoubleReg,
+                                 kScratchReg);
+
+      // Checking if trap.
+      TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
+      return true;
+    }
+    case kExprI64SConvertF64: {
+      LiftoffRegister rounded =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister converted_back =
+          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+
+      // Real conversion.
+      TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
+      trunc_l_d(kScratchDoubleReg, rounded.fp());
+      dmfc1(dst.gp(), kScratchDoubleReg);
+      // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
+      // because INT64_MIN allows easier out-of-bounds detection.
+      TurboAssembler::Daddu(kScratchReg, dst.gp(), 1);
+      TurboAssembler::Slt(kScratchReg2, kScratchReg, dst.gp());
+      TurboAssembler::Movn(dst.gp(), kScratchReg, kScratchReg2);
+
+      // Checking if trap.
+      dmtc1(dst.gp(), kScratchDoubleReg);
+      cvt_d_l(converted_back.fp(), kScratchDoubleReg);
+      TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
+      TurboAssembler::BranchFalseF(trap);
+      return true;
+    }
+    case kExprI64UConvertF64: {
+      // Real conversion.
+      TurboAssembler::Trunc_ul_d(dst.gp(), src.fp(), kScratchDoubleReg,
+                                 kScratchReg);
+
+      // Checking if trap.
+      TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
+      return true;
+    }
     case kExprI64ReinterpretF64:
       dmfc1(dst.gp(), src.fp());
       return true;
