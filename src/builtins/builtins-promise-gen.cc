@@ -635,7 +635,7 @@ void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
   GotoIfForceSlowPath(if_slow);
   GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
             if_slow);
-  Branch(IsSpeciesProtectorCellInvalid(), if_slow, if_fast);
+  Branch(IsPromiseSpeciesProtectorCellInvalid(), if_slow, if_fast);
 }
 
 void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
@@ -1285,7 +1285,7 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   GotoIfNot(WordEqual(LoadMapPrototype(value_map), promise_prototype),
             &if_slow_constructor);
-  GotoIf(IsSpeciesProtectorCellInvalid(), &if_slow_constructor);
+  GotoIf(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor);
 
   // If the {constructor} is the Promise function, we just immediately
   // return the {value} here and don't bother wrapping it into a
