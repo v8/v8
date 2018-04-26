@@ -618,6 +618,28 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
   TurboAssembler::Neg_d(dst, src);
 }
 
+void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  Label ool, done;
+  TurboAssembler::Float32Min(dst, lhs, rhs, &ool);
+  Branch(&done);
+
+  bind(&ool);
+  TurboAssembler::Float32MinOutOfLine(dst, lhs, rhs);
+  bind(&done);
+}
+
+void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  Label ool, done;
+  TurboAssembler::Float32Max(dst, lhs, rhs, &ool);
+  Branch(&done);
+
+  bind(&ool);
+  TurboAssembler::Float32MaxOutOfLine(dst, lhs, rhs);
+  bind(&done);
+}
+
 #define FP_BINOP(name, instruction)                                          \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
@@ -632,8 +654,6 @@ FP_BINOP(f32_add, add_s)
 FP_BINOP(f32_sub, sub_s)
 FP_BINOP(f32_mul, mul_s)
 FP_BINOP(f32_div, div_s)
-FP_BINOP(f32_min, min_s)
-FP_BINOP(f32_max, max_s)
 FP_UNOP(f32_abs, abs_s)
 FP_UNOP(f32_ceil, Ceil_s_s)
 FP_UNOP(f32_floor, Floor_s_s)
