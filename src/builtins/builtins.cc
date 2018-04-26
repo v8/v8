@@ -926,7 +926,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kStringPrototypeLocaleCompare:
     case kStringPrototypeMatch:
     case kStringPrototypeMatchAll:
-    case kStringPrototypeNormalizeIntl:
     case kStringPrototypePadEnd:
     case kStringPrototypePadStart:
     case kStringPrototypeRepeat:
@@ -942,7 +941,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kStringPrototypeSubstring:
     case kStringPrototypeSup:
     case kStringPrototypeToString:
-    case kStringPrototypeToUpperCaseIntl:
     case kStringPrototypeTrim:
     case kStringPrototypeTrimEnd:
     case kStringPrototypeTrimStart:
@@ -1025,7 +1023,9 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kWeakSetPrototypeAdd:
     case kWeakSetPrototypeDelete:
 #ifdef V8_INTL_SUPPORT
+    case kStringPrototypeNormalizeIntl:
     case kStringPrototypeToLowerCaseIntl:
+    case kStringPrototypeToUpperCaseIntl:
     case kStringToLowerCaseIntl:
 #endif
       return true;
