@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/constants-table-builder.h"
 #include "src/callable.h"
 #include "src/code-stubs.h"
 #include "src/debug/debug.h"
@@ -18,6 +19,7 @@
 #include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/serializer-common.h"
 
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/arm64/macro-assembler-arm64.h"  // Cannot be the first include
@@ -350,6 +352,16 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
     DCHECK(rd.IsSP());
     Assembler::mov(rd, dst);
   }
+}
+
+void TurboAssembler::Mov(const Register& rd, ExternalReference reference) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+    LookupExternalReference(rd, reference);
+    return;
+  }
+#endif  // V8_EMBEDDED_BUILTINS
+  Mov(rd, Operand(reference));
 }
 
 void TurboAssembler::Movi16bitHelper(const VRegister& vd, uint64_t imm) {
@@ -1552,7 +1564,7 @@ void TurboAssembler::LoadRoot(CPURegister destination,
                               Heap::RootListIndex index) {
   // TODO(jbramley): Most root values are constants, and can be synthesized
   // without a load. Refer to the ARM back end for details.
-  Ldr(destination, MemOperand(root, index << kPointerSizeLog2));
+  Ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2));
 }
 
 
@@ -1566,7 +1578,18 @@ void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
 }
 
 void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
-void TurboAssembler::Move(Register dst, Handle<HeapObject> x) { Mov(dst, x); }
+
+void TurboAssembler::Move(Register dst, Handle<HeapObject> x) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
+      !x.equals(CodeObject())) {
+    LookupConstant(dst, x);
+    return;
+  }
+#endif  // V8_EMBEDDED_BUILTINS
+  Mov(dst, x);
+}
+
 void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
 
 void TurboAssembler::Swap(Register lhs, Register rhs) {
@@ -1851,7 +1874,67 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
   }
 }
 
-void TurboAssembler::Jump(Register target) { Br(target); }
+#ifdef V8_EMBEDDED_BUILTINS
+void TurboAssembler::LookupConstant(Register destination,
+                                    Handle<Object> object) {
+  CHECK(isolate()->ShouldLoadConstantsFromRootList());
+  CHECK(root_array_available_);
+
+  // TODO(jgruber, v8:6666): Support self-references. Currently, we'd end up
+  // adding the temporary code object to the constants list, before creating the
+  // final object in Factory::CopyCode.
+  CHECK(code_object_.is_null() || !object.equals(code_object_));
+
+  // Ensure the given object is in the builtins constants table and fetch its
+  // index.
+  BuiltinsConstantsTableBuilder* builder =
+      isolate()->builtins_constants_table_builder();
+  uint32_t index = builder->AddObject(object);
+
+  // TODO(jgruber): Load builtins from the builtins table.
+  // TODO(jgruber): Ensure that code generation can recognize constant targets
+  // in kArchCallCodeObject.
+
+  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
+      Heap::kBuiltinsConstantsTableRootIndex));
+
+  LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
+  Ldr(destination, FieldMemOperand(destination, FixedArray::kHeaderSize +
+                                                    index * kPointerSize));
+}
+
+void TurboAssembler::LookupExternalReference(Register destination,
+                                             ExternalReference reference) {
+  CHECK(reference.address() !=
+        ExternalReference::roots_array_start(isolate()).address());
+  CHECK(isolate()->ShouldLoadConstantsFromRootList());
+  CHECK(root_array_available_);
+
+  // Encode as an index into the external reference table stored on the isolate.
+
+  ExternalReferenceEncoder encoder(isolate());
+  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
+  CHECK(!v.is_from_api());
+  uint32_t index = v.index();
+
+  // Generate code to load from the external reference table.
+
+  int32_t roots_to_external_reference_offset =
+      Heap::roots_to_external_reference_table_offset() +
+      ExternalReferenceTable::OffsetOfEntry(index);
+
+  Ldr(destination,
+      MemOperand(kRootRegister, roots_to_external_reference_offset));
+}
+#endif  // V8_EMBEDDED_BUILTINS
+
+void TurboAssembler::Jump(Register target, Condition cond) {
+  if (cond == nv) return;
+  Label done;
+  if (cond != al) B(NegateCondition(cond), &done);
+  Br(target);
+  Bind(&done);
+}
 
 void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
@@ -1874,6 +1957,16 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+#ifdef V8_EMBEDDED_BUILTINS
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+    LookupConstant(scratch, code);
+    Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
+    Jump(scratch, cond);
+    return;
+  }
+#endif  // V8_EMBEDDED_BUILTINS
   Jump(static_cast<intptr_t>(code.address()), rmode, cond);
 }
 
@@ -1940,6 +2033,16 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   Bind(&start_call);
 #endif
 
+#ifdef V8_EMBEDDED_BUILTINS
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+    LookupConstant(scratch, code);
+    Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
+    Call(scratch);
+    return;
+  }
+#endif  // V8_EMBEDDED_BUILTINS
   Call(code.address(), rmode);
 
 #ifdef DEBUG
@@ -1951,9 +2054,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
 void TurboAssembler::Call(ExternalReference target) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-  // Immediate is in charge of setting the relocation mode to
-  // EXTERNAL_REFERENCE.
-  Ldr(temp, Immediate(target));
+  Mov(temp, target);
   Call(temp);
 }
 
@@ -2160,9 +2261,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& actual) {
   Label skip_hook;
 
-  ExternalReference debug_hook_active =
-      ExternalReference::debug_hook_on_function_call_address(isolate());
-  Mov(x4, Operand(debug_hook_active));
+  Mov(x4, ExternalReference::debug_hook_on_function_call_address(isolate()));
   Ldrsb(x4, MemOperand(x4));
   Cbz(x4, &skip_hook);
 
@@ -2438,11 +2537,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   STATIC_ASSERT((-4 * kPointerSize) == ExitFrameConstants::kPaddingOffset);
 
   // Save the frame pointer and context pointer in the top frame.
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kCEntryFPAddress, isolate())));
+  Mov(scratch,
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()));
   Str(fp, MemOperand(scratch));
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kContextAddress, isolate())));
+  Mov(scratch,
+      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   Str(cp, MemOperand(scratch));
 
   STATIC_ASSERT((-4 * kPointerSize) == ExitFrameConstants::kLastExitFrameField);
@@ -2484,20 +2583,20 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   }
 
   // Restore the context pointer from the top frame.
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kContextAddress, isolate())));
+  Mov(scratch,
+      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   Ldr(cp, MemOperand(scratch));
 
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
     Mov(scratch2, Operand(Context::kInvalidContext));
-    Mov(scratch, Operand(ExternalReference::Create(
-                     IsolateAddressId::kContextAddress, isolate())));
+    Mov(scratch, ExternalReference::Create(IsolateAddressId::kContextAddress,
+                                           isolate()));
     Str(scratch2, MemOperand(scratch));
   }
   // Clear the frame pointer from the top frame.
-  Mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kCEntryFPAddress, isolate())));
+  Mov(scratch,
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()));
   Str(xzr, MemOperand(scratch));
 
   // Pop the exit frame.
@@ -2534,9 +2633,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
-  ExternalReference restart_fp =
-      ExternalReference::debug_restart_fp_address(isolate());
-  Mov(x1, Operand(restart_fp));
+  Mov(x1, ExternalReference::debug_restart_fp_address(isolate()));
   Ldr(x1, MemOperand(x1));
   Tst(x1, x1);
   Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,

@@ -445,7 +445,7 @@ ALIAS_REGISTER(Register, ip1, x17);
 ALIAS_REGISTER(Register, wip0, w16);
 ALIAS_REGISTER(Register, wip1, w17);
 // Root register.
-ALIAS_REGISTER(Register, root, x26);
+ALIAS_REGISTER(Register, kRootRegister, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);

@@ -334,9 +334,7 @@ class TurboAssembler : public Assembler {
     movp(dst, constant);
   }
 
-  void Move(Register dst, ExternalReference ext) {
-    movp(dst, ext.address(), RelocInfo::EXTERNAL_REFERENCE);
-  }
+  void Move(Register dst, ExternalReference ext);
 
   void Move(XMMRegister dst, uint32_t src);
   void Move(XMMRegister dst, uint64_t src);
@@ -367,6 +365,12 @@ class TurboAssembler : public Assembler {
   // Loads the address of the external reference into the destination
   // register.
   void LoadAddress(Register destination, ExternalReference source);
+
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -543,23 +547,6 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
-
-  // Prevent the use of the RootArray during the lifetime of this
-  // scope object.
-  class NoRootArrayScope BASE_EMBEDDED {
-   public:
-    explicit NoRootArrayScope(MacroAssembler* assembler)
-        : variable_(&assembler->root_array_available_),
-          old_value_(assembler->root_array_available_) {
-      assembler->root_array_available_ = false;
-    }
-    ~NoRootArrayScope() {
-      *variable_ = old_value_;
-    }
-   private:
-    bool* variable_;
-    bool old_value_;
-  };
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
@@ -913,6 +900,9 @@ class MacroAssembler : public TurboAssembler {
 
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
 
  private:
   // Order general registers are pushed by Pushad.

@@ -229,6 +229,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
                                                 int count,
                                                 BailoutType type) {
+  NoRootArrayScope no_root_array(masm);
   TableEntryGenerator generator(masm, type, count);
   generator.Generate();
 }
