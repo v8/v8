@@ -438,9 +438,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7473
-  'intl402/language-tags-canonicalized': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7474
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
@@ -462,10 +459,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7483
   'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5012
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-variant': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7513
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size': [FAIL],
