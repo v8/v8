@@ -115,7 +115,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       BytecodeArray::cast(this)->BytecodeArrayPrint(os);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
-      DescriptorArray::cast(this)->PrintDescriptors(os);
+      DescriptorArray::cast(this)->DescriptorArrayPrint(os);
       break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayPrint(os);
@@ -722,6 +722,21 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
+  HeapObject::PrintHeader(os, "DescriptorArray");
+  os << "\n - capacity: " << length();
+  EnumCache* enum_cache = GetEnumCache();
+  os << "\n - enum_cache: ";
+  if (enum_cache->keys()->length() == 0) {
+    os << "empty";
+  } else {
+    os << enum_cache->keys()->length();
+    os << "\n   - keys: " << Brief(enum_cache->keys());
+    os << "\n   - indices: " << Brief(enum_cache->indices());
+  }
+  os << "\n - nof descriptors: " << number_of_descriptors();
+  PrintDescriptors(os);
+}
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
     std::ostream& os) {  // NOLINT
@@ -1977,9 +1992,7 @@ void Map::PrintMapDetails(std::ostream& os, JSObject* holder) {
   }
 }
 
-void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
-  HandleScope scope(GetIsolate());
-  os << "Descriptor array #" << number_of_descriptors() << ":";
+void DescriptorArray::PrintDescriptors(std::ostream& os) {
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetKey(i);
     os << "\n  [" << i << "]: ";
