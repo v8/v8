@@ -1467,9 +1467,10 @@ class ThreadImpl {
   template <typename type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
                              Address& address, pc_t pc, int& len,
-                             type* val = nullptr) {
+                             type* val = nullptr, type* val2 = nullptr) {
     MemoryAccessOperand<Decoder::kNoValidate> operand(decoder, code->at(pc + 1),
                                                       sizeof(type));
+    if (val2) *val2 = Pop().to<uint32_t>();
     if (val) *val = Pop().to<uint32_t>();
     uint32_t index = Pop().to<uint32_t>();
     address = BoundsCheckMem<type>(operand.offset, index);
@@ -1554,6 +1555,27 @@ class ThreadImpl {
       ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, atomic_exchange);
       ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, atomic_exchange);
 #undef ATOMIC_BINOP_CASE
+#define ATOMIC_COMPARE_EXCHANGE_CASE(name, type)                         \
+  case kExpr##name: {                                                    \
+    type val;                                                            \
+    type val2;                                                           \
+    Address addr;                                                        \
+    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len, &val, \
+                                     &val2)) {                           \
+      return false;                                                      \
+    }                                                                    \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),             \
+                  "Size mismatch for types std::atomic<" #type           \
+                  ">, and " #type);                                      \
+    std::atomic_compare_exchange_strong(                                 \
+        reinterpret_cast<std::atomic<type>*>(addr), &val, val2);         \
+    Push(WasmValue(val));                                                \
+    break;                                                               \
+  }
+      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange, uint32_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange8U, uint8_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange16U, uint16_t);
+#undef ATOMIC_COMPARE_EXCHANGE_CASE
 #define ATOMIC_LOAD_CASE(name, type, operation)                                \
   case kExpr##name: {                                                          \
     Address addr;                                                              \
@@ -1590,6 +1612,7 @@ class ThreadImpl {
       ATOMIC_STORE_CASE(I32AtomicStore16U, uint16_t, atomic_store);
 #undef ATOMIC_STORE_CASE
       default:
+        UNREACHABLE();
         return false;
     }
     return true;
