@@ -2258,26 +2258,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return deleted_elements;
   }
 
-  static Maybe<bool> CollectValuesOrEntriesImpl(
-      Isolate* isolate, Handle<JSObject> object,
-      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
-      PropertyFilter filter) {
-    Handle<BackingStore> elements(BackingStore::cast(object->elements()),
-                                  isolate);
-    int count = 0;
-    uint32_t length = elements->length();
-    for (uint32_t index = 0; index < length; ++index) {
-      if (!HasEntryImpl(isolate, *elements, index)) continue;
-      Handle<Object> value = Subclass::GetImpl(isolate, *elements, index);
-      if (get_entries) {
-        value = MakeEntryPair(isolate, index, value);
-      }
-      values_or_entries->set(count++, *value);
-    }
-    *nof_items = count;
-    return Just(true);
-  }
-
   static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store, int dst_index,
                            int src_index, int len, int hole_start,
@@ -2671,6 +2651,37 @@ class FastSmiOrObjectElementsAccessor
     }
   }
 
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    int count = 0;
+    if (get_entries) {
+      // Collecting entries needs to allocate, so this code must be handlified.
+      Handle<FixedArray> elements(FixedArray::cast(object->elements()),
+                                  isolate);
+      uint32_t length = elements->length();
+      for (uint32_t index = 0; index < length; ++index) {
+        if (!Subclass::HasEntryImpl(isolate, *elements, index)) continue;
+        Handle<Object> value = Subclass::GetImpl(isolate, *elements, index);
+        value = MakeEntryPair(isolate, index, value);
+        values_or_entries->set(count++, *value);
+      }
+    } else {
+      // No allocations here, so we can avoid handlification overhead.
+      DisallowHeapAllocation no_gc;
+      FixedArray* elements = FixedArray::cast(object->elements());
+      uint32_t length = elements->length();
+      for (uint32_t index = 0; index < length; ++index) {
+        if (!Subclass::HasEntryImpl(isolate, elements, index)) continue;
+        Object* value = GetRaw(elements, index);
+        values_or_entries->set(count++, value);
+      }
+    }
+    *nof_items = count;
+    return Just(true);
+  }
+
   static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
                                          Handle<JSObject> receiver,
                                          Handle<Object> search_value,
@@ -2808,6 +2819,26 @@ class FastDoubleElementsAccessor
       UNREACHABLE();
       break;
     }
+  }
+
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    Handle<FixedDoubleArray> elements(
+        FixedDoubleArray::cast(object->elements()), isolate);
+    int count = 0;
+    uint32_t length = elements->length();
+    for (uint32_t index = 0; index < length; ++index) {
+      if (!Subclass::HasEntryImpl(isolate, *elements, index)) continue;
+      Handle<Object> value = Subclass::GetImpl(isolate, *elements, index);
+      if (get_entries) {
+        value = MakeEntryPair(isolate, index, value);
+      }
+      values_or_entries->set(count++, *value);
+    }
+    *nof_items = count;
+    return Just(true);
   }
 
   static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
