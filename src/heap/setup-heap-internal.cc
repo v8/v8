@@ -83,18 +83,33 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    ElementsKind elements_kind,
                                    int inobject_properties) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  DCHECK_IMPLIES(instance_type >= FIRST_JS_OBJECT_TYPE &&
+  bool is_js_object = Map::IsJSObject(instance_type);
+  DCHECK_IMPLIES(is_js_object &&
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind));
   HeapObject* result = nullptr;
-  AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
+  // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
+  // go in RO_SPACE.
+  AllocationResult allocation =
+      AllocateRaw(Map::kSize, is_js_object ? MAP_SPACE : RO_SPACE);
   if (!allocation.To(&result)) return allocation;
 
   result->set_map_after_allocation(meta_map(), SKIP_WRITE_BARRIER);
-  return isolate()->factory()->InitializeMap(Map::cast(result), instance_type,
-                                             instance_size, elements_kind,
-                                             inobject_properties);
+  Map* map = isolate()->factory()->InitializeMap(
+      Map::cast(result), instance_type, instance_size, elements_kind,
+      inobject_properties);
+
+  if (!is_js_object) {
+    // Eagerly initialize the WeakCell cache for the map as it will not be
+    // writable in RO_SPACE.
+    HandleScope handle_scope(isolate());
+    Handle<WeakCell> weak_cell =
+        isolate()->factory()->NewWeakCell(Handle<Map>(map), TENURED_READ_ONLY);
+    map->set_weak_cell_cache(*weak_cell);
+  }
+
+  return map;
 }
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,

@@ -366,6 +366,10 @@ bool Heap::InToSpace(HeapObject* heap_object) {
 
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
+bool Heap::InReadOnlySpace(Object* object) {
+  return read_only_space_->Contains(object);
+}
+
 bool Heap::InNewSpaceSlow(Address address) {
   return new_space_->ContainsSlow(address);
 }

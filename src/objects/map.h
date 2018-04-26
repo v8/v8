@@ -736,6 +736,8 @@ class Map : public HeapObject {
   // found at all.
   Map* FindElementsKindTransitionedMap(MapHandles const& candidates);
 
+  inline static bool IsJSObject(InstanceType type);
+
   inline bool CanTransition() const;
 
   inline bool IsBooleanMap() const;
