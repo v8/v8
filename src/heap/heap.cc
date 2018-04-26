@@ -3470,6 +3470,7 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
 
 bool Heap::InvokeNearHeapLimitCallback() {
   if (near_heap_limit_callbacks_.size() > 0) {
+    HandleScope scope(isolate());
     v8::NearHeapLimitCallback callback =
         near_heap_limit_callbacks_.back().first;
     void* data = near_heap_limit_callbacks_.back().second;
