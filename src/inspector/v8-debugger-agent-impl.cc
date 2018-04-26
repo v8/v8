@@ -1111,8 +1111,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     const String16& callFrameId, const String16& expression,
     Maybe<String16> objectGroup, Maybe<bool> includeCommandLineAPI,
     Maybe<bool> silent, Maybe<bool> returnByValue, Maybe<bool> generatePreview,
-    Maybe<bool> throwOnSideEffect, Maybe<double> timeout,
-    std::unique_ptr<RemoteObject>* result,
+    Maybe<bool> throwOnSideEffect, std::unique_ptr<RemoteObject>* result,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
@@ -1126,17 +1125,8 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   if (it->Done()) {
     return Response::Error("Could not find call frame with given id");
   }
-
-  v8::MaybeLocal<v8::Value> maybeResultValue;
-  {
-    V8InspectorImpl::EvaluateScope evaluateScope(m_isolate);
-    if (timeout.isJust()) {
-      response = evaluateScope.setTimeout(timeout.fromJust() / 1000.0);
-      if (!response.isSuccess()) return response;
-    }
-    maybeResultValue = it->Evaluate(toV8String(m_isolate, expression),
-                                    throwOnSideEffect.fromMaybe(false));
-  }
+  v8::MaybeLocal<v8::Value> maybeResultValue = it->Evaluate(
+      toV8String(m_isolate, expression), throwOnSideEffect.fromMaybe(false));
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
   response = scope.initialize();
