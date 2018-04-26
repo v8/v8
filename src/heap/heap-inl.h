@@ -326,7 +326,7 @@ bool Heap::InNewSpace(MaybeObject* object) {
 
 bool Heap::InNewSpace(HeapObject* heap_object) {
   // Inlined check from NewSpace::Contains.
-  bool result = Page::FromAddress(heap_object->address())->InNewSpace();
+  bool result = MemoryChunk::FromHeapObject(heap_object)->InNewSpace();
   DCHECK(!result ||                 // Either not in new space
          gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
          InToSpace(heap_object));   // ... or in to-space (where we allocate).
@@ -345,7 +345,7 @@ bool Heap::InFromSpace(MaybeObject* object) {
 }
 
 bool Heap::InFromSpace(HeapObject* heap_object) {
-  return MemoryChunk::FromAddress(heap_object->address())
+  return MemoryChunk::FromHeapObject(heap_object)
       ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
@@ -361,8 +361,7 @@ bool Heap::InToSpace(MaybeObject* object) {
 }
 
 bool Heap::InToSpace(HeapObject* heap_object) {
-  return MemoryChunk::FromAddress(heap_object->address())
-      ->IsFlagSet(Page::IN_TO_SPACE);
+  return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
 }
 
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
@@ -385,9 +384,8 @@ bool Heap::ShouldBePromoted(Address old_address) {
 void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
   DCHECK(!HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
-  if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
-    return;
-  }
+  DCHECK(object->IsHeapObject());  // Can't write to slots of a Smi.
+  if (!InNewSpace(value) || InNewSpace(HeapObject::cast(object))) return;
   store_buffer()->InsertEntry(reinterpret_cast<Address>(slot));
 }
 

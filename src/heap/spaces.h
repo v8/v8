@@ -409,6 +409,11 @@ class MemoryChunk {
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
+  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  static MemoryChunk* FromHeapObject(HeapObject* o) {
+    return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(o) &
+                                          ~kAlignmentMask);
+  }
 
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
