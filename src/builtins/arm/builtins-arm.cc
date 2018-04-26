@@ -27,7 +27,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                    ExternalReference::Create(address).address()) &
                    1);
 #endif
-  __ Move(r5, ExternalReference::Create(address));
+  __ mov(r5, Operand(ExternalReference::Create(address)));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -850,8 +850,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
 
-  __ Move(bytecode_size_table,
-          ExternalReference::bytecode_size_table_address());
+  __ mov(bytecode_size_table,
+         Operand(ExternalReference::bytecode_size_table_address()));
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -1228,9 +1228,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                          Code::kHeaderSize - kHeapObjectTag));
 
   // Initialize the dispatch table register.
-  __ Move(
-      kInterpreterDispatchTableRegister,
-      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
+  __ mov(kInterpreterDispatchTableRegister,
+         Operand(ExternalReference::interpreter_dispatch_table_address(
+             masm->isolate())));
 
   // Get the bytecode array pointer from the frame.
   __ ldr(kInterpreterBytecodeArrayRegister,

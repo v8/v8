@@ -252,7 +252,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   Isolate* isolate() const { return masm_.isolate(); }
 
   MacroAssembler masm_;
-  NoRootArrayScope no_root_array_scope_;
+  MacroAssembler::NoRootArrayScope no_root_array_scope_;
 
   ZoneList<int> code_relative_fixup_positions_;
 

@@ -227,23 +227,19 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   Label invoke, handler_entry, exit;
 
-  {
-    NoRootArrayScope no_root_array(masm);
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  // Called from C, so do not pop argc and args on exit (preserve sp)
+  // No need to save register-passed args
+  // Save callee-saved registers (incl. cp and fp), sp, and lr
+  __ stm(db_w, sp, kCalleeSaved | lr.bit());
 
-    // Called from C, so do not pop argc and args on exit (preserve sp)
-    // No need to save register-passed args
-    // Save callee-saved registers (incl. cp and fp), sp, and lr
-    __ stm(db_w, sp, kCalleeSaved | lr.bit());
+  // Save callee-saved vfp registers.
+  __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+  // Set up the reserved register for 0.0.
+  __ vmov(kDoubleRegZero, Double(0.0));
 
-    // Save callee-saved vfp registers.
-    __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
-    // Set up the reserved register for 0.0.
-    __ vmov(kDoubleRegZero, Double(0.0));
-
-    __ InitializeRootRegister();
-  }
+  __ InitializeRootRegister();
 
   // Get address of argv, see stm above.
   // r0: code entry

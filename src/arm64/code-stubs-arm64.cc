@@ -303,27 +303,23 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 // Output:
 //   x0: result.
 void JSEntryStub::Generate(MacroAssembler* masm) {
-  Label invoke, handler_entry, exit;
-
   Register code_entry = x0;
 
-  {
-    NoRootArrayScope no_root_array(masm);
+  // Enable instruction instrumentation. This only works on the simulator, and
+  // will have no effect on the model or real hardware.
+  __ EnableInstrumentation();
 
-    // Enable instruction instrumentation. This only works on the simulator, and
-    // will have no effect on the model or real hardware.
-    __ EnableInstrumentation();
+  Label invoke, handler_entry, exit;
 
-    __ PushCalleeSavedRegisters();
+  __ PushCalleeSavedRegisters();
 
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-    // Set up the reserved register for 0.0.
-    __ Fmov(fp_zero, 0.0);
+  // Set up the reserved register for 0.0.
+  __ Fmov(fp_zero, 0.0);
 
-    // Initialize the root array register
-    __ InitializeRootRegister();
-  }
+  // Initialize the root array register
+  __ InitializeRootRegister();
 
   // Build an entry frame (see layout below).
   StackFrame::Type marker = type();

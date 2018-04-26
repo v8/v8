@@ -245,7 +245,7 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
 
 #ifdef V8_EMBEDDED_BUILTINS
 TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
-  DCHECK(isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(isolate()->serializer_enabled());
 
   // Ensure the given object is in the builtins constants table and fetch its
   // index.
@@ -272,7 +272,7 @@ TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
 // External references are stored in the external reference table.
 TNode<ExternalReference> CodeAssembler::LookupExternalReference(
     ExternalReference reference) {
-  DCHECK(isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(isolate()->serializer_enabled());
 
   // Encode as an index into the external reference table stored on the isolate.
 
@@ -313,12 +313,7 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   if (DoubleToSmiInteger(value, &smi_value)) {
     return UncheckedCast<Number>(SmiConstant(smi_value));
   } else {
-    // We allocate the heap number constant eagerly at this point instead of
-    // deferring allocation to code generation
-    // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
-    // to generate constant lookups for embedded builtins.
-    return UncheckedCast<Number>(HeapConstant(
-        isolate()->factory()->NewHeapNumber(value, IMMUTABLE, TENURED)));
+    return UncheckedCast<Number>(raw_assembler()->NumberConstant(value));
   }
 }
 
@@ -336,7 +331,7 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 #ifdef V8_EMBEDDED_BUILTINS
   // Root constants are simply loaded from the root list, while non-root
   // constants must be looked up from the builtins constants table.
-  if (isolate()->ShouldLoadConstantsFromRootList()) {
+  if (ShouldLoadConstantsFromRootList()) {
     Heap::RootListIndex root_index;
     if (!isolate()->heap()->IsRootHandle(object, &root_index)) {
       return LookupConstant(object);
@@ -359,7 +354,7 @@ TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (isolate()->ShouldLoadConstantsFromRootList()) {
+  if (ShouldLoadConstantsFromRootList()) {
     return LookupExternalReference(address);
   }
 #endif  // V8_EMBEDDED_BUILTINS

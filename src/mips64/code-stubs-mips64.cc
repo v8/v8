@@ -101,7 +101,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ AssertStackIsAligned();
 
   // a0 = argc, a1 = argv, a2 = isolate
-  __ li(a2, ExternalReference::isolate_address(isolate()));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
   __ mov(a1, s1);
 
   // To let the GC traverse the return address of the exit frames, we need to
@@ -194,7 +194,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ PrepareCallCFunction(3, 0, a0);
     __ mov(a0, zero_reg);
     __ mov(a1, zero_reg);
-    __ li(a2, ExternalReference::isolate_address(isolate()));
+    __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
     __ CallCFunction(find_handler, 3);
   }
 
@@ -230,36 +230,32 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
 
-  {
-    NoRootArrayScope no_root_array(masm);
+  // TODO(plind): unify the ABI description here.
+  // Registers:
+  // a0: entry address
+  // a1: function
+  // a2: receiver
+  // a3: argc
+  // a4 (a4): on mips64
 
-    // TODO(plind): unify the ABI description here.
-    // Registers:
-    // a0: entry address
-    // a1: function
-    // a2: receiver
-    // a3: argc
-    // a4 (a4): on mips64
+  // Stack:
+  // 0 arg slots on mips64 (4 args slots on mips)
+  // args -- in a4/a4 on mips64, on stack on mips
 
-    // Stack:
-    // 0 arg slots on mips64 (4 args slots on mips)
-    // args -- in a4/a4 on mips64, on stack on mips
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  // Save callee saved registers on the stack.
+  __ MultiPush(kCalleeSaved | ra.bit());
 
-    // Save callee saved registers on the stack.
-    __ MultiPush(kCalleeSaved | ra.bit());
+  // Save callee-saved FPU registers.
+  __ MultiPushFPU(kCalleeSavedFPU);
+  // Set up the reserved register for 0.0.
+  __ Move(kDoubleRegZero, 0.0);
 
-    // Save callee-saved FPU registers.
-    __ MultiPushFPU(kCalleeSavedFPU);
-    // Set up the reserved register for 0.0.
-    __ Move(kDoubleRegZero, 0.0);
+  // Load argv in s0 register.
+  __ mov(s0, a4);  // 5th parameter in mips64 a4 (a4) register.
 
-    // Load argv in s0 register.
-    __ mov(s0, a4);  // 5th parameter in mips64 a4 (a4) register.
-
-    __ InitializeRootRegister();
-  }
+  __ InitializeRootRegister();
 
   // We build an EntryFrame.
   __ li(a7, Operand(-1));  // Push a bad frame pointer to fail if it is used.
@@ -294,7 +290,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label non_outermost_js;
   ExternalReference js_entry_sp =
       ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate);
-  __ li(a5, js_entry_sp);
+  __ li(a5, Operand(js_entry_sp));
   __ Ld(a6, MemOperand(a5));
   __ Branch(&non_outermost_js, ne, a6, Operand(zero_reg));
   __ Sd(fp, MemOperand(a5));
@@ -316,8 +312,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ li(a4, ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress,
-                                      isolate));
+  __ li(a4, Operand(ExternalReference::Create(
+                IsolateAddressId::kPendingExceptionAddress, isolate)));
   __ Sd(v0, MemOperand(a4));  // We come back from 'invoke'. result is in v0.
   __ LoadRoot(v0, Heap::kExceptionRootIndex);
   __ b(&exit);  // b exposes branch delay slot.
@@ -359,14 +355,14 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ pop(a5);
   __ Branch(&non_outermost_js_2, ne, a5,
             Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
-  __ li(a5, ExternalReference(js_entry_sp));
+  __ li(a5, Operand(js_entry_sp));
   __ Sd(zero_reg, MemOperand(a5));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(a5);
-  __ li(a4,
-        ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate));
+  __ li(a4, Operand(ExternalReference::Create(
+                IsolateAddressId::kCEntryFPAddress, isolate)));
   __ Sd(a5, MemOperand(a4));
 
   // Reset the stack to the callee saved registers.
@@ -476,11 +472,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
   // It additionally takes an isolate as a third parameter.
-  __ li(a2, ExternalReference::isolate_address(isolate()));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
 
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  __ li(t9, ExternalReference::Create(&dispatcher,
-                                      ExternalReference::BUILTIN_CALL));
+  __ li(t9, Operand(ExternalReference::Create(
+                &dispatcher, ExternalReference::BUILTIN_CALL)));
 #endif
   // Call C function through t9 to conform ABI for PIC.
   __ Call(t9);
@@ -800,7 +796,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   Label profiler_disabled;
   Label end_profiler_check;
-  __ li(t9, ExternalReference::is_profiling_address(isolate));
+  __ li(t9, Operand(ExternalReference::is_profiling_address(isolate)));
   __ Lb(t9, MemOperand(t9, 0));
   __ Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
 
@@ -824,7 +820,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
+    __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -839,7 +835,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
+    __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -880,7 +876,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // Check if the function scheduled an exception.
   __ LoadRoot(a4, Heap::kTheHoleValueRootIndex);
-  __ li(at, ExternalReference::scheduled_exception_address(isolate));
+  __ li(at, Operand(ExternalReference::scheduled_exception_address(isolate)));
   __ Ld(a5, MemOperand(at));
   __ Branch(&promote_scheduled_exception, ne, a4, Operand(a5));
 
@@ -896,7 +892,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ mov(s0, v0);
   __ mov(a0, v0);
   __ PrepareCallCFunction(1, s1);
-  __ li(a0, ExternalReference::isolate_address(isolate));
+  __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
   __ mov(v0, s0);
   __ jmp(&leave_exit_frame);
@@ -939,7 +935,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   // Push return value and default return value.
   __ Push(scratch, scratch);
-  __ li(scratch, ExternalReference::isolate_address(masm->isolate()));
+  __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
   // Push isolate and holder.
   __ Push(scratch, holder);
 
@@ -1013,7 +1009,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Sd(scratch, MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
   __ Sd(scratch, MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
                                     kPointerSize));
-  __ li(scratch, ExternalReference::isolate_address(isolate()));
+  __ li(scratch, Operand(ExternalReference::isolate_address(isolate())));
   __ Sd(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
   __ Sd(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
   // should_throw_on_error -> false

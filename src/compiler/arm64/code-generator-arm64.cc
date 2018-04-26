@@ -561,9 +561,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
          FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
   Label not_deoptimized;
   __ Tbz(scratch, Code::kMarkedForDeoptimizationBit, &not_deoptimized);
-  // Ensure we're not serializing (otherwise we'd need to use an indirection to
-  // access the builtin below).
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ Jump(code, RelocInfo::CODE_TARGET);
@@ -838,7 +835,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArchRootsPointer:
-      __ mov(i.OutputRegister(), kRootRegister);
+      __ mov(i.OutputRegister(), root);
       break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),

@@ -102,7 +102,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ AssertStackIsAligned();
 
   // a0 = argc, a1 = argv, a2 = isolate
-  __ li(a2, ExternalReference::isolate_address(isolate()));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
   __ mov(a1, s1);
 
   // To let the GC traverse the return address of the exit frames, we need to
@@ -195,7 +195,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ PrepareCallCFunction(3, 0, a0);
     __ mov(a0, zero_reg);
     __ mov(a1, zero_reg);
-    __ li(a2, ExternalReference::isolate_address(isolate()));
+    __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
     __ CallCFunction(find_handler, 3);
   }
 
@@ -231,36 +231,32 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
 
-  {
-    NoRootArrayScope no_root_array(masm);
+  // Registers:
+  // a0: entry address
+  // a1: function
+  // a2: receiver
+  // a3: argc
+  //
+  // Stack:
+  // 4 args slots
+  // args
 
-    // Registers:
-    // a0: entry address
-    // a1: function
-    // a2: receiver
-    // a3: argc
-    //
-    // Stack:
-    // 4 args slots
-    // args
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  // Save callee saved registers on the stack.
+  __ MultiPush(kCalleeSaved | ra.bit());
 
-    // Save callee saved registers on the stack.
-    __ MultiPush(kCalleeSaved | ra.bit());
+  // Save callee-saved FPU registers.
+  __ MultiPushFPU(kCalleeSavedFPU);
+  // Set up the reserved register for 0.0.
+  __ Move(kDoubleRegZero, 0.0);
 
-    // Save callee-saved FPU registers.
-    __ MultiPushFPU(kCalleeSavedFPU);
-    // Set up the reserved register for 0.0.
-    __ Move(kDoubleRegZero, 0.0);
-
-    __ InitializeRootRegister();
-  }
 
   // Load argv in s0 register.
   int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
   offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
 
+  __ InitializeRootRegister();
   __ lw(s0, MemOperand(sp, offset_to_argv + kCArgsSlotsSize));
 
   // We build an EntryFrame.
@@ -268,8 +264,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   StackFrame::Type marker = type();
   __ li(t2, Operand(StackFrame::TypeToMarker(marker)));
   __ li(t1, Operand(StackFrame::TypeToMarker(marker)));
-  __ li(t0,
-        ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate));
+  __ li(t0, Operand(ExternalReference::Create(
+                IsolateAddressId::kCEntryFPAddress, isolate)));
   __ lw(t0, MemOperand(t0));
   __ Push(t3, t2, t1, t0);
   // Set up frame pointer for the frame to be pushed.
@@ -295,7 +291,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label non_outermost_js;
   ExternalReference js_entry_sp =
       ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate);
-  __ li(t1, js_entry_sp);
+  __ li(t1, Operand(js_entry_sp));
   __ lw(t2, MemOperand(t1));
   __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
   __ sw(fp, MemOperand(t1));
@@ -317,8 +313,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ li(t0, ExternalReference::Create(
-                IsolateAddressId::kPendingExceptionAddress, isolate));
+  __ li(t0, Operand(ExternalReference::Create(
+                IsolateAddressId::kPendingExceptionAddress, isolate)));
   __ sw(v0, MemOperand(t0));  // We come back from 'invoke'. result is in v0.
   __ LoadRoot(v0, Heap::kExceptionRootIndex);
   __ b(&exit);  // b exposes branch delay slot.
@@ -360,14 +356,14 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ pop(t1);
   __ Branch(&non_outermost_js_2, ne, t1,
             Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
-  __ li(t1, ExternalReference(js_entry_sp));
+  __ li(t1, Operand(js_entry_sp));
   __ sw(zero_reg, MemOperand(t1));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(t1);
-  __ li(t0,
-        ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate));
+  __ li(t0, Operand(ExternalReference::Create(
+                IsolateAddressId::kCEntryFPAddress, isolate)));
   __ sw(t1, MemOperand(t0));
 
   // Reset the stack to the callee saved registers.
@@ -476,11 +472,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
   // It additionally takes an isolate as a third parameter.
-  __ li(a2, ExternalReference::isolate_address(isolate()));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
 
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  __ li(t9, ExternalReference::Create(&dispatcher,
-                                      ExternalReference::BUILTIN_CALL));
+  __ li(t9, Operand(ExternalReference::Create(
+                &dispatcher, ExternalReference::BUILTIN_CALL)));
 #endif
   // Call C function through t9 to conform ABI for PIC.
   __ Call(t9);
@@ -798,7 +794,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   Label profiler_disabled;
   Label end_profiler_check;
-  __ li(t9, ExternalReference::is_profiling_address(isolate));
+  __ li(t9, Operand(ExternalReference::is_profiling_address(isolate)));
   __ lb(t9, MemOperand(t9, 0));
   __ Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
 
@@ -822,7 +818,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
+    __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -837,7 +833,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
+    __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -879,7 +875,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // Check if the function scheduled an exception.
   __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
-  __ li(at, ExternalReference::scheduled_exception_address(isolate));
+  __ li(at, Operand(ExternalReference::scheduled_exception_address(isolate)));
   __ lw(t1, MemOperand(at));
   __ Branch(&promote_scheduled_exception, ne, t0, Operand(t1));
 
@@ -895,7 +891,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ mov(s0, v0);
   __ mov(a0, v0);
   __ PrepareCallCFunction(1, s1);
-  __ li(a0, ExternalReference::isolate_address(isolate));
+  __ li(a0, Operand(ExternalReference::isolate_address(isolate)));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
   __ mov(v0, s0);
   __ jmp(&leave_exit_frame);
@@ -938,7 +934,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   // Push return value and default return value.
   __ Push(scratch, scratch);
-  __ li(scratch, ExternalReference::isolate_address(masm->isolate()));
+  __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
   // Push isolate and holder.
   __ Push(scratch, holder);
 
@@ -1009,7 +1005,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ sw(scratch, MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
   __ sw(scratch, MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
                                     kPointerSize));
-  __ li(scratch, ExternalReference::isolate_address(isolate()));
+  __ li(scratch, Operand(ExternalReference::isolate_address(isolate())));
   __ sw(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
   __ sw(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
   // should_throw_on_error -> false

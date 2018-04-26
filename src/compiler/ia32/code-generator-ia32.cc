@@ -545,9 +545,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ mov(ebx, Operand(kJavaScriptCallCodeStartRegister, offset));
   __ test(FieldOperand(ebx, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  // Ensure we're not serializing (otherwise we'd need to use an indirection to
-  // access the builtin below).
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ j(not_zero, code, RelocInfo::CODE_TARGET);

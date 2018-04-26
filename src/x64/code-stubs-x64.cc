@@ -230,7 +230,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   {  // NOLINT. Scope block confuses linter.
-    NoRootArrayScope uninitialized_root_register(masm);
+    MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
     __ pushq(rbp);
     __ movp(rbp, rsp);
