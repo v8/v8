@@ -977,7 +977,9 @@ void LiftoffAssembler::emit_jump(Label* label) {
   TurboAssembler::Branch(label);
 }
 
-void LiftoffAssembler::emit_jump(Register target) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Register target) {
+  TurboAssembler::Jump(target);
+}
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
