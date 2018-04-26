@@ -220,6 +220,9 @@ class TurboAssembler : public Assembler {
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
   void StoreDouble(DoubleRegister src, const MemOperand& mem,
                    Register scratch = no_reg);
   void StoreDoubleU(DoubleRegister src, const MemOperand& mem,
@@ -432,6 +435,13 @@ class TurboAssembler : public Assembler {
   void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
                          Register src_high, uint32_t shift);
 #endif
+
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between
   // checking the call size and emitting the actual call.
@@ -504,6 +514,7 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
@@ -669,6 +680,7 @@ class TurboAssembler : public Assembler {
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   bool has_frame_ = false;
+  bool root_array_available_ = true;
   Isolate* const isolate_;
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;

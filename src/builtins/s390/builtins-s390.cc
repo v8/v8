@@ -19,7 +19,7 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
-  __ mov(r7, Operand(ExternalReference::Create(address)));
+  __ Move(r7, ExternalReference::Create(address));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -411,10 +411,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
       __ b(&use_receiver);
     }
     __ bind(&do_throw);
-    {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
-    }
+    __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
 
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
@@ -632,7 +629,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r5: argc
   // r6: argv
   // r0,r7-r9, cp may be clobbered
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  {
+    NoRootArrayScope no_root_array(masm);
+    ProfileEntryHookStub::MaybeCallEntryHook(masm);
+    __ InitializeRootRegister();
+  }
 
   // Enter an internal frame.
   {
@@ -642,7 +643,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ mov(cp, Operand(context_address));
+    __ Move(cp, context_address);
     __ LoadP(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
@@ -861,8 +862,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   Register scratch2 = bytecode;
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
-  __ mov(bytecode_size_table,
-         Operand(ExternalReference::bytecode_size_table_address()));
+  __ Move(bytecode_size_table,
+          ExternalReference::bytecode_size_table_address());
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -1263,9 +1264,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                            Code::kHeaderSize - kHeapObjectTag));
 
   // Initialize the dispatch table register.
-  __ mov(kInterpreterDispatchTableRegister,
-         Operand(ExternalReference::interpreter_dispatch_table_address(
-             masm->isolate())));
+  __ Move(
+      kInterpreterDispatchTableRegister,
+      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
 
   // Get the bytecode array pointer from the frame.
   __ LoadP(kInterpreterBytecodeArrayRegister,

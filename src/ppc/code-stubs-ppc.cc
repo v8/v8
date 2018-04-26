@@ -258,22 +258,25 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 // Called from C
   __ function_descriptor();
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  {
+    NoRootArrayScope no_root_array(masm);
+    ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // PPC LINUX ABI:
-  // preserve LR in pre-reserved slot in caller's frame
-  __ mflr(r0);
-  __ StoreP(r0, MemOperand(sp, kStackFrameLRSlot * kPointerSize));
+    // PPC LINUX ABI:
+    // preserve LR in pre-reserved slot in caller's frame
+    __ mflr(r0);
+    __ StoreP(r0, MemOperand(sp, kStackFrameLRSlot * kPointerSize));
 
-  // Save callee saved registers on the stack.
-  __ MultiPush(kCalleeSaved);
+    // Save callee saved registers on the stack.
+    __ MultiPush(kCalleeSaved);
 
-  // Save callee-saved double registers.
-  __ MultiPushDoubles(kCalleeSavedDoubles);
-  // Set up the reserved register for 0.0.
-  __ LoadDoubleLiteral(kDoubleRegZero, Double(0.0), r0);
+    // Save callee-saved double registers.
+    __ MultiPushDoubles(kCalleeSavedDoubles);
+    // Set up the reserved register for 0.0.
+    __ LoadDoubleLiteral(kDoubleRegZero, Double(0.0), r0);
 
-  __ InitializeRootRegister();
+    __ InitializeRootRegister();
+  }
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r3: code entry

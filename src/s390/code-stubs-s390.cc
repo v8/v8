@@ -241,70 +241,73 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   Label invoke, handler_entry, exit;
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  {
+    NoRootArrayScope no_root_array(masm);
+    ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
 // saving floating point registers
 #if V8_TARGET_ARCH_S390X
-  // 64bit ABI requires f8 to f15 be saved
-  __ lay(sp, MemOperand(sp, -8 * kDoubleSize));
-  __ std(d8, MemOperand(sp));
-  __ std(d9, MemOperand(sp, 1 * kDoubleSize));
-  __ std(d10, MemOperand(sp, 2 * kDoubleSize));
-  __ std(d11, MemOperand(sp, 3 * kDoubleSize));
-  __ std(d12, MemOperand(sp, 4 * kDoubleSize));
-  __ std(d13, MemOperand(sp, 5 * kDoubleSize));
-  __ std(d14, MemOperand(sp, 6 * kDoubleSize));
-  __ std(d15, MemOperand(sp, 7 * kDoubleSize));
+    // 64bit ABI requires f8 to f15 be saved
+    __ lay(sp, MemOperand(sp, -8 * kDoubleSize));
+    __ std(d8, MemOperand(sp));
+    __ std(d9, MemOperand(sp, 1 * kDoubleSize));
+    __ std(d10, MemOperand(sp, 2 * kDoubleSize));
+    __ std(d11, MemOperand(sp, 3 * kDoubleSize));
+    __ std(d12, MemOperand(sp, 4 * kDoubleSize));
+    __ std(d13, MemOperand(sp, 5 * kDoubleSize));
+    __ std(d14, MemOperand(sp, 6 * kDoubleSize));
+    __ std(d15, MemOperand(sp, 7 * kDoubleSize));
 #else
-  // 31bit ABI requires you to store f4 and f6:
-  // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN417
-  __ lay(sp, MemOperand(sp, -2 * kDoubleSize));
-  __ std(d4, MemOperand(sp));
-  __ std(d6, MemOperand(sp, kDoubleSize));
+    // 31bit ABI requires you to store f4 and f6:
+    // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN417
+    __ lay(sp, MemOperand(sp, -2 * kDoubleSize));
+    __ std(d4, MemOperand(sp));
+    __ std(d6, MemOperand(sp, kDoubleSize));
 #endif
 
-  // zLinux ABI
-  //    Incoming parameters:
-  //          r2: code entry
-  //          r3: function
-  //          r4: receiver
-  //          r5: argc
-  //          r6: argv
-  //    Requires us to save the callee-preserved registers r6-r13
-  //    General convention is to also save r14 (return addr) and
-  //    sp/r15 as well in a single STM/STMG
-  __ lay(sp, MemOperand(sp, -10 * kPointerSize));
-  __ StoreMultipleP(r6, sp, MemOperand(sp, 0));
+    // zLinux ABI
+    //    Incoming parameters:
+    //          r2: code entry
+    //          r3: function
+    //          r4: receiver
+    //          r5: argc
+    //          r6: argv
+    //    Requires us to save the callee-preserved registers r6-r13
+    //    General convention is to also save r14 (return addr) and
+    //    sp/r15 as well in a single STM/STMG
+    __ lay(sp, MemOperand(sp, -10 * kPointerSize));
+    __ StoreMultipleP(r6, sp, MemOperand(sp, 0));
 
-  // Set up the reserved register for 0.0.
-  // __ LoadDoubleLiteral(kDoubleRegZero, 0.0, r0);
+    // Set up the reserved register for 0.0.
+    // __ LoadDoubleLiteral(kDoubleRegZero, 0.0, r0);
 
-  // Push a frame with special values setup to mark it as an entry frame.
-  //   Bad FP (-1)
-  //   SMI Marker
-  //   SMI Marker
-  //   kCEntryFPAddress
-  //   Frame type
-  __ lay(sp, MemOperand(sp, -5 * kPointerSize));
+    // Push a frame with special values setup to mark it as an entry frame.
+    //   Bad FP (-1)
+    //   SMI Marker
+    //   SMI Marker
+    //   kCEntryFPAddress
+    //   Frame type
+    __ lay(sp, MemOperand(sp, -5 * kPointerSize));
 
-  // Push a bad frame pointer to fail if it is used.
-  __ LoadImmP(r10, Operand(-1));
+    // Push a bad frame pointer to fail if it is used.
+    __ LoadImmP(r10, Operand(-1));
 
-  StackFrame::Type marker = type();
-  __ Load(r9, Operand(StackFrame::TypeToMarker(marker)));
-  __ Load(r8, Operand(StackFrame::TypeToMarker(marker)));
-  // Save copies of the top frame descriptor on the stack.
-  __ mov(r7, Operand(ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, isolate())));
-  __ LoadP(r7, MemOperand(r7));
-  __ StoreMultipleP(r7, r10, MemOperand(sp, kPointerSize));
-  // Set up frame pointer for the frame to be pushed.
-  // Need to add kPointerSize, because sp has one extra
-  // frame already for the frame type being pushed later.
-  __ lay(fp,
-         MemOperand(sp, -EntryFrameConstants::kCallerFPOffset + kPointerSize));
+    StackFrame::Type marker = type();
+    __ Load(r9, Operand(StackFrame::TypeToMarker(marker)));
+    __ Load(r8, Operand(StackFrame::TypeToMarker(marker)));
+    // Save copies of the top frame descriptor on the stack.
+    __ mov(r7, Operand(ExternalReference::Create(
+                   IsolateAddressId::kCEntryFPAddress, isolate())));
+    __ LoadP(r7, MemOperand(r7));
+    __ StoreMultipleP(r7, r10, MemOperand(sp, kPointerSize));
+    // Set up frame pointer for the frame to be pushed.
+    // Need to add kPointerSize, because sp has one extra
+    // frame already for the frame type being pushed later.
+    __ lay(fp, MemOperand(
+                   sp, -EntryFrameConstants::kCallerFPOffset + kPointerSize));
 
-  __ InitializeRootRegister();
+    __ InitializeRootRegister();
+  }
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
