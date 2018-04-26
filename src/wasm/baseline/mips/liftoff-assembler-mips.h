@@ -1252,9 +1252,8 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   mov(kFirstArgReg, sp);
 
   // Now call the C function.
-  constexpr Register kScratch = at;
   constexpr int kNumCCallArgs = 1;
-  PrepareCallCFunction(kNumCCallArgs, kScratch);
+  PrepareCallCFunction(kNumCCallArgs, kScratchReg);
   CallCFunction(ext_ref, kNumCCallArgs);
 
   // Move return value to the right register.
