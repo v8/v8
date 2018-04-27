@@ -365,14 +365,23 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
     BAILOUT("gp unop: " #name);                                    \
     return true;                                                   \
   }
-#define UNIMPLEMENTED_FP_BINOP(name)                                         \
+#define FP32_BINOP(name, instruction)                                        \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
-    BAILOUT("fp binop: " #name);                                             \
+    instruction(dst.S(), lhs.S(), rhs.S());                                  \
   }
-#define UNIMPLEMENTED_FP_UNOP(name)                                            \
+#define FP32_UNOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop: " #name);                                                \
+    instruction(dst.S(), src.S());                                             \
+  }
+#define FP64_BINOP(name, instruction)                                        \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
+                                     DoubleRegister rhs) {                   \
+    instruction(dst.D(), lhs.D(), rhs.D());                                  \
+  }
+#define FP64_UNOP(name, instruction)                                           \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(dst.D(), src.D());                                             \
   }
 #define I32_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
@@ -406,38 +415,40 @@ I64_SHIFTOP(i64_shr, Lsr)
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_GP_UNOP(i32_popcnt)
-UNIMPLEMENTED_FP_BINOP(f32_add)
-UNIMPLEMENTED_FP_BINOP(f32_sub)
-UNIMPLEMENTED_FP_BINOP(f32_mul)
-UNIMPLEMENTED_FP_BINOP(f32_div)
-UNIMPLEMENTED_FP_BINOP(f32_min)
-UNIMPLEMENTED_FP_BINOP(f32_max)
-UNIMPLEMENTED_FP_UNOP(f32_abs)
-UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP(f32_ceil)
-UNIMPLEMENTED_FP_UNOP(f32_floor)
-UNIMPLEMENTED_FP_UNOP(f32_trunc)
-UNIMPLEMENTED_FP_UNOP(f32_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f32_sqrt)
-UNIMPLEMENTED_FP_BINOP(f64_add)
-UNIMPLEMENTED_FP_BINOP(f64_sub)
-UNIMPLEMENTED_FP_BINOP(f64_mul)
-UNIMPLEMENTED_FP_BINOP(f64_div)
-UNIMPLEMENTED_FP_BINOP(f64_min)
-UNIMPLEMENTED_FP_BINOP(f64_max)
-UNIMPLEMENTED_FP_UNOP(f64_abs)
-UNIMPLEMENTED_FP_UNOP(f64_neg)
-UNIMPLEMENTED_FP_UNOP(f64_ceil)
-UNIMPLEMENTED_FP_UNOP(f64_floor)
-UNIMPLEMENTED_FP_UNOP(f64_trunc)
-UNIMPLEMENTED_FP_UNOP(f64_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f64_sqrt)
+FP32_BINOP(f32_add, Fadd)
+FP32_BINOP(f32_sub, Fsub)
+FP32_BINOP(f32_mul, Fmul)
+FP32_BINOP(f32_div, Fdiv)
+FP32_BINOP(f32_min, Fmin)
+FP32_BINOP(f32_max, Fmax)
+FP32_UNOP(f32_abs, Fabs)
+FP32_UNOP(f32_neg, Fneg)
+FP32_UNOP(f32_ceil, Frintp)
+FP32_UNOP(f32_floor, Frintm)
+FP32_UNOP(f32_trunc, Frintz)
+FP32_UNOP(f32_nearest_int, Frintn)
+FP32_UNOP(f32_sqrt, Fsqrt)
+FP64_BINOP(f64_add, Fadd)
+FP64_BINOP(f64_sub, Fsub)
+FP64_BINOP(f64_mul, Fmul)
+FP64_BINOP(f64_div, Fdiv)
+FP64_BINOP(f64_min, Fmin)
+FP64_BINOP(f64_max, Fmax)
+FP64_UNOP(f64_abs, Fabs)
+FP64_UNOP(f64_neg, Fneg)
+FP64_UNOP(f64_ceil, Frintp)
+FP64_UNOP(f64_floor, Frintm)
+FP64_UNOP(f64_trunc, Frintz)
+FP64_UNOP(f64_nearest_int, Frintn)
+FP64_UNOP(f64_sqrt, Fsqrt)
 
 #undef I32_BINOP
 #undef I64_BINOP
 #undef UNIMPLEMENTED_GP_UNOP
-#undef UNIMPLEMENTED_FP_BINOP
-#undef UNIMPLEMENTED_FP_UNOP
+#undef FP32_BINOP
+#undef FP32_UNOP
+#undef FP64_BINOP
+#undef FP64_UNOP
 #undef I32_SHIFTOP
 #undef I64_SHIFTOP
 
