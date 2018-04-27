@@ -907,6 +907,8 @@ class LiftoffCompiler {
       CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
       CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
       CASE_FLOAT_BINOP(F64Div, F64, f64_div)
+      CASE_FLOAT_BINOP(F64Min, F64, f64_min)
+      CASE_FLOAT_BINOP(F64Max, F64, f64_max)
       case WasmOpcode::kExprI32DivS:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,

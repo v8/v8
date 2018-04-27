@@ -482,6 +482,10 @@ class LiftoffAssembler : public TurboAssembler {
                            DoubleRegister rhs);
   inline void emit_f64_div(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
+  inline void emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
+  inline void emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
 
   // f64 unops.
   inline void emit_f64_abs(DoubleRegister dst, DoubleRegister src);

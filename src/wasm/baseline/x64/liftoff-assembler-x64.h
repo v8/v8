@@ -818,17 +818,27 @@ void LiftoffAssembler::emit_f32_div(DoubleRegister dst, DoubleRegister lhs,
 
 namespace liftoff {
 enum class MinOrMax : uint8_t { kMin, kMax };
-inline void EmitF32MinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
-                            DoubleRegister lhs, DoubleRegister rhs,
-                            MinOrMax min_or_max) {
+template <typename type>
+inline void EmitFloatMinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
+                              DoubleRegister lhs, DoubleRegister rhs,
+                              MinOrMax min_or_max) {
   Label is_nan;
   Label lhs_below_rhs;
   Label lhs_above_rhs;
   Label done;
 
+#define dop(name, ...)            \
+  do {                            \
+    if (sizeof(type) == 4) {      \
+      assm->name##s(__VA_ARGS__); \
+    } else {                      \
+      assm->name##d(__VA_ARGS__); \
+    }                             \
+  } while (false)
+
   // Check the easy cases first: nan (e.g. unordered), smaller and greater.
   // NaN has to be checked first, because PF=1 implies CF=1.
-  assm->Ucomiss(lhs, rhs);
+  dop(Ucomis, lhs, rhs);
   assm->j(parity_even, &is_nan, Label::kNear);   // PF=1
   assm->j(below, &lhs_below_rhs, Label::kNear);  // CF=1
   assm->j(above, &lhs_above_rhs, Label::kNear);  // CF=0 && ZF=0
@@ -839,25 +849,25 @@ inline void EmitF32MinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
   // c) {lhs == 0.0} and {rhs == -0.0}.
   // For a), it does not matter whether we return {lhs} or {rhs}. Check the sign
   // bit of {rhs} to differentiate b) and c).
-  assm->Movmskps(kScratchRegister, rhs);
+  dop(Movmskp, kScratchRegister, rhs);
   assm->testl(kScratchRegister, Immediate(1));
   assm->j(zero, &lhs_below_rhs, Label::kNear);
   assm->jmp(&lhs_above_rhs, Label::kNear);
 
   assm->bind(&is_nan);
   // Create a NaN output.
-  assm->Xorps(dst, dst);
-  assm->Divss(dst, dst);
+  dop(Xorp, dst, dst);
+  dop(Divs, dst, dst);
   assm->jmp(&done, Label::kNear);
 
   assm->bind(&lhs_below_rhs);
   DoubleRegister lhs_below_rhs_src = min_or_max == MinOrMax::kMin ? lhs : rhs;
-  if (dst != lhs_below_rhs_src) assm->Movss(dst, lhs_below_rhs_src);
+  if (dst != lhs_below_rhs_src) dop(Movs, dst, lhs_below_rhs_src);
   assm->jmp(&done, Label::kNear);
 
   assm->bind(&lhs_above_rhs);
   DoubleRegister lhs_above_rhs_src = min_or_max == MinOrMax::kMin ? rhs : lhs;
-  if (dst != lhs_above_rhs_src) assm->Movss(dst, lhs_above_rhs_src);
+  if (dst != lhs_above_rhs_src) dop(Movs, dst, lhs_above_rhs_src);
 
   assm->bind(&done);
 }
@@ -865,12 +875,14 @@ inline void EmitF32MinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
 
 void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  liftoff::EmitF32MinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMin);
+  liftoff::EmitFloatMinOrMax<float>(this, dst, lhs, rhs,
+                                    liftoff::MinOrMax::kMin);
 }
 
 void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  liftoff::EmitF32MinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMax);
+  liftoff::EmitFloatMinOrMax<float>(this, dst, lhs, rhs,
+                                    liftoff::MinOrMax::kMax);
 }
 
 void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
@@ -974,6 +986,18 @@ void LiftoffAssembler::emit_f64_div(DoubleRegister dst, DoubleRegister lhs,
     if (dst != lhs) movsd(dst, lhs);
     divsd(dst, rhs);
   }
+}
+
+void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitFloatMinOrMax<double>(this, dst, lhs, rhs,
+                                     liftoff::MinOrMax::kMin);
+}
+
+void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitFloatMinOrMax<double>(this, dst, lhs, rhs,
+                                     liftoff::MinOrMax::kMax);
 }
 
 void LiftoffAssembler::emit_f64_abs(DoubleRegister dst, DoubleRegister src) {

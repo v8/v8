@@ -640,6 +640,28 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
   bind(&done);
 }
 
+void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  Label ool, done;
+  TurboAssembler::Float64Min(dst, lhs, rhs, &ool);
+  Branch(&done);
+
+  bind(&ool);
+  TurboAssembler::Float64MinOutOfLine(dst, lhs, rhs);
+  bind(&done);
+}
+
+void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  Label ool, done;
+  TurboAssembler::Float64Max(dst, lhs, rhs, &ool);
+  Branch(&done);
+
+  bind(&ool);
+  TurboAssembler::Float64MaxOutOfLine(dst, lhs, rhs);
+  bind(&done);
+}
+
 #define FP_BINOP(name, instruction)                                          \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
