@@ -1492,9 +1492,8 @@ void Heap::StartIdleIncrementalMarking(
                           gc_callback_flags);
 }
 
-
 void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
-                        int len) {
+                        int len, WriteBarrierMode mode) {
   if (len == 0) return;
 
   DCHECK(array->map() != fixed_cow_array_map());
@@ -1515,6 +1514,7 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   } else {
     MemMove(dst, src, len * kPointerSize);
   }
+  if (mode == SKIP_WRITE_BARRIER) return;
   FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, array, dst_index, len);
 }
 

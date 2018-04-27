@@ -117,6 +117,11 @@ MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
                   Object);
 }
 
+WriteBarrierMode GetWriteBarrierMode(ElementsKind kind) {
+  if (IsSmiElementsKind(kind)) return SKIP_WRITE_BARRIER;
+  if (IsDoubleElementsKind(kind)) return SKIP_WRITE_BARRIER;
+  return UPDATE_WRITE_BARRIER;
+}
 
 void CopyObjectToObjectElements(FixedArrayBase* from_base,
                                 ElementsKind from_kind, uint32_t from_start,
@@ -188,8 +193,7 @@ static void CopyDictionaryToObjectElements(
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
   }
-  WriteBarrierMode write_barrier_mode =
-      IsObjectElementsKind(to_kind) ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
+  WriteBarrierMode write_barrier_mode = GetWriteBarrierMode(to_kind);
   Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(isolate, i + from_start);
@@ -2280,8 +2284,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                 dst_elms->data_start() + src_index, len * kDoubleSize);
       } else {
         DisallowHeapAllocation no_gc;
+        WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
         heap->MoveElements(FixedArray::cast(*dst_elms), dst_index, src_index,
-                           len);
+                           len, mode);
       }
     }
     if (hole_start != hole_end) {

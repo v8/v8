@@ -763,7 +763,8 @@ class Heap {
 
   // Move len elements within a given array from src_index index to dst_index
   // index.
-  void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
+  void MoveElements(FixedArray* array, int dst_index, int src_index, int len,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
