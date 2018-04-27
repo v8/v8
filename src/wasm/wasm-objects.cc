@@ -901,7 +901,6 @@ WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
 }
 
 WasmInstanceObject* WasmExportedFunction::instance() {
-  DisallowHeapAllocation no_allocation;
   Handle<Symbol> symbol(GetIsolate()->factory()->wasm_instance_symbol());
   MaybeHandle<Object> result =
       JSObject::GetPropertyOrElement(handle(this), symbol);
@@ -909,7 +908,6 @@ WasmInstanceObject* WasmExportedFunction::instance() {
 }
 
 int WasmExportedFunction::function_index() {
-  DisallowHeapAllocation no_allocation;
   Handle<Symbol> symbol = GetIsolate()->factory()->wasm_function_index_symbol();
   MaybeHandle<Object> result =
       JSObject::GetPropertyOrElement(handle(this), symbol);

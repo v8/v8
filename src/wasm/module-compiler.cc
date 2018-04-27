@@ -486,7 +486,6 @@ class IndirectPatcher {
 
 ModuleEnv CreateModuleEnvFromCompiledModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  DisallowHeapAllocation no_gc;
   WasmModule* module = compiled_module->shared()->module();
   wasm::UseTrapHandler use_trap_handler =
       compiled_module->GetNativeModule()->use_trap_handler() ? kUseTrapHandler
@@ -728,7 +727,6 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
 
   int patched = 0;
   {
-    DisallowHeapAllocation no_gc;
     // Now patch the code in {wasm_caller} with all functions which are now
     // compiled. This will pick up any other compiled functions, not only {ret}.
     size_t pos = 0;
