@@ -1249,6 +1249,9 @@ class TurboAssembler : public Assembler {
   // have mixed types. The format string (x0) should not be included.
   void CallPrintf(int arg_count = 0, const CPURegister* args = nullptr);
 
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+
  private:
   bool has_frame_ = false;
   bool root_array_available_ = true;
@@ -1259,8 +1262,6 @@ class TurboAssembler : public Assembler {
   // of instructions is called.
   bool allow_macro_instructions_;
 #endif
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 
   // Scratch registers available for use by the MacroAssembler.
   CPURegList tmp_list_;

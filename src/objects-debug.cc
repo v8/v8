@@ -985,6 +985,9 @@ void Oddball::OddballVerify() {
     CHECK(this == heap->optimized_out());
   } else if (map() == heap->stale_register_map()) {
     CHECK(this == heap->stale_register());
+  } else if (map() == heap->self_reference_marker_map()) {
+    // Multiple instances of this oddball may exist at once.
+    CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
   } else {
     UNREACHABLE();
   }

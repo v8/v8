@@ -28,14 +28,24 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, size, create_code_object) {}
+    : TurboAssembler(isolate, buffer, size, create_code_object) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    // Unlike TurboAssembler, which can be used off the main thread and may not
+    // allocate, macro assembler creates its own copy of the self-reference
+    // marker in order to disambiguate between self-references during nested
+    // code generation (e.g.: codegen of the current object triggers stub
+    // compilation through CodeStub::GetCode()).
+    code_object_ = Handle<HeapObject>::New(
+        *isolate->factory()->NewSelfReferenceMarker(), isolate);
+  }
+}
 
 TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                                CodeObjectRequired create_code_object)
     : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ =
-        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+    code_object_ = Handle<HeapObject>::New(
+        isolate->heap()->self_reference_marker(), isolate);
   }
 }
 

@@ -87,6 +87,9 @@ class V8_EXPORT_PRIVATE Factory {
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
 
+  // Marks self references within code generation.
+  Handle<Oddball> NewSelfReferenceMarker();
+
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
   template <typename T = FixedArray>

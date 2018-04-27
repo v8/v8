@@ -191,6 +191,7 @@ using v8::MemoryPressureLevel;
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, stale_register_map, StaleRegisterMap)                                 \
+  V(Map, self_reference_marker_map, SelfReferenceMarkerMap)                    \
   /* Canonical empty values */                                                 \
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
@@ -263,6 +264,8 @@ using v8::MemoryPressureLevel;
   V(WeakArrayList, retained_maps, RetainedMaps)                                \
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
+  /* Marker for self-references during code-generation */                      \
+  V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
   /* Feedback vectors that we need for code coverage or type profile */        \
   V(Object, feedback_vectors_for_profiling_tools,                              \
     FeedbackVectorsForProfilingTools)                                          \
@@ -386,6 +389,7 @@ using v8::MemoryPressureLevel;
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
   V(ScriptContextTableMap)              \
+  V(SelfReferenceMarker)                \
   V(SharedFunctionInfoMap)              \
   V(SimpleNumberDictionaryMap)          \
   V(SloppyArgumentsElementsMap)         \

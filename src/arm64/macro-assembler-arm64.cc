@@ -30,7 +30,17 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate, byte* buffer,
                                unsigned buffer_size,
                                CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, buffer_size, create_code_object) {}
+    : TurboAssembler(isolate, buffer, buffer_size, create_code_object) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    // Unlike TurboAssembler, which can be used off the main thread and may not
+    // allocate, macro assembler creates its own copy of the self-reference
+    // marker in order to disambiguate between self-references during nested
+    // code generation (e.g.: codegen of the current object triggers stub
+    // compilation through CodeStub::GetCode()).
+    code_object_ = Handle<HeapObject>::New(
+        *isolate->factory()->NewSelfReferenceMarker(), isolate);
+  }
+}
 
 CPURegList TurboAssembler::DefaultTmpList() { return CPURegList(ip0, ip1); }
 
@@ -49,8 +59,8 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
       fptmp_list_(DefaultFPTmpList()),
       use_real_aborts_(true) {
   if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ =
-        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+    code_object_ = Handle<HeapObject>::New(
+        isolate->heap()->self_reference_marker(), isolate);
   }
 }
 
@@ -1581,8 +1591,7 @@ void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> x) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
-      !x.equals(CodeObject())) {
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
     LookupConstant(dst, x);
     return;
   }
@@ -1879,11 +1888,6 @@ void TurboAssembler::LookupConstant(Register destination,
                                     Handle<Object> object) {
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
-
-  // TODO(jgruber, v8:6666): Support self-references. Currently, we'd end up
-  // adding the temporary code object to the constants list, before creating the
-  // final object in Factory::CopyCode.
-  CHECK(code_object_.is_null() || !object.equals(code_object_));
 
   // Ensure the given object is in the builtins constants table and fetch its
   // index.
