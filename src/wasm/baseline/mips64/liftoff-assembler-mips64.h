@@ -486,22 +486,36 @@ void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i32_divs");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
+
+  // Check if lhs == kMinInt and rhs == -1, since this case is unrepresentable.
+  TurboAssembler::li(kScratchReg, 1);
+  TurboAssembler::li(kScratchReg2, 1);
+  TurboAssembler::LoadZeroOnCondition(kScratchReg, lhs, Operand(kMinInt), eq);
+  TurboAssembler::LoadZeroOnCondition(kScratchReg2, rhs, Operand(-1), eq);
+  daddu(kScratchReg, kScratchReg, kScratchReg2);
+  TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
+                         Operand(zero_reg));
+
+  TurboAssembler::Div(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_divu");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
+  TurboAssembler::Divu(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_rems");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
+  TurboAssembler::Mod(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_remu");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
+  TurboAssembler::Modu(dst, lhs, rhs);
 }
 
 #define I32_BINOP(name, instruction)                                 \
@@ -556,28 +570,43 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i64_divs");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
+
+  // Check if lhs == MinInt64 and rhs == -1, since this case is unrepresentable.
+  TurboAssembler::li(kScratchReg, 1);
+  TurboAssembler::li(kScratchReg2, 1);
+  TurboAssembler::LoadZeroOnCondition(
+      kScratchReg, lhs.gp(), Operand(std::numeric_limits<int64_t>::min()), eq);
+  TurboAssembler::LoadZeroOnCondition(kScratchReg2, rhs.gp(), Operand(-1), eq);
+  daddu(kScratchReg, kScratchReg, kScratchReg2);
+  TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
+                         Operand(zero_reg));
+
+  TurboAssembler::Ddiv(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_divu");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
+  TurboAssembler::Ddivu(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_rems");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
+  TurboAssembler::Dmod(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_remu");
+  TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
+  TurboAssembler::Dmodu(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
