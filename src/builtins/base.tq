@@ -25,7 +25,7 @@ type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Boolean extends Oddball generates 'TNode<Oddball>';
 type JSArray extends HeapObject generates 'TNode<JSArray>';
 type Callable extends JSReceiver generates 'TNode<JSReceiver>';
-type JSFunction extends Callable;
+type JSFunction extends Callable generates 'TNode<JSFunction>';
 type Map extends HeapObject generates 'TNode<Map>';
 type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
 type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
