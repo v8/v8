@@ -906,7 +906,7 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
 
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::REGEXP_PROTOTYPE_MAP_INDEX);
-  Node* const proto_map = LoadMap(CAST(LoadMapPrototype(map)));
+  Node* const proto_map = LoadMap(LoadMapPrototype(map));
   Node* const proto_has_initialmap =
       WordEqual(proto_map, initial_proto_initial_map);
 
@@ -3151,8 +3151,8 @@ TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
   // 1. Let O be the this value.
   // 2. If Type(O) is not Object, throw a TypeError exception.
   GotoIf(TaggedIsSmi(maybe_receiver), &throw_bad_receiver);
-  GotoIfNot(IsJSReceiver(maybe_receiver), &throw_bad_receiver);
   TNode<HeapObject> receiver = CAST(maybe_receiver);
+  GotoIfNot(IsJSReceiver(receiver), &throw_bad_receiver);
 
   // 3. If O does not have all of the internal slots of a RegExp String Iterator
   // Object Instance (see 5.3), throw a TypeError exception.

@@ -22,55 +22,55 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_CONSTANT_LIST(V)                                              \
-  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                   \
-  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                   \
-  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)             \
-  V(BooleanMap, boolean_map, BooleanMap)                                   \
-  V(CodeMap, code_map, CodeMap)                                            \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                    \
-    EmptyPropertyDictionary)                                               \
-  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                   \
-  V(EmptySlowElementDictionary, empty_slow_element_dictionary,             \
-    EmptySlowElementDictionary)                                            \
-  V(empty_string, empty_string, EmptyString)                               \
-  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                         \
-  V(FalseValue, false_value, False)                                        \
-  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)             \
-  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                         \
-  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)               \
-  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)      \
-  V(FunctionTemplateInfoMap, function_template_info_map,                   \
-    FunctionTemplateInfoMap)                                               \
-  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)      \
-  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)           \
-  V(HeapNumberMap, heap_number_map, HeapNumberMap)                         \
-  V(iterator_symbol, iterator_symbol, IteratorSymbol)                      \
-  V(length_string, length_string, LengthString)                            \
-  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)      \
-  V(MetaMap, meta_map, MetaMap)                                            \
-  V(MinusZeroValue, minus_zero_value, MinusZero)                           \
-  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)   \
-  V(NanValue, nan_value, Nan)                                              \
-  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)            \
-  V(NullValue, null_value, Null)                                           \
-  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)            \
-  V(prototype_string, prototype_string, PrototypeString)                   \
-  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector) \
-  V(TypedArraySpeciesProtector, typed_array_species_protector,             \
-    TypedArraySpeciesProtector)                                            \
-  V(PromiseSpeciesProtector, promise_species_protector,                    \
-    PromiseSpeciesProtector)                                               \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                \
-  V(SymbolMap, symbol_map, SymbolMap)                                      \
-  V(TheHoleValue, the_hole_value, TheHole)                                 \
-  V(TransitionArrayMap, transition_array_map, TransitionArrayMap)          \
-  V(TrueValue, true_value, True)                                           \
-  V(Tuple2Map, tuple2_map, Tuple2Map)                                      \
-  V(Tuple3Map, tuple3_map, Tuple3Map)                                      \
-  V(UndefinedValue, undefined_value, Undefined)                            \
-  V(WeakCellMap, weak_cell_map, WeakCellMap)                               \
-  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)
+#define HEAP_CONSTANT_LIST(V)                                               \
+  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                    \
+  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                    \
+  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)              \
+  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)  \
+  V(BooleanMap, boolean_map, BooleanMap)                                    \
+  V(CodeMap, code_map, CodeMap)                                             \
+  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                    \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                     \
+    EmptyPropertyDictionary)                                                \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,              \
+    EmptySlowElementDictionary)                                             \
+  V(empty_string, empty_string, EmptyString)                                \
+  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                          \
+  V(FalseValue, false_value, False)                                         \
+  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)              \
+  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                          \
+  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                \
+  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)       \
+  V(FunctionTemplateInfoMap, function_template_info_map,                    \
+    FunctionTemplateInfoMap)                                                \
+  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)       \
+  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)            \
+  V(HeapNumberMap, heap_number_map, HeapNumberMap)                          \
+  V(iterator_symbol, iterator_symbol, IteratorSymbol)                       \
+  V(length_string, length_string, LengthString)                             \
+  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)       \
+  V(MetaMap, meta_map, MetaMap)                                             \
+  V(MinusZeroValue, minus_zero_value, MinusZero)                            \
+  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)    \
+  V(NanValue, nan_value, Nan)                                               \
+  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)             \
+  V(NullValue, null_value, Null)                                            \
+  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)             \
+  V(PromiseSpeciesProtector, promise_species_protector,                     \
+    PromiseSpeciesProtector)                                                \
+  V(prototype_string, prototype_string, PrototypeString)                    \
+  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap) \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                 \
+  V(SymbolMap, symbol_map, SymbolMap)                                       \
+  V(TheHoleValue, the_hole_value, TheHole)                                  \
+  V(TransitionArrayMap, transition_array_map, TransitionArrayMap)           \
+  V(TrueValue, true_value, True)                                            \
+  V(Tuple2Map, tuple2_map, Tuple2Map)                                       \
+  V(Tuple3Map, tuple3_map, Tuple3Map)                                       \
+  V(TypedArraySpeciesProtector, typed_array_species_protector,              \
+    TypedArraySpeciesProtector)                                             \
+  V(UndefinedValue, undefined_value, Undefined)                             \
+  V(WeakCellMap, weak_cell_map, WeakCellMap)
 
 // Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
 // here to simplify use in other generated builtins.
@@ -167,15 +167,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   TNode<JSArray> TaggedToJSArray(TNode<Object> value, Label* fail) {
-    GotoIfNot(IsJSArray(value), fail);
-    return UncheckedCast<JSArray>(value);
+    GotoIf(TaggedIsSmi(value), fail);
+    TNode<HeapObject> heap_object = CAST(value);
+    GotoIfNot(IsJSArray(heap_object), fail);
+    return UncheckedCast<JSArray>(heap_object);
   }
 
-  TNode<HeapObject> TaggedToCallable(TNode<Object> value, Label* fail) {
+  TNode<JSReceiver> TaggedToCallable(TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsSmi(value), fail);
     TNode<HeapObject> result = UncheckedCast<HeapObject>(value);
-    GotoIfNot(IsCallableMap(LoadMap(result)), fail);
-    return result;
+    GotoIfNot(IsCallable(result), fail);
+    return CAST(result);
   }
 
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
@@ -217,8 +219,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
-  Node* HashSeed();
-  Node* StaleRegisterConstant();
+  TNode<Int32T> HashSeed();
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
@@ -453,8 +454,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> WordIsWordAligned(SloppyTNode<WordT> word);
   TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
 
-  Node* IsNotTheHole(Node* value) { return Word32BinaryNot(IsTheHole(value)); }
-
 #if DEBUG
   void Bind(Label* label, AssemblerDebugInfo debug_info);
 #else
@@ -545,7 +544,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load a SMI and untag it.
   TNode<IntPtrT> LoadAndUntagSmi(Node* base, int index);
   // Load a SMI root, untag it, and convert to Word32.
-  Node* LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
+  TNode<Int32T> LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
 
   TNode<MaybeObject> LoadMaybeWeakObjectField(SloppyTNode<HeapObject> object,
                                               int offset) {
@@ -605,7 +604,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the instance descriptors of a map.
   TNode<DescriptorArray> LoadMapDescriptors(SloppyTNode<Map> map);
   // Load the prototype of a map.
-  TNode<Object> LoadMapPrototype(SloppyTNode<Map> map);
+  TNode<HeapObject> LoadMapPrototype(SloppyTNode<Map> map);
   // Load the prototype info of a map. The result has to be checked if it is a
   // prototype info object or not.
   TNode<PrototypeInfo> LoadMapPrototypeInfo(SloppyTNode<Map> map,
@@ -680,11 +679,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load an array element from a FixedArray.
   TNode<Object> LoadFixedArrayElement(
-      SloppyTNode<Object> object, Node* index, int additional_offset = 0,
+      SloppyTNode<HeapObject> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
-  TNode<Object> LoadFixedArrayElement(SloppyTNode<Object> object,
+  TNode<Object> LoadFixedArrayElement(SloppyTNode<HeapObject> object,
                                       TNode<IntPtrT> index,
                                       LoadSensitivity needs_poisoning) {
     return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
@@ -692,7 +691,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   TNode<Object> LoadFixedArrayElement(
-      SloppyTNode<Object> object, TNode<IntPtrT> index,
+      SloppyTNode<HeapObject> object, TNode<IntPtrT> index,
       int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, index, additional_offset,
@@ -700,30 +699,31 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   TNode<Object> LoadFixedArrayElement(
-      SloppyTNode<Object> object, int index, int additional_offset = 0,
+      SloppyTNode<HeapObject> object, int index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
                                  additional_offset, INTPTR_PARAMETERS,
                                  needs_poisoning);
   }
-  TNode<Object> LoadFixedArrayElement(TNode<Object> object, TNode<Smi> index) {
+  TNode<Object> LoadFixedArrayElement(TNode<HeapObject> object,
+                                      TNode<Smi> index) {
     return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
   }
 
   // Load an array element from a FixedArray / WeakFixedArray, untag it and
   // return it as Word32.
   TNode<Int32T> LoadAndUntagToWord32ArrayElement(
-      SloppyTNode<Object> object, int array_header_size, Node* index,
+      SloppyTNode<HeapObject> object, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Load an array element from a FixedArray, untag it and return it as Word32.
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      SloppyTNode<Object> object, Node* index, int additional_offset = 0,
+      SloppyTNode<HeapObject> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      SloppyTNode<Object> object, int index, int additional_offset = 0) {
+      SloppyTNode<HeapObject> object, int index, int additional_offset = 0) {
     return LoadAndUntagToWord32FixedArrayElement(
         object, IntPtrConstant(index), additional_offset, INTPTR_PARAMETERS);
   }
@@ -1309,110 +1309,116 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
   TNode<BoolT> InstanceTypeEqual(SloppyTNode<Int32T> instance_type, int type);
-  Node* IsAccessorInfo(Node* object);
-  Node* IsAccessorPair(Node* object);
-  Node* IsAllocationSite(Node* object);
-  Node* IsAnyHeapNumber(Node* object);
-  Node* IsNoElementsProtectorCellInvalid();
-  Node* IsBigIntInstanceType(Node* instance_type);
-  Node* IsBigInt(Node* object);
-  Node* IsBoolean(Node* object);
-  Node* IsCallableMap(Node* map);
-  Node* IsCallable(Node* object);
-  Node* IsCell(Node* object);
-  Node* IsCode(Node* object);
-  Node* IsConsStringInstanceType(Node* instance_type);
-  Node* IsConstructorMap(Node* map);
-  Node* IsConstructor(Node* object);
-  Node* IsDeprecatedMap(Node* map);
-  Node* IsDictionary(Node* object);
-  Node* IsExtensibleMap(Node* map);
-  Node* IsExternalStringInstanceType(Node* instance_type);
+  TNode<BoolT> IsAccessorInfo(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsAccessorPair(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsAllocationSite(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsAnyHeapNumber(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsNoElementsProtectorCellInvalid();
+  TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsBigInt(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsBoolean(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsCallableMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsCallable(SloppyTNode<HeapObject> object);
+  TNode<BoolT> TaggedIsCallable(TNode<Object> object);
+  TNode<BoolT> IsCell(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsCode(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsConstructorMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsConstructor(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsDeprecatedMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsDictionary(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
                              SloppyTNode<Context> context);
   TNode<BoolT> IsFastJSArrayWithNoCustomIteration(
       TNode<Object> object, TNode<Context> context,
       TNode<Context> native_context);
-  Node* IsFeedbackCell(Node* object);
-  Node* IsFeedbackVector(Node* object);
-  Node* IsContext(Node* object);
-  Node* IsFixedArray(Node* object);
-  Node* IsFixedArraySubclass(Node* object);
-  Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
-  Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
-  Node* IsFixedDoubleArray(Node* object);
-  Node* IsFixedTypedArray(Node* object);
-  Node* IsFunctionWithPrototypeSlotMap(Node* map);
-  Node* IsHashTable(Node* object);
-  TNode<BoolT> IsHeapNumber(Node* object);
-  Node* IsIndirectStringInstanceType(Node* instance_type);
-  Node* IsJSArrayBuffer(Node* object);
-  Node* IsJSArrayInstanceType(Node* instance_type);
-  Node* IsJSArrayMap(Node* object);
-  Node* IsJSArray(Node* object);
-  Node* IsJSArrayIterator(Node* object);
-  Node* IsJSAsyncGeneratorObject(Node* object);
-  Node* IsJSFunctionInstanceType(Node* instance_type);
-  Node* IsJSFunctionMap(Node* object);
-  Node* IsJSFunction(Node* object);
-  Node* IsJSGeneratorObject(Node* object);
-  Node* IsJSGlobalProxyInstanceType(Node* instance_type);
-  Node* IsJSGlobalProxy(Node* object);
-  Node* IsJSObjectInstanceType(Node* instance_type);
-  Node* IsJSObjectMap(Node* map);
-  Node* IsJSObject(Node* object);
-  Node* IsJSPromiseMap(Node* map);
-  Node* IsJSPromise(Node* object);
-  Node* IsJSProxy(Node* object);
-  Node* IsJSReceiverInstanceType(Node* instance_type);
-  Node* IsJSReceiverMap(Node* map);
-  Node* IsJSReceiver(Node* object);
-  Node* IsJSRegExp(Node* object);
-  Node* IsJSTypedArray(Node* object);
-  Node* IsJSValueInstanceType(Node* instance_type);
-  Node* IsJSValueMap(Node* map);
-  Node* IsJSValue(Node* object);
-  Node* IsMap(Node* object);
-  Node* IsMutableHeapNumber(Node* object);
-  Node* IsName(Node* object);
-  Node* IsNativeContext(Node* object);
-  Node* IsNullOrJSReceiver(Node* object);
-  Node* IsNullOrUndefined(Node* object);
-  Node* IsNumberDictionary(Node* object);
-  Node* IsOneByteStringInstanceType(Node* instance_type);
-  Node* IsPrimitiveInstanceType(Node* instance_type);
-  TNode<BoolT> IsPrivateSymbol(Node* object);
-  Node* IsPromiseCapability(Node* object);
-  Node* IsPropertyArray(Node* object);
-  Node* IsPropertyCell(Node* object);
-  Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
+  TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsFeedbackVector(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsContext(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsFixedArray(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsFixedArraySubclass(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsFixedArrayWithKind(SloppyTNode<HeapObject> object,
+                                    ElementsKind kind);
+  TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<HeapObject> object,
+                                           ElementsKind kind);
+  TNode<BoolT> IsFixedDoubleArray(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsFixedTypedArray(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsFunctionWithPrototypeSlotMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsHashTable(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsHeapNumber(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSArrayMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSArray(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSArrayIterator(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSAsyncGeneratorObject(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSFunctionInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSFunctionMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSFunction(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSGeneratorObject(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSGlobalProxyInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSGlobalProxy(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSObjectInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSObjectMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSObject(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSPromiseMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSPromise(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSProxy(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSReceiverInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSReceiverMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSReceiver(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSRegExp(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSTypedArray(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSValueInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSValueMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSValue(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsMap(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsMutableHeapNumber(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsName(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsNativeContext(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsNullOrJSReceiver(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsNullOrUndefined(SloppyTNode<Object> object);
+  TNode<BoolT> IsNumberDictionary(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsOneByteStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsPrimitiveInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsPrivateSymbol(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPromiseCapability(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPropertyArray(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPropertyCell(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPrototypeInitialArrayPrototype(SloppyTNode<Context> context,
+                                                SloppyTNode<Map> map);
   TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
                                               SloppyTNode<Map> map);
-  Node* IsSequentialStringInstanceType(Node* instance_type);
-  Node* IsShortExternalStringInstanceType(Node* instance_type);
+  TNode<BoolT> IsSequentialStringInstanceType(
+      SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsShortExternalStringInstanceType(
+      SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsCustomElementsReceiverInstanceType(
       TNode<Int32T> instance_type);
-  Node* IsSpecialReceiverMap(Node* map);
-  Node* IsStringInstanceType(Node* instance_type);
-  Node* IsString(Node* object);
-  Node* IsSymbolInstanceType(Node* instance_type);
-  Node* IsSymbol(Node* object);
-  Node* IsUndetectableMap(Node* map);
-  Node* IsWeakCell(Node* object);
-  Node* IsZeroOrContext(Node* object);
+  TNode<BoolT> IsSpecialReceiverMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsSymbol(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsWeakCell(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
 
-  Node* IsNotWeakFixedArraySubclass(Node* object);
+  TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
 
   inline Node* IsSharedFunctionInfo(Node* object) {
     return IsSharedFunctionInfoMap(LoadMap(object));
   }
 
-  Node* IsPromiseResolveProtectorCellInvalid();
-  Node* IsPromiseThenProtectorCellInvalid();
-  Node* IsArraySpeciesProtectorCellInvalid();
-  Node* IsTypedArraySpeciesProtectorCellInvalid();
-  Node* IsPromiseSpeciesProtectorCellInvalid();
+  TNode<BoolT> IsPromiseResolveProtectorCellInvalid();
+  TNode<BoolT> IsPromiseThenProtectorCellInvalid();
+  TNode<BoolT> IsArraySpeciesProtectorCellInvalid();
+  TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
+  TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
 
   // True iff |object| is a Smi or a HeapNumber.
   TNode<BoolT> IsNumber(SloppyTNode<Object> object);

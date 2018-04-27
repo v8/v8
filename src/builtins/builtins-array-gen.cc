@@ -1305,7 +1305,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
       load_arguments_length(this);
 
   GotoIf(TaggedIsSmi(receiver), &generic_length);
-  GotoIfNot(IsJSArray(receiver), &check_arguments_length);
+  GotoIfNot(IsJSArray(CAST(receiver)), &check_arguments_length);
 
   TNode<JSArray> array_receiver = CAST(receiver);
   o = array_receiver;
@@ -1852,7 +1852,7 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
     TVARIABLE(Object, array);
     Label is_constructor(this), is_not_constructor(this), done(this);
     GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
-    Branch(IsConstructor(receiver), &is_constructor, &is_not_constructor);
+    Branch(IsConstructor(CAST(receiver)), &is_constructor, &is_not_constructor);
 
     BIND(&is_constructor);
     {
@@ -1885,7 +1885,7 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
     Label is_constructor(this), is_not_constructor(this), done(this);
     CSA_ASSERT(this, IsNumberNormalized(length));
     GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
-    Branch(IsConstructor(receiver), &is_constructor, &is_not_constructor);
+    Branch(IsConstructor(CAST(receiver)), &is_constructor, &is_not_constructor);
 
     BIND(&is_constructor);
     {
@@ -1996,7 +1996,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     Label no_error(this), error(this);
     GotoIf(IsUndefined(map_function), &no_error);
     GotoIf(TaggedIsSmi(map_function), &error);
-    Branch(IsCallable(map_function), &no_error, &error);
+    Branch(IsCallable(CAST(map_function)), &no_error, &error);
 
     BIND(&error);
     ThrowTypeError(context, MessageTemplate::kCalledNonCallable, map_function);
@@ -2033,7 +2033,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     {
       Label get_method_not_callable(this, Label::kDeferred), next(this);
       GotoIf(TaggedIsSmi(iterator_method), &get_method_not_callable);
-      GotoIfNot(IsCallable(iterator_method), &get_method_not_callable);
+      GotoIfNot(IsCallable(CAST(iterator_method)), &get_method_not_callable);
       Goto(&next);
 
       BIND(&get_method_not_callable);
@@ -2073,7 +2073,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
         Label next(this);
         GotoIf(IsUndefined(map_function), &next);
 
-        CSA_ASSERT(this, IsCallable(map_function));
+        CSA_ASSERT(this, IsCallable(CAST(map_function)));
         Node* v = CallJS(CodeFactory::Call(isolate()), context, map_function,
                          this_arg, value.value(), index.value());
         GotoIfException(v, &on_exception, &var_exception);
@@ -2149,7 +2149,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
         Label next(this);
         GotoIf(IsUndefined(map_function), &next);
 
-        CSA_ASSERT(this, IsCallable(map_function));
+        CSA_ASSERT(this, IsCallable(CAST(map_function)));
         value = CAST(CallJS(CodeFactory::Call(isolate()), context, map_function,
                             this_arg, value.value(), index.value()));
         Goto(&next);
@@ -3191,7 +3191,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
                 &return_not_found);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
-      GotoIfNot(IsHeapNumber(element_k), &continue_loop);
+      GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_found,
                            &continue_loop);
 
@@ -3243,7 +3243,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     Node* element_k = LoadFixedArrayElement(elements, index_var.value());
     Label continue_loop(this);
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
-    GotoIfNot(IsBigInt(element_k), &continue_loop);
+    GotoIfNot(IsBigInt(CAST(element_k)), &continue_loop);
     TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
                                        search_element, element_k);
     Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
@@ -3548,7 +3548,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   // If O does not have all of the internal slots of an Array Iterator Instance
   // (22.1.5.3), throw a TypeError exception
   GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
-  GotoIfNot(IsJSArrayIterator(iterator), &throw_bad_receiver);
+  GotoIfNot(IsJSArrayIterator(CAST(iterator)), &throw_bad_receiver);
 
   // Let a be O.[[IteratedObject]].
   Node* array =

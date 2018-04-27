@@ -17,7 +17,7 @@ void ProxiesCodeStubAssembler::GotoIfRevokedProxy(Node* object,
                                                   Label* if_proxy_revoked) {
   Label proxy_not_revoked(this);
   GotoIfNot(IsJSProxy(object), &proxy_not_revoked);
-  Branch(IsJSReceiver(LoadObjectField(object, JSProxy::kHandlerOffset)),
+  Branch(IsJSReceiver(CAST(LoadObjectField(object, JSProxy::kHandlerOffset))),
          &proxy_not_revoked, if_proxy_revoked);
   BIND(&proxy_not_revoked);
 }

@@ -290,7 +290,8 @@ macro HasPropertyObject(
   }
 }
 
-extern macro IsCallable(Object): bit;
+extern macro IsCallable(HeapObject): bit;
+extern macro TaggedIsCallable(Object): bit;
 extern macro IsDetachedBuffer(JSArrayBuffer): bit;
 
 type ParameterMode;

@@ -116,13 +116,13 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Loads an element from a fixed array.  If the element is the hole, returns
   // `undefined`.
-  TNode<Object> LoadAndNormalizeFixedArrayElement(TNode<Object> elements,
+  TNode<Object> LoadAndNormalizeFixedArrayElement(TNode<HeapObject> elements,
                                                   TNode<IntPtrT> index);
 
   // Loads an element from a fixed double array.  If the element is the hole,
   // returns `undefined`.
-  TNode<Object> LoadAndNormalizeFixedDoubleArrayElement(TNode<Object> elements,
-                                                        TNode<IntPtrT> index);
+  TNode<Object> LoadAndNormalizeFixedDoubleArrayElement(
+      TNode<HeapObject> elements, TNode<IntPtrT> index);
 
   // Loads key and value variables with the first and second elements of an
   // array.  If the array lacks 2 elements, undefined is used.
@@ -385,7 +385,7 @@ TNode<Object> BaseCollectionsAssembler::GetAddFunction(
 
   Label exit(this), if_notcallable(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(add_func), &if_notcallable);
-  GotoIfNot(IsCallable(add_func), &if_notcallable);
+  GotoIfNot(IsCallable(CAST(add_func)), &if_notcallable);
   Goto(&exit);
 
   BIND(&if_notcallable);
@@ -484,20 +484,20 @@ TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
   TNode<Map> initial_prototype_map =
       CAST(LoadContextElement(native_context, initial_prototype_index));
   TNode<Map> collection_proto_map =
-      LoadMap(CAST(LoadMapPrototype(LoadMap(CAST(collection)))));
+      LoadMap(LoadMapPrototype(LoadMap(CAST(collection))));
 
   return WordEqual(collection_proto_map, initial_prototype_map);
 }
 
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
-    TNode<Object> elements, TNode<IntPtrT> index) {
+    TNode<HeapObject> elements, TNode<IntPtrT> index) {
   TNode<Object> element = LoadFixedArrayElement(elements, index);
   return Select<Object>(IsTheHole(element), [=] { return UndefinedConstant(); },
                         [=] { return element; });
 }
 
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
-    TNode<Object> elements, TNode<IntPtrT> index) {
+    TNode<HeapObject> elements, TNode<IntPtrT> index) {
   TVARIABLE(Object, entry);
   Label if_hole(this, Label::kDeferred), next(this);
   TNode<Float64T> element = UncheckedCast<Float64T>(LoadFixedDoubleArrayElement(
@@ -1956,7 +1956,7 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       : BaseCollectionsAssembler(state) {}
 
  protected:
-  void AddEntry(TNode<Object> table, TNode<IntPtrT> key_index,
+  void AddEntry(TNode<HeapObject> table, TNode<IntPtrT> key_index,
                 TNode<Object> key, TNode<Object> value,
                 TNode<IntPtrT> number_of_elements);
 
@@ -1972,19 +1972,19 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // the {key} is found.
   typedef std::function<void(TNode<Object> entry_key, Label* if_same)>
       KeyComparator;
-  TNode<IntPtrT> FindKeyIndex(TNode<Object> table, TNode<IntPtrT> key_hash,
+  TNode<IntPtrT> FindKeyIndex(TNode<HeapObject> table, TNode<IntPtrT> key_hash,
                               TNode<IntPtrT> entry_mask,
                               const KeyComparator& key_compare);
 
   // Builds code that finds an ObjectHashTable entry available for a new entry.
-  TNode<IntPtrT> FindKeyIndexForInsertion(TNode<Object> table,
+  TNode<IntPtrT> FindKeyIndexForInsertion(TNode<HeapObject> table,
                                           TNode<IntPtrT> key_hash,
                                           TNode<IntPtrT> entry_mask);
 
   // Builds code that finds the ObjectHashTable entry with key that matches
   // {key} and returns the entry's key index. If {key} cannot be found, jumps to
   // {if_not_found}.
-  TNode<IntPtrT> FindKeyIndexForKey(TNode<Object> table, TNode<Object> key,
+  TNode<IntPtrT> FindKeyIndexForKey(TNode<HeapObject> table, TNode<Object> key,
                                     TNode<IntPtrT> hash,
                                     TNode<IntPtrT> entry_mask,
                                     Label* if_not_found);
@@ -1994,12 +1994,12 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                            TNode<IntPtrT> number_of_deleted);
   TNode<IntPtrT> KeyIndexFromEntry(TNode<IntPtrT> entry);
 
-  TNode<IntPtrT> LoadNumberOfElements(TNode<Object> table, int offset);
-  TNode<IntPtrT> LoadNumberOfDeleted(TNode<Object> table, int offset = 0);
-  TNode<Object> LoadTable(SloppyTNode<Object> collection);
-  TNode<IntPtrT> LoadTableCapacity(TNode<Object> table);
+  TNode<IntPtrT> LoadNumberOfElements(TNode<HeapObject> table, int offset);
+  TNode<IntPtrT> LoadNumberOfDeleted(TNode<HeapObject> table, int offset = 0);
+  TNode<HeapObject> LoadTable(SloppyTNode<HeapObject> collection);
+  TNode<IntPtrT> LoadTableCapacity(TNode<HeapObject> table);
 
-  void RemoveEntry(TNode<Object> table, TNode<IntPtrT> key_index,
+  void RemoveEntry(TNode<HeapObject> table, TNode<IntPtrT> key_index,
                    TNode<IntPtrT> number_of_elements);
   TNode<BoolT> ShouldRehash(TNode<IntPtrT> number_of_elements,
                             TNode<IntPtrT> number_of_deleted);
@@ -2009,7 +2009,7 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
 };
 
 void WeakCollectionsBuiltinsAssembler::AddEntry(
-    TNode<Object> table, TNode<IntPtrT> key_index, TNode<Object> key,
+    TNode<HeapObject> table, TNode<IntPtrT> key_index, TNode<Object> key,
     TNode<Object> value, TNode<IntPtrT> number_of_elements) {
   // See ObjectHashTable::AddEntry().
   TNode<IntPtrT> value_index = ValueIndexFromKeyIndex(key_index);
@@ -2070,7 +2070,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::EntryMask(
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
-    TNode<Object> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> entry_mask,
+    TNode<HeapObject> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> entry_mask,
     const KeyComparator& key_compare) {
   // See HashTable::FirstProbe().
   TVARIABLE(IntPtrT, var_entry, WordAnd(key_hash, entry_mask));
@@ -2099,7 +2099,8 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForInsertion(
-    TNode<Object> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> entry_mask) {
+    TNode<HeapObject> table, TNode<IntPtrT> key_hash,
+    TNode<IntPtrT> entry_mask) {
   // See HashTable::FindInsertionEntry().
   auto is_not_live = [&](TNode<Object> entry_key, Label* if_found) {
     // This is the the negative form BaseShape::IsLive().
@@ -2109,7 +2110,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForInsertion(
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForKey(
-    TNode<Object> table, TNode<Object> key, TNode<IntPtrT> hash,
+    TNode<HeapObject> table, TNode<Object> key, TNode<IntPtrT> hash,
     TNode<IntPtrT> entry_mask, Label* if_not_found) {
   // See HashTable::FindEntry().
   auto match_key_or_exit_on_empty = [&](TNode<Object> entry_key,
@@ -2131,26 +2132,26 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::KeyIndexFromEntry(
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfElements(
-    TNode<Object> table, int offset) {
+    TNode<HeapObject> table, int offset) {
   TNode<IntPtrT> number_of_elements = SmiUntag(CAST(
       LoadFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex)));
   return IntPtrAdd(number_of_elements, IntPtrConstant(offset));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfDeleted(
-    TNode<Object> table, int offset) {
+    TNode<HeapObject> table, int offset) {
   TNode<IntPtrT> number_of_deleted = SmiUntag(CAST(LoadFixedArrayElement(
       table, ObjectHashTable::kNumberOfDeletedElementsIndex)));
   return IntPtrAdd(number_of_deleted, IntPtrConstant(offset));
 }
 
-TNode<Object> WeakCollectionsBuiltinsAssembler::LoadTable(
-    SloppyTNode<Object> collection) {
-  return LoadObjectField(CAST(collection), JSWeakCollection::kTableOffset);
+TNode<HeapObject> WeakCollectionsBuiltinsAssembler::LoadTable(
+    SloppyTNode<HeapObject> collection) {
+  return CAST(LoadObjectField(collection, JSWeakCollection::kTableOffset));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadTableCapacity(
-    TNode<Object> table) {
+    TNode<HeapObject> table) {
   return SmiUntag(
       CAST(LoadFixedArrayElement(table, ObjectHashTable::kCapacityIndex)));
 }
@@ -2174,7 +2175,7 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::InsufficientCapacityToAdd(
 }
 
 void WeakCollectionsBuiltinsAssembler::RemoveEntry(
-    TNode<Object> table, TNode<IntPtrT> key_index,
+    TNode<HeapObject> table, TNode<IntPtrT> key_index,
     TNode<IntPtrT> number_of_elements) {
   // See ObjectHashTable::RemoveEntry().
   TNode<IntPtrT> value_index = ValueIndexFromKeyIndex(key_index);
@@ -2228,7 +2229,7 @@ TF_BUILTIN(WeakSetConstructor, WeakCollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
-  TNode<Object> table = CAST(Parameter(Descriptor::kTable));
+  TNode<HeapObject> table = CAST(Parameter(Descriptor::kTable));
   TNode<Object> key = CAST(Parameter(Descriptor::kKey));
 
   Label if_not_found(this);
@@ -2293,7 +2294,7 @@ TF_BUILTIN(WeakMapHas, WeakCollectionsBuiltinsAssembler) {
 // (ObjectHashTable) of a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> collection = CAST(Parameter(Descriptor::kCollection));
+  TNode<HeapObject> collection = CAST(Parameter(Descriptor::kCollection));
   TNode<Object> key = CAST(Parameter(Descriptor::kKey));
 
   Label call_runtime(this), if_not_found(this);
@@ -2301,7 +2302,7 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
   GotoIfNotJSReceiver(key, &if_not_found);
 
   TNode<IntPtrT> hash = LoadJSReceiverIdentityHash(key, &if_not_found);
-  TNode<Object> table = LoadTable(collection);
+  TNode<HeapObject> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
   TNode<IntPtrT> key_index =
       FindKeyIndexForKey(table, key, hash, EntryMask(capacity), &if_not_found);
@@ -2323,15 +2324,15 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
 // a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> collection = CAST(Parameter(Descriptor::kCollection));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  TNode<HeapObject> collection = CAST(Parameter(Descriptor::kCollection));
+  TNode<JSReceiver> key = CAST(Parameter(Descriptor::kKey));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
 
   CSA_ASSERT(this, IsJSReceiver(key));
 
   Label call_runtime(this), if_no_hash(this), if_not_found(this);
 
-  TNode<Object> table = LoadTable(collection);
+  TNode<HeapObject> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
   TNode<IntPtrT> entry_mask = EntryMask(capacity);
 

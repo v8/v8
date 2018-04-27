@@ -45,7 +45,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                             TNode<JSReceiver> buffer_constructor);
   void ConstructByIterable(TNode<Context> context, TNode<JSTypedArray> holder,
                            TNode<JSReceiver> iterable,
-                           TNode<Object> iterator_fn, TNode<Smi> element_size);
+                           TNode<JSReceiver> iterator_fn,
+                           TNode<Smi> element_size);
 
   void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
                        TNode<Number> byte_offset, TNode<Number> byte_length);

@@ -269,8 +269,7 @@ module typed_array {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     let comparefn_obj: Object = arguments.length > 0 ? arguments[0] : undefined;
-    if (comparefn_obj != undefined &&
-        (TaggedIsSmi(comparefn_obj) || !IsCallable(comparefn_obj))) {
+    if (comparefn_obj != undefined && !TaggedIsCallable(comparefn_obj)) {
       ThrowTypeError(context, kBadSortComparisonFunction, comparefn_obj);
     }
 

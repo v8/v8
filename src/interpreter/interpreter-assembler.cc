@@ -1654,7 +1654,8 @@ Node* InterpreterAssembler::ImportRegisterFile(
     Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
-    StoreFixedArrayElement(array, index, StaleRegisterConstant());
+    StoreFixedArrayElement(array, index,
+                           LoadRoot(Heap::kStaleRegisterRootIndex));
 
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);

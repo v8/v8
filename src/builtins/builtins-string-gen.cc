@@ -1045,7 +1045,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
         LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
     Node* const initial_map =
         LoadObjectField(string_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const proto_map = LoadMap(CAST(LoadMapPrototype(initial_map)));
+    Node* const proto_map = LoadMap(LoadMapPrototype(initial_map));
 
     Branch(WordEqual(proto_map, initial_proto_initial_map), &out, &next);
 
@@ -1519,8 +1519,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     auto if_regexp_call = [&] {
       // MaybeCallFunctionAtSymbol guarantees fast path is chosen only if
       // maybe_regexp is a fast regexp and receiver is a string.
-      CSA_ASSERT(this, IsString(receiver));
       var_receiver_string = CAST(receiver);
+      CSA_ASSERT(this, IsString(var_receiver_string.value()));
       var_is_fast_regexp = Int32TrueConstant();
       Goto(&return_match_all_iterator);
     };
@@ -1904,7 +1904,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
     // two cases according to the spec: if it is negative, "" is returned; if
     // it is positive, then length is set to {string_length} - {start}.
 
-    CSA_ASSERT(this, IsHeapNumber(var_length.value()));
+    CSA_ASSERT(this, IsHeapNumber(CAST(var_length.value())));
 
     Label if_isnegative(this), if_ispositive(this);
     TNode<Float64T> const float_zero = Float64Constant(0.);
