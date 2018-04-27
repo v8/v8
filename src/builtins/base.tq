@@ -92,7 +92,7 @@ const kDetachedOperation: MessageTemplate =
 const kBadSortComparisonFunction: MessageTemplate =
     'MessageTemplate::kBadSortComparisonFunction';
 
-const hole: Object = 'TheHoleConstant()';
+const hole: Oddball = 'TheHoleConstant()';
 const null: Oddball = 'NullConstant()';
 const undefined: Oddball = 'UndefinedConstant()';
 const true: Boolean = 'TrueConstant()';
@@ -100,15 +100,12 @@ const false: Boolean = 'FalseConstant()';
 const yes: bit = 'Int32TrueConstant()';
 const no: bit = 'Int32FalseConstant()';
 
-const receiver: Object = 'receiver';
-
 const strict: LanguageMode =
     'SmiConstant(static_cast<int>(LanguageMode::kStrict))';
 const sloppy: LanguageMode =
     'SmiConstant(static_cast<int>(LanguageMode::kSloppy))';
 
 extern macro Print(Object);
-extern macro Print(String, Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
 extern macro ToLength_Inline(Context, Object): Number;
