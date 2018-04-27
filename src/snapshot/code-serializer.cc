@@ -8,6 +8,7 @@
 
 #include "src/code-stubs.h"
 #include "src/counters.h"
+#include "src/debug/debug.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"

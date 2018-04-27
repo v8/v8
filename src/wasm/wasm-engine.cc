@@ -6,6 +6,9 @@
 
 #include "src/objects-inl.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/module-decoder.h"
+#include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

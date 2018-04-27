@@ -18,6 +18,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-engine.h"

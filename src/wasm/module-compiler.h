@@ -6,23 +6,33 @@
 #define V8_WASM_MODULE_COMPILER_H_
 
 #include <functional>
+#include <memory>
 
 #include "src/base/atomic-utils.h"
 #include "src/cancelable-task.h"
-#include "src/isolate.h"
-
-#include "src/wasm/module-decoder.h"
-#include "src/wasm/streaming-decoder.h"
+#include "src/globals.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
+
+class JSArrayBuffer;
+class JSPromise;
+class Counters;
+class WasmModuleObject;
+class WasmInstanceObject;
+
+template <typename T>
+class Vector;
+
 namespace wasm {
 
 class CompilationState;
+class ErrorThrower;
 class ModuleCompiler;
 class WasmCode;
+struct ModuleEnv;
+struct WasmModule;
 
 struct CompilationStateDeleter {
   void operator()(CompilationState* compilation_state) const;

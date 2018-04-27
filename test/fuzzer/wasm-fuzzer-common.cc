@@ -10,6 +10,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"

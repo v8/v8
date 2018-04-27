@@ -5,6 +5,7 @@
 #ifndef V8_WASM_WASM_MEMORY_H_
 #define V8_WASM_WASM_MEMORY_H_
 
+#include <atomic>
 #include <unordered_map>
 
 #include "src/base/platform/mutex.h"

@@ -8,15 +8,11 @@
 #include "src/base/bits.h"
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
-#include "src/objects.h"
-#include "src/objects/managed.h"
-#include "src/objects/script.h"
-#include "src/wasm/decoder.h"
-#include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-module.h"
-
 #include "src/heap/heap.h"
+#include "src/machine-type.h"
+#include "src/objects.h"
+#include "src/objects/script.h"
+#include "src/wasm/wasm-interpreter.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -30,13 +26,21 @@ struct ModuleEnv;
 class WasmCode;
 struct WasmModule;
 class SignatureMap;
+class WireBytesRef;
 using ValueType = MachineRepresentation;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 
+class BreakPoint;
+class JSArrayBuffer;
+class FixedArrayOfWeakCells;
+class SeqOneByteString;
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
+
+template <class CppType>
+class Managed;
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   INLINE(bool has_##name());                \

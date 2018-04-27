@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/code-stubs.h"
 #include "src/conversions-inl.h"
+#include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
