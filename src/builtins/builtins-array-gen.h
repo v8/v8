@@ -71,7 +71,6 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
  protected:
   TNode<Context> context() { return context_; }
   TNode<Object> receiver() { return receiver_; }
-  Node* new_target() { return new_target_; }
   TNode<IntPtrT> argc() { return argc_; }
   TNode<JSReceiver> o() { return o_; }
   TNode<Number> len() { return len_; }
@@ -84,8 +83,7 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
 
   void InitIteratingArrayBuiltinBody(TNode<Context> context,
                                      TNode<Object> receiver, Node* callbackfn,
-                                     Node* this_arg, Node* new_target,
-                                     TNode<IntPtrT> argc);
+                                     Node* this_arg, TNode<IntPtrT> argc);
 
   void GenerateIteratingArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
@@ -142,7 +140,6 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   TNode<Number> len_;
   TNode<Context> context_;
   TNode<Object> receiver_;
-  Node* new_target_ = nullptr;
   TNode<IntPtrT> argc_;
   Node* fast_typed_array_target_ = nullptr;
   const char* name_ = nullptr;

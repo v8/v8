@@ -385,10 +385,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
   void ArrayBuiltinsAssembler::InitIteratingArrayBuiltinBody(
       TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
-      Node* this_arg, Node* new_target, TNode<IntPtrT> argc) {
+      Node* this_arg, TNode<IntPtrT> argc) {
     context_ = context;
     receiver_ = receiver;
-    new_target_ = new_target;
     callbackfn_ = callbackfn;
     this_arg_ = this_arg;
     argc_ = argc;
@@ -1735,13 +1734,11 @@ TF_BUILTIN(ArrayPrototypeFind, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.find", &ArrayBuiltinsAssembler::FindResultGenerator,
@@ -1829,13 +1826,11 @@ TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.findIndex",
@@ -2209,13 +2204,11 @@ TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.find",
@@ -2230,13 +2223,11 @@ TF_BUILTIN(TypedArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.findIndex",
@@ -2296,13 +2287,11 @@ TF_BUILTIN(ArrayForEach, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.forEach",
@@ -2318,13 +2307,11 @@ TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.forEach",
@@ -2400,13 +2387,11 @@ TF_BUILTIN(ArraySome, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.some", &ArrayBuiltinsAssembler::SomeResultGenerator,
@@ -2421,13 +2406,11 @@ TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.some",
@@ -2503,13 +2486,11 @@ TF_BUILTIN(ArrayEvery, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.every", &ArrayBuiltinsAssembler::EveryResultGenerator,
@@ -2524,13 +2505,11 @@ TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.every",
@@ -2605,13 +2584,12 @@ TF_BUILTIN(ArrayReduce, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.reduce", &ArrayBuiltinsAssembler::ReduceResultGenerator,
@@ -2626,13 +2604,12 @@ TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.reduce",
@@ -2709,13 +2686,12 @@ TF_BUILTIN(ArrayReduceRight, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.reduceRight",
@@ -2732,13 +2708,12 @@ TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.reduceRight",
@@ -2829,13 +2804,11 @@ TF_BUILTIN(ArrayFilter, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.filter", &ArrayBuiltinsAssembler::FilterResultGenerator,
@@ -2909,13 +2882,11 @@ TF_BUILTIN(ArrayMap, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.map", &ArrayBuiltinsAssembler::MapResultGenerator,
@@ -2930,13 +2901,11 @@ TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.map",
