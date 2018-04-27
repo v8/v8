@@ -1760,7 +1760,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                        (FLAG_experimental_wasm_threads && memory->is_shared()));
   } else if (initial_pages > 0 || use_trap_handler()) {
     // We need to unconditionally create a guard region if using trap handlers,
-    // even when the size is zero to prevent null-derefence issues
+    // even when the size is zero to prevent null-dereference issues
     // (e.g. https://crbug.com/769637).
     // Allocate memory if the initial size is more than 0 pages.
     memory_ = AllocateMemory(initial_pages);
