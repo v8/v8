@@ -14,7 +14,6 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/machine-type.h"
-#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/wasm/function-compiler.h"

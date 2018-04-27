@@ -14,7 +14,6 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/identity-map.h"
-#include "src/macro-assembler-inl.h"
 #include "src/property-descriptor.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-manager.h"

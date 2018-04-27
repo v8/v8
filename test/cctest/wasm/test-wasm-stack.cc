@@ -4,7 +4,6 @@
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
-#include "src/macro-assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"

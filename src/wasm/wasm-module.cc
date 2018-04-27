@@ -11,7 +11,6 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
 #include "src/frames-inl.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
 #include "src/simulator.h"

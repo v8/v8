@@ -14,7 +14,6 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/machine-type.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/optimized-compilation-info.h"

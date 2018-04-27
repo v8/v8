@@ -13,7 +13,8 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/macro-assembler-inl.h"
+// TODO(wasm): Remove this include.
+#include "src/wasm/wasm-linkage.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -283,7 +284,7 @@ void Int64Lowering::LowerNode(Node* node) {
         int old_index = ParameterIndexOf(node->op());
         // TODO(wasm): Make this part not wasm specific.
         // Prevent special lowering of the instance parameter.
-        if (old_index == kWasmInstanceParameterIndex) {
+        if (old_index == wasm::kWasmInstanceParameterIndex) {
           DefaultLowering(node);
           break;
         }

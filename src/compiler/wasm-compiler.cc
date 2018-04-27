@@ -13,6 +13,7 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/compiler.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator.h"
@@ -33,13 +34,13 @@
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
-#include "src/macro-assembler-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -3107,7 +3108,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   *effect_ = start;
   *control_ = start;
 
-  instance_node_.set(Param(compiler::kWasmInstanceParameterIndex));
+  instance_node_.set(Param(wasm::kWasmInstanceParameterIndex));
   Node* callables_node = LOAD_INSTANCE_FIELD(ImportedFunctionCallables,
                                              MachineType::TaggedPointer());
   Node* callable_node = LOAD_FIXED_ARRAY_SLOT(callables_node, index);
@@ -4934,6 +4935,14 @@ int FixedArrayOffsetMinusTag(uint32_t index) {
   return access.offset - access.tag();
 }
 
+TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
+    wasm::WasmCompilationUnit* wasm_unit)
+    : wasm_unit_(wasm_unit),
+      wasm_compilation_data_(wasm_unit->env_->runtime_exception_support) {}
+
+// Clears unique_ptrs, but (part of) the type is forward declared in the header.
+TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
+
 SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
     double* decode_ms) {
   base::ElapsedTimer decode_timer;
@@ -5123,6 +5132,189 @@ wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
   }
 
   return code;
+}
+
+namespace {
+// Helper for allocating either an GP or FP reg, or the next stack slot.
+class LinkageLocationAllocator {
+ public:
+  template <size_t kNumGpRegs, size_t kNumFpRegs>
+  constexpr LinkageLocationAllocator(const Register (&gp)[kNumGpRegs],
+                                     const DoubleRegister (&fp)[kNumFpRegs])
+      : allocator_(wasm::LinkageAllocator(gp, fp)) {}
+
+  LinkageLocation Next(wasm::ValueType type) {
+    MachineType mach_type = wasm::ValueTypes::MachineTypeFor(type);
+    if (type == wasm::kWasmF32 || type == wasm::kWasmF64) {
+      if (allocator_.has_more_fp_regs()) {
+        DoubleRegister reg = allocator_.NextFpReg();
+#if V8_TARGET_ARCH_ARM
+        // Allocate floats using a double register, but modify the code to
+        // reflect how ARM FP registers alias.
+        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
+        if (type == wasm::kWasmF32) {
+          int float_reg_code = reg.code() * 2;
+          DCHECK_GT(RegisterConfiguration::kMaxFPRegisters, float_reg_code);
+          return LinkageLocation::ForRegister(
+              DoubleRegister::from_code(float_reg_code).code(), mach_type);
+        }
+#endif
+        return LinkageLocation::ForRegister(reg.code(), mach_type);
+      }
+    } else if (allocator_.has_more_gp_regs()) {
+      return LinkageLocation::ForRegister(allocator_.NextGpReg().code(),
+                                          mach_type);
+    }
+    // Cannot use register; use stack slot.
+    int index = -1 - allocator_.NextStackSlot(type);
+    return LinkageLocation::ForCallerFrameSlot(index, mach_type);
+  }
+
+  void SetStackOffset(int offset) { allocator_.SetStackOffset(offset); }
+  int NumStackSlots() const { return allocator_.NumStackSlots(); }
+
+ private:
+  wasm::LinkageAllocator allocator_;
+};
+}  // namespace
+
+// General code uses the above configuration data.
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
+                                      bool use_retpoline) {
+  // The '+ 1' here is to accomodate the instance object as first parameter.
+  LocationSignature::Builder locations(zone, fsig->return_count(),
+                                       fsig->parameter_count() + 1);
+
+  // Add register and/or stack parameter(s).
+  LinkageLocationAllocator params(wasm::kGpParamRegisters,
+                                  wasm::kFpParamRegisters);
+
+  // The instance object.
+  locations.AddParam(params.Next(MachineRepresentation::kTaggedPointer));
+
+  const int parameter_count = static_cast<int>(fsig->parameter_count());
+  for (int i = 0; i < parameter_count; i++) {
+    wasm::ValueType param = fsig->GetParam(i);
+    auto l = params.Next(param);
+    locations.AddParam(l);
+  }
+
+  // Add return location(s).
+  LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
+                                wasm::kFpReturnRegisters);
+  rets.SetStackOffset(params.NumStackSlots());
+
+  const int return_count = static_cast<int>(locations.return_count_);
+  for (int i = 0; i < return_count; i++) {
+    wasm::ValueType ret = fsig->GetReturn(i);
+    auto l = rets.Next(ret);
+    locations.AddReturn(l);
+  }
+
+  const RegList kCalleeSaveRegisters = 0;
+  const RegList kCalleeSaveFPRegisters = 0;
+
+  // The target for wasm calls is always a code object.
+  MachineType target_type = MachineType::Pointer();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+
+  CallDescriptor::Kind kind = CallDescriptor::kCallWasmFunction;
+
+  CallDescriptor::Flags flags =
+      use_retpoline ? CallDescriptor::kRetpoline : CallDescriptor::kNoFlags;
+  return new (zone) CallDescriptor(                    // --
+      kind,                                            // kind
+      target_type,                                     // target MachineType
+      target_loc,                                      // target location
+      locations.Build(),                               // location_sig
+      params.NumStackSlots(),                          // stack_parameter_count
+      compiler::Operator::kNoProperties,               // properties
+      kCalleeSaveRegisters,                            // callee-saved registers
+      kCalleeSaveFPRegisters,                          // callee-saved fp regs
+      flags,                                           // flags
+      "wasm-call",                                     // debug name
+      0,                                               // allocatable registers
+      rets.NumStackSlots() - params.NumStackSlots());  // stack_return_count
+}
+
+namespace {
+CallDescriptor* ReplaceTypeInCallDescriptorWith(
+    Zone* zone, CallDescriptor* call_descriptor, size_t num_replacements,
+    MachineType input_type, MachineRepresentation output_type) {
+  size_t parameter_count = call_descriptor->ParameterCount();
+  size_t return_count = call_descriptor->ReturnCount();
+  for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
+    if (call_descriptor->GetParameterType(i) == input_type) {
+      parameter_count += num_replacements - 1;
+    }
+  }
+  for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
+    if (call_descriptor->GetReturnType(i) == input_type) {
+      return_count += num_replacements - 1;
+    }
+  }
+  if (parameter_count == call_descriptor->ParameterCount() &&
+      return_count == call_descriptor->ReturnCount()) {
+    return call_descriptor;
+  }
+
+  LocationSignature::Builder locations(zone, return_count, parameter_count);
+
+  LinkageLocationAllocator params(wasm::kGpParamRegisters,
+                                  wasm::kFpParamRegisters);
+  for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
+    if (call_descriptor->GetParameterType(i) == input_type) {
+      for (size_t j = 0; j < num_replacements; j++) {
+        locations.AddParam(params.Next(output_type));
+      }
+    } else {
+      locations.AddParam(
+          params.Next(call_descriptor->GetParameterType(i).representation()));
+    }
+  }
+
+  LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
+                                wasm::kFpReturnRegisters);
+  rets.SetStackOffset(params.NumStackSlots());
+  for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
+    if (call_descriptor->GetReturnType(i) == input_type) {
+      for (size_t j = 0; j < num_replacements; j++) {
+        locations.AddReturn(rets.Next(output_type));
+      }
+    } else {
+      locations.AddReturn(
+          rets.Next(call_descriptor->GetReturnType(i).representation()));
+    }
+  }
+
+  return new (zone) CallDescriptor(                    // --
+      call_descriptor->kind(),                         // kind
+      call_descriptor->GetInputType(0),                // target MachineType
+      call_descriptor->GetInputLocation(0),            // target location
+      locations.Build(),                               // location_sig
+      params.NumStackSlots(),                          // stack_parameter_count
+      call_descriptor->properties(),                   // properties
+      call_descriptor->CalleeSavedRegisters(),         // callee-saved registers
+      call_descriptor->CalleeSavedFPRegisters(),       // callee-saved fp regs
+      call_descriptor->flags(),                        // flags
+      call_descriptor->debug_name(),                   // debug name
+      call_descriptor->AllocatableRegisters(),         // allocatable registers
+      rets.NumStackSlots() - params.NumStackSlots());  // stack_return_count
+}
+}  // namespace
+
+CallDescriptor* GetI32WasmCallDescriptor(Zone* zone,
+                                         CallDescriptor* call_descriptor) {
+  return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 2,
+                                         MachineType::Int64(),
+                                         MachineRepresentation::kWord32);
+}
+
+CallDescriptor* GetI32WasmCallDescriptorForSimd(
+    Zone* zone, CallDescriptor* call_descriptor) {
+  return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 4,
+                                         MachineType::Simd128(),
+                                         MachineRepresentation::kWord32);
 }
 
 #undef WASM_64

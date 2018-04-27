@@ -8,7 +8,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 
 #include "test/cctest/cctest.h"

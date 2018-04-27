@@ -9,7 +9,6 @@
 #include "src/base/iterator.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-interface.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/trap-handler/trap-handler.h"

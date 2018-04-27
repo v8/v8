@@ -11,7 +11,6 @@
 #include "src/debug/debug.h"
 #include "src/frame-constants.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/trap-handler/trap-handler.h"

@@ -5,22 +5,18 @@
 #include "src/signature.h"
 
 #include "src/base/platform/elapsed-timer.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/flags.h"
 #include "src/handles.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
-#include "src/zone/zone-containers.h"
-
+#include "src/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
-
-#include "src/ostreams.h"
-
-#include "src/compiler/wasm-compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -106,7 +102,7 @@ class WasmGraphBuildingInterface {
         static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
     // Initialize the instance parameter (index 0).
     builder_->set_instance_node(
-        builder_->Param(compiler::kWasmInstanceParameterIndex));
+        builder_->Param(wasm::kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
     // the instance parameter.
     uint32_t index = 0;
