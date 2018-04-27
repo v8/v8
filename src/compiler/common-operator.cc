@@ -347,9 +347,9 @@ RegionObservability RegionObservabilityOf(Operator const* op) {
   return OpParameter<RegionObservability>(op);
 }
 
-Type* TypeGuardTypeOf(Operator const* op) {
+Type TypeGuardTypeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
-  return OpParameter<Type*>(op);
+  return OpParameter<Type>(op);
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -1227,8 +1227,8 @@ const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
       rep);                                              // parameter
 }
 
-const Operator* CommonOperatorBuilder::TypeGuard(Type* type) {
-  return new (zone()) Operator1<Type*>(       // --
+const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
+  return new (zone()) Operator1<Type>(        // --
       IrOpcode::kTypeGuard, Operator::kPure,  // opcode
       "TypeGuard",                            // name
       1, 1, 1, 1, 1, 0,                       // counts

@@ -4071,7 +4071,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
   Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
   // Our ElementsKind is HOLEY_ELEMENTS.
   ElementAccess access = AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS);
-  Type* value_type = ValueTypeParameterOf(node->op());
+  Type value_type = ValueTypeParameterOf(node->op());
   if (value_type->Is(Type::BooleanOrNullOrUndefined())) {
     access.type = value_type;
     access.write_barrier_kind = kNoWriteBarrier;

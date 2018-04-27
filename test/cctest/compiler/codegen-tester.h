@@ -297,22 +297,22 @@ class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
 // and return a pointer value.
 // TODO(titzer): pick word size of pointers based on V8_TARGET.
 template <typename Type>
-class PointerBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
+class PointerBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
  public:
   explicit PointerBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
-                                                MachineType::Pointer()) {}
+      : BinopTester<Type, USE_RETURN_REGISTER>(tester, MachineType::Pointer()) {
+  }
 };
 
 
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
 template <typename Type>
-class TaggedBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
+class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
  public:
   explicit TaggedBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
-                                                MachineType::AnyTagged()) {}
+      : BinopTester<Type, USE_RETURN_REGISTER>(tester,
+                                               MachineType::AnyTagged()) {}
 };
 
 // A helper class for testing compares. Wraps a machine opcode and provides

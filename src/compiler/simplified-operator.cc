@@ -366,19 +366,19 @@ namespace {
 class TransitionAndStoreNonNumberElementParameters final {
  public:
   TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
-                                               Type* value_type);
+                                               Type value_type);
 
   Handle<Map> fast_map() const { return fast_map_; }
-  Type* value_type() const { return value_type_; }
+  Type value_type() const { return value_type_; }
 
  private:
   Handle<Map> const fast_map_;
-  Type* value_type_;
+  Type value_type_;
 };
 
 TransitionAndStoreNonNumberElementParameters::
     TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
-                                                 Type* value_type)
+                                                 Type value_type)
     : fast_map_(fast_map), value_type_(value_type) {}
 
 bool operator==(TransitionAndStoreNonNumberElementParameters const& lhs,
@@ -444,7 +444,7 @@ Handle<Map> DoubleMapParameterOf(const Operator* op) {
   return Handle<Map>::null();
 }
 
-Type* ValueTypeParameterOf(const Operator* op) {
+Type ValueTypeParameterOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kTransitionAndStoreNonNumberElement, op->opcode());
   return OpParameter<TransitionAndStoreNonNumberElementParameters>(op)
       .value_type();
@@ -544,7 +544,7 @@ PretenureFlag PretenureFlagOf(const Operator* op) {
   return OpParameter<AllocateParameters>(op).pretenure();
 }
 
-Type* AllocateTypeOf(const Operator* op) {
+Type AllocateTypeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
   return OpParameter<AllocateParameters>(op).type();
 }
@@ -1426,7 +1426,7 @@ int NewArgumentsElementsMappedCountOf(const Operator* op) {
   return OpParameter<int>(op);
 }
 
-const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
+const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
                                                     PretenureFlag pretenure) {
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocate,
@@ -1435,7 +1435,7 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type* type, PretenureFlag pretenure) {
+    Type type, PretenureFlag pretenure) {
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocateRaw,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
@@ -1529,7 +1529,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNumberElement(
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
-    Handle<Map> fast_map, Type* value_type) {
+    Handle<Map> fast_map, Type value_type) {
   TransitionAndStoreNonNumberElementParameters parameters(fast_map, value_type);
   return new (zone()) Operator1<TransitionAndStoreNonNumberElementParameters>(
       IrOpcode::kTransitionAndStoreNonNumberElement,

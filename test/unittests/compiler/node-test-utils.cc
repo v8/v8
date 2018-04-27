@@ -819,7 +819,7 @@ class IsSpeculativeBinopMatcher final : public TestNodeMatcher {
 
  private:
   const Matcher<NumberOperationHint> hint_matcher_;
-  const Matcher<Type*> type_matcher_;
+  const Matcher<Type> type_matcher_;
   const Matcher<Node*> lhs_matcher_;
   const Matcher<Node*> rhs_matcher_;
   const Matcher<Node*> effect_matcher_;

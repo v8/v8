@@ -184,9 +184,9 @@ Reduction JSCreateLowering::Reduce(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreate, node->opcode());
   Node* const target = NodeProperties::GetValueInput(node, 0);
-  Type* const target_type = NodeProperties::GetType(target);
+  Type const target_type = NodeProperties::GetType(target);
   Node* const new_target = NodeProperties::GetValueInput(node, 1);
-  Type* const new_target_type = NodeProperties::GetType(new_target);
+  Type const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
@@ -476,7 +476,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   Node* const closure = NodeProperties::GetValueInput(node, 0);
   Node* const receiver = NodeProperties::GetValueInput(node, 1);
   Node* const context = NodeProperties::GetContextInput(node);
-  Type* const closure_type = NodeProperties::GetType(closure);
+  Type const closure_type = NodeProperties::GetType(closure);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   if (closure_type->IsHeapConstant()) {
@@ -698,7 +698,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
   int const arity = static_cast<int>(p.arity());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Type* new_target_type = NodeProperties::GetType(new_target);
+  Type new_target_type = NodeProperties::GetType(new_target);
   Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
                                    : jsgraph()->HeapConstant(site);
 
@@ -763,9 +763,9 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   Handle<JSFunction> constructor(native_context()->array_function(), isolate());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Type* new_target_type = (target == new_target)
-                              ? Type::HeapConstant(constructor, zone())
-                              : NodeProperties::GetType(new_target);
+  Type new_target_type = (target == new_target)
+                             ? Type::HeapConstant(constructor, zone())
+                             : NodeProperties::GetType(new_target);
 
   // Extract original constructor function.
   if (new_target_type->IsHeapConstant() &&
@@ -811,7 +811,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         return ReduceNewArray(node, length, capacity, initial_map, pretenure);
       } else if (arity == 1) {
         Node* length = NodeProperties::GetValueInput(node, 2);
-        Type* length_type = NodeProperties::GetType(length);
+        Type length_type = NodeProperties::GetType(length);
         if (!length_type->Maybe(Type::Number())) {
           // Handle the single argument case, where we know that the value
           // cannot be a valid Array length.
@@ -841,7 +841,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         values.reserve(p.arity());
         for (int i = 0; i < arity; ++i) {
           Node* value = NodeProperties::GetValueInput(node, 2 + i);
-          Type* value_type = NodeProperties::GetType(value);
+          Type value_type = NodeProperties::GetType(value);
           if (!value_type->Is(Type::SignedSmall())) {
             values_all_smis = false;
           }

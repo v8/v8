@@ -75,7 +75,7 @@ class TypedGraphTest : public GraphTest {
 
  protected:
   Node* Parameter(int32_t index = 0) { return GraphTest::Parameter(index); }
-  Node* Parameter(Type* type, int32_t index = 0);
+  Node* Parameter(Type type, int32_t index = 0);
 
   Typer* typer() { return &typer_; }
 

@@ -45,7 +45,7 @@ struct FieldAccess {
   int offset;                     // offset of the field, without tag.
   MaybeHandle<Name> name;         // debugging only.
   MaybeHandle<Map> map;           // map of the field value (if known).
-  Type* type;                     // type of the field.
+  Type type;                      // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
@@ -57,7 +57,7 @@ struct FieldAccess {
         write_barrier_kind(kFullWriteBarrier) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
-              MaybeHandle<Map> map, Type* type, MachineType machine_type,
+              MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind)
       : base_is_tagged(base_is_tagged),
         offset(offset),
@@ -90,7 +90,7 @@ void Operator1<FieldAccess>::PrintParameter(std::ostream& os,
 struct ElementAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int header_size;                // size of the header, without tag.
-  Type* type;                     // type of the element.
+  Type type;                      // type of the element.
   MachineType machine_type;       // machine type of the element.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
@@ -101,7 +101,7 @@ struct ElementAccess {
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier) {}
 
-  ElementAccess(BaseTaggedness base_is_tagged, int header_size, Type* type,
+  ElementAccess(BaseTaggedness base_is_tagged, int header_size, Type type,
                 MachineType machine_type, WriteBarrierKind write_barrier_kind)
       : base_is_tagged(base_is_tagged),
         header_size(header_size),
@@ -370,7 +370,7 @@ Handle<Map> DoubleMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 Handle<Map> FastMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreNonNumberElement.
-Type* ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+Type ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -415,14 +415,14 @@ bool IsRestLengthOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
-  AllocateParameters(Type* type, PretenureFlag pretenure)
+  AllocateParameters(Type type, PretenureFlag pretenure)
       : type_(type), pretenure_(pretenure) {}
 
-  Type* type() const { return type_; }
+  Type type() const { return type_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
-  Type* type_;
+  Type type_;
   PretenureFlag pretenure_;
 };
 
@@ -436,7 +436,7 @@ bool operator==(AllocateParameters const&, AllocateParameters const&);
 
 PretenureFlag PretenureFlagOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-Type* AllocateTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+Type AllocateTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 UnicodeEncoding UnicodeEncodingOf(const Operator*) V8_WARN_UNUSED_RESULT;
 
@@ -693,9 +693,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);
 
-  const Operator* Allocate(Type* type, PretenureFlag pretenure = NOT_TENURED);
-  const Operator* AllocateRaw(Type* type,
-                              PretenureFlag pretenure = NOT_TENURED);
+  const Operator* Allocate(Type type, PretenureFlag pretenure = NOT_TENURED);
+  const Operator* AllocateRaw(Type type, PretenureFlag pretenure = NOT_TENURED);
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
@@ -718,7 +717,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   // store-element [base + index], object value, only with fast arrays.
   const Operator* TransitionAndStoreNonNumberElement(Handle<Map> fast_map,
-                                                     Type* value_type);
+                                                     Type value_type);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);

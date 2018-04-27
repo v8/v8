@@ -135,7 +135,7 @@ bool IsWord(MachineRepresentation rep) {
 // out signedness for the word32->float64 conversion, then we check that the
 // uses truncate to word32 (so they do not care about signedness).
 Node* RepresentationChanger::GetRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
   if (output_rep == MachineRepresentation::kNone && !output_type->IsNone()) {
     // The output representation should be set if the type is inhabited (i.e.,
@@ -200,7 +200,7 @@ Node* RepresentationChanger::GetRepresentationFor(
 }
 
 Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
@@ -321,7 +321,7 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
 }
 
 Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
@@ -393,7 +393,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
 }
 
 Node* RepresentationChanger::GetTaggedRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Truncation truncation) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
@@ -475,9 +475,8 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   return jsgraph()->graph()->NewNode(op, node);
 }
 
-
 Node* RepresentationChanger::GetFloat32RepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Truncation truncation) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
@@ -536,7 +535,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
 }
 
 Node* RepresentationChanger::GetFloat64RepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
   if ((use_info.type_check() == TypeCheckKind::kNone)) {
@@ -609,7 +608,7 @@ Node* RepresentationChanger::MakeTruncatedInt32Constant(double value) {
 }
 
 Node* RepresentationChanger::GetWord32RepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
@@ -756,9 +755,8 @@ Node* RepresentationChanger::InsertConversion(Node* node, const Operator* op,
   return jsgraph()->graph()->NewNode(op, node);
 }
 
-
 Node* RepresentationChanger::GetBitRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type) {
+    Node* node, MachineRepresentation output_rep, Type output_type) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
@@ -820,7 +818,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
 }
 
 Node* RepresentationChanger::GetWord64RepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type) {
+    Node* node, MachineRepresentation output_rep, Type output_type) {
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     return jsgraph()->graph()->NewNode(
@@ -1049,10 +1047,9 @@ const Operator* RepresentationChanger::Float64OperatorFor(
   }
 }
 
-
 Node* RepresentationChanger::TypeError(Node* node,
                                        MachineRepresentation output_rep,
-                                       Type* output_type,
+                                       Type output_type,
                                        MachineRepresentation use) {
   type_error_ = true;
   if (!testing_type_errors_) {

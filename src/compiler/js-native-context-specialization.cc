@@ -522,7 +522,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
 namespace {
 
 FieldAccess ForPropertyCellValue(MachineRepresentation representation,
-                                 Type* type, MaybeHandle<Map> map,
+                                 Type type, MaybeHandle<Map> map,
                                  Handle<Name> name) {
   WriteBarrierKind kind = kFullWriteBarrier;
   if (representation == MachineRepresentation::kTaggedSigned) {
@@ -610,7 +610,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       } else {
         // Load from constant type cell can benefit from type feedback.
         MaybeHandle<Map> map;
-        Type* property_cell_value_type = Type::NonInternal();
+        Type property_cell_value_type = Type::NonInternal();
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_details.cell_type() == PropertyCellType::kConstantType) {
           // Compute proper type based on the current value in the cell.
@@ -667,7 +667,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // values' type doesn't match the type of the previous value in the
         // cell.
         dependencies()->AssumePropertyCell(property_cell);
-        Type* property_cell_value_type;
+        Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value->IsHeapObject()) {
           // We cannot do anything if the {property_cell_value}s map is no
@@ -1859,7 +1859,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     FieldIndex const field_index = access_info.field_index();
-    Type* const field_type = access_info.field_type();
+    Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
         access_info.field_representation();
     Node* storage = receiver;
@@ -2420,7 +2420,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // Compute the element access.
-    Type* element_type = Type::NonInternal();
+    Type element_type = Type::NonInternal();
     MachineType element_machine_type = MachineType::AnyTagged();
     if (IsDoubleElementsKind(elements_kind)) {
       element_type = Type::Number();

@@ -502,7 +502,7 @@ int OffsetOfFieldAccess(const Operator* op) {
 Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
-  Type* index_type = NodeProperties::GetType(index_node);
+  Type index_type = NodeProperties::GetType(index_node);
   if (!index_type->Is(Type::OrderedNumber())) return Nothing<int>();
   double max = index_type->Max();
   double min = index_type->Min();
@@ -669,7 +669,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           vobject->FieldAt(HeapObject::kMapOffset).To(&map_field) &&
           current->Get(map_field).To(&map)) {
         if (map) {
-          Type* const map_type = NodeProperties::GetType(map);
+          Type const map_type = NodeProperties::GetType(map);
           if (map_type->IsHeapConstant() &&
               params.maps().contains(
                   bit_cast<Handle<Map>>(map_type->AsHeapConstant()->Value()))) {

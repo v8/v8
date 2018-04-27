@@ -42,7 +42,7 @@ Reduction TypedOptimization::Reduce(Node* node) {
     // side-effect, may it be a JavaScript observable side-effect or a possible
     // eager deoptimization exit (i.e. {node} has an operator that doesn't have
     // the Operator::kNoDeopt property).
-    Type* upper = NodeProperties::GetType(node);
+    Type upper = NodeProperties::GetType(node);
     if (!upper->IsNone()) {
       if (upper->IsHeapConstant()) {
         Node* replacement =
@@ -126,7 +126,7 @@ Reduction TypedOptimization::Reduce(Node* node) {
 
 namespace {
 
-MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
+MaybeHandle<Map> GetStableMapFromObjectType(Type object_type) {
   if (object_type->IsHeapConstant()) {
     Handle<Map> object_map(object_type->AsHeapConstant()->Value()->map());
     if (object_map->is_stable()) return object_map;
@@ -138,7 +138,7 @@ MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
 
 Reduction TypedOptimization::ReduceConvertReceiver(Node* node) {
   Node* const value = NodeProperties::GetValueInput(node, 0);
-  Type* const value_type = NodeProperties::GetType(value);
+  Type const value_type = NodeProperties::GetType(value);
   Node* const global_proxy = NodeProperties::GetValueInput(node, 1);
   if (value_type->Is(Type::Receiver())) {
     ReplaceWithValue(node, value);
@@ -152,7 +152,7 @@ Reduction TypedOptimization::ReduceConvertReceiver(Node* node) {
 
 Reduction TypedOptimization::ReduceCheckHeapObject(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (!input_type->Maybe(Type::SignedSmall())) {
     ReplaceWithValue(node, input);
     return Replace(input);
@@ -162,7 +162,7 @@ Reduction TypedOptimization::ReduceCheckHeapObject(Node* node) {
 
 Reduction TypedOptimization::ReduceCheckNotTaggedHole(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (!input_type->Maybe(Type::Hole())) {
     ReplaceWithValue(node, input);
     return Replace(input);
@@ -177,13 +177,13 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   //  (2) we can add a code dependency on the stability of map
   //      (to guard the Constant type information).
   Node* const object = NodeProperties::GetValueInput(node, 0);
-  Type* const object_type = NodeProperties::GetType(object);
+  Type const object_type = NodeProperties::GetType(object);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Handle<Map> object_map;
   if (GetStableMapFromObjectType(object_type).ToHandle(&object_map)) {
     for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
       Node* const map = NodeProperties::GetValueInput(node, i);
-      Type* const map_type = NodeProperties::GetType(map);
+      Type const map_type = NodeProperties::GetType(map);
       if (map_type->IsHeapConstant() &&
           map_type->AsHeapConstant()->Value().is_identical_to(object_map)) {
         if (object_map->CanTransition()) {
@@ -198,7 +198,7 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
 
 Reduction TypedOptimization::ReduceCheckNumber(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Number())) {
     ReplaceWithValue(node, input);
     return Replace(input);
@@ -208,7 +208,7 @@ Reduction TypedOptimization::ReduceCheckNumber(Node* node) {
 
 Reduction TypedOptimization::ReduceCheckString(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::String())) {
     ReplaceWithValue(node, input);
     return Replace(input);
@@ -218,9 +218,9 @@ Reduction TypedOptimization::ReduceCheckString(Node* node) {
 
 Reduction TypedOptimization::ReduceCheckEqualsInternalizedString(Node* node) {
   Node* const exp = NodeProperties::GetValueInput(node, 0);
-  Type* const exp_type = NodeProperties::GetType(exp);
+  Type const exp_type = NodeProperties::GetType(exp);
   Node* const val = NodeProperties::GetValueInput(node, 1);
-  Type* const val_type = NodeProperties::GetType(val);
+  Type const val_type = NodeProperties::GetType(val);
   Node* const effect = NodeProperties::GetEffectInput(node);
   if (val_type->Is(exp_type)) return Replace(effect);
   // TODO(turbofan): Should we also try to optimize the
@@ -230,9 +230,9 @@ Reduction TypedOptimization::ReduceCheckEqualsInternalizedString(Node* node) {
 
 Reduction TypedOptimization::ReduceCheckEqualsSymbol(Node* node) {
   Node* const exp = NodeProperties::GetValueInput(node, 0);
-  Type* const exp_type = NodeProperties::GetType(exp);
+  Type const exp_type = NodeProperties::GetType(exp);
   Node* const val = NodeProperties::GetValueInput(node, 1);
-  Type* const val_type = NodeProperties::GetType(val);
+  Type const val_type = NodeProperties::GetType(val);
   Node* const effect = NodeProperties::GetEffectInput(node);
   if (val_type->Is(exp_type)) return Replace(effect);
   return NoChange();
@@ -240,7 +240,7 @@ Reduction TypedOptimization::ReduceCheckEqualsSymbol(Node* node) {
 
 Reduction TypedOptimization::ReduceLoadField(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
-  Type* const object_type = NodeProperties::GetType(object);
+  Type const object_type = NodeProperties::GetType(object);
   FieldAccess const& access = FieldAccessOf(node->op());
   if (access.base_is_tagged == kTaggedBase &&
       access.offset == HeapObject::kMapOffset) {
@@ -264,7 +264,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
 
 Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
     return Replace(input);
   }
@@ -272,9 +272,9 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
       (input->opcode() == IrOpcode::kNumberDivide ||
        input->opcode() == IrOpcode::kSpeculativeNumberDivide)) {
     Node* const lhs = NodeProperties::GetValueInput(input, 0);
-    Type* const lhs_type = NodeProperties::GetType(lhs);
+    Type const lhs_type = NodeProperties::GetType(lhs);
     Node* const rhs = NodeProperties::GetValueInput(input, 1);
-    Type* const rhs_type = NodeProperties::GetType(rhs);
+    Type const rhs_type = NodeProperties::GetType(rhs);
     if (lhs_type->Is(Type::Unsigned32()) && rhs_type->Is(Type::Unsigned32())) {
       // We can replace
       //
@@ -299,7 +299,7 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
 
 Reduction TypedOptimization::ReduceNumberRoundop(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
     return Replace(input);
   }
@@ -308,7 +308,7 @@ Reduction TypedOptimization::ReduceNumberRoundop(Node* node) {
 
 Reduction TypedOptimization::ReduceNumberToUint8Clamped(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kUint8)) {
     return Replace(input);
   }
@@ -321,12 +321,12 @@ Reduction TypedOptimization::ReducePhi(Node* node) {
   // precise type than the JSAdd that was in the graph when the Typer was run.
   DCHECK_EQ(IrOpcode::kPhi, node->opcode());
   int arity = node->op()->ValueInputCount();
-  Type* type = NodeProperties::GetType(node->InputAt(0));
+  Type type = NodeProperties::GetType(node->InputAt(0));
   for (int i = 1; i < arity; ++i) {
     type = Type::Union(type, NodeProperties::GetType(node->InputAt(i)),
                        graph()->zone());
   }
-  Type* const node_type = NodeProperties::GetType(node);
+  Type const node_type = NodeProperties::GetType(node);
   if (!node_type->Is(type)) {
     type = Type::Intersect(node_type, type, graph()->zone());
     NodeProperties::SetType(node, type);
@@ -339,8 +339,8 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
   DCHECK_EQ(IrOpcode::kReferenceEqual, node->opcode());
   Node* const lhs = NodeProperties::GetValueInput(node, 0);
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
-  Type* const lhs_type = NodeProperties::GetType(lhs);
-  Type* const rhs_type = NodeProperties::GetType(rhs);
+  Type const lhs_type = NodeProperties::GetType(lhs);
+  Type const rhs_type = NodeProperties::GetType(rhs);
   if (!lhs_type->Maybe(rhs_type)) {
     Node* replacement = jsgraph()->FalseConstant();
     // Make sure we do not widen the type.
@@ -409,7 +409,7 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
 
   const Operator* comparison_op = NumberComparisonFor(comparison->op());
   Node* from_char_code_repl = NodeProperties::GetValueInput(from_char_code, 0);
-  Type* from_char_code_repl_type = NodeProperties::GetType(from_char_code_repl);
+  Type from_char_code_repl_type = NodeProperties::GetType(from_char_code_repl);
   if (!from_char_code_repl_type->Is(type_cache_.kUint16)) {
     // Convert to signed int32 to satisfy type of {NumberBitwiseAnd}.
     from_char_code_repl =
@@ -452,8 +452,8 @@ Reduction TypedOptimization::ReduceStringComparison(Node* node) {
     if (rhs->opcode() == IrOpcode::kStringFromSingleCharCode) {
       Node* left = NodeProperties::GetValueInput(lhs, 0);
       Node* right = NodeProperties::GetValueInput(rhs, 0);
-      Type* left_type = NodeProperties::GetType(left);
-      Type* right_type = NodeProperties::GetType(right);
+      Type left_type = NodeProperties::GetType(left);
+      Type right_type = NodeProperties::GetType(right);
       if (!left_type->Is(type_cache_.kUint16)) {
         // Convert to signed int32 to satisfy type of {NumberBitwiseAnd}.
         left = graph()->NewNode(simplified()->NumberToInt32(), left);
@@ -487,8 +487,8 @@ Reduction TypedOptimization::ReduceSameValue(Node* node) {
   DCHECK_EQ(IrOpcode::kSameValue, node->opcode());
   Node* const lhs = NodeProperties::GetValueInput(node, 0);
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
-  Type* const lhs_type = NodeProperties::GetType(lhs);
-  Type* const rhs_type = NodeProperties::GetType(rhs);
+  Type const lhs_type = NodeProperties::GetType(lhs);
+  Type const rhs_type = NodeProperties::GetType(rhs);
   if (lhs == rhs) {
     // SameValue(x,x) => #true
     return Replace(jsgraph()->TrueConstant());
@@ -532,11 +532,11 @@ Reduction TypedOptimization::ReduceSameValue(Node* node) {
 Reduction TypedOptimization::ReduceSelect(Node* node) {
   DCHECK_EQ(IrOpcode::kSelect, node->opcode());
   Node* const condition = NodeProperties::GetValueInput(node, 0);
-  Type* const condition_type = NodeProperties::GetType(condition);
+  Type const condition_type = NodeProperties::GetType(condition);
   Node* const vtrue = NodeProperties::GetValueInput(node, 1);
-  Type* const vtrue_type = NodeProperties::GetType(vtrue);
+  Type const vtrue_type = NodeProperties::GetType(vtrue);
   Node* const vfalse = NodeProperties::GetValueInput(node, 2);
-  Type* const vfalse_type = NodeProperties::GetType(vfalse);
+  Type const vfalse_type = NodeProperties::GetType(vfalse);
   if (condition_type->Is(true_type_)) {
     // Select(condition:true, vtrue, vfalse) => vtrue
     return Replace(vtrue);
@@ -557,8 +557,8 @@ Reduction TypedOptimization::ReduceSelect(Node* node) {
   }
   // Try to narrow the type of the Select {node}, which might be more precise
   // now after lowering based on types.
-  Type* type = Type::Union(vtrue_type, vfalse_type, graph()->zone());
-  Type* const node_type = NodeProperties::GetType(node);
+  Type type = Type::Union(vtrue_type, vfalse_type, graph()->zone());
+  Type const node_type = NodeProperties::GetType(node);
   if (!node_type->Is(type)) {
     type = Type::Intersect(node_type, type, graph()->zone());
     NodeProperties::SetType(node, type);
@@ -570,7 +570,7 @@ Reduction TypedOptimization::ReduceSelect(Node* node) {
 Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
   DCHECK_EQ(IrOpcode::kSpeculativeToNumber, node->opcode());
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Number())) {
     // SpeculativeToNumber(x:number) => x
     ReplaceWithValue(node, input);
@@ -581,7 +581,7 @@ Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
 
 Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   Node* const input = node->InputAt(0);
-  Type* const type = NodeProperties::GetType(input);
+  Type const type = NodeProperties::GetType(input);
   Factory* const f = factory();
   if (type->Is(Type::Boolean())) {
     return Replace(jsgraph()->Constant(f->boolean_string()));
@@ -609,7 +609,7 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
 
 Reduction TypedOptimization::ReduceToBoolean(Node* node) {
   Node* const input = node->InputAt(0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Boolean())) {
     // ToBoolean(x:boolean) => x
     return Replace(input);

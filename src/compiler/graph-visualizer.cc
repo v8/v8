@@ -169,7 +169,7 @@ class JSONGraphNodeWriter {
         << node->op()->EffectOutputCount() << " eff "
         << node->op()->ControlOutputCount() << " ctrl out\"";
     if (NodeProperties::IsTyped(node)) {
-      Type* type = NodeProperties::GetType(node);
+      Type type = NodeProperties::GetType(node);
       std::ostringstream type_out;
       type->PrintTo(type_out);
       os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
@@ -400,7 +400,7 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
 
 void GraphC1Visualizer::PrintType(Node* node) {
   if (NodeProperties::IsTyped(node)) {
-    Type* type = NodeProperties::GetType(node);
+    Type type = NodeProperties::GetType(node);
     os_ << " type:";
     type->PrintTo(os_);
   }

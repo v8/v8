@@ -54,7 +54,7 @@ class Verifier::Visitor {
       FATAL("%s", str.str().c_str());
     }
   }
-  void CheckTypeIs(Node* node, Type* type) {
+  void CheckTypeIs(Node* node, Type type) {
     if (typing == TYPED && !NodeProperties::GetType(node)->Is(type)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
@@ -65,7 +65,7 @@ class Verifier::Visitor {
       FATAL("%s", str.str().c_str());
     }
   }
-  void CheckTypeMaybe(Node* node, Type* type) {
+  void CheckTypeMaybe(Node* node, Type type) {
     if (typing == TYPED && !NodeProperties::GetType(node)->Maybe(type)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
@@ -76,7 +76,7 @@ class Verifier::Visitor {
       FATAL("%s", str.str().c_str());
     }
   }
-  void CheckValueInputIs(Node* node, int i, Type* type) {
+  void CheckValueInputIs(Node* node, int i, Type type) {
     Node* input = NodeProperties::GetValueInput(node, i);
     if (typing == TYPED && !NodeProperties::GetType(input)->Is(type)) {
       std::ostringstream str;
@@ -1272,8 +1272,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeTaggedSignedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Signed32(), Type::Tagged());
-      // Type* to = Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
+      // Type from = Type::Intersect(Type::Signed32(), Type::Tagged());
+      // Type to = Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1281,8 +1281,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeTaggedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Signed32(), Type::Tagged());
-      // Type* to = Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
+      // Type from = Type::Intersect(Type::Signed32(), Type::Tagged());
+      // Type to = Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1290,8 +1290,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeTaggedToUint32: {
       // Unsigned32 /\ Tagged -> Unsigned32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Unsigned32(), Type::Tagged());
-      // Type* to =Type::Intersect(Type::Unsigned32(), Type::UntaggedInt32());
+      // Type from = Type::Intersect(Type::Unsigned32(), Type::Tagged());
+      // Type to =Type::Intersect(Type::Unsigned32(), Type::UntaggedInt32());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1299,8 +1299,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Number(), Type::Tagged());
-      // Type* to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
+      // Type from = Type::Intersect(Type::Number(), Type::Tagged());
+      // Type to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1310,9 +1310,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTruncateTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::NumberOrUndefined(),
+      // Type from = Type::Intersect(Type::NumberOrUndefined(),
       // Type::Tagged());
-      // Type* to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
+      // Type to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1320,8 +1320,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeInt31ToTaggedSigned: {
       // Signed31 /\ UntaggedInt32 -> Signed31 /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from =Type::Intersect(Type::Signed31(), Type::UntaggedInt32());
-      // Type* to = Type::Intersect(Type::Signed31(), Type::Tagged());
+      // Type from =Type::Intersect(Type::Signed31(), Type::UntaggedInt32());
+      // Type to = Type::Intersect(Type::Signed31(), Type::Tagged());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1329,8 +1329,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeInt32ToTagged: {
       // Signed32 /\ UntaggedInt32 -> Signed32 /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from =Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
-      // Type* to = Type::Intersect(Type::Signed32(), Type::Tagged());
+      // Type from =Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
+      // Type to = Type::Intersect(Type::Signed32(), Type::Tagged());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1338,8 +1338,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeUint32ToTagged: {
       // Unsigned32 /\ UntaggedInt32 -> Unsigned32 /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from=Type::Intersect(Type::Unsigned32(),Type::UntaggedInt32());
-      // Type* to = Type::Intersect(Type::Unsigned32(), Type::Tagged());
+      // Type from=Type::Intersect(Type::Unsigned32(),Type::UntaggedInt32());
+      // Type to = Type::Intersect(Type::Unsigned32(), Type::Tagged());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1347,8 +1347,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeFloat64ToTagged: {
       // Number /\ UntaggedFloat64 -> Number /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from =Type::Intersect(Type::Number(), Type::UntaggedFloat64());
-      // Type* to = Type::Intersect(Type::Number(), Type::Tagged());
+      // Type from =Type::Intersect(Type::Number(), Type::UntaggedFloat64());
+      // Type to = Type::Intersect(Type::Number(), Type::Tagged());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1358,8 +1358,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeTaggedToBit: {
       // Boolean /\ TaggedPtr -> Boolean /\ UntaggedInt1
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Boolean(), Type::TaggedPtr());
-      // Type* to = Type::Intersect(Type::Boolean(), Type::UntaggedInt1());
+      // Type from = Type::Intersect(Type::Boolean(), Type::TaggedPtr());
+      // Type to = Type::Intersect(Type::Boolean(), Type::UntaggedInt1());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1367,8 +1367,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeBitToTagged: {
       // Boolean /\ UntaggedInt1 -> Boolean /\ TaggedPtr
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Boolean(), Type::UntaggedInt1());
-      // Type* to = Type::Intersect(Type::Boolean(), Type::TaggedPtr());
+      // Type from = Type::Intersect(Type::Boolean(), Type::UntaggedInt1());
+      // Type to = Type::Intersect(Type::Boolean(), Type::TaggedPtr());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;
@@ -1376,8 +1376,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTruncateTaggedToWord32: {
       // Number /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
-      // Type* from = Type::Intersect(Type::Number(), Type::Tagged());
-      // Type* to = Type::Intersect(Type::Number(), Type::UntaggedInt32());
+      // Type from = Type::Intersect(Type::Number(), Type::Tagged());
+      // Type to = Type::Intersect(Type::Number(), Type::UntaggedInt32());
       // CheckValueInputIs(node, 0, from));
       // CheckTypeIs(node, to));
       break;

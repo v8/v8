@@ -955,7 +955,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     // Kill all potential knowledge about the {object}s map.
     state = state->KillMaps(object, zone());
-    Type* const new_value_type = NodeProperties::GetType(new_value);
+    Type const new_value_type = NodeProperties::GetType(new_value);
     if (new_value_type->IsHeapConstant()) {
       // Record the new {object} map information.
       ZoneHandleSet<Map> object_maps(

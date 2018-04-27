@@ -128,8 +128,8 @@ Reduction ValueNumberingReducer::ReplaceIfTypesMatch(Node* node,
                                                      Node* replacement) {
   // Make sure the replacement has at least as good type as the original node.
   if (NodeProperties::IsTyped(replacement) && NodeProperties::IsTyped(node)) {
-    Type* replacement_type = NodeProperties::GetType(replacement);
-    Type* node_type = NodeProperties::GetType(node);
+    Type replacement_type = NodeProperties::GetType(replacement);
+    Type node_type = NodeProperties::GetType(node);
     if (!replacement_type->Is(node_type)) {
       // Ideally, we would set an intersection of {replacement_type} and
       // {node_type} here. However, typing of NumberConstants assigns different

@@ -50,7 +50,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   BinaryOperationHint const binop_hints = BinaryOperationHint::kAny;
   CompareOperationHint const compare_hints = CompareOperationHint::kAny;
 
-  Node* Parameter(Type* t, int32_t index = 0) {
+  Node* Parameter(Type t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
     NodeProperties::SetType(n, t);
     return n;
@@ -111,11 +111,11 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     CHECK_EQ(expected->opcode(), node->op()->opcode());
   }
 
-  Node* ReduceUnop(const Operator* op, Type* input_type) {
+  Node* ReduceUnop(const Operator* op, Type input_type) {
     return reduce(Unop(op, Parameter(input_type)));
   }
 
-  Node* ReduceBinop(const Operator* op, Type* left_type, Type* right_type) {
+  Node* ReduceBinop(const Operator* op, Type left_type, Type right_type) {
     return reduce(Binop(op, Parameter(left_type, 0), Parameter(right_type, 1)));
   }
 
@@ -186,22 +186,20 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 };
 
-static Type* kStringTypes[] = {Type::InternalizedString(), Type::String()};
+static Type kStringTypes[] = {Type::InternalizedString(), Type::String()};
 
-static Type* kInt32Types[] = {Type::UnsignedSmall(), Type::Negative32(),
-                              Type::Unsigned31(),    Type::SignedSmall(),
-                              Type::Signed32(),      Type::Unsigned32(),
-                              Type::Integral32()};
+static Type kInt32Types[] = {Type::UnsignedSmall(), Type::Negative32(),
+                             Type::Unsigned31(),    Type::SignedSmall(),
+                             Type::Signed32(),      Type::Unsigned32(),
+                             Type::Integral32()};
 
-
-static Type* kNumberTypes[] = {
+static Type kNumberTypes[] = {
     Type::UnsignedSmall(), Type::Negative32(),  Type::Unsigned31(),
     Type::SignedSmall(),   Type::Signed32(),    Type::Unsigned32(),
     Type::Integral32(),    Type::MinusZero(),   Type::NaN(),
     Type::OrderedNumber(), Type::PlainNumber(), Type::Number()};
 
-
-static Type* I32Type(bool is_signed) {
+static Type I32Type(bool is_signed) {
   return is_signed ? Type::Signed32() : Type::Unsigned32();
 }
 
@@ -277,9 +275,9 @@ TEST(NumberBinops) {
 
 
 static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
-  Type* old_type = NodeProperties::GetType(old_input);
-  Type* new_type = NodeProperties::GetType(new_input);
-  Type* expected_type = I32Type(is_signed);
+  Type old_type = NodeProperties::GetType(old_input);
+  Type new_type = NodeProperties::GetType(new_input);
+  Type expected_type = I32Type(is_signed);
   CHECK(new_type->Is(expected_type));
   if (old_type->Is(expected_type)) {
     CHECK_EQ(old_input, new_input);
@@ -318,7 +316,7 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
 TEST(Int32BitwiseShifts) {
   JSBitwiseShiftTypedLoweringTester R;
 
-  Type* types[] = {
+  Type types[] = {
       Type::SignedSmall(), Type::UnsignedSmall(), Type::Negative32(),
       Type::Unsigned31(),  Type::Unsigned32(),    Type::Signed32(),
       Type::MinusZero(),   Type::NaN(),           Type::Undefined(),
@@ -374,7 +372,7 @@ class JSBitwiseTypedLoweringTester : public JSTypedLoweringTester {
 TEST(Int32BitwiseBinops) {
   JSBitwiseTypedLoweringTester R;
 
-  Type* types[] = {
+  Type types[] = {
       Type::SignedSmall(),   Type::UnsignedSmall(), Type::Unsigned32(),
       Type::Signed32(),      Type::MinusZero(),     Type::NaN(),
       Type::OrderedNumber(), Type::PlainNumber(),   Type::Undefined(),
@@ -425,7 +423,7 @@ TEST(JSToNumber1) {
 TEST(JSToNumber_replacement) {
   JSTypedLoweringTester R;
 
-  Type* types[] = {Type::Null(), Type::Undefined(), Type::Number()};
+  Type types[] = {Type::Null(), Type::Undefined(), Type::Number()};
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* n = R.Parameter(types[i]);
@@ -480,11 +478,11 @@ TEST(JSToNumberOfConstant) {
 
 TEST(JSToNumberOfNumberOrOtherPrimitive) {
   JSTypedLoweringTester R;
-  Type* others[] = {Type::Undefined(), Type::Null(), Type::Boolean(),
-                    Type::String()};
+  Type others[] = {Type::Undefined(), Type::Null(), Type::Boolean(),
+                   Type::String()};
 
   for (size_t i = 0; i < arraysize(others); i++) {
-    Type* t = Type::Union(Type::Number(), others[i], R.main_zone());
+    Type t = Type::Union(Type::Number(), others[i], R.main_zone());
     Node* r = R.ReduceUnop(R.javascript.ToNumber(), t);
     CHECK_EQ(IrOpcode::kPlainPrimitiveToNumber, r->opcode());
   }
@@ -536,7 +534,7 @@ TEST(JSToString1) {
 TEST(JSToString_replacement) {
   JSTypedLoweringTester R;
 
-  Type* types[] = {Type::Null(), Type::Undefined(), Type::String()};
+  Type types[] = {Type::Null(), Type::Undefined(), Type::String()};
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* n = R.Parameter(types[i]);
@@ -645,8 +643,8 @@ TEST(NumberComparison) {
 TEST(MixedComparison1) {
   JSTypedLoweringTester R;
 
-  Type* types[] = {Type::Number(), Type::String(),
-                   Type::Union(Type::Number(), Type::String(), R.main_zone())};
+  Type types[] = {Type::Number(), Type::String(),
+                  Type::Union(Type::Number(), Type::String(), R.main_zone())};
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* p0 = R.Parameter(types[i], 0);
@@ -741,7 +739,7 @@ TEST(RemoveToNumberEffects) {
 // Helper class for testing the reduction of a single binop.
 class BinopEffectsTester {
  public:
-  BinopEffectsTester(const Operator* op, Type* t0, Type* t1)
+  BinopEffectsTester(const Operator* op, Type t0, Type t1)
       : R(0),
         p0(R.Parameter(t0, 0)),
         p1(R.Parameter(t1, 1)),
@@ -816,10 +814,9 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
 TEST(EqualityForNumbers) {
   JSTypedLoweringTester R;
 
-  Type* simple_number_types[] = {Type::UnsignedSmall(), Type::SignedSmall(),
-                                 Type::Signed32(), Type::Unsigned32(),
-                                 Type::Number()};
-
+  Type simple_number_types[] = {Type::UnsignedSmall(), Type::SignedSmall(),
+                                Type::Signed32(), Type::Unsigned32(),
+                                Type::Number()};
 
   for (size_t i = 0; i < arraysize(simple_number_types); ++i) {
     Node* p0 = R.Parameter(simple_number_types[i], 0);
@@ -837,8 +834,8 @@ TEST(EqualityForNumbers) {
 TEST(StrictEqualityForRefEqualTypes) {
   JSTypedLoweringTester R;
 
-  Type* types[] = {Type::Undefined(), Type::Null(), Type::Boolean(),
-                   Type::Object(), Type::Receiver()};
+  Type types[] = {Type::Undefined(), Type::Null(), Type::Boolean(),
+                  Type::Object(), Type::Receiver()};
 
   Node* p0 = R.Parameter(Type::Any());
   for (size_t i = 0; i < arraysize(types); i++) {
@@ -1055,11 +1052,11 @@ TEST(Int32Comparisons) {
 
   for (size_t o = 0; o < arraysize(ops); o++) {
     for (size_t i = 0; i < arraysize(kNumberTypes); i++) {
-      Type* t0 = kNumberTypes[i];
+      Type t0 = kNumberTypes[i];
       Node* p0 = R.Parameter(t0, 0);
 
       for (size_t j = 0; j < arraysize(kNumberTypes); j++) {
-        Type* t1 = kNumberTypes[j];
+        Type t1 = kNumberTypes[j];
         Node* p1 = R.Parameter(t1, 1);
 
         Node* cmp = R.Binop(ops[o].js_op, p0, p1);

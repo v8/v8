@@ -532,7 +532,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
     for (Node* node : *block) {
       os << "  " << *node;
       if (NodeProperties::IsTyped(node)) {
-        Type* type = NodeProperties::GetType(node);
+        Type type = NodeProperties::GetType(node);
         os << " : ";
         type->PrintTo(os);
       }

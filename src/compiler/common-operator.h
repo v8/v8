@@ -347,7 +347,7 @@ RegionObservability RegionObservabilityOf(Operator const*)
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
-Type* TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
+Type TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
@@ -502,7 +502,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TailCall(const CallDescriptor* call_descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
-  const Operator* TypeGuard(Type* type);
+  const Operator* TypeGuard(Type type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.

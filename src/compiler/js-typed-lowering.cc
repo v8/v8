@@ -213,7 +213,7 @@ class JSBinopReduction final {
 
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}.
-  Reduction ChangeToPureOperator(const Operator* op, Type* type = Type::Any()) {
+  Reduction ChangeToPureOperator(const Operator* op, Type type = Type::Any()) {
     DCHECK_EQ(0, op->EffectInputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, op->ControlInputCount());
@@ -230,13 +230,13 @@ class JSBinopReduction final {
 
     // TODO(jarin): Replace the explicit typing hack with a call to some method
     // that encapsulates changing the operator and re-typing.
-    Type* node_type = NodeProperties::GetType(node_);
+    Type node_type = NodeProperties::GetType(node_);
     NodeProperties::SetType(node_, Type::Intersect(node_type, type, zone()));
 
     return lowering_->Changed(node_);
   }
 
-  Reduction ChangeToSpeculativeOperator(const Operator* op, Type* upper_bound) {
+  Reduction ChangeToSpeculativeOperator(const Operator* op, Type upper_bound) {
     DCHECK_EQ(1, op->EffectInputCount());
     DCHECK_EQ(1, op->EffectOutputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
@@ -263,7 +263,7 @@ class JSBinopReduction final {
     NodeProperties::ChangeOp(node_, op);
 
     // Update the type to number.
-    Type* node_type = NodeProperties::GetType(node_);
+    Type node_type = NodeProperties::GetType(node_);
     NodeProperties::SetType(node_,
                             Type::Intersect(node_type, upper_bound, zone()));
 
@@ -327,23 +327,23 @@ class JSBinopReduction final {
     UNREACHABLE();
   }
 
-  bool LeftInputIs(Type* t) { return left_type()->Is(t); }
+  bool LeftInputIs(Type t) { return left_type()->Is(t); }
 
-  bool RightInputIs(Type* t) { return right_type()->Is(t); }
+  bool RightInputIs(Type t) { return right_type()->Is(t); }
 
-  bool OneInputIs(Type* t) { return LeftInputIs(t) || RightInputIs(t); }
+  bool OneInputIs(Type t) { return LeftInputIs(t) || RightInputIs(t); }
 
-  bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
+  bool BothInputsAre(Type t) { return LeftInputIs(t) && RightInputIs(t); }
 
-  bool BothInputsMaybe(Type* t) {
+  bool BothInputsMaybe(Type t) {
     return left_type()->Maybe(t) && right_type()->Maybe(t);
   }
 
-  bool OneInputCannotBe(Type* t) {
+  bool OneInputCannotBe(Type t) {
     return !left_type()->Maybe(t) || !right_type()->Maybe(t);
   }
 
-  bool NeitherInputCanBe(Type* t) {
+  bool NeitherInputCanBe(Type t) {
     return !left_type()->Maybe(t) && !right_type()->Maybe(t);
   }
 
@@ -352,9 +352,9 @@ class JSBinopReduction final {
   Node* context() { return NodeProperties::GetContextInput(node_); }
   Node* left() { return NodeProperties::GetValueInput(node_, 0); }
   Node* right() { return NodeProperties::GetValueInput(node_, 1); }
-  Type* left_type() { return NodeProperties::GetType(node_->InputAt(0)); }
-  Type* right_type() { return NodeProperties::GetType(node_->InputAt(1)); }
-  Type* type() { return NodeProperties::GetType(node_); }
+  Type left_type() { return NodeProperties::GetType(node_->InputAt(0)); }
+  Type right_type() { return NodeProperties::GetType(node_->InputAt(1)); }
+  Type type() { return NodeProperties::GetType(node_); }
 
   SimplifiedOperatorBuilder* simplified() { return lowering_->simplified(); }
   Graph* graph() const { return lowering_->graph(); }
@@ -380,7 +380,7 @@ class JSBinopReduction final {
 
   Node* ConvertToUI32(Node* node, Signedness signedness) {
     // Avoid introducing too many eager NumberToXXnt32() operations.
-    Type* type = NodeProperties::GetType(node);
+    Type type = NodeProperties::GetType(node);
     if (signedness == kSigned) {
       if (!type->Is(Type::Signed32())) {
         node = graph()->NewNode(simplified()->NumberToInt32(), node);
@@ -434,7 +434,7 @@ Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::PlainPrimitive())) {
     // JSBitwiseNot(x) => NumberBitwiseXor(ToInt32(x), -1)
     node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
@@ -449,7 +449,7 @@ Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSDecrement(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::PlainPrimitive())) {
     // JSDecrement(x) => NumberSubtract(ToNumber(x), 1)
     node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
@@ -464,7 +464,7 @@ Reduction JSTypedLowering::ReduceJSDecrement(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSIncrement(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::PlainPrimitive())) {
     // JSIncrement(x) => NumberAdd(ToNumber(x), 1)
     node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
@@ -480,7 +480,7 @@ Reduction JSTypedLowering::ReduceJSIncrement(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::PlainPrimitive())) {
     // JSNegate(x) => NumberMultiply(ToNumber(x), -1)
     node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
@@ -650,7 +650,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Make sure {first} is actually a String.
-  Type* first_type = NodeProperties::GetType(first);
+  Type first_type = NodeProperties::GetType(first);
   if (!first_type->Is(Type::String())) {
     first = effect = graph()->NewNode(
         simplified()->CheckString(VectorSlotPair()), first, effect, control);
@@ -658,7 +658,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   }
 
   // Make sure {second} is actually a String.
-  Type* second_type = NodeProperties::GetType(second);
+  Type second_type = NodeProperties::GetType(second);
   if (!second_type->Is(Type::String())) {
     second = effect = graph()->NewNode(
         simplified()->CheckString(VectorSlotPair()), second, effect, control);
@@ -921,7 +921,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZero)) {
     // JSToInteger(x:integer) => x
     ReplaceWithValue(node, input);
@@ -932,7 +932,7 @@ Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSToName(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Name())) {
     // JSToName(x:name) => x
     ReplaceWithValue(node, input);
@@ -943,7 +943,7 @@ Reduction JSTypedLowering::ReduceJSToName(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZero)) {
     if (input_type->IsNone() || input_type->Max() <= 0.0) {
       input = jsgraph()->ZeroConstant();
@@ -968,7 +968,7 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
 Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
   // Try constant-folding of JSToNumber/JSToNumeric with constant inputs. Here
   // we only cover cases where ToNumber and ToNumeric coincide.
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::String())) {
     HeapObjectMatcher m(input);
     if (m.HasValue() && m.Value()->IsString()) {
@@ -1007,12 +1007,12 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumeric(Node* node) {
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
   }
-  Type* const input_type = NodeProperties::GetType(input);
+  Type const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::PlainPrimitive())) {
     RelaxEffectsAndControls(node);
     node->TrimInputCount(1);
     // For a PlainPrimitive, ToNumeric is the same as ToNumber.
-    Type* node_type = NodeProperties::GetType(node);
+    Type node_type = NodeProperties::GetType(node);
     NodeProperties::SetType(
         node, Type::Intersect(node_type, Type::Number(), graph()->zone()));
     NodeProperties::ChangeOp(node, simplified()->PlainPrimitiveToNumber());
@@ -1029,7 +1029,7 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
     if (result.Changed()) return result;
     return Changed(input);  // JSToString(JSToString(x)) => JSToString(x)
   }
-  Type* input_type = NodeProperties::GetType(input);
+  Type input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::String())) {
     return Changed(input);  // JSToString(x:string) => x
   }
@@ -1076,7 +1076,7 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
 Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSToObject, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Type* receiver_type = NodeProperties::GetType(receiver);
+  Type receiver_type = NodeProperties::GetType(receiver);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1139,7 +1139,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
 Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Type* receiver_type = NodeProperties::GetType(receiver);
+  Type receiver_type = NodeProperties::GetType(receiver);
   Handle<Name> name = NamedAccessOf(node->op()).name();
   // Optimize "length" property of strings.
   if (name.is_identical_to(factory()->length_string()) &&
@@ -1154,7 +1154,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
 Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   DCHECK_EQ(IrOpcode::kJSHasInPrototypeChain, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
+  Type value_type = NodeProperties::GetType(value);
   Node* prototype = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
@@ -1296,9 +1296,9 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
 Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   DCHECK_EQ(IrOpcode::kJSOrdinaryHasInstance, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
-  Type* constructor_type = NodeProperties::GetType(constructor);
+  Type constructor_type = NodeProperties::GetType(constructor);
   Node* object = NodeProperties::GetValueInput(node, 1);
-  Type* object_type = NodeProperties::GetType(object);
+  Type object_type = NodeProperties::GetType(object);
 
   // Check if the {constructor} cannot be callable.
   // See ES6 section 7.3.19 OrdinaryHasInstance ( C, O ) step 1.
@@ -1372,7 +1372,7 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
 
   int32_t cell_index = OpParameter<int32_t>(node->op());
   Node* module = NodeProperties::GetValueInput(node, 0);
-  Type* module_type = NodeProperties::GetType(module);
+  Type module_type = NodeProperties::GetType(module);
 
   if (module_type->IsHeapConstant()) {
     Handle<Module> module_constant =
@@ -1524,7 +1524,7 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
   int const arity = static_cast<int>(p.arity() - 2);
   int const start_index = static_cast<int>(p.start_index());
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Type* target_type = NodeProperties::GetType(target);
+  Type target_type = NodeProperties::GetType(target);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
 
   // Check if {target} is a JSFunction.
@@ -1559,7 +1559,7 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   DCHECK_LE(2u, p.arity());
   int const arity = static_cast<int>(p.arity() - 2);
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Type* target_type = NodeProperties::GetType(target);
+  Type target_type = NodeProperties::GetType(target);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
 
   // Check if {target} is a known JSFunction.
@@ -1605,7 +1605,7 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   int const arity = static_cast<int>(p.arity() - 2);
   int const start_index = static_cast<int>(p.start_index());
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Type* target_type = NodeProperties::GetType(target);
+  Type target_type = NodeProperties::GetType(target);
 
   // Check if {target} is a JSFunction.
   if (target_type->Is(Type::Function())) {
@@ -1633,9 +1633,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   int const arity = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Type* target_type = NodeProperties::GetType(target);
+  Type target_type = NodeProperties::GetType(target);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Type* receiver_type = NodeProperties::GetType(receiver);
+  Type receiver_type = NodeProperties::GetType(receiver);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -2119,7 +2119,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreInputOrDebugPos(Node* node) {
 
 Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
+  Type value_type = NodeProperties::GetType(value);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -2222,9 +2222,9 @@ Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
+  Type value_type = NodeProperties::GetType(value);
   Node* radix = NodeProperties::GetValueInput(node, 1);
-  Type* radix_type = NodeProperties::GetType(radix);
+  Type radix_type = NodeProperties::GetType(radix);
   if (value_type->Is(type_cache_.kSafeInteger) &&
       radix_type->Is(type_cache_.kZeroOrTenOrUndefined)) {
     // Number.parseInt(a:safe-integer) -> a

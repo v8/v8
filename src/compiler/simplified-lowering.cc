@@ -211,7 +211,7 @@ class InputUseInfos {
 
 #endif  // DEBUG
 
-bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
+bool CanOverflowSigned32(const Operator* op, Type left, Type right,
                          Zone* type_zone) {
   // We assume the inputs are checked Signed32 (or known statically
   // to be Signed32). Technically, the inputs could also be minus zero, but
@@ -234,7 +234,7 @@ bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
   return true;
 }
 
-bool IsSomePositiveOrderedNumber(Type* type) {
+bool IsSomePositiveOrderedNumber(Type type) {
   return type->Is(Type::OrderedNumber()) && !type->IsNone() && type->Min() > 0;
 }
 
@@ -266,12 +266,12 @@ class RepresentationSelector {
     MachineRepresentation representation() const { return representation_; }
 
     // Helpers for feedback typing.
-    void set_feedback_type(Type* type) { feedback_type_ = type; }
-    Type* feedback_type() const { return feedback_type_; }
+    void set_feedback_type(Type type) { feedback_type_ = type; }
+    Type feedback_type() const { return feedback_type_; }
     void set_weakened() { weakened_ = true; }
     bool weakened() const { return weakened_; }
-    void set_restriction_type(Type* type) { restriction_type_ = type; }
-    Type* restriction_type() const { return restriction_type_; }
+    void set_restriction_type(Type type) { restriction_type_ = type; }
+    Type restriction_type() const { return restriction_type_; }
 
    private:
     enum State : uint8_t { kUnvisited, kPushed, kVisited, kQueued };
@@ -280,8 +280,8 @@ class RepresentationSelector {
         MachineRepresentation::kNone;             // Output representation.
     Truncation truncation_ = Truncation::None();  // Information about uses.
 
-    Type* restriction_type_ = Type::Any();
-    Type* feedback_type_ = nullptr;
+    Type restriction_type_ = Type::Any();
+    Type feedback_type_;
     bool weakened_ = false;
   };
 
@@ -385,26 +385,26 @@ class RepresentationSelector {
     }
   }
 
-  Type* TypeOf(Node* node) {
-    Type* type = GetInfo(node)->feedback_type();
-    return type == nullptr ? NodeProperties::GetType(node) : type;
+  Type TypeOf(Node* node) {
+    Type type = GetInfo(node)->feedback_type();
+    return type.IsInvalid() ? NodeProperties::GetType(node) : type;
   }
 
-  Type* FeedbackTypeOf(Node* node) {
-    Type* type = GetInfo(node)->feedback_type();
-    return type == nullptr ? Type::None() : type;
+  Type FeedbackTypeOf(Node* node) {
+    Type type = GetInfo(node)->feedback_type();
+    return type.IsInvalid() ? Type::None() : type;
   }
 
-  Type* TypePhi(Node* node) {
+  Type TypePhi(Node* node) {
     int arity = node->op()->ValueInputCount();
-    Type* type = FeedbackTypeOf(node->InputAt(0));
+    Type type = FeedbackTypeOf(node->InputAt(0));
     for (int i = 1; i < arity; ++i) {
       type = op_typer_.Merge(type, FeedbackTypeOf(node->InputAt(i)));
     }
     return type;
   }
 
-  Type* TypeSelect(Node* node) {
+  Type TypeSelect(Node* node) {
     return op_typer_.Merge(FeedbackTypeOf(node->InputAt(1)),
                            FeedbackTypeOf(node->InputAt(2)));
   }
@@ -413,15 +413,15 @@ class RepresentationSelector {
     if (node->op()->ValueOutputCount() == 0) return false;
 
     NodeInfo* info = GetInfo(node);
-    Type* type = info->feedback_type();
-    Type* new_type = type;
+    Type type = info->feedback_type();
+    Type new_type = type;
 
     // For any non-phi node just wait until we get all inputs typed. We only
     // allow untyped inputs for phi nodes because phis are the only places
     // where cycles need to be broken.
     if (node->opcode() != IrOpcode::kPhi) {
       for (int i = 0; i < node->op()->ValueInputCount(); i++) {
-        if (GetInfo(node->InputAt(i))->feedback_type() == nullptr) {
+        if (GetInfo(node->InputAt(i))->feedback_type().IsInvalid()) {
           return false;
         }
       }
@@ -489,7 +489,7 @@ class RepresentationSelector {
 
       case IrOpcode::kPhi: {
         new_type = TypePhi(node);
-        if (type != nullptr) {
+        if (!type.IsInvalid()) {
           new_type = Weaken(node, type, new_type);
         }
         break;
@@ -513,7 +513,7 @@ class RepresentationSelector {
 
       default:
         // Shortcut for operations that we do not handle.
-        if (type == nullptr) {
+        if (type.IsInvalid()) {
           GetInfo(node)->set_feedback_type(NodeProperties::GetType(node));
           return true;
         }
@@ -525,7 +525,7 @@ class RepresentationSelector {
     // really sure, just intersect the upper bound with the feedback type.
     new_type = Type::Intersect(GetUpperBound(node), new_type, graph_zone());
 
-    if (type != nullptr && new_type->Is(type)) return false;
+    if (!type.IsInvalid() && new_type->Is(type)) return false;
     GetInfo(node)->set_feedback_type(new_type);
     if (FLAG_trace_representation) {
       PrintNodeFeedbackType(node);
@@ -544,10 +544,10 @@ class RepresentationSelector {
     os << ")";
     if (NodeProperties::IsTyped(n)) {
       os << "  [Static type: ";
-      Type* static_type = NodeProperties::GetType(n);
+      Type static_type = NodeProperties::GetType(n);
       static_type->PrintTo(os);
-      Type* feedback_type = GetInfo(n)->feedback_type();
-      if (feedback_type != nullptr && feedback_type != static_type) {
+      Type feedback_type = GetInfo(n)->feedback_type();
+      if (!feedback_type.IsInvalid() && feedback_type != static_type) {
         os << ", Feedback type: ";
         feedback_type->PrintTo(os);
       }
@@ -556,18 +556,17 @@ class RepresentationSelector {
     os << std::endl;
   }
 
-  Type* Weaken(Node* node, Type* previous_type, Type* current_type) {
+  Type Weaken(Node* node, Type previous_type, Type current_type) {
     // If the types have nothing to do with integers, return the types.
-    Type* const integer = type_cache_.kInteger;
+    Type const integer = type_cache_.kInteger;
     if (!previous_type->Maybe(integer)) {
       return current_type;
     }
     DCHECK(current_type->Maybe(integer));
 
-    Type* current_integer =
-        Type::Intersect(current_type, integer, graph_zone());
+    Type current_integer = Type::Intersect(current_type, integer, graph_zone());
     DCHECK(!current_integer->IsNone());
-    Type* previous_integer =
+    Type previous_integer =
         Type::Intersect(previous_type, integer, graph_zone());
     DCHECK(!previous_integer->IsNone());
 
@@ -576,9 +575,9 @@ class RepresentationSelector {
       // Only weaken if there is range involved; we should converge quickly
       // for all other types (the exception is a union of many constants,
       // but we currently do not increase the number of constants in unions).
-      Type* previous = previous_integer->GetRange();
-      Type* current = current_integer->GetRange();
-      if (current == nullptr || previous == nullptr) {
+      Type previous = previous_integer->GetRange();
+      Type current = current_integer->GetRange();
+      if (current.IsInvalid() || previous.IsInvalid()) {
         return current_type;
       }
       // Range is involved => we are weakening.
@@ -692,7 +691,7 @@ class RepresentationSelector {
   bool propagate() const { return phase_ == PROPAGATE; }
 
   void SetOutput(Node* node, MachineRepresentation representation,
-                 Type* restriction_type = Type::Any()) {
+                 Type restriction_type = Type::Any()) {
     NodeInfo* const info = GetInfo(node);
     switch (phase_) {
       case PROPAGATE:
@@ -711,14 +710,14 @@ class RepresentationSelector {
     }
   }
 
-  Type* GetUpperBound(Node* node) { return NodeProperties::GetType(node); }
+  Type GetUpperBound(Node* node) { return NodeProperties::GetType(node); }
 
-  bool InputCannotBe(Node* node, Type* type) {
+  bool InputCannotBe(Node* node, Type type) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
     return !GetUpperBound(node->InputAt(0))->Maybe(type);
   }
 
-  bool InputIs(Node* node, Type* type) {
+  bool InputIs(Node* node, Type type) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
     return GetUpperBound(node->InputAt(0))->Is(type);
   }
@@ -731,7 +730,7 @@ class RepresentationSelector {
     return BothInputsAre(node, Type::Unsigned32());
   }
 
-  bool BothInputsAre(Node* node, Type* type) {
+  bool BothInputsAre(Node* node, Type type) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     return GetUpperBound(node->InputAt(0))->Is(type) &&
            GetUpperBound(node->InputAt(1))->Is(type);
@@ -742,7 +741,7 @@ class RepresentationSelector {
     return IsAnyTagged(representation);
   }
 
-  bool OneInputCannotBe(Node* node, Type* type) {
+  bool OneInputCannotBe(Node* node, Type type) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     return !GetUpperBound(node->InputAt(0))->Maybe(type) ||
            !GetUpperBound(node->InputAt(1))->Maybe(type);
@@ -752,7 +751,7 @@ class RepresentationSelector {
   // assuming the type of the input is {input_type}. If {input_type} is null,
   // it takes the input from the input node {TypeOf(node->InputAt(index))}.
   void ConvertInput(Node* node, int index, UseInfo use,
-                    Type* input_type = nullptr) {
+                    Type input_type = Type::Invalid()) {
     Node* input = node->InputAt(index);
     // In the change phase, insert a change before the use if necessary.
     if (use.representation() == MachineRepresentation::kNone)
@@ -770,7 +769,7 @@ class RepresentationSelector {
       TRACE(" to ");
       PrintUseInfo(use);
       TRACE("\n");
-      if (input_type == nullptr) {
+      if (input_type.IsInvalid()) {
         input_type = TypeOf(input);
       }
       Node* n = changer_->GetRepresentationFor(
@@ -864,7 +863,7 @@ class RepresentationSelector {
   // Helper for binops of the R x L -> O variety.
   void VisitBinop(Node* node, UseInfo left_use, UseInfo right_use,
                   MachineRepresentation output,
-                  Type* restriction_type = Type::Any()) {
+                  Type restriction_type = Type::Any()) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     ProcessInput(node, 0, left_use);
     ProcessInput(node, 1, right_use);
@@ -876,7 +875,7 @@ class RepresentationSelector {
 
   // Helper for binops of the I x I -> O variety.
   void VisitBinop(Node* node, UseInfo input_use, MachineRepresentation output,
-                  Type* restriction_type = Type::Any()) {
+                  Type restriction_type = Type::Any()) {
     VisitBinop(node, input_use, input_use, output, restriction_type);
   }
 
@@ -893,7 +892,7 @@ class RepresentationSelector {
 
   // Helper for unops of the I -> O variety.
   void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output,
-                 Type* restriction_type = Type::Any()) {
+                 Type restriction_type = Type::Any()) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
     ProcessInput(node, 0, input_use);
     ProcessRemainingInputs(node, 1);
@@ -920,7 +919,7 @@ class RepresentationSelector {
   // The {node} parameter is only used to decide on the int64 representation.
   // Once the type system supports an external pointer type, the {node}
   // parameter can be removed.
-  MachineRepresentation GetOutputInfoForPhi(Node* node, Type* type,
+  MachineRepresentation GetOutputInfoForPhi(Node* node, Type type,
                                             Truncation use) {
     // Compute the representation.
     if (type->Is(Type::None())) {
@@ -998,8 +997,8 @@ class RepresentationSelector {
     }
   }
 
-  void VisitObjectIs(Node* node, Type* type, SimplifiedLowering* lowering) {
-    Type* const input_type = TypeOf(node->InputAt(0));
+  void VisitObjectIs(Node* node, Type type, SimplifiedLowering* lowering) {
+    Type const input_type = TypeOf(node->InputAt(0));
     if (input_type->Is(type)) {
       VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
       if (lower()) {
@@ -1013,7 +1012,7 @@ class RepresentationSelector {
     }
   }
 
-  void VisitCheck(Node* node, Type* type, SimplifiedLowering* lowering) {
+  void VisitCheck(Node* node, Type type, SimplifiedLowering* lowering) {
     if (InputIs(node, type)) {
       VisitUnop(node, UseInfo::AnyTagged(),
                 MachineRepresentation::kTaggedPointer);
@@ -1051,7 +1050,7 @@ class RepresentationSelector {
     }
   }
 
-  static MachineSemantic DeoptValueSemanticOf(Type* type) {
+  static MachineSemantic DeoptValueSemanticOf(Type type) {
     // We only need signedness to do deopt correctly.
     if (type->Is(Type::Signed32())) {
       return MachineSemantic::kInt32;
@@ -1062,7 +1061,7 @@ class RepresentationSelector {
     }
   }
 
-  static MachineType DeoptMachineTypeOf(MachineRepresentation rep, Type* type) {
+  static MachineType DeoptMachineTypeOf(MachineRepresentation rep, Type type) {
     if (type->IsNone()) {
       return MachineType::None();
     }
@@ -1187,11 +1186,11 @@ class RepresentationSelector {
 
   WriteBarrierKind WriteBarrierKindFor(
       BaseTaggedness base_taggedness,
-      MachineRepresentation field_representation, Type* field_type,
+      MachineRepresentation field_representation, Type field_type,
       MachineRepresentation value_representation, Node* value) {
     if (base_taggedness == kTaggedBase &&
         CanBeTaggedPointer(field_representation)) {
-      Type* value_type = NodeProperties::GetType(value);
+      Type value_type = NodeProperties::GetType(value);
       if (field_representation == MachineRepresentation::kTaggedSigned ||
           value_representation == MachineRepresentation::kTaggedSigned) {
         // Write barriers are only for stores of heap objects.
@@ -1236,7 +1235,7 @@ class RepresentationSelector {
   WriteBarrierKind WriteBarrierKindFor(
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, int field_offset,
-      Type* field_type, MachineRepresentation value_representation,
+      Type field_type, MachineRepresentation value_representation,
       Node* value) {
     WriteBarrierKind write_barrier_kind =
         WriteBarrierKindFor(base_taggedness, field_representation, field_type,
@@ -1257,7 +1256,7 @@ class RepresentationSelector {
   }
 
   void LowerToCheckedInt32Mul(Node* node, Truncation truncation,
-                              Type* input0_type, Type* input1_type) {
+                              Type input0_type, Type input1_type) {
     // If one of the inputs is positive and/or truncation is being applied,
     // there is no need to return -0.
     CheckForMinusZeroMode mz_mode =
@@ -1280,8 +1279,8 @@ class RepresentationSelector {
 
   void VisitSpeculativeIntegerAdditiveOp(Node* node, Truncation truncation,
                                          SimplifiedLowering* lowering) {
-    Type* left_upper = GetUpperBound(node->InputAt(0));
-    Type* right_upper = GetUpperBound(node->InputAt(1));
+    Type left_upper = GetUpperBound(node->InputAt(0));
+    Type right_upper = GetUpperBound(node->InputAt(1));
 
     if (left_upper->Is(type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
         right_upper->Is(type_cache_.kAdditiveSafeIntegerOrMinusZero)) {
@@ -1308,8 +1307,8 @@ class RepresentationSelector {
     DCHECK(hint == NumberOperationHint::kSignedSmall ||
            hint == NumberOperationHint::kSigned32);
 
-    Type* left_feedback_type = TypeOf(node->InputAt(0));
-    Type* right_feedback_type = TypeOf(node->InputAt(1));
+    Type left_feedback_type = TypeOf(node->InputAt(0));
+    Type right_feedback_type = TypeOf(node->InputAt(1));
     // Handle the case when no int32 checks on inputs are necessary (but
     // an overflow check is needed on the output). Note that we do not
     // have to do any check if at most one side can be minus zero.
@@ -1606,8 +1605,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberEqual: {
-        Type* const lhs_type = TypeOf(node->InputAt(0));
-        Type* const rhs_type = TypeOf(node->InputAt(1));
+        Type const lhs_type = TypeOf(node->InputAt(0));
+        Type const rhs_type = TypeOf(node->InputAt(1));
         // Number comparisons reduce to integer comparisons for integer inputs.
         if ((lhs_type->Is(Type::Unsigned32()) &&
              rhs_type->Is(Type::Unsigned32())) ||
@@ -1772,8 +1771,8 @@ class RepresentationSelector {
         }
         // Try to use type feedback.
         NumberOperationHint hint = NumberOperationHintOf(node->op());
-        Type* input0_type = TypeOf(node->InputAt(0));
-        Type* input1_type = TypeOf(node->InputAt(1));
+        Type input0_type = TypeOf(node->InputAt(0));
+        Type input1_type = TypeOf(node->InputAt(1));
 
         // Handle the case when no int32 checks on inputs are necessary
         // (but an overflow check is needed on the output).
@@ -1993,7 +1992,7 @@ class RepresentationSelector {
         }
         return;
       case IrOpcode::kNumberShiftLeft: {
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        Type rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         if (lower()) {
@@ -2003,7 +2002,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kSpeculativeNumberShiftLeft: {
         if (BothInputsAre(node, Type::NumberOrOddball())) {
-          Type* rhs_type = GetUpperBound(node->InputAt(1));
+          Type rhs_type = GetUpperBound(node->InputAt(1));
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
@@ -2013,7 +2012,7 @@ class RepresentationSelector {
           return;
         }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        Type rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                    MachineRepresentation::kWord32, Type::Signed32());
         if (lower()) {
@@ -2022,7 +2021,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberShiftRight: {
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        Type rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         if (lower()) {
@@ -2032,7 +2031,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kSpeculativeNumberShiftRight: {
         if (BothInputsAre(node, Type::NumberOrOddball())) {
-          Type* rhs_type = GetUpperBound(node->InputAt(1));
+          Type rhs_type = GetUpperBound(node->InputAt(1));
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
@@ -2042,7 +2041,7 @@ class RepresentationSelector {
           return;
         }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        Type rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                    MachineRepresentation::kWord32, Type::Signed32());
         if (lower()) {
@@ -2051,7 +2050,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberShiftRightLogical: {
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        Type rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         if (lower()) {
@@ -2061,7 +2060,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kSpeculativeNumberShiftRightLogical: {
         NumberOperationHint hint = NumberOperationHintOf(node->op());
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        Type rhs_type = GetUpperBound(node->InputAt(1));
         if (rhs_type->Is(type_cache_.kZeroish) &&
             (hint == NumberOperationHint::kSignedSmall ||
              hint == NumberOperationHint::kSigned32) &&
@@ -2138,8 +2137,8 @@ class RepresentationSelector {
         // It is safe to use the feedback types for left and right hand side
         // here, since we can only narrow those types and thus we can only
         // promise a more specific truncation.
-        Type* const lhs_type = TypeOf(node->InputAt(0));
-        Type* const rhs_type = TypeOf(node->InputAt(1));
+        Type const lhs_type = TypeOf(node->InputAt(0));
+        Type const rhs_type = TypeOf(node->InputAt(1));
         if (lhs_type->Is(Type::Unsigned32()) &&
             rhs_type->Is(Type::Unsigned32())) {
           VisitWord32TruncatingBinop(node);
@@ -2171,8 +2170,8 @@ class RepresentationSelector {
         // It is safe to use the feedback types for left and right hand side
         // here, since we can only narrow those types and thus we can only
         // promise a more specific truncation.
-        Type* const lhs_type = TypeOf(node->InputAt(0));
-        Type* const rhs_type = TypeOf(node->InputAt(1));
+        Type const lhs_type = TypeOf(node->InputAt(0));
+        Type const rhs_type = TypeOf(node->InputAt(1));
         if (lhs_type->Is(Type::Unsigned32()) &&
             rhs_type->Is(Type::Unsigned32())) {
           VisitWord32TruncatingBinop(node);
@@ -2259,7 +2258,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberToBoolean: {
-        Type* const input_type = TypeOf(node->InputAt(0));
+        Type const input_type = TypeOf(node->InputAt(0));
         if (input_type->Is(Type::Integral32())) {
           VisitUnop(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kBit);
@@ -2295,7 +2294,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberToUint8Clamped: {
-        Type* const input_type = TypeOf(node->InputAt(0));
+        Type const input_type = TypeOf(node->InputAt(0));
         if (input_type->Is(type_cache_.kUint8OrMinusZeroOrNaN)) {
           VisitUnop(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32);
@@ -2400,8 +2399,8 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckBounds: {
         const CheckParameters& p = CheckParametersOf(node->op());
-        Type* index_type = TypeOf(node->InputAt(0));
-        Type* length_type = TypeOf(node->InputAt(1));
+        Type index_type = TypeOf(node->InputAt(0));
+        Type length_type = TypeOf(node->InputAt(1));
         if (index_type->Is(Type::Integral32OrMinusZero())) {
           // Map -0 to 0, and the values in the [-2^31,-1] range to the
           // [2^31,2^32-1] range, which will be considered out-of-bounds
@@ -2452,7 +2451,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckNumber: {
-        Type* const input_type = TypeOf(node->InputAt(0));
+        Type const input_type = TypeOf(node->InputAt(0));
         if (input_type->Is(Type::Number())) {
           VisitNoop(node, truncation);
         } else {
@@ -2584,7 +2583,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kTransitionAndStoreElement: {
-        Type* value_type = TypeOf(node->InputAt(2));
+        Type value_type = TypeOf(node->InputAt(2));
 
         ProcessInput(node, 0, UseInfo::AnyTagged());         // array
         ProcessInput(node, 1, UseInfo::TruncatingWord32());  // index
@@ -2644,7 +2643,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kConvertReceiver: {
-        Type* input_type = TypeOf(node->InputAt(0));
+        Type input_type = TypeOf(node->InputAt(0));
         VisitBinop(node, UseInfo::AnyTagged(),
                    MachineRepresentation::kTaggedPointer);
         if (lower()) {
@@ -2745,7 +2744,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kObjectIsFiniteNumber: {
-        Type* const input_type = GetUpperBound(node->InputAt(0));
+        Type const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(type_cache_.kSafeInteger)) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
@@ -2774,7 +2773,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kObjectIsSafeInteger: {
-        Type* const input_type = GetUpperBound(node->InputAt(0));
+        Type const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(type_cache_.kSafeInteger)) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
@@ -2801,7 +2800,7 @@ class RepresentationSelector {
         UNREACHABLE();
       }
       case IrOpcode::kObjectIsInteger: {
-        Type* const input_type = GetUpperBound(node->InputAt(0));
+        Type const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(type_cache_.kSafeInteger)) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
@@ -2830,7 +2829,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kObjectIsMinusZero: {
-        Type* const input_type = GetUpperBound(node->InputAt(0));
+        Type const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(Type::MinusZero())) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
@@ -2863,7 +2862,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kObjectIsNaN: {
-        Type* const input_type = GetUpperBound(node->InputAt(0));
+        Type const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(Type::NaN())) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
@@ -2944,7 +2943,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckFloat64Hole: {
-        Type* const input_type = TypeOf(node->InputAt(0));
+        Type const input_type = TypeOf(node->InputAt(0));
         if (input_type->Is(Type::Number())) {
           VisitNoop(node, truncation);
         } else {
@@ -3047,7 +3046,7 @@ class RepresentationSelector {
       case IrOpcode::kTypeGuard: {
         // We just get rid of the sigma here, choosing the best representation
         // for the sigma's type.
-        Type* type = TypeOf(node);
+        Type type = TypeOf(node);
         MachineRepresentation representation =
             GetOutputInfoForPhi(node, type, truncation);
 
@@ -3075,7 +3074,7 @@ class RepresentationSelector {
         return SetOutput(node, MachineRepresentation::kTagged);
 
       case IrOpcode::kFindOrderedHashMapEntry: {
-        Type* const key_type = TypeOf(node->InputAt(1));
+        Type const key_type = TypeOf(node->InputAt(1));
         if (key_type->Is(Type::Signed32OrMinusZero())) {
           VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
@@ -3783,7 +3782,7 @@ void SimplifiedLowering::DoMin(Node* node, Operator const* op,
 }
 
 void SimplifiedLowering::DoShift(Node* node, Operator const* op,
-                                 Type* rhs_type) {
+                                 Type rhs_type) {
   if (!rhs_type->Is(type_cache_.kZeroToThirtyOne)) {
     Node* const rhs = NodeProperties::GetValueInput(node, 1);
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,

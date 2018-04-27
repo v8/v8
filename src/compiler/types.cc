@@ -45,19 +45,19 @@ RangeType::Limits RangeType::Limits::Union(Limits lhs, Limits rhs) {
   return result;
 }
 
-bool Type::Overlap(RangeType* lhs, RangeType* rhs) {
+bool Type::Overlap(const RangeType* lhs, const RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
   return !RangeType::Limits::Intersect(RangeType::Limits(lhs),
                                        RangeType::Limits(rhs))
               .IsEmpty();
 }
 
-bool Type::Contains(RangeType* lhs, RangeType* rhs) {
+bool Type::Contains(const RangeType* lhs, const RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
-bool Type::Contains(RangeType* range, i::Object* val) {
+bool Type::Contains(const RangeType* range, i::Object* val) {
   DisallowHeapAllocation no_allocation;
   return IsInteger(val) && range->Min() <= val->Number() &&
          val->Number() <= range->Max();
@@ -66,16 +66,16 @@ bool Type::Contains(RangeType* range, i::Object* val) {
 // -----------------------------------------------------------------------------
 // Min and Max computation.
 
-double Type::Min() {
+double Type::Min() const {
   DCHECK(this->Is(Number()));
   DCHECK(!this->Is(NaN()));
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
-    for (int i = 1, n = this->AsUnion()->Length(); i < n; ++i) {
-      min = std::min(min, this->AsUnion()->Get(i)->Min());
+    for (int i = 1, n = AsUnion()->Length(); i < n; ++i) {
+      min = std::min(min, AsUnion()->Get(i)->Min());
     }
-    Type* bitset = this->AsUnion()->Get(0);
+    Type bitset = AsUnion()->Get(0);
     if (!bitset->Is(NaN())) min = std::min(min, bitset->Min());
     return min;
   }
@@ -84,7 +84,7 @@ double Type::Min() {
   return this->AsOtherNumberConstant()->Value();
 }
 
-double Type::Max() {
+double Type::Max() const {
   DCHECK(this->Is(Number()));
   DCHECK(!this->Is(NaN()));
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
@@ -93,7 +93,7 @@ double Type::Max() {
     for (int i = 1, n = this->AsUnion()->Length(); i < n; ++i) {
       max = std::max(max, this->AsUnion()->Get(i)->Max());
     }
-    Type* bitset = this->AsUnion()->Get(0);
+    Type bitset = this->AsUnion()->Get(0);
     if (!bitset->Is(NaN())) max = std::max(max, bitset->Max());
     return max;
   }
@@ -106,7 +106,7 @@ double Type::Max() {
 // Glb and lub computation.
 
 // The largest bitset subsumed by this type.
-Type::bitset Type::BitsetGlb() {
+Type::bitset Type::BitsetGlb() const {
   DisallowHeapAllocation no_allocation;
   // Fast case.
   if (IsBitset()) {
@@ -124,7 +124,7 @@ Type::bitset Type::BitsetGlb() {
 }
 
 // The smallest bitset subsuming this type, possibly not a proper one.
-Type::bitset Type::BitsetLub() {
+Type::bitset Type::BitsetLub() const {
   DisallowHeapAllocation no_allocation;
   if (IsBitset()) return AsBitset();
   if (IsUnion()) {
@@ -477,7 +477,7 @@ HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
 // -----------------------------------------------------------------------------
 // Predicates.
 
-bool Type::SimplyEquals(Type* that) {
+bool Type::SimplyEquals(Type that) const {
   DisallowHeapAllocation no_allocation;
   if (this->IsHeapConstant()) {
     return that->IsHeapConstant() &&
@@ -494,8 +494,8 @@ bool Type::SimplyEquals(Type* that) {
   }
   if (this->IsTuple()) {
     if (!that->IsTuple()) return false;
-    TupleType* this_tuple = this->AsTuple();
-    TupleType* that_tuple = that->AsTuple();
+    const TupleType* this_tuple = this->AsTuple();
+    const TupleType* that_tuple = that->AsTuple();
     if (this_tuple->Arity() != that_tuple->Arity()) {
       return false;
     }
@@ -508,7 +508,7 @@ bool Type::SimplyEquals(Type* that) {
 }
 
 // Check if [this] <= [that].
-bool Type::SlowIs(Type* that) {
+bool Type::SlowIs(Type that) const {
   DisallowHeapAllocation no_allocation;
 
   // Fast bitset cases
@@ -546,7 +546,7 @@ bool Type::SlowIs(Type* that) {
 }
 
 // Check if [this] and [that] overlap.
-bool Type::Maybe(Type* that) {
+bool Type::Maybe(Type that) const {
   DisallowHeapAllocation no_allocation;
 
   if (BitsetType::IsNone(this->BitsetLub() & that->BitsetLub())) return false;
@@ -584,7 +584,7 @@ bool Type::Maybe(Type* that) {
     }
   }
   if (that->IsRange()) {
-    return that->Maybe(this);  // This case is handled above.
+    return that->Maybe(*this);  // This case is handled above.
   }
 
   if (this->IsBitset() || that->IsBitset()) return true;
@@ -593,16 +593,16 @@ bool Type::Maybe(Type* that) {
 }
 
 // Return the range in [this], or [nullptr].
-Type* Type::GetRange() {
+Type Type::GetRange() const {
   DisallowHeapAllocation no_allocation;
-  if (this->IsRange()) return this;
+  if (this->IsRange()) return *this;
   if (this->IsUnion() && this->AsUnion()->Get(1)->IsRange()) {
     return this->AsUnion()->Get(1);
   }
   return nullptr;
 }
 
-bool UnionType::Wellformed() {
+bool UnionType::Wellformed() const {
   DisallowHeapAllocation no_allocation;
   // This checks the invariants of the union representation:
   // 1. There are at least two elements.
@@ -632,7 +632,7 @@ bool UnionType::Wellformed() {
 // -----------------------------------------------------------------------------
 // Union and intersection
 
-Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
+Type Type::Intersect(Type type1, Type type2, Zone* zone) {
   // Fast case: bit sets.
   if (type1->IsBitset() && type2->IsBitset()) {
     return NewBitset(type1->AsBitset() & type2->AsBitset());
@@ -662,8 +662,7 @@ Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
   int size;
   if (base::bits::SignedAddOverflow32(size1, size2, &size)) return Any();
   if (base::bits::SignedAddOverflow32(size, 2, &size)) return Any();
-  Type* result_type = Type::Union(size, zone);
-  UnionType* result = result_type->AsUnion();
+  UnionType* result = UnionType::New(size, zone);
   size = 0;
 
   // Deal with bitsets.
@@ -682,10 +681,10 @@ Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
     bits &= ~number_bits;
     result->Set(0, NewBitset(bits));
   }
-  return NormalizeUnion(result_type, size, zone);
+  return NormalizeUnion(result, size, zone);
 }
 
-int Type::UpdateRange(Type* range, UnionType* result, int size, Zone* zone) {
+int Type::UpdateRange(Type range, UnionType* result, int size, Zone* zone) {
   if (size == 1) {
     result->Set(size++, range);
   } else {
@@ -716,14 +715,14 @@ RangeType::Limits Type::ToLimits(bitset bits, Zone* zone) {
                            BitsetType::Max(number_bits));
 }
 
-RangeType::Limits Type::IntersectRangeAndBitset(Type* range, Type* bitset,
+RangeType::Limits Type::IntersectRangeAndBitset(Type range, Type bitset,
                                                 Zone* zone) {
   RangeType::Limits range_lims(range->AsRange());
   RangeType::Limits bitset_lims = ToLimits(bitset->AsBitset(), zone);
   return RangeType::Limits::Intersect(range_lims, bitset_lims);
 }
 
-int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
+int Type::IntersectAux(Type lhs, Type rhs, UnionType* result, int size,
                        RangeType::Limits* lims, Zone* zone) {
   if (lhs->IsUnion()) {
     for (int i = 0, n = lhs->AsUnion()->Length(); i < n; ++i) {
@@ -777,7 +776,7 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
 // If the range is non-empty, the number bits in the bitset should be
 // clear. Moreover, if we have a canonical range (such as Signed32),
 // we want to produce a bitset rather than a range.
-Type* Type::NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone) {
+Type Type::NormalizeRangeAndBitset(Type range, bitset* bits, Zone* zone) {
   // Fast path: If the bitset does not mention numbers, we can just keep the
   // range.
   bitset number_bits = BitsetType::NumberBits(*bits);
@@ -818,7 +817,7 @@ Type* Type::NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone) {
   return Type::Range(range_min, range_max, zone);
 }
 
-Type* Type::NewConstant(double value, Zone* zone) {
+Type Type::NewConstant(double value, Zone* zone) {
   if (IsInteger(value)) {
     return Range(value, value, zone);
   } else if (i::IsMinusZero(value)) {
@@ -831,7 +830,7 @@ Type* Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
+Type Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
   if (IsInteger(*value)) {
     double v = value->Number();
     return Range(v, v, zone);
@@ -843,7 +842,7 @@ Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
   return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
 }
 
-Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
+Type Type::Union(Type type1, Type type2, Zone* zone) {
   // Fast case: bit sets.
   if (type1->IsBitset() && type2->IsBitset()) {
     return NewBitset(type1->AsBitset() | type2->AsBitset());
@@ -863,40 +862,39 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   int size;
   if (base::bits::SignedAddOverflow32(size1, size2, &size)) return Any();
   if (base::bits::SignedAddOverflow32(size, 2, &size)) return Any();
-  Type* result_type = Type::Union(size, zone);
-  UnionType* result = result_type->AsUnion();
+  UnionType* result = UnionType::New(size, zone);
   size = 0;
 
   // Compute the new bitset.
   bitset new_bitset = type1->BitsetGlb() | type2->BitsetGlb();
 
   // Deal with ranges.
-  Type* range = None();
-  Type* range1 = type1->GetRange();
-  Type* range2 = type2->GetRange();
+  Type range = None();
+  Type range1 = type1->GetRange();
+  Type range2 = type2->GetRange();
   if (range1 != nullptr && range2 != nullptr) {
     RangeType::Limits lims =
         RangeType::Limits::Union(RangeType::Limits(range1->AsRange()),
                                  RangeType::Limits(range2->AsRange()));
-    Type* union_range = Type::Range(lims, zone);
+    Type union_range = Type::Range(lims, zone);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, zone);
   } else if (range1 != nullptr) {
     range = NormalizeRangeAndBitset(range1, &new_bitset, zone);
   } else if (range2 != nullptr) {
     range = NormalizeRangeAndBitset(range2, &new_bitset, zone);
   }
-  Type* bits = NewBitset(new_bitset);
+  Type bits = NewBitset(new_bitset);
   result->Set(size++, bits);
   if (!range->IsNone()) result->Set(size++, range);
 
   size = AddToUnion(type1, result, size, zone);
   size = AddToUnion(type2, result, size, zone);
-  return NormalizeUnion(result_type, size, zone);
+  return NormalizeUnion(result, size, zone);
 }
 
 // Add [type] to [result] unless [type] is bitset, range, or already subsumed.
 // Return new size of [result].
-int Type::AddToUnion(Type* type, UnionType* result, int size, Zone* zone) {
+int Type::AddToUnion(Type type, UnionType* result, int size, Zone* zone) {
   if (type->IsBitset() || type->IsRange()) return size;
   if (type->IsUnion()) {
     for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
@@ -911,8 +909,7 @@ int Type::AddToUnion(Type* type, UnionType* result, int size, Zone* zone) {
   return size;
 }
 
-Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
-  UnionType* unioned = union_type->AsUnion();
+Type Type::NormalizeUnion(UnionType* unioned, int size, Zone* zone) {
   DCHECK_LE(1, size);
   DCHECK(unioned->Get(0)->IsBitset());
   // If the union has just one element, return it.
@@ -929,10 +926,10 @@ Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   }
   unioned->Shrink(size);
   SLOW_DCHECK(unioned->Wellformed());
-  return union_type;
+  return Type(unioned);
 }
 
-int Type::NumConstants() {
+int Type::NumConstants() const {
   DisallowHeapAllocation no_allocation;
   if (this->IsHeapConstant() || this->IsOtherNumberConstant()) {
     return 1;
@@ -997,7 +994,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
   os << ")";
 }
 
-void Type::PrintTo(std::ostream& os) {
+void Type::PrintTo(std::ostream& os) const {
   DisallowHeapAllocation no_allocation;
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
@@ -1016,7 +1013,7 @@ void Type::PrintTo(std::ostream& os) {
   } else if (this->IsUnion()) {
     os << "(";
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      Type* type_i = this->AsUnion()->Get(i);
+      Type type_i = this->AsUnion()->Get(i);
       if (i > 0) os << " | ";
       type_i->PrintTo(os);
     }
@@ -1024,7 +1021,7 @@ void Type::PrintTo(std::ostream& os) {
   } else if (this->IsTuple()) {
     os << "<";
     for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {
-      Type* type_i = this->AsTuple()->Element(i);
+      Type type_i = this->AsTuple()->Element(i);
       if (i > 0) os << ", ";
       type_i->PrintTo(os);
     }
@@ -1035,7 +1032,7 @@ void Type::PrintTo(std::ostream& os) {
 }
 
 #ifdef DEBUG
-void Type::Print() {
+void Type::Print() const {
   OFStream os(stdout);
   PrintTo(os);
   os << std::endl;
@@ -1056,7 +1053,7 @@ BitsetType::bitset BitsetType::UnsignedSmall() {
 }
 
 // static
-Type* Type::Tuple(Type* first, Type* second, Type* third, Zone* zone) {
+Type Type::Tuple(Type first, Type second, Type third, Zone* zone) {
   TupleType* tuple = TupleType::New(3, zone);
   tuple->InitElement(0, first);
   tuple->InitElement(1, second);
@@ -1065,53 +1062,58 @@ Type* Type::Tuple(Type* first, Type* second, Type* third, Zone* zone) {
 }
 
 // static
-Type* Type::OtherNumberConstant(double value, Zone* zone) {
+Type Type::OtherNumberConstant(double value, Zone* zone) {
   return FromTypeBase(OtherNumberConstantType::New(value, zone));
 }
 
 // static
-Type* Type::HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
+Type Type::HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
   return FromTypeBase(HeapConstantType::New(value, zone));
 }
 
 // static
-Type* Type::Range(double min, double max, Zone* zone) {
+Type Type::Range(double min, double max, Zone* zone) {
   return FromTypeBase(RangeType::New(min, max, zone));
 }
 
 // static
-Type* Type::Range(RangeType::Limits lims, Zone* zone) {
+Type Type::Range(RangeType::Limits lims, Zone* zone) {
   return FromTypeBase(RangeType::New(lims, zone));
 }
 
 // static
-Type* Type::Union(int length, Zone* zone) {
+Type Type::Union(int length, Zone* zone) {
   return FromTypeBase(UnionType::New(length, zone));
 }
 
-HeapConstantType* Type::AsHeapConstant() {
+const HeapConstantType* Type::AsHeapConstant() const {
   DCHECK(IsKind(TypeBase::kHeapConstant));
-  return static_cast<HeapConstantType*>(ToTypeBase());
+  return static_cast<const HeapConstantType*>(ToTypeBase());
 }
 
-OtherNumberConstantType* Type::AsOtherNumberConstant() {
+const OtherNumberConstantType* Type::AsOtherNumberConstant() const {
   DCHECK(IsKind(TypeBase::kOtherNumberConstant));
-  return static_cast<OtherNumberConstantType*>(ToTypeBase());
+  return static_cast<const OtherNumberConstantType*>(ToTypeBase());
 }
 
-RangeType* Type::AsRange() {
+const RangeType* Type::AsRange() const {
   DCHECK(IsKind(TypeBase::kRange));
-  return static_cast<RangeType*>(ToTypeBase());
+  return static_cast<const RangeType*>(ToTypeBase());
 }
 
-TupleType* Type::AsTuple() {
+const TupleType* Type::AsTuple() const {
   DCHECK(IsKind(TypeBase::kTuple));
-  return static_cast<TupleType*>(ToTypeBase());
+  return static_cast<const TupleType*>(ToTypeBase());
 }
 
-UnionType* Type::AsUnion() {
+const UnionType* Type::AsUnion() const {
   DCHECK(IsKind(TypeBase::kUnion));
-  return static_cast<UnionType*>(ToTypeBase());
+  return static_cast<const UnionType*>(ToTypeBase());
+}
+
+std::ostream& operator<<(std::ostream& os, Type type) {
+  type.PrintTo(os);
+  return os;
 }
 
 }  // namespace compiler
