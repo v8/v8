@@ -2782,8 +2782,7 @@ TEST(code_relative_offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   // Initialize a code object that will contain the code.
-  Handle<HeapObject> code_object(isolate->heap()->self_reference_marker(),
-                                 isolate);
+  Handle<HeapObject> code_object(isolate->heap()->undefined_value(), isolate);
 
   Assembler assm(isolate, nullptr, 0);
 

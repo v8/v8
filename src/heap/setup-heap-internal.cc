@@ -376,7 +376,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, stale_register);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, self_reference_marker);
     ALLOCATE_VARSIZE_MAP(BIGINT_TYPE, bigint);
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
@@ -846,9 +845,6 @@ void Heap::CreateInitialObjects() {
 
   // Initialize builtins constants table.
   set_builtins_constants_table(empty_fixed_array());
-
-  // Initialize the self-reference marker.
-  set_self_reference_marker(*factory->NewSelfReferenceMarker());
 
   // Initialize context slot cache.
   isolate_->context_slot_cache()->Clear();

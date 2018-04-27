@@ -65,24 +65,14 @@ StackArgumentsAccessor::StackArgumentsAccessor(
 
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, buffer, size, create_code_object) {}
 
 TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                                CodeObjectRequired create_code_object)
     : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ = Handle<HeapObject>::New(
-        isolate->heap()->self_reference_marker(), isolate);
+    code_object_ =
+        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
   }
 }
 
@@ -157,6 +147,11 @@ void TurboAssembler::LookupConstant(Register destination,
                                     Handle<Object> object) {
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
+
+  // TODO(jgruber, v8:6666): Support self-references. Currently, we'd end up
+  // adding the temporary code object to the constants list, before creating the
+  // final object in Factory::CopyCode.
+  CHECK(code_object_.is_null() || !object.equals(code_object_));
 
   // Ensure the given object is in the builtins constants table and fetch its
   // index.
@@ -1398,7 +1393,8 @@ void TurboAssembler::Push(Handle<HeapObject> source) {
 void TurboAssembler::Move(Register result, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
+      !object.equals(CodeObject())) {
     Heap::RootListIndex root_index;
     if (!isolate()->heap()->IsRootHandle(object, &root_index)) {
       LookupConstant(result, object);

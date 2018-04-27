@@ -4050,7 +4050,6 @@ class Oddball: public HeapObject {
   static const byte kException = 8;
   static const byte kOptimizedOut = 9;
   static const byte kStaleRegister = 10;
-  static const byte kSelfReferenceMarker = 10;
 
   typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
                               kSize> BodyDescriptor;

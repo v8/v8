@@ -535,11 +535,10 @@ class TurboAssembler : public Assembler {
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi* value);
 
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-
  private:
   bool has_frame_ = false;
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
   Isolate* const isolate_;
 };
 
