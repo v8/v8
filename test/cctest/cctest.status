@@ -286,6 +286,9 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # crbug.com/v8/7605
+  'test-heap/OutOfMemorySmallObjects': [PASS, ['not simulator_run', SKIP]],
 }],  # 'arch == arm'
 
 ##############################################################################
