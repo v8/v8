@@ -1033,6 +1033,11 @@ void WebAssemblyGlobalSetValue(
   ScheduledErrorThrower thrower(i_isolate, "set WebAssembly.Global.value");
   EXTRACT_THIS(receiver, WasmGlobalObject);
 
+  if (!receiver->is_mutable()) {
+    thrower.TypeError("Can't set the value of an immutable global.");
+    return;
+  }
+
   switch (receiver->type()) {
     case i::wasm::kWasmI32: {
       int32_t i32_value = 0;
@@ -1125,6 +1130,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       CreateFunc(isolate, GetterName(isolate, name), getter);
   Handle<JSFunction> setter_func =
       CreateFunc(isolate, SetterName(isolate, name), setter);
+  setter_func->shared()->set_length(1);
 
   v8::PropertyAttribute attributes =
       static_cast<v8::PropertyAttribute>(v8::DontEnum);

@@ -23,11 +23,28 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let global = new WebAssembly.Global({type: 'f32'}, 1);
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmI32);
-  builder.addFunction("main", kSig_i_v)
-    .addBody([kExprGetGlobal, 0])
-    .exportAs("main");
 
   assertThrows(() => builder.instantiate({mod: {g: global}}));
+})();
+
+(function TestMutableMismatch() {
+  let global = new WebAssembly.Global({type: 'f64'}, 1);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("mod", "g", kWasmF64, true);
+
+  assertThrows(() => builder.instantiate({mod: {g: global}}));
+
+  global = new WebAssembly.Global({type: 'i32', mutable: true}, 1);
+  builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("mod", "g", kWasmI32);
+
+  assertThrows(() => builder.instantiate({mod: {g: global}}));
+})();
+
+(function TestImportMutableAsNumber() {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("mod", "g", kWasmF32, true);
+  assertThrows(() => builder.instantiate({mod: {g: 1234}}));
 })();
 
 (function TestImportI64AsNumber() {

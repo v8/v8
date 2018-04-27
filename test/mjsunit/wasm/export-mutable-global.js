@@ -21,13 +21,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     let global_builder = builder.addGlobal(type, false).exportAs(name);
     if (value) global_builder.init = value;
   }
-  var module = builder.instantiate();
+  var instance = builder.instantiate();
 
   for (let [type, name, value] of globals) {
-    let obj = module.exports[name];
+    let obj = instance.exports[name];
     assertEquals("object", typeof obj, name);
     assertTrue(obj instanceof WebAssembly.Global, name);
     assertEquals(value || 0, obj.value, name);
+    assertThrows(() => obj.value = 0);
   }
 })();
 
@@ -67,19 +68,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprGetLocal, 0, kExprSetGlobal, index])
       .exportFunc();
   }
-  var module = builder.instantiate();
+  var instance = builder.instantiate();
 
   for (let [type, name, value] of globals) {
-    let obj = module.exports[name];
+    let obj = instance.exports[name];
 
     assertEquals(value || 0, obj.value, name);
 
-    // Changing the exported global should change the module's global.
+    // Changing the exported global should change the instance's global.
     obj.value = 1001;
-    assertEquals(1001, module.exports['get ' + name](), name);
+    assertEquals(1001, instance.exports['get ' + name](), name);
 
-    // Changing the module's global should change the exported global.
-    module.exports['set ' + name](112358);
+    // Changing the instance's global should change the exported global.
+    instance.exports['set ' + name](112358);
     assertEquals(112358, obj.value, name);
   }
 })();

@@ -214,16 +214,24 @@ const f64_values = [
   NaN
 ];
 
-function GlobalI32(value) {
-  return new WebAssembly.Global({type: 'i32'}, value);
+function GlobalI32(value, mutable = false) {
+  return new WebAssembly.Global({type: 'i32', mutable}, value);
 }
 
-function GlobalF32(value) {
-  return new WebAssembly.Global({type: 'f32'}, value);
+function GlobalI64(mutable = false) {
+  let builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasm64, mutable).exportAs('i64');
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  return instance.exports.i64;
 }
 
-function GlobalF64(value) {
-  return new WebAssembly.Global({type: 'f64'}, value);
+function GlobalF32(value, mutable = false) {
+  return new WebAssembly.Global({type: 'f32', mutable}, value);
+}
+
+function GlobalF64(value, mutable = false) {
+  return new WebAssembly.Global({type: 'f64', mutable}, value);
 }
 
 (function TestDefaultValue() {
@@ -233,6 +241,8 @@ function GlobalF64(value) {
 })();
 
 (function TestValueOf() {
+  assertTrue(WebAssembly.Global.prototype.valueOf instanceof Function);
+  assertSame(0, WebAssembly.Global.prototype.valueOf.length);
 
   for (let u32_value of u32_values) {
     let i32_value = u32_value | 0;
@@ -241,6 +251,8 @@ function GlobalF64(value) {
     assertSame(i32_value, GlobalI32(i32_value).valueOf());
   }
 
+  assertThrows(() => GlobalI64().valueOf());
+
   for (let f32_value of f32_values) {
     assertSame(Math.fround(f32_value), GlobalF32(f32_value).valueOf());
   }
@@ -248,16 +260,22 @@ function GlobalF64(value) {
   for (let f64_value of f64_values) {
     assertSame(f64_value, GlobalF64(f64_value).valueOf());
   }
-
 })();
 
 (function TestGetValue() {
+  let getter =
+      Object.getOwnPropertyDescriptor(WebAssembly.Global.prototype, 'value')
+          .get;
+  assertTrue(getter instanceof Function);
+  assertSame(0, getter.length);
 
   for (let u32_value of u32_values) {
     let i32_value = u32_value | 0;
     assertSame(i32_value, GlobalI32(u32_value).value);
     assertSame(i32_value, GlobalI32(i32_value).value);
   }
+
+  assertThrows(() => GlobalI64().value);
 
   for (let f32_value of f32_values) {
     assertSame(Math.fround(f32_value), GlobalF32(f32_value).value);
@@ -266,15 +284,26 @@ function GlobalF64(value) {
   for (let f64_value of f64_values) {
     assertSame(f64_value, GlobalF64(f64_value).value);
   }
+})();
 
+(function TestSetValueImmutable() {
+  assertThrows(() => GlobalI32().value = 0);
+  assertThrows(() => GlobalI64().value = 0);
+  assertThrows(() => GlobalF32().value = 0);
+  assertThrows(() => GlobalF64().value = 0);
 })();
 
 (function TestSetValue() {
+  let setter =
+      Object.getOwnPropertyDescriptor(WebAssembly.Global.prototype, 'value')
+          .set;
+  assertTrue(setter instanceof Function);
+  assertSame(1, setter.length);
 
   for (let u32_value of u32_values) {
     let i32_value = u32_value | 0;
 
-    let global = GlobalI32();
+    let global = GlobalI32(0, true);
     global.value = u32_value;
     assertSame(i32_value, global.value);
 
@@ -282,16 +311,17 @@ function GlobalF64(value) {
     assertSame(i32_value, global.value);
   }
 
+  assertThrows(() => GlobalI64(true).value = 0);
+
   for (let f32_value of f32_values) {
-    let global = GlobalF32();
+    let global = GlobalF32(0, true);
     global.value = f32_value;
     assertSame(Math.fround(f32_value), global.value);
   }
 
   for (let f64_value of f64_values) {
-    let global = GlobalF64();
+    let global = GlobalF64(0, true);
     global.value = f64_value;
     assertSame(f64_value, global.value);
   }
-
 })();

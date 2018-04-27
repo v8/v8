@@ -2359,6 +2359,12 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                   module_name, import_name);
               return -1;
             }
+            if (global_object->is_mutable() != global.mutability) {
+              ReportLinkError(
+                  "imported global does not match the expected mutability",
+                  index, module_name, import_name);
+              return -1;
+            }
             if (global.mutability) {
               Handle<JSArrayBuffer> buffer(global_object->array_buffer(),
                                            isolate_);
@@ -2378,6 +2384,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
               ReportLinkError(
                   "imported mutable global must be a WebAssembly.Global object",
                   index, module_name, import_name);
+              return -1;
             }
             WriteGlobalValue(global, value->Number());
           } else {
@@ -2608,14 +2615,13 @@ void InstanceBuilder::ProcessExports(
       case kExternalGlobal: {
         WasmGlobal& global = module_->globals[exp.index];
         if (FLAG_experimental_wasm_mut_global) {
-          const bool is_mutable = false;
           Handle<JSArrayBuffer> globals_buffer(instance->globals_buffer(),
                                                isolate_);
           // Since the global's array buffer is always provided, allocation
           // should never fail.
           Handle<WasmGlobalObject> global_obj =
               WasmGlobalObject::New(isolate_, globals_buffer, global.type,
-                                    global.offset, is_mutable)
+                                    global.offset, global.mutability)
                   .ToHandleChecked();
           desc.set_value(global_obj);
         } else {
