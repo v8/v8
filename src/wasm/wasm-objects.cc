@@ -116,7 +116,7 @@ class WasmInstanceNativeAllocations {
 
     instance->set_indirect_function_table_instances(*new_instances);
     for (uint32_t j = old_size; j < new_size; j++) {
-      IndirectFunctionTableEntry(*instance, static_cast<int>(j)).clear();
+      IndirectFunctionTableEntry(instance, static_cast<int>(j)).clear();
     }
   }
   uint32_t* indirect_function_table_sig_ids_ = nullptr;
@@ -359,7 +359,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           int32_t table_index, Handle<JSFunction> function) {
   Handle<FixedArray> array(table->functions(), isolate);
   if (function.is_null()) {
-    ClearDispatchTables(table, table_index);  // Degenerate case of null value.
+    ClearDispatchTables(isolate, table, table_index);  // Degenerate case.
     array->set(table_index, isolate->heap()->null_value());
     return;
   }
@@ -384,31 +384,34 @@ void WasmTableObject::UpdateDispatchTables(
     wasm::WasmCode* wasm_code) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
-  DisallowHeapAllocation no_gc;
-  FixedArray* dispatch_tables = table->dispatch_tables();
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
 
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
+    Handle<WasmInstanceObject> to_instance(
+        WasmInstanceObject::cast(
+            dispatch_tables->get(i + kDispatchTableInstanceOffset)),
+        isolate);
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
-    WasmInstanceObject* to_instance = WasmInstanceObject::cast(
-        dispatch_tables->get(i + kDispatchTableInstanceOffset));
     auto sig_id = to_instance->module()->signature_map.Find(sig);
     IndirectFunctionTableEntry(to_instance, table_index)
         .set(sig_id, *from_instance, wasm_code);
   }
 }
 
-void WasmTableObject::ClearDispatchTables(Handle<WasmTableObject> table,
+void WasmTableObject::ClearDispatchTables(Isolate* isolate,
+                                          Handle<WasmTableObject> table,
                                           int index) {
-  DisallowHeapAllocation no_gc;
-  FixedArray* dispatch_tables = table->dispatch_tables();
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
-    WasmInstanceObject* target_instance = WasmInstanceObject::cast(
-        dispatch_tables->get(i + kDispatchTableInstanceOffset));
+    Handle<WasmInstanceObject> target_instance(
+        WasmInstanceObject::cast(
+            dispatch_tables->get(i + kDispatchTableInstanceOffset)),
+        isolate);
     DCHECK_LT(index, target_instance->indirect_function_table_size());
     IndirectFunctionTableEntry(target_instance, index).clear();
   }
@@ -643,7 +646,7 @@ void IndirectFunctionTableEntry::clear() {
 void IndirectFunctionTableEntry::set(int sig_id, WasmInstanceObject* instance,
                                      const wasm::WasmCode* wasm_code) {
   TRACE_IFT("IFT entry %p[%d] = {sig_id=%d, instance=%p, target=%p}\n",
-            instance_, index_, sig_id, instance,
+            *instance_, index_, sig_id, instance,
             wasm_code->instructions().start());
   instance_->indirect_function_table_sig_ids()[index_] = sig_id;
   instance_->indirect_function_table_targets()[index_] =
@@ -666,10 +669,10 @@ Address IndirectFunctionTableEntry::target() {
 
 void ImportedFunctionEntry::set(JSReceiver* callable,
                                 const wasm::WasmCode* wasm_to_js_wrapper) {
-  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", instance_,
+  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", *instance_,
             index_, callable, wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
-  instance_->imported_function_instances()->set(index_, instance_);
+  instance_->imported_function_instances()->set(index_, *instance_);
   instance_->imported_function_callables()->set(index_, callable);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instruction_start();
@@ -677,7 +680,7 @@ void ImportedFunctionEntry::set(JSReceiver* callable,
 
 void ImportedFunctionEntry::set(WasmInstanceObject* instance,
                                 const wasm::WasmCode* wasm_code) {
-  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%p}\n", instance_,
+  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%p}\n", *instance_,
             index_, instance, wasm_code->instructions().start());
   instance_->imported_function_instances()->set(index_, instance);
   instance_->imported_function_callables()->set(

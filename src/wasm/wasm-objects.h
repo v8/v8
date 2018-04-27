@@ -49,7 +49,7 @@ class WasmInstanceObject;
 // - target   = entrypoint to wasm code for the function, or wasm-to-js wrapper
 class IndirectFunctionTableEntry {
  public:
-  inline IndirectFunctionTableEntry(WasmInstanceObject*, int index);
+  inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int index);
 
   void clear();
   void set(int sig_id, WasmInstanceObject* instance,
@@ -60,10 +60,7 @@ class IndirectFunctionTableEntry {
   Address target();
 
  private:
-#ifdef DEBUG
-  DisallowHeapAllocation no_gc;
-#endif
-  WasmInstanceObject* const instance_;
+  Handle<WasmInstanceObject> const instance_;
   int const index_;
 };
 
@@ -80,7 +77,7 @@ class IndirectFunctionTableEntry {
 //      - target   = entrypoint to wasm code of the function
 class ImportedFunctionEntry {
  public:
-  inline ImportedFunctionEntry(WasmInstanceObject*, int index);
+  inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
 
   // Initialize this entry as a {JSReceiver} call.
   void set(JSReceiver* callable, const wasm::WasmCode* wasm_to_js_wrapper);
@@ -94,10 +91,7 @@ class ImportedFunctionEntry {
   bool is_js_receiver_entry();
 
  private:
-#ifdef DEBUG
-  DisallowHeapAllocation no_gc;
-#endif
-  WasmInstanceObject* const instance_;
+  Handle<WasmInstanceObject> const instance_;
   int const index_;
 };
 
@@ -164,7 +158,8 @@ class WasmTableObject : public JSObject {
                                    Handle<WasmInstanceObject> from_instance,
                                    wasm::WasmCode* wasm_code);
 
-  static void ClearDispatchTables(Handle<WasmTableObject> table, int index);
+  static void ClearDispatchTables(Isolate* isolate,
+                                  Handle<WasmTableObject> table, int index);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.

@@ -375,15 +375,14 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // Utilizes a reverse mapping to prevent O(n^2) behavior.
 class IndirectPatcher {
  public:
-  void Patch(WasmInstanceObject* caller_instance,
-             WasmInstanceObject* target_instance, int func_index,
+  void Patch(Handle<WasmInstanceObject> caller_instance,
+             Handle<WasmInstanceObject> target_instance, int func_index,
              Address old_target, const WasmCode* new_code) {
-    DisallowHeapAllocation no_gc;
     TRACE_LAZY(
         "IndirectPatcher::Patch(caller=%p, target=%p, func_index=%i, "
         "old_target=%p, "
         "new_code=%p)\n",
-        caller_instance, target_instance, func_index,
+        *caller_instance, *target_instance, func_index,
         reinterpret_cast<void*>(old_target), new_code);
     if (mapping_.size() == 0 || misses_ >= kMaxMisses) {
       BuildMapping(caller_instance);
@@ -403,7 +402,7 @@ class IndirectPatcher {
           DCHECK_EQ(
               func_index,
               code_manager->GetCodeFromStartAddress(entry.target())->index());
-          entry.set(target_instance, new_code);
+          entry.set(*target_instance, new_code);
           patched++;
         }
       } else {
@@ -414,7 +413,7 @@ class IndirectPatcher {
           DCHECK_EQ(
               func_index,
               code_manager->GetCodeFromStartAddress(entry.target())->index());
-          entry.set(entry.sig_id(), target_instance, new_code);
+          entry.set(entry.sig_id(), *target_instance, new_code);
           patched++;
         }
       }
@@ -423,10 +422,10 @@ class IndirectPatcher {
   }
 
  private:
-  void BuildMapping(WasmInstanceObject* caller_instance) {
+  void BuildMapping(Handle<WasmInstanceObject> caller_instance) {
     mapping_.clear();
     misses_ = 0;
-    TRACE_LAZY("BuildMapping for (caller=%p)...\n", caller_instance);
+    TRACE_LAZY("BuildMapping for (caller=%p)...\n", *caller_instance);
     Isolate* isolate = caller_instance->GetIsolate();
     WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
     uint32_t num_imported_functions =
@@ -862,7 +861,7 @@ Address CompileLazy(Isolate* isolate,
                                    caller_instance->managed_indirect_patcher())
                                    ->raw();
     Address old_target = lazy_stub->instruction_start();
-    patcher->Patch(*caller_instance, *target_instance, target_func_index,
+    patcher->Patch(caller_instance, target_instance, target_func_index,
                    old_target, result);
   }
 
@@ -2175,7 +2174,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           }
           // The import reference is the instance object itself.
           auto wasm_code = imported_function->GetWasmCode();
-          ImportedFunctionEntry(*instance, func_index)
+          ImportedFunctionEntry(instance, func_index)
               .set(*imported_instance, wasm_code);
           native_module->SetCode(func_index, wasm_code);
         } else {
@@ -2188,7 +2187,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
               wrapper_code, wasm::WasmCode::kWasmToJsWrapper, func_index);
-          ImportedFunctionEntry(*instance, func_index)
+          ImportedFunctionEntry(instance, func_index)
               .set(*js_receiver, wasm_code);
         }
         num_imported_functions++;
@@ -2264,7 +2263,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           FunctionSig* sig = imported_instance->module()
                                  ->functions[exported_code->index()]
                                  .sig;
-          IndirectFunctionTableEntry(*instance, i)
+          IndirectFunctionTableEntry(instance, i)
               .set(module_->signature_map.Find(sig), *imported_instance,
                    exported_code);
         }
@@ -2708,11 +2707,11 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         if (func_index < module_->num_imported_functions) {
           // Imported functions have the target instance put into the IFT.
           WasmInstanceObject* target_instance =
-              ImportedFunctionEntry(*instance, func_index).instance();
-          IndirectFunctionTableEntry(*instance, table_index)
+              ImportedFunctionEntry(instance, func_index).instance();
+          IndirectFunctionTableEntry(instance, table_index)
               .set(sig_id, target_instance, wasm_code);
         } else {
-          IndirectFunctionTableEntry(*instance, table_index)
+          IndirectFunctionTableEntry(instance, table_index)
               .set(sig_id, *instance, wasm_code);
         }
 

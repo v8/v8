@@ -2392,7 +2392,7 @@ class ThreadImpl {
     Handle<WasmInstanceObject> instance;
     WasmCode* code;
     {
-      ImportedFunctionEntry entry(*instance_object_, function_index);
+      ImportedFunctionEntry entry(instance_object_, function_index);
       instance = handle(entry.instance(), isolate);
       code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
           entry.target());
@@ -2439,7 +2439,7 @@ class ThreadImpl {
     WasmCode* code;
     Handle<WasmInstanceObject> instance;
     {
-      IndirectFunctionTableEntry entry(*instance_object_, entry_index);
+      IndirectFunctionTableEntry entry(instance_object_, entry_index);
       // Signature check.
       if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
         return {ExternalCallResult::SIGNATURE_MISMATCH};

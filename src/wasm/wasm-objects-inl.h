@@ -154,14 +154,14 @@ inline bool WasmInstanceObject::has_indirect_function_table() {
 }
 
 IndirectFunctionTableEntry::IndirectFunctionTableEntry(
-    WasmInstanceObject* instance, int index)
+    Handle<WasmInstanceObject> instance, int index)
     : instance_(instance), index_(index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, instance->indirect_function_table_size());
 }
 
-ImportedFunctionEntry::ImportedFunctionEntry(WasmInstanceObject* instance,
-                                             int index)
+ImportedFunctionEntry::ImportedFunctionEntry(
+    Handle<WasmInstanceObject> instance, int index)
     : instance_(instance), index_(index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, instance->module()->num_imported_functions);
