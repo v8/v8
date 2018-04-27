@@ -207,9 +207,10 @@ class TestingModuleBuilder {
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
   void Link() {
     if (!linked_) {
+      Handle<WasmCompiledModule> compiled(instance_object()->compiled_module());
       CodeSpecialization code_specialization;
       code_specialization.RelocateDirectCalls(native_module_);
-      code_specialization.ApplyToWholeModule(native_module_);
+      code_specialization.ApplyToWholeModule(native_module_, compiled);
       linked_ = true;
       native_module_->SetExecutable(true);
     }

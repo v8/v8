@@ -46,10 +46,9 @@ class PatchDirectCallsHelper {
   PatchDirectCallsHelper(NativeModule* native_module, const WasmCode* code)
       : source_pos_it(code->source_positions()), decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
-    WasmCompiledModule* comp_mod = native_module->compiled_module();
-    func_bytes =
-        comp_mod->shared()->module_bytes()->GetChars() +
-        comp_mod->shared()->module()->functions[func_index].code.offset();
+    WasmSharedModuleData* shared = native_module->shared_module_data();
+    func_bytes = shared->module_bytes()->GetChars() +
+                 shared->module()->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;
@@ -77,10 +76,10 @@ void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
   relocate_direct_calls_module_ = native_module;
 }
 
-bool CodeSpecialization::ApplyToWholeModule(NativeModule* native_module,
-                                            ICacheFlushMode icache_flush_mode) {
+bool CodeSpecialization::ApplyToWholeModule(
+    NativeModule* native_module, Handle<WasmCompiledModule> compiled_module,
+    ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module = native_module->compiled_module();
   WasmSharedModuleData* shared = compiled_module->shared();
   WasmModule* module = shared->module();
   std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;

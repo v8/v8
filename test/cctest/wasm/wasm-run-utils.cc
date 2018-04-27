@@ -227,6 +227,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<WasmCompiledModule> compiled_module =
       WasmCompiledModule::New(isolate_, test_module_ptr_, export_wrappers, env);
   compiled_module->set_shared(*shared_module_data);
+  compiled_module->GetNativeModule()->SetSharedModuleData(shared_module_data);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.

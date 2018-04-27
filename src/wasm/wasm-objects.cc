@@ -1380,7 +1380,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
         Managed<wasm::NativeModule>::FromUniquePtr(isolate,
                                                    std::move(native_module));
     compiled_module->set_native_module(*native_module_wrapper);
-    compiled_module->GetNativeModule()->SetCompiledModule(compiled_module);
   }
 
   // TODO(mtrofin): copy the rest of the specialization parameters over.
@@ -1412,7 +1411,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
       Managed<wasm::NativeModule>::FromUniquePtr(isolate,
                                                  std::move(native_module));
   ret->set_native_module(*native_module_wrapper);
-  ret->GetNativeModule()->SetCompiledModule(ret);
+  ret->GetNativeModule()->SetSharedModuleData(handle(module->shared()));
 
   return ret;
 }

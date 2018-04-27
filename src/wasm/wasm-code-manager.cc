@@ -211,10 +211,10 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
 
 void WasmCode::LogCode(Isolate* isolate) const {
   DCHECK(ShouldBeLogged(isolate));
-  if (native_module()->compiled_module()->has_shared() && index_.IsJust()) {
+  if (native_module()->shared_module_data() && index_.IsJust()) {
     uint32_t index = this->index();
     Handle<WasmSharedModuleData> shared_handle(
-        native_module()->compiled_module()->shared(), isolate);
+        native_module()->shared_module_data(), isolate);
     int name_length;
     Handle<String> name(
         WasmSharedModuleData::GetFunctionName(isolate, shared_handle, index));
@@ -572,19 +572,16 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   }
 }
 
-WasmCompiledModule* NativeModule::compiled_module() const {
-  DCHECK_NOT_NULL(compiled_module_);
-  return *compiled_module_;
+WasmSharedModuleData* NativeModule::shared_module_data() const {
+  DCHECK_NOT_NULL(shared_module_data_);
+  return *shared_module_data_;
 }
 
-void NativeModule::SetCompiledModule(
-    Handle<WasmCompiledModule> compiled_module) {
-  DCHECK_NULL(compiled_module_);
-  compiled_module_ = compiled_module->GetIsolate()
-                         ->global_handles()
-                         ->Create(*compiled_module)
-                         .location();
-  GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&compiled_module_));
+void NativeModule::SetSharedModuleData(Handle<WasmSharedModuleData> shared) {
+  DCHECK_NULL(shared_module_data_);
+  shared_module_data_ =
+      shared->GetIsolate()->global_handles()->Create(*shared).location();
+  GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&shared_module_data_));
 }
 
 WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
@@ -860,7 +857,7 @@ WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
   }
 #if DEBUG
   auto num_imported_functions =
-      compiled_module()->shared()->module()->num_imported_functions;
+      shared_module_data()->module()->num_imported_functions;
   if (func_index < num_imported_functions) {
     DCHECK(!code->IsAnonymous());
   }
@@ -951,11 +948,11 @@ NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
   // Clear the handle at the beginning of destructor to make it robust against
   // potential GCs in the rest of the desctructor.
-  if (compiled_module_ != nullptr) {
-    Isolate* isolate = compiled_module()->GetIsolate();
+  if (shared_module_data_ != nullptr) {
+    Isolate* isolate = shared_module_data()->GetIsolate();
     isolate->global_handles()->Destroy(
-        reinterpret_cast<Object**>(compiled_module_));
-    compiled_module_ = nullptr;
+        reinterpret_cast<Object**>(shared_module_data_));
+    shared_module_data_ = nullptr;
   }
   wasm_code_manager_->FreeNativeModuleMemories(this);
 }

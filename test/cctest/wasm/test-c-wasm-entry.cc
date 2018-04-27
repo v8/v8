@@ -65,10 +65,7 @@ class CWasmEntryArgTester {
     Handle<Object> call_args[]{
         Handle<Object>::cast(isolate_->factory()->NewForeign(
             wasm_code_->instruction_start(), TENURED)),
-        handle(
-            wasm_code_->native_module()->compiled_module()->owning_instance(),
-            isolate_),
-        buffer_obj};
+        runner_.builder().instance_object(), buffer_obj};
     static_assert(
         arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
         "adapt this test");

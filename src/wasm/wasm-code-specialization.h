@@ -35,7 +35,7 @@ class CodeSpecialization {
   void RelocateDirectCalls(NativeModule* module);
   // Apply all relocations and patching to all code in the instance (wasm code
   // and exported functions).
-  bool ApplyToWholeModule(NativeModule*,
+  bool ApplyToWholeModule(NativeModule*, Handle<WasmCompiledModule>,
                           ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
   // Apply all relocations and patching to one wasm code object.
   bool ApplyToWasmCode(wasm::WasmCode*,

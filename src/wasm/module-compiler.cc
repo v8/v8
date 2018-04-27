@@ -77,7 +77,7 @@ class CompilationState {
   // background compilation.
   void SetNumberOfFunctionsToCompile(size_t num_functions);
   void AddCallback(
-      std::function<void(CompilationEvent, Handle<Object>)> callback);
+      std::function<void(CompilationEvent, ErrorThrower*)> callback);
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
@@ -88,7 +88,7 @@ class CompilationState {
 
   bool HasCompilationUnitToFinish();
 
-  void OnError(Handle<Object> error);
+  void OnError(ErrorThrower* thrower);
   void OnFinishedUnit();
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
                                 WasmCompilationUnit::CompilationMode mode);
@@ -132,7 +132,7 @@ class CompilationState {
   }
 
  private:
-  void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
+  void NotifyOnEvent(CompilationEvent event, ErrorThrower* thrower);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
     return baseline_compilation_finished_ ? tiering_finish_units_
@@ -177,7 +177,10 @@ class CompilationState {
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  std::vector<std::function<void(CompilationEvent, Handle<Object>)>> callbacks_;
+  // TODO(mstarzinger): We should make sure this allows at most one callback
+  // to exist for each {CompilationState} because reifying the error object on
+  // the given {ErrorThrower} can be done at most once.
+  std::vector<std::function<void(CompilationEvent, ErrorThrower*)>> callbacks_;
 
   // When canceling the background_task_manager_, use {CancelAndWait} on
   // the CompilationState in order to cleanly clean up.
@@ -655,18 +658,16 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
   uint32_t num_non_compiled_callees = 0;  // For stats.
   {
     DisallowHeapAllocation no_gc;
-    Handle<WasmCompiledModule> caller_module(
-        wasm_caller->native_module()->compiled_module(), isolate);
-    SeqOneByteString* module_bytes = caller_module->shared()->module_bytes();
+    Handle<WasmSharedModuleData> shared(
+        wasm_caller->native_module()->shared_module_data(), isolate);
+    SeqOneByteString* module_bytes = shared->module_bytes();
     uint32_t caller_func_index = wasm_caller->index();
     SourcePositionTableIterator source_pos_iterator(
         wasm_caller->source_positions());
 
     const byte* func_bytes =
-        module_bytes->GetChars() + caller_module->shared()
-                                       ->module()
-                                       ->functions[caller_func_index]
-                                       .code.offset();
+        module_bytes->GetChars() +
+        shared->module()->functions[caller_func_index].code.offset();
     for (RelocIterator it(wasm_caller->instructions(),
                           wasm_caller->reloc_info(),
                           wasm_caller->constant_pool(),
@@ -688,7 +689,7 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
         int32_t callee_func_index =
             ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
         DCHECK_LT(callee_func_index,
-                  caller_module->GetNativeModule()->FunctionCount());
+                  wasm_caller->native_module()->FunctionCount());
         // {caller_ret_offset} points to one instruction after the call.
         // Remember the last called function before that offset.
         if (offset < caller_ret_offset) {
@@ -1105,6 +1106,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 }
 
 void PatchNativeModule(NativeModule* cloning_module,
+                       Handle<WasmCompiledModule> compiled_module,
                        const NativeModule* source_module) {
   // Clone optimized code into {cloning_module}.
   if (source_module != cloning_module) {
@@ -1114,7 +1116,7 @@ void PatchNativeModule(NativeModule* cloning_module,
   // Link.
   CodeSpecialization code_specialization;
   code_specialization.RelocateDirectCalls(cloning_module);
-  code_specialization.ApplyToWholeModule(cloning_module);
+  code_specialization.ApplyToWholeModule(cloning_module, compiled_module);
 }
 
 void UpdateAllCompiledModulesWithTopTierCode(
@@ -1133,12 +1135,12 @@ void UpdateAllCompiledModulesWithTopTierCode(
   NativeModule* updated_module = compiled_module->GetNativeModule();
 
   Handle<WasmCompiledModule> current = compiled_module;
-  PatchNativeModule(current->GetNativeModule(), updated_module);
+  PatchNativeModule(current->GetNativeModule(), current, updated_module);
 
   // Go through the chain of compiled modules to update each (next in chain).
   while (current->has_next_instance()) {
     current = handle(current->next_instance());
-    PatchNativeModule(current->GetNativeModule(), updated_module);
+    PatchNativeModule(current->GetNativeModule(), current, updated_module);
   }
 
   // Go through the chain of compiled modules to update each (previous in
@@ -1146,12 +1148,13 @@ void UpdateAllCompiledModulesWithTopTierCode(
   current = compiled_module;
   while (current->has_prev_instance()) {
     current = handle(current->prev_instance());
-    PatchNativeModule(current->GetNativeModule(), updated_module);
+    PatchNativeModule(current->GetNativeModule(), current, updated_module);
   }
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
                        const ModuleWireBytes& wire_bytes, ModuleEnv* module_env,
+                       Handle<WasmCompiledModule> compiled_module,
                        Handle<Code> centry_stub, ErrorThrower* thrower) {
   const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
@@ -1197,14 +1200,13 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
     // for background tiering compilation.
     DeferredHandleScope deferred(isolate);
     centry_deferred = Handle<Code>(*centry_stub, isolate);
-    compiled_module_deferred =
-        handle(native_module->compiled_module(), compilation_state->isolate());
+    compiled_module_deferred = handle(*compiled_module, isolate);
     deferred_handles = deferred.Detach();
   }
   compilation_state->AddCallback(
       [compiled_module_deferred, deferred_handles](
           // Callback is called from a foreground thread.
-          CompilationEvent event, Handle<Object> error) mutable {
+          CompilationEvent event, ErrorThrower* thrower) mutable {
         switch (event) {
           case CompilationEvent::kFinishedBaselineCompilation:
             // Nothing to do, since we are finishing baseline compilation
@@ -1405,6 +1407,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
       NewCompiledModule(isolate, shared->module(), export_wrappers, env);
   NativeModule* native_module = compiled_module->GetNativeModule();
   compiled_module->set_shared(*shared);
+  compiled_module->GetNativeModule()->SetSharedModuleData(shared);
   if (lazy_compile) {
     if (wasm_module->is_wasm()) {
       // Validate wasm modules for lazy compilation. Don't validate asm.js
@@ -1427,8 +1430,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, wire_bytes, &env, centry_stub,
-                        thrower);
+      CompileInParallel(isolate, native_module, wire_bytes, &env,
+                        compiled_module, centry_stub, thrower);
     } else {
       CompileSequentially(isolate, native_module, wire_bytes, &env, thrower);
     }
@@ -1503,13 +1506,9 @@ class FinishCompileTask : public CancelableTask {
       NativeModule* native_module = unit->native_module();
       if (thrower.error()) {
         DCHECK_NULL(result);
-        USE(result);
-        SaveContext saved_context(isolate);
-        isolate->set_context(
-            native_module->compiled_module()->native_context());
-        Handle<Object> error = thrower.Reify();
-        compilation_state_->OnError(error);
+        compilation_state_->OnError(&thrower);
         compilation_state_->SetFinisherIsRunning(false);
+        thrower.Reset();
         break;
       }
 
@@ -1840,7 +1839,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   // Patch all code with the relocations registered in code_specialization.
   code_specialization.RelocateDirectCalls(native_module);
-  code_specialization.ApplyToWholeModule(native_module, SKIP_ICACHE_FLUSH);
+  code_specialization.ApplyToWholeModule(
+      native_module, handle(instance->compiled_module()), SKIP_ICACHE_FLUSH);
 
   FlushICache(native_module);
   FlushICache(export_wrappers);
@@ -2886,6 +2886,7 @@ void AsyncCompileJob::FinishCompile() {
       isolate_, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
       script, asm_js_offset_table);
   compiled_module_->set_shared(*shared);
+  compiled_module_->GetNativeModule()->SetSharedModuleData(shared);
   script->set_wasm_compiled_module(*compiled_module_);
 
   // Finish the wasm script now and make it public to the debugger.
@@ -3115,7 +3116,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // on the current step we are in.
       AsyncCompileJob* job = job_;
       compilation_state->AddCallback(
-          [job](CompilationEvent event, Handle<Object> error) {
+          [job](CompilationEvent event, ErrorThrower* thrower) {
             // Callback is called from a foreground thread.
             switch (event) {
               case CompilationEvent::kFinishedBaselineCompilation:
@@ -3146,6 +3147,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 DCHECK(!job->compiled_module_->GetNativeModule()
                             ->compilation_state()
                             ->baseline_compilation_finished());
+
+                SaveContext saved_context(job->isolate());
+                job->isolate()->set_context(
+                    job->compiled_module_->native_context());
+                Handle<Object> error = thrower->Reify();
 
                 DeferredHandleScope deferred(job->isolate());
                 error = handle(*error, job->isolate());
@@ -3478,7 +3484,7 @@ CompilationState::~CompilationState() {
   CancelAndWait();
   foreground_task_manager_.CancelAndWait();
   isolate_->wasm_engine()->Unregister(&foreground_task_manager_);
-  NotifyOnEvent(CompilationEvent::kDestroyed, Handle<Object>::null());
+  NotifyOnEvent(CompilationEvent::kDestroyed, nullptr);
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
@@ -3492,7 +3498,7 @@ void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
 }
 
 void CompilationState::AddCallback(
-    std::function<void(CompilationEvent, Handle<Object>)> callback) {
+    std::function<void(CompilationEvent, ErrorThrower*)> callback) {
   callbacks_.push_back(callback);
 }
 
@@ -3555,9 +3561,10 @@ bool CompilationState::HasCompilationUnitToFinish() {
   return !finish_units().empty();
 }
 
-void CompilationState::OnError(Handle<Object> error) {
+void CompilationState::OnError(ErrorThrower* thrower) {
   Abort();
-  NotifyOnEvent(CompilationEvent::kFailedCompilation, error);
+  DCHECK(thrower->error());
+  NotifyOnEvent(CompilationEvent::kFailedCompilation, thrower);
 }
 
 void CompilationState::OnFinishedUnit() {
@@ -3573,7 +3580,7 @@ void CompilationState::OnFinishedUnit() {
     NotifyOnEvent(compile_mode_ == CompileMode::kRegular
                       ? CompilationEvent::kFinishedBaselineCompilation
                       : CompilationEvent::kFinishedTopTierCompilation,
-                  Handle<Object>::null());
+                  nullptr);
 
   } else if (outstanding_units_ == num_tiering_units_) {
     DCHECK_EQ(compile_mode_, CompileMode::kTiering);
@@ -3586,8 +3593,7 @@ void CompilationState::OnFinishedUnit() {
 
     // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
     // this case is already caught by the previous check.
-    NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation,
-                  Handle<Object>::null());
+    NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
     RestartBackgroundTasks(GetNumCompilationUnitsScheduled());
   }
 }
@@ -3678,9 +3684,9 @@ void CompilationState::Abort() {
 }
 
 void CompilationState::NotifyOnEvent(CompilationEvent event,
-                                     Handle<Object> error) {
+                                     ErrorThrower* thrower) {
   for (auto& callback_function : callbacks_) {
-    callback_function(event, error);
+    callback_function(event, thrower);
   }
 }
 
