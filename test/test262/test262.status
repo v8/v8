@@ -338,9 +338,6 @@
   'language/expressions/object/method-definition/name-param-redecl': [FAIL],
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5601
-  'intl402/PluralRules/*': ['--harmony-plural-rules'],
-
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
   'built-ins/Atomics/*': ['--harmony-sharedarraybuffer'],

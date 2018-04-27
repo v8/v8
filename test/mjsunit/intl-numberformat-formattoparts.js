@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-number-format-to-parts
-
 // Adapted from Gecko's js/src/tests/Intl/NumberFormat/formatToParts.js,
 // which was dedicated to the public domain.
 

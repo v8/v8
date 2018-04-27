@@ -2748,6 +2748,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       JSObject::AddProperty(
           prototype, factory->to_string_tag_symbol(), factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      Handle<String> name = factory->InternalizeUtf8String("formatToParts");
+      InstallFunction(
+          prototype,
+          SimpleCreateFunction(isolate, name,
+                               Builtins::kNumberFormatPrototypeFormatToParts, 1,
+                               false),
+          name);
     }
 
     {
@@ -2774,6 +2782,22 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       Handle<JSObject> prototype(
           JSObject::cast(v8_break_iterator_constructor->prototype()), isolate);
+
+      // Install the @@toStringTag property on the {prototype}.
+      JSObject::AddProperty(
+          prototype, factory->to_string_tag_symbol(), factory->Object_string(),
+          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    }
+
+    {
+      Handle<JSFunction> plural_rules_constructor = InstallFunction(
+          intl, "PluralRules", JS_OBJECT_TYPE, PluralRules::kSize, 0,
+          factory->the_hole_value(), Builtins::kIllegal);
+      native_context()->set_intl_plural_rules_function(
+          *plural_rules_constructor);
+
+      Handle<JSObject> prototype(
+          JSObject::cast(plural_rules_constructor->prototype()), isolate);
 
       // Install the @@toStringTag property on the {prototype}.
       JSObject::AddProperty(
@@ -4075,24 +4099,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       }
     }
   }
-
-#ifdef V8_INTL_SUPPORT
-  {  // I n t l  P l u r a l R u l e s
-    Handle<JSObject> plural_rules_prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-    // Install the @@toStringTag property on the {prototype}.
-    JSObject::AddProperty(
-        plural_rules_prototype, factory->to_string_tag_symbol(),
-        factory->Object_string(),
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-    Handle<JSFunction> plural_rules_constructor = InstallFunction(
-        container, "PluralRules", JS_OBJECT_TYPE, PluralRules::kSize, 0,
-        plural_rules_prototype, Builtins::kIllegal);
-    JSObject::AddProperty(plural_rules_prototype, factory->constructor_string(),
-                          plural_rules_constructor, DONT_ENUM);
-    native_context->set_intl_plural_rules_function(*plural_rules_constructor);
-  }
-#endif  // V8_INTL_SUPPORT
 }
 
 
@@ -4386,36 +4392,6 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   SimpleInstallFunction(dataview_prototype, "setBigUint64",
                         Builtins::kDataViewPrototypeSetBigUint64, 2, false);
 }
-
-#ifdef V8_INTL_SUPPORT
-
-void Genesis::InitializeGlobal_harmony_number_format_to_parts() {
-  if (!FLAG_harmony_number_format_to_parts) return;
-  Handle<JSObject> number_format_prototype(JSObject::cast(
-      native_context()->intl_number_format_function()->prototype()));
-  Handle<String> name = factory()->InternalizeUtf8String("formatToParts");
-  InstallFunction(number_format_prototype,
-                  SimpleCreateFunction(
-                      isolate(), name,
-                      Builtins::kNumberFormatPrototypeFormatToParts, 1, false),
-                  name);
-}
-
-void Genesis::InitializeGlobal_harmony_plural_rules() {
-  if (!FLAG_harmony_plural_rules) return;
-
-  Handle<JSFunction> plural_rules(
-      native_context()->intl_plural_rules_function());
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          Handle<JSReceiver>(native_context()->global_object()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-  JSObject::AddProperty(intl, factory()->InternalizeUtf8String("PluralRules"),
-                        plural_rules, DONT_ENUM);
-}
-
-#endif  // V8_INTL_SUPPORT
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
