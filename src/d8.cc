@@ -480,12 +480,6 @@ ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
-bool CounterMap::Match(void* key1, void* key2) {
-  const char* name1 = reinterpret_cast<const char*>(key1);
-  const char* name2 = reinterpret_cast<const char*>(key2);
-  return strcmp(name1, name2) == 0;
-}
-
 // Dummy external source stream which returns the whole source in one go.
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
@@ -1629,25 +1623,15 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
   isolate->SetAddHistogramSampleFunction(AddHistogramSample);
 }
 
-
-int CounterMap::Hash(const char* name) {
-  int h = 0;
-  int c;
-  while ((c = *name++) != 0) {
-    h += h << 5;
-    h += c;
-  }
-  return h;
-}
-
-
 Counter* Shell::GetCounter(const char* name, bool is_histogram) {
-  Counter* counter = counter_map_->Lookup(name);
+  auto map_entry = counter_map_->find(name);
+  Counter* counter =
+      map_entry != counter_map_->end() ? map_entry->second : nullptr;
 
   if (counter == nullptr) {
     counter = counters_->GetNextCounter();
     if (counter != nullptr) {
-      counter_map_->Set(name, counter);
+      (*counter_map_)[name] = counter;
       counter->Bind(name, is_histogram);
     }
   } else {
@@ -2083,15 +2067,13 @@ void Shell::OnExit(v8::Isolate* isolate) {
   isolate->Dispose();
 
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
-    int number_of_counters = 0;
-    for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
-      number_of_counters++;
-    }
+    const int number_of_counters = static_cast<int>(counter_map_->size());
     CounterAndKey* counters = new CounterAndKey[number_of_counters];
     int j = 0;
-    for (CounterMap::Iterator i(counter_map_); i.More(); i.Next(), j++) {
-      counters[j].counter = i.CurrentValue();
-      counters[j].key = i.CurrentKey();
+    for (auto map_entry : *counter_map_) {
+      counters[j].counter = map_entry.second;
+      counters[j].key = map_entry.first;
+      j++;
     }
     std::sort(counters, counters + number_of_counters);
 
