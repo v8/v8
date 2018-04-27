@@ -2706,8 +2706,16 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         wasm::WasmCode* wasm_code =
             native_module->GetIndirectlyCallableCode(func_index);
 
-        IndirectFunctionTableEntry(*instance, table_index)
-            .set(sig_id, *instance, wasm_code);
+        if (func_index < module_->num_imported_functions) {
+          // Imported functions have the target instance put into the IFT.
+          WasmInstanceObject* target_instance =
+              ImportedFunctionEntry(*instance, func_index).instance();
+          IndirectFunctionTableEntry(*instance, table_index)
+              .set(sig_id, target_instance, wasm_code);
+        } else {
+          IndirectFunctionTableEntry(*instance, table_index)
+              .set(sig_id, *instance, wasm_code);
+        }
 
         if (!table_instance.table_object.is_null()) {
           // Update the table object's other dispatch tables.

@@ -50,6 +50,8 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
       native_module_(native_module),
       lower_simd_(lower_simd),
       mode_(mode) {
+  DCHECK_GE(index, env->module->num_imported_functions);
+  DCHECK_LT(index, env->module->functions.size());
   SwitchMode(mode);
 }
 
