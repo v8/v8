@@ -329,16 +329,22 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
   i::MaybeHandle<i::Object> instance_object;
   {
     ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+
+    // TODO(ahaas): These checks on the module should not be necessary here They
+    // are just a workaround for https://crbug.com/837417.
+    i::Handle<i::Object> module_obj = Utils::OpenHandle(*module);
+    if (!module_obj->IsWasmModuleObject()) {
+      thrower.TypeError("Argument 0 must be a WebAssembly.Module object");
+      return {};
+    }
+
     i::MaybeHandle<i::JSReceiver> maybe_imports =
         GetValueAsImports(ffi, &thrower);
     if (thrower.error()) return {};
 
-    i::Handle<i::WasmModuleObject> module_obj =
-        i::Handle<i::WasmModuleObject>::cast(
-            Utils::OpenHandle(Object::Cast(*module)));
     instance_object = i_isolate->wasm_engine()->SyncInstantiate(
-        i_isolate, &thrower, module_obj, maybe_imports,
-        i::MaybeHandle<i::JSArrayBuffer>());
+        i_isolate, &thrower, i::Handle<i::WasmModuleObject>::cast(module_obj),
+        maybe_imports, i::MaybeHandle<i::JSArrayBuffer>());
   }
 
   DCHECK_EQ(instance_object.is_null(), i_isolate->has_scheduled_exception());

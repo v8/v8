@@ -11,10 +11,13 @@ builder.addFunction("test", kSig_i_v).addBody([
   kExprI32Const, 12,         // i32.const 0
 ]);
 
-let module = new WebAssembly.Module(builder.toBuffer());
-module.then = () => {
-  // Use setTimeout to get out of the promise chain.
-  setTimeout(assertUnreachable);
-};
+WebAssembly.Module.prototype.then = resolve => resolve(
+    String.fromCharCode(null, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41));
 
-WebAssembly.instantiate(module);
+// WebAssembly.instantiate should not actually throw a TypeError in this case.
+// However, this is a workaround for
+assertPromiseResult(
+    WebAssembly.instantiate(builder.toBuffer()), assertUnreachable,
+    exception => {
+      assertInstanceof(exception, TypeError);
+    });
