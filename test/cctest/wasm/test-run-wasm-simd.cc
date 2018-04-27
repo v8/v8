@@ -2198,7 +2198,8 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
 
 WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);
-  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  int32_t* memory =
+      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   // Load memory, store it, then reload it and extract the first lane. Use a
   // non-zero offset into the memory of 1 lane (4 bytes) to test indexing.
   BUILD(r, WASM_SIMD_STORE_MEM(WASM_I32V(4), WASM_SIMD_LOAD_MEM(WASM_I32V(4))),
