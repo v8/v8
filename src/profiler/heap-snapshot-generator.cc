@@ -2146,7 +2146,6 @@ NativeObjectsExplorer::NativeObjectsExplorer(
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
       embedder_queried_(false),
-      objects_by_info_(RetainedInfosMatch),
       native_groups_(StringsMatch),
       synthetic_entries_allocator_(
           new BasicHeapEntriesAllocator(snapshot, HeapEntry::kSynthetic)),
@@ -2157,13 +2156,10 @@ NativeObjectsExplorer::NativeObjectsExplorer(
       filler_(nullptr) {}
 
 NativeObjectsExplorer::~NativeObjectsExplorer() {
-  for (base::HashMap::Entry* p = objects_by_info_.Start(); p != nullptr;
-       p = objects_by_info_.Next(p)) {
-    v8::RetainedObjectInfo* info =
-        reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
+  for (auto map_entry : objects_by_info_) {
+    v8::RetainedObjectInfo* info = map_entry.first;
     info->Dispose();
-    std::vector<HeapObject*>* objects =
-        reinterpret_cast<std::vector<HeapObject*>*>(p->value);
+    std::vector<HeapObject*>* objects = map_entry.second;
     delete objects;
   }
   for (base::HashMap::Entry* p = native_groups_.Start(); p != nullptr;
@@ -2177,7 +2173,7 @@ NativeObjectsExplorer::~NativeObjectsExplorer() {
 
 int NativeObjectsExplorer::EstimateObjectsCount() {
   FillRetainedObjects();
-  return objects_by_info_.occupancy();
+  return static_cast<int>(objects_by_info_.size());
 }
 
 
@@ -2234,14 +2230,13 @@ void NativeObjectsExplorer::FillEdges() {
 
 std::vector<HeapObject*>* NativeObjectsExplorer::GetVectorMaybeDisposeInfo(
     v8::RetainedObjectInfo* info) {
-  base::HashMap::Entry* entry =
-      objects_by_info_.LookupOrInsert(info, InfoHash(info));
-  if (entry->value != nullptr) {
+  auto map_entry = objects_by_info_.find(info);
+  if (map_entry != objects_by_info_.end()) {
     info->Dispose();
   } else {
-    entry->value = new std::vector<HeapObject*>();
+    objects_by_info_[info] = new std::vector<HeapObject*>();
   }
-  return reinterpret_cast<std::vector<HeapObject*>*>(entry->value);
+  return objects_by_info_[info];
 }
 
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
@@ -2308,13 +2303,10 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     FillRetainedObjects();
     FillEdges();
     if (EstimateObjectsCount() > 0) {
-      for (base::HashMap::Entry* p = objects_by_info_.Start(); p != nullptr;
-           p = objects_by_info_.Next(p)) {
-        v8::RetainedObjectInfo* info =
-            reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
+      for (auto map_entry : objects_by_info_) {
+        v8::RetainedObjectInfo* info = map_entry.first;
         SetNativeRootReference(info);
-        std::vector<HeapObject*>* objects =
-            reinterpret_cast<std::vector<HeapObject*>*>(p->value);
+        std::vector<HeapObject*>* objects = map_entry.second;
         for (HeapObject* object : *objects) {
           SetWrapperNativeReferences(object, info);
         }
