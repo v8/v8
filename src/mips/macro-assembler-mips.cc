@@ -3782,10 +3782,8 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    LookupConstant(scratch, code);
-    Jump(scratch, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
+    LookupConstant(t9, code);
+    Jump(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
     return;
   }
 #endif  // V8_EMBEDDED_BUILTINS
@@ -3942,10 +3940,8 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   BlockTrampolinePoolScope block_trampoline_pool(this);
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    LookupConstant(scratch, code);
-    Call(scratch, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
+    LookupConstant(t9, code);
+    Call(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
     return;
   }
 #endif  // V8_EMBEDDED_BUILTINS
