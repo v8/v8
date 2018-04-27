@@ -185,8 +185,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
 };
 
-typedef Managed<WasmModule> WasmModuleWrapper;
-
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as

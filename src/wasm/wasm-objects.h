@@ -368,7 +368,7 @@ class WasmExportedFunction : public JSFunction {
 // Information shared by all WasmCompiledModule objects for the same module.
 class WasmSharedModuleData : public Struct {
  public:
-  DECL_ACCESSORS(module_wrapper, Object)
+  DECL_ACCESSORS(managed_module, Object)
   wasm::WasmModule* module() const;
   DECL_ACCESSORS(module_bytes, SeqOneByteString)
   DECL_ACCESSORS(script, Script)
@@ -383,12 +383,12 @@ class WasmSharedModuleData : public Struct {
   DECL_VERIFIER(WasmSharedModuleData)
 
 // Layout description.
-#define WASM_SHARED_MODULE_DATA_FIELDS(V)             \
-  V(kModuleWrapperOffset, kPointerSize)               \
-  V(kModuleBytesOffset, kPointerSize)                 \
-  V(kScriptOffset, kPointerSize)                      \
-  V(kAsmJsOffsetTableOffset, kPointerSize)            \
-  V(kBreakPointInfosOffset, kPointerSize)             \
+#define WASM_SHARED_MODULE_DATA_FIELDS(V)  \
+  V(kManagedModuleOffset, kPointerSize)    \
+  V(kModuleBytesOffset, kPointerSize)      \
+  V(kScriptOffset, kPointerSize)           \
+  V(kAsmJsOffsetTableOffset, kPointerSize) \
+  V(kBreakPointInfosOffset, kPointerSize)  \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -405,7 +405,7 @@ class WasmSharedModuleData : public Struct {
                                           Handle<WasmInstanceObject>);
 
   static Handle<WasmSharedModuleData> New(
-      Isolate* isolate, Handle<Foreign> module_wrapper,
+      Isolate* isolate, Handle<Foreign> managed_module,
       Handle<SeqOneByteString> module_bytes, Handle<Script> script,
       Handle<ByteArray> asm_js_offset_table);
 

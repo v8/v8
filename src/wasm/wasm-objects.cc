@@ -974,16 +974,16 @@ wasm::WasmCode* WasmExportedFunction::GetWasmCode() {
 }
 
 WasmModule* WasmSharedModuleData::module() const {
-  return Managed<WasmModule>::cast(module_wrapper())->raw();
+  return Managed<WasmModule>::cast(managed_module())->raw();
 }
 
 Handle<WasmSharedModuleData> WasmSharedModuleData::New(
-    Isolate* isolate, Handle<Foreign> module_wrapper,
+    Isolate* isolate, Handle<Foreign> managed_module,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
   Handle<WasmSharedModuleData> data = Handle<WasmSharedModuleData>::cast(
       isolate->factory()->NewStruct(WASM_SHARED_MODULE_DATA_TYPE, TENURED));
-  data->set_module_wrapper(*module_wrapper);
+  data->set_managed_module(*managed_module);
   if (!module_bytes.is_null()) {
     data->set_module_bytes(*module_bytes);
   }

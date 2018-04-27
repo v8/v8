@@ -1535,8 +1535,8 @@ void WasmDebugInfo::WasmDebugInfoVerify() {
 
 void WasmSharedModuleData::WasmSharedModuleDataVerify() {
   CHECK(IsWasmSharedModuleData());
-  VerifyObjectField(kModuleWrapperOffset);
-  CHECK(module_wrapper()->IsForeign());
+  VerifyObjectField(kManagedModuleOffset);
+  CHECK(managed_module()->IsForeign());
   VerifyObjectField(kModuleBytesOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kAsmJsOffsetTableOffset);

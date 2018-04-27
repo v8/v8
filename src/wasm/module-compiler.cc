@@ -1375,10 +1375,10 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
 
-  // The {module_wrapper} will take ownership of the {WasmModule} object,
+  // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
-  Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::FromUniquePtr(isolate, std::move(module));
+  Handle<Managed<WasmModule>> managed_module =
+      Managed<WasmModule>::FromUniquePtr(isolate, std::move(module));
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -1386,7 +1386,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   // breakpoints on a (potentially empty) subset of the instances.
 
   Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
+      isolate, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
       script, asm_js_offset_table);
 
   int export_wrappers_size =
@@ -2875,9 +2875,9 @@ void AsyncCompileJob::FinishCompile() {
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
 
-  // The {module_wrapper} will take ownership of the {WasmModule} object,
+  // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
-  Handle<Managed<WasmModule>> module_wrapper =
+  Handle<Managed<WasmModule>> managed_module =
       Managed<WasmModule>::FromUniquePtr(isolate_, std::move(module_));
 
   // Create the shared module data.
@@ -2885,7 +2885,7 @@ void AsyncCompileJob::FinishCompile() {
   // only have one WasmSharedModuleData. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
   Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate_, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
+      isolate_, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
       script, asm_js_offset_table);
   compiled_module_->set_shared(*shared);
   script->set_wasm_compiled_module(*compiled_module_);

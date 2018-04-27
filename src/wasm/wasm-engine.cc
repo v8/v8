@@ -27,7 +27,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompileTranslatedAsmJs(
                                              bytes.end(), false, kAsmJsOrigin);
   CHECK(!result.failed());
 
-  // Transfer ownership of the WasmModule to the {WasmModuleWrapper} generated
+  // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
   return CompileToModuleObject(isolate, thrower, std::move(result.val), bytes,
                                asm_js_script, asm_js_offset_table_bytes);
@@ -42,7 +42,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     return {};
   }
 
-  // Transfer ownership of the WasmModule to the {WasmModuleWrapper} generated
+  // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
   return CompileToModuleObject(isolate, thrower, std::move(result.val), bytes,
                                Handle<Script>(), Vector<const byte>());

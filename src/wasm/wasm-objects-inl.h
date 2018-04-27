@@ -168,7 +168,7 @@ ImportedFunctionEntry::ImportedFunctionEntry(WasmInstanceObject* instance,
 }
 
 // WasmSharedModuleData
-ACCESSORS(WasmSharedModuleData, module_wrapper, Object, kModuleWrapperOffset)
+ACCESSORS(WasmSharedModuleData, managed_module, Object, kManagedModuleOffset)
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,
           kModuleBytesOffset)
 ACCESSORS(WasmSharedModuleData, script, Script, kScriptOffset)
