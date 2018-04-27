@@ -16,6 +16,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 #include "src/objects/compilation-cache-inl.h"
+#include "src/objects/templates.h"
 #include "src/utils.h"
 
 namespace v8 {

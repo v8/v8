@@ -20,6 +20,7 @@
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/templates.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"

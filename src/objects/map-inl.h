@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates-inl.h"
 #include "src/property.h"
 #include "src/transitions.h"
 

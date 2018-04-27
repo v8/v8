@@ -2071,6 +2071,8 @@ v8_source_set("v8_base") {
     "src/objects/string.h",
     "src/objects/template-objects.cc",
     "src/objects/template-objects.h",
+    "src/objects/templates-inl.h",
+    "src/objects/templates.h",
     "src/optimized-compilation-info.cc",
     "src/optimized-compilation-info.h",
     "src/ostreams.cc",

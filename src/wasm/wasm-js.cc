@@ -13,6 +13,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-engine.h"

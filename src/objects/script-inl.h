@@ -7,6 +7,7 @@
 
 #include "src/objects/script.h"
 
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
