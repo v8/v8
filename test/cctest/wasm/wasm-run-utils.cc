@@ -66,6 +66,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
   DCHECK(!instance_object_->has_memory_object());
+  DCHECK_IMPLIES(test_module_->origin() == kWasmOrigin,
+                 size % kWasmPageSize == 0);
   test_module_->has_memory = true;
   const bool enable_guard_regions =
       trap_handler::IsTrapHandlerEnabled() && test_module_->is_wasm();
@@ -86,10 +88,6 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
       (test_module_->maximum_pages != 0) ? test_module_->maximum_pages : -1);
   instance_object_->set_memory_object(*memory_object);
   WasmMemoryObject::AddInstance(isolate_, memory_object, instance_object_);
-  // TODO(wasm): Delete the following two lines when test-run-wasm will use a
-  // multiple of kPageSize as memory size. At the moment, the effect of these
-  // two lines is used to shrink the memory for testing purposes.
-  instance_object_->SetRawMemory(mem_start_, mem_size_);
   return mem_start_;
 }
 
