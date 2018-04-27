@@ -6934,7 +6934,6 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
     return JSTypedArray::DefineOwnProperty(
         isolate, Handle<JSTypedArray>::cast(object), key, desc, should_throw);
   }
-  // TODO(neis): Special case for JSModuleNamespace?
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
