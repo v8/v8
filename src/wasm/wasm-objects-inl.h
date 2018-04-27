@@ -31,7 +31,7 @@ CAST_ACCESSOR(WasmTableObject)
   ACCESSORS(holder, name, type, offset)
 
 #define READ_PRIMITIVE_FIELD(p, type, offset) \
-  (*reinterpret_cast<type const*>(FIELD_ADDR_CONST(p, offset)))
+  (*reinterpret_cast<type const*>(FIELD_ADDR(p, offset)))
 
 #define WRITE_PRIMITIVE_FIELD(p, type, offset, value) \
   (*reinterpret_cast<type*>(FIELD_ADDR(p, offset)) = value)

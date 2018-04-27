@@ -3575,17 +3575,14 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 
-#define FIELD_ADDR_CONST(p, offset) \
-  (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
-
 #define READ_INT32_FIELD(p, offset) \
-  (*reinterpret_cast<const int32_t*>(FIELD_ADDR_CONST(p, offset)))
+  (*reinterpret_cast<const int32_t*>(FIELD_ADDR(p, offset)))
 
 #define READ_INT64_FIELD(p, offset) \
-  (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
+  (*reinterpret_cast<const int64_t*>(FIELD_ADDR(p, offset)))
 
 #define READ_BYTE_FIELD(p, offset) \
-  (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
+  (*reinterpret_cast<const byte*>(FIELD_ADDR(p, offset)))
 
 String* JSReceiver::class_name() {
   if (IsFunction()) return GetHeap()->Function_string();
@@ -19563,7 +19560,6 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
 }
 
 #undef FIELD_ADDR
-#undef FIELD_ADDR_CONST
 #undef READ_INT32_FIELD
 #undef READ_INT64_FIELD
 #undef READ_BYTE_FIELD

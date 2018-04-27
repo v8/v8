@@ -234,7 +234,7 @@ int Code::InstructionSize() const {
 }
 
 Address Code::raw_instruction_start() const {
-  return FIELD_ADDR_CONST(this, kHeaderSize);
+  return FIELD_ADDR(this, kHeaderSize);
 }
 
 Address Code::InstructionStart() const {
@@ -273,7 +273,7 @@ void Code::set_unwinding_info_size(int value) {
 
 Address Code::unwinding_info_start() const {
   DCHECK(has_unwinding_info());
-  return FIELD_ADDR_CONST(this, GetUnwindingInfoSizeOffset()) + kInt64Size;
+  return FIELD_ADDR(this, GetUnwindingInfoSizeOffset()) + kInt64Size;
 }
 
 Address Code::unwinding_info_end() const {

@@ -22,7 +22,7 @@ INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 int32_t FeedbackMetadata::synchronized_slot_count() const {
   return base::Acquire_Load(reinterpret_cast<const base::Atomic32*>(
-          FIELD_ADDR_CONST(this, kSlotCountOffset)));
+      FIELD_ADDR(this, kSlotCountOffset)));
 }
 
 // static
