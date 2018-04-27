@@ -911,13 +911,6 @@ void CodeStubAssembler::BranchIfJSReceiver(Node* object, Label* if_true,
   Branch(IsJSReceiver(object), if_true, if_false);
 }
 
-void CodeStubAssembler::BranchIfJSObject(Node* object, Label* if_true,
-                                         Label* if_false) {
-  GotoIf(TaggedIsSmi(object), if_false);
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  Branch(IsJSObject(object), if_true, if_false);
-}
-
 TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
                                               SloppyTNode<Context> context) {
   Label if_true(this), if_false(this, Label::kDeferred), exit(this);

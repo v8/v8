@@ -482,7 +482,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfToBooleanIsTrue(Node* value, Label* if_true, Label* if_false);
 
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
-  void BranchIfJSObject(Node* object, Label* if_true, Label* if_false);
 
   void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
                            Label* if_false);
