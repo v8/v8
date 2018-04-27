@@ -73,6 +73,7 @@
   'test-heap/OutOfMemory': [SKIP],
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
+  'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
@@ -90,6 +91,9 @@
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
+
+  # BUG(7702). Flaky data race and other test failures.
+  'test-cpu-profiler/MultipleProfilers': [SKIP],
 
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
