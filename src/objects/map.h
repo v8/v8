@@ -126,7 +126,8 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      |          |   - elements_kind (bits 3..7)               |
 // +----+----------+---------------------------------------------+
 // | Int           | [bit_field3]                                |
-// |               |   - number_of_own_descriptors (bit 0..19)   |
+// |               |   - enum_length (bit 0..9)                  |
+// |               |   - number_of_own_descriptors (bit 10..19)  |
 // |               |   - is_dictionary_map (bit 20)              |
 // |               |   - owns_descriptors (bit 21)               |
 // |               |   - has_hidden_prototype (bit 22)           |
