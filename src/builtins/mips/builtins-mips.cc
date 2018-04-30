@@ -10,6 +10,7 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/mips/constants-mips.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
@@ -1048,7 +1049,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   ExternalReference debug_execution_mode =
       ExternalReference::debug_execution_mode_address(masm->isolate());
   __ li(t0, Operand(debug_execution_mode));
-  __ lb(t0, MemOperand(t0));
+  __ lb(t0, MemOperand(t0, kLeastSignificantByteInInt32Offset));
   STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
                 static_cast<int>(DebugInfo::kSideEffects));
   __ Branch(&bytecode_array_loaded, eq, t0, Operand(t1));

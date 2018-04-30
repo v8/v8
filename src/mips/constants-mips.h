@@ -122,6 +122,14 @@ const uint32_t kMipsSwlOffset = 0;
 #error Unknown endianness
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 0;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 3;
+#else
+#error Unknown endianness
+#endif
+
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
