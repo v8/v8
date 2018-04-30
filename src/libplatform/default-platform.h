@@ -58,8 +58,6 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   int NumberOfWorkerThreads() override;
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
-  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
-      v8::Isolate* isolate) override;
   void CallOnWorkerThread(std::unique_ptr<Task> task) override;
   void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
                                  double delay_in_seconds) override;

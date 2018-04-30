@@ -181,13 +181,6 @@ class PredictablePlatform : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
-      v8::Isolate* isolate) override {
-    // Return the foreground task runner here, so that all tasks get executed
-    // sequentially in a predictable order.
-    return platform_->GetForegroundTaskRunner(isolate);
-  }
-
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     // It's not defined when background tasks are being executed, so we can just
     // execute them right away.

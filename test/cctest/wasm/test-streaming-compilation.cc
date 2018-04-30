@@ -35,11 +35,6 @@ class MockPlatform final : public TestPlatform {
     return task_runner_;
   }
 
-  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
-      v8::Isolate* isolate) override {
-    return task_runner_;
-  }
-
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     task_runner_->PostTask(std::unique_ptr<Task>(task));
   }

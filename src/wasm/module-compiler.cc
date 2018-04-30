@@ -187,7 +187,6 @@ class CompilationState {
   // the CompilationState in order to cleanly clean up.
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
-  std::shared_ptr<v8::TaskRunner> background_task_runner_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
   const size_t max_background_tasks_ = 0;
@@ -2776,7 +2775,6 @@ AsyncCompileJob::AsyncCompileJob(Isolate* isolate,
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-  background_task_runner_ = platform->GetWorkerThreadsTaskRunner(v8_isolate);
   // The handles for the context and promise must be deferred.
   DeferredHandleScope deferred(isolate);
   context_ = Handle<Context>(*context);
@@ -2976,12 +2974,15 @@ void AsyncCompileJob::DoSync(Args&&... args) {
 }
 
 void AsyncCompileJob::StartBackgroundTask() {
+  auto task = base::make_unique<CompileTask>(this, false);
+
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.
-  v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
-                                    ? background_task_runner_.get()
-                                    : foreground_task_runner_.get();
-  task_runner->PostTask(base::make_unique<CompileTask>(this, false));
+  if (FLAG_wasm_num_compilation_tasks > 0) {
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+  } else {
+    foreground_task_runner_->PostTask(std::move(task));
+  }
 }
 
 template <typename Step, typename... Args>
@@ -3471,7 +3472,6 @@ CompilationState::CompilationState(internal::Isolate* isolate, ModuleEnv& env)
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-  background_task_runner_ = platform->GetWorkerThreadsTaskRunner(v8_isolate);
 
   // Register task manager for clean shutdown in case of an isolate shutdown.
   isolate_->wasm_engine()->Register(&background_task_manager_);
@@ -3641,14 +3641,17 @@ void CompilationState::RestartBackgroundTasks(size_t max) {
     num_background_tasks_ += num_restart;
   }
 
-  // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
-  // tasks. This is used to make timing deterministic.
-  v8::TaskRunner* task_runner = FLAG_wasm_num_compilation_tasks > 0
-                                    ? background_task_runner_.get()
-                                    : foreground_task_runner_.get();
   for (; num_restart > 0; --num_restart) {
-    task_runner->PostTask(base::make_unique<BackgroundCompileTask>(
-        this, &background_task_manager_));
+    auto task = base::make_unique<BackgroundCompileTask>(
+        this, &background_task_manager_);
+
+    // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
+    // tasks. This is used to make timing deterministic.
+    if (FLAG_wasm_num_compilation_tasks > 0) {
+      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+    } else {
+      foreground_task_runner_->PostTask(std::move(task));
+    }
   }
 }
 
