@@ -1369,7 +1369,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   Handle<WeakCell> weak_native_context =
       isolate->factory()->NewWeakCell(isolate->native_context());
   compiled_module->set_weak_native_context(*weak_native_context);
-  compiled_module->set_use_trap_handler(env.use_trap_handler);
   if (!export_wrappers.is_null()) {
     compiled_module->set_export_wrappers(*export_wrappers);
   }
@@ -1399,7 +1398,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->set_weak_wasm_module(module->weak_wasm_module());
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   ret->set_native_module(module->native_module());
-  ret->set_use_trap_handler(module->use_trap_handler());
 
   Handle<FixedArray> export_copy = isolate->factory()->CopyFixedArray(
       handle(module->export_wrappers(), isolate));
@@ -1431,7 +1429,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   native_module->SetExecutable(false);
 
   TRACE("Resetting %zu\n", native_module->instance_id);
-  if (compiled_module->use_trap_handler()) {
+  if (native_module->use_trap_handler()) {
     native_module->ReleaseProtectedInstructions();
   }
 

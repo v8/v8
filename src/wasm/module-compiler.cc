@@ -287,8 +287,9 @@ class InstanceBuilder {
   Counters* counters() const { return async_counters().get(); }
 
   wasm::UseTrapHandler use_trap_handler() const {
-    return compiled_module_->use_trap_handler() ? kUseTrapHandler
-                                                : kNoTrapHandler;
+    return compiled_module_->GetNativeModule()->use_trap_handler()
+               ? kUseTrapHandler
+               : kNoTrapHandler;
   }
 
 // Helper routines to print out errors with imports.
@@ -489,7 +490,8 @@ ModuleEnv CreateModuleEnvFromCompiledModule(
   DisallowHeapAllocation no_gc;
   WasmModule* module = compiled_module->shared()->module();
   wasm::UseTrapHandler use_trap_handler =
-      compiled_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
+      compiled_module->GetNativeModule()->use_trap_handler() ? kUseTrapHandler
+                                                             : kNoTrapHandler;
   return ModuleEnv(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
 }
 
@@ -3702,7 +3704,8 @@ void CompileJsToWasmWrappers(Isolate* isolate,
                                      isolate);
   NativeModule* native_module = compiled_module->GetNativeModule();
   wasm::UseTrapHandler use_trap_handler =
-      compiled_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
+      compiled_module->GetNativeModule()->use_trap_handler() ? kUseTrapHandler
+                                                             : kNoTrapHandler;
   for (auto exp : compiled_module->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     wasm::WasmCode* wasm_code =

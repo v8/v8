@@ -501,7 +501,6 @@ class WasmCompiledModule : public Struct {
   V(kWasmModuleOffset, kPointerSize)            \
   V(kNativeModuleOffset, kPointerSize)          \
   V(kLazyCompileDataOffset, kPointerSize)       \
-  V(kUseTrapHandlerOffset, kPointerSize)        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -522,13 +521,6 @@ class WasmCompiledModule : public Struct {
 
 #define WCM_CONST_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, private)
 
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME) \
- public:                                   \
-  inline TYPE NAME() const;                \
-                                           \
- private:                                  \
-  inline void set_##NAME(TYPE value);
-
 #define WCM_WEAK_LINK(TYPE, NAME)                   \
   WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, public) \
                                                     \
@@ -547,8 +539,6 @@ class WasmCompiledModule : public Struct {
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
   WCM_WEAK_LINK(WasmModuleObject, wasm_module)
   WCM_OBJECT(Foreign, native_module)
-  // TODO(mstarzinger): Make {use_trap_handler} smaller.
-  WCM_SMALL_CONST_NUMBER(bool, use_trap_handler)
 
  public:
   static Handle<WasmCompiledModule> New(Isolate* isolate,
@@ -688,7 +678,6 @@ class WasmDebugInfo : public Struct {
 #undef WCM_LARGE_NUMBER
 #undef WCM_OBJECT
 #undef WCM_OBJECT_OR_WEAK
-#undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
 
 #include "src/objects/object-macros-undef.h"

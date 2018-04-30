@@ -16,6 +16,7 @@
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -338,7 +339,8 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
           reinterpret_cast<Isolate*>(code_manager->isolate_), env)),
       free_memory_(mem->address(), mem->end()),
       wasm_code_manager_(code_manager),
-      can_request_more_memory_(can_request_more) {
+      can_request_more_memory_(can_request_more),
+      use_trap_handler_(env.use_trap_handler) {
   VirtualMemory my_mem;
   owned_memory_.push_back(my_mem);
   owned_memory_.back().TakeControl(mem);

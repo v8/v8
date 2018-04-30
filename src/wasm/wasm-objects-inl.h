@@ -209,15 +209,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #define WCM_OBJECT(TYPE, NAME, OFFSET) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, value->Is##TYPE())
 
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME, OFFSET)                  \
-  TYPE WasmCompiledModule::NAME() const {                           \
-    return static_cast<TYPE>(Smi::ToInt(READ_FIELD(this, OFFSET))); \
-  }                                                                 \
-                                                                    \
-  void WasmCompiledModule::set_##NAME(TYPE value) {                 \
-    WRITE_FIELD(this, OFFSET, Smi::FromInt(value));                 \
-  }
-
 #define WCM_WEAK_LINK(TYPE, NAME, OFFSET)                                \
   WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, OFFSET, value->IsWeakCell()) \
                                                                          \
@@ -235,13 +226,11 @@ WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)
 WCM_WEAK_LINK(WasmInstanceObject, owning_instance, kOwningInstanceOffset)
 WCM_WEAK_LINK(WasmModuleObject, wasm_module, kWasmModuleOffset)
 WCM_OBJECT(Foreign, native_module, kNativeModuleOffset)
-WCM_SMALL_CONST_NUMBER(bool, use_trap_handler, kUseTrapHandlerOffset)
 ACCESSORS(WasmCompiledModule, raw_next_instance, Object, kNextInstanceOffset);
 ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
 
 #undef WCM_OBJECT_OR_WEAK
 #undef WCM_OBJECT
-#undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
 #undef READ_PRIMITIVE_FIELD
 #undef WRITE_PRIMITIVE_FIELD
