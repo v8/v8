@@ -618,11 +618,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallWasmFunction: {
-      // We must not share code targets for calls to builtins for wasm code, as
-      // they might need to be patched individually.
-      internal::Assembler::BlockCodeTargetSharingScope scope;
-      if (info()->IsWasm()) scope.Open(tasm());
-
       if (instr->InputAt(0)->IsImmediate()) {
         Address wasm_code =
             static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
@@ -664,11 +659,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchTailCallWasm: {
-      // We must not share code targets for calls to builtins for wasm code, as
-      // they might need to be patched individually.
-      internal::Assembler::BlockCodeTargetSharingScope scope;
-      if (info()->IsWasm()) scope.Open(tasm());
-
       if (instr->InputAt(0)->IsImmediate()) {
         Address wasm_code =
             static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());

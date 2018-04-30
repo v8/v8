@@ -77,7 +77,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   queue.PushQueued();
 
   // Call through to the actual stub.
-  __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
+  __ IndirectCall(start, RelocInfo::CODE_TARGET);
   __ Peek(destination_reg, 0);
 
   __ Drop(2, kDoubleSize);

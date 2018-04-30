@@ -6691,7 +6691,7 @@ namespace {
 void LoadLiteral(MacroAssembler* masm, Register reg, uint64_t imm) {
   // Since we do not allow non-relocatable entries in the literal pool, we need
   // to fake a relocation mode that is not NONE here.
-  masm->Ldr(reg, Immediate(imm, RelocInfo::RUNTIME_ENTRY));
+  masm->Ldr(reg, Immediate(imm, RelocInfo::EMBEDDED_OBJECT));
 }
 
 }  // namespace
@@ -15099,13 +15099,6 @@ TEST(call_no_relocation) {
   RUN();
 
   CHECK_EQUAL_64(1, x0);
-
-  // The return_address_from_call_start function doesn't currently encounter any
-  // non-relocatable sequences, so we check it here to make sure it works.
-  // TODO(jbramley): Once Crankshaft is complete, decide if we need to support
-  // non-relocatable calls at all.
-  CHECK(return_address ==
-        Assembler::return_address_from_call_start(call_start));
 
   TEARDOWN();
 }

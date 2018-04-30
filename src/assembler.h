@@ -99,7 +99,7 @@ class AssemblerBase: public Malloced {
     IsolateData(const IsolateData&) = default;
 
     bool serializer_enabled_;
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
     Address code_range_start_;
 #endif
   };
@@ -617,10 +617,8 @@ class RelocInfo {
   uint32_t embedded_size() const;
   Address embedded_address() const;
 
-  // On ARM, note that pc_ is the address of the constant pool entry
-  // to be relocated and not the address of the instruction
-  // referencing the constant pool entry (except when rmode_ ==
-  // comment).
+  // On ARM/ARM64, note that pc_ is the address of the instruction referencing
+  // the constant pool and not the address of the constant pool entry.
   Address pc_;
   Mode rmode_;
   intptr_t data_ = 0;

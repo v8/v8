@@ -137,6 +137,11 @@ void Assembler::deserialization_set_special_target_at(
   }
 }
 
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
+}
+
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
   Instr instr1 = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);

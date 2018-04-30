@@ -597,10 +597,18 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
 
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
+
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // TODO(arm64): This is only needed until direct calls are supported in
+  // WebAssembly for ARM64.
+  void set_code_in_js_code_space(bool) {}
 
   // Size of an instruction.
   static constexpr int kInstrSize = sizeof(Instr);

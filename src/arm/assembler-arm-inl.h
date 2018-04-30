@@ -298,6 +298,10 @@ void Assembler::deserialization_set_special_target_at(
   Memory::Address_at(constant_pool_entry) = target;
 }
 
+int Assembler::deserialization_special_target_size(Address location) {
+  return kSpecialTargetSize;
+}
+
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;

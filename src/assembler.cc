@@ -54,7 +54,7 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
     : serializer_enabled_(isolate->serializer_enabled())
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
       ,
       code_range_start_(
           isolate->heap()->memory_allocator()->code_range()->start())

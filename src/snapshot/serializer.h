@@ -269,6 +269,8 @@ class Serializer : public SerializerDeserializer {
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
+class RelocInfoIterator;
+
 template <class AllocatorT>
 class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
  public:
@@ -302,6 +304,8 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
   void VisitCodeTarget(Code* host, RelocInfo* target) override;
   void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
   void VisitOffHeapTarget(Code* host, RelocInfo* target) override;
+  // Relocation info needs to be visited sorted by target_address_address.
+  void VisitRelocInfo(RelocIterator* it) override;
 
  private:
   void SerializePrologue(AllocationSpace space, int size, Map* map);

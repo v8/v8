@@ -157,14 +157,20 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
-
+const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
+                                  1 << RelocInfo::RUNTIME_ENTRY |
+                                  1 << RelocInfo::INTERNAL_REFERENCE;
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded. Being
-  // specially coded on ARM64 means that it is a movz/movk sequence. We don't
-  // generate those for relocatable pointers.
-  return false;
+  // specially coded on ARM64 means that it is an immediate branch.
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  if (instr->IsLdrLiteralX()) {
+    return false;
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    return true;
+  }
 }
 
 
@@ -174,7 +180,7 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 Address RelocInfo::embedded_address() const {
-  return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 uint32_t RelocInfo::embedded_size() const {
@@ -548,6 +554,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
   code_target_sharing_blocked_nesting_ = 0;
+  near_branches_allowed_ = true;
   Reset();
 }
 
@@ -570,6 +577,7 @@ void Assembler::Reset() {
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
+  code_targets_.reserve(64);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
@@ -579,19 +587,34 @@ void Assembler::Reset() {
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   for (auto& request : heap_object_requests_) {
-    Handle<HeapObject> object;
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   IMMUTABLE, TENURED);
-        break;
-      case HeapObjectRequest::kCodeStub:
-        request.code_stub()->set_isolate(isolate);
-        object = request.code_stub()->GetCode();
-        break;
-    }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
-    Memory::Address_at(target_pointer_address_at(pc)) = object.address();
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber: {
+        Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
+            request.heap_number(), IMMUTABLE, TENURED);
+        set_target_address_at(pc, 0 /* unused */, object.address());
+        break;
+      }
+      case HeapObjectRequest::kCodeStub: {
+        request.code_stub()->set_isolate(isolate);
+        Instruction* instr = reinterpret_cast<Instruction*>(pc);
+        // TODO(arm64): Only keep the else part when direct calls are supported
+        // for WebAssembly.
+        if (instr->IsLdrLiteralX()) {
+          Memory::Address_at(target_pointer_address_at(pc)) =
+              request.code_stub()->GetCode().address();
+        } else {
+          DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+          DCHECK_GE(instr->ImmPCOffset(), 0);
+          DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
+          DCHECK_LT(instr->ImmPCOffset() >> kInstructionSizeLog2,
+                    code_targets_.size());
+          code_targets_[instr->ImmPCOffset() >> kInstructionSizeLog2] =
+              request.code_stub()->GetCode();
+        }
+        break;
+      }
+    }
   }
 }
 
@@ -4738,8 +4761,8 @@ void Assembler::GrowBuffer() {
   // Pending relocation entries are also relative, no need to relocate.
 }
 
-
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
+                                ConstantPoolMode constant_pool_mode) {
   // Non-relocatable constants should not end up in the literal pool.
   DCHECK(!RelocInfo::IsNone(rmode));
 
@@ -4759,12 +4782,14 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
-  } else {
+  } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
     write_reloc_info = constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
   }
+  // For modes that cannot use the constant pool, a different sequence of
+  // instructions will be emitted by this function's caller.
 
   if (!RelocInfo::IsNone(rmode) && write_reloc_info) {
     // Don't record external references unless the heap will be serialized.
@@ -4777,6 +4802,34 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
 }
 
+int Assembler::GetCodeTargetIndex(Handle<Code> target) {
+  int current = static_cast<int>(code_targets_.size());
+  if (current > 0 && !target.is_null() &&
+      code_targets_.back().address() == target.address()) {
+    // Optimization if we keep jumping to the same code target.
+    return (current - 1);
+  } else {
+    code_targets_.push_back(target);
+    return current;
+  }
+}
+
+void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  b(offset);
+}
+
+void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  bl(offset);
+}
+
+void Assembler::near_call(HeapObjectRequest request) {
+  RequestHeapObject(request);
+  int index = GetCodeTargetIndex(Handle<Code>());
+  RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
+  bl(index);
+}
 
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstructionSize;

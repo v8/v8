@@ -436,9 +436,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
     RelocIterator it(Code::cast(obj), mode_mask);
-    for (; !it.done(); it.next()) {
-      it.rinfo()->Visit(v);
-    }
+    v->VisitRelocInfo(&it);
   }
 
   template <typename ObjectVisitor>

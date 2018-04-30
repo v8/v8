@@ -476,9 +476,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-// The entry hook is a Push (stp) instruction, followed by a call.
+// The entry hook is a Push (stp) instruction, followed by a near call.
 static const unsigned int kProfileEntryHookCallSize =
-    (1 * kInstructionSize) + Assembler::kCallSizeWithRelocation;
+    (1 * kInstructionSize) + Assembler::kNearCallSize;
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
@@ -567,12 +567,9 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-  intptr_t code =
-      reinterpret_cast<intptr_t>(GetCode().location());
-  __ Mov(lr, Operand(code, RelocInfo::CODE_TARGET));
-  __ Mov(x10, target);
   // Branch to the stub.
-  __ Blr(lr);
+  __ Mov(x10, target);
+  __ Call(GetCode(), RelocInfo::CODE_TARGET);
 }
 
 template<class T>

@@ -120,6 +120,11 @@ void Assembler::deserialization_set_special_target_at(
       code ? code->constant_pool() : kNullAddress, target);
 }
 
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
+}
+
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
   // Encoded internal references are j/jal instructions.

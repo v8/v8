@@ -272,6 +272,11 @@ void Assembler::deserialization_set_special_target_at(
                         code ? code->constant_pool() : kNullAddress, target);
 }
 
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
+}
+
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];
 }

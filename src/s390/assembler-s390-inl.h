@@ -308,6 +308,11 @@ void Assembler::deserialization_set_special_target_at(
                         code ? code->constant_pool() : kNullAddress, target);
 }
 
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
+}
+
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
   if (RelocInfo::IsInternalReferenceEncoded(mode)) {

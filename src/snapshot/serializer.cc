@@ -873,6 +873,46 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
 #endif
 }
 
+namespace {
+class CompareRelocInfo {
+ public:
+  bool operator()(RelocInfo x, RelocInfo y) {
+    // Everything that does not use target_address_address will compare equal.
+    Address x_num = 0;
+    Address y_num = 0;
+    if (HasTargetAddressAddress(x.rmode())) {
+      x_num = x.target_address_address();
+    }
+    if (HasTargetAddressAddress(y.rmode())) {
+      y_num = y.target_address_address();
+    }
+    return x_num > y_num;
+  }
+
+ private:
+  static bool HasTargetAddressAddress(RelocInfo::Mode mode) {
+    return RelocInfo::IsEmbeddedObject(mode) || RelocInfo::IsCodeTarget(mode) ||
+           RelocInfo::IsExternalReference(mode) ||
+           RelocInfo::IsRuntimeEntry(mode);
+  }
+};
+}  // namespace
+
+template <class AllocatorT>
+void Serializer<AllocatorT>::ObjectSerializer::VisitRelocInfo(
+    RelocIterator* it) {
+  std::priority_queue<RelocInfo, std::vector<RelocInfo>, CompareRelocInfo>
+      reloc_queue;
+  for (; !it->done(); it->next()) {
+    reloc_queue.push(*it->rinfo());
+  }
+  while (!reloc_queue.empty()) {
+    RelocInfo rinfo = reloc_queue.top();
+    reloc_queue.pop();
+    rinfo.Visit(this);
+  }
+}
+
 template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::VisitCodeTarget(
     Code* host, RelocInfo* rinfo) {
@@ -936,7 +976,8 @@ int Serializer<AllocatorT>::ObjectSerializer::SkipTo(Address to) {
   int to_skip = up_to_offset - bytes_processed_so_far_;
   bytes_processed_so_far_ += to_skip;
   // This assert will fail if the reloc info gives us the target_address_address
-  // locations in a non-ascending order.  Luckily that doesn't happen.
+  // locations in a non-ascending order. We make sure this doesn't happen by
+  // sorting the relocation info.
   DCHECK_GE(to_skip, 0);
   return to_skip;
 }
@@ -945,24 +986,22 @@ template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::OutputCode(int size) {
   DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
   Code* code = Code::cast(object_);
-  if (FLAG_predictable) {
-    // To make snapshots reproducible, we make a copy of the code object
-    // and wipe all pointers in the copy, which we then serialize.
-    code = serializer_->CopyCode(code);
-    int mode_mask = RelocInfo::kCodeTargetMask |
-                    RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                    RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-      RelocInfo* rinfo = it.rinfo();
-      rinfo->WipeOut();
-    }
-    // We need to wipe out the header fields *after* wiping out the
-    // relocations, because some of these fields are needed for the latter.
-    code->WipeOutHeader();
+  // To make snapshots reproducible, we make a copy of the code object
+  // and wipe all pointers in the copy, which we then serialize.
+  code = serializer_->CopyCode(code);
+  int mode_mask = RelocInfo::kCodeTargetMask |
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+  for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    rinfo->WipeOut();
   }
+  // We need to wipe out the header fields *after* wiping out the
+  // relocations, because some of these fields are needed for the latter.
+  code->WipeOutHeader();
 
   Address start = code->address() + Code::kDataStart;
   int bytes_to_output = size - Code::kDataStart;

@@ -288,6 +288,11 @@ void Assembler::deserialization_set_special_target_at(
                         code ? code->constant_pool() : kNullAddress, target);
 }
 
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
+}
+
 Displacement Assembler::disp_at(Label* L) {
   return Displacement(long_at(L->pos()));
 }

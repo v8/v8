@@ -89,6 +89,12 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       code_kind == Code::WASM_FUNCTION) {
     tasm_.enable_serializer();
   }
+  // TODO(arm64): Remove when direct calls are supported in WebAssembly for
+  // ARM64.
+  tasm_.set_code_in_js_code_space(code_kind != Code::WASM_FUNCTION &&
+                                  code_kind != Code::WASM_TO_JS_FUNCTION &&
+                                  code_kind != Code::WASM_INTERPRETER_ENTRY &&
+                                  code_kind != Code::C_WASM_ENTRY);
 }
 
 bool CodeGenerator::wasm_runtime_exception_support() const {

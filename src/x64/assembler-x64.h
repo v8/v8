@@ -481,6 +481,10 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
 
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
+
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
@@ -488,6 +492,11 @@ class Assembler : public AssemblerBase {
 
   inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
+
+  // TODO(arm64): This is only needed until direct calls are supported in
+  // WebAssembly for ARM64.
+  void set_code_in_js_code_space(bool) {}
+
   // Number of bytes taken up by the branch target in the code.
   static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
   // Distance between the address of the code target in the call instruction
