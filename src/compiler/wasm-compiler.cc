@@ -3571,10 +3571,6 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   DCHECK_NOT_NULL(instance_cache_);
   Node* mem_size = instance_cache_->mem_size;
   DCHECK_NOT_NULL(mem_size);
-  if (jsgraph()->machine()->Is64()) {
-    mem_size = graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(),
-                                mem_size);
-  }
   return graph()->NewNode(
       jsgraph()->machine()->Word32Shr(), mem_size,
       jsgraph()->Int32Constant(WhichPowerOf2(wasm::kWasmPageSize)));
