@@ -69,13 +69,9 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   DCHECK_IMPLIES(test_module_->origin() == kWasmOrigin,
                  size % kWasmPageSize == 0);
   test_module_->has_memory = true;
-  const bool enable_guard_regions =
-      trap_handler::IsTrapHandlerEnabled() && test_module_->is_wasm();
-  uint32_t alloc_size =
-      enable_guard_regions ? RoundUp(size, CommitPageSize()) : size;
+  uint32_t alloc_size = RoundUp(size, kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
-  CHECK(wasm::NewArrayBuffer(isolate_, alloc_size, enable_guard_regions)
-            .ToHandle(&new_buffer));
+  CHECK(wasm::NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
   CHECK(!new_buffer.is_null());
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;
@@ -88,6 +84,10 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
       (test_module_->maximum_pages != 0) ? test_module_->maximum_pages : -1);
   instance_object_->set_memory_object(*memory_object);
   WasmMemoryObject::AddInstance(isolate_, memory_object, instance_object_);
+  // TODO(wasm): Delete the following two lines when test-run-wasm will use a
+  // multiple of kPageSize as memory size. At the moment, the effect of these
+  // two lines is used to shrink the memory for testing purposes.
+  instance_object_->SetRawMemory(mem_start_, mem_size_);
   return mem_start_;
 }
 
