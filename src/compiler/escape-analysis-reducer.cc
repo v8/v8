@@ -44,7 +44,7 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
   }
   Type const replacement_type = NodeProperties::GetType(replacement);
   Type const original_type = NodeProperties::GetType(original);
-  if (replacement_type->Is(original_type)) {
+  if (replacement_type.Is(original_type)) {
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }

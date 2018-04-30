@@ -339,10 +339,10 @@ class Typer::Visitor : public Reducer {
         current = Weaken(node, current, previous);
       }
 
-      CHECK(previous->Is(current));
+      CHECK(previous.Is(current));
 
       NodeProperties::SetType(node, current);
-      if (!current->Is(previous)) {
+      if (!current.Is(previous)) {
         // If something changed, revisit all uses.
         return Changed(node);
       }
@@ -399,29 +399,29 @@ void Typer::Decorator::Decorate(Node* node) {
 
 Type Typer::Visitor::TypeUnaryOp(Node* node, UnaryTyperFun f) {
   Type input = Operand(node, 0);
-  return input->IsNone() ? Type::None() : f(input, typer_);
+  return input.IsNone() ? Type::None() : f(input, typer_);
 }
 
 Type Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
   Type left = Operand(node, 0);
   Type right = Operand(node, 1);
-  return left->IsNone() || right->IsNone() ? Type::None()
-                                           : f(left, right, typer_);
+  return left.IsNone() || right.IsNone() ? Type::None()
+                                         : f(left, right, typer_);
 }
 
 Type Typer::Visitor::BinaryNumberOpTyper(Type lhs, Type rhs, Typer* t,
                                          BinaryTyperFun f) {
   lhs = ToNumeric(lhs, t);
   rhs = ToNumeric(rhs, t);
-  bool lhs_is_number = lhs->Is(Type::Number());
-  bool rhs_is_number = rhs->Is(Type::Number());
+  bool lhs_is_number = lhs.Is(Type::Number());
+  bool rhs_is_number = rhs.Is(Type::Number());
   if (lhs_is_number && rhs_is_number) {
     return f(lhs, rhs, t);
   }
   if (lhs_is_number || rhs_is_number) {
     return Type::Number();
   }
-  if (lhs->Is(Type::BigInt()) || rhs->Is(Type::BigInt())) {
+  if (lhs.Is(Type::BigInt()) || rhs.Is(Type::BigInt())) {
     return Type::BigInt();
   }
   return Type::Numeric();
@@ -449,7 +449,7 @@ Type Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
 
 Type Typer::Visitor::BitwiseNot(Type type, Typer* t) {
   type = ToNumeric(type, t);
-  if (type->Is(Type::Number())) {
+  if (type.Is(Type::Number())) {
     return NumberBitwiseXor(type, t->cache_.kSingletonMinusOne, t);
   }
   return Type::Numeric();
@@ -457,7 +457,7 @@ Type Typer::Visitor::BitwiseNot(Type type, Typer* t) {
 
 Type Typer::Visitor::Decrement(Type type, Typer* t) {
   type = ToNumeric(type, t);
-  if (type->Is(Type::Number())) {
+  if (type.Is(Type::Number())) {
     return NumberSubtract(type, t->cache_.kSingletonOne, t);
   }
   return Type::Numeric();
@@ -465,7 +465,7 @@ Type Typer::Visitor::Decrement(Type type, Typer* t) {
 
 Type Typer::Visitor::Increment(Type type, Typer* t) {
   type = ToNumeric(type, t);
-  if (type->Is(Type::Number())) {
+  if (type.Is(Type::Number())) {
     return NumberAdd(type, t->cache_.kSingletonOne, t);
   }
   return Type::Numeric();
@@ -473,7 +473,7 @@ Type Typer::Visitor::Increment(Type type, Typer* t) {
 
 Type Typer::Visitor::Negate(Type type, Typer* t) {
   type = ToNumeric(type, t);
-  if (type->Is(Type::Number())) {
+  if (type.Is(Type::Number())) {
     return NumberMultiply(type, t->cache_.kSingletonMinusOne, t);
   }
   return Type::Numeric();
@@ -482,17 +482,17 @@ Type Typer::Visitor::Negate(Type type, Typer* t) {
 // Type conversion.
 
 Type Typer::Visitor::ToPrimitive(Type type, Typer* t) {
-  if (type->Is(Type::Primitive()) && !type->Maybe(Type::Receiver())) {
+  if (type.Is(Type::Primitive()) && !type.Maybe(Type::Receiver())) {
     return type;
   }
   return Type::Primitive();
 }
 
 Type Typer::Visitor::ToBoolean(Type type, Typer* t) {
-  if (type->Is(Type::Boolean())) return type;
-  if (type->Is(t->falsish_)) return t->singleton_false_;
-  if (type->Is(t->truish_)) return t->singleton_true_;
-  if (type->Is(Type::Number())) {
+  if (type.Is(Type::Boolean())) return type;
+  if (type.Is(t->falsish_)) return t->singleton_false_;
+  if (type.Is(t->truish_)) return t->singleton_true_;
+  if (type.Is(Type::Number())) {
     return t->operation_typer()->NumberToBoolean(type);
   }
   return Type::Boolean();
@@ -503,8 +503,8 @@ Type Typer::Visitor::ToBoolean(Type type, Typer* t) {
 Type Typer::Visitor::ToInteger(Type type, Typer* t) {
   // ES6 section 7.1.4 ToInteger ( argument )
   type = ToNumber(type, t);
-  if (type->Is(t->cache_.kIntegerOrMinusZero)) return type;
-  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) {
+  if (type.Is(t->cache_.kIntegerOrMinusZero)) return type;
+  if (type.Is(t->cache_.kIntegerOrMinusZeroOrNaN)) {
     return Type::Union(
         Type::Intersect(type, t->cache_.kIntegerOrMinusZero, t->zone()),
         t->cache_.kSingletonZero, t->zone());
@@ -517,9 +517,9 @@ Type Typer::Visitor::ToInteger(Type type, Typer* t) {
 Type Typer::Visitor::ToLength(Type type, Typer* t) {
   // ES6 section 7.1.15 ToLength ( argument )
   type = ToInteger(type, t);
-  if (type->IsNone()) return type;
-  double min = type->Min();
-  double max = type->Max();
+  if (type.IsNone()) return type;
+  double min = type.Min();
+  double max = type.Max();
   if (max <= 0.0) {
     return Type::NewConstant(0, t->zone());
   }
@@ -536,8 +536,8 @@ Type Typer::Visitor::ToLength(Type type, Typer* t) {
 Type Typer::Visitor::ToName(Type type, Typer* t) {
   // ES6 section 7.1.14 ToPropertyKey ( argument )
   type = ToPrimitive(type, t);
-  if (type->Is(Type::Name())) return type;
-  if (type->Maybe(Type::Symbol())) return Type::Name();
+  if (type.Is(Type::Name())) return type;
+  if (type.Maybe(Type::Symbol())) return Type::Name();
   return ToString(type, t);
 }
 
@@ -555,9 +555,9 @@ Type Typer::Visitor::ToNumeric(Type type, Typer* t) {
 // static
 Type Typer::Visitor::ToObject(Type type, Typer* t) {
   // ES6 section 7.1.13 ToObject ( argument )
-  if (type->Is(Type::Receiver())) return type;
-  if (type->Is(Type::Primitive())) return Type::OtherObject();
-  if (!type->Maybe(Type::OtherUndetectable())) {
+  if (type.Is(Type::Receiver())) return type;
+  if (type.Is(Type::Primitive())) return Type::OtherObject();
+  if (!type.Maybe(Type::OtherUndetectable())) {
     return Type::DetectableReceiver();
   }
   return Type::Receiver();
@@ -568,7 +568,7 @@ Type Typer::Visitor::ToObject(Type type, Typer* t) {
 Type Typer::Visitor::ToString(Type type, Typer* t) {
   // ES6 section 7.1.12 ToString ( argument )
   type = ToPrimitive(type, t);
-  if (type->Is(Type::String())) return type;
+  if (type.Is(Type::String())) return type;
   return Type::String();
 }
 
@@ -576,90 +576,90 @@ Type Typer::Visitor::ToString(Type type, Typer* t) {
 
 Type Typer::Visitor::ObjectIsArrayBufferView(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::ArrayBufferView?
-  if (!type->Maybe(Type::OtherObject())) return t->singleton_false_;
+  if (!type.Maybe(Type::OtherObject())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsBigInt(Type type, Typer* t) {
-  if (type->Is(Type::BigInt())) return t->singleton_true_;
-  if (!type->Maybe(Type::BigInt())) return t->singleton_false_;
+  if (type.Is(Type::BigInt())) return t->singleton_true_;
+  if (!type.Maybe(Type::BigInt())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
-  if (type->Is(Type::Callable())) return t->singleton_true_;
-  if (!type->Maybe(Type::Callable())) return t->singleton_false_;
+  if (type.Is(Type::Callable())) return t->singleton_true_;
+  if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsConstructor(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::Constructor?
-  if (!type->Maybe(Type::Callable())) return t->singleton_false_;
+  if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsDetectableCallable(Type type, Typer* t) {
-  if (type->Is(Type::DetectableCallable())) return t->singleton_true_;
-  if (!type->Maybe(Type::DetectableCallable())) return t->singleton_false_;
+  if (type.Is(Type::DetectableCallable())) return t->singleton_true_;
+  if (!type.Maybe(Type::DetectableCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsMinusZero(Type type, Typer* t) {
-  if (type->Is(Type::MinusZero())) return t->singleton_true_;
-  if (!type->Maybe(Type::MinusZero())) return t->singleton_false_;
+  if (type.Is(Type::MinusZero())) return t->singleton_true_;
+  if (!type.Maybe(Type::MinusZero())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNaN(Type type, Typer* t) {
-  if (type->Is(Type::NaN())) return t->singleton_true_;
-  if (!type->Maybe(Type::NaN())) return t->singleton_false_;
+  if (type.Is(Type::NaN())) return t->singleton_true_;
+  if (!type.Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::NumberIsNaN(Type type, Typer* t) {
-  if (type->Is(Type::NaN())) return t->singleton_true_;
-  if (!type->Maybe(Type::NaN())) return t->singleton_false_;
+  if (type.Is(Type::NaN())) return t->singleton_true_;
+  if (!type.Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNonCallable(Type type, Typer* t) {
-  if (type->Is(Type::NonCallable())) return t->singleton_true_;
-  if (!type->Maybe(Type::NonCallable())) return t->singleton_false_;
+  if (type.Is(Type::NonCallable())) return t->singleton_true_;
+  if (!type.Maybe(Type::NonCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNumber(Type type, Typer* t) {
-  if (type->Is(Type::Number())) return t->singleton_true_;
-  if (!type->Maybe(Type::Number())) return t->singleton_false_;
+  if (type.Is(Type::Number())) return t->singleton_true_;
+  if (!type.Maybe(Type::Number())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsReceiver(Type type, Typer* t) {
-  if (type->Is(Type::Receiver())) return t->singleton_true_;
-  if (!type->Maybe(Type::Receiver())) return t->singleton_false_;
+  if (type.Is(Type::Receiver())) return t->singleton_true_;
+  if (!type.Maybe(Type::Receiver())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsSmi(Type type, Typer* t) {
-  if (!type->Maybe(Type::SignedSmall())) return t->singleton_false_;
+  if (!type.Maybe(Type::SignedSmall())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsString(Type type, Typer* t) {
-  if (type->Is(Type::String())) return t->singleton_true_;
-  if (!type->Maybe(Type::String())) return t->singleton_false_;
+  if (type.Is(Type::String())) return t->singleton_true_;
+  if (!type.Maybe(Type::String())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsSymbol(Type type, Typer* t) {
-  if (type->Is(Type::Symbol())) return t->singleton_true_;
-  if (!type->Maybe(Type::Symbol())) return t->singleton_false_;
+  if (type.Is(Type::Symbol())) return t->singleton_true_;
+  if (!type.Maybe(Type::Symbol())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsUndetectable(Type type, Typer* t) {
-  if (type->Is(Type::Undetectable())) return t->singleton_true_;
-  if (!type->Maybe(Type::Undetectable())) return t->singleton_false_;
+  if (type.Is(Type::Undetectable())) return t->singleton_true_;
+  if (!type.Maybe(Type::Undetectable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -760,8 +760,8 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
 
   // We only handle integer induction variables (otherwise ranges
   // do not apply and we cannot do anything).
-  if (!initial_type->Is(typer_->cache_.kInteger) ||
-      !increment_type->Is(typer_->cache_.kInteger)) {
+  if (!initial_type.Is(typer_->cache_.kInteger) ||
+      !increment_type.Is(typer_->cache_.kInteger)) {
     // Fallback to normal phi typing, but ensure monotonicity.
     // (Unfortunately, without baking in the previous type, monotonicity might
     // be violated because we might not yet have retyped the incrementing
@@ -776,8 +776,8 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   }
   // If we do not have enough type information for the initial value or
   // the increment, just return the initial value's type.
-  if (initial_type->IsNone() ||
-      increment_type->Is(typer_->cache_.kSingletonZero)) {
+  if (initial_type.IsNone() ||
+      increment_type.Is(typer_->cache_.kSingletonZero)) {
     return initial_type;
   }
 
@@ -794,54 +794,54 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   double increment_min;
   double increment_max;
   if (arithmetic_type == InductionVariable::ArithmeticType::kAddition) {
-    increment_min = increment_type->Min();
-    increment_max = increment_type->Max();
+    increment_min = increment_type.Min();
+    increment_max = increment_type.Max();
   } else {
     DCHECK_EQ(InductionVariable::ArithmeticType::kSubtraction, arithmetic_type);
-    increment_min = -increment_type->Max();
-    increment_max = -increment_type->Min();
+    increment_min = -increment_type.Max();
+    increment_max = -increment_type.Min();
   }
 
   if (increment_min >= 0) {
     // increasing sequence
-    min = initial_type->Min();
+    min = initial_type.Min();
     for (auto bound : induction_var->upper_bounds()) {
       Type bound_type = TypeOrNone(bound.bound);
       // If the type is not an integer, just skip the bound.
-      if (!bound_type->Is(typer_->cache_.kInteger)) continue;
+      if (!bound_type.Is(typer_->cache_.kInteger)) continue;
       // If the type is not inhabited, then we can take the initial value.
-      if (bound_type->IsNone()) {
-        max = initial_type->Max();
+      if (bound_type.IsNone()) {
+        max = initial_type.Max();
         break;
       }
-      double bound_max = bound_type->Max();
+      double bound_max = bound_type.Max();
       if (bound.kind == InductionVariable::kStrict) {
         bound_max -= 1;
       }
       max = std::min(max, bound_max + increment_max);
     }
     // The upper bound must be at least the initial value's upper bound.
-    max = std::max(max, initial_type->Max());
+    max = std::max(max, initial_type.Max());
   } else if (increment_max <= 0) {
     // decreasing sequence
-    max = initial_type->Max();
+    max = initial_type.Max();
     for (auto bound : induction_var->lower_bounds()) {
       Type bound_type = TypeOrNone(bound.bound);
       // If the type is not an integer, just skip the bound.
-      if (!bound_type->Is(typer_->cache_.kInteger)) continue;
+      if (!bound_type.Is(typer_->cache_.kInteger)) continue;
       // If the type is not inhabited, then we can take the initial value.
-      if (bound_type->IsNone()) {
-        min = initial_type->Min();
+      if (bound_type.IsNone()) {
+        min = initial_type.Min();
         break;
       }
-      double bound_min = bound_type->Min();
+      double bound_min = bound_type.Min();
       if (bound.kind == InductionVariable::kStrict) {
         bound_min += 1;
       }
       min = std::max(min, bound_min + increment_min);
     }
     // The lower bound must be at most the initial value's lower bound.
-    min = std::min(min, initial_type->Min());
+    min = std::min(min, initial_type.Min());
   } else {
     // Shortcut: If the increment can be both positive and negative,
     // the variable can go arbitrarily far, so just return integer.
@@ -919,10 +919,10 @@ Type Typer::Visitor::TypeCallWithCallerSavedRegisters(Node* node) {
 
 Type Typer::Visitor::TypeProjection(Node* node) {
   Type const type = Operand(node, 0);
-  if (type->Is(Type::None())) return Type::None();
+  if (type.Is(Type::None())) return Type::None();
   int const index = static_cast<int>(ProjectionIndexOf(node->op()));
-  if (type->IsTuple() && index < type->AsTuple()->Arity()) {
-    return type->AsTuple()->Element(index);
+  if (type.IsTuple() && index < type.AsTuple()->Arity()) {
+    return type.AsTuple()->Element(index);
   }
   return Type::Any();
 }
@@ -943,15 +943,15 @@ Type Typer::Visitor::TypeUnreachable(Node* node) { return Type::None(); }
 // JS comparison operators.
 
 Type Typer::Visitor::JSEqualTyper(Type lhs, Type rhs, Typer* t) {
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return t->singleton_false_;
-  if (lhs->Is(Type::NullOrUndefined()) && rhs->Is(Type::NullOrUndefined())) {
+  if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return t->singleton_false_;
+  if (lhs.Is(Type::NullOrUndefined()) && rhs.Is(Type::NullOrUndefined())) {
     return t->singleton_true_;
   }
-  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number()) &&
-      (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
+  if (lhs.Is(Type::Number()) && rhs.Is(Type::Number()) &&
+      (lhs.Max() < rhs.Min() || lhs.Min() > rhs.Max())) {
     return t->singleton_false_;
   }
-  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
+  if (lhs.IsHeapConstant() && rhs.Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     return t->singleton_true_;
@@ -972,13 +972,13 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type lhs,
                                                                  Typer* t) {
   lhs = ToPrimitive(lhs, t);
   rhs = ToPrimitive(rhs, t);
-  if (lhs->Maybe(Type::String()) && rhs->Maybe(Type::String())) {
+  if (lhs.Maybe(Type::String()) && rhs.Maybe(Type::String())) {
     return ComparisonOutcome(kComparisonTrue) |
            ComparisonOutcome(kComparisonFalse);
   }
   lhs = ToNumeric(lhs, t);
   rhs = ToNumeric(rhs, t);
-  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+  if (lhs.Is(Type::Number()) && rhs.Is(Type::Number())) {
     return NumberCompareTyper(lhs, rhs, t);
   }
   return ComparisonOutcome(kComparisonTrue) |
@@ -989,19 +989,19 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type lhs,
 Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type lhs,
                                                                      Type rhs,
                                                                      Typer* t) {
-  DCHECK(lhs->Is(Type::Number()));
-  DCHECK(rhs->Is(Type::Number()));
+  DCHECK(lhs.Is(Type::Number()));
+  DCHECK(rhs.Is(Type::Number()));
 
   // Shortcut for NaNs.
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return kComparisonUndefined;
+  if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return kComparisonUndefined;
 
   ComparisonOutcome result;
-  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
+  if (lhs.IsHeapConstant() && rhs.Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value.
     result = kComparisonFalse;
-  } else if (lhs->Min() >= rhs->Max()) {
+  } else if (lhs.Min() >= rhs.Max()) {
     result = kComparisonFalse;
-  } else if (lhs->Max() < rhs->Min()) {
+  } else if (lhs.Max() < rhs.Min()) {
     result = kComparisonTrue;
   } else {
     // We cannot figure out the result, return both true and false. (We do not
@@ -1011,7 +1011,7 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type lhs,
            ComparisonOutcome(kComparisonFalse);
   }
   // Add the undefined if we could see NaN.
-  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
+  if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     result |= kComparisonUndefined;
   }
   return result;
@@ -1065,8 +1065,8 @@ Type Typer::Visitor::JSShiftRightLogicalTyper(Type lhs, Type rhs, Typer* t) {
 Type Typer::Visitor::JSAddTyper(Type lhs, Type rhs, Typer* t) {
   lhs = ToPrimitive(lhs, t);
   rhs = ToPrimitive(rhs, t);
-  if (lhs->Maybe(Type::String()) || rhs->Maybe(Type::String())) {
-    if (lhs->Is(Type::String()) || rhs->Is(Type::String())) {
+  if (lhs.Maybe(Type::String()) || rhs.Maybe(Type::String())) {
+    if (lhs.Is(Type::String()) || rhs.Is(Type::String())) {
       return Type::String();
     } else {
       return Type::NumericOrString();
@@ -1271,10 +1271,10 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
 
   // If the types have nothing to do with integers, return the types.
   Type const integer = typer_->cache_.kInteger;
-  if (!previous_type->Maybe(integer)) {
+  if (!previous_type.Maybe(integer)) {
     return current_type;
   }
-  DCHECK(current_type->Maybe(integer));
+  DCHECK(current_type.Maybe(integer));
 
   Type current_integer = Type::Intersect(current_type, integer, zone());
   Type previous_integer = Type::Intersect(previous_type, integer, zone());
@@ -1284,8 +1284,8 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
     // Only weaken if there is range involved; we should converge quickly
     // for all other types (the exception is a union of many constants,
     // but we currently do not increase the number of constants in unions).
-    Type previous = previous_integer->GetRange();
-    Type current = current_integer->GetRange();
+    Type previous = previous_integer.GetRange();
+    Type current = current_integer.GetRange();
     if (current.IsInvalid() || previous.IsInvalid()) {
       return current_type;
     }
@@ -1293,11 +1293,11 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
     SetWeakened(node->id());
   }
 
-  double current_min = current_integer->Min();
+  double current_min = current_integer.Min();
   double new_min = current_min;
   // Find the closest lower entry in the list of allowed
   // minima (or negative infinity if there is no such entry).
-  if (current_min != previous_integer->Min()) {
+  if (current_min != previous_integer.Min()) {
     new_min = -V8_INFINITY;
     for (double const min : kWeakenMinLimits) {
       if (min <= current_min) {
@@ -1307,11 +1307,11 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
     }
   }
 
-  double current_max = current_integer->Max();
+  double current_max = current_integer.Max();
   double new_max = current_max;
   // Find the closest greater entry in the list of allowed
   // maxima (or infinity if there is no such entry).
-  if (current_max != previous_integer->Max()) {
+  if (current_max != previous_integer.Max()) {
     new_max = V8_INFINITY;
     for (double const max : kWeakenMaxLimits) {
       if (max >= current_max) {
@@ -1418,9 +1418,9 @@ Type Typer::Visitor::TypeJSObjectIsArray(Node* node) { return Type::Boolean(); }
 Type Typer::Visitor::TypeDateNow(Node* node) { return Type::Number(); }
 
 Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
-  if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
+  if (fun.IsHeapConstant() && fun.AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(fun->AsHeapConstant()->Value());
+        Handle<JSFunction>::cast(fun.AsHeapConstant()->Value());
     if (function->shared()->HasBuiltinFunctionId()) {
       switch (function->shared()->builtin_function_id()) {
         case kMathRandom:
@@ -1876,7 +1876,7 @@ Type Typer::Visitor::TypePlainPrimitiveToFloat64(Node* node) {
 
 // static
 Type Typer::Visitor::ReferenceEqualTyper(Type lhs, Type rhs, Typer* t) {
-  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
+  if (lhs.IsHeapConstant() && rhs.Is(lhs)) {
     return t->singleton_true_;
   }
   return Type::Boolean();
@@ -1952,14 +1952,14 @@ Type Typer::Visitor::TypeMaskIndexWithBound(Node* node) {
 Type Typer::Visitor::TypeCheckBounds(Node* node) {
   Type index = Operand(node, 0);
   Type length = Operand(node, 1);
-  DCHECK(length->Is(Type::Unsigned31()));
-  if (index->Maybe(Type::MinusZero())) {
+  DCHECK(length.Is(Type::Unsigned31()));
+  if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, typer_->cache_.kSingletonZero, zone());
   }
   index = Type::Intersect(index, Type::Integral32(), zone());
-  if (index->IsNone() || length->IsNone()) return Type::None();
-  double min = std::max(index->Min(), 0.0);
-  double max = std::min(index->Max(), length->Max() - 1);
+  if (index.IsNone() || length.IsNone()) return Type::None();
+  double min = std::max(index.Min(), 0.0);
+  double max = std::min(index.Max(), length.Max() - 1);
   if (max < min) return Type::None();
   return Type::Range(min, max, zone());
 }

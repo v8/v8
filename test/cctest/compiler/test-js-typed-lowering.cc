@@ -278,8 +278,8 @@ static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
   Type old_type = NodeProperties::GetType(old_input);
   Type new_type = NodeProperties::GetType(new_input);
   Type expected_type = I32Type(is_signed);
-  CHECK(new_type->Is(expected_type));
-  if (old_type->Is(expected_type)) {
+  CHECK(new_type.Is(expected_type));
+  if (old_type.Is(expected_type)) {
     CHECK_EQ(old_input, new_input);
   } else if (new_input->opcode() == IrOpcode::kNumberConstant) {
     double v = OpParameter<double>(new_input->op());
@@ -436,7 +436,7 @@ TEST(JSToNumber_replacement) {
     R.CheckEffectInput(c, effect_use);
     Node* r = R.reduce(c);
 
-    if (types[i]->Is(Type::Number())) {
+    if (types[i].Is(Type::Number())) {
       CHECK_EQ(n, r);
     } else {
       CHECK_EQ(IrOpcode::kNumberConstant, r->opcode());
@@ -463,7 +463,7 @@ TEST(JSToNumberOfConstant) {
     // Note that either outcome below is correct. It only depends on whether
     // the types of constants are eagerly computed or only computed by the
     // typing pass.
-    if (NodeProperties::GetType(n)->Is(Type::Number())) {
+    if (NodeProperties::GetType(n).Is(Type::Number())) {
       // If number constants are eagerly typed, then reduction should
       // remove the ToNumber.
       CHECK_EQ(n, r);
@@ -547,7 +547,7 @@ TEST(JSToString_replacement) {
     R.CheckEffectInput(c, effect_use);
     Node* r = R.reduce(c);
 
-    if (types[i]->Is(Type::String())) {
+    if (types[i].Is(Type::String())) {
       CHECK_EQ(n, r);
     } else {
       CHECK_EQ(IrOpcode::kHeapConstant, r->opcode());
@@ -598,7 +598,7 @@ TEST(StringComparison) {
 
 
 static void CheckIsConvertedToNumber(Node* val, Node* converted) {
-  if (NodeProperties::GetType(val)->Is(Type::Number())) {
+  if (NodeProperties::GetType(val).Is(Type::Number())) {
     CHECK_EQ(val, converted);
   } else {
     if (converted->opcode() == IrOpcode::kNumberConstant) return;
@@ -656,12 +656,12 @@ TEST(MixedComparison1) {
             R.javascript.LessThan(CompareOperationHint::kAny);
         Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
-        if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
+        if (types[i].Is(Type::String()) && types[j].Is(Type::String())) {
           R.CheckBinop(R.simplified.StringLessThan(), r);
-        } else if ((types[i]->Is(Type::Number()) &&
-                    types[j]->Is(Type::Number())) ||
-                   (!types[i]->Maybe(Type::String()) ||
-                    !types[j]->Maybe(Type::String()))) {
+        } else if ((types[i].Is(Type::Number()) &&
+                    types[j].Is(Type::Number())) ||
+                   (!types[i].Maybe(Type::String()) ||
+                    !types[j].Maybe(Type::String()))) {
           R.CheckBinop(R.simplified.NumberLessThan(), r);
         } else {
           // No reduction of mixed types.

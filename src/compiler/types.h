@@ -58,12 +58,12 @@ namespace compiler {
 //
 // There are two main functions for testing types:
 //
-//   T1->Is(T2)     -- tests whether T1 is included in T2 (i.e., T1 <= T2)
-//   T1->Maybe(T2)  -- tests whether T1 and T2 overlap (i.e., T1 /\ T2 =/= 0)
+//   T1.Is(T2)     -- tests whether T1 is included in T2 (i.e., T1 <= T2)
+//   T1.Maybe(T2)  -- tests whether T1 and T2 overlap (i.e., T1 /\ T2 =/= 0)
 //
 // Typically, the former is to be used to select representations (e.g., via
-// T->Is(SignedSmall())), and the latter to check whether a specific case needs
-// handling (e.g., via T->Maybe(Number())).
+// T.Is(SignedSmall())), and the latter to check whether a specific case needs
+// handling (e.g., via T.Maybe(Number())).
 //
 // There is no functionality to discover whether a type is a leaf in the
 // lattice. That is intentional. It should always be possible to refine the
@@ -397,7 +397,7 @@ class V8_EXPORT_PRIVATE Type {
     return payload_ == that.payload_ || this->SlowIs(that);
   }
   bool Maybe(Type that) const;
-  bool Equals(Type that) const { return this->Is(that) && that->Is(*this); }
+  bool Equals(Type that) const { return this->Is(that) && that.Is(*this); }
 
   // Inspection.
   bool IsBitset() const { return payload_ & 1; }
@@ -432,11 +432,6 @@ class V8_EXPORT_PRIVATE Type {
   int NumConstants() const;
 
   static Type Invalid() { return Type(); }
-
-  // TODO(jarin) This is just a hack to make the transition from Type* to
-  // Type more incremental.
-  Type* operator->() { return this; }
-  const Type* operator->() const { return this; }
 
   bool operator==(Type other) const { return payload_ == other.payload_; }
   bool operator!=(Type other) const { return payload_ != other.payload_; }

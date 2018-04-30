@@ -62,8 +62,8 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
     os << Brief(*map) << ", ";
   }
 #endif
-  access.type->PrintTo(os);
-  os << ", " << access.machine_type << ", " << access.write_barrier_kind << "]";
+  os << access.type << ", " << access.machine_type << ", "
+     << access.write_barrier_kind << "]";
   return os;
 }
 
@@ -96,9 +96,9 @@ size_t hash_value(ElementAccess const& access) {
 
 
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
-  os << access.base_is_tagged << ", " << access.header_size << ", ";
-  access.type->PrintTo(os);
-  os << ", " << access.machine_type << ", " << access.write_barrier_kind;
+  os << access.base_is_tagged << ", " << access.header_size << ", "
+     << access.type << ", " << access.machine_type << ", "
+     << access.write_barrier_kind;
   return os;
 }
 
@@ -394,8 +394,8 @@ size_t hash_value(TransitionAndStoreNonNumberElementParameters parameters) {
 
 std::ostream& operator<<(
     std::ostream& os, TransitionAndStoreNonNumberElementParameters parameters) {
-  parameters.value_type()->PrintTo(os);
-  return os << ", fast-map" << Brief(*parameters.fast_map());
+  return os << parameters.value_type() << ", fast-map"
+            << Brief(*parameters.fast_map());
 }
 
 }  // namespace
@@ -526,8 +526,7 @@ size_t hash_value(AllocateParameters info) {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            AllocateParameters info) {
-  info.type()->PrintTo(os);
-  return os << ", " << info.pretenure();
+  return os << info.type() << ", " << info.pretenure();
 }
 
 bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {

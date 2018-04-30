@@ -282,7 +282,7 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 
   if (expected == IrOpcode::kCheckedFloat64ToInt32) {
     CheckForMinusZeroMode mode =
-        from_type->Maybe(Type::MinusZero())
+        from_type.Maybe(Type::MinusZero())
             ? use_info.minus_zero_check()
             : CheckForMinusZeroMode::kDontCheckForMinusZero;
     CHECK_EQ(mode, CheckMinusZeroParametersOf(c->op()).mode());

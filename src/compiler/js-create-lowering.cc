@@ -190,14 +190,14 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
-  if (target_type->IsHeapConstant() && new_target_type->IsHeapConstant() &&
-      target_type->AsHeapConstant()->Value()->IsJSFunction() &&
-      new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
+  if (target_type.IsHeapConstant() && new_target_type.IsHeapConstant() &&
+      target_type.AsHeapConstant()->Value()->IsJSFunction() &&
+      new_target_type.AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> constructor =
-        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
+        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
     if (!constructor->IsConstructor()) return NoChange();
     Handle<JSFunction> original_constructor =
-        Handle<JSFunction>::cast(new_target_type->AsHeapConstant()->Value());
+        Handle<JSFunction>::cast(new_target_type.AsHeapConstant()->Value());
     if (!original_constructor->IsConstructor()) return NoChange();
 
     // Check if we can inline the allocation.
@@ -479,10 +479,10 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   Type const closure_type = NodeProperties::GetType(closure);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
-  if (closure_type->IsHeapConstant()) {
-    DCHECK(closure_type->AsHeapConstant()->Value()->IsJSFunction());
+  if (closure_type.IsHeapConstant()) {
+    DCHECK(closure_type.AsHeapConstant()->Value()->IsJSFunction());
     Handle<JSFunction> js_function =
-        Handle<JSFunction>::cast(closure_type->AsHeapConstant()->Value());
+        Handle<JSFunction>::cast(closure_type.AsHeapConstant()->Value());
     JSFunction::EnsureHasInitialMap(js_function);
 
     // Force completion of inobject slack tracking before
@@ -604,7 +604,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Determine the appropriate elements kind.
   ElementsKind elements_kind = initial_map->elements_kind();
-  if (NodeProperties::GetType(length)->Max() > 0.0) {
+  if (NodeProperties::GetType(length).Max() > 0.0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
     initial_map = Map::AsElementsKind(initial_map, elements_kind);
   }
@@ -653,14 +653,14 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   // deoptimize in this case.
   if (IsSmiElementsKind(elements_kind)) {
     for (auto& value : values) {
-      if (!NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
+      if (!NodeProperties::GetType(value).Is(Type::SignedSmall())) {
         value = effect = graph()->NewNode(
             simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
       }
     }
   } else if (IsDoubleElementsKind(elements_kind)) {
     for (auto& value : values) {
-      if (!NodeProperties::GetType(value)->Is(Type::Number())) {
+      if (!NodeProperties::GetType(value).Is(Type::Number())) {
         value = effect =
             graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
                              effect, control);
@@ -712,7 +712,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
   // The Array constructor can only trigger an observable side-effect
   // if the new.target may be a proxy.
   Operator::Properties const properties =
-      (new_target != target || new_target_type->Maybe(Type::Proxy()))
+      (new_target != target || new_target_type.Maybe(Type::Proxy()))
           ? Operator::kNoDeopt
           : Operator::kNoDeopt | Operator::kNoWrite;
 
@@ -768,10 +768,10 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
                              : NodeProperties::GetType(new_target);
 
   // Extract original constructor function.
-  if (new_target_type->IsHeapConstant() &&
-      new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
+  if (new_target_type.IsHeapConstant() &&
+      new_target_type.AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> original_constructor =
-        Handle<JSFunction>::cast(new_target_type->AsHeapConstant()->Value());
+        Handle<JSFunction>::cast(new_target_type.AsHeapConstant()->Value());
     DCHECK(constructor->IsConstructor());
     DCHECK(original_constructor->IsConstructor());
 
@@ -812,7 +812,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       } else if (arity == 1) {
         Node* length = NodeProperties::GetValueInput(node, 2);
         Type length_type = NodeProperties::GetType(length);
-        if (!length_type->Maybe(Type::Number())) {
+        if (!length_type.Maybe(Type::Number())) {
           // Handle the single argument case, where we know that the value
           // cannot be a valid Array length.
           ElementsKind elements_kind = initial_map->elements_kind();
@@ -824,13 +824,13 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
           return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
                                 pretenure);
         }
-        if (length_type->Is(Type::SignedSmall()) && length_type->Min() >= 0 &&
-            length_type->Max() <= kElementLoopUnrollLimit &&
-            length_type->Min() == length_type->Max()) {
-          int capacity = static_cast<int>(length_type->Max());
+        if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
+            length_type.Max() <= kElementLoopUnrollLimit &&
+            length_type.Min() == length_type.Max()) {
+          int capacity = static_cast<int>(length_type.Max());
           return ReduceNewArray(node, length, capacity, initial_map, pretenure);
         }
-        if (length_type->Maybe(Type::UnsignedSmall()) && can_inline_call) {
+        if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
           return ReduceNewArray(node, length, initial_map, pretenure);
         }
       } else if (arity <= JSArray::kInitialMaxFastElementArray) {
@@ -842,13 +842,13 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         for (int i = 0; i < arity; ++i) {
           Node* value = NodeProperties::GetValueInput(node, 2 + i);
           Type value_type = NodeProperties::GetType(value);
-          if (!value_type->Is(Type::SignedSmall())) {
+          if (!value_type.Is(Type::SignedSmall())) {
             values_all_smis = false;
           }
-          if (!value_type->Is(Type::Number())) {
+          if (!value_type.Is(Type::Number())) {
             values_all_numbers = false;
           }
-          if (!value_type->Maybe(Type::Number())) {
+          if (!value_type.Maybe(Type::Number())) {
             values_any_nonnumber = true;
           }
           values.push_back(value);

@@ -171,7 +171,7 @@ class JSONGraphNodeWriter {
     if (NodeProperties::IsTyped(node)) {
       Type type = NodeProperties::GetType(node);
       std::ostringstream type_out;
-      type->PrintTo(type_out);
+      type.PrintTo(type_out);
       os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
     }
     os_ << "}";
@@ -401,8 +401,7 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
 void GraphC1Visualizer::PrintType(Node* node) {
   if (NodeProperties::IsTyped(node)) {
     Type type = NodeProperties::GetType(node);
-    os_ << " type:";
-    type->PrintTo(os_);
+    os_ << " type:" << type;
   }
 }
 
@@ -708,9 +707,7 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
       os << ")";
       // Print the node type, if any.
       if (NodeProperties::IsTyped(n)) {
-        os << "  [Type: ";
-        NodeProperties::GetType(n)->PrintTo(os);
-        os << "]";
+        os << "  [Type: " << NodeProperties::GetType(n) << "]";
       }
       os << std::endl;
     }
@@ -739,9 +736,7 @@ void PrintScheduledNode(std::ostream& os, int indent, Node* n) {
   os << ")";
   // Print the node type, if any.
   if (NodeProperties::IsTyped(n)) {
-    os << "  [Type: ";
-    NodeProperties::GetType(n)->PrintTo(os);
-    os << "]";
+    os << "  [Type: " << NodeProperties::GetType(n) << "]";
   }
 }
 

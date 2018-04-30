@@ -153,7 +153,7 @@ class TyperTest : public TypedGraphTest {
     Type subtype;
     do {
       subtype = types_.Fuzz();
-    } while (!subtype->Is(type));
+    } while (!subtype.Is(type));
     return subtype;
   }
 
@@ -175,7 +175,7 @@ class TyperTest : public TypedGraphTest {
               double result_value = opfun(x1, x2);
               Type result_type = Type::NewConstant(
                   isolate()->factory()->NewNumber(result_value), zone());
-              EXPECT_TRUE(result_type->Is(expected_type));
+              EXPECT_TRUE(result_type.Is(expected_type));
             }
           }
         }
@@ -191,12 +191,12 @@ class TyperTest : public TypedGraphTest {
       Type r2 = RandomRange();
       Type expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        double x1 = RandomInt(r1->AsRange());
-        double x2 = RandomInt(r2->AsRange());
+        double x1 = RandomInt(r1.AsRange());
+        double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
             isolate()->factory()->NewNumber(result_value), zone());
-        EXPECT_TRUE(result_type->Is(expected_type));
+        EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
     // Test extreme cases.
@@ -208,7 +208,7 @@ class TyperTest : public TypedGraphTest {
     double result_value = opfun(x1, x2);
     Type result_type = Type::NewConstant(
         isolate()->factory()->NewNumber(result_value), zone());
-    EXPECT_TRUE(result_type->Is(expected_type));
+    EXPECT_TRUE(result_type.Is(expected_type));
   }
 
   template <class BinaryFunction>
@@ -218,14 +218,14 @@ class TyperTest : public TypedGraphTest {
       Type r2 = RandomRange();
       Type expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        double x1 = RandomInt(r1->AsRange());
-        double x2 = RandomInt(r2->AsRange());
+        double x1 = RandomInt(r1.AsRange());
+        double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
             result_value ? isolate()->factory()->true_value()
                          : isolate()->factory()->false_value(),
             zone());
-        EXPECT_TRUE(result_type->Is(expected_type));
+        EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
   }
@@ -237,12 +237,12 @@ class TyperTest : public TypedGraphTest {
       Type r2 = RandomRange(true);
       Type expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        int32_t x1 = static_cast<int32_t>(RandomInt(r1->AsRange()));
-        int32_t x2 = static_cast<int32_t>(RandomInt(r2->AsRange()));
+        int32_t x1 = static_cast<int32_t>(RandomInt(r1.AsRange()));
+        int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
             isolate()->factory()->NewNumber(result_value), zone());
-        EXPECT_TRUE(result_type->Is(expected_type));
+        EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
   }
@@ -252,28 +252,28 @@ class TyperTest : public TypedGraphTest {
 
   void TestUnaryMonotonicity(UnaryTyper typer, Type upper1 = Type::Any()) {
     Type type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
-    DCHECK(type1->Is(upper1));
+    DCHECK(type1.Is(upper1));
     Type type = typer(type1);
 
     Type subtype1 = RandomSubtype(type1);
     Type subtype = typer(subtype1);
 
-    EXPECT_TRUE(subtype->Is(type));
+    EXPECT_TRUE(subtype.Is(type));
   }
 
   void TestBinaryMonotonicity(BinaryTyper typer, Type upper1 = Type::Any(),
                               Type upper2 = Type::Any()) {
     Type type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
-    DCHECK(type1->Is(upper1));
+    DCHECK(type1.Is(upper1));
     Type type2 = Type::Intersect(types_.Fuzz(), upper2, zone());
-    DCHECK(type2->Is(upper2));
+    DCHECK(type2.Is(upper2));
     Type type = typer(type1, type2);
 
     Type subtype1 = RandomSubtype(type1);
     Type subtype2 = RandomSubtype(type2);
     Type subtype = typer(subtype1, subtype2);
 
-    EXPECT_TRUE(subtype->Is(type));
+    EXPECT_TRUE(subtype.Is(type));
   }
 
   void TestUnaryMonotonicity(const Operator* op, Type upper1 = Type::Any()) {

@@ -2140,7 +2140,7 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), a, etrue,
         if_true);
 
-    DCHECK(TypeCache::Get().kFixedDoubleArrayLengthType->Is(
+    DCHECK(TypeCache::Get().kFixedDoubleArrayLengthType.Is(
         TypeCache::Get().kFixedArrayLengthType));
     Node* checked_to = etrue = graph()->NewNode(
         common()->TypeGuard(TypeCache::Get().kFixedArrayLengthType), to, etrue,
@@ -4844,7 +4844,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     // We know that the {index} is range of the {length} now.
     index = etrue = graph()->NewNode(
         common()->TypeGuard(
-            Type::Range(0.0, length_access.type->Max() - 1.0, graph()->zone())),
+            Type::Range(0.0, length_access.type.Max() - 1.0, graph()->zone())),
         index, etrue, if_true);
 
     done_true = jsgraph()->FalseConstant();

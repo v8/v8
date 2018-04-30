@@ -55,37 +55,29 @@ class Verifier::Visitor {
     }
   }
   void CheckTypeIs(Node* node, Type type) {
-    if (typing == TYPED && !NodeProperties::GetType(node)->Is(type)) {
+    if (typing == TYPED && !NodeProperties::GetType(node).Is(type)) {
       std::ostringstream str;
-      str << "TypeError: node #" << node->id() << ":" << *node->op()
-          << " type ";
-      NodeProperties::GetType(node)->PrintTo(str);
-      str << " is not ";
-      type->PrintTo(str);
+      str << "TypeError: node #" << node->id() << ":" << *node->op() << " type "
+          << NodeProperties::GetType(node) << " is not " << type;
       FATAL("%s", str.str().c_str());
     }
   }
   void CheckTypeMaybe(Node* node, Type type) {
-    if (typing == TYPED && !NodeProperties::GetType(node)->Maybe(type)) {
+    if (typing == TYPED && !NodeProperties::GetType(node).Maybe(type)) {
       std::ostringstream str;
-      str << "TypeError: node #" << node->id() << ":" << *node->op()
-          << " type ";
-      NodeProperties::GetType(node)->PrintTo(str);
-      str << " must intersect ";
-      type->PrintTo(str);
+      str << "TypeError: node #" << node->id() << ":" << *node->op() << " type "
+          << NodeProperties::GetType(node) << " must intersect " << type;
       FATAL("%s", str.str().c_str());
     }
   }
   void CheckValueInputIs(Node* node, int i, Type type) {
     Node* input = NodeProperties::GetValueInput(node, i);
-    if (typing == TYPED && !NodeProperties::GetType(input)->Is(type)) {
+    if (typing == TYPED && !NodeProperties::GetType(input).Is(type)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << "(input @" << i << " = " << input->opcode() << ":"
-          << input->op()->mnemonic() << ") type ";
-      NodeProperties::GetType(input)->PrintTo(str);
-      str << " is not ";
-      type->PrintTo(str);
+          << input->op()->mnemonic() << ") type "
+          << NodeProperties::GetType(input) << " is not " << type;
       FATAL("%s", str.str().c_str());
     }
   }
@@ -544,7 +536,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type must be subsumed by input type.
       if (typing == TYPED) {
         Node* val = NodeProperties::GetValueInput(node, 0);
-        CHECK(NodeProperties::GetType(val)->Is(NodeProperties::GetType(node)));
+        CHECK(NodeProperties::GetType(val).Is(NodeProperties::GetType(node)));
       }
       break;
     }

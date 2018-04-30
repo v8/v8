@@ -326,7 +326,7 @@ void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
       Node* backedge_value = induction_var->phi()->InputAt(1);
       Type backedge_type = NodeProperties::GetType(backedge_value);
       Type phi_type = NodeProperties::GetType(induction_var->phi());
-      if (!backedge_type->Is(phi_type)) {
+      if (!backedge_type.Is(phi_type)) {
         Node* loop = NodeProperties::GetControlInput(induction_var->phi());
         Node* backedge_control = loop->InputAt(1);
         Node* backedge_effect =

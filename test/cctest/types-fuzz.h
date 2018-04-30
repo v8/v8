@@ -172,7 +172,7 @@ class Types {
 #define PICK_BITSET_TYPE(type, value)                        \
   if (j-- == 0) {                                            \
     Type tmp = Type::Intersect(result, Type::type(), zone_); \
-    if (tmp->Is(Type::None()) && i != 0) {                   \
+    if (tmp.Is(Type::None()) && i != 0) {                    \
       break;                                                 \
     } else {                                                 \
       result = tmp;                                          \
