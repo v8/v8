@@ -875,6 +875,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 RelocInfo::CODE_TARGET);
       }
       __ stop("kArchDebugAbort");
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     case kArchDebugBreak:
       __ stop("kArchDebugBreak");
@@ -884,8 +885,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RecordComment(reinterpret_cast<const char*>(comment_string));
       break;
     }
-    case kArchNop:
     case kArchThrowTerminator:
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      unwinding_info_writer_.MarkBlockWillExit();
+      break;
+    case kArchNop:
       // don't emit code for nops.
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
@@ -895,6 +899,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CodeGenResult result =
           AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
       if (result != kSuccess) return result;
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     }
     case kArchRet:

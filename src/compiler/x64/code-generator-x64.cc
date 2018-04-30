@@ -897,12 +897,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 RelocInfo::CODE_TARGET);
       }
       __ int3();
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     case kArchDebugBreak:
       __ int3();
       break;
-    case kArchNop:
     case kArchThrowTerminator:
+      unwinding_info_writer_.MarkBlockWillExit();
+      break;
+    case kArchNop:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {
@@ -911,6 +914,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CodeGenResult result =
           AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
       if (result != kSuccess) return result;
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     }
     case kArchRet:
