@@ -388,7 +388,7 @@ WasmCode* NativeModule::AddOwnedCode(
     Maybe<uint32_t> index, WasmCode::Kind kind, size_t constant_pool_offset,
     uint32_t stack_slots, size_t safepoint_table_offset,
     size_t handler_table_offset,
-    std::shared_ptr<ProtectedInstructions> protected_instructions,
+    std::unique_ptr<ProtectedInstructions> protected_instructions,
     WasmCode::Tier tier, WasmCode::FlushICache flush_icache) {
   // both allocation and insertion in owned_code_ happen in the same critical
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
@@ -469,7 +469,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     source_pos.reset(new byte[source_pos_table->length()]);
     source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());
   }
-  std::shared_ptr<ProtectedInstructions> protected_instructions(
+  std::unique_ptr<ProtectedInstructions> protected_instructions(
       new ProtectedInstructions(0));
   Vector<const byte> orig_instructions(
       reinterpret_cast<byte*>(code->raw_instruction_start()),
@@ -483,15 +483,15 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                    static_cast<size_t>(code->relocation_size()),  // reloc_size
                    std::move(source_pos),  // source positions
                    static_cast<size_t>(source_pos_table->length()),
-                   Nothing<uint32_t>(),           // index
-                   kind,                          // kind
-                   code->constant_pool_offset(),  // constant_pool_offset
-                   stack_slots,                   // stack_slots
-                   safepoint_table_offset,        // safepoint_table_offset
-                   code->handler_table_offset(),  // handler_table_offset
-                   protected_instructions,        // protected_instructions
-                   WasmCode::kOther,              // kind
-                   WasmCode::kNoFlushICache);     // flush_icache
+                   Nothing<uint32_t>(),                // index
+                   kind,                               // kind
+                   code->constant_pool_offset(),       // constant_pool_offset
+                   stack_slots,                        // stack_slots
+                   safepoint_table_offset,             // safepoint_table_offset
+                   code->handler_table_offset(),       // handler_table_offset
+                   std::move(protected_instructions),  // protected_instructions
+                   WasmCode::kOther,                   // kind
+                   WasmCode::kNoFlushICache);          // flush_icache
   intptr_t delta = ret->instruction_start() - code->raw_instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
              RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
@@ -769,15 +769,17 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
     memcpy(source_pos.get(), original_code->source_positions().start(),
            original_code->source_positions().size());
   }
+  DCHECK_EQ(0, original_code->protected_instructions().size());
+  std::unique_ptr<ProtectedInstructions> protected_instructions(
+      new ProtectedInstructions(0));
   WasmCode* ret = AddOwnedCode(
       original_code->instructions(), std::move(reloc_info),
       original_code->reloc_info().size(), std::move(source_pos),
       original_code->source_positions().size(), original_code->index_,
       original_code->kind(), original_code->constant_pool_offset_,
       original_code->stack_slots(), original_code->safepoint_table_offset_,
-      original_code->handler_table_offset_,
-      original_code->protected_instructions_, original_code->tier(),
-      flush_icache);
+      original_code->handler_table_offset_, std::move(protected_instructions),
+      original_code->tier(), flush_icache);
   if (!ret->IsAnonymous()) {
     code_table_[ret->index()] = ret;
   }

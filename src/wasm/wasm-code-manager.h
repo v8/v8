@@ -156,7 +156,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            Maybe<uint32_t> index, Kind kind, size_t constant_pool_offset,
            uint32_t stack_slots, size_t safepoint_table_offset,
            size_t handler_table_offset,
-           std::shared_ptr<ProtectedInstructions> protected_instructions,
+           std::unique_ptr<ProtectedInstructions> protected_instructions,
            Tier tier)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
@@ -201,7 +201,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t safepoint_table_offset_ = 0;
   size_t handler_table_offset_ = 0;
   intptr_t trap_handler_index_ = -1;
-  std::shared_ptr<ProtectedInstructions> protected_instructions_;
+  std::unique_ptr<ProtectedInstructions> protected_instructions_;
   Tier tier_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmCode);
@@ -311,7 +311,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          WasmCode::Kind kind, size_t constant_pool_offset,
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
-                         std::shared_ptr<ProtectedInstructions>, WasmCode::Tier,
+                         std::unique_ptr<ProtectedInstructions>, WasmCode::Tier,
                          WasmCode::FlushICache);
   WasmCode* CloneCode(const WasmCode*, WasmCode::FlushICache);
   WasmCode* Lookup(Address);

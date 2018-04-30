@@ -480,9 +480,6 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t protected_instructions_size = reader->Read<size_t>();
   WasmCode::Tier tier = reader->Read<WasmCode::Tier>();
 
-  std::shared_ptr<ProtectedInstructions> protected_instructions(
-      new ProtectedInstructions(protected_instructions_size));
-
   Vector<const byte> code_buffer = {reader->current_location(), code_size};
   reader->Skip(code_size);
 
@@ -496,11 +493,20 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     source_pos.reset(new byte[source_position_size]);
     reader->ReadVector({source_pos.get(), source_position_size});
   }
+  std::unique_ptr<ProtectedInstructions> protected_instructions(
+      new ProtectedInstructions(protected_instructions_size));
+  if (protected_instructions_size > 0) {
+    size_t size = sizeof(trap_handler::ProtectedInstructionData) *
+                  protected_instructions->size();
+    Vector<byte> data(reinterpret_cast<byte*>(protected_instructions->data()),
+                      size);
+    reader->ReadVector(data);
+  }
   WasmCode* ret = native_module_->AddOwnedCode(
       code_buffer, std::move(reloc_info), reloc_size, std::move(source_pos),
       source_position_size, Just(fn_index), WasmCode::kFunction,
       constant_pool_offset, stack_slot_count, safepoint_table_offset,
-      handler_table_offset, protected_instructions, tier,
+      handler_table_offset, std::move(protected_instructions), tier,
       WasmCode::kNoFlushICache);
   native_module_->code_table_[fn_index] = ret;
 
@@ -551,13 +557,6 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
 
-  if (protected_instructions_size > 0) {
-    size_t size = sizeof(trap_handler::ProtectedInstructionData) *
-                  protected_instructions->size();
-    Vector<byte> data(reinterpret_cast<byte*>(protected_instructions->data()),
-                      size);
-    reader->ReadVector(data);
-  }
   return true;
 }
 
