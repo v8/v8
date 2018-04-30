@@ -1431,15 +1431,9 @@ class Isolate : private HiddenFactory {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  // TODO(kenton@cloudflare.com): This mutex can be removed if
-  // thread_data_table_ is always accessed under the isolate lock. I do not
-  // know if this is the case, so I'm preserving it for now.
-  base::Mutex thread_data_table_mutex_;
-
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
   static base::Thread::LocalStorageKey thread_id_key_;
-  ThreadDataTable thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
   static base::Atomic32 isolate_counter_;
@@ -1682,6 +1676,12 @@ class Isolate : private HiddenFactory {
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
       nullptr;
+
+  // TODO(kenton@cloudflare.com): This mutex can be removed if
+  // thread_data_table_ is always accessed under the isolate lock. I do not
+  // know if this is the case, so I'm preserving it for now.
+  base::Mutex thread_data_table_mutex_;
+  ThreadDataTable thread_data_table_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
