@@ -217,8 +217,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 // WasmCodeManager::Commit.
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-  std::unique_ptr<NativeModule> Clone();
-
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     std::unique_ptr<ProtectedInstructions>,
@@ -246,10 +244,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t FunctionCount() const;
   WasmCode* GetCode(uint32_t index) const;
   void SetCode(uint32_t index, WasmCode* wasm_code);
-
-  // Clones higher tier code from a {source_native_module} to
-  // this native module.
-  void CloneHigherTierCodeFrom(const NativeModule* source_native_module);
 
   // Register/release the protected instructions in all code objects with the
   // global trap handler for this process.
@@ -291,7 +285,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class NativeModuleDeserializer;
   friend class NativeModuleModificationScope;
 
-  class CloneCodeHelper;
   struct AddressHasher {
     size_t operator()(const Address& addr) const {
       return std::hash<Address>()(addr);
@@ -321,8 +314,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          std::shared_ptr<ProtectedInstructions>, WasmCode::Tier,
                          WasmCode::FlushICache);
   WasmCode* CloneCode(const WasmCode*, WasmCode::FlushICache);
-  void CloneTrampolinesAndStubs(const NativeModule* other,
-                                WasmCode::FlushICache);
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);

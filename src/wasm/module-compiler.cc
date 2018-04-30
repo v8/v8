@@ -1107,13 +1107,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 }
 
 void PatchNativeModule(NativeModule* cloning_module,
-                       Handle<WasmCompiledModule> compiled_module,
-                       const NativeModule* source_module) {
-  // Clone optimized code into {cloning_module}.
-  if (source_module != cloning_module) {
-    cloning_module->CloneHigherTierCodeFrom(source_module);
-  }
-
+                       Handle<WasmCompiledModule> compiled_module) {
   // Link.
   CodeSpecialization code_specialization;
   code_specialization.RelocateDirectCalls(cloning_module);
@@ -1133,15 +1127,14 @@ void UpdateAllCompiledModulesWithTopTierCode(
 
   CodeSpaceMemoryModificationScope modification_scope(
       compiled_module->GetIsolate()->heap());
-  NativeModule* updated_module = compiled_module->GetNativeModule();
 
   Handle<WasmCompiledModule> current = compiled_module;
-  PatchNativeModule(current->GetNativeModule(), current, updated_module);
+  PatchNativeModule(current->GetNativeModule(), current);
 
   // Go through the chain of compiled modules to update each (next in chain).
   while (current->has_next_instance()) {
     current = handle(current->next_instance());
-    PatchNativeModule(current->GetNativeModule(), current, updated_module);
+    PatchNativeModule(current->GetNativeModule(), current);
   }
 
   // Go through the chain of compiled modules to update each (previous in
@@ -1149,7 +1142,7 @@ void UpdateAllCompiledModulesWithTopTierCode(
   current = compiled_module;
   while (current->has_prev_instance()) {
     current = handle(current->prev_instance());
-    PatchNativeModule(current->GetNativeModule(), current, updated_module);
+    PatchNativeModule(current->GetNativeModule(), current);
   }
 }
 

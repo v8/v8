@@ -1405,14 +1405,13 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
       handle(module->export_wrappers(), isolate));
   ret->set_export_wrappers(*export_copy);
 
-  auto native_module = module->GetNativeModule()->Clone();
   // construct the wrapper in 2 steps, because its construction may trigger GC,
   // which would shift the this pointer in set_native_module.
   Handle<Foreign> native_module_wrapper =
-      Managed<wasm::NativeModule>::FromUniquePtr(isolate,
-                                                 std::move(native_module));
+      Managed<wasm::NativeModule>::FromSharedPtr(
+          isolate,
+          Managed<wasm::NativeModule>::cast(module->native_module())->get());
   ret->set_native_module(*native_module_wrapper);
-  ret->GetNativeModule()->SetSharedModuleData(handle(module->shared()));
 
   return ret;
 }

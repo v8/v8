@@ -326,134 +326,6 @@ WasmCode::~WasmCode() {
   }
 }
 
-// Helper class to selectively clone and patch code from a
-// {source_native_module} into a {cloning_native_module}.
-class NativeModule::CloneCodeHelper {
- public:
-  explicit CloneCodeHelper(const NativeModule* source_native_module,
-                           NativeModule* cloning_native_module);
-
-  void SelectForCloning(uint32_t code_index);
-
-  void CloneAndPatchCode();
-
-  void PatchTrampolineAndStubCalls(const WasmCode* original_code,
-                                   const WasmCode* new_code,
-                                   WasmCode::FlushICache flush_icache);
-
- private:
-  const NativeModule* source_native_module_;
-  NativeModule* cloning_native_module_;
-  std::vector<uint32_t> selection_;
-  std::unordered_map<Address, Address, AddressHasher> reverse_lookup_;
-};
-
-void NativeModule::CloneHigherTierCodeFrom(
-    const NativeModule* source_native_module) {
-  NativeModule::CloneCodeHelper helper(source_native_module, this);
-
-  for (uint32_t i = num_imported_functions_, e = FunctionCount(); i < e; ++i) {
-    WasmCode* wasm_code = GetCode(i);
-    if (!wasm_code->is_liftoff()) continue;
-    helper.SelectForCloning(i);
-  }
-
-  helper.CloneAndPatchCode();
-
-  // Sanity check: after cloning the code, every function in the
-  // code table should not be Liftoff-compiled code anymore.
-  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
-    DCHECK(!GetCode(i)->is_liftoff());
-  }
-}
-
-NativeModule::CloneCodeHelper::CloneCodeHelper(
-    const NativeModule* source_native_module,
-    NativeModule* cloning_native_module)
-    : source_native_module_(source_native_module),
-      cloning_native_module_(cloning_native_module) {
-  for (auto& pair : source_native_module_->trampolines_) {
-    Address old_dest = pair.second;
-    auto local = cloning_native_module_->trampolines_.find(pair.first);
-    DCHECK(local != cloning_native_module_->trampolines_.end());
-    Address new_dest = local->second;
-    reverse_lookup_.emplace(old_dest, new_dest);
-  }
-}
-
-void NativeModule::CloneCodeHelper::SelectForCloning(uint32_t code_index) {
-  selection_.emplace_back(code_index);
-}
-
-void NativeModule::CloneCodeHelper::CloneAndPatchCode() {
-  WasmCode* anonymous_lazy_builtin = nullptr;
-  for (uint32_t index : selection_) {
-    const WasmCode* original_code = source_native_module_->GetCode(index);
-    switch (original_code->kind()) {
-      case WasmCode::kLazyStub: {
-        // Use the first anonymous lazy compile stub hit in this loop as the
-        // canonical copy for all further ones by remembering it locally via
-        // the {anonymous_lazy_builtin} variable.
-        if (!original_code->IsAnonymous()) {
-          WasmCode* new_code = cloning_native_module_->CloneCode(
-              original_code, WasmCode::kNoFlushICache);
-          PatchTrampolineAndStubCalls(original_code, new_code,
-                                      WasmCode::kFlushICache);
-          break;
-        }
-        if (anonymous_lazy_builtin == nullptr) {
-          WasmCode* new_code = cloning_native_module_->CloneCode(
-              original_code, WasmCode::kNoFlushICache);
-          PatchTrampolineAndStubCalls(original_code, new_code,
-                                      WasmCode::kFlushICache);
-          anonymous_lazy_builtin = new_code;
-        }
-        cloning_native_module_->code_table_[index] = anonymous_lazy_builtin;
-      } break;
-      case WasmCode::kFunction: {
-        WasmCode* new_code = cloning_native_module_->CloneCode(
-            original_code, WasmCode::kNoFlushICache);
-        PatchTrampolineAndStubCalls(original_code, new_code,
-                                    WasmCode::kFlushICache);
-      } break;
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-
-void NativeModule::CloneCodeHelper::PatchTrampolineAndStubCalls(
-    const WasmCode* original_code, const WasmCode* new_code,
-    WasmCode::FlushICache flush_icache) {
-  // Relocate everything in kApplyMask using this delta, and patch all code
-  // targets to call the new trampolines and stubs.
-  intptr_t delta =
-      new_code->instructions().start() - original_code->instructions().start();
-  int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask;
-  RelocIterator orig_it(original_code->instructions(),
-                        original_code->reloc_info(),
-                        original_code->constant_pool(), mask);
-  for (RelocIterator it(new_code->instructions(), new_code->reloc_info(),
-                        new_code->constant_pool(), mask);
-       !it.done(); it.next(), orig_it.next()) {
-    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
-      Address target = orig_it.rinfo()->target_address();
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
-      auto found = reverse_lookup_.find(target);
-      DCHECK(found != reverse_lookup_.end());
-      target = found->second;
-#endif
-      it.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER);
-    } else {
-      it.rinfo()->apply(delta);
-    }
-  }
-  if (flush_icache) {
-    Assembler::FlushICache(new_code->instructions().start(),
-                           new_code->instructions().size());
-  }
-}
-
 base::AtomicNumber<size_t> NativeModule::next_id_;
 
 NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
@@ -883,17 +755,6 @@ WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
   return cloned_code;
 }
 
-void NativeModule::CloneTrampolinesAndStubs(
-    const NativeModule* other, WasmCode::FlushICache flush_icache) {
-  for (auto& pair : other->trampolines_) {
-    Address key = pair.first;
-    Address local =
-        GetLocalAddressFor(handle(Code::GetCodeFromTargetAddress(key)));
-    DCHECK_NE(local, kNullAddress);
-    trampolines_.emplace(std::make_pair(key, local));
-  }
-}
-
 WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
                                   WasmCode::FlushICache flush_icache) {
   std::unique_ptr<byte[]> reloc_info;
@@ -1122,28 +983,6 @@ bool NativeModule::SetExecutable(bool executable) {
   }
   is_executable_ = executable;
   return true;
-}
-
-std::unique_ptr<NativeModule> NativeModule::Clone() {
-  ModuleEnv* module_env = GetModuleEnv(compilation_state());
-  std::unique_ptr<NativeModule> ret = wasm_code_manager_->NewNativeModule(
-      owned_memory_.front().size(), FunctionCount(), num_imported_functions(),
-      can_request_more_memory_, *module_env);
-  TRACE_HEAP("%zu cloned from %zu\n", ret->instance_id, instance_id);
-  if (!ret) return ret;
-
-  // Clone trampolines and stubs. They are later patched, so no icache flush
-  // needed yet.
-  ret->CloneTrampolinesAndStubs(this, WasmCode::kNoFlushICache);
-
-  // Create a helper for cloning and patching code.
-  CloneCodeHelper helper(this, ret.get());
-  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
-    helper.SelectForCloning(i);
-  }
-  helper.CloneAndPatchCode();
-
-  return ret;
 }
 
 void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
