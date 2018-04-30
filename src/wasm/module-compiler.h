@@ -152,7 +152,6 @@ class AsyncCompileJob {
   std::unique_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
-  Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
 
   std::unique_ptr<CompileStep> step_;

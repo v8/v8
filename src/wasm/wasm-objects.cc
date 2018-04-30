@@ -731,10 +731,6 @@ void WasmInstanceObject::SetRawMemory(byte* mem_start, uint32_t mem_size) {
   set_memory_mask(mem_mask64);
 }
 
-WasmModuleObject* WasmInstanceObject::module_object() {
-  return compiled_module()->wasm_module();
-}
-
 WasmModule* WasmInstanceObject::module() {
   return compiled_module()->shared()->module();
 }

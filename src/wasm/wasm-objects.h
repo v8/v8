@@ -314,7 +314,6 @@ class WasmInstanceObject : public JSObject {
                                 WASM_INSTANCE_OBJECT_FIELDS)
 #undef WASM_INSTANCE_OBJECT_FIELDS
 
-  WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   static bool EnsureIndirectFunctionTableWithMinimumSize(
@@ -500,7 +499,6 @@ class WasmCompiledModule : public Struct {
   V(kOwningInstanceOffset, kPointerSize)        \
   V(kWasmModuleOffset, kPointerSize)            \
   V(kNativeModuleOffset, kPointerSize)          \
-  V(kLazyCompileDataOffset, kPointerSize)       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
