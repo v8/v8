@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckBounds(Node* node, Node* frame_state);
-  Node* LowerMaskIndexWithBound(Node* node);
+  Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);

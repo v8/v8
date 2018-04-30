@@ -279,7 +279,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
-  static ElementAccess ForFixedArrayElement(ElementsKind kind);
+  static ElementAccess ForFixedArrayElement(
+      ElementsKind kind,
+      LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
 
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
@@ -291,8 +293,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForEnumCacheIndices();
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
-  static ElementAccess ForTypedArrayElement(ExternalArrayType type,
-                                            bool is_external);
+  static ElementAccess ForTypedArrayElement(
+      ExternalArrayType type, bool is_external,
+      LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
 
   // Provides access to HashTable fields.
   static FieldAccess ForHashTableBaseNumberOfElements();

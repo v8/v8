@@ -37,6 +37,10 @@ size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
+size_t hash_value(LoadSensitivity);
+
+std::ostream& operator<<(std::ostream&, LoadSensitivity);
+
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -48,24 +52,28 @@ struct FieldAccess {
   Type type;                      // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
+  LoadSensitivity load_sensitivity;     // load safety for poisoning.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
         offset(0),
         type(Type::None()),
         machine_type(MachineType::None()),
-        write_barrier_kind(kFullWriteBarrier) {}
+        write_barrier_kind(kFullWriteBarrier),
+        load_sensitivity(LoadSensitivity::kUnsafe) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
-              WriteBarrierKind write_barrier_kind)
+              WriteBarrierKind write_barrier_kind,
+              LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
         map(map),
         type(type),
         machine_type(machine_type),
-        write_barrier_kind(write_barrier_kind) {}
+        write_barrier_kind(write_barrier_kind),
+        load_sensitivity(load_sensitivity) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -93,21 +101,25 @@ struct ElementAccess {
   Type type;                      // type of the element.
   MachineType machine_type;       // machine type of the element.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
+  LoadSensitivity load_sensitivity;     // load safety for poisoning.
 
   ElementAccess()
       : base_is_tagged(kTaggedBase),
         header_size(0),
         type(Type::None()),
         machine_type(MachineType::None()),
-        write_barrier_kind(kFullWriteBarrier) {}
+        write_barrier_kind(kFullWriteBarrier),
+        load_sensitivity(LoadSensitivity::kUnsafe) {}
 
   ElementAccess(BaseTaggedness base_is_tagged, int header_size, Type type,
-                MachineType machine_type, WriteBarrierKind write_barrier_kind)
+                MachineType machine_type, WriteBarrierKind write_barrier_kind,
+                LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe)
       : base_is_tagged(base_is_tagged),
         header_size(header_size),
         type(type),
         machine_type(machine_type),
-        write_barrier_kind(write_barrier_kind) {}
+        write_barrier_kind(write_barrier_kind),
+        load_sensitivity(load_sensitivity) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -597,7 +609,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
-  const Operator* MaskIndexWithBound();
+  const Operator* PoisonIndex();
   const Operator* CompareMaps(ZoneHandleSet<Map>);
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 

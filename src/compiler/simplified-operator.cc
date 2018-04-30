@@ -48,6 +48,21 @@ size_t hash_value(FieldAccess const& access) {
                             access.machine_type);
 }
 
+size_t hash_value(LoadSensitivity load_sensitivity) {
+  return static_cast<size_t>(load_sensitivity);
+}
+
+std::ostream& operator<<(std::ostream& os, LoadSensitivity load_sensitivity) {
+  switch (load_sensitivity) {
+    case LoadSensitivity::kCritical:
+      return os << "Critical";
+    case LoadSensitivity::kSafe:
+      return os << "Safe";
+    case LoadSensitivity::kUnsafe:
+      return os << "Unsafe";
+  }
+  UNREACHABLE();
+}
 
 std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   os << "[" << access.base_is_tagged << ", " << access.offset << ", ";
@@ -63,7 +78,11 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   }
 #endif
   os << access.type << ", " << access.machine_type << ", "
-     << access.write_barrier_kind << "]";
+     << access.write_barrier_kind;
+  if (FLAG_untrusted_code_mitigations || FLAG_branch_load_poisoning) {
+    os << ", " << access.load_sensitivity;
+  }
+  os << "]";
   return os;
 }
 
@@ -99,6 +118,9 @@ std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", "
      << access.type << ", " << access.machine_type << ", "
      << access.write_barrier_kind;
+  if (FLAG_untrusted_code_mitigations || FLAG_branch_load_poisoning) {
+    os << ", " << access.load_sensitivity;
+  }
   return os;
 }
 
@@ -723,7 +745,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                    \
   V(NewConsString, Operator::kNoProperties, 3, 0)                \
-  V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
+  V(PoisonIndex, Operator::kNoProperties, 1, 0)
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                  \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1) \

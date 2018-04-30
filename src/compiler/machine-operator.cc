@@ -709,21 +709,29 @@ struct MachineOperatorGlobalCache {
   };
   BitcastMaybeObjectToWordOperator kBitcastMaybeObjectToWord;
 
-  struct PoisonOnSpeculationTagged : public Operator {
-    PoisonOnSpeculationTagged()
-        : Operator(IrOpcode::kPoisonOnSpeculationTagged,
+  struct TaggedPoisonOnSpeculation : public Operator {
+    TaggedPoisonOnSpeculation()
+        : Operator(IrOpcode::kTaggedPoisonOnSpeculation,
                    Operator::kEliminatable | Operator::kNoWrite,
-                   "PoisonOnSpeculationTagged", 1, 1, 1, 1, 1, 0) {}
+                   "TaggedPoisonOnSpeculation", 1, 1, 1, 1, 1, 0) {}
   };
-  PoisonOnSpeculationTagged kPoisonOnSpeculationTagged;
+  TaggedPoisonOnSpeculation kTaggedPoisonOnSpeculation;
 
-  struct PoisonOnSpeculationWord : public Operator {
-    PoisonOnSpeculationWord()
-        : Operator(IrOpcode::kPoisonOnSpeculationWord,
+  struct Word32PoisonOnSpeculation : public Operator {
+    Word32PoisonOnSpeculation()
+        : Operator(IrOpcode::kWord32PoisonOnSpeculation,
                    Operator::kEliminatable | Operator::kNoWrite,
-                   "PoisonOnSpeculationWord", 1, 1, 1, 1, 1, 0) {}
+                   "Word32PoisonOnSpeculation", 1, 1, 1, 1, 1, 0) {}
   };
-  PoisonOnSpeculationWord kPoisonOnSpeculationWord;
+  Word32PoisonOnSpeculation kWord32PoisonOnSpeculation;
+
+  struct Word64PoisonOnSpeculation : public Operator {
+    Word64PoisonOnSpeculation()
+        : Operator(IrOpcode::kWord64PoisonOnSpeculation,
+                   Operator::kEliminatable | Operator::kNoWrite,
+                   "Word64PoisonOnSpeculation", 1, 1, 1, 1, 1, 0) {}
+  };
+  Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
 
   struct SpeculationFenceOperator : public Operator {
     SpeculationFenceOperator()
@@ -1029,12 +1037,16 @@ const Operator* MachineOperatorBuilder::Word32AtomicXor(MachineType rep) {
   UNREACHABLE();
 }
 
-const Operator* MachineOperatorBuilder::PoisonOnSpeculationTagged() {
-  return &cache_.kPoisonOnSpeculationTagged;
+const Operator* MachineOperatorBuilder::TaggedPoisonOnSpeculation() {
+  return &cache_.kTaggedPoisonOnSpeculation;
 }
 
-const Operator* MachineOperatorBuilder::PoisonOnSpeculationWord() {
-  return &cache_.kPoisonOnSpeculationWord;
+const Operator* MachineOperatorBuilder::Word32PoisonOnSpeculation() {
+  return &cache_.kWord32PoisonOnSpeculation;
+}
+
+const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
+  return &cache_.kWord64PoisonOnSpeculation;
 }
 
 const Operator* MachineOperatorBuilder::Word64AtomicLoad(

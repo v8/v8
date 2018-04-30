@@ -1586,7 +1586,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Dsb(FullSystem, BarrierAll);
       __ Isb();
       break;
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       __ And(i.OutputRegister(0), i.InputRegister(0),
              Operand(kSpeculationPoisonRegister));
       break;

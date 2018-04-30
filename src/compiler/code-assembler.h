@@ -746,8 +746,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadStackPointer();
 
   // Poison |value| on speculative paths.
-  TNode<Object> PoisonOnSpeculationTagged(SloppyTNode<Object> value);
-  TNode<WordT> PoisonOnSpeculationWord(SloppyTNode<WordT> value);
+  TNode<Object> TaggedPoisonOnSpeculation(SloppyTNode<Object> value);
+  TNode<WordT> WordPoisonOnSpeculation(SloppyTNode<WordT> value);
 
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base,
@@ -1115,7 +1115,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void UnregisterCallGenerationCallbacks();
 
   bool Word32ShiftIsSafe() const;
-  PoisoningMitigationLevel poisoning_enabled() const;
+  PoisoningMitigationLevel poisoning_level() const;
 
  private:
   // These two don't have definitions and are here only for catching use cases
@@ -1260,15 +1260,14 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, Code::Kind kind,
-                     const char* name,
-                     PoisoningMitigationLevel poisoning_enabled,
+                     const char* name, PoisoningMitigationLevel poisoning_level,
                      size_t result_size = 1, uint32_t stub_key = 0,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      Code::Kind kind, const char* name,
-                     PoisoningMitigationLevel poisoning_enabled,
+                     PoisoningMitigationLevel poisoning_level,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   ~CodeAssemblerState();
@@ -1290,8 +1289,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
-                     const char* name,
-                     PoisoningMitigationLevel poisoning_enabled,
+                     const char* name, PoisoningMitigationLevel poisoning_level,
                      uint32_t stub_key, int32_t builtin_index);
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;

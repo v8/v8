@@ -44,7 +44,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              int start_source_position,
                              JumpOptimizationInfo* jump_opt,
                              WasmCompilationData* wasm_compilation_data,
-                             CodeGeneratorPoisoningLevel poisoning_level)
+                             PoisoningMitigationLevel poisoning_level)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -1192,7 +1192,7 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
 }
 
 void CodeGenerator::InitializeSpeculationPoison() {
-  if (poisoning_level_ == CodeGeneratorPoisoningLevel::kDontPoison) return;
+  if (poisoning_level_ == PoisoningMitigationLevel::kDontPoison) return;
 
   // Initialize {kSpeculationPoisonRegister} either by comparing the expected
   // with the actual call target, or by unconditionally using {-1} initially.
@@ -1209,7 +1209,7 @@ void CodeGenerator::InitializeSpeculationPoison() {
 }
 
 void CodeGenerator::ResetSpeculationPoison() {
-  if (poisoning_level_ == CodeGeneratorPoisoningLevel::kPoisonAll) {
+  if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
     tasm()->ResetSpeculationPoisonRegister();
   }
 }

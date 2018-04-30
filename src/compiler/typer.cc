@@ -1945,7 +1945,7 @@ Type Typer::Visitor::TypeStringLength(Node* node) {
 
 Type Typer::Visitor::TypeStringSubstring(Node* node) { return Type::String(); }
 
-Type Typer::Visitor::TypeMaskIndexWithBound(Node* node) {
+Type Typer::Visitor::TypePoisonIndex(Node* node) {
   return Type::Union(Operand(node, 0), typer_->cache_.kSingletonZero, zone());
 }
 

@@ -421,7 +421,7 @@
   V(TransitionElementsKind)             \
   V(FindOrderedHashMapEntry)            \
   V(FindOrderedHashMapEntryForInt32Key) \
-  V(MaskIndexWithBound)                 \
+  V(PoisonIndex)                        \
   V(RuntimeAbort)                       \
   V(DateNow)
 
@@ -617,8 +617,9 @@
   V(Float64ExtractHighWord32)    \
   V(Float64InsertLowWord32)      \
   V(Float64InsertHighWord32)     \
-  V(PoisonOnSpeculationTagged)   \
-  V(PoisonOnSpeculationWord)     \
+  V(TaggedPoisonOnSpeculation)   \
+  V(Word32PoisonOnSpeculation)   \
+  V(Word64PoisonOnSpeculation)   \
   V(LoadStackPointer)            \
   V(LoadFramePointer)            \
   V(LoadParentFramePointer)      \

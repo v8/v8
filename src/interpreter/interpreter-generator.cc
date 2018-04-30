@@ -3105,8 +3105,9 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BYTECODE_HANDLER,
       Bytecodes::ToString(bytecode),
-      FLAG_untrusted_code_mitigations ? PoisoningMitigationLevel::kOn
-                                      : PoisoningMitigationLevel::kOff,
+      FLAG_untrusted_code_mitigations
+          ? PoisoningMitigationLevel::kPoisonCriticalOnly
+          : PoisoningMitigationLevel::kDontPoison,
       Bytecodes::ReturnCount(bytecode));
 
   switch (bytecode) {
@@ -3179,8 +3180,9 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
   InterpreterDispatchDescriptor descriptor(isolate);
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BYTECODE_HANDLER, debug_name.c_str(),
-      FLAG_untrusted_code_mitigations ? PoisoningMitigationLevel::kOn
-                                      : PoisoningMitigationLevel::kOff,
+      FLAG_untrusted_code_mitigations
+          ? PoisoningMitigationLevel::kPoisonCriticalOnly
+          : PoisoningMitigationLevel::kDontPoison,
       return_count);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);

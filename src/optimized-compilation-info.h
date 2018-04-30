@@ -41,18 +41,17 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kAccessorInliningEnabled = 1 << 0,
     kFunctionContextSpecializing = 1 << 1,
     kInliningEnabled = 1 << 2,
-    kPoisonLoads = 1 << 3,
-    kDisableFutureOptimization = 1 << 4,
-    kSplittingEnabled = 1 << 5,
-    kSourcePositionsEnabled = 1 << 6,
-    kBailoutOnUninitialized = 1 << 7,
-    kLoopPeelingEnabled = 1 << 8,
-    kUntrustedCodeMitigations = 1 << 9,
-    kSwitchJumpTableEnabled = 1 << 10,
-    kCalledWithCodeStartRegister = 1 << 11,
-    kPoisonRegisterArguments = 1 << 12,
-    kAllocationFoldingEnabled = 1 << 13,
-    kAnalyzeEnvironmentLiveness = 1 << 14,
+    kDisableFutureOptimization = 1 << 3,
+    kSplittingEnabled = 1 << 4,
+    kSourcePositionsEnabled = 1 << 5,
+    kBailoutOnUninitialized = 1 << 6,
+    kLoopPeelingEnabled = 1 << 7,
+    kUntrustedCodeMitigations = 1 << 8,
+    kSwitchJumpTableEnabled = 1 << 9,
+    kCalledWithCodeStartRegister = 1 << 10,
+    kPoisonRegisterArguments = 1 << 11,
+    kAllocationFoldingEnabled = 1 << 12,
+    kAnalyzeEnvironmentLiveness = 1 << 13,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -117,8 +116,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
-  void MarkAsPoisonLoads() { SetFlag(kPoisonLoads); }
-  bool is_poison_loads() const { return GetFlag(kPoisonLoads); }
+  void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
+    poisoning_level_ = poisoning_level;
+  }
+  PoisoningMitigationLevel GetPoisoningMitigationLevel() const {
+    return poisoning_level_;
+  }
 
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
@@ -266,6 +269,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Compilation flags.
   unsigned flags_;
+  PoisoningMitigationLevel poisoning_level_ =
+      PoisoningMitigationLevel::kDontPoison;
 
   AbstractCode::Kind code_kind_;
   uint32_t stub_key_;

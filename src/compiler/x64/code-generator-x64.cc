@@ -964,7 +964,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ andq(i.InputRegister(0), kSpeculationPoisonRegister);
       break;

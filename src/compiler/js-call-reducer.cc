@@ -2238,12 +2238,10 @@ Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       *effect, control);
 
-  Node* masked_index =
-      graph()->NewNode(simplified()->MaskIndexWithBound(), *k, length);
-
   Node* element = *effect = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
-      elements, masked_index, *effect, control);
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(
+          kind, LoadSensitivity::kCritical)),
+      elements, *k, *effect, control);
   return element;
 }
 
@@ -4988,8 +4986,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
-                                        index, receiver_length);
+  Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
   Node* value = effect = graph()->NewNode(string_access_operator, receiver,
                                           masked_index, effect, control);
 
@@ -5025,8 +5022,7 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
-                                        index, receiver_length);
+  Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
   Node* value = effect =
       graph()->NewNode(simplified()->StringCharCodeAt(), receiver, masked_index,
                        effect, control);

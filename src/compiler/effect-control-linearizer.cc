@@ -661,8 +661,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckBounds:
       result = LowerCheckBounds(node, frame_state);
       break;
-    case IrOpcode::kMaskIndexWithBound:
-      result = LowerMaskIndexWithBound(node);
+    case IrOpcode::kPoisonIndex:
+      result = LowerPoisonIndex(node);
       break;
     case IrOpcode::kCheckMaps:
       LowerCheckMaps(node, frame_state);
@@ -1316,22 +1316,14 @@ Node* EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state) {
 
   Node* check = __ Uint32LessThan(index, limit);
   __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
-                     frame_state);
+                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
   return index;
 }
 
-Node* EffectControlLinearizer::LowerMaskIndexWithBound(Node* node) {
+Node* EffectControlLinearizer::LowerPoisonIndex(Node* node) {
   Node* index = node->InputAt(0);
   if (mask_array_index_ == kMaskArrayIndex) {
-    Node* limit = node->InputAt(1);
-
-    // mask = ((index - limit) & ~index) >> 31
-    // index = index & mask
-    Node* neg_index = __ Word32Xor(index, __ Int32Constant(-1));
-    Node* mask =
-        __ Word32Sar(__ Word32And(__ Int32Sub(index, limit), neg_index),
-                     __ Int32Constant(31));
-    index = __ Word32And(index, mask);
+    index = __ Word32PoisonOnSpeculation(index);
   }
   return index;
 }
@@ -1531,8 +1523,8 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
 
 void EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
-  __ DeoptimizeIfNot(DeoptimizeKind::kEager, DeoptimizeReasonOf(node->op()),
-                     VectorSlotPair(), value, frame_state);
+  __ DeoptimizeIfNot(DeoptimizeReasonOf(node->op()), VectorSlotPair(), value,
+                     frame_state);
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,
@@ -3750,7 +3742,8 @@ Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
                       : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
-  return __ LoadElement(AccessBuilder::ForTypedArrayElement(array_type, true),
+  return __ LoadElement(AccessBuilder::ForTypedArrayElement(
+                            array_type, true, LoadSensitivity::kCritical),
                         storage, index);
 }
 

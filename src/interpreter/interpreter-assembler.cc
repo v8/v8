@@ -139,7 +139,7 @@ Node* InterpreterAssembler::GetAccumulatorUnchecked() {
 Node* InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
-  return PoisonOnSpeculationTagged(GetAccumulatorUnchecked());
+  return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::SetAccumulator(Node* value) {
@@ -222,7 +222,7 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return PoisonOnSpeculationWord(
+  return WordPoisonOnSpeculation(
       IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index)));
 }
 
@@ -236,7 +236,7 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
   return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              RegisterFrameOffset(reg_index), LoadSensitivity::kNeedsPoisoning);
+              RegisterFrameOffset(reg_index), LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
@@ -648,7 +648,7 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);
   return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
-                               LoadSensitivity::kNeedsPoisoning);
+                               LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
@@ -1422,7 +1422,7 @@ Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset, Node* target_bytecode) {
   InterpreterDispatchDescriptor descriptor(isolate());
   // Propagate speculation poisoning.
-  Node* poisoned_handler_entry = PoisonOnSpeculationWord(handler_entry);
+  Node* poisoned_handler_entry = WordPoisonOnSpeculation(handler_entry);
   return TailCallBytecodeDispatch(
       descriptor, poisoned_handler_entry, GetAccumulatorUnchecked(),
       bytecode_offset, BytecodeArrayTaggedPointer(), DispatchTableRawPointer());

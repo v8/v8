@@ -2402,7 +2402,8 @@ class RepresentationSelector {
           // as well, because the {length_type} is limited to Unsigned31.
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
-          if (lower()) {
+          if (lower() && lowering->poisoning_level_ ==
+                             PoisoningMitigationLevel::kDontPoison) {
             if (index_type.IsNone() || length_type.IsNone() ||
                 (index_type.Min() >= 0.0 &&
                  index_type.Max() < length_type.Min())) {
@@ -2419,9 +2420,9 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kMaskIndexWithBound: {
-        VisitBinop(node, UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32);
+      case IrOpcode::kPoisonIndex: {
+        VisitUnop(node, UseInfo::TruncatingWord32(),
+                  MachineRepresentation::kWord32);
         return;
       }
       case IrOpcode::kCheckHeapObject: {
@@ -3246,11 +3247,13 @@ class RepresentationSelector {
 };
 
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
-                                       SourcePositionTable* source_positions)
+                                       SourcePositionTable* source_positions,
+                                       PoisoningMitigationLevel poisoning_level)
     : jsgraph_(jsgraph),
       zone_(zone),
       type_cache_(TypeCache::Get()),
-      source_positions_(source_positions) {}
+      source_positions_(source_positions),
+      poisoning_level_(poisoning_level) {}
 
 void SimplifiedLowering::LowerAllNodes() {
   RepresentationChanger changer(jsgraph(), jsgraph()->isolate());

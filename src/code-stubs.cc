@@ -298,9 +298,9 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
-                                     name, PoisoningMitigationLevel::kOff, 1,
-                                     GetKey());
+  compiler::CodeAssemblerState state(
+      isolate(), &zone, descriptor, Code::STUB, name,
+      PoisoningMitigationLevel::kDontPoison, 1, GetKey());
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }

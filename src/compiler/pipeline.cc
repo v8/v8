@@ -342,19 +342,10 @@ class PipelineData {
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
 
-    CodeGeneratorPoisoningLevel poisoning =
-        CodeGeneratorPoisoningLevel::kDontPoison;
-    if (info()->has_untrusted_code_mitigations()) {
-      poisoning = CodeGeneratorPoisoningLevel::kPoisonStackPointerInPrologue;
-    }
-    if (info()->is_poison_loads()) {
-      poisoning = CodeGeneratorPoisoningLevel::kPoisonAll;
-    }
-
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        wasm_compilation_data_, poisoning);
+        wasm_compilation_data_, info()->GetPoisoningMitigationLevel());
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -810,12 +801,21 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_inline_accessors) {
     compilation_info()->MarkAsAccessorInliningEnabled();
   }
+
+  // Compute and set poisoning level.
+  PoisoningMitigationLevel load_poisoning =
+      PoisoningMitigationLevel::kDontPoison;
   if (FLAG_branch_load_poisoning) {
-    compilation_info()->MarkAsPoisonLoads();
+    load_poisoning = PoisoningMitigationLevel::kPoisonAll;
+  } else if (FLAG_untrusted_code_mitigations) {
+    load_poisoning = PoisoningMitigationLevel::kPoisonCriticalOnly;
   }
+  compilation_info()->SetPoisoningMitigationLevel(load_poisoning);
+
   if (FLAG_turbo_allocation_folding) {
     compilation_info()->MarkAsAllocationFoldingEnabled();
   }
+
   if (compilation_info()->closure()->feedback_cell()->map() ==
       isolate->heap()->one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
@@ -1240,7 +1240,8 @@ struct SimplifiedLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
-                                data->source_positions());
+                                data->source_positions(),
+                                data->info()->GetPoisoningMitigationLevel());
     lowering.LowerAllNodes();
   }
 };
@@ -1355,14 +1356,9 @@ struct EffectControlLinearizationPhase {
       if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
       TraceSchedule(data->info(), data->isolate(), schedule);
 
-      // We only insert the array masking code if
-      //   - untrusted code mitigations are on,
-      //   - general load poisoning is off.
-      // TODO(jarin) Remove the array index masking code entirely once we have
-      // restricted load poisoning.
       EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
-          (data->info()->has_untrusted_code_mitigations() &&
-           !data->info()->is_poison_loads())
+          (data->info()->GetPoisoningMitigationLevel() !=
+           PoisoningMitigationLevel::kDontPoison)
               ? EffectControlLinearizer::kMaskArrayIndex
               : EffectControlLinearizer::kDoNotMaskArrayIndex;
       // Post-pass for wiring the control/effects
@@ -1447,9 +1443,7 @@ struct MemoryOptimizationPhase {
 
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
-        data->jsgraph(), temp_zone,
-        data->info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
-                                        : PoisoningMitigationLevel::kOff,
+        data->jsgraph(), temp_zone, data->info()->GetPoisoningMitigationLevel(),
         data->info()->is_allocation_folding_enabled()
             ? MemoryOptimizer::AllocationFolding::kDoAllocationFolding
             : MemoryOptimizer::AllocationFolding::kDontAllocationFolding);
@@ -1541,8 +1535,7 @@ struct InstructionSelectionPhase {
         data->isolate()->serializer_enabled()
             ? InstructionSelector::kEnableSerialization
             : InstructionSelector::kDisableSerialization,
-        data->info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
-                                        : PoisoningMitigationLevel::kOff);
+        data->info()->GetPoisoningMitigationLevel());
     if (!selector.SelectInstructions()) {
       data->set_compilation_failed();
     }
@@ -1959,13 +1952,13 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
     uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
-    PoisoningMitigationLevel poisoning_enabled) {
+    PoisoningMitigationLevel poisoning_level) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
   info.set_stub_key(stub_key);
 
-  if (poisoning_enabled == PoisoningMitigationLevel::kOn) {
-    info.MarkAsPoisonLoads();
+  if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
+    info.SetPoisoningMitigationLevel(poisoning_level);
   }
 
   // Construct a pipeline for scheduling and code generation.
@@ -2193,7 +2186,8 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     std::unique_ptr<const RegisterConfiguration> config;
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegisters(config.get(), call_descriptor, run_verifier);
-  } else if (data->info()->is_poison_loads()) {
+  } else if (data->info()->GetPoisoningMitigationLevel() !=
+             PoisoningMitigationLevel::kDontPoison) {
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
   } else {

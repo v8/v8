@@ -2202,7 +2202,7 @@ IS_UNOP_MATCHER(Word32Ctz)
 IS_UNOP_MATCHER(Word32Popcnt)
 IS_UNOP_MATCHER(Word32ReverseBytes)
 IS_UNOP_MATCHER(SpeculativeToNumber)
-IS_UNOP_MATCHER(PoisonOnSpeculationTagged)
+IS_UNOP_MATCHER(TaggedPoisonOnSpeculation)
 #undef IS_UNOP_MATCHER
 
 // Special-case Bitcast operators which are disabled when ENABLE_VERIFY_CSA is

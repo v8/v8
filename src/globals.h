@@ -1526,8 +1526,18 @@ enum class HeapObjectReferenceType {
   STRONG,
 };
 
-enum class PoisoningMitigationLevel { kOff, kOn };
-enum class LoadSensitivity { kSafe, kNeedsPoisoning };
+enum class PoisoningMitigationLevel {
+  kPoisonAll,
+  kDontPoison,
+  kPoisonCriticalOnly
+};
+enum class LoadSensitivity {
+  kCritical,  // Critical loads are poisoned whenever we can run untrusted
+              // code (i.e., when --untrusted-code-mitigations is on).
+  kUnsafe,    // Unsafe loads are poisoned when full poisoning is on
+              // (--branch-load-poisoning).
+  kSafe       // Safe loads are never poisoned.
+};
 
 }  // namespace internal
 }  // namespace v8

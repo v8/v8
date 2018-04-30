@@ -1383,9 +1383,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Unsigned31());
       CheckTypeIs(node, Type::Unsigned31());
       break;
-    case IrOpcode::kMaskIndexWithBound:
+    case IrOpcode::kPoisonIndex:
       CheckValueInputIs(node, 0, Type::Unsigned32());
-      CheckValueInputIs(node, 1, Type::Unsigned31());
       CheckTypeIs(node, Type::Unsigned32());
       break;
     case IrOpcode::kCheckHeapObject:
@@ -1703,8 +1702,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32PairShl:
     case IrOpcode::kWord32PairShr:
     case IrOpcode::kWord32PairSar:
-    case IrOpcode::kPoisonOnSpeculationTagged:
-    case IrOpcode::kPoisonOnSpeculationWord:
+    case IrOpcode::kTaggedPoisonOnSpeculation:
+    case IrOpcode::kWord32PoisonOnSpeculation:
+    case IrOpcode::kWord64PoisonOnSpeculation:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
