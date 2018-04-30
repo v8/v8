@@ -316,8 +316,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ li(a4, ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress,
-                                      isolate));
+  __ li(a4, ExternalReference::Create(
+                IsolateAddressId::kPendingExceptionAddress, isolate));
   __ Sd(v0, MemOperand(a4));  // We come back from 'invoke'. result is in v0.
   __ LoadRoot(v0, Heap::kExceptionRootIndex);
   __ b(&exit);  // b exposes branch delay slot.
