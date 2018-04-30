@@ -3407,16 +3407,14 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
   return result;
 }
 
-Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
-                                            Node* capacity_node,
-                                            ParameterMode mode,
-                                            AllocationFlags flags,
-                                            Node* fixed_array_map) {
+TNode<FixedArray> CodeStubAssembler::AllocateFixedArray(
+    ElementsKind kind, Node* capacity, ParameterMode mode,
+    AllocationFlags flags, SloppyTNode<Map> fixed_array_map) {
   Comment("AllocateFixedArray");
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
-  CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
+  CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity,
                                           IntPtrOrSmiConstant(0, mode), mode));
-  Node* total_size = GetFixedArrayAllocationSize(capacity_node, kind, mode);
+  TNode<IntPtrT> total_size = GetFixedArrayAllocationSize(capacity, kind, mode);
 
   if (IsDoubleElementsKind(kind)) flags |= kDoubleAlignment;
   // Allocate both array and elements object, and initialize the JSArray.
@@ -3441,8 +3439,8 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
     StoreMapNoWriteBarrier(array, map_index);
   }
   StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
-                                 ParameterToTagged(capacity_node, mode));
-  return array;
+                                 ParameterToTagged(capacity, mode));
+  return UncheckedCast<FixedArray>(array);
 }
 
 TNode<FixedArray> CodeStubAssembler::ExtractFixedArray(

@@ -1027,18 +1027,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            Node* capacity = nullptr,
                            Node* allocation_site = nullptr);
 
-  Node* AllocateFixedArray(ElementsKind kind, Node* capacity,
-                           ParameterMode mode = INTPTR_PARAMETERS,
-                           AllocationFlags flags = kNone,
-                           Node* fixed_array_map = nullptr);
+  TNode<FixedArray> AllocateFixedArray(
+      ElementsKind kind, Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
+      AllocationFlags flags = kNone,
+      SloppyTNode<Map> fixed_array_map = nullptr);
 
-  Node* AllocateFixedArray(ElementsKind kind, TNode<Smi> capacity,
-                           AllocationFlags flags = kNone) {
+  TNode<FixedArray> AllocateFixedArray(ElementsKind kind, TNode<Smi> capacity,
+                                       AllocationFlags flags = kNone) {
     return AllocateFixedArray(kind, capacity, SMI_PARAMETERS, flags);
   }
 
-  Node* AllocateFixedArray(ElementsKind kind, TNode<Smi> capacity,
-                           TNode<Map> map, AllocationFlags flags = kNone) {
+  TNode<FixedArray> AllocateFixedArray(ElementsKind kind, TNode<Smi> capacity,
+                                       TNode<Map> map,
+                                       AllocationFlags flags = kNone) {
     return AllocateFixedArray(kind, capacity, SMI_PARAMETERS, flags, map);
   }
 
