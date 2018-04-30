@@ -1606,11 +1606,12 @@ TEST(CodeSerializerLargeStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
+  // Make sure that strings are not source slices by using a unicode escape.
   Vector<const uint8_t> source_s = ConstructSource(
-      STATIC_CHAR_VECTOR("var s = \""), STATIC_CHAR_VECTOR("abcdef"),
+      STATIC_CHAR_VECTOR("var s = \""), STATIC_CHAR_VECTOR("\\u0061bcdef"),
       STATIC_CHAR_VECTOR("\";"), 1000000);
   Vector<const uint8_t> source_t = ConstructSource(
-      STATIC_CHAR_VECTOR("var t = \""), STATIC_CHAR_VECTOR("uvwxyz"),
+      STATIC_CHAR_VECTOR("var t = \""), STATIC_CHAR_VECTOR("\\u0075vwxyz"),
       STATIC_CHAR_VECTOR("\"; s + t"), 999999);
   Handle<String> source_str =
       f->NewConsString(f->NewStringFromOneByte(source_s).ToHandleChecked(),
@@ -1662,21 +1663,22 @@ TEST(CodeSerializerThreeBigStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  Vector<const uint8_t> source_a =
-      ConstructSource(STATIC_CHAR_VECTOR("var a = \""), STATIC_CHAR_VECTOR("a"),
-                      STATIC_CHAR_VECTOR("\";"), 700000);
+  // Make sure that strings are not source slices by using a unicode escape.
+  Vector<const uint8_t> source_a = ConstructSource(
+      STATIC_CHAR_VECTOR("var a = \""), STATIC_CHAR_VECTOR("\\u0061"),
+      STATIC_CHAR_VECTOR("\";"), 700000);
   Handle<String> source_a_str =
       f->NewStringFromOneByte(source_a).ToHandleChecked();
 
-  Vector<const uint8_t> source_b =
-      ConstructSource(STATIC_CHAR_VECTOR("var b = \""), STATIC_CHAR_VECTOR("b"),
-                      STATIC_CHAR_VECTOR("\";"), 400000);
+  Vector<const uint8_t> source_b = ConstructSource(
+      STATIC_CHAR_VECTOR("var b = \""), STATIC_CHAR_VECTOR("\\u0062"),
+      STATIC_CHAR_VECTOR("\";"), 400000);
   Handle<String> source_b_str =
       f->NewStringFromOneByte(source_b).ToHandleChecked();
 
-  Vector<const uint8_t> source_c =
-      ConstructSource(STATIC_CHAR_VECTOR("var c = \""), STATIC_CHAR_VECTOR("c"),
-                      STATIC_CHAR_VECTOR("\";"), 400000);
+  Vector<const uint8_t> source_c = ConstructSource(
+      STATIC_CHAR_VECTOR("var c = \""), STATIC_CHAR_VECTOR("\\u0063"),
+      STATIC_CHAR_VECTOR("\";"), 400000);
   Handle<String> source_c_str =
       f->NewStringFromOneByte(source_c).ToHandleChecked();
 

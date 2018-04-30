@@ -627,7 +627,8 @@ void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
     // If we have a scope info we will potentially need to lookup variable names
     // on the scope info as internalized strings, so make sure ast_value_factory
     // is internalized.
-    info->ast_value_factory()->Internalize(isolate);
+    Handle<String> source(String::cast(info->script()->source()));
+    info->ast_value_factory()->Internalize(isolate, source);
     if (outer_scope()) {
       DeclarationScope* script_scope = new (info->zone())
           DeclarationScope(info->zone(), info->ast_value_factory());

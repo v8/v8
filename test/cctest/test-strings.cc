@@ -1076,7 +1076,9 @@ TEST(JSONStringifySliceMadeExternal) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::Local<v8::String> underlying =
       CompileRun(
-          "var underlying = 'abcdefghijklmnopqrstuvwxyz';"
+          // Make sure that the underlying string is not a source slice by
+          // using a unicode escape.
+          "var underlying = '\\u0061bcdefghijklmnopqrstuvwxyz';"
           "underlying")
           ->ToString(CcTest::isolate()->GetCurrentContext())
           .ToLocalChecked();
@@ -1253,7 +1255,8 @@ TEST(TrivialSlice) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
   Handle<String> string;
-  const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
+  // Make sure that string is not a source slice by using a unicode escape.
+  const char* init = "var str = '\\u0061bcdefghijklmnopqrstuvwxyz';";
   const char* check = "str.slice(0,26)";
   const char* crosscheck = "str.slice(1,25)";
 

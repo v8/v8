@@ -855,7 +855,8 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
   Handle<Script> script = parse_info->script();
 
   // Internalize ast values onto the heap.
-  parse_info->ast_value_factory()->Internalize(isolate);
+  Handle<String> source(String::cast(script->source()));
+  parse_info->ast_value_factory()->Internalize(isolate, source);
 
   // Create shared function infos for top level and shared function infos array
   // for inner functions.
@@ -1114,7 +1115,8 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   }
 
   // Internalize ast values onto the heap.
-  parse_info.ast_value_factory()->Internalize(isolate);
+  Handle<String> source(String::cast(parse_info.script()->source()));
+  parse_info.ast_value_factory()->Internalize(isolate, source);
 
   // Finalize compilation of the unoptimized bytecode or asm-js data.
   if (!FinalizeUnoptimizedCode(&parse_info, isolate, shared_info,

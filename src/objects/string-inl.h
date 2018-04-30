@@ -248,6 +248,29 @@ class SeqOneByteSubStringKey : public StringTableKey {
   int length_;
 };
 
+class ExternalOneByteSubStringKey : public StringTableKey {
+ public:
+  ExternalOneByteSubStringKey(Handle<ExternalOneByteString> string, int from,
+                              int length)
+      : StringTableKey(StringHasher::HashSequentialString(
+            string->GetChars() + from, length, string->GetHeap()->HashSeed())),
+        string_(string),
+        from_(from),
+        length_(length) {
+    DCHECK_LE(0, length_);
+    DCHECK_LE(from_ + length_, string_->length());
+    DCHECK(string_->IsExternalOneByteString());
+  }
+
+  bool IsMatch(Object* string) override;
+  Handle<String> AsHandle(Isolate* isolate) override;
+
+ private:
+  Handle<ExternalOneByteString> string_;
+  int from_;
+  int length_;
+};
+
 class TwoByteStringKey : public SequentialStringKey<uc16> {
  public:
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)

@@ -82,7 +82,8 @@ void PendingCompilationErrorHandler::ReportErrors(
   } else {
     DCHECK(has_pending_error());
     // Internalize ast values for throwing the pending error.
-    ast_value_factory->Internalize(isolate);
+    Handle<String> source(String::cast(script->source()));
+    ast_value_factory->Internalize(isolate, source);
     ThrowPendingError(isolate, script);
   }
 }

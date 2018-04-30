@@ -461,7 +461,8 @@ TEST(HeapSnapshotSlicedString) {
       "123456789.123456789.123456789.123456789.123456789."
       "123456789.123456789.123456789.123456789.123456789."
       "123456789.123456789.123456789.123456789.123456789."
-      "123456789.123456789.123456789.123456789.123456789.\";"
+      // Make sure that string is not a source slice by using a unicode escape.
+      "123456789.123456789.123456789.123456789.123456789.\\u0061\";"
       "child_string = parent_string.slice(100);");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));

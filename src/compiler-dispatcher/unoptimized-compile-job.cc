@@ -286,7 +286,8 @@ void UnoptimizedCompileJob::FinalizeOnMainThread(Isolate* isolate) {
   {
     HandleScope scope(isolate);
     // Internalize ast values onto the heap.
-    parse_info_->ast_value_factory()->Internalize(isolate);
+    Handle<String> source(String::cast(script->source()));
+    parse_info_->ast_value_factory()->Internalize(isolate, source);
     // Allocate scope infos for the literal.
     DeclarationScope::AllocateScopeInfos(parse_info_.get(), isolate,
                                          AnalyzeMode::kRegular);

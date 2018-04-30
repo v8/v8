@@ -610,7 +610,7 @@ class ParserBase {
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
                                              int index) {
     std::string name = ".class-field-" + std::to_string(index);
-    return ast_value_factory->GetOneByteString(name.c_str());
+    return ast_value_factory->GetOneByteString(name.c_str(), kNoSourcePosition);
   }
 
   DeclarationScope* NewScriptScope() const {

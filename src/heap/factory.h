@@ -207,6 +207,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> InternalizeOneByteString(Vector<const uint8_t> str);
   Handle<String> InternalizeOneByteString(Handle<SeqOneByteString>, int from,
                                           int length);
+  Handle<String> InternalizeOneByteString(Handle<ExternalOneByteString>,
+                                          int from, int length);
 
   Handle<String> InternalizeTwoByteString(Vector<const uc16> str);
 
@@ -280,9 +282,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> NewOneByteInternalizedString(Vector<const uint8_t> str,
                                               uint32_t hash_field);
 
-  Handle<String> NewOneByteInternalizedSubString(
-      Handle<SeqOneByteString> string, int offset, int length,
-      uint32_t hash_field);
+  Handle<String> NewOneByteInternalizedSubString(Handle<String> string,
+                                                 int offset, int length,
+                                                 uint32_t hash_field);
 
   Handle<String> NewTwoByteInternalizedString(Vector<const uc16> str,
                                               uint32_t hash_field);
@@ -325,7 +327,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);
 
   // Create a new string object which holds a proper substring of a string.
-  Handle<String> NewProperSubString(Handle<String> str, int begin, int end);
+  Handle<String> NewProperSubString(Handle<String> str, int begin, int end,
+                                    int hash_field = Name::kEmptyHashField,
+                                    bool internalize = false);
 
   // Create a new string object which holds a substring of a string.
   inline Handle<String> NewSubString(Handle<String> str, int begin, int end);

@@ -383,17 +383,20 @@ class Scanner {
   // if aborting the scanning before it's complete.
   class LiteralScope {
    public:
-    explicit LiteralScope(Scanner* self) : scanner_(self), complete_(false) {
+    explicit LiteralScope(Scanner* self)
+        : scanner_(self), complete_(false), simple_(true) {
       scanner_->StartLiteral();
     }
     ~LiteralScope() {
       if (!complete_) scanner_->DropLiteral();
     }
     void Complete() { complete_ = true; }
+    void MarkNonSimple() { simple_ = false; }
 
    private:
     Scanner* scanner_;
     bool complete_;
+    bool simple_;
   };
 
   // LiteralBuffer -  Collector of chars of literals.
@@ -494,6 +497,7 @@ class Scanner {
     MessageTemplate::Template invalid_template_escape_message;
     Location invalid_template_escape_location;
     Token::Value contextual_token;
+    int literal_source_pos;
   };
 
   enum NumberKind {
@@ -562,6 +566,7 @@ class Scanner {
                                                             : &literal_buffer0_;
     free_buffer->Reset();
     next_.literal_chars = free_buffer;
+    next_.literal_source_pos = source_pos();
   }
 
   inline void StartRawLiteral() {
@@ -573,16 +578,25 @@ class Scanner {
                   : &raw_literal_buffer0_;
     free_buffer->Reset();
     next_.raw_literal_chars = free_buffer;
+    // TODO(leszeks): Support raw literal source slices.
+    next_.literal_source_pos = kNoSourcePosition;
+  }
+
+  INLINE(void AddSimpleLiteralChar(char c)) {
+    DCHECK_NOT_NULL(next_.literal_chars);
+    next_.literal_chars->AddChar(c);
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
+    next_.literal_source_pos = kNoSourcePosition;
   }
 
   INLINE(void AddLiteralChar(char c)) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
+    next_.literal_source_pos = kNoSourcePosition;
   }
 
   INLINE(void AddRawLiteralChar(uc32 c)) {
@@ -600,6 +614,7 @@ class Scanner {
   inline void DropLiteral() {
     next_.literal_chars = nullptr;
     next_.raw_literal_chars = nullptr;
+    next_.literal_source_pos = kNoSourcePosition;
   }
 
   inline void AddLiteralCharAdvance() {
@@ -685,6 +700,10 @@ class Scanner {
     DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->two_byte_literal();
   }
+  int literal_source_pos() const {
+    if (!current_.literal_chars) return kNoSourcePosition;
+    return current_.literal_source_pos;
+  }
   bool is_literal_one_byte() const {
     return !current_.literal_chars || current_.literal_chars->is_one_byte();
   }
@@ -698,6 +717,10 @@ class Scanner {
     DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->two_byte_literal();
   }
+  int next_literal_source_pos() const {
+    if (!next_.literal_chars) return kNoSourcePosition;
+    return next_.literal_source_pos;
+  }
   bool is_next_literal_one_byte() const {
     DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_one_byte();
@@ -709,6 +732,10 @@ class Scanner {
   Vector<const uint16_t> raw_literal_two_byte_string() const {
     DCHECK_NOT_NULL(current_.raw_literal_chars);
     return current_.raw_literal_chars->two_byte_literal();
+  }
+  int raw_literal_source_pos() const {
+    // TODO(leszeks): Support raw literal source slices.
+    return kNoSourcePosition;
   }
   bool is_raw_literal_one_byte() const {
     DCHECK_NOT_NULL(current_.raw_literal_chars);
@@ -773,7 +800,7 @@ class Scanner {
   Token::Value ScanTemplateSpan();
 
   // Return the current source position.
-  int source_pos() {
+  int source_pos() const {
     return static_cast<int>(source_->pos()) - kCharacterLookaheadBufferSize;
   }
 

@@ -45,6 +45,8 @@
 namespace v8 {
 namespace internal {
 
+class Script;
+
 class AstRawString final : public ZoneObject {
  public:
   bool IsEmpty() const { return literal_bytes_.length() == 0; }
@@ -56,7 +58,7 @@ class AstRawString final : public ZoneObject {
   bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
-  void Internalize(Isolate* isolate);
+  void Internalize(Isolate* isolate, Handle<String> source);
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -68,6 +70,8 @@ class AstRawString final : public ZoneObject {
   // For storing AstRawStrings in a hash map.
   uint32_t hash_field() const { return hash_field_; }
   uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }
+
+  int source_pos() const { return source_pos_; }
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {
@@ -84,10 +88,11 @@ class AstRawString final : public ZoneObject {
   // Members accessed only by the AstValueFactory & related classes:
   static bool Compare(void* a, void* b);
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
-               uint32_t hash_field)
+               uint32_t hash_field, int source_pos)
       : next_(nullptr),
         literal_bytes_(literal_bytes),
         hash_field_(hash_field),
+        source_pos_(source_pos),
         is_one_byte_(is_one_byte) {}
   AstRawString* next() {
     DCHECK(!has_string_);
@@ -116,6 +121,7 @@ class AstRawString final : public ZoneObject {
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
   uint32_t hash_field_;
+  int source_pos_;
   bool is_one_byte_;
 #ifdef DEBUG
   // (Debug-only:) Verify the object life-cylce: Some functions may only be
@@ -286,23 +292,29 @@ class AstValueFactory {
 
   Zone* zone() const { return zone_; }
 
-  const AstRawString* GetOneByteString(Vector<const uint8_t> literal) {
-    return GetOneByteStringInternal(literal);
+  const AstRawString* GetOneByteString(Vector<const uint8_t> literal,
+                                       int source_pos) {
+    return GetOneByteStringInternal(literal, source_pos);
   }
-  const AstRawString* GetOneByteString(const char* string) {
-    return GetOneByteString(Vector<const uint8_t>(
-        reinterpret_cast<const uint8_t*>(string), StrLength(string)));
+  const AstRawString* GetOneByteString(const char* string,
+                                       int source_pos = kNoSourcePosition) {
+    return GetOneByteString(
+        Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(string),
+                              StrLength(string)),
+        source_pos);
   }
-  const AstRawString* GetTwoByteString(Vector<const uint16_t> literal) {
-    return GetTwoByteStringInternal(literal);
+  const AstRawString* GetTwoByteString(Vector<const uint16_t> literal,
+                                       int source_pos) {
+    return GetTwoByteStringInternal(literal, source_pos);
   }
-  const AstRawString* GetString(Handle<String> literal);
+  const AstRawString* GetString(Handle<String> literal,
+                                int source_pos = kNoSourcePosition);
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
   AstConsString* NewConsString(const AstRawString* str);
   AstConsString* NewConsString(const AstRawString* str1,
                                const AstRawString* str2);
 
-  V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
+  V8_EXPORT_PRIVATE void Internalize(Isolate* isolate, Handle<String> source);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \
@@ -330,10 +342,11 @@ class AstValueFactory {
     cons_strings_end_ = &cons_strings_;
   }
   V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
-      Vector<const uint8_t> literal);
-  AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
+      Vector<const uint8_t> literal, int source_pos);
+  AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal,
+                                         int source_pos);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
-                          Vector<const byte> literal_bytes);
+                          Vector<const byte> literal_bytes, int source_pos);
 
   // All strings are copied here, one after another (no zeroes inbetween).
   base::CustomMatcherHashMap string_table_;
