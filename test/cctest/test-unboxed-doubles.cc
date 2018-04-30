@@ -20,6 +20,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"

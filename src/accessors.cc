@@ -12,6 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property-details.h"
 #include "src/prototype.h"
 

@@ -81,7 +81,6 @@ TYPE_CHECKER(BigInt, BIGINT_TYPE)
 TYPE_CHECKER(BoilerplateDescription, BOILERPLATE_DESCRIPTION_TYPE)
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
-TYPE_CHECKER(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
@@ -564,15 +563,12 @@ bool Object::IsMinusZero() const {
 // ------------------------------------
 // Cast operations
 
-CAST_ACCESSOR(AccessCheckInfo)
-CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
-CAST_ACCESSOR(CallHandlerInfo)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
 CAST_ACCESSOR(ContextExtension)
@@ -582,7 +578,6 @@ CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSBoundFunction)
@@ -2294,33 +2289,6 @@ ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
-ACCESSORS(AccessorInfo, name, Name, kNameOffset)
-SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
-ACCESSORS(AccessorInfo, expected_receiver_type, Object,
-          kExpectedReceiverTypeOffset)
-
-ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
-                   Foreign::IsNormalized(value))
-ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
-                   Foreign::IsNormalized(value));
-ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
-ACCESSORS(AccessorInfo, data, Object, kDataOffset)
-
-bool AccessorInfo::has_getter() {
-  bool result = getter() != Smi::kZero;
-  DCHECK_EQ(result,
-            getter() != Smi::kZero &&
-                Foreign::cast(getter())->foreign_address() != kNullAddress);
-  return result;
-}
-
-bool AccessorInfo::has_setter() {
-  bool result = setter() != Smi::kZero;
-  DCHECK_EQ(result,
-            setter() != Smi::kZero &&
-                Foreign::cast(setter())->foreign_address() != kNullAddress);
-  return result;
-}
 
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
@@ -2370,38 +2338,6 @@ ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
-
-ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)
-ACCESSORS(AccessCheckInfo, named_interceptor, Object, kNamedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, indexed_interceptor, Object,
-          kIndexedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
-
-ACCESSORS(InterceptorInfo, getter, Object, kGetterOffset)
-ACCESSORS(InterceptorInfo, setter, Object, kSetterOffset)
-ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
-ACCESSORS(InterceptorInfo, descriptor, Object, kDescriptorOffset)
-ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
-ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
-ACCESSORS(InterceptorInfo, definer, Object, kDefinerOffset)
-ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
-SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
-BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
-               kCanInterceptSymbolsBit)
-BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
-BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
-BOOL_ACCESSORS(InterceptorInfo, flags, is_named, kNamed)
-BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect, kHasNoSideEffect)
-
-ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
-ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
-ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
-
-bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
-  DCHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-         map() == GetHeap()->side_effect_free_call_handler_info_map());
-  return map() == GetHeap()->side_effect_free_call_handler_info_map();
-}
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
@@ -3084,33 +3020,6 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   DCHECK_GE(embedder_field_count, 0);
   return kSize + embedder_field_count * kPointerSize;
 }
-
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
-                    AccessorInfo::AllCanReadBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_write,
-                    AccessorInfo::AllCanWriteBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
-                    AccessorInfo::IsSpecialDataPropertyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
-                    AccessorInfo::ReplaceOnAccessBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, has_no_side_effect,
-                    AccessorInfo::HasNoSideEffectBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
-                    AccessorInfo::InitialAttributesBits)
-
-bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
-  if (!HasExpectedReceiverType()) return true;
-  if (!receiver->IsJSObject()) return false;
-  return FunctionTemplateInfo::cast(expected_receiver_type())
-      ->IsTemplateFor(JSObject::cast(receiver)->map());
-}
-
-
-bool AccessorInfo::HasExpectedReceiverType() {
-  return expected_receiver_type()->IsFunctionTemplateInfo();
-}
-
 
 Object* AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();

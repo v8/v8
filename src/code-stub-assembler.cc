@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
+#include "src/objects/api-callbacks.h"
 
 namespace v8 {
 namespace internal {

@@ -16,6 +16,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

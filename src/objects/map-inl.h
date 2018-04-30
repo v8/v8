@@ -9,6 +9,7 @@
 
 #include "src/field-type.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"

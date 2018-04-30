@@ -27,6 +27,7 @@ class BreakPoint;
 class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
+class CallHandlerInfo;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;

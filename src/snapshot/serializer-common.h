@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+class CallHandlerInfo;
 class Isolate;
 
 class ExternalReferenceEncoder {

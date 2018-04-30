@@ -22,6 +22,7 @@
 #include "src/libsampler/sampler.h"
 #include "src/log-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/api-callbacks.h"
 #include "src/perf-jit.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"

@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/isolate.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/string.h"

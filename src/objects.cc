@@ -53,6 +53,7 @@
 #include "src/map-updater.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/bigint.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/compilation-cache-inl.h"
