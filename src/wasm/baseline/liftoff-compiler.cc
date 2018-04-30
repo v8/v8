@@ -1199,7 +1199,12 @@ class LiftoffCompiler {
     __ Store(addr.gp(), no_reg, offset, reg, type, pinned);
   }
 
-  void Unreachable(Decoder* decoder) { unsupported(decoder, "unreachable"); }
+  void Unreachable(Decoder* decoder) {
+    Label* unreachable_label = AddOutOfLineTrap(
+        decoder->position(), Builtins::kThrowWasmTrapUnreachable);
+    __ emit_jump(unreachable_label);
+    __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+  }
 
   void Select(Decoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
