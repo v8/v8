@@ -694,6 +694,11 @@ class TestPlatform : public v8::Platform {
     old_platform_->CallOnWorkerThread(std::move(task));
   }
 
+  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                 double delay_in_seconds) override {
+    old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+  }
+
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
     old_platform_->CallOnForegroundThread(isolate, task);
   }

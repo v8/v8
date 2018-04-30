@@ -396,6 +396,18 @@ class Platform {
   }
 
   /**
+   * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
+   * expires.
+   * TODO(gab): Make pure virtual when all embedders override this instead of
+   * GetBackgroundTaskRunner().
+   */
+  virtual void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                         double delay_in_seconds) {
+    GetBackgroundTaskRunner(nullptr)->PostDelayedTask(std::move(task),
+                                                      delay_in_seconds);
+  }
+
+  /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
    * |isolate|. Tasks posted for the same isolate should be execute in order of
    * scheduling. The definition of "foreground" is opaque to V8.

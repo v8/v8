@@ -194,6 +194,11 @@ class PredictablePlatform : public Platform {
     task->Run();
   }
 
+  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                 double delay_in_seconds) override {
+    platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+  }
+
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     platform_->CallOnForegroundThread(isolate, task);
   }

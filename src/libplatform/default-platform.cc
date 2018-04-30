@@ -203,10 +203,15 @@ void DefaultPlatform::CallOnWorkerThread(std::unique_ptr<Task> task) {
   GetWorkerThreadsTaskRunner(nullptr)->PostTask(std::move(task));
 }
 
+void DefaultPlatform::CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                                double delay_in_seconds) {
+  GetWorkerThreadsTaskRunner(nullptr)->PostDelayedTask(std::move(task),
+                                                       delay_in_seconds);
+}
+
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<Task>(task));
 }
-
 
 void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
                                                     Task* task,
