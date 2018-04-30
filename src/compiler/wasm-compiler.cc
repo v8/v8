@@ -3114,21 +3114,8 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   Node* callable_node = LOAD_FIXED_ARRAY_SLOT(callables_node, index);
   Node* undefined_node =
       jsgraph()->Constant(handle(isolate->heap()->undefined_value(), isolate));
-
-  Node* compiled_module =
-      LOAD_INSTANCE_FIELD(CompiledModule, MachineType::TaggedPointer());
-  // TODO(wasm): native context is only weak because of recycling compiled
-  // modules.
-  Node* weak_native_context = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::TaggedPointer()), compiled_module,
-      jsgraph()->Int32Constant(WasmCompiledModule::kNativeContextOffset -
-                               kHeapObjectTag),
-      *effect_, *control_);
-  Node* native_context = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::TaggedPointer()),
-      weak_native_context,
-      jsgraph()->Int32Constant(WeakCell::kValueOffset - kHeapObjectTag),
-      *effect_, *control_);
+  Node* native_context =
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
 
   if (!wasm::IsJSCompatibleSignature(sig_)) {
     // Throw a TypeError.

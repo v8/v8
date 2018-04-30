@@ -43,9 +43,7 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
 }
 
 Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceOnStackTop(isolate)
-      ->compiled_module()
-      ->native_context();
+  return GetWasmInstanceOnStackTop(isolate)->native_context();
 }
 
 class ClearThreadInWasmScope {
@@ -79,7 +77,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->compiled_module()->native_context());
+  isolate->set_context(instance->native_context());
 
   return *isolate->factory()->NewNumberFromInt(WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), delta_pages));
@@ -248,7 +246,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->compiled_module()->native_context());
+  isolate->set_context(instance->native_context());
 
   // Find the frame pointer of the interpreter entry.
   Address frame_pointer = 0;

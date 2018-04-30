@@ -128,6 +128,7 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
+ACCESSORS(WasmInstanceObject, native_context, Context, kNativeContextOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
 ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
@@ -219,7 +220,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 
 // WasmCompiledModule
 WCM_OBJECT(WasmSharedModuleData, shared, kSharedOffset)
-WCM_WEAK_LINK(Context, native_context, kNativeContextOffset)
 WCM_OBJECT(FixedArray, export_wrappers, kExportWrappersOffset)
 WCM_OBJECT(WasmCompiledModule, next_instance, kNextInstanceOffset)
 WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)

@@ -1655,9 +1655,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       TRACE("Reusing existing instance %zu\n",
             compiled_module_->GetNativeModule()->instance_id);
     }
-    Handle<WeakCell> weak_native_context =
-        isolate_->factory()->NewWeakCell(isolate_->native_context());
-    compiled_module_->set_weak_native_context(*weak_native_context);
   }
   base::Optional<wasm::NativeModuleModificationScope>
       native_module_modification_scope;
@@ -3124,9 +3121,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
               case CompilationEvent::kFinishedBaselineCompilation:
                 if (job->DecrementAndCheckFinisherCount()) {
                   SaveContext saved_context(job->isolate());
-                  job->isolate()->set_context(
-                      job->compiled_module_->native_context());
-
+                  // TODO(mstarzinger): Make {AsyncCompileJob::context} point
+                  // to the native context and also rename to {native_context}.
+                  job->isolate()->set_context(job->context_->native_context());
                   job->FinishCompile();
                 }
                 return;
@@ -3151,8 +3148,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                             ->baseline_compilation_finished());
 
                 SaveContext saved_context(job->isolate());
-                job->isolate()->set_context(
-                    job->compiled_module_->native_context());
+                job->isolate()->set_context(job->context_->native_context());
                 Handle<Object> error = thrower->Reify();
 
                 DeferredHandleScope deferred(job->isolate());

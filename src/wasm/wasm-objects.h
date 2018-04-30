@@ -262,6 +262,7 @@ class WasmInstanceObject : public JSObject {
 
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(exports_object, JSObject)
+  DECL_ACCESSORS(native_context, Context)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
@@ -286,6 +287,7 @@ class WasmInstanceObject : public JSObject {
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                  \
   V(kCompiledModuleOffset, kPointerSize)                                \
   V(kExportsObjectOffset, kPointerSize)                                 \
+  V(kNativeContextOffset, kPointerSize)                                 \
   V(kMemoryObjectOffset, kPointerSize)                                  \
   V(kGlobalsBufferOffset, kPointerSize)                                 \
   V(kImportedMutableGlobalsBuffersOffset, kPointerSize)                 \
@@ -492,7 +494,6 @@ class WasmCompiledModule : public Struct {
 // Layout description.
 #define WASM_COMPILED_MODULE_FIELDS(V)          \
   V(kSharedOffset, kPointerSize)                \
-  V(kNativeContextOffset, kPointerSize)         \
   V(kExportWrappersOffset, kPointerSize)        \
   V(kNextInstanceOffset, kPointerSize)          \
   V(kPrevInstanceOffset, kPointerSize)          \
@@ -530,7 +531,6 @@ class WasmCompiledModule : public Struct {
   // By default, instance values go to WasmInstanceObject, however, if
   // we embed the generated code with a value, then we track that value here.
   WCM_OBJECT(WasmSharedModuleData, shared)
-  WCM_WEAK_LINK(Context, native_context)
   WCM_OBJECT(FixedArray, export_wrappers)
   WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)

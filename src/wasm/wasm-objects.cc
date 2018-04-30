@@ -777,6 +777,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_indirect_function_table_sig_ids(nullptr);
   instance->set_indirect_function_table_targets(nullptr);
   instance->set_compiled_module(*compiled_module);
+  instance->set_native_context(*isolate->native_context());
 
   return instance;
 }
@@ -1362,9 +1363,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     wasm::ModuleEnv& env) {
   Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
-  Handle<WeakCell> weak_native_context =
-      isolate->factory()->NewWeakCell(isolate->native_context());
-  compiled_module->set_weak_native_context(*weak_native_context);
   if (!export_wrappers.is_null()) {
     compiled_module->set_export_wrappers(*export_wrappers);
   }
@@ -1389,7 +1387,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   ret->set_shared(module->shared());
-  ret->set_weak_native_context(module->weak_native_context());
   ret->set_export_wrappers(module->export_wrappers());
   ret->set_weak_wasm_module(module->weak_wasm_module());
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
