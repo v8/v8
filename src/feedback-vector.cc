@@ -284,19 +284,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
 }
 
 // static
-Handle<FeedbackVector> FeedbackVector::Copy(Isolate* isolate,
-                                            Handle<FeedbackVector> vector) {
-  Handle<FeedbackVector> result;
-  result = Handle<FeedbackVector>::cast(
-      isolate->factory()->CopyFixedArray(Handle<FixedArray>::cast(vector)));
-  if (!isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile()) {
-    AddToVectorsForProfilingTools(isolate, result);
-  }
-  return result;
-}
-
-// static
 void FeedbackVector::AddToVectorsForProfilingTools(
     Isolate* isolate, Handle<FeedbackVector> vector) {
   DCHECK(!isolate->is_best_effort_code_coverage() ||
