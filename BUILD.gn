@@ -1117,6 +1117,9 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
       ":run_mksnapshot_default",
     ]
 
+    # Do not publicize any header to remove build dependency.
+    public = []
+
     sources = [
       "$target_gen_dir/experimental-extras-libraries.cc",
       "$target_gen_dir/extras-libraries.cc",
@@ -1166,6 +1169,9 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
       "src/snapshot/natives-external.cc",
       "src/snapshot/snapshot-external.cc",
     ]
+
+    # Do not publicize any header to remove build dependency.
+    public = []
 
     if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.cc" ]
