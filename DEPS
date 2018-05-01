@@ -12,7 +12,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '725734cd9c9fef3258b1ce28552c3ab144c093eb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e4820fb068fb73dcfa8b869990330f2542380cc8',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
@@ -32,7 +32,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a4814ecb93e64cd71a91d38bb1cb55930365a6e3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'dc11306a831593f317652f3fcebce0661cc1317d',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -56,7 +56,7 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ec200e7a8308f301ade483408bcc79ca17ceb11e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5ca0a34da538a3cad525908b2f00f7ae3f9357e8',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + 'ff0709d4283b1f233dcf0c9fec1672c6ecaed2f1',
   'v8/test/wasm-js':
