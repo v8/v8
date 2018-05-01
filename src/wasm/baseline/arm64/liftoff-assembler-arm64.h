@@ -294,12 +294,16 @@ void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  BAILOUT("LoadCallerFrameSlot");
+  int32_t offset = (caller_slot_idx + 1) * LiftoffAssembler::kStackSlotSize;
+  Ldr(liftoff::GetRegFromType(dst, type), MemOperand(fp, offset));
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  BAILOUT("MoveStackValue");
+  UseScratchRegisterScope temps(this);
+  CPURegister scratch = liftoff::AcquireByType(&temps, type);
+  Ldr(scratch, liftoff::GetStackSlot(src_index));
+  Str(scratch, liftoff::GetStackSlot(dst_index));
 }
 
 void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
@@ -338,16 +342,34 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  BAILOUT("Spill value");
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
+  UseScratchRegisterScope temps(this);
+  CPURegister src = CPURegister::no_reg();
+  switch (value.type()) {
+    case kWasmI32:
+      src = temps.AcquireW();
+      Mov(src.W(), value.to_i32());
+      break;
+    case kWasmI64:
+      src = temps.AcquireX();
+      Mov(src.X(), value.to_i64());
+      break;
+    default:
+      // We do not track f32 and f64 constants, hence they are unreachable.
+      UNREACHABLE();
+  }
+  Str(src, dst);
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  BAILOUT("Fill");
+  MemOperand src = liftoff::GetStackSlot(index);
+  Ldr(liftoff::GetRegFromType(reg, type), src);
 }
 
 void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
-  BAILOUT("FillI64Half");
+  UNREACHABLE();
 }
 
 #define I32_BINOP(name, instruction)                             \
