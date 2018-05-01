@@ -126,12 +126,6 @@ int Int64Lowering::GetParameterCountAfterLowering(
       signature, static_cast<int>(signature->parameter_count()));
 }
 
-// static
-bool Int64Lowering::IsI64AsTwoParameters(MachineOperatorBuilder* machine,
-                                         MachineRepresentation type) {
-  return machine->Is32() && type == MachineRepresentation::kWord64;
-}
-
 void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
                                   Node*& index_high) {
   if (HasReplacementLow(index)) {
