@@ -594,6 +594,9 @@ InjectedScript.prototype = {
             return toString(obj);
 
         if (subtype === "node") {
+            // We should warmup blink dom binding before calling anything,
+            // see (crbug.com/827585) for details.
+            InjectedScriptHost.getOwnPropertyDescriptor(/** @type {!Object} */(obj), "nodeName");
             var description = "";
             var nodeName = InjectedScriptHost.getProperty(obj, "nodeName");
             if (nodeName) {
