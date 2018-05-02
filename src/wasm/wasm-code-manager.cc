@@ -858,8 +858,17 @@ WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
   if (!code || code->kind() != WasmCode::kLazyStub) {
     return code;
   }
+#if DEBUG
+  auto num_imported_functions =
+      compiled_module()->shared()->module()->num_imported_functions;
+  if (func_index < num_imported_functions) {
+    DCHECK(!code->IsAnonymous());
+  }
+#endif
   if (!code->IsAnonymous()) {
-    DCHECK_EQ(func_index, code->index());
+    // If the function wasn't imported, its index should match.
+    DCHECK_IMPLIES(func_index >= num_imported_functions,
+                   func_index == code->index());
     return code;
   }
   if (!lazy_compile_stubs_.get()) {
