@@ -2778,7 +2778,7 @@ WasmValue InterpretedFrame::GetLocalValue(int index) const {
 WasmValue InterpretedFrame::GetStackValue(int index) const {
   return ToImpl(this)->GetStackValue(index);
 }
-void InterpretedFrame::Deleter::operator()(InterpretedFrame* ptr) {
+void InterpretedFrameDeleter::operator()(InterpretedFrame* ptr) {
   delete ToImpl(ptr);
 }
 

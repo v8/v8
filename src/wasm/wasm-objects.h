@@ -12,7 +12,6 @@
 #include "src/machine-type.h"
 #include "src/objects.h"
 #include "src/objects/script.h"
-#include "src/wasm/wasm-interpreter.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -21,12 +20,14 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 class InterpretedFrame;
+struct InterpretedFrameDeleter;
 class NativeModule;
 struct ModuleEnv;
 class WasmCode;
 struct WasmModule;
 class SignatureMap;
 class WireBytesRef;
+class WasmInterpreter;
 using ValueType = MachineRepresentation;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
@@ -640,8 +641,8 @@ class WasmDebugInfo : public Struct {
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
       Address frame_pointer);
 
-  wasm::WasmInterpreter::FramePtr GetInterpretedFrame(Address frame_pointer,
-                                                      int frame_index);
+  std::unique_ptr<wasm::InterpretedFrame, wasm::InterpretedFrameDeleter>
+  GetInterpretedFrame(Address frame_pointer, int frame_index);
 
   // Unwind the interpreted stack belonging to the passed interpreter entry
   // frame.
