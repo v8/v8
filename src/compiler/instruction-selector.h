@@ -653,9 +653,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void MarkPairProjectionsAsWord32(Node* node);
   bool IsSourcePositionUsed(Node* node);
-  void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
-                                  ArchOpcode uint8_op, ArchOpcode int16_op,
-                                  ArchOpcode uint16_op, ArchOpcode word32_op);
+  void VisitWord32AtomicBinaryOperation(Node* node, ArchOpcode int8_op,
+                                        ArchOpcode uint8_op,
+                                        ArchOpcode int16_op,
+                                        ArchOpcode uint16_op,
+                                        ArchOpcode word32_op);
   void VisitWord64AtomicBinaryOperation(Node* node, ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,

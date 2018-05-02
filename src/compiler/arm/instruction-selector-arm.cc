@@ -2157,7 +2157,7 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitAtomicBinaryOperation(
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
     Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   ArmOperandGenerator g(this);
@@ -2197,7 +2197,7 @@ void InstructionSelector::VisitAtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                   \
   void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
-    VisitAtomicBinaryOperation(                                  \
+    VisitWord32AtomicBinaryOperation(                            \
         node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
         kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
         kWord32Atomic##op##Word32);                              \

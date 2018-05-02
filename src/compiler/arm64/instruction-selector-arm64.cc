@@ -2161,6 +2161,23 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
                  temps);
 }
 
+void VisitAtomicBinop(InstructionSelector* selector, Node* node,
+                      ArchOpcode opcode) {
+  Arm64OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  AddressingMode addressing_mode = kMode_MRR;
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseUniqueRegister(value)};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                g.TempRegister()};
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
+}
+
 }  // namespace
 
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
@@ -2765,13 +2782,9 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
   VisitAtomicCompareExchange(this, node, opcode);
 }
 
-void InstructionSelector::VisitAtomicBinaryOperation(
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
     Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
@@ -2788,24 +2801,12 @@ void InstructionSelector::VisitAtomicBinaryOperation(
     UNREACHABLE();
     return;
   }
-
-  AddressingMode addressing_mode = kMode_MRR;
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
+  VisitAtomicBinop(this, node, opcode);
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                   \
   void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
-    VisitAtomicBinaryOperation(                                  \
+    VisitWord32AtomicBinaryOperation(                            \
         node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
         kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
         kWord32Atomic##op##Word32);                              \
@@ -2820,10 +2821,6 @@ VISIT_ATOMIC_BINOP(Xor)
 void InstructionSelector::VisitWord64AtomicBinaryOperation(
     Node* node, ArchOpcode uint8_op, ArchOpcode uint16_op, ArchOpcode uint32_op,
     ArchOpcode uint64_op) {
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Uint8()) {
@@ -2838,19 +2835,7 @@ void InstructionSelector::VisitWord64AtomicBinaryOperation(
     UNREACHABLE();
     return;
   }
-
-  AddressingMode addressing_mode = kMode_MRR;
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
+  VisitAtomicBinop(this, node, opcode);
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                               \
