@@ -556,25 +556,37 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
-  BAILOUT("emit_i64_eqz");
+  Cmp(src.gp().X(), xzr);
+  Cset(dst.W(), eq);
 }
 
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  BAILOUT("emit_i64_set_cond");
+  Cmp(lhs.gp().X(), rhs.gp().X());
+  Cset(dst.W(), cond);
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("emit_f32_set_cond");
+  Fcmp(lhs.S(), rhs.S());
+  Cset(dst.W(), cond);
+  if (cond != ne) {
+    // If V flag set, at least one of the arguments was a Nan -> false.
+    Csel(dst.W(), wzr, dst.W(), vs);
+  }
 }
 
 void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("emit_f64_set_cond");
+  Fcmp(lhs.D(), rhs.D());
+  Cset(dst.W(), cond);
+  if (cond != ne) {
+    // If V flag set, at least one of the arguments was a Nan -> false.
+    Csel(dst.W(), wzr, dst.W(), vs);
+  }
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
