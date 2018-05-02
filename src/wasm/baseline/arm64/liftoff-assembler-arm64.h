@@ -373,11 +373,6 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
                                      LiftoffRegister rhs) {                    \
     instruction(dst.gp().X(), lhs.gp().X(), rhs.gp().X());                     \
   }
-#define UNIMPLEMENTED_GP_UNOP(name)                                \
-  bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    BAILOUT("gp unop: " #name);                                    \
-    return true;                                                   \
-  }
 #define FP32_BINOP(name, instruction)                                        \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
@@ -425,9 +420,6 @@ I64_BINOP(i64_xor, Eor)
 I64_SHIFTOP(i64_shl, Lsl)
 I64_SHIFTOP(i64_sar, Asr)
 I64_SHIFTOP(i64_shr, Lsr)
-UNIMPLEMENTED_GP_UNOP(i32_clz)
-UNIMPLEMENTED_GP_UNOP(i32_ctz)
-UNIMPLEMENTED_GP_UNOP(i32_popcnt)
 FP32_BINOP(f32_add, Fadd)
 FP32_BINOP(f32_sub, Fsub)
 FP32_BINOP(f32_mul, Fmul)
@@ -457,13 +449,33 @@ FP64_UNOP(f64_sqrt, Fsqrt)
 
 #undef I32_BINOP
 #undef I64_BINOP
-#undef UNIMPLEMENTED_GP_UNOP
 #undef FP32_BINOP
 #undef FP32_UNOP
 #undef FP64_BINOP
 #undef FP64_UNOP
 #undef I32_SHIFTOP
 #undef I64_SHIFTOP
+
+bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+  Clz(dst.W(), src.W());
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+  Rbit(dst.W(), src.W());
+  Clz(dst.W(), dst.W());
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
+  UseScratchRegisterScope temps(this);
+  VRegister scratch = temps.AcquireV(kFormat8B);
+  Fmov(scratch, src.X());
+  Cnt(scratch, scratch);
+  Addv(scratch.B(), scratch);
+  Fmov(dst.W(), scratch.S());
+  return true;
+}
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
