@@ -39,8 +39,6 @@ int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
   return it->second;
 }
 
-
-const char* const CodeEntry::kEmptyNamePrefix = "";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
 const char* const CodeEntry::kNoDeoptReason = "";
@@ -88,8 +86,6 @@ uint32_t CodeEntry::GetHash() const {
     hash ^= ComputeIntegerHash(static_cast<uint32_t>(position_));
   } else {
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
-    hash ^= ComputeIntegerHash(
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
     hash ^= ComputeIntegerHash(
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
@@ -103,8 +99,7 @@ bool CodeEntry::IsSameFunctionAs(const CodeEntry* entry) const {
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
     return script_id_ == entry->script_id_ && position_ == entry->position_;
   }
-  return name_prefix_ == entry->name_prefix_ && name_ == entry->name_ &&
-         resource_name_ == entry->resource_name_ &&
+  return name_ == entry->name_ && resource_name_ == entry->resource_name_ &&
          line_number_ == entry->line_number_;
 }
 
@@ -224,9 +219,8 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
 
 void ProfileNode::Print(int indent) {
-  base::OS::Print("%5u %*s %s%s %d #%d", self_ticks_, indent, "",
-                  entry_->name_prefix(), entry_->name(), entry_->script_id(),
-                  id());
+  base::OS::Print("%5u %*s %s %d #%d", self_ticks_, indent, "", entry_->name(),
+                  entry_->script_id(), id());
   if (entry_->resource_name()[0] != '\0')
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");

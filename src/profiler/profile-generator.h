@@ -42,15 +42,12 @@ class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
   inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
-                   const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
                    Address instruction_start = kNullAddress);
 
-  const char* name_prefix() const { return name_prefix_; }
-  bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
   const char* resource_name() const { return resource_name_; }
   int line_number() const { return line_number_; }
@@ -102,7 +99,6 @@ class CodeEntry {
     return TagField::decode(bit_field_);
   }
 
-  static const char* const kEmptyNamePrefix;
   static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
   static const char* const kNoDeoptReason;
@@ -150,7 +146,6 @@ class CodeEntry {
   class BuiltinIdField : public BitField<Builtins::Name, 8, 24> {};
 
   uint32_t bit_field_;
-  const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;

@@ -54,7 +54,6 @@ class ProfilerListener : public CodeEventListener {
 
   CodeEntry* NewCodeEntry(
       CodeEventListener::LogEventsAndTags tag, const char* name,
-      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
       const char* resource_name = CodeEntry::kEmptyResourceName,
       int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
       int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
@@ -66,6 +65,9 @@ class ProfilerListener : public CodeEventListener {
   }
   const char* GetName(int args_count) {
     return function_and_resource_names_.GetName(args_count);
+  }
+  const char* GetConsName(const char* prefix, Name* name) {
+    return function_and_resource_names_.GetConsName(prefix, name);
   }
   const char* GetFunctionName(Name* name) {
     return function_and_resource_names_.GetFunctionName(name);

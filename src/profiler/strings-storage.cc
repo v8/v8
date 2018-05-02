@@ -88,6 +88,25 @@ const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
 }
 
+const char* StringsStorage::GetConsName(const char* prefix, Name* name) {
+  if (name->IsString()) {
+    String* str = String::cast(name);
+    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
+    int actual_length = 0;
+    std::unique_ptr<char[]> data = str->ToCString(
+        DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
+
+    int cons_length = actual_length + static_cast<int>(strlen(prefix)) + 1;
+    char* cons_result = NewArray<char>(cons_length);
+    snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
+
+    return AddOrDisposeString(cons_result, cons_length);
+  } else if (name->IsSymbol()) {
+    return "<symbol>";
+  }
+  return "";
+}
+
 const char* StringsStorage::GetFunctionName(Name* name) {
   return GetName(name);
 }

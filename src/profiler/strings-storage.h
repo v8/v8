@@ -28,6 +28,7 @@ class StringsStorage {
   const char* GetVFormatted(const char* format, va_list args);
   const char* GetName(Name* name);
   const char* GetName(int index);
+  const char* GetConsName(const char* prefix, Name* name);
   const char* GetFunctionName(Name* name);
   const char* GetFunctionName(const char* name);
 

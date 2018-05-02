@@ -11,13 +11,12 @@ namespace v8 {
 namespace internal {
 
 CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
-                     const char* name_prefix, const char* resource_name,
-                     int line_number, int column_number,
+                     const char* resource_name, int line_number,
+                     int column_number,
                      std::unique_ptr<SourcePositionTable> line_info,
                      Address instruction_start)
     : bit_field_(TagField::encode(tag) |
                  BuiltinIdField::encode(Builtins::builtin_count)),
-      name_prefix_(name_prefix),
       name_(name),
       resource_name_(resource_name),
       line_number_(line_number),

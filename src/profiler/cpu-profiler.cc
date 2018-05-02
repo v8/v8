@@ -328,9 +328,8 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
   for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
     RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
-    std::unique_ptr<CodeEntry> entry(
-        new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
-                      CodeEntry::kEmptyNamePrefix, "native V8Runtime"));
+    std::unique_ptr<CodeEntry> entry(new CodeEntry(
+        CodeEventListener::FUNCTION_TAG, counter->name(), "native V8Runtime"));
     code_map->AddCode(reinterpret_cast<Address>(counter), entry.get(), 1);
     static_entries_.push_back(std::move(entry));
   }
