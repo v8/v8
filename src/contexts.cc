@@ -62,14 +62,11 @@ bool Context::is_declaration_context() {
       IsModuleContext()) {
     return true;
   }
-  if (IsEvalContext())
-    return closure()->shared()->language_mode() == LanguageMode::kStrict;
+  if (IsEvalContext()) {
+    return scope_info()->language_mode() == LanguageMode::kStrict;
+  }
   if (!IsBlockContext()) return false;
-  Object* ext = extension();
-  // If we have the special extension, we immediately know it must be a
-  // declaration scope. That's just a small performance shortcut.
-  return ext->IsContextExtension() ||
-         ScopeInfo::cast(ext)->is_declaration_scope();
+  return scope_info()->is_declaration_scope();
 }
 
 
@@ -87,7 +84,6 @@ Context* Context::closure_context() {
          !current->IsModuleContext() && !current->IsNativeContext() &&
          !current->IsEvalContext()) {
     current = current->previous();
-    DCHECK(current->closure() == closure());
   }
   return current;
 }
@@ -114,23 +110,8 @@ JSReceiver* Context::extension_receiver() {
                          : extension_object();
 }
 
-ScopeInfo* Context::raw_scope_info() {
-  DCHECK(!IsNativeContext());
-  return closure()->shared()->scope_info();
-}
-
 ScopeInfo* Context::scope_info() {
-  DCHECK(!IsNativeContext());
-  if (IsFunctionContext() || IsModuleContext() || IsEvalContext()) {
-    return closure()->shared()->scope_info();
-  }
-  HeapObject* object = extension();
-  if (object->IsContextExtension()) {
-    DCHECK(IsBlockContext() || IsCatchContext() || IsWithContext() ||
-           IsDebugEvaluateContext());
-    object = ContextExtension::cast(object)->scope_info();
-  }
-  return ScopeInfo::cast(object);
+  return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
 }
 
 Module* Context::module() {

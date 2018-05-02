@@ -218,11 +218,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                            const AstRawString* name,
                                            const Scope* scope);
 
-  // Create a new context with size |slots|.
-  BytecodeArrayBuilder& CreateFunctionContext(int slots);
+  // Create a new context with the given |scope| and size |slots|.
+  BytecodeArrayBuilder& CreateFunctionContext(const Scope* scope, int slots);
 
-  // Create a new eval context with size |slots|.
-  BytecodeArrayBuilder& CreateEvalContext(int slots);
+  // Create a new eval context with the given |scope| and size |slots|.
+  BytecodeArrayBuilder& CreateEvalContext(const Scope* scope, int slots);
 
   // Creates a new context with the given |scope| for a with-statement
   // with the |object| in a register and the closure in the accumulator.

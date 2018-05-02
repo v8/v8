@@ -14,7 +14,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 192
+bytecode array length: 190
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(1),
@@ -35,7 +35,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(5), R(2),
-                B(Jump), U8(98),
+                B(Jump), U8(96),
                 B(LdaUndefined),
                 B(Star), R(6),
                 B(Mov), R(0), R(5),
@@ -53,10 +53,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(5), R(2),
-                B(Jump), U8(55),
-                B(Jump), U8(39),
+                B(Jump), U8(53),
+                B(Jump), U8(37),
                 B(Star), R(5),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(5), U8(4), U8(5),
                 B(Star), R(4),
                 B(LdaTheHole),
@@ -113,7 +112,7 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [20, 137, 145],
+  [20, 135, 143],
   [23, 98, 100],
 ]
 
@@ -124,7 +123,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 236
+bytecode array length: 234
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(3),
                 B(Mov), R(closure), R(1),
@@ -145,7 +144,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(5), R(2),
-                B(Jump), U8(142),
+                B(Jump), U8(140),
   /*   22 S> */ B(LdaSmi), I8(42),
                 B(Star), R(6),
                 B(LdaFalse),
@@ -162,7 +161,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(5), R(2),
-                B(Jump), U8(98),
+                B(Jump), U8(96),
                 B(LdaUndefined),
                 B(Star), R(6),
                 B(Mov), R(0), R(5),
@@ -180,10 +179,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(5), R(2),
-                B(Jump), U8(55),
-                B(Jump), U8(39),
+                B(Jump), U8(53),
+                B(Jump), U8(37),
                 B(Star), R(5),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(5), U8(7), U8(8),
                 B(Star), R(4),
                 B(LdaTheHole),
@@ -243,7 +241,7 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [20, 181, 189],
+  [20, 179, 187],
   [23, 142, 144],
 ]
 
@@ -254,7 +252,7 @@ snippet: "
 "
 frame size: 22
 parameter count: 1
-bytecode array length: 496
+bytecode array length: 492
 bytecodes: [
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(3),
                 B(Mov), R(closure), R(11),
@@ -320,13 +318,12 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(15),
                 B(Mov), R(19), R(16),
-                B(Jump), U8(62),
+                B(Jump), U8(60),
                 B(LdaZero),
                 B(Star), R(7),
                 B(JumpLoop), U8(87), I8(0),
-                B(Jump), U8(40),
+                B(Jump), U8(38),
                 B(Star), R(19),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(19), U8(12), U8(13),
                 B(Star), R(18),
                 B(LdaTheHole),
@@ -398,7 +395,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(11),
                 B(Mov), R(16), R(12),
-                B(Jump), U8(101),
+                B(Jump), U8(99),
                 B(Ldar), R(16),
                 B(ReThrow),
                 B(LdaUndefined),
@@ -418,10 +415,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(11),
                 B(Mov), R(15), R(12),
-                B(Jump), U8(55),
-                B(Jump), U8(39),
+                B(Jump), U8(53),
+                B(Jump), U8(37),
                 B(Star), R(15),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(15), U8(12), U8(18),
                 B(Star), R(14),
                 B(LdaTheHole),
@@ -469,7 +465,7 @@ bytecodes: [
 constant pool: [
   Smi [30],
   Smi [154],
-  Smi [374],
+  Smi [372],
   Smi [15],
   Smi [7],
   TUPLE2_TYPE,
@@ -486,17 +482,17 @@ constant pool: [
   Smi [6],
   Smi [14],
   SCOPE_INFO_TYPE,
-  Smi [402],
+  Smi [398],
   Smi [6],
   Smi [20],
   Smi [23],
 ]
 handlers: [
-  [20, 441, 449],
-  [23, 402, 404],
-  [61, 225, 233],
+  [20, 437, 445],
+  [23, 400, 402],
+  [61, 223, 231],
   [64, 185, 187],
-  [294, 304, 306],
+  [292, 302, 304],
 ]
 
 ---
@@ -507,7 +503,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 482
+bytecode array length: 480
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(5),
                 B(Mov), R(closure), R(1),
@@ -635,7 +631,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(7), R(2),
-                B(Jump), U8(98),
+                B(Jump), U8(96),
                 B(LdaUndefined),
                 B(Star), R(6),
                 B(Mov), R(0), R(5),
@@ -653,10 +649,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(1),
                 B(Mov), R(5), R(2),
-                B(Jump), U8(55),
-                B(Jump), U8(39),
+                B(Jump), U8(53),
+                B(Jump), U8(37),
                 B(Star), R(5),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(5), U8(17), U8(18),
                 B(Star), R(4),
                 B(LdaTheHole),
@@ -721,14 +716,14 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
-  Smi [388],
-  Smi [289],
+  Smi [386],
+  Smi [287],
   Smi [6],
   Smi [20],
   Smi [23],
 ]
 handlers: [
-  [20, 427, 435],
+  [20, 425, 433],
   [23, 388, 390],
 ]
 

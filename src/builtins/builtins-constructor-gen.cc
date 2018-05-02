@@ -233,7 +233,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
-    Node* function, Node* slots, Node* context, ScopeType scope_type) {
+    Node* scope_info, Node* slots, Node* context, ScopeType scope_type) {
   slots = ChangeUint32ToWord(slots);
 
   // TODO(ishell): Use CSA::OptimalParameterMode() here.
@@ -261,8 +261,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  SmiTag(length));
 
   // Set up the fixed slots.
-  StoreFixedArrayElement(function_context, Context::CLOSURE_INDEX, function,
-                         SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(function_context, Context::SCOPE_INFO_INDEX,
+                         scope_info, SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(function_context, Context::PREVIOUS_INDEX, context,
                          SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(function_context, Context::EXTENSION_INDEX,
@@ -287,18 +287,18 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
 }
 
 TF_BUILTIN(FastNewFunctionContextEval, ConstructorBuiltinsAssembler) {
-  Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
+  Node* scope_info = Parameter(FastNewFunctionContextDescriptor::kScopeInfo);
   Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
   Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
-  Return(EmitFastNewFunctionContext(function, slots, context,
+  Return(EmitFastNewFunctionContext(scope_info, slots, context,
                                     ScopeType::EVAL_SCOPE));
 }
 
 TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
-  Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
+  Node* scope_info = Parameter(FastNewFunctionContextDescriptor::kScopeInfo);
   Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
   Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
-  Return(EmitFastNewFunctionContext(function, slots, context,
+  Return(EmitFastNewFunctionContext(scope_info, slots, context,
                                     ScopeType::FUNCTION_SCOPE));
 }
 

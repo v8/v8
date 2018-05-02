@@ -11630,9 +11630,10 @@ void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
   StoreObjectFieldNoWriteBarrier(context, FixedArray::kLengthOffset,
                                  SmiConstant(slots));
 
-  Node* const empty_fn =
-      LoadContextElement(native_context, Context::CLOSURE_INDEX);
-  StoreContextElementNoWriteBarrier(context, Context::CLOSURE_INDEX, empty_fn);
+  Node* const empty_scope_info =
+      LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
+  StoreContextElementNoWriteBarrier(context, Context::SCOPE_INFO_INDEX,
+                                    empty_scope_info);
   StoreContextElementNoWriteBarrier(context, Context::PREVIOUS_INDEX,
                                     UndefinedConstant());
   StoreContextElementNoWriteBarrier(context, Context::EXTENSION_INDEX,

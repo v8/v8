@@ -294,12 +294,15 @@ CreateCatchContextParameters const& CreateCatchContextParametersOf(
 // is used as a parameter by the JSCreateFunctionContext operator.
 class CreateFunctionContextParameters final {
  public:
-  CreateFunctionContextParameters(int slot_count, ScopeType scope_type);
+  CreateFunctionContextParameters(Handle<ScopeInfo> scope_info, int slot_count,
+                                  ScopeType scope_type);
 
+  Handle<ScopeInfo> scope_info() const { return scope_info_; }
   int slot_count() const { return slot_count_; }
   ScopeType scope_type() const { return scope_type_; }
 
  private:
+  Handle<ScopeInfo> scope_info_;
   int const slot_count_;
   ScopeType const scope_type_;
 };
@@ -833,7 +836,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* RejectPromise();
   const Operator* ResolvePromise();
 
-  const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
+  const Operator* CreateFunctionContext(Handle<ScopeInfo> scope_info,
+                                        int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,
                                      const Handle<ScopeInfo>& scope_info);
   const Operator* CreateWithContext(const Handle<ScopeInfo>& scope_info);

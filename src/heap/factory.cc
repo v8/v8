@@ -1278,15 +1278,16 @@ Handle<Context> Factory::NewNativeContext() {
   return context;
 }
 
-Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
+Handle<Context> Factory::NewScriptContext(Handle<Context> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
+  DCHECK(outer->IsNativeContext());
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kScriptContextMapRootIndex, scope_info->ContextLength(), TENURED);
-  context->set_closure(*function);
-  context->set_previous(function->context());
-  context->set_extension(*scope_info);
-  context->set_native_context(function->native_context());
+  context->set_scope_info(*scope_info);
+  context->set_previous(*outer);
+  context->set_extension(*the_hole_value());
+  context->set_native_context(*outer);
   DCHECK(context->IsScriptContext());
   return context;
 }
@@ -1301,26 +1302,25 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
 }
 
 Handle<Context> Factory::NewModuleContext(Handle<Module> module,
-                                          Handle<JSFunction> function,
+                                          Handle<Context> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kModuleContextMapRootIndex, scope_info->ContextLength(), TENURED);
-  context->set_closure(*function);
-  context->set_previous(function->context());
+  context->set_scope_info(*scope_info);
+  context->set_previous(*outer);
   context->set_extension(*module);
-  context->set_native_context(function->native_context());
+  context->set_native_context(*outer);
   DCHECK(context->IsModuleContext());
   return context;
 }
 
-Handle<Context> Factory::NewFunctionContext(int length,
-                                            Handle<JSFunction> function,
-                                            ScopeType scope_type) {
-  DCHECK(function->shared()->scope_info()->scope_type() == scope_type);
-  DCHECK(length >= Context::MIN_CONTEXT_SLOTS);
+Handle<Context> Factory::NewFunctionContext(Handle<Context> outer,
+                                            Handle<ScopeInfo> scope_info) {
+  int length = scope_info->ContextLength();
+  DCHECK_LE(Context::MIN_CONTEXT_SLOTS, length);
   Heap::RootListIndex mapRootIndex;
-  switch (scope_type) {
+  switch (scope_info->scope_type()) {
     case EVAL_SCOPE:
       mapRootIndex = Heap::kEvalContextMapRootIndex;
       break;
@@ -1331,15 +1331,14 @@ Handle<Context> Factory::NewFunctionContext(int length,
       UNREACHABLE();
   }
   Handle<Context> context = NewFixedArrayWithMap<Context>(mapRootIndex, length);
-  context->set_closure(*function);
-  context->set_previous(function->context());
+  context->set_scope_info(*scope_info);
+  context->set_previous(*outer);
   context->set_extension(*the_hole_value());
-  context->set_native_context(function->native_context());
+  context->set_native_context(outer->native_context());
   return context;
 }
 
-Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
-                                         Handle<Context> previous,
+Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info,
                                          Handle<String> name,
                                          Handle<Object> thrown_object) {
@@ -1347,7 +1346,7 @@ Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
   Handle<ContextExtension> extension = NewContextExtension(scope_info, name);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kCatchContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 1);
-  context->set_closure(*function);
+  context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*extension);
   context->set_native_context(previous->native_context());
@@ -1367,7 +1366,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                       : Handle<Object>::cast(extension));
   Handle<Context> c = NewFixedArrayWithMap<Context>(
       Heap::kDebugEvaluateContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 2);
-  c->set_closure(wrapped.is_null() ? previous->closure() : wrapped->closure());
+  c->set_scope_info(*scope_info);
   c->set_previous(*previous);
   c->set_native_context(previous->native_context());
   c->set_extension(*context_extension);
@@ -1376,30 +1375,28 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   return c;
 }
 
-Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
-                                        Handle<Context> previous,
+Handle<Context> Factory::NewWithContext(Handle<Context> previous,
                                         Handle<ScopeInfo> scope_info,
                                         Handle<JSReceiver> extension) {
   Handle<ContextExtension> context_extension =
       NewContextExtension(scope_info, extension);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kWithContextMapRootIndex, Context::MIN_CONTEXT_SLOTS);
-  context->set_closure(*function);
+  context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*context_extension);
   context->set_native_context(previous->native_context());
   return context;
 }
 
-Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
-                                         Handle<Context> previous,
+Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kBlockContextMapRootIndex, scope_info->ContextLength());
-  context->set_closure(*function);
+  context->set_scope_info(*scope_info);
   context->set_previous(*previous);
-  context->set_extension(*scope_info);
+  context->set_extension(*the_hole_value());
   context->set_native_context(previous->native_context());
   return context;
 }

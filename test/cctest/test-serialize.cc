@@ -1484,7 +1484,7 @@ TEST(CodeSerializerLargeCodeObject) {
       STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
       STATIC_CHAR_VECTOR(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
-      STATIC_CHAR_VECTOR("} j=7; j"), 1100);
+      STATIC_CHAR_VECTOR("} j=7; j"), 1200);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 

@@ -505,11 +505,11 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
 
 class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kSlots)
+  DEFINE_PARAMETERS(kScopeInfo, kSlots)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastNewFunctionContextDescriptor,
                                                CallInterfaceDescriptor)
 
-  static const Register FunctionRegister();
+  static const Register ScopeInfoRegister();
   static const Register SlotsRegister();
 };
 

@@ -261,12 +261,14 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8)                                    \
                                                                                \
   /* Context allocation */                                                     \
-  V(CreateBlockContext, AccumulatorUse::kReadWrite, OperandType::kIdx)         \
-  V(CreateCatchContext, AccumulatorUse::kReadWrite, OperandType::kReg,         \
+  V(CreateBlockContext, AccumulatorUse::kWrite, OperandType::kIdx)             \
+  V(CreateCatchContext, AccumulatorUse::kWrite, OperandType::kReg,             \
     OperandType::kIdx, OperandType::kIdx)                                      \
-  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kUImm)         \
-  V(CreateEvalContext, AccumulatorUse::kWrite, OperandType::kUImm)             \
-  V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg,          \
+  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx,          \
+    OperandType::kUImm)                                                        \
+  V(CreateEvalContext, AccumulatorUse::kWrite, OperandType::kIdx,              \
+    OperandType::kUImm)                                                        \
+  V(CreateWithContext, AccumulatorUse::kWrite, OperandType::kReg,              \
     OperandType::kIdx)                                                         \
                                                                                \
   /* Arguments allocation */                                                   \

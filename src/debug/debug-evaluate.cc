@@ -113,8 +113,8 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   Handle<Context> evaluation_context =
       factory->NewDebugEvaluateContext(native_context, scope_info, materialized,
                                        Handle<Context>(), Handle<StringSet>());
-  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared(),
-                                        isolate);
+  Handle<SharedFunctionInfo> outer_info(
+      native_context->empty_function()->shared(), isolate);
   Handle<JSObject> receiver(native_context->global_proxy());
   const bool throw_on_side_effect = false;
   MaybeHandle<Object> maybe_result =

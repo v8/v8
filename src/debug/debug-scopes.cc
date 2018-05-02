@@ -32,6 +32,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   }
   context_ = Handle<Context>::cast(frame_inspector->GetContext());
 
+  context_ = Handle<Context>::cast(frame_inspector->GetContext());
+
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK(frame_inspector->GetScript()->type() != Script::TYPE_WASM);
 
@@ -42,7 +44,8 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
   if (HasNestedScopeChain()) return JSFunction::GetDebugName(function_);
   if (!context_->IsNativeContext()) {
     DisallowHeapAllocation no_gc;
-    Handle<String> debug_name(context_->raw_scope_info()->FunctionDebugName());
+    ScopeInfo* closure_info = context_->closure_context()->scope_info();
+    Handle<String> debug_name(closure_info->FunctionDebugName());
     if (debug_name->length() > 0) return debug_name;
   }
   return isolate_->factory()->undefined_value();
@@ -220,7 +223,7 @@ int ScopeIterator::start_position() {
     return LastNestedScopeChain().start_position;
   }
   if (context_->IsNativeContext()) return 0;
-  return context_->raw_scope_info()->StartPosition();
+  return context_->closure_context()->scope_info()->StartPosition();
 }
 
 int ScopeIterator::end_position() {
@@ -228,7 +231,7 @@ int ScopeIterator::end_position() {
     return LastNestedScopeChain().end_position;
   }
   if (context_->IsNativeContext()) return 0;
-  return context_->raw_scope_info()->EndPosition();
+  return context_->closure_context()->scope_info()->EndPosition();
 }
 
 void ScopeIterator::Next() {

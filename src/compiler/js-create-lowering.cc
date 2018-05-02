@@ -1284,9 +1284,9 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
+  Handle<ScopeInfo> scope_info = parameters.scope_info();
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
-  Node* const closure = NodeProperties::GetValueInput(node, 0);
 
   // Use inline allocation for function contexts up to a size limit.
   if (slot_count < kFunctionContextAllocationLimit) {
@@ -1310,7 +1310,8 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
         UNREACHABLE();
     }
     a.AllocateContext(context_length, map);
-    a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+    a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
+            scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
@@ -1330,7 +1331,6 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
   Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
   Node* object = NodeProperties::GetValueInput(node, 0);
-  Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1345,7 +1345,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
-  a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+  a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
@@ -1359,8 +1359,8 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
   const CreateCatchContextParameters& parameters =
       CreateCatchContextParametersOf(node->op());
+  Handle<ScopeInfo> scope_info = parameters.scope_info();
   Node* exception = NodeProperties::GetValueInput(node, 0);
-  Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1378,7 +1378,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
                     factory()->catch_context_map());
-  a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+  a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
@@ -1394,7 +1394,6 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
   Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
   int const context_length = scope_info->ContextLength();
-  Node* const closure = NodeProperties::GetValueInput(node, 0);
 
   // Use inline allocation for block contexts up to a size limit.
   if (context_length < kBlockContextAllocationLimit) {
@@ -1402,12 +1401,13 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
     Node* context = NodeProperties::GetContextInput(node);
-    Node* extension = jsgraph()->Constant(scope_info);
+    Node* extension = jsgraph()->TheHoleConstant();
 
     AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
     a.AllocateContext(context_length, factory()->block_context_map());
-    a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+    a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
+            scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),

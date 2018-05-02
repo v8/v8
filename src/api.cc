@@ -2533,8 +2533,10 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
          options == CompileOptions::kNoCompileOptions);
 
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
-  i::Handle<i::SharedFunctionInfo> outer_info(context->closure()->shared(),
-                                              isolate);
+
+  DCHECK(context->IsNativeContext());
+  i::Handle<i::SharedFunctionInfo> outer_info(
+      context->empty_function()->shared(), isolate);
 
   i::Handle<i::JSFunction> fun;
   i::Handle<i::FixedArray> arguments_list =
@@ -2550,9 +2552,8 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     i::Handle<i::JSReceiver> extension =
         Utils::OpenHandle(*context_extensions[i]);
     if (!extension->IsJSObject()) return Local<Function>();
-    i::Handle<i::JSFunction> closure(context->closure(), isolate);
     context = isolate->factory()->NewWithContext(
-        closure, context,
+        context,
         i::ScopeInfo::CreateForWithScope(
             isolate, context->IsNativeContext()
                          ? i::Handle<i::ScopeInfo>::null()

@@ -11,15 +11,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(0),
   /*   40 S> */ B(LdaSmi), I8(1),
   /*   49 S> */ B(Return),
-                B(Jump), U8(21),
+                B(Jump), U8(19),
                 B(Star), R(1),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(1), U8(0), U8(1),
                 B(Star), R(0),
                 B(LdaTheHole),
@@ -47,15 +46,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 57
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(1),
   /*   47 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Jump), U8(20),
+                B(Jump), U8(18),
                 B(Star), R(2),
-                B(Ldar), R(closure),
   /*   49 E> */ B(CreateCatchContext), R(2), U8(0), U8(1),
                 B(Star), R(1),
                 B(LdaTheHole),
@@ -66,9 +64,8 @@ bytecodes: [
                 B(Mov), R(context), R(1),
   /*   75 S> */ B(LdaSmi), I8(2),
                 B(Star), R(0),
-                B(Jump), U8(24),
+                B(Jump), U8(22),
                 B(Star), R(2),
-                B(Ldar), R(closure),
   /*   77 E> */ B(CreateCatchContext), R(2), U8(2), U8(3),
                 B(Star), R(1),
                 B(LdaTheHole),
@@ -89,6 +86,6 @@ constant pool: [
 ]
 handlers: [
   [4, 8, 10],
-  [31, 35, 37],
+  [29, 33, 35],
 ]
 

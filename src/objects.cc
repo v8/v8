@@ -17436,10 +17436,9 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> set,
 }
 
 Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
-                                             Handle<Context> context,
+                                             Handle<SharedFunctionInfo> shared,
                                              LanguageMode language_mode) {
   Isolate* isolate = GetIsolate();
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
@@ -17562,8 +17561,9 @@ FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
-    Handle<String> src, Handle<Context> context, LanguageMode language_mode) {
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+    Handle<String> src, Handle<Context> native_context,
+    LanguageMode language_mode) {
+  Handle<SharedFunctionInfo> shared(native_context->empty_function()->shared());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return MaybeHandle<SharedFunctionInfo>();
@@ -17604,12 +17604,11 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
-
 Handle<CompilationCacheTable> CompilationCacheTable::Put(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<Context> context, LanguageMode language_mode, Handle<Object> value) {
+    Handle<SharedFunctionInfo> shared, LanguageMode language_mode,
+    Handle<Object> value) {
   Isolate* isolate = cache->GetIsolate();
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
   cache = EnsureCapacity(cache, 1);
@@ -17622,11 +17621,10 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<Context> context, LanguageMode language_mode,
+    Handle<Context> native_context, LanguageMode language_mode,
     Handle<SharedFunctionInfo> value) {
   Isolate* isolate = cache->GetIsolate();
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  Handle<Context> native_context(context->native_context());
+  Handle<SharedFunctionInfo> shared(native_context->empty_function()->shared());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
   cache = EnsureCapacity(cache, 1);

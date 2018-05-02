@@ -467,18 +467,19 @@ namespace internal {
   F(LoadLookupSlot, 1, 1)                 \
   F(LoadLookupSlotInsideTypeof, 1, 1)     \
   F(NewArgumentsElements, 3, 1)           \
+                                          \
   F(NewClosure, 2, 1)                     \
   F(NewClosure_Tenured, 2, 1)             \
-  F(NewFunctionContext, 2, 1)             \
+  F(NewFunctionContext, 1, 1)             \
   F(NewRestParameter, 1, 1)               \
-  F(NewScriptContext, 2, 1)               \
+  F(NewScriptContext, 1, 1)               \
   F(NewSloppyArguments, 3, 1)             \
   F(NewSloppyArguments_Generic, 1, 1)     \
   F(NewStrictArguments, 1, 1)             \
-  F(PushBlockContext, 2, 1)               \
-  F(PushCatchContext, 4, 1)               \
-  F(PushModuleContext, 3, 1)              \
-  F(PushWithContext, 3, 1)                \
+  F(PushBlockContext, 1, 1)               \
+  F(PushCatchContext, 3, 1)               \
+  F(PushModuleContext, 2, 1)              \
+  F(PushWithContext, 2, 1)                \
   F(StoreLookupSlot_Sloppy, 2, 1)         \
   F(StoreLookupSlot_SloppyHoisting, 2, 1) \
   F(StoreLookupSlot_Strict, 2, 1)         \

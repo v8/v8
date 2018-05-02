@@ -4589,29 +4589,26 @@ void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
 void BytecodeGenerator::BuildNewLocalActivationContext() {
   ValueResultScope value_execution_result(this);
   Scope* scope = closure_scope();
+  DCHECK_EQ(current_scope(), closure_scope());
 
   // Create the appropriate context.
   if (scope->is_script_scope()) {
-    RegisterList args = register_allocator()->NewRegisterList(2);
+    Register scope_reg = register_allocator()->NewRegister();
     builder()
-        ->LoadAccumulatorWithRegister(Register::function_closure())
-        .StoreAccumulatorInRegister(args[0])
-        .LoadLiteral(scope)
-        .StoreAccumulatorInRegister(args[1])
-        .CallRuntime(Runtime::kNewScriptContext, args);
+        ->LoadLiteral(scope)
+        .StoreAccumulatorInRegister(scope_reg)
+        .CallRuntime(Runtime::kNewScriptContext, scope_reg);
   } else if (scope->is_module_scope()) {
     // We don't need to do anything for the outer script scope.
     DCHECK(scope->outer_scope()->is_script_scope());
 
     // A JSFunction representing a module is called with the module object as
-    // its sole argument, which we pass on to PushModuleContext.
-    RegisterList args = register_allocator()->NewRegisterList(3);
+    // its sole argument.
+    RegisterList args = register_allocator()->NewRegisterList(2);
     builder()
         ->MoveRegister(builder()->Parameter(0), args[0])
-        .LoadAccumulatorWithRegister(Register::function_closure())
-        .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(scope)
-        .StoreAccumulatorInRegister(args[2])
+        .StoreAccumulatorInRegister(args[1])
         .CallRuntime(Runtime::kPushModuleContext, args);
   } else {
     DCHECK(scope->is_function_scope() || scope->is_eval_scope());
@@ -4619,21 +4616,18 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
     if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
       switch (scope->scope_type()) {
         case EVAL_SCOPE:
-          builder()->CreateEvalContext(slot_count);
+          builder()->CreateEvalContext(scope, slot_count);
           break;
         case FUNCTION_SCOPE:
-          builder()->CreateFunctionContext(slot_count);
+          builder()->CreateFunctionContext(scope, slot_count);
           break;
         default:
           UNREACHABLE();
       }
     } else {
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->MoveRegister(Register::function_closure(), args[0])
-          .LoadLiteral(Smi::FromInt(scope->scope_type()))
-          .StoreAccumulatorInRegister(args[1])
-          .CallRuntime(Runtime::kNewFunctionContext, args);
+      Register arg = register_allocator()->NewRegister();
+      builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
+          Runtime::kNewFunctionContext, arg);
     }
   }
 }
@@ -4668,7 +4662,6 @@ void BytecodeGenerator::BuildNewLocalBlockContext(Scope* scope) {
   ValueResultScope value_execution_result(this);
   DCHECK(scope->is_block_scope());
 
-  VisitFunctionClosureForContext();
   builder()->CreateBlockContext(scope);
 }
 
@@ -4678,7 +4671,6 @@ void BytecodeGenerator::BuildNewLocalWithContext(Scope* scope) {
   Register extension_object = register_allocator()->NewRegister();
 
   builder()->ToObject(extension_object);
-  VisitFunctionClosureForContext();
   builder()->CreateWithContext(extension_object, scope);
 }
 
@@ -4688,7 +4680,6 @@ void BytecodeGenerator::BuildNewLocalCatchContext(Scope* scope) {
 
   Register exception = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(exception);
-  VisitFunctionClosureForContext();
   builder()->CreateCatchContext(exception, scope->catch_variable()->raw_name(),
                                 scope);
 }
@@ -4788,33 +4779,6 @@ void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
   } else {
     BuildVariableAssignment(generator_object_var, Token::INIT,
                             HoleCheckMode::kElided);
-  }
-}
-
-void BytecodeGenerator::VisitFunctionClosureForContext() {
-  ValueResultScope value_execution_result(this);
-  if (closure_scope()->is_script_scope()) {
-    // Contexts nested in the native context have a canonical empty function as
-    // their closure, not the anonymous closure containing the global code.
-    Register native_context = register_allocator()->NewRegister();
-    builder()
-        ->LoadContextSlot(execution_context()->reg(),
-                          Context::NATIVE_CONTEXT_INDEX, 0,
-                          BytecodeArrayBuilder::kImmutableSlot)
-        .StoreAccumulatorInRegister(native_context)
-        .LoadContextSlot(native_context, Context::CLOSURE_INDEX, 0,
-                         BytecodeArrayBuilder::kImmutableSlot);
-  } else if (closure_scope()->is_eval_scope()) {
-    // Contexts created by a call to eval have the same closure as the
-    // context calling eval, not the anonymous closure containing the eval
-    // code. Fetch it from the context.
-    builder()->LoadContextSlot(execution_context()->reg(),
-                               Context::CLOSURE_INDEX, 0,
-                               BytecodeArrayBuilder::kImmutableSlot);
-  } else {
-    DCHECK(closure_scope()->is_function_scope() ||
-           closure_scope()->is_module_scope());
-    builder()->LoadAccumulatorWithRegister(Register::function_closure());
   }
 }
 

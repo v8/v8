@@ -1204,12 +1204,12 @@ class DebugInfoSection : public DebugSection {
 
       // See contexts.h for more information.
       DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
-      DCHECK_EQ(Context::CLOSURE_INDEX, 0);
+      DCHECK_EQ(Context::SCOPE_INFO_INDEX, 0);
       DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
       DCHECK_EQ(Context::EXTENSION_INDEX, 2);
       DCHECK_EQ(Context::NATIVE_CONTEXT_INDEX, 3);
       w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".closure");
+      w->WriteString(".scope_info");
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".previous");
       w->WriteULEB128(current_abbreviation++);

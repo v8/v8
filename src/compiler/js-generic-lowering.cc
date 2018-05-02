@@ -428,6 +428,7 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
+  Handle<ScopeInfo> scope_info = parameters.scope_info();
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -435,10 +436,11 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
     Callable callable =
         CodeFactory::FastNewFunctionContext(isolate(), scope_type);
+    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
     node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
     ReplaceWithStubCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->SmiConstant(scope_type));
+    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
     ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
   }
 }
@@ -556,7 +558,6 @@ void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
   ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
 }
-
 
 void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   ConstructForwardVarargsParameters p =

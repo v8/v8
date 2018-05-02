@@ -1172,8 +1172,8 @@ void Genesis::InstallGlobalThisBinding() {
   Handle<ScriptContextTable> script_contexts(
       native_context()->script_context_table());
   Handle<ScopeInfo> scope_info = ScopeInfo::CreateGlobalThisBinding(isolate());
-  Handle<JSFunction> closure(native_context()->closure());
-  Handle<Context> context = factory()->NewScriptContext(closure, scope_info);
+  Handle<Context> context =
+      factory()->NewScriptContext(native_context(), scope_info);
 
   // Go ahead and hook it up while we're at it.
   int slot = scope_info->ReceiverContextSlotIndex();
@@ -1406,8 +1406,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Handle<JSFunction> empty_function,
                                GlobalContextType context_type) {
   // --- N a t i v e   C o n t e x t ---
-  // Use the empty function as closure (no scope info).
-  native_context()->set_closure(*empty_function);
+  // Use the empty scope info.
+  native_context()->set_scope_info(empty_function->shared()->scope_info());
   native_context()->set_previous(nullptr);
   // Set extension and global object.
   native_context()->set_extension(*global_object);

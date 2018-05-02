@@ -2519,71 +2519,66 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
 // CreateBlockContext <index>
 //
-// Creates a new block context with the scope info constant at |index| and the
-// closure in the accumulator.
+// Creates a new block context with the scope info constant at |index|.
 IGNITION_HANDLER(CreateBlockContext, InterpreterAssembler) {
   Node* scope_info = LoadConstantPoolEntryAtOperandIndex(0);
-  Node* closure = GetAccumulator();
   Node* context = GetContext();
-  SetAccumulator(
-      CallRuntime(Runtime::kPushBlockContext, context, scope_info, closure));
+  SetAccumulator(CallRuntime(Runtime::kPushBlockContext, context, scope_info));
   Dispatch();
 }
 
 // CreateCatchContext <exception> <name_idx> <scope_info_idx>
 //
 // Creates a new context for a catch block with the |exception| in a register,
-// the variable name at |name_idx|, the ScopeInfo at |scope_info_idx|, and the
-// closure in the accumulator.
+// the variable name at |name_idx|, the ScopeInfo at |scope_info_idx|.
 IGNITION_HANDLER(CreateCatchContext, InterpreterAssembler) {
   Node* exception = LoadRegisterAtOperandIndex(0);
   Node* name = LoadConstantPoolEntryAtOperandIndex(1);
   Node* scope_info = LoadConstantPoolEntryAtOperandIndex(2);
-  Node* closure = GetAccumulator();
   Node* context = GetContext();
   SetAccumulator(CallRuntime(Runtime::kPushCatchContext, context, name,
-                             exception, scope_info, closure));
+                             exception, scope_info));
   Dispatch();
 }
 
-// CreateFunctionContext <slots>
+// CreateFunctionContext <scope_info_idx> <slots>
 //
 // Creates a new context with number of |slots| for the function closure.
 IGNITION_HANDLER(CreateFunctionContext, InterpreterAssembler) {
-  Node* closure = LoadRegister(Register::function_closure());
-  Node* slots = BytecodeOperandUImm(0);
+  Node* scope_info_idx = BytecodeOperandIdx(0);
+  Node* scope_info = LoadConstantPoolEntry(scope_info_idx);
+  Node* slots = BytecodeOperandUImm(1);
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
-      closure, slots, context, FUNCTION_SCOPE));
+      scope_info, slots, context, FUNCTION_SCOPE));
   Dispatch();
 }
 
-// CreateEvalContext <slots>
+// CreateEvalContext <scope_info_idx> <slots>
 //
 // Creates a new context with number of |slots| for an eval closure.
 IGNITION_HANDLER(CreateEvalContext, InterpreterAssembler) {
-  Node* closure = LoadRegister(Register::function_closure());
-  Node* slots = BytecodeOperandUImm(0);
+  Node* scope_info_idx = BytecodeOperandIdx(0);
+  Node* scope_info = LoadConstantPoolEntry(scope_info_idx);
+  Node* slots = BytecodeOperandUImm(1);
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
-      closure, slots, context, EVAL_SCOPE));
+      scope_info, slots, context, EVAL_SCOPE));
   Dispatch();
 }
 
 // CreateWithContext <register> <scope_info_idx>
 //
 // Creates a new context with the ScopeInfo at |scope_info_idx| for a
-// with-statement with the object in |register| and the closure in the
-// accumulator.
+// with-statement with the object in |register|.
 IGNITION_HANDLER(CreateWithContext, InterpreterAssembler) {
   Node* object = LoadRegisterAtOperandIndex(0);
   Node* scope_info = LoadConstantPoolEntryAtOperandIndex(1);
-  Node* closure = GetAccumulator();
   Node* context = GetContext();
-  SetAccumulator(CallRuntime(Runtime::kPushWithContext, context, object,
-                             scope_info, closure));
+  SetAccumulator(
+      CallRuntime(Runtime::kPushWithContext, context, object, scope_info));
   Dispatch();
 }
 

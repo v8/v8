@@ -70,7 +70,7 @@ void FastNewFunctionContextDescriptor::InitializePlatformIndependent(
 
 void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {FunctionRegister(), SlotsRegister()};
+  Register registers[] = {ScopeInfoRegister(), SlotsRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

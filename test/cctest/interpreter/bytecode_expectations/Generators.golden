@@ -100,7 +100,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 336
+bytecode array length: 334
 bytecodes: [
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(2),
                 B(Mov), R(closure), R(11),
@@ -160,13 +160,12 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(11),
                 B(Mov), R(15), R(12),
-                B(Jump), U8(58),
+                B(Jump), U8(56),
                 B(LdaZero),
                 B(Star), R(7),
                 B(JumpLoop), U8(84), I8(0),
-                B(Jump), U8(36),
+                B(Jump), U8(34),
                 B(Star), R(15),
-                B(Ldar), R(closure),
                 B(CreateCatchContext), R(15), U8(11), U8(12),
                 B(PushContext), R(15),
                 B(Star), R(14),
@@ -259,9 +258,9 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [48, 205, 213],
+  [48, 203, 211],
   [51, 169, 171],
-  [274, 284, 286],
+  [272, 282, 284],
 ]
 
 ---

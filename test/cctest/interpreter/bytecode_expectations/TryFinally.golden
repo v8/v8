@@ -55,7 +55,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 73
+bytecode array length: 71
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -64,9 +64,8 @@ bytecodes: [
                 B(Mov), R(context), R(4),
   /*   51 S> */ B(LdaSmi), I8(2),
                 B(Star), R(0),
-                B(Jump), U8(24),
+                B(Jump), U8(22),
                 B(Star), R(5),
-                B(Ldar), R(closure),
   /*   53 E> */ B(CreateCatchContext), R(5), U8(0), U8(1),
                 B(Star), R(4),
                 B(LdaTheHole),
@@ -103,7 +102,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [8, 39, 47],
+  [8, 37, 45],
   [11, 15, 17],
 ]
 
@@ -115,7 +114,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 96
+bytecode array length: 92
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(3),
@@ -123,9 +122,8 @@ bytecodes: [
                 B(Mov), R(context), R(5),
   /*   55 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Jump), U8(24),
+                B(Jump), U8(22),
                 B(Star), R(6),
-                B(Ldar), R(closure),
   /*   57 E> */ B(CreateCatchContext), R(6), U8(0), U8(1),
                 B(Star), R(5),
                 B(LdaTheHole),
@@ -135,9 +133,8 @@ bytecodes: [
   /*   74 S> */ B(LdaSmi), I8(2),
                 B(Star), R(0),
                 B(PopContext), R(6),
-                B(Jump), U8(24),
+                B(Jump), U8(22),
                 B(Star), R(5),
-                B(Ldar), R(closure),
   /*   76 E> */ B(CreateCatchContext), R(5), U8(0), U8(2),
                 B(Star), R(4),
                 B(LdaTheHole),
@@ -175,8 +172,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [4, 62, 70],
-  [7, 38, 40],
+  [4, 58, 66],
+  [7, 36, 38],
   [10, 14, 16],
 ]
 

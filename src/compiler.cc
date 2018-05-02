@@ -1397,7 +1397,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   // Compile source string in the native context.
   int eval_scope_position = 0;
   int eval_position = kNoSourcePosition;
-  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
+  Handle<SharedFunctionInfo> outer_info(
+      native_context->empty_function()->shared());
   return Compiler::GetFunctionFromEval(
       source, outer_info, native_context, LanguageMode::kSloppy, restriction,
       parameters_end_pos, eval_scope_position, eval_position);
