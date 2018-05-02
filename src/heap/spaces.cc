@@ -883,6 +883,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
       size_executable_.Increment(reservation.size());
     }
 
+    VerifyCleared(base, CodePageGuardStartOffset());
+    VerifyCleared(base + CodePageAreaStartOffset(), commit_area_size);
+
     if (Heap::ShouldZapGarbage()) {
       ZapBlock(base, CodePageGuardStartOffset());
       ZapBlock(base + CodePageAreaStartOffset(), commit_area_size);
@@ -901,6 +904,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                               executable, address_hint, &reservation);
 
     if (base == kNullAddress) return nullptr;
+
+    VerifyCleared(base, Page::kObjectStartOffset + commit_area_size);
 
     if (Heap::ShouldZapGarbage()) {
       ZapBlock(base, Page::kObjectStartOffset + commit_area_size);
@@ -1214,6 +1219,14 @@ void MemoryAllocator::ZapBlock(Address start, size_t size) {
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
     Memory::Address_at(start + s) = static_cast<Address>(kZapValue);
   }
+}
+
+void MemoryAllocator::VerifyCleared(Address start, size_t size) {
+#ifdef VERIFY_HEAP
+  for (size_t i = 0; i < size / kPointerSize; i++) {
+    CHECK_EQ(reinterpret_cast<uintptr_t*>(start)[i], kClearedFreeMemoryValue);
+  }
+#endif  // VERIFY_HEAP
 }
 
 size_t MemoryAllocator::CodePageGuardStartOffset() {
