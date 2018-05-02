@@ -10,27 +10,44 @@
   #   ],
   # },
 
-  'v8_linux64_fyi_rel_ng_triggered': {
-    'tests': [
-      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
-      {'name': 'test262_variants', 'variant': 'infra_staging', 'shards': 2},
-      {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
-      {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
-    ],
-  },
-  'v8_linux64_rel_ng_triggered': {
-    'tests': [
-      {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
-      {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
-    ],
-  },
   'v8_linux_gc_stress_dbg': {
     'tests': [
       {'name': 'mjsunit', 'variant': 'slow_path', 'shards': 2},
     ],
   },
+  'v8_linux_rel_ng_triggered': {
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'benchmarks', 'variant': 'extra'},
+      {'name': 'gcmole'},
+      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mozilla'},
+      {'name': 'mozilla', 'variant': 'extra'},
+      {'name': 'optimize_for_size'},
+      {'name': 'test262_variants', 'shards': 4},
+      {'name': 'test262_variants', 'shards': 2, 'variant': 'extra'},
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
+    ],
+  },
   'v8_linux64_asan_rel_ng_triggered': {
     'tests': [
+      {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+    ],
+  },
+  'v8_linux64_fyi_rel_ng_triggered': {
+    'tests': [
+      # Stress sampling.
+      {'name': 'mjsunit', 'shards': 1, 'variant': 'stress_sampling'},
+      {'name': 'webkit', 'shards': 1, 'variant': 'stress_sampling'},
+      # Infra staging.
+      {'name': 'test262_variants', 'shards': 2, 'variant': 'infra_staging'},
+      {'name': 'v8testing', 'shards': 2, 'variant': 'infra_staging'},
+    ],
+  },
+  'v8_linux64_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
     ],
   },
