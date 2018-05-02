@@ -229,8 +229,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
 
 
 bool CodeRange::CommitRawMemory(Address start, size_t length) {
-  return isolate_->heap()->memory_allocator()->CommitMemory(start, length,
-                                                            EXECUTABLE);
+  return isolate_->heap()->memory_allocator()->CommitMemory(start, length);
 }
 
 
@@ -462,8 +461,7 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
   return static_cast<int>(result);
 }
 
-bool MemoryAllocator::CommitMemory(Address base, size_t size,
-                                   Executability executable) {
+bool MemoryAllocator::CommitMemory(Address base, size_t size) {
   if (!SetPermissions(base, size, PageAllocator::kReadWrite)) {
     return false;
   }
@@ -1180,7 +1178,7 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   const Address start = reinterpret_cast<Address>(chunk);
   const Address area_start = start + MemoryChunk::kObjectStartOffset;
   const Address area_end = start + size;
-  if (!CommitBlock(start, size, NOT_EXECUTABLE)) {
+  if (!CommitBlock(start, size)) {
     return nullptr;
   }
   VirtualMemory reservation(start, size);
@@ -1190,9 +1188,8 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   return chunk;
 }
 
-bool MemoryAllocator::CommitBlock(Address start, size_t size,
-                                  Executability executable) {
-  if (!CommitMemory(start, size, executable)) return false;
+bool MemoryAllocator::CommitBlock(Address start, size_t size) {
+  if (!CommitMemory(start, size)) return false;
 
   if (Heap::ShouldZapGarbage()) {
     ZapBlock(start, size);

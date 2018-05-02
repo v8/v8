@@ -1359,7 +1359,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                                 size_t alignment, Executability executable,
                                 void* hint, VirtualMemory* controller);
 
-  bool CommitMemory(Address addr, size_t size, Executability executable);
+  bool CommitMemory(Address addr, size_t size);
 
   void FreeMemory(VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
@@ -1375,7 +1375,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // the address is not kNullAddress, the size is greater than zero, and that
   // the block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  bool CommitBlock(Address start, size_t size, Executability executable);
+  bool CommitBlock(Address start, size_t size);
 
   // Checks if an allocated MemoryChunk was intended to be used for executable
   // memory.
