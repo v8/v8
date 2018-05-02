@@ -664,11 +664,16 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  BAILOUT("AllocateStackSlot");
+  // The stack pointer is required to be quadword aligned.
+  size = RoundUp(size, kQuadWordSizeInBytes);
+  Claim(size, 1);
+  Mov(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  BAILOUT("DeallocateStackSlot");
+  // The stack pointer is required to be quadword aligned.
+  size = RoundUp(size, kQuadWordSizeInBytes);
+  Drop(size, 1);
 }
 
 void LiftoffStackSlots::Construct() {
