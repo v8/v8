@@ -619,11 +619,11 @@ void LiftoffAssembler::StackCheck(Label* ool_code) {
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  BAILOUT("CallTrapCallbackForTesting");
+  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  BAILOUT("AssertUnreachable");
+  TurboAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

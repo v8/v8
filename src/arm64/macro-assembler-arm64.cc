@@ -3012,6 +3012,10 @@ void TurboAssembler::Assert(Condition cond, AbortReason reason) {
   }
 }
 
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (emit_debug_code()) Abort(reason);
+}
+
 void MacroAssembler::AssertRegisterIsRoot(Register reg,
                                           Heap::RootListIndex index,
                                           AbortReason reason) {

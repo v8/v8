@@ -590,6 +590,10 @@ class TurboAssembler : public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cond, AbortReason reason);
 
+  // Like Assert(), but without condition.
+  // Use --debug_code to enable.
+  void AssertUnreachable(AbortReason reason);
+
   void AssertSmi(Register object,
                  AbortReason reason = AbortReason::kOperandIsNotASmi);
 
