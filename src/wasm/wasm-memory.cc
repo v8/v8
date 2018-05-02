@@ -122,18 +122,12 @@ void WasmMemoryTracker::ReleaseReservation(size_t num_bytes) {
   size_t const old_reserved = reserved_address_space_.fetch_sub(num_bytes);
   USE(old_reserved);
   DCHECK_LE(num_bytes, old_reserved);
-  DCHECK_GE(old_reserved - num_bytes, allocated_address_space_);
 }
 
 void WasmMemoryTracker::RegisterAllocation(void* allocation_base,
                                            size_t allocation_length,
                                            void* buffer_start,
                                            size_t buffer_length) {
-  // Make sure the caller has reserved the address space before registering the
-  // allocation.
-  DCHECK_LE(allocated_address_space_ + allocation_length,
-            reserved_address_space_);
-
   base::LockGuard<base::Mutex> scope_lock(&mutex_);
 
   allocated_address_space_ += allocation_length;
