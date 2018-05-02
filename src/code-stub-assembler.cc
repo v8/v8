@@ -1690,8 +1690,8 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
          if_cleared);
 
   GotoIf(WordEqual(WordAnd(BitcastMaybeObjectToWord(maybe_object),
-                           IntPtrConstant(kWeakHeapObjectMask)),
-                   IntPtrConstant(0)),
+                           IntPtrConstant(kHeapObjectTagMask)),
+                   IntPtrConstant(kHeapObjectTag)),
          &inner_if_strong);
 
   *extracted =
