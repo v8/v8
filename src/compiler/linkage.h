@@ -14,6 +14,7 @@
 #include "src/machine-type.h"
 #include "src/reglist.h"
 #include "src/runtime/runtime.h"
+#include "src/signature.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

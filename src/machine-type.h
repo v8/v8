@@ -9,8 +9,6 @@
 
 #include "src/base/bits.h"
 #include "src/globals.h"
-#include "src/signature.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -293,8 +291,6 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
   }
   UNREACHABLE();
 }
-
-typedef Signature<MachineType> MachineSignature;
 
 }  // namespace internal
 }  // namespace v8

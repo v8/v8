@@ -4,6 +4,7 @@
 
 #include "src/wasm/local-decl-encoder.h"
 
+#include "src/signature.h"
 #include "src/wasm/leb-helper.h"
 
 namespace v8 {

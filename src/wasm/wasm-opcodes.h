@@ -6,6 +6,7 @@
 #define V8_WASM_WASM_OPCODES_H_
 
 #include "src/globals.h"
+#include "src/vector.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 

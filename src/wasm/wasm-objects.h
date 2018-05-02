@@ -9,9 +9,9 @@
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/heap/heap.h"
-#include "src/machine-type.h"
 #include "src/objects.h"
 #include "src/objects/script.h"
+#include "src/signature.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"

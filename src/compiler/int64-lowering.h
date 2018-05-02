@@ -14,6 +14,10 @@
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace compiler {
 
 class V8_EXPORT_PRIVATE Int64Lowering {

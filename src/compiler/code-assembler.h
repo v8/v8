@@ -44,6 +44,9 @@ class InterpreterData;
 class Factory;
 class Zone;
 
+template <typename T>
+class Signature;
+
 struct UntaggedT {};
 
 struct IntegralT : UntaggedT {};
