@@ -644,10 +644,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
     // The contents of external strings aren't on the heap, so we have to record
     // them manually.
     ExternalString* external_source_string = ExternalString::cast(source);
-    size_t length_multiplier = external_source_string->IsTwoByteRepresentation()
-                                   ? kShortSize
-                                   : kCharSize;
-    size_t off_heap_size = external_source_string->length() * length_multiplier;
+    size_t off_heap_size = external_source_string->ExternalPayloadSize();
     size_t on_heap_size = external_source_string->Size();
     RecordVirtualObjectStats(script, external_source_string,
                              ObjectStats::SCRIPT_SOURCE_EXTERNAL_TYPE,

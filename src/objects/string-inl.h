@@ -529,7 +529,7 @@ HeapObject* ThinString::unchecked_actual() const {
   return reinterpret_cast<HeapObject*>(READ_FIELD(this, kActualOffset));
 }
 
-bool ExternalString::is_short() {
+bool ExternalString::is_short() const {
   InstanceType type = map()->instance_type();
   return (type & kShortExternalStringMask) == kShortExternalStringTag;
 }

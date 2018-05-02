@@ -717,7 +717,9 @@ class ExternalString : public String {
   static const int kSize = kResourceDataOffset + kPointerSize;
 
   // Return whether external string is short (data pointer is not cached).
-  inline bool is_short();
+  inline bool is_short() const;
+  // Size in bytes of the external payload.
+  int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
   inline Address resource_as_address();

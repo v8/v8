@@ -12089,6 +12089,11 @@ void SeqTwoByteString::clear_padding() {
          SizeFor(length()) - data_size);
 }
 
+int ExternalString::ExternalPayloadSize() const {
+  int length_multiplier = IsTwoByteRepresentation() ? kShortSize : kCharSize;
+  return length() * length_multiplier;
+}
+
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.

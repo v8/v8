@@ -6593,10 +6593,12 @@ class V8_EXPORT HeapCodeStatistics {
   HeapCodeStatistics();
   size_t code_and_metadata_size() { return code_and_metadata_size_; }
   size_t bytecode_and_metadata_size() { return bytecode_and_metadata_size_; }
+  size_t external_script_source_size() { return external_script_source_size_; }
 
  private:
   size_t code_and_metadata_size_;
   size_t bytecode_and_metadata_size_;
+  size_t external_script_source_size_;
 
   friend class Isolate;
 };

@@ -430,6 +430,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(const v8::StartupData*, snapshot_blob, nullptr)                           \
   V(int, code_and_metadata_size, 0)                                           \
   V(int, bytecode_and_metadata_size, 0)                                       \
+  V(int, external_script_source_size, 0)                                      \
   /* true if being profiled. Causes collection of extra compile info. */      \
   V(bool, is_profiling, false)                                                \
   /* true if a trace is being formatted through Error.prepareStackTrace. */   \
