@@ -536,12 +536,30 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 
 void LiftoffAssembler::emit_jump(Label* label) { B(label); }
 
-void LiftoffAssembler::emit_jump(Register target) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Register target) { Br(target); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {
-  BAILOUT("emit_cond_jump");
+  switch (type) {
+    case kWasmI32:
+      if (rhs.IsValid()) {
+        Cmp(lhs.W(), rhs.W());
+      } else {
+        Cmp(lhs.W(), wzr);
+      }
+      break;
+    case kWasmI64:
+      if (rhs.IsValid()) {
+        Cmp(lhs.X(), rhs.X());
+      } else {
+        Cmp(lhs.X(), xzr);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+  B(label, cond);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
