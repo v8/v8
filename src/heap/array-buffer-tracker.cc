@@ -29,7 +29,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   size_t moved_size = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    old_buffer = reinterpret_cast<JSArrayBuffer*>(*it);
+    old_buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
       new_retained_size += NumberToSize(old_buffer->byte_length());
@@ -51,14 +51,12 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       }
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
-      // Size of freed memory is computed to avoid looking at dead objects.
-      void* allocation_base = old_buffer->allocation_base();
-      DCHECK_NOT_NULL(allocation_base);
-
+      // We pass backing_store() and stored length to the collector for freeing
+      // the backing store. Wasm allocations will go through their own tracker
+      // based on the backing store.
       backing_stores_to_free->emplace_back(
-          allocation_base, old_buffer->allocation_length(),
-          old_buffer->backing_store(), old_buffer->allocation_mode(),
-          old_buffer->is_wasm_memory());
+          old_buffer->backing_store(), it->second, old_buffer->backing_store(),
+          old_buffer->allocation_mode(), old_buffer->is_wasm_memory());
       it = array_buffers_.erase(it);
     } else {
       UNREACHABLE();

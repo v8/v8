@@ -1024,7 +1024,7 @@ struct ManuallyExternalizedBuffer {
   }
   ~ManuallyExternalizedBuffer() {
     if (should_free_) {
-      buffer_->FreeBackingStore();
+      buffer_->FreeBackingStoreFromMainThread();
     }
   }
 };

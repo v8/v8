@@ -322,7 +322,7 @@ void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
       // by Neuter. This means there is a dangling pointer until we neuter the
       // buffer. Since there is no way for the user to directly call
       // FreeBackingStore, we can ensure this is safe.
-      buffer->FreeBackingStore();
+      buffer->FreeBackingStoreFromMainThread();
     }
   }
 

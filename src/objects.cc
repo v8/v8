@@ -19192,7 +19192,7 @@ void JSArrayBuffer::Neuter() {
   }
 }
 
-void JSArrayBuffer::FreeBackingStore() {
+void JSArrayBuffer::FreeBackingStoreFromMainThread() {
   if (allocation_base() == nullptr) {
     return;
   }
