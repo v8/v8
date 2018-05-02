@@ -290,6 +290,20 @@ test(function() {
   new Map([1]);
 }, "Iterator value 1 is not an entry object", TypeError);
 
+test(function() {
+  let holeyDoubleArray = [, 123.123];
+  assertTrue(%HasDoubleElements(holeyDoubleArray));
+  assertTrue(%HasHoleyElements(holeyDoubleArray));
+  new Map(holeyDoubleArray);
+}, "Iterator value undefined is not an entry object", TypeError);
+
+test(function() {
+  let holeyDoubleArray = [, 123.123];
+  assertTrue(%HasDoubleElements(holeyDoubleArray));
+  assertTrue(%HasHoleyElements(holeyDoubleArray));
+  new WeakMap(holeyDoubleArray);
+}, "Iterator value undefined is not an entry object", TypeError);
+
 // kNotConstructor
 test(function() {
   new Symbol();

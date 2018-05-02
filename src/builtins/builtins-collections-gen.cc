@@ -262,12 +262,11 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     // A Map constructor requires entries to be arrays (ex. [key, value]),
     // so a FixedDoubleArray can never succeed.
     if (variant == kMap || variant == kWeakMap) {
-      TNode<Float64T> element =
-          UncheckedCast<Float64T>(LoadFixedDoubleArrayElement(
-              elements, IntPtrConstant(0), MachineType::Float64(), 0,
-              INTPTR_PARAMETERS));
+      CSA_ASSERT(this, IntPtrGreaterThan(length, IntPtrConstant(0)));
+      TNode<Object> element =
+          LoadAndNormalizeFixedDoubleArrayElement(elements, IntPtrConstant(0));
       ThrowTypeError(context, MessageTemplate::kIteratorValueNotAnObject,
-                     AllocateHeapNumberWithValue(element));
+                     element);
     } else {
       DCHECK(variant == kSet || variant == kWeakSet);
       auto set_entry = [&](Node* index) {
