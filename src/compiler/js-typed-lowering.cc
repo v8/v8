@@ -104,9 +104,7 @@ class JSBinopReduction final {
           // empty string. Since we don't know anything about the right hand
           // side here, we must ensure that the left hand side satisfy the
           // constraints independent of the right hand side.
-          return left_string->IsSeqString() ||
-                 left_string->IsExternalString() ||
-                 left_string->IsSlicedString();
+          return left_string->IsSeqString() || left_string->IsExternalString();
         }
       }
     }

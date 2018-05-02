@@ -1070,7 +1070,7 @@ Token::Value Scanner::ScanString() {
     char c = static_cast<char>(c0_);
     if (c == '\\') break;
     Advance<false, false>();
-    AddSimpleLiteralChar(c);
+    AddLiteralChar(c);
   }
 
   bool (*line_terminator_func)(unsigned int) =
@@ -1393,7 +1393,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   int start_pos = source_pos();  // For reporting octal positions.
   if (seen_period) {
     // we have already seen a decimal point of the float
-    AddSimpleLiteralChar('.');
+    AddLiteralChar('.');
     if (allow_harmony_numeric_separator() && c0_ == '_') {
       return Token::ILLEGAL;
     }
@@ -1703,11 +1703,11 @@ Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
       // Identifier starting with lowercase.
       char first_char = static_cast<char>(c0_);
       Advance<false, false>();
-      AddSimpleLiteralChar(first_char);
+      AddLiteralChar(first_char);
       while (IsAsciiIdentifier(c0_)) {
         char first_char = static_cast<char>(c0_);
         Advance<false, false>();
-        AddSimpleLiteralChar(first_char);
+        AddLiteralChar(first_char);
       }
       if (c0_ <= kMaxAscii && c0_ != '\\') {
         literal->Complete();
@@ -1730,7 +1730,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
     do {
       char first_char = static_cast<char>(c0_);
       Advance<false, false>();
-      AddSimpleLiteralChar(first_char);
+      AddLiteralChar(first_char);
     } while (IsAsciiIdentifier(c0_));
 
     if (c0_ <= kMaxAscii && c0_ != '\\') {
@@ -1920,31 +1920,25 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
 const AstRawString* Scanner::CurrentSymbol(
     AstValueFactory* ast_value_factory) const {
   if (is_literal_one_byte()) {
-    return ast_value_factory->GetOneByteString(literal_one_byte_string(),
-                                               literal_source_pos());
+    return ast_value_factory->GetOneByteString(literal_one_byte_string());
   }
-  return ast_value_factory->GetTwoByteString(literal_two_byte_string(),
-                                             literal_source_pos());
+  return ast_value_factory->GetTwoByteString(literal_two_byte_string());
 }
 
 const AstRawString* Scanner::NextSymbol(
     AstValueFactory* ast_value_factory) const {
   if (is_next_literal_one_byte()) {
-    return ast_value_factory->GetOneByteString(next_literal_one_byte_string(),
-                                               next_literal_source_pos());
+    return ast_value_factory->GetOneByteString(next_literal_one_byte_string());
   }
-  return ast_value_factory->GetTwoByteString(next_literal_two_byte_string(),
-                                             next_literal_source_pos());
+  return ast_value_factory->GetTwoByteString(next_literal_two_byte_string());
 }
 
 const AstRawString* Scanner::CurrentRawSymbol(
     AstValueFactory* ast_value_factory) const {
   if (is_raw_literal_one_byte()) {
-    return ast_value_factory->GetOneByteString(raw_literal_one_byte_string(),
-                                               raw_literal_source_pos());
+    return ast_value_factory->GetOneByteString(raw_literal_one_byte_string());
   }
-  return ast_value_factory->GetTwoByteString(raw_literal_two_byte_string(),
-                                             raw_literal_source_pos());
+  return ast_value_factory->GetTwoByteString(raw_literal_two_byte_string());
 }
 
 
@@ -1989,8 +1983,7 @@ void Scanner::SeekNext(size_t position) {
               Token::UNINITIALIZED,
               MessageTemplate::kNone,
               {0, 0},
-              Token::UNINITIALIZED,
-              kNoSourcePosition};
+              Token::UNINITIALIZED};
   next_.token = Token::UNINITIALIZED;
   next_.contextual_token = Token::UNINITIALIZED;
   next_next_.token = Token::UNINITIALIZED;

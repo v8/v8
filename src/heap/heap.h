@@ -156,9 +156,6 @@ using v8::MemoryPressureLevel;
   V(Map, short_external_string_with_one_byte_data_map,                         \
     ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
-  V(Map, sliced_internalized_string_map, SlicedInternalizedStringMap)          \
-  V(Map, sliced_one_byte_internalized_string_map,                              \
-    SlicedOneByteInternalizedStringMap)                                        \
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_internalized_string_with_one_byte_data_map,                  \
     ExternalInternalizedStringWithOneByteDataMap)                              \

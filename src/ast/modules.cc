@@ -87,7 +87,7 @@ const AstRawString* FromStringOrUndefined(Isolate* isolate,
                                           AstValueFactory* avfactory,
                                           Handle<Object> object) {
   if (object->IsUndefined(isolate)) return nullptr;
-  return avfactory->GetString(Handle<String>::cast(object), kNoSourcePosition);
+  return avfactory->GetString(Handle<String>::cast(object));
 }
 
 }  // namespace

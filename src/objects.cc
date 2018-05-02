@@ -16433,15 +16433,6 @@ bool SeqOneByteSubStringKey::IsMatch(Object* string) {
   return String::cast(string)->IsOneByteEqualTo(chars);
 }
 
-Handle<String> ExternalOneByteSubStringKey::AsHandle(Isolate* isolate) {
-  return isolate->factory()->NewOneByteInternalizedSubString(
-      string_, from_, length_, HashField());
-}
-
-bool ExternalOneByteSubStringKey::IsMatch(Object* string) {
-  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-  return String::cast(string)->IsOneByteEqualTo(chars);
-}
 
 // InternalizedStringKey carries a string/internalized-string object as key.
 class InternalizedStringKey : public StringTableKey {

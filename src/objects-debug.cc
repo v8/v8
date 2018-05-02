@@ -829,8 +829,7 @@ void ConsString::ConsStringVerify() {
 
 void ThinString::ThinStringVerify() {
   CHECK(this->actual()->IsInternalizedString());
-  CHECK(this->actual()->IsSeqString() || this->actual()->IsExternalString() ||
-        this->actual()->IsSlicedString());
+  CHECK(this->actual()->IsSeqString() || this->actual()->IsExternalString());
 }
 
 void SlicedString::SlicedStringVerify() {

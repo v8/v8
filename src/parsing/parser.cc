@@ -708,8 +708,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We need to make sure that the debug-name is available.
-    Handle<String> source(String::cast(info->script()->source()));
-    ast_value_factory()->Internalize(isolate, source);
+    ast_value_factory()->Internalize(isolate);
     DeclarationScope* function_scope = result->scope();
     Script* script = *info->script();
     std::unique_ptr<char[]> function_name = result->GetDebugName();

@@ -325,10 +325,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 #define INSTANCE_TYPE_LIST(V)                                   \
   V(INTERNALIZED_STRING_TYPE)                                   \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                          \
-  V(SLICED_INTERNALIZED_STRING_TYPE)                            \
   V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                          \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                 \
-  V(SLICED_ONE_BYTE_INTERNALIZED_STRING_TYPE)                   \
   V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)       \
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
   V(SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
@@ -519,10 +517,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
     InternalizedString)                                                       \
   V(ONE_BYTE_INTERNALIZED_STRING_TYPE, kVariableSizeSentinel,                 \
     one_byte_internalized_string, OneByteInternalizedString)                  \
-  V(SLICED_INTERNALIZED_STRING_TYPE, SlicedString::kSize,                     \
-    sliced_internalized_string, SlicedInternalizedString)                     \
-  V(SLICED_ONE_BYTE_INTERNALIZED_STRING_TYPE, SlicedString::kSize,            \
-    sliced_one_byte_internalized_string, SlicedOneByteInternalizedString)     \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE, ExternalTwoByteString::kSize,          \
     external_internalized_string, ExternalInternalizedString)                 \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize, \
@@ -669,10 +663,6 @@ enum InstanceType : uint16_t {
                              kInternalizedTag,  // FIRST_PRIMITIVE_TYPE
   ONE_BYTE_INTERNALIZED_STRING_TYPE =
       kOneByteStringTag | kSeqStringTag | kInternalizedTag,
-  SLICED_INTERNALIZED_STRING_TYPE =
-      kTwoByteStringTag | kSlicedStringTag | kInternalizedTag,
-  SLICED_ONE_BYTE_INTERNALIZED_STRING_TYPE =
-      kOneByteStringTag | kSlicedStringTag | kInternalizedTag,
   EXTERNAL_INTERNALIZED_STRING_TYPE =
       kTwoByteStringTag | kExternalStringTag | kInternalizedTag,
   EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
@@ -695,9 +685,10 @@ enum InstanceType : uint16_t {
   CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag | kNotInternalizedTag,
   CONS_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kConsStringTag | kNotInternalizedTag,
-  SLICED_STRING_TYPE = SLICED_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  SLICED_STRING_TYPE =
+      kTwoByteStringTag | kSlicedStringTag | kNotInternalizedTag,
   SLICED_ONE_BYTE_STRING_TYPE =
-      SLICED_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+      kOneByteStringTag | kSlicedStringTag | kNotInternalizedTag,
   EXTERNAL_STRING_TYPE =
       EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   EXTERNAL_ONE_BYTE_STRING_TYPE =

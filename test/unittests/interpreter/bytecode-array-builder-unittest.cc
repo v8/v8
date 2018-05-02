@@ -429,7 +429,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Generate BytecodeArray.
   scope.SetScriptScopeInfo(factory->NewScopeInfo(1));
-  ast_factory.Internalize(isolate(), Handle<String>());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
            builder.total_register_count() * kPointerSize);
@@ -546,7 +546,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .LoadLiteral(nan)
       .Return();
 
-  ast_factory.Internalize(isolate(), Handle<String>());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
   EXPECT_EQ(4, array->constant_pool()->length());
