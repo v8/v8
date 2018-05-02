@@ -878,12 +878,13 @@ class TurboAssembler : public Assembler {
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
 
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+
  private:
   bool has_frame_ = false;
   bool root_array_available_ = true;
   Isolate* const isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
   bool has_double_zero_reg_set_;
 
   void CompareF(SecondaryField sizeField, FPUCondition cc, FPURegister cmp1,

@@ -27,7 +27,17 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, size, create_code_object) {}
+    : TurboAssembler(isolate, buffer, size, create_code_object) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    // Unlike TurboAssembler, which can be used off the main thread and may not
+    // allocate, macro assembler creates its own copy of the self-reference
+    // marker in order to disambiguate between self-references during nested
+    // code generation (e.g.: codegen of the current object triggers stub
+    // compilation through CodeStub::GetCode()).
+    code_object_ = Handle<HeapObject>::New(
+        *isolate->factory()->NewSelfReferenceMarker(), isolate);
+  }
+}
 
 TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                                CodeObjectRequired create_code_object)
@@ -35,8 +45,8 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
       isolate_(isolate),
       has_double_zero_reg_set_(false) {
   if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ =
-        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+    code_object_ = Handle<HeapObject>::New(
+        isolate->heap()->self_reference_marker(), isolate);
   }
 }
 
@@ -1562,8 +1572,7 @@ void TurboAssembler::Scd(Register rd, const MemOperand& rs) {
 
 void TurboAssembler::li(Register dst, Handle<HeapObject> value, LiFlags mode) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
-      !value.equals(CodeObject())) {
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
     LookupConstant(dst, value);
     return;
   }
@@ -4113,11 +4122,6 @@ void TurboAssembler::LookupConstant(Register destination,
                                     Handle<Object> object) {
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
-
-  // TODO(jgruber, v8:6666): Support self-references. Currently, we'd end up
-  // adding the temporary code object to the constants list, before creating the
-  // final object in Factory::CopyCode.
-  CHECK(code_object_.is_null() || !object.equals(code_object_));
 
   // Ensure the given object is in the builtins constants table and fetch its
   // index.

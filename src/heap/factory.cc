@@ -10,6 +10,7 @@
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/constants-table-builder.h"
 #include "src/compiler.h"
 #include "src/conversions.h"
 #include "src/interpreter/interpreter.h"
@@ -189,6 +190,12 @@ Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
   Handle<Oddball> oddball(Oddball::cast(New(map, TENURED)), isolate());
   Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
   return oddball;
+}
+
+Handle<Oddball> Factory::NewSelfReferenceMarker() {
+  return NewOddball(self_reference_marker_map(), "self_reference_marker",
+                    handle(Smi::FromInt(-1), isolate()), "undefined",
+                    Oddball::kSelfReferenceMarker);
 }
 
 Handle<PropertyArray> Factory::NewPropertyArray(int length,
@@ -2491,7 +2498,15 @@ Handle<Code> Factory::NewCode(
 
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
-  if (!self_ref.is_null()) *(self_ref.location()) = *code;
+  if (!self_ref.is_null()) {
+    DCHECK(self_ref->IsOddball());
+    DCHECK(Oddball::cast(*self_ref)->kind() == Oddball::kSelfReferenceMarker);
+#ifdef V8_EMBEDDED_BUILTINS
+    auto builder = isolate()->builtins_constants_table_builder();
+    if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
+#endif  // V8_EMBEDDED_BUILTINS
+    *(self_ref.location()) = *code;
+  }
 
   // Migrate generated code.
   // The generated code can contain Object** values (typically from handles)
