@@ -237,6 +237,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
   TNode<Map> original_fast_js_array_map = LoadMap(fast_jsarray);
 #endif
   Label exit(this), if_doubles(this), if_smiorobjects(this);
+  GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &exit);
   Branch(IsFastSmiOrTaggedElementsKind(elements_kind), &if_smiorobjects,
          &if_doubles);
   BIND(&if_smiorobjects);
