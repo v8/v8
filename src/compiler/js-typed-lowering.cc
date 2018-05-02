@@ -2227,8 +2227,11 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
   Type value_type = NodeProperties::GetType(value);
   Node* radix = NodeProperties::GetValueInput(node, 1);
   Type radix_type = NodeProperties::GetType(radix);
+  // We need kTenOrUndefined and kZeroOrUndefined because
+  // the type representing {0,10} would become the range 1-10.
   if (value_type.Is(type_cache_.kSafeInteger) &&
-      radix_type.Is(type_cache_.kZeroOrTenOrUndefined)) {
+      (radix_type.Is(type_cache_.kTenOrUndefined) ||
+       radix_type.Is(type_cache_.kZeroOrUndefined))) {
     // Number.parseInt(a:safe-integer) -> a
     // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
     // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a
