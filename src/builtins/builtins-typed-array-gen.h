@@ -24,7 +24,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void GenerateTypedArrayPrototypeGetter(Node* context, Node* receiver,
                                          const char* method_name,
                                          int object_offset);
-  void GenerateTypedArrayPrototypeIterationMethod(Node* context, Node* receiver,
+  void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
+                                                  TNode<Object> receiver,
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 

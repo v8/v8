@@ -1048,7 +1048,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               AllocationFlags flags = kNone);
 
   // Perform CreateArrayIterator (ES #sec-createarrayiterator).
-  Node* CreateArrayIterator(Node* context, Node* object, IterationKind mode);
+  TNode<JSArrayIterator> CreateArrayIterator(TNode<Context> context,
+                                             TNode<Object> object,
+                                             IterationKind mode);
 
   Node* AllocateJSIteratorResult(Node* context, Node* value, Node* done);
   Node* AllocateJSIteratorResultForEntry(Node* context, Node* key, Node* value);

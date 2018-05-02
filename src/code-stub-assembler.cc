@@ -11088,11 +11088,11 @@ Node* CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
 }
 
 // ES #sec-createarrayiterator
-Node* CodeStubAssembler::CreateArrayIterator(Node* context, Node* object,
-                                             IterationKind kind) {
-  Node* native_context = LoadNativeContext(context);
-  Node* iterator_map = LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_MAP_INDEX);
+TNode<JSArrayIterator> CodeStubAssembler::CreateArrayIterator(
+    TNode<Context> context, TNode<Object> object, IterationKind kind) {
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<Map> iterator_map = CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_MAP_INDEX));
   Node* iterator = Allocate(JSArrayIterator::kSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOrHashOffset,
@@ -11106,7 +11106,7 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* context, Node* object,
   StoreObjectFieldNoWriteBarrier(
       iterator, JSArrayIterator::kKindOffset,
       SmiConstant(Smi::FromInt(static_cast<int>(kind))));
-  return iterator;
+  return CAST(iterator);
 }
 
 Node* CodeStubAssembler::AllocateJSIteratorResult(Node* context, Node* value,

@@ -1531,7 +1531,7 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
 }
 
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
-    Node* context, Node* receiver, const char* method_name,
+    TNode<Context> context, TNode<Object> receiver, const char* method_name,
     IterationKind kind) {
   Label throw_bad_receiver(this, Label::kDeferred);
 
@@ -1539,8 +1539,8 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   GotoIfNot(IsJSTypedArray(CAST(receiver)), &throw_bad_receiver);
 
   // Check if the {receiver}'s JSArrayBuffer was neutered.
-  Node* receiver_buffer =
-      LoadObjectField(receiver, JSTypedArray::kBufferOffset);
+  TNode<JSArrayBuffer> receiver_buffer = LoadObjectField<JSArrayBuffer>(
+      CAST(receiver), JSTypedArray::kBufferOffset);
   Label if_receiverisneutered(this, Label::kDeferred);
   GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiverisneutered);
 
@@ -1555,8 +1555,8 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
 
 // ES #sec-%typedarray%.prototype.values
 TF_BUILTIN(TypedArrayPrototypeValues, TypedArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   GenerateTypedArrayPrototypeIterationMethod(context, receiver,
                                              "%TypedArray%.prototype.values()",
                                              IterationKind::kValues);
@@ -1564,8 +1564,8 @@ TF_BUILTIN(TypedArrayPrototypeValues, TypedArrayBuiltinsAssembler) {
 
 // ES #sec-%typedarray%.prototype.entries
 TF_BUILTIN(TypedArrayPrototypeEntries, TypedArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   GenerateTypedArrayPrototypeIterationMethod(context, receiver,
                                              "%TypedArray%.prototype.entries()",
                                              IterationKind::kEntries);
@@ -1573,8 +1573,8 @@ TF_BUILTIN(TypedArrayPrototypeEntries, TypedArrayBuiltinsAssembler) {
 
 // ES #sec-%typedarray%.prototype.keys
 TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   GenerateTypedArrayPrototypeIterationMethod(
       context, receiver, "%TypedArray%.prototype.keys()", IterationKind::kKeys);
 }
