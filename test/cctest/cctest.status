@@ -140,6 +140,9 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # Until https://crbug.com/v8/7718 is fixed.
+  'test-serialize/PartialSerializerCustomContext': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
