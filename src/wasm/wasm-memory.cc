@@ -279,11 +279,15 @@ MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
     memory = memory_tracker->GetEmptyBackingStore(
         &allocation_base, &allocation_length, isolate->heap());
   } else {
-    bool require_full_guard_regions = trap_handler::IsTrapHandlerEnabled();
+#if V8_TARGET_ARCH_64_BIT
+    bool require_full_guard_regions = true;
+#else
+    bool require_full_guard_regions = false;
+#endif
     memory = TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
                                      require_full_guard_regions,
                                      &allocation_base, &allocation_length);
-    if (memory == nullptr && require_full_guard_regions) {
+    if (memory == nullptr && !trap_handler::IsTrapHandlerEnabled()) {
       // If we failed to allocate with full guard regions, fall back on
       // mini-guards.
       require_full_guard_regions = false;
