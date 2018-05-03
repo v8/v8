@@ -82,8 +82,7 @@ FILE* Log::Close() {
   return result;
 }
 
-Log::MessageBuilder::MessageBuilder(Log* log)
-    : log_(log), lock_guard_(&log_->mutex_) {
+Log::MessageBuilder::MessageBuilder(Log* log) : log_(log) {
   DCHECK_NOT_NULL(log_->format_buffer_);
 }
 

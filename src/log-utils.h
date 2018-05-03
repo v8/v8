@@ -7,11 +7,6 @@
 
 #include <stdio.h>
 
-#include <cstdarg>
-
-#include "src/allocation.h"
-#include "src/base/compiler-specific.h"
-#include "src/base/platform/mutex.h"
 #include "src/flags.h"
 #include "src/ostreams.h"
 
@@ -95,7 +90,6 @@ class Log {
 
    private:
     Log* log_;
-    base::LockGuard<base::Mutex> lock_guard_;
   };
 
  private:
@@ -116,10 +110,6 @@ class Log {
   // destination.  mutex_ should be acquired before using output_handle_.
   FILE* output_handle_;
   OFStream os_;
-
-  // mutex_ is a Mutex used for enforcing exclusive
-  // access to the formatting buffer and the log file or log memory buffer.
-  base::Mutex mutex_;
 
   // Buffer used for formatting log messages. This is a singleton buffer and
   // mutex_ should be acquired before using it.
