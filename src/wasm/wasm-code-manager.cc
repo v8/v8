@@ -306,8 +306,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "lazy-compile";
     case WasmCode::kInterpreterStub:
       return "interpreter-entry";
-    case WasmCode::kCopiedStub:
-      return "copied stub";
     case WasmCode::kTrampoline:
       return "trampoline";
   }

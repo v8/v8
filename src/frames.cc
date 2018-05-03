@@ -463,7 +463,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         case wasm::WasmCode::kInterpreterStub:
           return WASM_INTERPRETER_ENTRY;
         case wasm::WasmCode::kFunction:
-        case wasm::WasmCode::kCopiedStub:
           return WASM_COMPILED;
         case wasm::WasmCode::kLazyStub:
           if (StackFrame::IsTypeMarker(marker)) break;

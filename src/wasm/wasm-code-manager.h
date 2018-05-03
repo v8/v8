@@ -86,7 +86,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kWasmToJsWrapper,
     kLazyStub,
     kInterpreterStub,
-    kCopiedStub,
     kTrampoline
   };
 
