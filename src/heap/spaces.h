@@ -892,7 +892,7 @@ class LargePage : public MemoryChunk {
 
  private:
   static LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
-                               Executability executable, Space* owner);
+                               Executability executable);
 
   friend class MemoryAllocator;
 };

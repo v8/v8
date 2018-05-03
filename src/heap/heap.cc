@@ -1761,7 +1761,7 @@ bool Heap::PerformGarbageCollection(
   }
 
   if (!fast_promotion_mode_ || collector == MARK_COMPACTOR) {
-    ComputeFastPromotionMode(promotion_ratio_ + semi_space_copied_rate_);
+    ComputeFastPromotionMode();
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
@@ -2238,7 +2238,7 @@ void Heap::Scavenge() {
   SetGCState(NOT_IN_GC);
 }
 
-void Heap::ComputeFastPromotionMode(double survival_rate) {
+void Heap::ComputeFastPromotionMode() {
   const size_t survived_in_new_space =
       survived_last_scavenge_ * 100 / new_space_->Capacity();
   fast_promotion_mode_ =

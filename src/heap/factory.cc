@@ -421,8 +421,8 @@ Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count) {
 Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
                                           PretenureFlag pretenure) {
   DCHECK_LE(0, number_of_frames);
-  Handle<FixedArray> result =
-      NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
+  Handle<FixedArray> result = NewFixedArrayWithHoles(
+      FrameArray::LengthFor(number_of_frames), pretenure);
   result->set(FrameArray::kFrameCountIndex, Smi::kZero);
   return Handle<FrameArray>::cast(result);
 }
@@ -638,7 +638,7 @@ bool inline IsOneByte(Vector<const char> str, int chars) {
   return chars == str.length();
 }
 
-bool inline IsOneByte(Handle<String> str, int chars) {
+bool inline IsOneByte(Handle<String> str) {
   return str->IsOneByteRepresentation();
 }
 
@@ -789,7 +789,7 @@ Handle<String> Factory::NewTwoByteInternalizedString(Vector<const uc16> str,
 Handle<String> Factory::NewInternalizedStringImpl(Handle<String> string,
                                                   int chars,
                                                   uint32_t hash_field) {
-  if (IsOneByte(string, chars)) {
+  if (IsOneByte(string)) {
     return AllocateInternalizedStringImpl<true>(string, chars, hash_field);
   }
   return AllocateInternalizedStringImpl<false>(string, chars, hash_field);

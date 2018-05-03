@@ -2897,15 +2897,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateTypedPointers() {
-    Isolate* isolate = heap_->isolate();
     if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
         nullptr) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk_,
-          [isolate, this](SlotType slot_type, Address host_addr, Address slot) {
+          chunk_, [this](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate, slot_type, slot, [this](MaybeObject** slot) {
+                slot_type, slot, [this](MaybeObject** slot) {
                   return CheckAndUpdateOldToNewSlot(
                       reinterpret_cast<Address>(slot));
                 });
@@ -2916,13 +2914,11 @@ class RememberedSetUpdatingItem : public UpdatingItem {
          nullptr)) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk_,
-          [isolate](SlotType slot_type, Address host_addr, Address slot) {
+          chunk_, [](SlotType slot_type, Address host_addr, Address slot) {
             // Using UpdateStrongSlot is OK here, because there are no weak
             // typed slots.
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate, slot_type, slot,
-                UpdateStrongSlot<AccessMode::NON_ATOMIC>);
+                slot_type, slot, UpdateStrongSlot<AccessMode::NON_ATOMIC>);
           });
     }
   }
@@ -4058,12 +4054,11 @@ class PageMarkingItem : public MarkingItem {
   }
 
   void MarkTypedPointers(YoungGenerationMarkingTask* task) {
-    Isolate* isolate = heap()->isolate();
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        chunk_, [this, isolate, task](SlotType slot_type, Address host_addr,
-                                      Address slot) {
+        chunk_,
+        [this, task](SlotType slot_type, Address host_addr, Address slot) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              isolate, slot_type, slot, [this, task](MaybeObject** slot) {
+              slot_type, slot, [this, task](MaybeObject** slot) {
                 return CheckAndMarkObject(task,
                                           reinterpret_cast<Address>(slot));
               });

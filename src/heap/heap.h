@@ -1976,7 +1976,7 @@ class Heap {
 
   bool InvokeNearHeapLimitCallback();
 
-  void ComputeFastPromotionMode(double survival_rate);
+  void ComputeFastPromotionMode();
 
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete

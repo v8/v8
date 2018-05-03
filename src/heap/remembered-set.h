@@ -328,8 +328,7 @@ class UpdateTypedSlotHelper {
   // Updates a typed slot using an untyped slot callback.
   // The callback accepts MaybeObject** and returns SlotCallbackResult.
   template <typename Callback>
-  static SlotCallbackResult UpdateTypedSlot(Isolate* isolate,
-                                            SlotType slot_type, Address addr,
+  static SlotCallbackResult UpdateTypedSlot(SlotType slot_type, Address addr,
                                             Callback callback) {
     switch (slot_type) {
       case CODE_TARGET_SLOT: {
