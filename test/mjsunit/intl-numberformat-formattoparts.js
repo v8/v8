@@ -210,7 +210,6 @@ if (this.Intl) {
                Integer("٥٣٢"),
                Decimal("٫"),
                Fraction("٠٠"),
-               Literal("\xA0"),
                PercentSign("٪\u{061C}")]);
 
   // Decimals.
