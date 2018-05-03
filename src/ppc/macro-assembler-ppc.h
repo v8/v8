@@ -676,14 +676,16 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
+ protected:
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   bool has_frame_ = false;
   bool root_array_available_ = true;
   Isolate* const isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
