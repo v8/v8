@@ -267,6 +267,9 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
   module_object->set_compiled_module(*compiled_module);
+  Handle<WeakCell> link_to_module =
+      isolate->factory()->NewWeakCell(module_object);
+  compiled_module->set_weak_wasm_module(*link_to_module);
 
   compiled_module->LogWasmCodes(isolate);
   return module_object;
@@ -276,6 +279,8 @@ void WasmModuleObject::ValidateStateForTesting(
     Isolate* isolate, Handle<WasmModuleObject> module_obj) {
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
+  CHECK(compiled_module->has_weak_wasm_module());
+  CHECK_EQ(compiled_module->weak_wasm_module()->value(), *module_obj);
   CHECK(!compiled_module->has_prev_instance());
   CHECK(!compiled_module->has_next_instance());
   CHECK(!compiled_module->has_instance());
@@ -734,8 +739,7 @@ Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
 }
 
 Handle<WasmInstanceObject> WasmInstanceObject::New(
-    Isolate* isolate, Handle<WasmModuleObject> module_object,
-    Handle<WasmCompiledModule> compiled_module) {
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   Handle<JSFunction> instance_cons(
       isolate->native_context()->wasm_instance_constructor());
   Handle<JSObject> instance_object =
@@ -769,7 +773,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_indirect_function_table_targets(nullptr);
   instance->set_compiled_module(*compiled_module);
   instance->set_native_context(*isolate->native_context());
-  instance->set_module_object(*module_object);
 
   return instance;
 }
@@ -779,12 +782,15 @@ void WasmInstanceObject::ValidateInstancesChainForTesting(
   CHECK_GE(instance_count, 0);
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
+  CHECK_EQ(JSObject::cast(compiled_module->weak_wasm_module()->value()),
+           *module_obj);
   Object* prev = nullptr;
   int found_instances = compiled_module->has_instance() ? 1 : 0;
   WasmCompiledModule* current_instance = compiled_module;
   while (current_instance->has_next_instance()) {
     CHECK((prev == nullptr && !current_instance->has_prev_instance()) ||
           current_instance->prev_instance() == prev);
+    CHECK_EQ(current_instance->weak_wasm_module()->value(), *module_obj);
     CHECK(current_instance->weak_owning_instance()
               ->value()
               ->IsWasmInstanceObject());
@@ -795,6 +801,14 @@ void WasmInstanceObject::ValidateInstancesChainForTesting(
     CHECK_LE(found_instances, instance_count);
   }
   CHECK_EQ(found_instances, instance_count);
+}
+
+void WasmInstanceObject::ValidateOrphanedInstanceForTesting(
+    Isolate* isolate, Handle<WasmInstanceObject> instance) {
+  DisallowHeapAllocation no_gc;
+  WasmCompiledModule* compiled_module = instance->compiled_module();
+  CHECK(compiled_module->has_weak_wasm_module());
+  CHECK(compiled_module->weak_wasm_module()->cleared());
 }
 
 namespace {
@@ -812,6 +826,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   } else {
     TRACE("Finalized already cleaned up compiled module\n");
   }
+  WeakCell* weak_wasm_module = compiled_module->weak_wasm_module();
 
   // Since the order of finalizers is not guaranteed, it can be the case
   // that {instance->compiled_module()->module()}, which is a
@@ -824,18 +839,23 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
                                      handle(instance));
   }
 
-  // We want to maintain a link from the {WasmModuleObject} to the first link
-  // within the linked {WasmInstanceObject} list, even if the last instance is
-  // finalized. This allows us to clone new {WasmCompiledModule} objects during
-  // instantiation without having to regenerate the compiled module.
-  WasmModuleObject* module_object = instance->module_object();
-  WasmCompiledModule* current_template = module_object->compiled_module();
-  DCHECK(!current_template->has_prev_instance());
-  if (current_template == compiled_module) {
-    if (!compiled_module->has_next_instance()) {
-      WasmCompiledModule::Reset(isolate, compiled_module);
-    } else {
-      module_object->set_compiled_module(compiled_module->next_instance());
+  // weak_wasm_module may have been cleared, meaning the module object
+  // was GC-ed. We still want to maintain the links between instances, to
+  // release the WasmCompiledModule corresponding to the WasmModuleInstance
+  // being finalized here.
+  WasmModuleObject* wasm_module = nullptr;
+  if (!weak_wasm_module->cleared()) {
+    wasm_module = WasmModuleObject::cast(weak_wasm_module->value());
+    WasmCompiledModule* current_template = wasm_module->compiled_module();
+
+    DCHECK(!current_template->has_prev_instance());
+    if (current_template == compiled_module) {
+      if (!compiled_module->has_next_instance()) {
+        WasmCompiledModule::Reset(isolate, compiled_module);
+      } else {
+        WasmModuleObject::cast(wasm_module)
+            ->set_compiled_module(compiled_module->next_instance());
+      }
     }
   }
 
@@ -1361,6 +1381,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   ret->set_shared(module->shared());
   ret->set_export_wrappers(module->export_wrappers());
+  ret->set_weak_wasm_module(module->weak_wasm_module());
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   ret->set_native_module(module->native_module());
 
@@ -1459,6 +1480,7 @@ void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {
   WasmCompiledModule* original = module->compiled_module();
   set_next_instance(original);
   original->set_prev_instance(this);
+  set_weak_wasm_module(original->weak_wasm_module());
 }
 
 void WasmCompiledModule::RemoveFromChain() {

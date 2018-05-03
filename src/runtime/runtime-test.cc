@@ -932,6 +932,14 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmModuleState) {
   return isolate->heap()->ToBoolean(true);
 }
 
+RUNTIME_FUNCTION(Runtime_ValidateWasmOrphanedInstance) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  WasmInstanceObject::ValidateOrphanedInstanceForTesting(isolate, instance);
+  return isolate->heap()->ToBoolean(true);
+}
+
 RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

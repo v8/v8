@@ -262,7 +262,6 @@ class WasmInstanceObject : public JSObject {
   DECL_CAST(WasmInstanceObject)
 
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
-  DECL_ACCESSORS(module_object, WasmModuleObject)
   DECL_ACCESSORS(exports_object, JSObject)
   DECL_ACCESSORS(native_context, Context)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
@@ -288,7 +287,6 @@ class WasmInstanceObject : public JSObject {
 // Layout description.
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                  \
   V(kCompiledModuleOffset, kPointerSize)                                \
-  V(kModuleObjectOffset, kPointerSize)                                  \
   V(kExportsObjectOffset, kPointerSize)                                 \
   V(kNativeContextOffset, kPointerSize)                                 \
   V(kMemoryObjectOffset, kPointerSize)                                  \
@@ -332,12 +330,14 @@ class WasmInstanceObject : public JSObject {
   // If no debug info exists yet, it is created automatically.
   static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);
 
-  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>,
-                                        Handle<WasmCompiledModule>);
+  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmCompiledModule>);
 
   static void ValidateInstancesChainForTesting(
       Isolate* isolate, Handle<WasmModuleObject> module_obj,
       int instance_count);
+
+  static void ValidateOrphanedInstanceForTesting(
+      Isolate* isolate, Handle<WasmInstanceObject> instance);
 
   static void InstallFinalizer(Isolate* isolate,
                                Handle<WasmInstanceObject> instance);
@@ -499,6 +499,7 @@ class WasmCompiledModule : public Struct {
   V(kNextInstanceOffset, kPointerSize)          \
   V(kPrevInstanceOffset, kPointerSize)          \
   V(kOwningInstanceOffset, kPointerSize)        \
+  V(kWasmModuleOffset, kPointerSize)            \
   V(kNativeModuleOffset, kPointerSize)          \
   V(kSize, 0)
 
@@ -535,6 +536,7 @@ class WasmCompiledModule : public Struct {
   WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
+  WCM_WEAK_LINK(WasmModuleObject, wasm_module)
   WCM_OBJECT(Foreign, native_module)
 
  public:
