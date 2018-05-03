@@ -410,6 +410,43 @@ bool JSObject::ElementsAreSafeToExamine() {
       GetHeap()->one_pointer_filler_map();
 }
 
+namespace {
+void VerifyJSObjectElements(JSObject* object) {
+  Isolate* isolate = object->GetIsolate();
+  // Only TypedArrays can have these specialized elements.
+  if (object->IsJSTypedArray()) {
+    // TODO(cbruni): Fix CreateTypedArray to either not instantiate the object
+    // or propertly initialize it on errors during construction.
+    /* CHECK(object->HasFixedTypedArrayElements()); */
+    /* CHECK(object->elements()->IsFixedTypedArrayBase()); */
+    return;
+  }
+  CHECK(!object->HasFixedTypedArrayElements());
+  CHECK(!object->elements()->IsFixedTypedArrayBase());
+
+  if (object->HasDoubleElements()) {
+    if (object->elements()->length() > 0) {
+      CHECK(object->elements()->IsFixedDoubleArray());
+    }
+    return;
+  }
+
+  FixedArray* elements = FixedArray::cast(object->elements());
+  if (object->HasSmiElements()) {
+    // We might have a partially initialized backing store, in which case we
+    // allow the hole + smi values.
+    for (int i = 0; i < elements->length(); i++) {
+      Object* value = elements->get(i);
+      CHECK(value->IsSmi() || value->IsTheHole(isolate));
+    }
+  } else if (object->HasObjectElements()) {
+    for (int i = 0; i < elements->length(); i++) {
+      Object* element = elements->get(i);
+      CHECK_IMPLIES(!element->IsSmi(), !HasWeakHeapObjectTag(element));
+    }
+  }
+}
+}  // namespace
 
 void JSObject::JSObjectVerify() {
   VerifyPointer(raw_properties_or_hash());
@@ -483,7 +520,8 @@ void JSObject::JSObjectVerify() {
               HasFastStringWrapperElements()),
              (elements()->map() == GetHeap()->fixed_array_map() ||
               elements()->map() == GetHeap()->fixed_cow_array_map()));
-    CHECK(map()->has_fast_object_elements() == HasObjectElements());
+    CHECK_EQ(map()->has_fast_object_elements(), HasObjectElements());
+    VerifyJSObjectElements(this);
   }
 }
 
@@ -1047,6 +1085,9 @@ void JSArray::JSArrayVerify() {
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
   if (length()->IsSmi() && HasFastElements()) {
+    if (elements()->length() > 0) {
+      CHECK_IMPLIES(HasDoubleElements(), elements()->IsFixedDoubleArray());
+    }
     int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
     // properly initialized yet.
