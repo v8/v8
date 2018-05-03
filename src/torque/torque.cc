@@ -86,6 +86,7 @@ int WrappedMain(int argc, const char** argv) {
   if (output_directory.length() != 0) {
     {
       DeclarationVisitor visitor(global_context);
+
       visitor.Visit(global_context.ast());
 
       std::string output_header_path = output_directory;

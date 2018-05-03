@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_DECLARABLE_H_
 #define V8_TORQUE_DECLARABLE_H_
 
+#include <cassert>
 #include <string>
 
 #include "src/base/logging.h"
@@ -16,25 +17,28 @@ namespace internal {
 namespace torque {
 
 class Scope;
+class ScopeChain;
 
 class Declarable {
  public:
   virtual ~Declarable() {}
   enum Kind {
-    kVariable = 0,
+    kTypeImpl,
+    kVariable,
     kParameter,
     kMacro,
     kMacroList,
     kBuiltin,
-    kRuntime,
+    kRuntimeFunction,
     kLabel,
     kConstant
   };
   explicit Declarable(Kind kind) : kind_(kind) {}
   Kind kind() const { return kind_; }
+  bool IsTypeImpl() const { return kind() == kTypeImpl; }
   bool IsMacro() const { return kind() == kMacro; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
-  bool IsRuntime() const { return kind() == kRuntime; }
+  bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
   bool IsParameter() const { return kind() == kParameter; }
   bool IsLabel() const { return kind() == kLabel; }
   bool IsVariable() const { return kind() == kVariable; }
@@ -59,6 +63,25 @@ class Declarable {
     return static_cast<const x*>(declarable);          \
   }                                                    \
   const char* type_name() const override { return #y; }
+
+class TypeImpl : public Declarable {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(TypeImpl, type_impl);
+  TypeImpl(TypeImpl* parent, const std::string& name,
+           const std::string& generated_type)
+      : Declarable(Declarable::kTypeImpl),
+        parent_(parent),
+        name_(name),
+        generated_type_(generated_type) {}
+  TypeImpl* parent() const { return parent_; }
+  const std::string& name() const { return name_; }
+  const std::string& generated_type() const { return generated_type_; }
+
+ private:
+  TypeImpl* parent_;
+  std::string name_;
+  std::string generated_type_;
+};
 
 class Value : public Declarable {
  public:
@@ -87,7 +110,7 @@ class Parameter : public Value {
   std::string GetValueForDeclaration() const override { return var_name_; }
 
  private:
-  friend class Scope;
+  friend class Declarations;
   Parameter(const std::string& name, Type type, const std::string& var_name)
       : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
 
@@ -107,7 +130,7 @@ class Variable : public Value {
   bool IsDefined() const { return defined_; }
 
  private:
-  friend class Scope;
+  friend class Declarations;
   Variable(const std::string& name, const std::string& value, Type type)
       : Value(Declarable::kVariable, type, name),
         value_(value),
@@ -131,7 +154,7 @@ class Label : public Value {
   bool IsUsed() const { return used_; }
 
  private:
-  friend class Scope;
+  friend class Declarations;
   explicit Label(const std::string& name)
       : Value(Declarable::kLabel, Type(),
               "label_" + name + "_" + std::to_string(next_id_++)),
@@ -150,7 +173,7 @@ class Constant : public Value {
   std::string GetValueForDeclaration() const override { return value_; }
 
  private:
-  friend class Scope;
+  friend class Declarations;
   explicit Constant(const std::string& name, Type type,
                     const std::string& value)
       : Value(Declarable::kConstant, type, name), value_(value) {}
@@ -162,15 +185,14 @@ class Callable : public Declarable {
  public:
   static Callable* cast(Declarable* declarable) {
     assert(declarable->IsMacro() || declarable->IsBuiltin() ||
-           declarable->IsRuntime());
+           declarable->IsRuntimeFunction());
     return static_cast<Callable*>(declarable);
   }
   static const Callable* cast(const Declarable* declarable) {
     assert(declarable->IsMacro() || declarable->IsBuiltin() ||
-           declarable->IsRuntime());
+           declarable->IsRuntimeFunction());
     return static_cast<const Callable*>(declarable);
   }
-  Scope* scope() const { return scope_; }
   const std::string& name() const { return name_; }
   const Signature& signature() const { return signature_; }
   const NameVector& parameter_names() const {
@@ -183,17 +205,12 @@ class Callable : public Declarable {
   bool HasReturns() const { return returns_; }
 
  protected:
-  Callable(Declarable::Kind kind, const std::string& name, Scope* scope,
+  Callable(Declarable::Kind kind, const std::string& name,
            const Signature& signature)
-      : Declarable(kind),
-        name_(name),
-        scope_(scope),
-        signature_(signature),
-        returns_(0) {}
+      : Declarable(kind), name_(name), signature_(signature), returns_(0) {}
 
  private:
   std::string name_;
-  Scope* scope_;
   Signature signature_;
   size_t returns_;
 };
@@ -203,31 +220,30 @@ class Macro : public Callable {
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
 
  protected:
-  Macro(Declarable::Kind type, const std::string& name, Scope* scope,
+  Macro(Declarable::Kind type, const std::string& name,
         const Signature& signature)
-      : Callable(type, name, scope, signature) {}
+      : Callable(type, name, signature) {}
 
  private:
-  friend class Scope;
-  Macro(const std::string& name, Scope* scope, const Signature& signature)
-      : Macro(Declarable::kMacro, name, scope, signature) {}
+  friend class Declarations;
+  Macro(const std::string& name, const Signature& signature)
+      : Macro(Declarable::kMacro, name, signature) {}
 };
 
 class MacroList : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(MacroList, macro_list);
-  const std::vector<std::unique_ptr<Macro>>& list() { return list_; }
-  Macro* AddMacro(std::unique_ptr<Macro> macro) {
-    Macro* result = macro.get();
-    list_.emplace_back(std::move(macro));
-    return result;
+  const std::vector<Macro*>& list() { return list_; }
+  Macro* AddMacro(Macro* macro) {
+    list_.emplace_back(macro);
+    return macro;
   }
 
  private:
-  friend class Scope;
+  friend class Declarations;
   MacroList() : Declarable(Declarable::kMacroList) {}
 
-  std::vector<std::unique_ptr<Macro>> list_;
+  std::vector<Macro*> list_;
 };
 
 class Builtin : public Callable {
@@ -240,22 +256,22 @@ class Builtin : public Callable {
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
 
  private:
-  friend class Scope;
-  Builtin(const std::string& name, Builtin::Kind kind, Scope* scope,
+  friend class Declarations;
+  Builtin(const std::string& name, Builtin::Kind kind,
           const Signature& signature)
-      : Callable(Declarable::kBuiltin, name, scope, signature), kind_(kind) {}
+      : Callable(Declarable::kBuiltin, name, signature), kind_(kind) {}
 
   Kind kind_;
 };
 
-class Runtime : public Callable {
+class RuntimeFunction : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Runtime, runtime);
+  DECLARE_DECLARABLE_BOILERPLATE(RuntimeFunction, runtime);
 
  private:
-  friend class Scope;
-  Runtime(const std::string& name, Scope* scope, const Signature& signature)
-      : Callable(Declarable::kRuntime, name, scope, signature) {}
+  friend class Declarations;
+  RuntimeFunction(const std::string& name, const Signature& signature)
+      : Callable(Declarable::kRuntimeFunction, name, signature) {}
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Callable& m) {
@@ -275,8 +291,8 @@ inline std::ostream& operator<<(std::ostream& os, const Builtin& b) {
   return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Runtime& b) {
-  os << "runtime " << b.signature().return_type << " " << b.name()
+inline std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
+  os << "runtime function " << b.signature().return_type << " " << b.name()
      << b.signature().parameter_types;
   return os;
 }

@@ -8,6 +8,7 @@
 #include "src/torque/TorqueLexer.h"
 #include "src/torque/TorqueParser.h"
 #include "src/torque/declarable.h"
+#include "src/torque/declarations.h"
 #include "src/torque/scope.h"
 #include "src/torque/type-oracle.h"
 
@@ -21,19 +22,15 @@ class TypeOracle;
 
 class Module {
  public:
-  Module(const std::string& name, GlobalContext& context) : name_(name) {
-    scope_ = new Scope(context);
-  }
+  explicit Module(const std::string& name) : name_(name) {}
   const std::string& name() const { return name_; }
   std::ostream& source_stream() { return source_stream_; }
   std::ostream& header_stream() { return header_stream_; }
   std::string source() { return source_stream_.str(); }
   std::string header() { return header_stream_.str(); }
-  Scope* scope() { return scope_; }
 
  private:
   std::string name_;
-  Scope* scope_;
   std::stringstream header_stream_;
   std::stringstream source_stream_;
 };
@@ -66,8 +63,9 @@ class GlobalContext {
  public:
   explicit GlobalContext(Ast ast)
       : verbose_(false),
-        next_scope_number_(0),
         next_label_number_(0),
+        declarations_(ast.source_file_map()),
+        type_oracle_(&declarations_),
         default_module_(GetModule("base")),
         ast_(std::move(ast)) {}
   Module* GetDefaultModule() { return default_module_; }
@@ -76,53 +74,15 @@ class GlobalContext {
     if (i != modules_.end()) {
       return i->second.get();
     }
-    Module* module = new Module(name, *this);
+    Module* module = new Module(name);
     modules_[name] = std::unique_ptr<Module>(module);
     return module;
   }
-  int GetNextScopeNumber() { return next_scope_number_++; }
+
   int GetNextLabelNumber() { return next_label_number_++; }
 
   const std::map<std::string, std::unique_ptr<Module>>& GetModules() const {
     return modules_;
-  }
-
-  Scope* GetParserRuleContextScope(const AstNode* context) {
-    auto i = context_scopes_.find(context);
-    if (i != context_scopes_.end()) return i->second;
-    Scope* new_scope = new Scope(*this);
-    context_scopes_[context] = new_scope;
-    return new_scope;
-  }
-
-  Scope* TopScope() const { return current_scopes_.back(); }
-
-  Declarable* Lookup(const std::string& name) const {
-    auto e = current_scopes_.rend();
-    auto c = current_scopes_.rbegin();
-    while (c != e) {
-      Declarable* result = (*c)->Lookup(name);
-      if (result != nullptr) return result;
-      ++c;
-    }
-
-    return nullptr;
-  }
-
-  void RegisterScope(Scope* scope) {
-    scopes_.emplace_back(std::unique_ptr<Scope>(scope));
-  }
-
-  void PushScope(Scope* scope) { current_scopes_.push_back(scope); }
-
-  void PopScope() { current_scopes_.pop_back(); }
-
-  std::set<const Variable*> GetLiveTypeVariables() {
-    std::set<const Variable*> result;
-    for (auto scope : current_scopes_) {
-      scope->AddLiveVariables(result);
-    }
-    return result;
   }
 
   void SetVerbose() { verbose_ = true; }
@@ -144,7 +104,7 @@ class GlobalContext {
     control_split_changed_variables_[node].insert(var);
   }
 
-  friend class CurrentCallActivator;
+  friend class CurrentCallableActivator;
   friend class BreakContinueActivator;
 
   TypeOracle& GetTypeOracle() { return type_oracle_; }
@@ -157,45 +117,39 @@ class GlobalContext {
 
   std::map<std::string, std::vector<OperationHandler>> op_handlers_;
 
-  void PrintScopeChain() {
-    for (auto s : current_scopes_) {
-      s->Print();
-    }
-  }
-
   std::string PositionAsString(SourcePosition pos) {
-    return ast_.PositionAsString(pos);
+    return declarations()->PositionAsString(pos);
   }
 
+  Declarations* declarations() { return &declarations_; }
   Ast* ast() { return &ast_; }
 
  private:
   bool verbose_;
-  int next_scope_number_;
   int next_label_number_;
-  std::map<std::string, std::unique_ptr<Module>> modules_;
-  std::vector<std::unique_ptr<Scope>> scopes_;
-  Module* default_module_;
-  std::vector<Scope*> current_scopes_;
-  std::vector<std::pair<Label*, Label*>> break_continue_stack_;
+  Declarations declarations_;
   TypeOracle type_oracle_;
+  std::map<std::string, std::unique_ptr<Module>> modules_;
+  Module* default_module_;
+  std::vector<std::pair<Label*, Label*>> break_continue_stack_;
   Callable* current_callable_;
   std::map<const AstNode*, std::set<const Variable*>>
       control_split_changed_variables_;
-  std::map<const AstNode*, Scope*> context_scopes_;
   Ast ast_;
 };
 
-class CurrentCallActivator {
+class CurrentCallableActivator {
  public:
-  CurrentCallActivator(GlobalContext& context, Callable* callable)
-      : context_(context) {
+  CurrentCallableActivator(GlobalContext& context, Callable* callable,
+                           Declaration* decl)
+      : context_(context), scope_activator_(context.declarations(), decl) {
     context_.current_callable_ = callable;
   }
-  ~CurrentCallActivator() { context_.current_callable_ = nullptr; }
+  ~CurrentCallableActivator() { context_.current_callable_ = nullptr; }
 
  private:
   GlobalContext& context_;
+  Declarations::NodeScopeActivator scope_activator_;
 };
 
 class BreakContinueActivator {

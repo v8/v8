@@ -5,11 +5,37 @@
 #include <fstream>
 #include <iostream>
 
+#include "src/torque/declarable.h"
 #include "src/torque/types.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
+
+bool Type::Is(const std::string& name) const { return name == impl_->name(); }
+
+const std::string& Type::name() const { return impl_->name(); }
+
+bool Type::IsSubclass(Type from) {
+  TypeImpl* to_class = type_impl();
+  TypeImpl* from_class = from.type_impl();
+  while (from_class != nullptr) {
+    if (to_class == from_class) return true;
+    from_class = from_class->parent();
+  }
+  return false;
+}
+
+const std::string& Type::GetGeneratedTypeName() const {
+  return type_impl()->generated_type();
+}
+
+std::string Type::GetGeneratedTNodeTypeName() const {
+  std::string result = type_impl()->generated_type();
+  DCHECK_EQ(result.substr(0, 6), "TNode<");
+  result = result.substr(6, result.length() - 7);
+  return result;
+}
 
 std::ostream& operator<<(std::ostream& os, const Signature& sig) {
   os << "(";

@@ -114,7 +114,7 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
 
   Module* saved_module = module_;
   module_ = module;
-  Scope::Activator activator(module_->scope());
+  Declarations::NodeScopeActivator scope(declarations(), decl);
   for (auto& child : decl->declarations) Visit(child);
   module_ = saved_module;
 
@@ -130,13 +130,12 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
 }
 
 void ImplementationVisitor::Visit(MacroDeclaration* decl) {
-  Signature signature =
-      MakeSignature(decl->parameters, decl->return_type, decl->labels);
+  Signature signature = MakeSignature(decl->pos, decl->parameters,
+                                      decl->return_type, decl->labels);
   const TypeVector& list = signature.types();
-  Macro* macro = LookupMacro(decl->pos, decl->name, list);
+  Macro* macro = declarations()->LookupMacro(decl->pos, decl->name, list);
 
-  CurrentCallActivator activator(global_context_, macro);
-  Scope::Activator activate(macro->scope());
+  CurrentCallableActivator activator(global_context_, macro, decl);
 
   header_out() << "  ";
   GenerateMacroFunctionDeclaration(header_out(), decl->pos, "", macro);
@@ -159,13 +158,12 @@ void ImplementationVisitor::Visit(MacroDeclaration* decl) {
     result_var =
         GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
   }
-  Label* macro_end = TopScope()->DeclareLabel(decl->pos, "macro_end");
+  Label* macro_end = declarations()->DeclareLabel(decl->pos, "macro_end");
   GenerateLabelDefinition(macro_end, decl);
 
   Type result = Visit(decl->body);
   if (result.IsNever()) {
-    if (!macro->signature().return_type.IsNever() &&
-        !global_context_.GetCurrentCallable()->HasReturns()) {
+    if (!macro->signature().return_type.IsNever() && !macro->HasReturns()) {
       std::stringstream s;
       s << "macro " << decl->name
         << " that never returns must have return type never at "
@@ -205,12 +203,12 @@ void ImplementationVisitor::Visit(MacroDeclaration* decl) {
 void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
   source_out() << "TF_BUILTIN(" << decl->name << ", "
                << GetDSLAssemblerName(CurrentModule()) << ") {" << std::endl;
-  Builtin* builtin = LookupBuiltin(decl->pos, decl->name);
-  CurrentCallActivator activator(global_context_, builtin);
-  Scope::Activator activate(builtin->scope());
+  Builtin* builtin = declarations()->LookupBuiltin(decl->pos, decl->name);
+  CurrentCallableActivator activator(global_context_, builtin, decl);
 
   // Context
-  const Value* val = LookupValue(decl->pos, decl->parameters.names[0]);
+  const Value* val =
+      declarations()->LookupValue(decl->pos, decl->parameters.names[0]);
   GenerateIndent();
   source_out() << "TNode<Context> " << val->GetValueForDeclaration()
                << " = UncheckedCast<Context>(Parameter("
@@ -222,8 +220,8 @@ void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
   size_t first = 1;
   if (builtin->IsVarArgsJavaScript()) {
     assert(decl->parameters.has_varargs);
-    Constant* arguments = Constant::cast(
-        LookupValue(decl->pos, decl->parameters.arguments_variable));
+    Constant* arguments = Constant::cast(declarations()->LookupValue(
+        decl->pos, decl->parameters.arguments_variable));
     std::string arguments_name = arguments->GetValueForDeclaration();
     GenerateIndent();
     source_out()
@@ -233,7 +231,8 @@ void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
     source_out() << "CodeStubArguments arguments_impl(this, "
                     "ChangeInt32ToIntPtr(argc));"
                  << std::endl;
-    const Value* receiver = LookupValue(decl->pos, decl->parameters.names[1]);
+    const Value* receiver =
+        declarations()->LookupValue(decl->pos, decl->parameters.names[1]);
     GenerateIndent();
     source_out() << "TNode<Object> " << receiver->GetValueForDeclaration()
                  << " = arguments_impl.GetReceiver();" << std::endl;
@@ -301,14 +300,16 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 
   {
     ScopedIndent indent(this);
-    Scope::Activator s(global_context_, expr->condition);
+    Declarations::NodeScopeActivator scope(declarations(), expr->condition);
 
-    Label* true_label = Label::cast(LookupValue(expr->pos, kTrueLabelName));
+    Label* true_label =
+        Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
     GenerateLabelDefinition(true_label);
-    Label* false_label = Label::cast(LookupValue(expr->pos, kFalseLabelName));
+    Label* false_label =
+        Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
     GenerateLabelDefinition(false_label);
     Label* done_label =
-        TopScope()->DeclarePrivateLabel(expr->pos, kDoneLabelName);
+        declarations()->DeclarePrivateLabel(expr->pos, kDoneLabelName);
     GenerateLabelDefinition(done_label, expr);
 
     VisitResult condition_result = Visit(expr->condition);
@@ -335,12 +336,14 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 
 VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
   {
-    Scope::Activator s(global_context_, expr->left);
-    Label* false_label = Label::cast(LookupValue(expr->pos, kFalseLabelName));
+    Declarations::NodeScopeActivator scope(declarations(), expr->left);
+    Label* false_label =
+        Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
     GenerateLabelDefinition(false_label);
     VisitResult left_result = Visit(expr->left);
     if (left_result.type().IsBit()) {
-      Label* true_label = Label::cast(LookupValue(expr->pos, kTrueLabelName));
+      Label* true_label =
+          Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
       GenerateIndent();
       source_out() << "GotoIf(" << left_result.variable() << ", "
                    << true_label->GetValueForRead() << ");" << std::endl;
@@ -353,12 +356,14 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
 
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
   {
-    Scope::Activator s(global_context_, expr->left);
-    Label* true_label = Label::cast(LookupValue(expr->pos, kTrueLabelName));
+    Declarations::NodeScopeActivator scope(declarations(), expr->left);
+    Label* true_label =
+        Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
     GenerateLabelDefinition(true_label);
     VisitResult left_result = Visit(expr->left);
     if (left_result.type().IsBit()) {
-      Label* false_label = Label::cast(LookupValue(expr->pos, kFalseLabelName));
+      Label* false_label =
+          Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
       GenerateIndent();
       source_out() << "GotoIfNot(" << left_result.variable() << ", "
                    << false_label->GetValueForRead() << ");" << std::endl;
@@ -409,13 +414,16 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
   // TODO(tebbi): Do not silently loose precision; support 64bit literals.
   double d = std::stod(expr->number.c_str());
   int32_t i = static_cast<int32_t>(d);
-  Type result_type = GetTypeOracle().GetType(CONST_FLOAT64_TYPE_STRING);
+  Type result_type =
+      declarations()->LookupType(expr->pos, CONST_FLOAT64_TYPE_STRING);
   if (i == d) {
     if (Internals::IsValidSmi(i)) {
       if (sizeof(void*) == sizeof(double) && ((i >> 30) != (i >> 31))) {
-        result_type = GetTypeOracle().GetType(CONST_INT32_TYPE_STRING);
+        result_type =
+            declarations()->LookupType(expr->pos, CONST_INT32_TYPE_STRING);
       } else {
-        result_type = GetTypeOracle().GetType(CONST_INT31_TYPE_STRING);
+        result_type =
+            declarations()->LookupType(expr->pos, CONST_INT31_TYPE_STRING);
       }
     }
   }
@@ -436,13 +444,15 @@ VisitResult ImplementationVisitor::Visit(CastExpression* expr) {
   Arguments args;
   args.parameters = {Visit(expr->value)};
   args.labels = LabelsFromIdentifiers(expr->pos, {expr->otherwise});
-  return GenerateOperation(expr->pos, "cast<>", args, GetType(expr->type));
+  return GenerateOperation(expr->pos, "cast<>", args,
+                           declarations()->LookupType(expr->pos, expr->type));
 }
 
 VisitResult ImplementationVisitor::Visit(ConvertExpression* expr) {
   Arguments args;
   args.parameters = {Visit(expr->value)};
-  return GenerateOperation(expr->pos, "convert<>", args, GetType(expr->type));
+  return GenerateOperation(expr->pos, "convert<>", args,
+                           declarations()->LookupType(expr->pos, expr->type));
 }
 
 Type ImplementationVisitor::Visit(GotoStatement* stmt) {
@@ -477,17 +487,20 @@ Type ImplementationVisitor::Visit(IfStatement* stmt) {
   Label* true_label = nullptr;
   Label* false_label = nullptr;
   {
-    Scope::Activator activate(global_context_, &*stmt->condition);
-    true_label = Label::cast(LookupValue(stmt->pos, kTrueLabelName));
+    Declarations::NodeScopeActivator scope(declarations(), &*stmt->condition);
+    true_label =
+        Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
     GenerateLabelDefinition(true_label);
-    false_label = Label::cast(LookupValue(stmt->pos, kFalseLabelName));
+    false_label =
+        Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
     GenerateLabelDefinition(false_label, !has_else ? stmt : nullptr);
   }
 
   Label* done_label = nullptr;
   bool live = false;
   if (has_else) {
-    done_label = TopScope()->DeclarePrivateLabel(stmt->pos, "if_done_label");
+    done_label =
+        declarations()->DeclarePrivateLabel(stmt->pos, "if_done_label");
     GenerateLabelDefinition(done_label, stmt);
   } else {
     done_label = false_label;
@@ -511,19 +524,22 @@ Type ImplementationVisitor::Visit(WhileStatement* stmt) {
   Label* body_label = nullptr;
   Label* exit_label = nullptr;
   {
-    Scope::Activator s(global_context_, stmt->condition);
-    body_label = Label::cast(LookupValue(stmt->pos, kTrueLabelName));
+    Declarations::NodeScopeActivator scope(declarations(), stmt->condition);
+    body_label =
+        Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
     GenerateLabelDefinition(body_label);
-    exit_label = Label::cast(LookupValue(stmt->pos, kFalseLabelName));
+    exit_label =
+        Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
     GenerateLabelDefinition(exit_label);
   }
 
-  Label* header_label = TopScope()->DeclarePrivateLabel(stmt->pos, "header");
+  Label* header_label =
+      declarations()->DeclarePrivateLabel(stmt->pos, "header");
   GenerateLabelDefinition(header_label, stmt);
   GenerateLabelGoto(header_label);
   GenerateLabelBind(header_label);
 
-  Scope::Activator s(global_context_, stmt->body);
+  Declarations::NodeScopeActivator scope(declarations(), stmt->body);
   BreakContinueActivator activator(global_context_, exit_label, header_label);
 
   GenerateExpressionBranch(stmt->condition, {body_label, exit_label},
@@ -534,7 +550,7 @@ Type ImplementationVisitor::Visit(WhileStatement* stmt) {
 }
 
 Type ImplementationVisitor::Visit(BlockStatement* block) {
-  Scope::Activator s(global_context_, block);
+  Declarations::NodeScopeActivator scope(declarations(), block);
   ScopedIndent indent(this);
   Type type = GetTypeOracle().GetVoidType();
   for (Statement* s : block->statements) {
@@ -562,9 +578,10 @@ Type ImplementationVisitor::Visit(ReturnStatement* stmt) {
       << PositionAsString(stmt->pos);
     ReportError(s.str());
   }
-  Label* end = current_callable->IsMacro()
-                   ? Label::cast(LookupValue(stmt->pos, "macro_end"))
-                   : nullptr;
+  Label* end =
+      current_callable->IsMacro()
+          ? Label::cast(declarations()->LookupValue(stmt->pos, "macro_end"))
+          : nullptr;
   if (current_callable->HasReturnValue()) {
     if (!stmt->value) {
       std::stringstream s;
@@ -578,8 +595,8 @@ Type ImplementationVisitor::Visit(ReturnStatement* stmt) {
         stmt->pos, current_callable->signature().return_type,
         expression_result);
     if (current_callable->IsMacro()) {
-      Variable* var =
-          Variable::cast(LookupValue(stmt->pos, kReturnValueVariable));
+      Variable* var = Variable::cast(
+          declarations()->LookupValue(stmt->pos, kReturnValueVariable));
       GenerateAssignToVariable(stmt->pos, var, return_result);
       GenerateLabelGoto(end);
     } else if (current_callable->IsBuiltin()) {
@@ -610,7 +627,7 @@ Type ImplementationVisitor::Visit(ReturnStatement* stmt) {
 }
 
 Type ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
-  Scope::Activator s(global_context_, stmt);
+  Declarations::NodeScopeActivator scope(declarations(), stmt);
 
   VisitResult expression_result = Visit(stmt->iterable);
   VisitResult begin =
@@ -621,12 +638,12 @@ Type ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
                               : GenerateOperation(stmt->pos, ".length",
                                                   {{expression_result}, {}});
 
-  Label* body_label = TopScope()->DeclarePrivateLabel(stmt->pos, "body");
+  Label* body_label = declarations()->DeclarePrivateLabel(stmt->pos, "body");
   GenerateLabelDefinition(body_label);
   Label* increment_label =
-      TopScope()->DeclarePrivateLabel(stmt->pos, "increment");
+      declarations()->DeclarePrivateLabel(stmt->pos, "increment");
   GenerateLabelDefinition(increment_label);
-  Label* exit_label = TopScope()->DeclarePrivateLabel(stmt->pos, "exit");
+  Label* exit_label = declarations()->DeclarePrivateLabel(stmt->pos, "exit");
   GenerateLabelDefinition(exit_label);
 
   Type common_type = GetCommonType(stmt->pos, begin.type(), end.type());
@@ -637,7 +654,8 @@ Type ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   VisitResult index_for_read = {index_var->type(),
                                 index_var->GetValueForRead()};
 
-  Label* header_label = TopScope()->DeclarePrivateLabel(stmt->pos, "header");
+  Label* header_label =
+      declarations()->DeclarePrivateLabel(stmt->pos, "header");
   GenerateLabelDefinition(header_label, stmt);
 
   GenerateLabelGoto(header_label);
@@ -676,7 +694,7 @@ Type ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
 
 Type ImplementationVisitor::Visit(TryCatchStatement* stmt) {
   ScopedIndent indent(this);
-  Label* try_done = TopScope()->DeclarePrivateLabel(stmt->pos, "try_done");
+  Label* try_done = declarations()->DeclarePrivateLabel(stmt->pos, "try_done");
   GenerateLabelDefinition(try_done);
   Type try_result = GetTypeOracle().GetNeverType();
   std::vector<Label*> labels;
@@ -684,16 +702,18 @@ Type ImplementationVisitor::Visit(TryCatchStatement* stmt) {
   // Output labels for the goto handlers and for the merge after the try.
   {
     // Activate a new scope to see handler labels
-    Scope::Activator s(global_context_, stmt);
+    Declarations::NodeScopeActivator scope(declarations(), stmt);
     for (LabelBlock* block : stmt->label_blocks) {
-      Label* label = Label::cast(LookupValue(block->pos, block->label));
+      Label* label =
+          Label::cast(declarations()->LookupValue(block->pos, block->label));
       labels.push_back(label);
       GenerateLabelDefinition(label);
     }
 
     size_t i = 0;
     for (auto label : labels) {
-      Scope::Activator s(global_context_, stmt->label_blocks[i]->body);
+      Declarations::NodeScopeActivator scope(declarations(),
+                                             stmt->label_blocks[i]->body);
       for (auto& v : label->GetParameters()) {
         GenerateVariableDeclaration(stmt, v->name(), v->type());
         v->Define();
@@ -702,7 +722,7 @@ Type ImplementationVisitor::Visit(TryCatchStatement* stmt) {
     }
 
     Label* try_begin_label =
-        TopScope()->DeclarePrivateLabel(stmt->pos, "try_begin");
+        declarations()->DeclarePrivateLabel(stmt->pos, "try_begin");
     GenerateLabelDefinition(try_begin_label);
     GenerateLabelGoto(try_begin_label);
 
@@ -717,17 +737,17 @@ Type ImplementationVisitor::Visit(TryCatchStatement* stmt) {
   // Make sure that each label clause is actually used. It's not just a friendly
   // thing to do, it will cause problems downstream in the compiler if there are
   // bound labels that are never jumped to.
-  auto exception_iterator = stmt->label_blocks.begin();
+  auto label_iterator = stmt->label_blocks.begin();
   for (auto label : labels) {
     if (!label->IsUsed()) {
       std::stringstream s;
       s << "label ";
-      s << (*exception_iterator)->label;
+      s << (*label_iterator)->label;
       s << " has a handler block but is never referred to in try block at "
-        << PositionAsString((*exception_iterator)->pos);
+        << PositionAsString((*label_iterator)->pos);
       ReportError(s.str());
     }
-    exception_iterator++;
+    label_iterator++;
   }
 
   // Visit and output the code for each catch block, one-by-one.
@@ -763,27 +783,30 @@ Type ImplementationVisitor::Visit(ContinueStatement* stmt) {
 }
 
 Type ImplementationVisitor::Visit(ForLoopStatement* stmt) {
-  Scope::Activator s(global_context_, stmt);
+  Declarations::NodeScopeActivator scope(declarations(), stmt);
 
   if (stmt->var_declaration) Visit(*stmt->var_declaration);
 
   Label* body_label = nullptr;
   Label* exit_label = nullptr;
   {
-    Scope::Activator s(global_context_, stmt->test);
-    body_label = Label::cast(LookupValue(stmt->pos, kTrueLabelName));
+    Declarations::NodeScopeActivator scope(declarations(), stmt->test);
+    body_label =
+        Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
     GenerateLabelDefinition(body_label);
-    exit_label = Label::cast(LookupValue(stmt->pos, kFalseLabelName));
+    exit_label =
+        Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
     GenerateLabelDefinition(exit_label);
   }
 
-  Label* header_label = TopScope()->DeclarePrivateLabel(stmt->pos, "header");
+  Label* header_label =
+      declarations()->DeclarePrivateLabel(stmt->pos, "header");
   GenerateLabelDefinition(header_label, stmt);
   GenerateLabelGoto(header_label);
   GenerateLabelBind(header_label);
 
   Label* assignment_label =
-      TopScope()->DeclarePrivateLabel(stmt->pos, "assignment");
+      declarations()->DeclarePrivateLabel(stmt->pos, "assignment");
   GenerateLabelDefinition(assignment_label);
 
   BreakContinueActivator activator(global_context_, exit_label,
@@ -804,7 +827,7 @@ Type ImplementationVisitor::Visit(ForLoopStatement* stmt) {
 
 Label* ImplementationVisitor::GetLabel(SourcePosition pos,
                                        const std::string& label) {
-  Value* value = LookupValue(pos, label);
+  Value* value = declarations()->LookupValue(pos, label);
   if (!value->IsLabel()) {
     std::stringstream s;
     s << label << " is not a label at " << PositionAsString(pos);
@@ -874,7 +897,7 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
     if (!first) {
       o << ", ";
     }
-    const Value* parameter = LookupValue(pos, name);
+    const Value* parameter = declarations()->LookupValue(pos, name);
     Type parameter_type = *type_iterator;
     const std::string& generated_type_name =
         parameter_type.GetGeneratedTypeName();
@@ -1050,10 +1073,10 @@ Variable* ImplementationVisitor::GenerateVariableDeclaration(
   SourcePosition pos = node->pos;
 
   Variable* variable = nullptr;
-  if (IsValueDeclared(name)) {
-    variable = Variable::cast(LookupValue(pos, name));
+  if (declarations()->Lookup(name)) {
+    variable = Variable::cast(declarations()->LookupValue(pos, name));
   } else {
-    variable = TopScope()->DeclareVariable(pos, name, *type);
+    variable = declarations()->DeclareVariable(pos, name, *type);
     // Because the variable is being defined during code generation, it must be
     // assumed that it changes along all control split paths because it's no
     // longer possible to run the control-flow anlaysis in the declaration pass
@@ -1080,7 +1103,7 @@ Variable* ImplementationVisitor::GenerateVariableDeclaration(
 
 void ImplementationVisitor::GenerateParameter(
     SourcePosition pos, const std::string& parameter_name) {
-  const Value* val = LookupValue(pos, parameter_name);
+  const Value* val = declarations()->LookupValue(pos, parameter_name);
   std::string var = val->GetValueForDeclaration();
   GenerateIndent();
   source_out() << val->type().GetGeneratedTypeName() << " " << var << " = ";
@@ -1143,7 +1166,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       ReportError(stream.str());
     }
     source_out() << callable->name() << "(";
-  } else if (callable->IsRuntime()) {
+  } else if (callable->IsRuntimeFunction()) {
     if (is_tailcall) {
       source_out() << "TailCallRuntime(Runtime::k" << callable->name() << ", ";
     } else {
@@ -1272,7 +1295,7 @@ bool ImplementationVisitor::GenerateExpressionBranch(
     Expression* expression, const std::vector<Label*>& statement_labels,
     const std::vector<Statement*>& statement_blocks, Label* merge_label) {
   // Activate a new scope to define True/False catch labels
-  Scope::Activator s(global_context_, expression);
+  Declarations::NodeScopeActivator scope(declarations(), expression);
 
   VisitResult expression_result = Visit(expression);
   if (expression_result.type() == GetTypeOracle().GetBitType()) {

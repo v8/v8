@@ -16,49 +16,11 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-class Builtin;
-class Callable;
-class Declarable;
-class GlobalContext;
-class Macro;
-class Parameter;
-class Runtime;
-class Variable;
+class ScopeChain;
 
 class Scope {
  public:
-  explicit Scope(GlobalContext& global_context);
-
-  Macro* DeclareMacro(SourcePosition pos, const std::string& name, Scope* scope,
-                      const Signature& signature);
-
-  Builtin* DeclareBuiltin(SourcePosition pos, const std::string& name,
-                          Builtin::Kind kind, Scope* scope,
-                          const Signature& signature);
-
-  Runtime* DeclareRuntime(SourcePosition pos, const std::string& name,
-                          Scope* scope, const Signature& signature);
-
-  Variable* DeclareVariable(SourcePosition pos, const std::string& var,
-                            Type type);
-
-  Parameter* DeclareParameter(SourcePosition pos, const std::string& name,
-                              const std::string& mangled_name, Type type);
-
-  Label* DeclareLabel(SourcePosition pos, const std::string& name);
-
-  Label* DeclarePrivateLabel(SourcePosition pos, const std::string& name);
-
-  void DeclareConstant(SourcePosition pos, const std::string& name, Type type,
-                       const std::string& value);
-
-  Declarable* Lookup(const std::string& name) {
-    auto i = lookup_.find(name);
-    if (i == lookup_.end()) {
-      return nullptr;
-    }
-    return i->second.get();
-  }
+  explicit Scope(ScopeChain& scope_chain);
 
   void Stream(std::ostream& stream) const {
     stream << "scope " << std::to_string(scope_number_) << " {";
@@ -68,7 +30,9 @@ class Scope {
     stream << "}";
   }
 
-  GlobalContext& global_context() const { return global_context_; }
+  int scope_number() const { return scope_number_; }
+
+  ScopeChain& GetScopeChain() const { return scope_chain_; }
 
   void AddLiveVariables(std::set<const Variable*>& set);
 
@@ -77,23 +41,91 @@ class Scope {
   class Activator;
 
  private:
+  friend class ScopeChain;
+
   void CheckAlreadyDeclared(SourcePosition pos, const std::string& name,
                             const char* new_type);
 
-  GlobalContext& global_context_;
+  void Declare(const std::string& name, Declarable* d) {
+    DCHECK_EQ(lookup_.end(), lookup_.find(name));
+    DCHECK(d != nullptr);
+    lookup_[name] = d;
+  }
+
+  Declarable* Lookup(const std::string& name) {
+    auto i = lookup_.find(name);
+    if (i == lookup_.end()) {
+      return nullptr;
+    }
+    return i->second;
+  }
+
+  ScopeChain& scope_chain_;
   int scope_number_;
   int private_label_number_;
-  std::map<std::string, std::unique_ptr<Declarable>> lookup_;
+  std::map<std::string, Declarable*> lookup_;
 };
 
 class Scope::Activator {
  public:
-  explicit Activator(GlobalContext& global_context, const AstNode* node);
   explicit Activator(Scope* scope);
   ~Activator();
 
  private:
   Scope* scope_;
+};
+
+class ScopeChain {
+ public:
+  ScopeChain() : next_scope_number_(0) {}
+  Scope* NewScope();
+
+  Scope* TopScope() const { return current_scopes_.back(); }
+  void PushScope(Scope* scope) { current_scopes_.push_back(scope); }
+  void PopScope() { current_scopes_.pop_back(); }
+
+  std::set<const Variable*> GetLiveVariables() {
+    std::set<const Variable*> result;
+    for (auto scope : current_scopes_) {
+      scope->AddLiveVariables(result);
+    }
+    return result;
+  }
+
+  void Declare(const std::string& name, Declarable* d) {
+    TopScope()->Declare(name, d);
+  }
+
+  Declarable* Lookup(const std::string& name) {
+    auto e = current_scopes_.rend();
+    auto c = current_scopes_.rbegin();
+    while (c != e) {
+      Declarable* result = (*c)->Lookup(name);
+      if (result != nullptr) return result;
+      ++c;
+    }
+    return nullptr;
+  }
+
+  Declarable* ShallowLookup(const std::string& name) {
+    auto& e = current_scopes_.back();
+    return e->Lookup(name);
+  }
+
+  void Print() {
+    for (auto s : current_scopes_) {
+      s->Print();
+    }
+  }
+
+ private:
+  friend class Scope;
+
+  int GetNextScopeNumber() { return next_scope_number_++; }
+
+  int next_scope_number_;
+  std::vector<std::unique_ptr<Scope>> scopes_;
+  std::vector<Scope*> current_scopes_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Scope& scope) {

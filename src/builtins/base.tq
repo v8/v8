@@ -134,8 +134,8 @@ extern operator '>' macro Int32GreaterThan(int32, int32): bit;
 extern operator '<=' macro Int32LessThanOrEqual(int32, int32): bit;
 extern operator '>=' macro Int32GreaterThanOrEqual(int32, int32): bit;
 
-extern operator '==' macro WordEqual(Smi, Smi): bit;
-extern operator '!=' macro WordNotEqual(Smi, Smi): bit;
+extern operator '==' macro SmiEqual(Smi, Smi): bit;
+extern operator '!=' macro SmiNotEqual(Smi, Smi): bit;
 extern operator '<' macro SmiLessThan(Smi, Smi): bit;
 extern operator '<=' macro SmiLessThanOrEqual(Smi, Smi): bit;
 extern operator '>' macro SmiGreaterThan(Smi, Smi): bit;
@@ -189,7 +189,7 @@ extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
 
 extern operator '.length' macro GetArgumentsLength(Arguments): intptr;
 extern operator '[]' macro GetArgumentValue(Arguments, intptr): Object;
-extern operator '[]' macro GetArgumentValue(Arguments, Smi): Object;
+extern operator '[]' macro GetArgumentValueSmiIndex(Arguments, Smi): Object;
 
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bit;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bit;
@@ -209,12 +209,9 @@ extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedDoubleArray(
 extern implicit operator
 'convert<>' macro AllocateHeapNumberWithValue(const_float64): Number;
 extern implicit operator 'convert<>' macro IntPtrConstant(const_int31): intptr;
-extern implicit operator 'convert<>' macro IntPtrConstant(const_int32): intptr;
 extern implicit operator 'convert<>' macro Int32Constant(const_int31): int32;
-extern implicit operator 'convert<>' macro Int32Constant(const_int32): int32;
 extern implicit operator 'convert<>' macro SmiConstant(const_int31): Smi;
 extern implicit operator 'convert<>' macro NumberConstant(const_int31): Number;
-extern implicit operator 'convert<>' macro NumberConstant(const_int32): Number;
 
 extern operator 'convert<>' macro ChangeInt32ToTagged(int32): Number;
 extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;

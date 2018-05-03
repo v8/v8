@@ -148,6 +148,11 @@ class AstGenerator : public TorqueBaseVisitor {
     return node;
   }
 
+  ParameterList GetOptionalParameterList(
+      TorqueParser::ParameterListContext* context);
+
+  Statement* GetOptionalHelperBody(TorqueParser::HelperBodyContext* context);
+
   void visitSourceFile(SourceFileContext* context);
 
   SourcePosition Pos(antlr4::ParserRuleContext* context);

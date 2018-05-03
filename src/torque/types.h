@@ -31,21 +31,7 @@ static const char* const CONST_FLOAT64_TYPE_STRING = "const_float64";
 
 class Label;
 
-struct Type;
-class TypeImpl {
- public:
-  TypeImpl(TypeImpl* parent, const std::string& name,
-           const std::string& generated_type)
-      : parent_(parent), name_(name), generated_type_(generated_type) {}
-  TypeImpl* parent() const { return parent_; }
-  const std::string& name() const { return name_; }
-  const std::string& generated_type() const { return generated_type_; }
-
- private:
-  TypeImpl* parent_;
-  std::string name_;
-  std::string generated_type_;
-};
+class TypeImpl;
 
 typedef struct Type {
  public:
@@ -54,17 +40,9 @@ typedef struct Type {
   bool operator==(const Type& other) const { return impl_ == other.impl_; }
   bool operator!=(const Type& other) const { return impl_ != other.impl_; }
   bool Is(const Type& other) const { return impl_ == other.impl_; }
-  bool Is(const std::string& name) const { return name == impl_->name(); }
+  bool Is(const std::string& name) const;
 
-  bool IsSubclass(Type from) {
-    TypeImpl* to_class = type_impl();
-    TypeImpl* from_class = from.type_impl();
-    while (from_class != nullptr) {
-      if (to_class == from_class) return true;
-      from_class = from_class->parent();
-    }
-    return false;
-  }
+  bool IsSubclass(Type from);
 
   bool IsException() const { return name() == EXCEPTION_TYPE_STRING; }
   bool IsVoid() const { return name() == VOID_TYPE_STRING; }
@@ -72,17 +50,11 @@ typedef struct Type {
   bool IsBit() const { return name() == BIT_TYPE_STRING; }
   bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
 
-  const std::string& name() const { return impl_->name(); }
+  const std::string& name() const;
 
-  const std::string& GetGeneratedTypeName() const {
-    return type_impl()->generated_type();
-  }
+  const std::string& GetGeneratedTypeName() const;
 
-  std::string GetGeneratedTNodeTypeName() const {
-    std::string result = type_impl()->generated_type();
-    result = result.substr(6, result.length() - 7);
-    return result;
-  }
+  std::string GetGeneratedTNodeTypeName() const;
 
  protected:
   TypeImpl* type_impl() const { return impl_; }

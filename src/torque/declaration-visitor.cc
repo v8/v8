@@ -48,12 +48,21 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
   if (global_context_.verbose()) {
     std::cout << "found declaration of builtin " << decl->name;
   }
-  Scope* enclosing_scope = TopScope();
 
-  Signature signature = MakeSignature(decl->parameters, decl->return_type, {});
+  const bool javascript = decl->javascript_linkage;
+  const bool varargs = decl->parameters.has_varargs;
+  Builtin::Kind kind = !javascript ? Builtin::kStub
+                                   : varargs ? Builtin::kVarArgsJavaScript
+                                             : Builtin::kFixedArgsJavaScript;
 
-  Scope* new_scope = new Scope(global_context_);
-  Scope::Activator s(new_scope);
+  Signature signature =
+      MakeSignature(decl->pos, decl->parameters, decl->return_type, {});
+  Builtin* builtin =
+      declarations()->DeclareBuiltin(decl->pos, decl->name, kind, signature);
+  CurrentCallableActivator activator(global_context_, builtin, decl);
+
+  DeclareParameterList(decl->pos, signature, {});
+
   if (signature.types().size() == 0 ||
       !signature.types()[0].Is(CONTEXT_TYPE_STRING)) {
     std::stringstream stream;
@@ -66,8 +75,6 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
     std::cout << decl->name << " with signature " << signature << std::endl;
   }
 
-  const bool javascript = decl->javascript_linkage;
-  const bool varargs = decl->parameters.has_varargs;
   if (varargs && !javascript) {
     std::stringstream stream;
     stream << "builtin " << decl->name
@@ -87,50 +94,31 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
   }
 
   if (varargs) {
-    TopScope()->DeclareConstant(decl->pos, decl->parameters.arguments_variable,
-                                GetTypeOracle().GetArgumentsType(),
-                                "arguments");
+    declarations()->DeclareConstant(
+        decl->pos, decl->parameters.arguments_variable,
+        GetTypeOracle().GetArgumentsType(), "arguments");
   }
 
-  Builtin::Kind kind = !javascript ? Builtin::kStub
-                                   : varargs ? Builtin::kVarArgsJavaScript
-                                             : Builtin::kFixedArgsJavaScript;
-  Builtin* builtin = enclosing_scope->DeclareBuiltin(
-      decl->pos, decl->name, kind, new_scope, signature);
   defined_builtins_.push_back(builtin);
-  DeclareParameterList(decl->pos, signature, {});
-  CurrentCallActivator activator(global_context_, builtin);
   Visit(decl->body);
 }
 
 void DeclarationVisitor::Visit(MacroDeclaration* decl) {
-  if (global_context_.verbose()) {
-    std::cout << "found declaration of macro " << decl->name;
-  }
-  Scope* enclosing_scope = TopScope();
-  Scope* new_scope = new Scope(global_context_);
-  Scope::Activator s(new_scope);
+  Signature signature = MakeSignature(decl->pos, decl->parameters,
+                                      decl->return_type, decl->labels);
 
-  PushControlSplit();
+  Macro* macro = declarations()->DeclareMacro(decl->pos, decl->name, signature);
+  CurrentCallableActivator activator(global_context_, macro, decl);
 
-  Signature signature =
-      MakeSignature(decl->parameters, decl->return_type, decl->labels);
+  DeclareParameterList(decl->pos, signature, decl->labels);
 
   if (!signature.return_type.IsVoidOrNever()) {
-    TopScope()->DeclareVariable(decl->pos, kReturnValueVariable,
-                                signature.return_type);
+    declarations()->DeclareVariable(decl->pos, kReturnValueVariable,
+                                    signature.return_type);
   }
 
-  if (global_context_.verbose()) {
-    std::cout << " resulting in signature " << signature << "\n";
-  }
-
-  Macro* macro = enclosing_scope->DeclareMacro(decl->pos, decl->name, new_scope,
-                                               signature);
-  DeclareParameterList(decl->pos, signature, decl->labels);
-  CurrentCallActivator activator(global_context_, macro);
+  PushControlSplit();
   Visit(decl->body);
-
   auto changed_vars = PopControlSplit();
   global_context_.AddControlSplitChangedVariables(decl, changed_vars);
 }
@@ -138,14 +126,14 @@ void DeclarationVisitor::Visit(MacroDeclaration* decl) {
 void DeclarationVisitor::Visit(ReturnStatement* stmt) {
   const Callable* callable = global_context_.GetCurrentCallable();
   if (callable->IsMacro() && callable->HasReturnValue()) {
-    MarkVariableModified(
-        Variable::cast(LookupValue(stmt->pos, kReturnValueVariable)));
+    MarkVariableModified(Variable::cast(
+        declarations()->LookupValue(stmt->pos, kReturnValueVariable)));
   }
 }
 
 void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
   // Scope for for iteration variable
-  Scope::Activator s(global_context_, stmt);
+  Declarations::NodeScopeActivator scope(declarations(), stmt);
   Visit(stmt->var_declaration);
   Visit(stmt->iterable);
   if (stmt->begin) Visit(*stmt->begin);
@@ -160,13 +148,14 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
   // Activate a new scope to declare catch handler labels, they should not be
   // visible outside the catch.
   {
-    Scope::Activator s(global_context_, stmt);
+    Declarations::NodeScopeActivator scope(declarations(), stmt);
 
     // Declare catch labels
     for (LabelBlock* block : stmt->label_blocks) {
-      Label* shared_label = TopScope()->DeclareLabel(stmt->pos, block->label);
+      Label* shared_label =
+          declarations()->DeclareLabel(stmt->pos, block->label);
       {
-        Scope::Activator s(global_context_, block->body);
+        Declarations::NodeScopeActivator scope(declarations(), block->body);
         if (block->parameters.has_varargs) {
           std::stringstream stream;
           stream << "cannot use ... for label parameters  at "
@@ -176,9 +165,10 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
 
         size_t i = 0;
         for (auto p : block->parameters.names) {
-          shared_label->AddVariable(TopScope()->DeclareVariable(
+          shared_label->AddVariable(declarations()->DeclareVariable(
               stmt->pos, p,
-              GetTypeOracle().GetType(block->parameters.types[i])));
+              declarations()->LookupType(stmt->pos,
+                                         block->parameters.types[i])));
           ++i;
         }
       }

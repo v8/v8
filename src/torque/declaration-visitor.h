@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "src/torque/declarations.h"
 #include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/scope.h"
@@ -21,11 +22,13 @@ namespace torque {
 class DeclarationVisitor : public FileVisitor {
  public:
   explicit DeclarationVisitor(GlobalContext& global_context)
-      : FileVisitor(global_context) {
-    GetTypeOracle().RegisterTypeImpl(EXCEPTION_TYPE_STRING, "Label*", nullptr);
+      : FileVisitor(global_context),
+        scope_(declarations(), global_context.ast()->default_module()) {
+    declarations()->DeclareType(SourcePosition(), EXCEPTION_TYPE_STRING,
+                                "Label*", nullptr);
   }
 
-  void Visit(Ast* ast) { Visit(ast->GetDefaultModule()); }
+  void Visit(Ast* ast) { Visit(ast->default_module()); }
 
   void Visit(Expression* expr);
   void Visit(Statement* stmt);
@@ -34,7 +37,7 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(ModuleDeclaration* decl) {
     Module* saved_module = module_;
     module_ = decl->GetModule();
-    Scope::Activator activator(module_->scope());
+    Declarations::NodeScopeActivator scope(declarations(), decl);
     for (Declaration* child : decl->declarations) Visit(child);
     module_ = saved_module;
   }
@@ -61,7 +64,7 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(CastExpression* expr) { Visit(expr->value); }
   void Visit(ConvertExpression* expr) { Visit(expr->value); }
   void Visit(BlockStatement* expr) {
-    Scope::Activator s(global_context_, expr);
+    Declarations::NodeScopeActivator scope(declarations(), expr);
     for (Statement* stmt : expr->statements) Visit(stmt);
   }
   void Visit(ExpressionStatement* stmt) { Visit(stmt->expression); }
@@ -70,8 +73,8 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(TypeDeclaration* decl) {
     std::string generates_class_name =
         decl->generates ? *decl->generates : decl->name;
-    GetTypeOracle().RegisterTypeImpl(decl->name, generates_class_name,
-                                     decl->extends ? &*decl->extends : nullptr);
+    declarations()->DeclareType(decl->pos, decl->name, generates_class_name,
+                                decl->extends ? &*decl->extends : nullptr);
   }
 
   void Visit(ExternalBuiltinDeclaration* decl) {
@@ -81,7 +84,7 @@ class DeclarationVisitor : public FileVisitor {
     }
 
     Signature signature =
-        MakeSignature(decl->parameters, decl->return_type, {});
+        MakeSignature(decl->pos, decl->parameters, decl->return_type, {});
 
     if (signature.parameter_types.types.size() == 0 ||
         !signature.parameter_types.types[0].Is(CONTEXT_TYPE_STRING)) {
@@ -113,7 +116,7 @@ class DeclarationVisitor : public FileVisitor {
     Builtin::Kind kind = !javascript ? Builtin::kStub
                                      : varargs ? Builtin::kVarArgsJavaScript
                                                : Builtin::kFixedArgsJavaScript;
-    TopScope()->DeclareBuiltin(decl->pos, decl->name, kind, nullptr, signature);
+    declarations()->DeclareBuiltin(decl->pos, decl->name, kind, signature);
   }
 
   void Visit(ExternalRuntimeDeclaration* decl) {
@@ -121,8 +124,9 @@ class DeclarationVisitor : public FileVisitor {
       std::cout << "found declaration of external runtime " << decl->name
                 << " with signature ";
     }
-    Type return_type = GetType(decl->return_type);
-    TypeVector parameter_types = GetTypeVector(decl->parameters.types);
+    Type return_type = declarations()->LookupType(decl->pos, decl->return_type);
+    TypeVector parameter_types =
+        GetTypeVector(decl->pos, decl->parameters.types);
     if (parameter_types.size() == 0 ||
         !parameter_types[0].Is(CONTEXT_TYPE_STRING)) {
       std::stringstream stream;
@@ -136,8 +140,8 @@ class DeclarationVisitor : public FileVisitor {
                         {parameter_types, decl->parameters.has_varargs},
                         return_type,
                         {}};
-    TopScope()->DeclareRuntime(decl->pos, decl->name, nullptr,
-                               std::move(signature));
+    declarations()->DeclareRuntimeFunction(decl->pos, decl->name,
+                                           std::move(signature));
   }
 
   void Visit(ExternalMacroDeclaration* decl) {
@@ -146,10 +150,10 @@ class DeclarationVisitor : public FileVisitor {
                 << " with signature ";
     }
 
-    Signature signature =
-        MakeSignature(decl->parameters, decl->return_type, decl->labels);
+    Signature signature = MakeSignature(decl->pos, decl->parameters,
+                                        decl->return_type, decl->labels);
 
-    TopScope()->DeclareMacro(decl->pos, decl->name, nullptr, signature);
+    declarations()->DeclareMacro(decl->pos, decl->name, signature);
     if (decl->op) {
       OperationHandler handler(
           {decl->name, signature.parameter_types, signature.return_type});
@@ -188,8 +192,8 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(VarDeclarationStatement* stmt) {
     std::string variable_name = stmt->name;
-    Type type = GetType(stmt->type);
-    TopScope()->DeclareVariable(stmt->pos, variable_name, type);
+    Type type = declarations()->LookupType(stmt->pos, stmt->type);
+    declarations()->DeclareVariable(stmt->pos, variable_name, type);
     if (global_context_.verbose()) {
       std::cout << "declared variable " << variable_name << " with type "
                 << type << "\n";
@@ -204,14 +208,15 @@ class DeclarationVisitor : public FileVisitor {
   }
 
   void Visit(ConstDeclaration* decl) {
-    TopScope()->DeclareConstant(decl->pos, decl->name, GetType(decl->type),
-                                decl->literal);
+    declarations()->DeclareConstant(
+        decl->pos, decl->name,
+        declarations()->LookupType(decl->pos, decl->type), decl->literal);
   }
 
   void Visit(LogicalOrExpression* expr) {
     {
-      Scope::Activator s(global_context_, expr->left);
-      TopScope()->DeclareLabel(expr->pos, kFalseLabelName);
+      Declarations::NodeScopeActivator scope(declarations(), expr->left);
+      declarations()->DeclareLabel(expr->pos, kFalseLabelName);
       Visit(expr->left);
     }
     Visit(expr->right);
@@ -219,23 +224,23 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(LogicalAndExpression* expr) {
     {
-      Scope::Activator s(global_context_, expr->left);
-      TopScope()->DeclareLabel(expr->pos, kTrueLabelName);
+      Declarations::NodeScopeActivator scope(declarations(), expr->left);
+      declarations()->DeclareLabel(expr->pos, kTrueLabelName);
       Visit(expr->left);
     }
     Visit(expr->right);
   }
 
   void DeclareExpressionForBranch(Expression* node) {
-    Scope::Activator s(global_context_, node);
+    Declarations::NodeScopeActivator scope(declarations(), node);
     // Conditional expressions can either explicitly return a bit
     // type, or they can be backed by macros that don't return but
     // take a true and false label. By declaring the labels before
     // visiting the conditional expression, those label-based
     // macro conditionals will be able to find them through normal
     // label lookups.
-    TopScope()->DeclareLabel(node->pos, kTrueLabelName);
-    TopScope()->DeclareLabel(node->pos, kFalseLabelName);
+    declarations()->DeclareLabel(node->pos, kTrueLabelName);
+    declarations()->DeclareLabel(node->pos, kFalseLabelName);
     Visit(node);
   }
 
@@ -258,7 +263,7 @@ class DeclarationVisitor : public FileVisitor {
   }
 
   void Visit(WhileStatement* stmt) {
-    Scope::Activator s(global_context_, stmt);
+    Declarations::NodeScopeActivator scope(declarations(), stmt);
     DeclareExpressionForBranch(stmt->condition);
     PushControlSplit();
     Visit(stmt->body);
@@ -279,7 +284,7 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(GotoStatement* expr) {}
 
   void Visit(ForLoopStatement* stmt) {
-    Scope::Activator s(global_context_, stmt);
+    Declarations::NodeScopeActivator scope(declarations(), stmt);
     if (stmt->var_declaration) Visit(*stmt->var_declaration);
     PushControlSplit();
     DeclareExpressionForBranch(stmt->test);
@@ -353,7 +358,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void PushControlSplit() {
     LiveAndChanged live_and_changed;
-    live_and_changed.live = global_context_.GetLiveTypeVariables();
+    live_and_changed.live = declarations()->GetLiveVariables();
     live_and_changed_variables_.push_back(live_and_changed);
   }
 
@@ -365,7 +370,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void MarkLocationModified(Expression* location) {
     if (IdentifierExpression* id = IdentifierExpression::cast(location)) {
-      const Value* value = LookupValue(id->pos, id->name);
+      const Value* value = declarations()->LookupValue(id->pos, id->name);
       if (value->IsVariable()) {
         const Variable* variable = Variable::cast(value);
         bool was_live = MarkVariableModified(variable);
@@ -396,23 +401,24 @@ class DeclarationVisitor : public FileVisitor {
     auto name_iterator = signature.parameter_names.begin();
     for (auto t : signature.types()) {
       const std::string& name(*name_iterator++);
-      TopScope()->DeclareParameter(pos, name,
-                                   GetParameterVariableFromName(name), t);
+      declarations()->DeclareParameter(pos, name,
+                                       GetParameterVariableFromName(name), t);
     }
     if (labels) {
       for (auto label : *labels) {
-        auto label_params = GetTypeVector(label.types);
-        Label* new_label = TopScope()->DeclareLabel(pos, label.name);
+        auto label_params = GetTypeVector(pos, label.types);
+        Label* new_label = declarations()->DeclareLabel(pos, label.name);
         size_t i = 0;
         for (auto var_type : label_params) {
           std::string var_name = label.name + std::to_string(i++);
           new_label->AddVariable(
-              TopScope()->DeclareVariable(pos, var_name, var_type));
+              declarations()->DeclareVariable(pos, var_name, var_type));
         }
       }
     }
   }
 
+  Declarations::NodeScopeActivator scope_;
   std::vector<Builtin*> defined_builtins_;
   std::vector<LiveAndChanged> live_and_changed_variables_;
 };

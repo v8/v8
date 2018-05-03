@@ -158,9 +158,32 @@ struct ExplicitModuleDeclaration : ModuleDeclaration {
   std::string name;
 };
 
+class SourceFileMap {
+ public:
+  SourceFileMap() {}
+  const std::string& GetSource(SourceId id) const {
+    return sources_[static_cast<int>(id)];
+  }
+
+  std::string PositionAsString(SourcePosition pos) {
+    return GetSource(pos.source) + ":" + std::to_string(pos.line) + ":" +
+           std::to_string(pos.column);
+  }
+
+ private:
+  friend class Ast;
+  SourceId AddSource(std::string path) {
+    sources_.push_back(std::move(path));
+    return static_cast<SourceId>(sources_.size() - 1);
+  }
+  std::vector<std::string> sources_;
+};
+
 class Ast {
  public:
-  Ast() : default_module_{SourcePosition(), {}} {}
+  Ast()
+      : default_module_{SourcePosition(), {}},
+        source_file_map_(new SourceFileMap()) {}
 
   std::vector<Declaration*>& declarations() {
     return default_module_.declarations;
@@ -172,21 +195,14 @@ class Ast {
     nodes_.emplace_back(std::move(node));
   }
   SourceId AddSource(std::string path) {
-    sources_.push_back(std::move(path));
-    return static_cast<SourceId>(sources_.size() - 1);
+    return source_file_map_->AddSource(path);
   }
-  const std::string& GetSource(SourceId id) const {
-    return sources_[static_cast<int>(id)];
-  }
-  std::string PositionAsString(SourcePosition pos) {
-    return GetSource(pos.source) + ":" + std::to_string(pos.line) + ":" +
-           std::to_string(pos.column);
-  }
-  DefaultModuleDeclaration* GetDefaultModule() { return &default_module_; }
+  DefaultModuleDeclaration* default_module() { return &default_module_; }
+  SourceFileMap* source_file_map() { return &*source_file_map_; }
 
  private:
   DefaultModuleDeclaration default_module_;
-  std::vector<std::string> sources_;
+  std::unique_ptr<SourceFileMap> source_file_map_;
   std::vector<std::unique_ptr<AstNode>> nodes_;
 };
 

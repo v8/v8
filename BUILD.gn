@@ -3036,6 +3036,8 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/torque/declarable.h",
       "src/torque/declaration-visitor.cc",
       "src/torque/declaration-visitor.h",
+      "src/torque/declarations.cc",
+      "src/torque/declarations.h",
       "src/torque/file-visitor.cc",
       "src/torque/file-visitor.h",
       "src/torque/global-context.h",

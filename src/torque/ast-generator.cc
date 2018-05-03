@@ -14,6 +14,7 @@ namespace torque {
 namespace {
 
 std::string GetOptionalType(TorqueParser::OptionalTypeContext* context) {
+  if (!context) return "";
   if (!context->type()) return "void";
   return context->type()->IDENTIFIER()->getSymbol()->getText();
 }
@@ -21,15 +22,18 @@ std::string GetOptionalType(TorqueParser::OptionalTypeContext* context) {
 LabelAndTypesVector GetOptionalLabelAndTypeList(
     TorqueParser::OptionalLabelListContext* context) {
   LabelAndTypesVector labels;
-  for (auto label : context->labelParameter()) {
-    LabelAndTypes new_label;
-    new_label.name = label->IDENTIFIER()->getSymbol()->getText();
-    if (label->typeList() != nullptr) {
-      for (auto& type : label->typeList()->type()) {
-        new_label.types.push_back(type->IDENTIFIER()->getSymbol()->getText());
+  if (context) {
+    for (auto label : context->labelParameter()) {
+      LabelAndTypes new_label;
+      new_label.name = label->IDENTIFIER()->getSymbol()->getText();
+      if (label->typeList() != nullptr) {
+        for (auto& type : label->typeList()->type()) {
+          new_label.types.emplace_back(
+              type->IDENTIFIER()->getSymbol()->getText());
+        }
       }
+      labels.emplace_back(new_label);
     }
-    labels.push_back(new_label);
   }
   return labels;
 }
@@ -66,6 +70,21 @@ std::string StringLiteralUnquote(const std::string& s) {
 }
 
 }  // namespace
+
+ParameterList AstGenerator::GetOptionalParameterList(
+    TorqueParser::ParameterListContext* context) {
+  if (context != nullptr) {
+    return context->accept(this).as<ParameterList>();
+  } else {
+    return ParameterList();
+  }
+}
+
+Statement* AstGenerator::GetOptionalHelperBody(
+    TorqueParser::HelperBodyContext* context) {
+  if (context) return context->accept(this).as<Statement*>();
+  return nullptr;
+}
 
 antlrcpp::Any AstGenerator::visitParameterList(
     TorqueParser::ParameterListContext* context) {
@@ -117,7 +136,7 @@ antlrcpp::Any AstGenerator::visitMacroDeclaration(
     TorqueParser::MacroDeclarationContext* context) {
   return base::implicit_cast<Declaration*>(RegisterNode(new MacroDeclaration{
       Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
-      std::move(context->parameterList()->accept(this).as<ParameterList>()),
+      GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
       GetOptionalLabelAndTypeList(context->optionalLabelList()),
       context->helperBody()->accept(this).as<Statement*>()}));
@@ -588,9 +607,7 @@ antlrcpp::Any AstGenerator::visitConditionalExpression(
     return base::implicit_cast<Expression*>(
         RegisterNode(new ConditionalExpression{
             Pos(context), condition->accept(this).as<Expression*>(),
-
             context->logicalORExpression(0)->accept(this).as<Expression*>(),
-
             context->logicalORExpression(1)->accept(this).as<Expression*>()}));
   }
   return context->logicalORExpression(0)->accept(this);

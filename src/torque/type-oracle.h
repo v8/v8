@@ -5,6 +5,8 @@
 #ifndef V8_TORQUE_TYPE_ORACLE_H_
 #define V8_TORQUE_TYPE_ORACLE_H_
 
+#include "src/torque/declarable.h"
+#include "src/torque/declarations.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
@@ -14,62 +16,28 @@ namespace torque {
 
 class TypeOracle {
  public:
-  void RegisterTypeImpl(const std::string& name, const std::string& generated,
-                        const std::string* parent = nullptr) {
-    TypeImpl* parent_class = nullptr;
-    if (type_impls_.find(name) != type_impls_.end()) {
-      ReportError(std::string("cannot redefine type class ") + name);
-    }
-    if (parent != nullptr) {
-      auto i = type_impls_.find(*parent);
-      if (i == type_impls_.end()) {
-        std::stringstream s;
-        s << "cannot find parent type class " << *parent << " for " << name;
-        ReportError(s.str());
-      }
-      parent_class = i->second.get();
-    }
-    TypeImpl* new_class = new TypeImpl(parent_class, name, generated);
-    type_impls_[name] = std::unique_ptr<TypeImpl>(new_class);
-  }
+  explicit TypeOracle(Declarations* declarations)
+      : declarations_(declarations) {}
 
   void RegisterImplicitConversion(Type to, Type from) {
     implicit_conversions_.push_back(std::make_pair(to, from));
   }
 
-  Type GetType(const std::string& type_name) {
-    auto i = type_impls_.find(type_name);
-    if (i == type_impls_.end()) {
-      std::stringstream s;
-      s << "no type class found for type " << type_name;
-      ReportError(s.str());
-    }
-    return Type(i->second.get());
-  }
+  Type GetArgumentsType() { return GetBuiltinType(ARGUMENTS_TYPE_STRING); }
 
-  Type GetArgumentsType() { return GetType(ARGUMENTS_TYPE_STRING); }
+  Type GetBitType() { return GetBuiltinType(BIT_TYPE_STRING); }
 
-  Type GetTaggedType() { return GetType(TAGGED_TYPE_STRING); }
+  Type GetVoidType() { return GetBuiltinType(VOID_TYPE_STRING); }
 
-  Type GetExceptionType() { return GetType(EXCEPTION_TYPE_STRING); }
+  Type GetObjectType() { return GetBuiltinType(OBJECT_TYPE_STRING); }
 
-  Type GetBranchType() { return GetType(BRANCH_TYPE_STRING); }
+  Type GetStringType() { return GetBuiltinType(STRING_TYPE_STRING); }
 
-  Type GetBitType() { return GetType(BIT_TYPE_STRING); }
+  Type GetIntPtrType() { return GetBuiltinType(INTPTR_TYPE_STRING); }
 
-  Type GetVoidType() { return GetType(VOID_TYPE_STRING); }
+  Type GetNeverType() { return GetBuiltinType(NEVER_TYPE_STRING); }
 
-  Type GetObjectType() { return GetType(OBJECT_TYPE_STRING); }
-
-  Type GetStringType() { return GetType(STRING_TYPE_STRING); }
-
-  Type GetIntPtrType() { return GetType(INTPTR_TYPE_STRING); }
-
-  Type GetNeverType() { return GetType(NEVER_TYPE_STRING); }
-
-  Type GetConstInt31Type() { return GetType(CONST_INT31_TYPE_STRING); }
-
-  bool IsException(Type from) { return GetExceptionType().IsSubclass(from); }
+  Type GetConstInt31Type() { return GetBuiltinType(CONST_INT31_TYPE_STRING); }
 
   bool IsAssignableFrom(Type to, Type from) {
     if (to.IsSubclass(from)) return true;
@@ -99,7 +67,13 @@ class TypeOracle {
   }
 
  private:
-  std::map<std::string, std::unique_ptr<TypeImpl>> type_impls_;
+  Type GetBuiltinType(const std::string& name) {
+    Declarable* declarable = declarations_->Lookup(name);
+    DCHECK(declarable != nullptr);
+    return Type(TypeImpl::cast(declarable));
+  }
+
+  Declarations* declarations_;
   std::vector<std::pair<Type, Type>> implicit_conversions_;
 };
 
