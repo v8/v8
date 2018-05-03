@@ -95,14 +95,23 @@ fail(`(() => {
 })()`);
 
 // Array builtins with temporary objects
+success([1,1,1], '[1,2,3].fill(1)');
+fail(`array.fill(1)`);
+
 success([1], `(() => { const a = []; a.push(1); return a; })()`);
 fail(`array.push(1)`);
 
 success([1], `(() => { const a = [1,2]; a.pop(); return a; })()`);
 fail(`array.pop()`);
 
+success([3,2,1], `[1,2,3].reverse()`);
+fail(`array.reverse()`);
+
 success([1,2,3], `[2,1,3].sort()`);
 fail(`array.sort()`);
+
+success([2,3], `[1,2,3].splice(1,2)`);
+fail(`array.splice(1,2)`);
 
 success([1,2], `(() => { const a = [2]; a.unshift(1); return a; })()`);
 fail(`array.unshift(1)`);

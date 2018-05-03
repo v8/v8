@@ -89,9 +89,6 @@ function listener(event, exec_state, event_data, data) {
       }
     }
 
-    success([1,1,1], '[1,2,3].fill(1)');
-    fail(`array.fill(1)`);
-
     // Test ArrayBuffer functions.
     success(3, `array_buffer.byteLength`);
     success(2, `array_buffer.slice(1, 3).byteLength`);

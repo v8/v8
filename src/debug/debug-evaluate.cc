@@ -348,6 +348,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(EstimateNumberOfElements)            \
   V(GetArrayKeys)                        \
   V(HasComplexElements)                  \
+  V(HasFastPackedElements)               \
   V(NewArray)                            \
   V(NormalizeElements)                   \
   V(RemoveArrayHoles)                    \
@@ -495,6 +496,8 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaGlobal:
     case Bytecode::kLdaNamedProperty:
     case Bytecode::kLdaKeyedProperty:
+    case Bytecode::kLdaGlobalInsideTypeof:
+    case Bytecode::kLdaLookupSlotInsideTypeof:
     // Arithmetics.
     case Bytecode::kAdd:
     case Bytecode::kAddSmi:
@@ -871,6 +874,7 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kArrayPrototypePop:
     case Builtins::kArrayPrototypePush:
     case Builtins::kArrayPrototypeShift:
+    case Builtins::kArraySplice:
     case Builtins::kArrayUnshift:
     // Map builtins.
     case Builtins::kMapIteratorPrototypeNext:
