@@ -480,12 +480,32 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i32_divs");
+  Register dst_w = dst.W();
+  Register lhs_w = lhs.W();
+  Register rhs_w = rhs.W();
+  bool can_use_dst = !dst_w.Aliases(lhs_w) && !dst_w.Aliases(rhs_w);
+  if (can_use_dst) {
+    // Do div early.
+    Sdiv(dst_w, lhs_w, rhs_w);
+  }
+  // Check for division by zero.
+  Cbz(rhs_w, trap_div_by_zero);
+  // Check for kMinInt / -1. This is unrepresentable.
+  Cmp(rhs_w, -1);
+  Ccmp(lhs_w, 1, NoFlag, eq);
+  B(trap_div_unrepresentable, vs);
+  if (!can_use_dst) {
+    // Do div.
+    Sdiv(dst_w, lhs_w, rhs_w);
+  }
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_divu");
+  // Check for division by zero.
+  Cbz(rhs.W(), trap_div_by_zero);
+  // Do div.
+  Udiv(dst.W(), lhs.W(), rhs.W());
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
@@ -502,14 +522,34 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i64_divs");
+  Register dst_x = dst.gp().X();
+  Register lhs_x = lhs.gp().X();
+  Register rhs_x = rhs.gp().X();
+  bool can_use_dst = !dst_x.Aliases(lhs_x) && !dst_x.Aliases(rhs_x);
+  if (can_use_dst) {
+    // Do div early.
+    Sdiv(dst_x, lhs_x, rhs_x);
+  }
+  // Check for division by zero.
+  Cbz(rhs_x, trap_div_by_zero);
+  // Check for kMinInt / -1. This is unrepresentable.
+  Cmp(rhs_x, -1);
+  Ccmp(lhs_x, 1, NoFlag, eq);
+  B(trap_div_unrepresentable, vs);
+  if (!can_use_dst) {
+    // Do div.
+    Sdiv(dst_x, lhs_x, rhs_x);
+  }
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_divu");
+  // Check for division by zero.
+  Cbz(rhs.gp().X(), trap_div_by_zero);
+  // Do div.
+  Udiv(dst.gp().X(), lhs.gp().X(), rhs.gp().X());
   return true;
 }
 
