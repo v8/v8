@@ -350,7 +350,9 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
     memset(&heap_stats, 0xBADC0DE, sizeof(heap_stats));
     // Note that the embedder's oom handler won't be called in this case. We
     // just crash.
-    FATAL("API fatal error handler returned after process out of memory");
+    FATAL(
+        "API fatal error handler returned after process out of memory on the "
+        "background thread");
     UNREACHABLE();
   }
 
