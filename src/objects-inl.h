@@ -2252,14 +2252,16 @@ int HeapObject::SizeFromMap(Map* map) const {
         instance_type);
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
-    return reinterpret_cast<const SmallOrderedHashSet*>(this)->Size();
+    return SmallOrderedHashSet::SizeFor(
+        reinterpret_cast<const SmallOrderedHashSet*>(this)->Capacity());
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
         reinterpret_cast<const PropertyArray*>(this)->synchronized_length());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
-    return reinterpret_cast<const SmallOrderedHashMap*>(this)->Size();
+    return SmallOrderedHashMap::SizeFor(
+        reinterpret_cast<const SmallOrderedHashMap*>(this)->Capacity());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
@@ -2609,9 +2611,10 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
-  int entry_offset = GetDataEntryOffset(entry, relative_index);
+  Address entry_offset =
+      kHeaderSize + GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
-  WRITE_BARRIER(GetHeap(), this, entry_offset, value);
+  WRITE_BARRIER(GetHeap(), this, static_cast<int>(entry_offset), value);
 }
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)

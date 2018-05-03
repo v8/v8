@@ -441,7 +441,7 @@ Handle<SmallOrderedHashSet> Factory::NewSmallOrderedHashSet(
   CHECK_LE(capacity, SmallOrderedHashSet::kMaxCapacity);
   DCHECK_EQ(0, capacity % SmallOrderedHashSet::kLoadFactor);
 
-  int size = SmallOrderedHashSet::Size(capacity);
+  int size = SmallOrderedHashSet::SizeFor(capacity);
   Map* map = *small_ordered_hash_set_map();
   HeapObject* result = AllocateRawWithImmortalMap(size, pretenure, map);
   Handle<SmallOrderedHashSet> table(SmallOrderedHashSet::cast(result),
@@ -456,7 +456,7 @@ Handle<SmallOrderedHashMap> Factory::NewSmallOrderedHashMap(
   CHECK_LE(capacity, SmallOrderedHashMap::kMaxCapacity);
   DCHECK_EQ(0, capacity % SmallOrderedHashMap::kLoadFactor);
 
-  int size = SmallOrderedHashMap::Size(capacity);
+  int size = SmallOrderedHashMap::SizeFor(capacity);
   Map* map = *small_ordered_hash_map_map();
   HeapObject* result = AllocateRawWithImmortalMap(size, pretenure, map);
   Handle<SmallOrderedHashMap> table(SmallOrderedHashMap::cast(result),

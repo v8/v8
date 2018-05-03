@@ -3573,18 +3573,6 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
   os << value();
 }
 
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-#define READ_INT32_FIELD(p, offset) \
-  (*reinterpret_cast<const int32_t*>(FIELD_ADDR(p, offset)))
-
-#define READ_INT64_FIELD(p, offset) \
-  (*reinterpret_cast<const int64_t*>(FIELD_ADDR(p, offset)))
-
-#define READ_BYTE_FIELD(p, offset) \
-  (*reinterpret_cast<const byte*>(FIELD_ADDR(p, offset)))
-
 String* JSReceiver::class_name() {
   if (IsFunction()) return GetHeap()->Function_string();
   if (IsJSArgumentsObject()) return GetHeap()->Arguments_string();
@@ -18570,6 +18558,7 @@ SmallOrderedHashTable<SmallOrderedHashMap>::Allocate(Isolate* isolate,
 template <class Derived>
 void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
                                                 int capacity) {
+  DisallowHeapAllocation no_gc;
   int num_buckets = capacity / kLoadFactor;
   int num_chains = capacity;
 
@@ -18577,12 +18566,12 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   SetNumberOfElements(0);
   SetNumberOfDeletedElements(0);
 
-  byte* hashtable_start =
-      FIELD_ADDR(this, kHeaderSize + (kBucketsStartOffset * kOneByteSize));
-  memset(hashtable_start, kNotFound, num_buckets + num_chains);
+  Address hashtable_start = GetHashTableStartAddress(capacity);
+  memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
+         num_buckets + num_chains);
 
   if (isolate->heap()->InNewSpace(this)) {
-    MemsetPointer(RawField(this, GetDataTableStartOffset()),
+    MemsetPointer(RawField(this, kHeaderSize + kDataTableStartOffset),
                   isolate->heap()->the_hole_value(),
                   capacity * Derived::kEntrySize);
   } else {
@@ -18600,6 +18589,12 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 
   for (int i = 0; i < num_chains; ++i) {
     DCHECK_EQ(kNotFound, GetNextEntry(i));
+  }
+
+  for (int i = 0; i < capacity; ++i) {
+    for (int j = 0; j < Derived::kEntrySize; j++) {
+      DCHECK_EQ(isolate->heap()->the_hole_value(), GetDataEntry(i, j));
+    }
   }
 #endif  // DEBUG
 }
@@ -19566,11 +19561,6 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   }
   return MaybeHandle<Name>();
 }
-
-#undef FIELD_ADDR
-#undef READ_INT32_FIELD
-#undef READ_INT64_FIELD
-#undef READ_BYTE_FIELD
 
 }  // namespace internal
 }  // namespace v8

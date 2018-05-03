@@ -181,7 +181,8 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    if (offset < table->GetDataTableStartOffset()) return false;
+    if (offset < kDataTableStartOffset) return false;
+    if (offset >= table->GetBucketsStartOffset()) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
 
@@ -189,7 +190,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    int start = table->GetDataTableStartOffset();
+    int start = kDataTableStartOffset;
     for (int i = 0; i < table->Capacity(); i++) {
       IteratePointer(obj, start + (i * kPointerSize), v);
     }
@@ -197,7 +198,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    return table->Size();
+    return table->SizeFor(table->Capacity());
   }
 };
 

@@ -586,35 +586,45 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 // that the DataTable entries start aligned. A bucket or chain value
 // of 255 is used to denote an unknown entry.
 //
-// Memory layout: [ Header ] [ HashTable ] [ Chains ] [ Padding ] [ DataTable ]
+// Memory layout: [ Header ]  [ Padding ] [ DataTable ] [ HashTable ] [ Chains ]
 //
-// On a 64 bit machine with capacity = 4 and 2 entries,
+// The index are represented as bytes, on a 64 bit machine with
+// kEntrySize = 1, capacity = 4 and entries = 2:
 //
 // [ Header ]  :
-//    [0  .. 7]  : Number of elements
-//    [8  .. 15] : Number of deleted elements
-//    [16 .. 23] : Number of buckets
-//
-// [ HashTable ] :
-//    [24 .. 31] : First chain-link for bucket 1
-//    [32 .. 40] : First chain-link for bucket 2
-//
-// [ Chains ] :
-//    [40 .. 47] : Next chain link for entry 1
-//    [48 .. 55] : Next chain link for entry 2
-//    [56 .. 63] : Next chain link for entry 3
-//    [64 .. 71] : Next chain link for entry 4
+//    [0] : Number of elements
+//    [1] : Number of deleted elements
+//    [2] : Number of buckets
 //
 // [ Padding ] :
-//    [72 .. 127] : Padding
+//    [3 .. 7] : Padding
 //
 // [ DataTable ] :
-//    [128 .. 128 + kEntrySize - 1] : Entry 1
-//    [128 + kEntrySize .. 128 + kEntrySize + kEntrySize - 1] : Entry 2
+//    [8  .. 15] : Entry 1
+//    [16 .. 23] : Entry 2
+//    [24 .. 31] : empty
+//    [32 .. 39] : empty
+//
+// [ HashTable ] :
+//    [40] : First chain-link for bucket 1
+//    [41] : empty
+//
+// [ Chains ] :
+//    [42] : Next chain link for bucket 1
+//    [43] : empty
+//    [44] : empty
+//    [45] : empty
 //
 template <class Derived>
 class SmallOrderedHashTable : public HeapObject {
  public:
+  // Offset points to a relative location in the table
+  typedef int Offset;
+
+  // ByteIndex points to a index in the table that needs to be
+  // converted to an Offset.
+  typedef int ByteIndex;
+
   void Initialize(Isolate* isolate, int capacity);
 
   static Handle<Derived> Allocate(Isolate* isolate, int capacity,
@@ -635,86 +645,51 @@ class SmallOrderedHashTable : public HeapObject {
 
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
 
-  void SetDataEntry(int entry, int relative_index, Object* value);
+  // Returns total size in bytes required for a table of given
+  // capacity.
+  static int SizeFor(int capacity) {
+    DCHECK_GE(capacity, kMinCapacity);
+    DCHECK_LE(capacity, kMaxCapacity);
 
-  static int GetDataTableStartOffset(int capacity) {
-    int nof_buckets = capacity / kLoadFactor;
-    int nof_chain_entries = capacity;
+    int data_table_size = DataTableSizeFor(capacity);
+    int hash_table_size = capacity / kLoadFactor;
+    int chain_table_size = capacity;
+    int total_size = kHeaderSize + kDataTableStartOffset + data_table_size +
+                     hash_table_size + chain_table_size;
 
-    int padding_index = kBucketsStartOffset + nof_buckets + nof_chain_entries;
-    int padding_offset = padding_index * kBitsPerByte;
-
-    return ((padding_offset + kPointerSize - 1) / kPointerSize) * kPointerSize;
+    return ((total_size + kPointerSize - 1) / kPointerSize) * kPointerSize;
   }
 
-  int GetDataTableStartOffset() const {
-    return GetDataTableStartOffset(Capacity());
+  // Returns the number elements that can fit into the allocated table.
+  int Capacity() const {
+    int capacity = NumberOfBuckets() * kLoadFactor;
+    DCHECK_GE(capacity, kMinCapacity);
+    DCHECK_LE(capacity, kMaxCapacity);
+
+    return capacity;
   }
 
-  static int Size(int capacity) {
-    int data_table_start = GetDataTableStartOffset(capacity);
-    int data_table_size = capacity * Derived::kEntrySize * kBitsPerPointer;
-    return data_table_start + data_table_size;
+  // Returns the number elements that are present in the table.
+  int NumberOfElements() const {
+    int nof_elements = getByte(0, kNumberOfElementsByteIndex);
+    DCHECK_LE(nof_elements, Capacity());
+
+    return nof_elements;
   }
-
-  int Size() const { return Size(Capacity()); }
-
-  void SetFirstEntry(int bucket, byte value) {
-    set(kBucketsStartOffset + bucket, value);
-  }
-
-  int GetFirstEntry(int bucket) const {
-    return get(kBucketsStartOffset + bucket);
-  }
-
-  void SetNextEntry(int entry, int next_entry) {
-    set(GetChainTableOffset() + entry, next_entry);
-  }
-
-  int GetNextEntry(int entry) const {
-    return get(GetChainTableOffset() + entry);
-  }
-
-  Object* GetDataEntry(int entry, int relative_index) {
-    int entry_offset = GetDataEntryOffset(entry, relative_index);
-    return READ_FIELD(this, entry_offset);
-  }
-
-  Object* KeyAt(int entry) const {
-    int entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
-    return READ_FIELD(this, entry_offset);
-  }
-
-  int HashToBucket(int hash) const { return hash & (NumberOfBuckets() - 1); }
-
-  int HashToFirstEntry(int hash) const {
-    int bucket = HashToBucket(hash);
-    int entry = GetFirstEntry(bucket);
-    return entry;
-  }
-
-  int GetChainTableOffset() const {
-    return kBucketsStartOffset + NumberOfBuckets();
-  }
-
-  void SetNumberOfBuckets(int num) { set(kNumberOfBucketsOffset, num); }
-
-  void SetNumberOfElements(int num) { set(kNumberOfElementsOffset, num); }
-
-  void SetNumberOfDeletedElements(int num) {
-    set(kNumberOfDeletedElementsOffset, num);
-  }
-
-  int NumberOfElements() const { return get(kNumberOfElementsOffset); }
 
   int NumberOfDeletedElements() const {
-    return get(kNumberOfDeletedElementsOffset);
+    int nof_deleted_elements = getByte(0, kNumberOfDeletedElementsByteIndex);
+    DCHECK_LE(nof_deleted_elements, Capacity());
+
+    return nof_deleted_elements;
   }
 
-  int NumberOfBuckets() const { return get(kNumberOfBucketsOffset); }
+  int NumberOfBuckets() const { return getByte(0, kNumberOfBucketsByteIndex); }
 
-  static const byte kNotFound = 0xFF;
+  DECL_VERIFIER(SmallOrderedHashTable)
+
   static const int kMinCapacity = 4;
+  static const byte kNotFound = 0xFF;
 
   // We use the value 255 to indicate kNotFound for chain and bucket
   // values, which means that this value can't be used a valid
@@ -722,18 +697,107 @@ class SmallOrderedHashTable : public HeapObject {
   static const int kMaxCapacity = 254;
   STATIC_ASSERT(kMaxCapacity < kNotFound);
 
-  static const int kNumberOfElementsOffset = 0;
-  static const int kNumberOfDeletedElementsOffset = 1;
-  static const int kNumberOfBucketsOffset = 2;
-  static const int kBucketsStartOffset = 3;
-
   // The load factor is used to derive the number of buckets from
   // capacity during Allocation. We also depend on this to calaculate
   // the capacity from number of buckets after allocation. If we
   // decide to change kLoadFactor to something other than 2, capacity
   // should be stored as another field of this object.
   static const int kLoadFactor = 2;
-  static const int kBitsPerPointer = kPointerSize * kBitsPerByte;
+
+ protected:
+  void SetDataEntry(int entry, int relative_index, Object* value);
+
+  // TODO(gsathya): Calculate all the various possible values for this
+  // at compile time since capacity can only be 4 different values.
+  Offset GetBucketsStartOffset() const {
+    int capacity = Capacity();
+    int data_table_size = DataTableSizeFor(capacity);
+    return kDataTableStartOffset + data_table_size;
+  }
+
+  Address GetHashTableStartAddress(int capacity) const {
+    return FIELD_ADDR(
+        this, kHeaderSize + kDataTableStartOffset + DataTableSizeFor(capacity));
+  }
+
+  void SetFirstEntry(int bucket, byte value) {
+    DCHECK_LE(static_cast<unsigned>(bucket), NumberOfBuckets());
+    setByte(GetBucketsStartOffset(), bucket, value);
+  }
+
+  int GetFirstEntry(int bucket) const {
+    DCHECK_LE(static_cast<unsigned>(bucket), NumberOfBuckets());
+    return getByte(GetBucketsStartOffset(), bucket);
+  }
+
+  // TODO(gsathya): Calculate all the various possible values for this
+  // at compile time since capacity can only be 4 different values.
+  Offset GetChainTableOffset() const {
+    int nof_buckets = NumberOfBuckets();
+    int capacity = nof_buckets * kLoadFactor;
+    DCHECK_EQ(Capacity(), capacity);
+
+    int data_table_size = DataTableSizeFor(capacity);
+    int hash_table_size = nof_buckets;
+    return kDataTableStartOffset + data_table_size + hash_table_size;
+  }
+
+  void SetNextEntry(int entry, int next_entry) {
+    DCHECK_LT(static_cast<unsigned>(entry), Capacity());
+    DCHECK_GE(static_cast<unsigned>(next_entry), 0);
+    DCHECK(next_entry <= Capacity() || next_entry == kNotFound);
+    setByte(GetChainTableOffset(), entry, next_entry);
+  }
+
+  int GetNextEntry(int entry) const {
+    DCHECK_LT(entry, Capacity());
+    return getByte(GetChainTableOffset(), entry);
+  }
+
+  Object* GetDataEntry(int entry, int relative_index) {
+    DCHECK_LT(entry, Capacity());
+    DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
+    Offset entry_offset = GetDataEntryOffset(entry, relative_index);
+    return READ_FIELD(this, kHeaderSize + entry_offset);
+  }
+
+  Object* KeyAt(int entry) const {
+    DCHECK_LT(entry, Capacity());
+    Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
+    return READ_FIELD(this, kHeaderSize + entry_offset);
+  }
+
+  int HashToBucket(int hash) const { return hash & (NumberOfBuckets() - 1); }
+
+  int HashToFirstEntry(int hash) const {
+    int bucket = HashToBucket(hash);
+    int entry = GetFirstEntry(bucket);
+    DCHECK(entry < Capacity() || entry == kNotFound);
+    return entry;
+  }
+
+  void SetNumberOfBuckets(int num) {
+    setByte(0, kNumberOfBucketsByteIndex, num);
+  }
+
+  void SetNumberOfElements(int num) {
+    DCHECK_LE(static_cast<unsigned>(num), Capacity());
+    setByte(0, kNumberOfElementsByteIndex, num);
+  }
+
+  void SetNumberOfDeletedElements(int num) {
+    DCHECK_LE(static_cast<unsigned>(num), Capacity());
+    setByte(0, kNumberOfDeletedElementsByteIndex, num);
+  }
+
+  static const int kNumberOfElementsByteIndex = 0;
+  static const int kNumberOfDeletedElementsByteIndex = 1;
+  static const int kNumberOfBucketsByteIndex = 2;
+
+  static const Offset kDataTableStartOffset = kPointerSize;
+  static constexpr int DataTableSizeFor(int capacity) {
+    return capacity * Derived::kEntrySize * kPointerSize;
+  }
 
   // Our growth strategy involves doubling the capacity until we reach
   // kMaxCapacity, but since the kMaxCapacity is always less than 256,
@@ -742,31 +806,31 @@ class SmallOrderedHashTable : public HeapObject {
   // SmallOrderedHashTable::Grow.
   static const int kGrowthHack = 256;
 
-  DECL_VERIFIER(SmallOrderedHashTable)
-
- protected:
   // This is used for accessing the non |DataTable| part of the
   // structure.
-  byte get(int index) const {
-    return READ_BYTE_FIELD(this, kHeaderSize + (index * kOneByteSize));
+  byte getByte(Offset offset, ByteIndex index) const {
+    DCHECK(offset < kDataTableStartOffset || offset >= GetBucketsStartOffset());
+    return READ_BYTE_FIELD(this, kHeaderSize + offset + (index * kOneByteSize));
   }
 
-  void set(int index, byte value) {
-    WRITE_BYTE_FIELD(this, kHeaderSize + (index * kOneByteSize), value);
+  void setByte(Offset offset, ByteIndex index, byte value) {
+    DCHECK(offset < kDataTableStartOffset || offset >= GetBucketsStartOffset());
+    WRITE_BYTE_FIELD(this, kHeaderSize + offset + (index * kOneByteSize),
+                     value);
   }
 
-  int GetDataEntryOffset(int entry, int relative_index) const {
-    int datatable_start = GetDataTableStartOffset();
+  Offset GetDataEntryOffset(int entry, int relative_index) const {
+    DCHECK_LT(entry, Capacity());
     int offset_in_datatable = entry * Derived::kEntrySize * kPointerSize;
     int offset_in_entry = relative_index * kPointerSize;
-    return datatable_start + offset_in_datatable + offset_in_entry;
+    return kDataTableStartOffset + offset_in_datatable + offset_in_entry;
   }
 
-  // Returns the number elements that can fit into the allocated buffer.
-  int Capacity() const { return NumberOfBuckets() * kLoadFactor; }
-
   int UsedCapacity() const {
-    return NumberOfElements() + NumberOfDeletedElements();
+    int used = NumberOfElements() + NumberOfDeletedElements();
+    DCHECK_LE(used, Capacity());
+
+    return used;
   }
 };
 
