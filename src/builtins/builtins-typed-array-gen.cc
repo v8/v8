@@ -858,6 +858,42 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
   return element_size.value();
 }
 
+TF_BUILTIN(TypedArrayLoadElementAsTagged, TypedArrayBuiltinsAssembler) {
+  TVARIABLE(Object, result);
+  TNode<JSTypedArray> array = CAST(Parameter(Descriptor::kArray));
+  TNode<Smi> kind = CAST(Parameter(Descriptor::kKind));
+  TNode<Smi> index_node = CAST(Parameter(Descriptor::kIndex));
+
+  TNode<RawPtrT> data_pointer = UncheckedCast<RawPtrT>(LoadDataPtr(array));
+  TNode<Int32T> elements_kind = SmiToInt32(kind);
+
+  DispatchTypedArrayByElementsKind(
+      elements_kind, [&](ElementsKind el_kind, int, int) {
+        result = CAST(LoadFixedTypedArrayElementAsTagged(
+            data_pointer, index_node, el_kind, SMI_PARAMETERS));
+      });
+
+  Return(result.value());
+}
+
+TF_BUILTIN(TypedArrayStoreElementFromTagged, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSTypedArray> array = CAST(Parameter(Descriptor::kArray));
+  TNode<Smi> kind = CAST(Parameter(Descriptor::kKind));
+  TNode<Smi> index_node = CAST(Parameter(Descriptor::kIndex));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+
+  TNode<RawPtrT> data_pointer = UncheckedCast<RawPtrT>(LoadDataPtr(array));
+  TNode<Int32T> elements_kind = SmiToInt32(kind);
+
+  DispatchTypedArrayByElementsKind(
+      elements_kind, [&](ElementsKind el_kind, int, int) {
+        StoreFixedTypedArrayElementFromTagged(context, data_pointer, index_node,
+                                              value, el_kind, SMI_PARAMETERS);
+      });
+  Return(UndefinedConstant());
+}
+
 TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     TNode<Context> context, TNode<JSTypedArray> exemplar) {
   TVARIABLE(IntPtrT, context_slot);

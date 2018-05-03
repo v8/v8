@@ -9,6 +9,11 @@ module typed_array {
   const kTypedArrayProtoSort: MethodName = '\"%TypedArray%.prototype.sort\"';
   extern macro ValidateTypedArray(Context, Object, MethodName): JSTypedArray;
 
+  extern builtin TypedArrayLoadElementAsTagged(
+      Context, JSTypedArray, Smi, Smi): Object;
+  extern builtin TypedArrayStoreElementFromTagged(
+      Context, JSTypedArray, Smi, Smi, Object);
+
   extern macro AssertUnreachable();
   extern macro NumberIsNaN(Number): bit;
 
@@ -31,50 +36,55 @@ module typed_array {
 
   // Wrapped CSA macro for better readability. Ideally we want to map this
   // as the array operator "[]".
-  macro Load(backing_store: RawPtr, index: Smi, kind: ElementsKind): Object {
-    return LoadFixedTypedArrayElementAsTagged(
-        backing_store, index, kind, kSmiParameters);
+  // TODO(szuend): Change Load/Store macros so they use function pointers to
+  //               the correct builtins as soon as they are available in Torque.
+  //
+  //               Currently the dispatch to the correct load/store instruction
+  //               is done during runtime in a builtin. This costs around 20%
+  //               performance in relevant benchmarks, but greatly reduces the
+  //               code size - compared to sort macro "copies" for each
+  //               ElementsKind that inline the correct load/store.
+  macro Load(
+      context: Context, array: JSTypedArray, kind: Smi, index: Smi): Object {
+    return TypedArrayLoadElementAsTagged(context, array, kind, index);
   }
 
   // Wrapped array store CSA macro for better readability.
   macro Store(
-      context: Context, backing_store: RawPtr, index: Smi, value: Object,
-      kind: ElementsKind) {
-    StoreFixedTypedArrayElementFromTagged(
-        context, backing_store, index, value, kind, kSmiParameters);
+      context: Context, array: JSTypedArray, kind: Smi, index: Smi,
+      value: Object) {
+    TypedArrayStoreElementFromTagged(context, array, kind, index, value);
   }
 
   // InsertionSort is used for smaller arrays.
   macro TypedArrayInsertionSort(
-      context: Context, array: JSTypedArray, kind: ElementsKind, from_arg: Smi,
+      context: Context, array: JSTypedArray, kind: Smi, from_arg: Smi,
       to_arg: Smi, comparefn: Callable)
   labels Detached {
     let from: Smi = from_arg;
     let to: Smi = to_arg;
 
-    let backing_store: RawPtr = array.data_ptr;
     if (IsDetachedBuffer(array.buffer)) goto Detached;
 
     for (let i: Smi = from + 1; i < to; ++i) {
-      let element: Object = Load(backing_store, i, kind);
+      let element: Object = Load(context, array, kind, i);
       let j: Smi = i - 1;
       for (; j >= from; --j) {
-        let tmp: Object = Load(backing_store, j, kind);
+        let tmp: Object = Load(context, array, kind, j);
         let order: Number = CallCompareWithDetachedCheck(
             context, array, comparefn, tmp, element) otherwise Detached;
-        backing_store = array.data_ptr;  // Force reload.
         if (order > 0) {
-          Store(context, backing_store, j + 1, tmp, kind);
+          Store(context, array, kind, j + 1, tmp);
         } else {
           break;
         }
       }
-      Store(context, backing_store, j + 1, element, kind);
+      Store(context, array, kind, j + 1, element);
     }
   }
 
   macro TypedArrayQuickSortImpl(
-      context: Context, array: JSTypedArray, kind: ElementsKind, from_arg: Smi,
+      context: Context, array: JSTypedArray, kind: Smi, from_arg: Smi,
       to_arg: Smi, comparefn: Callable)
   labels Detached {
     let from: Smi = from_arg;
@@ -94,15 +104,12 @@ module typed_array {
       //               worth it for very large arrays.
       let third_index: Smi = from + ((to - from) >>> 1);
 
-      // TODO(szuend): Investigate possible performance impact by caching the
-      //               backing_store ptr for off-heap buffers.
-      let backing_store: RawPtr = array.data_ptr;
       if (IsDetachedBuffer(array.buffer)) goto Detached;
 
       // Find a pivot as the median of first, last and middle element.
-      let v0: Object = Load(backing_store, from, kind);
-      let v1: Object = Load(backing_store, to - 1, kind);
-      let v2: Object = Load(backing_store, third_index, kind);
+      let v0: Object = Load(context, array, kind, from);
+      let v1: Object = Load(context, array, kind, to - 1);
+      let v2: Object = Load(context, array, kind, third_index);
 
       let c01: Number = CallCompareWithDetachedCheck(
           context, array, comparefn, v0, v1) otherwise Detached;
@@ -134,30 +141,28 @@ module typed_array {
       }
 
       // v0 <= v1 <= v2.
-      backing_store = array.data_ptr;  // Force reload.
-      Store(context, backing_store, from, v0, kind);
-      Store(context, backing_store, to - 1, v2, kind);
+      Store(context, array, kind, from, v0);
+      Store(context, array, kind, to - 1, v2);
 
       let pivot: Object = v1;
       let low_end: Smi = from + 1;   // Upper bound of elems lower than pivot.
       let high_start: Smi = to - 1;  // Lower bound of elems greater than pivot.
 
-      let low_end_value: Object = Load(backing_store, low_end, kind);
-      Store(context, backing_store, third_index, low_end_value, kind);
-      Store(context, backing_store, low_end, pivot, kind);
+      let low_end_value: Object = Load(context, array, kind, low_end);
+      Store(context, array, kind, third_index, low_end_value);
+      Store(context, array, kind, low_end, pivot);
 
       // From low_end to idx are elements equal to pivot.
       // From idx to high_start are elements that haven"t been compared yet.
       for (let idx: Smi = low_end + 1; idx < high_start; idx++) {
-        let element: Object = Load(backing_store, idx, kind);
+        let element: Object = Load(context, array, kind, idx);
         let order: Number = CallCompareWithDetachedCheck(
             context, array, comparefn, element, pivot) otherwise Detached;
 
-        backing_store = array.data_ptr;  // Force reload.
         if (order < 0) {
-          low_end_value = Load(backing_store, low_end, kind);
-          Store(context, backing_store, idx, low_end_value, kind);
-          Store(context, backing_store, low_end, element, kind);
+          low_end_value = Load(context, array, kind, low_end);
+          Store(context, array, kind, idx, low_end_value);
+          Store(context, array, kind, low_end, element);
           low_end++;
         } else if (order > 0) {
           let break_for: bit = no;
@@ -169,92 +174,46 @@ module typed_array {
               break;
             }
 
-            let top_elem: Object = Load(backing_store, high_start, kind);
+            let top_elem: Object = Load(context, array, kind, high_start);
             order = CallCompareWithDetachedCheck(
                 context, array, comparefn, top_elem, pivot) otherwise Detached;
-            backing_store = array.data_ptr;  // Force reload.
           }
 
           if (break_for) {
             break;
           }
 
-          let high_start_value: Object = Load(backing_store, high_start, kind);
-          Store(context, backing_store, idx, high_start_value, kind);
-          Store(context, backing_store, high_start, element, kind);
+          let high_start_value: Object = Load(context, array, kind, high_start);
+          Store(context, array, kind, idx, high_start_value);
+          Store(context, array, kind, high_start, element);
 
           if (order < 0) {
-            element = Load(backing_store, idx, kind);
+            element = Load(context, array, kind, idx);
 
-            low_end_value = Load(backing_store, low_end, kind);
-            Store(context, backing_store, idx, low_end_value, kind);
-            Store(context, backing_store, low_end, element, kind);
+            low_end_value = Load(context, array, kind, low_end);
+            Store(context, array, kind, idx, low_end_value);
+            Store(context, array, kind, low_end, element);
             low_end++;
           }
         }
       }
 
       if ((to - high_start) < (low_end - from)) {
-        TypedArrayQuickSort(context, array, high_start, to, comparefn);
+        TypedArrayQuickSort(context, array, kind, high_start, to, comparefn);
         to = low_end;
       } else {
-        TypedArrayQuickSort(context, array, from, low_end, comparefn);
+        TypedArrayQuickSort(context, array, kind, from, low_end, comparefn);
         from = high_start;
       }
     }
   }
 
   builtin TypedArrayQuickSort(
-      context: Context, array: JSTypedArray, from: Smi, to: Smi,
+      context: Context, array: JSTypedArray, kind: Smi, from: Smi, to: Smi,
       comparefn: Callable): JSTypedArray {
-    let element_kind: int32 = array.elements_kind;
-
     try {
-      if (element_kind == convert<int32>(UINT8_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, UINT8_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(INT8_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, INT8_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(UINT16_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, UINT16_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(INT16_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, INT16_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(UINT32_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, UINT32_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(INT32_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, INT32_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(UINT8_CLAMPED_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, UINT8_CLAMPED_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(FLOAT32_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, FLOAT32_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(FLOAT64_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, FLOAT64_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(BIGUINT64_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, BIGUINT64_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      } else if (element_kind == convert<int32>(BIGINT64_ELEMENTS)) {
-        TypedArrayQuickSortImpl(
-            context, array, BIGINT64_ELEMENTS, from, to, comparefn)
-        otherwise Detached;
-      }
+      TypedArrayQuickSortImpl(context, array, kind, from, to, comparefn)
+      otherwise Detached;
     }
     label Detached {
       ThrowTypeError(
@@ -292,7 +251,8 @@ module typed_array {
     try {
       let comparefn: Callable =
           cast<Callable>(comparefn_obj) otherwise CastError;
-      TypedArrayQuickSort(context, array, 0, len, comparefn);
+      let elements_kind: Smi = convert<Smi>(array.elements_kind);
+      TypedArrayQuickSort(context, array, elements_kind, 0, len, comparefn);
     }
     label CastError {
       // TODO(szuend): Replace with Unreachable() when its supported in Torque.

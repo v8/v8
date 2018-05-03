@@ -219,6 +219,7 @@ extern implicit operator 'convert<>' macro NumberConstant(const_int32): Number;
 extern operator 'convert<>' macro ChangeInt32ToTagged(int32): Number;
 extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;
 extern operator 'convert<>' macro SmiTag(intptr): Smi;
+extern operator 'convert<>' macro SmiFromInt32(int32): Smi;
 extern operator 'convert<>' macro SmiUntag(Smi): intptr;
 
 
@@ -290,10 +291,3 @@ macro HasPropertyObject(
 extern macro IsCallable(HeapObject): bit;
 extern macro TaggedIsCallable(Object): bit;
 extern macro IsDetachedBuffer(JSArrayBuffer): bit;
-
-type ParameterMode;
-const kSmiParameters: ParameterMode = 'ParameterMode::SMI_PARAMETERS';
-extern macro LoadFixedTypedArrayElementAsTagged(
-    RawPtr, Smi, ElementsKind, ParameterMode): Object;
-extern macro StoreFixedTypedArrayElementFromTagged(
-    Context, RawPtr, Smi, Object, ElementsKind, ParameterMode);

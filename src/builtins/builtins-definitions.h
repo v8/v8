@@ -1175,6 +1175,8 @@ namespace internal {
   TFJ(TypedArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   /* ES6 %TypedArray%.from */                                                  \
   TFJ(TypedArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
+  TFS(TypedArrayLoadElementAsTagged, kArray, kKind, kIndex)                    \
+  TFS(TypedArrayStoreElementFromTagged, kArray, kKind, kIndex, kValue)         \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
