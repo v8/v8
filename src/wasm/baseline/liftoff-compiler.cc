@@ -1431,12 +1431,14 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(position), false);
 
     Register args[] = {info.gp()};
-    GenerateRuntimeCall(arraysize(args), args);
+    GenerateRuntimeCall(Runtime::kWasmTraceMemory, arraysize(args), args);
+    __ DeallocateStackSlot(sizeof(wasm::MemoryTracingInfo));
   }
 
-  void GenerateRuntimeCall(int num_args, Register* args) {
+  void GenerateRuntimeCall(Runtime::FunctionId runtime_function, int num_args,
+                           Register* args) {
     auto call_descriptor = compiler::Linkage::GetRuntimeCallDescriptor(
-        compilation_zone_, Runtime::kWasmTraceMemory, num_args,
+        compilation_zone_, runtime_function, num_args,
         compiler::Operator::kNoProperties, compiler::CallDescriptor::kNoFlags);
     // Currently, only one argument is supported. More arguments require some
     // caution for the parallel register moves (reuse StackTransferRecipe).
@@ -1461,8 +1463,9 @@ class LiftoffCompiler {
       codegen_zone_->reset(
           new Zone(__ isolate()->allocator(), "LiftoffCodegenZone"));
     }
-    __ CallRuntime(codegen_zone_->get(), Runtime::kWasmTraceMemory);
-    __ DeallocateStackSlot(sizeof(wasm::MemoryTracingInfo));
+    __ CallRuntime(codegen_zone_->get(), runtime_function);
+    safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                             Safepoint::kNoLazyDeopt);
   }
 
   void LoadMem(Decoder* decoder, LoadType type,
@@ -1535,8 +1538,73 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, mem_size);
   }
 
-  void GrowMemory(Decoder* decoder, const Value& value, Value* result) {
-    unsupported(decoder, "grow_memory");
+  void Int32ToSmi(LiftoffRegister dst, Register src, Register scratch) {
+    constexpr int kTotalSmiShift = kSmiTagSize + kSmiShiftSize;
+    // TODO(clemensh): Shift by immediate directly.
+    if (kPointerSize == 4) {
+      __ LoadConstant(LiftoffRegister(scratch),
+                      WasmValue(int32_t{kTotalSmiShift}));
+      __ emit_i32_shl(dst.gp(), src, scratch);
+    } else {
+      __ LoadConstant(LiftoffRegister(scratch),
+                      WasmValue(int64_t{kTotalSmiShift}));
+      __ emit_i64_shl(dst, LiftoffRegister(src), scratch);
+    }
+  }
+
+  void SmiToInt32(Register dst, LiftoffRegister src, Register scratch) {
+    constexpr int kTotalSmiShift = kSmiTagSize + kSmiShiftSize;
+    // TODO(clemensh): Shift by immediate directly.
+    if (kPointerSize == 4) {
+      __ LoadConstant(LiftoffRegister(scratch),
+                      WasmValue(int32_t{kTotalSmiShift}));
+      __ emit_i32_sar(dst, src.gp(), scratch);
+    } else {
+      // Assert that we shift by exactly 32 bit. This makes the returned value a
+      // zero-extended 32-bit value without emitting further instructions.
+      static_assert(kPointerSize == 4 || kTotalSmiShift == 32,
+                    "shift by exactly 32 bit");
+      __ LoadConstant(LiftoffRegister(scratch),
+                      WasmValue(int64_t{kTotalSmiShift}));
+      __ emit_i64_shr(LiftoffRegister(dst), src, scratch);
+    }
+  }
+
+  void GrowMemory(Decoder* decoder, const Value& value, Value* result_val) {
+    // Pop the input, then spill all cache registers to make the runtime call.
+    LiftoffRegList pinned;
+    LiftoffRegister input = pinned.set(__ PopToRegister());
+    __ SpillAllRegisters();
+
+    constexpr Register kGpReturnReg = kGpReturnRegisters[0];
+    static_assert(kLiftoffAssemblerGpCacheRegs & Register::bit<kGpReturnReg>(),
+                  "first return register is a cache register (needs more "
+                  "complex code here otherwise)");
+    LiftoffRegister result = pinned.set(LiftoffRegister(kGpReturnReg));
+
+    LiftoffRegister tmp_const =
+        pinned.set(__ cache_state()->unused_register(kGpReg, pinned));
+
+    Label done;
+    Label do_runtime_call;
+    // TODO(clemensh): Compare to immediate directly.
+    __ LoadConstant(tmp_const, WasmValue(uint32_t{FLAG_wasm_max_mem_pages}));
+    __ emit_cond_jump(kUnsignedLessEqual, &do_runtime_call, kWasmI32,
+                      input.gp(), tmp_const.gp());
+    __ LoadConstant(result, WasmValue(int32_t{-1}));
+    __ emit_jump(&done);
+
+    // TODO(clemensh): Introduce new builtin for smi-conversion, runtime call,
+    // and conversion back. Use in TF and here.
+    __ bind(&do_runtime_call);
+    LiftoffRegister input_smi = input;
+    Int32ToSmi(input_smi, input.gp(), tmp_const.gp());
+    Register args[] = {input_smi.gp()};
+    GenerateRuntimeCall(Runtime::kWasmGrowMemory, arraysize(args), args);
+    SmiToInt32(result.gp(), result, tmp_const.gp());
+
+    __ bind(&done);
+    __ PushRegister(kWasmI32, result);
   }
 
   void CallDirect(Decoder* decoder, const CallFunctionImmediate<validate>& imm,
