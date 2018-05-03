@@ -1089,21 +1089,20 @@ class LiftoffCompiler {
   }
 
   void GetLocal(Decoder* decoder, Value* result,
-                const LocalIndexOperand<validate>& operand) {
-    auto& slot = __ cache_state()->stack_state[operand.index];
-    DCHECK_EQ(slot.type(), operand.type);
+                const LocalIndexImmediate<validate>& imm) {
+    auto& slot = __ cache_state()->stack_state[imm.index];
+    DCHECK_EQ(slot.type(), imm.type);
     switch (slot.loc()) {
       case kRegister:
         __ PushRegister(slot.type(), slot.reg());
         break;
       case KIntConst:
-        __ cache_state()->stack_state.emplace_back(operand.type,
-                                                   slot.i32_const());
+        __ cache_state()->stack_state.emplace_back(imm.type, slot.i32_const());
         break;
       case kStack: {
-        auto rc = reg_class_for(operand.type);
+        auto rc = reg_class_for(imm.type);
         LiftoffRegister reg = __ GetUnusedRegister(rc);
-        __ Fill(reg, operand.index, operand.type);
+        __ Fill(reg, imm.index, imm.type);
         __ PushRegister(slot.type(), reg);
         break;
       }
@@ -1152,13 +1151,13 @@ class LiftoffCompiler {
   }
 
   void SetLocal(Decoder* decoder, const Value& value,
-                const LocalIndexOperand<validate>& operand) {
-    SetLocal(operand.index, false);
+                const LocalIndexImmediate<validate>& imm) {
+    SetLocal(imm.index, false);
   }
 
   void TeeLocal(Decoder* decoder, const Value& value, Value* result,
-                const LocalIndexOperand<validate>& operand) {
-    SetLocal(operand.index, true);
+                const LocalIndexImmediate<validate>& imm) {
+    SetLocal(imm.index, true);
   }
 
   LiftoffRegister GetGlobalBaseAndOffset(const WasmGlobal* global,
@@ -1179,8 +1178,8 @@ class LiftoffCompiler {
   }
 
   void GetGlobal(Decoder* decoder, Value* result,
-                 const GlobalIndexOperand<validate>& operand) {
-    const auto* global = &env_->module->globals[operand.index];
+                 const GlobalIndexImmediate<validate>& imm) {
+    const auto* global = &env_->module->globals[imm.index];
     if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
       return;
     LiftoffRegList pinned;
@@ -1194,8 +1193,8 @@ class LiftoffCompiler {
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
-                 const GlobalIndexOperand<validate>& operand) {
-    auto* global = &env_->module->globals[operand.index];
+                 const GlobalIndexImmediate<validate>& imm) {
+    auto* global = &env_->module->globals[imm.index];
     if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
       return;
     LiftoffRegList pinned;
@@ -1301,22 +1300,22 @@ class LiftoffCompiler {
                     br_targets);
   }
 
-  void BrTable(Decoder* decoder, const BranchTableOperand<validate>& operand,
+  void BrTable(Decoder* decoder, const BranchTableImmediate<validate>& imm,
                const Value& key) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    BranchTableIterator<validate> table_iterator(decoder, operand);
+    BranchTableIterator<validate> table_iterator(decoder, imm);
     std::map<uint32_t, MovableLabel> br_targets;
 
-    if (operand.table_count > 0) {
+    if (imm.table_count > 0) {
       LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
-      __ LoadConstant(tmp, WasmValue(uint32_t{operand.table_count}));
+      __ LoadConstant(tmp, WasmValue(uint32_t{imm.table_count}));
       Label case_default;
       __ emit_cond_jump(kUnsignedGreaterEqual, &case_default, kWasmI32,
                         value.gp(), tmp.gp());
 
-      GenerateBrTable(decoder, tmp, value, 0, operand.table_count,
-                      table_iterator, br_targets);
+      GenerateBrTable(decoder, tmp, value, 0, imm.table_count, table_iterator,
+                      br_targets);
 
       __ bind(&case_default);
     }
@@ -1467,13 +1466,13 @@ class LiftoffCompiler {
   }
 
   void LoadMem(Decoder* decoder, LoadType type,
-               const MemoryAccessOperand<validate>& operand,
+               const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister()).gp();
-    if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
       return;
     }
     LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -1481,7 +1480,7 @@ class LiftoffCompiler {
     RegClass rc = reg_class_for(value_type);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
     uint32_t protected_load_pc = 0;
-    __ Load(value, addr.gp(), index, operand.offset, type, pinned,
+    __ Load(value, addr.gp(), index, imm.offset, type, pinned,
             &protected_load_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
@@ -1492,25 +1491,25 @@ class LiftoffCompiler {
 
     if (FLAG_wasm_trace_memory) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
-                           operand.offset, decoder->position());
+                           imm.offset, decoder->position());
     }
   }
 
   void StoreMem(Decoder* decoder, StoreType type,
-                const MemoryAccessOperand<validate>& operand,
+                const MemoryAccessImmediate<validate>& imm,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "store")) return;
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
       return;
     }
     LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerLoadType);
     uint32_t protected_store_pc = 0;
-    __ Store(addr.gp(), index, operand.offset, value, type, pinned,
+    __ Store(addr.gp(), index, imm.offset, value, type, pinned,
              &protected_store_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
@@ -1518,7 +1517,7 @@ class LiftoffCompiler {
                        protected_store_pc);
     }
     if (FLAG_wasm_trace_memory) {
-      TraceMemoryOperation(true, type.mem_rep(), index, operand.offset,
+      TraceMemoryOperation(true, type.mem_rep(), index, imm.offset,
                            decoder->position());
     }
   }
@@ -1540,22 +1539,21 @@ class LiftoffCompiler {
     unsupported(decoder, "grow_memory");
   }
 
-  void CallDirect(Decoder* decoder,
-                  const CallFunctionOperand<validate>& operand,
+  void CallDirect(Decoder* decoder, const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    if (operand.sig->return_count() > 1)
+    if (imm.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
-    if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilfd, operand.sig->GetReturn(0),
+    if (imm.sig->return_count() == 1 &&
+        !CheckSupportedType(decoder, kTypes_ilfd, imm.sig->GetReturn(0),
                             "return"))
       return;
 
     auto call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
+        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    if (operand.index < env_->module->num_imported_functions) {
+    if (imm.index < env_->module->num_imported_functions) {
       // A direct call to an imported function.
       LiftoffRegList pinned;
       LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -1565,55 +1563,54 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
                           kPointerLoadType);
       __ Load(target, imported_targets.gp(), no_reg,
-              operand.index * sizeof(Address), kPointerLoadType, pinned);
+              imm.index * sizeof(Address), kPointerLoadType, pinned);
 
       LiftoffRegister imported_instances = tmp;
       LOAD_INSTANCE_FIELD(imported_instances, ImportedFunctionInstances,
                           kPointerLoadType);
       LiftoffRegister target_instance = tmp;
       __ Load(target_instance, imported_instances.gp(), no_reg,
-              compiler::FixedArrayOffsetMinusTag(operand.index),
-              kPointerLoadType, pinned);
+              compiler::FixedArrayOffsetMinusTag(imm.index), kPointerLoadType,
+              pinned);
 
       LiftoffRegister* explicit_instance = &target_instance;
       Register target_reg = target.gp();
-      __ PrepareCall(operand.sig, call_descriptor, &target_reg,
-                     explicit_instance);
+      __ PrepareCall(imm.sig, call_descriptor, &target_reg, explicit_instance);
       source_position_table_builder_->AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), false);
 
-      __ CallIndirect(operand.sig, call_descriptor, target_reg);
+      __ CallIndirect(imm.sig, call_descriptor, target_reg);
 
       safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                                Safepoint::kNoLazyDeopt);
 
-      __ FinishCall(operand.sig, call_descriptor);
+      __ FinishCall(imm.sig, call_descriptor);
     } else {
       // A direct call within this module just gets the current instance.
-      __ PrepareCall(operand.sig, call_descriptor);
+      __ PrepareCall(imm.sig, call_descriptor);
 
       source_position_table_builder_->AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), false);
 
       // Just encode the function index. This will be patched at instantiation.
-      Address addr = static_cast<Address>(operand.index);
+      Address addr = static_cast<Address>(imm.index);
       __ CallNativeWasmCode(addr);
 
       safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                                Safepoint::kNoLazyDeopt);
 
-      __ FinishCall(operand.sig, call_descriptor);
+      __ FinishCall(imm.sig, call_descriptor);
     }
   }
 
   void CallIndirect(Decoder* decoder, const Value& index_val,
-                    const CallIndirectOperand<validate>& operand,
+                    const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    if (operand.sig->return_count() > 1) {
+    if (imm.sig->return_count() > 1) {
       return unsupported(decoder, "multi-return");
     }
-    if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilfd, operand.sig->GetReturn(0),
+    if (imm.sig->return_count() == 1 &&
+        !CheckSupportedType(decoder, kTypes_ilfd, imm.sig->GetReturn(0),
                             "return")) {
       return;
     }
@@ -1640,7 +1637,7 @@ class LiftoffCompiler {
     Label* invalid_func_label = AddOutOfLineTrap(
         decoder->position(), Builtins::kThrowWasmTrapFuncInvalid);
 
-    uint32_t canonical_sig_num = env_->module->signature_ids[operand.sig_index];
+    uint32_t canonical_sig_num = env_->module->signature_ids[imm.sig_index];
     DCHECK_GE(canonical_sig_num, 0);
     DCHECK_GE(kMaxInt, canonical_sig_num);
 
@@ -1691,18 +1688,18 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), false);
 
     auto call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
+        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
     Register target = scratch.gp();
-    __ PrepareCall(operand.sig, call_descriptor, &target, explicit_instance);
-    __ CallIndirect(operand.sig, call_descriptor, target);
+    __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
+    __ CallIndirect(imm.sig, call_descriptor, target);
 
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
 
-    __ FinishCall(operand.sig, call_descriptor);
+    __ FinishCall(imm.sig, call_descriptor);
   }
 
   void SimdOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -1710,32 +1707,32 @@ class LiftoffCompiler {
     unsupported(decoder, "simd");
   }
   void SimdLaneOp(Decoder* decoder, WasmOpcode opcode,
-                  const SimdLaneOperand<validate>& operand,
+                  const SimdLaneImmediate<validate>& imm,
                   const Vector<Value> inputs, Value* result) {
     unsupported(decoder, "simd");
   }
   void SimdShiftOp(Decoder* decoder, WasmOpcode opcode,
-                   const SimdShiftOperand<validate>& operand,
-                   const Value& input, Value* result) {
+                   const SimdShiftImmediate<validate>& imm, const Value& input,
+                   Value* result) {
     unsupported(decoder, "simd");
   }
   void Simd8x16ShuffleOp(Decoder* decoder,
-                         const Simd8x16ShuffleOperand<validate>& operand,
+                         const Simd8x16ShuffleImmediate<validate>& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
     unsupported(decoder, "simd");
   }
-  void Throw(Decoder* decoder, const ExceptionIndexOperand<validate>&,
+  void Throw(Decoder* decoder, const ExceptionIndexImmediate<validate>&,
              Control* block, const Vector<Value>& args) {
     unsupported(decoder, "throw");
   }
   void CatchException(Decoder* decoder,
-                      const ExceptionIndexOperand<validate>& operand,
+                      const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> caught_values) {
     unsupported(decoder, "catch");
   }
   void AtomicOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
-                const MemoryAccessOperand<validate>& operand, Value* result) {
+                const MemoryAccessImmediate<validate>& imm, Value* result) {
     unsupported(decoder, "atomicop");
   }
 
