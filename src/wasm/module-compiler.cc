@@ -1664,7 +1664,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   CodeSpecialization code_specialization;
   Handle<WasmInstanceObject> instance =
-      WasmInstanceObject::New(isolate_, compiled_module_);
+      WasmInstanceObject::New(isolate_, module_object_, compiled_module_);
   Handle<WeakCell> weak_instance = factory->NewWeakCell(instance);
   Handle<WeakCell> old_weak_instance(original->weak_owning_instance(),
                                      isolate_);
