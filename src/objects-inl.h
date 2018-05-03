@@ -2585,8 +2585,7 @@ Object* JSFunction::prototype() {
 
 
 bool JSFunction::is_compiled() {
-  Builtins* builtins = GetIsolate()->builtins();
-  return code() != builtins->builtin(Builtins::kCompileLazy);
+  return code()->builtin_index() != Builtins::kCompileLazy;
 }
 
 ACCESSORS(JSProxy, target, Object, kTargetOffset)

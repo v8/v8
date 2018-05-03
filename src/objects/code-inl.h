@@ -316,7 +316,13 @@ int Code::relocation_size() const {
 Address Code::entry() const { return raw_instruction_start(); }
 
 bool Code::contains(Address inner_pointer) {
-  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsEmbeddedBuiltin(this)) {
+    return (OffHeapInstructionStart() <= inner_pointer) &&
+           (inner_pointer < OffHeapInstructionEnd());
+  }
+#endif
+  return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
 
 int Code::ExecutableSize() const {

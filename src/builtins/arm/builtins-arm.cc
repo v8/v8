@@ -483,7 +483,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Flood function if we are stepping.
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ mov(scratch, Operand(debug_hook));
+  __ Move(scratch, debug_hook);
   __ ldrsb(scratch, MemOperand(scratch));
   __ cmp(scratch, Operand(0));
   __ b(ne, &prepare_step_in_if_stepping);
@@ -492,7 +492,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ mov(scratch, Operand(debug_suspended_generator));
+  __ Move(scratch, debug_suspended_generator);
   __ ldr(scratch, MemOperand(scratch));
   __ cmp(scratch, Operand(r1));
   __ b(eq, &prepare_step_in_suspended_generator);
@@ -627,7 +627,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ mov(cp, Operand(context_address));
+    __ Move(cp, context_address);
     __ ldr(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
@@ -1325,8 +1325,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsSmi: Is builtin
   __ JumpIfNotSmi(sfi_data, &check_is_bytecode_array);
-  __ Move(scratch1,
-          Operand(ExternalReference::builtins_address(masm->isolate())));
+  __ Move(scratch1, ExternalReference::builtins_address(masm->isolate()));
   __ ldr(sfi_data, MemOperand::PointerAddressFromSmiKey(scratch1, sfi_data));
   __ b(&done);
 
@@ -1466,8 +1465,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
     // Load the code object at builtins_table[builtin_id] into scratch1.
 
     __ SmiUntag(scratch1);
-    __ Move(scratch0,
-            Operand(ExternalReference::builtins_address(masm->isolate())));
+    __ Move(scratch0, ExternalReference::builtins_address(masm->isolate()));
     __ ldr(scratch1, MemOperand(scratch0, scratch1, LSL, kPointerSizeLog2));
 
     // Check if the loaded code object has already been deserialized. This is

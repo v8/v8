@@ -516,14 +516,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ Mov(x10, Operand(debug_hook));
+  __ Mov(x10, debug_hook);
   __ Ldrsb(x10, MemOperand(x10));
   __ CompareAndBranch(x10, Operand(0), ne, &prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ Mov(x10, Operand(debug_suspended_generator));
+  __ Mov(x10, debug_suspended_generator);
   __ Ldr(x10, MemOperand(x10));
   __ CompareAndBranch(x10, Operand(x1), eq,
                       &prepare_step_in_suspended_generator);
@@ -674,11 +674,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   Register scratch = x10;
   Register slots_to_claim = x11;
 
-  {
-    NoRootArrayScope no_root_array(masm);
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
-    __ InitializeRootRegister();
-  }
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   {
     // Enter an internal frame.
@@ -1413,7 +1409,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
 
 void Builtins::Generate_CompileLazyDeoptimizedCode(MacroAssembler* masm) {
   // Set the code slot inside the JSFunction to CompileLazy.
-  __ Mov(x2, BUILTIN_CODE(masm->isolate(), CompileLazy));
+  __ Move(x2, BUILTIN_CODE(masm->isolate(), CompileLazy));
   __ Str(x2, FieldMemOperand(x1, JSFunction::kCodeOffset));
   __ RecordWriteField(x1, JSFunction::kCodeOffset, x2, x5, kLRHasNotBeenSaved,
                       kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);

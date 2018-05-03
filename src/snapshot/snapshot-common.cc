@@ -372,8 +372,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       !saw_unsafe_builtin,
       "One or more builtins marked as isolate-independent either contains "
       "isolate-dependent code or aliases the off-heap trampoline register. "
-      "If in doubt, ask jgruber@ or remove the affected builtin from the "
-      "Builtins::IsIsolateIndependent whitelist");
+      "If in doubt, ask jgruber@");
 
   const uint32_t blob_size = RawDataOffset() + raw_data_size;
   uint8_t* blob = new uint8_t[blob_size];

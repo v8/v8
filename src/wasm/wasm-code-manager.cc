@@ -474,8 +474,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   std::unique_ptr<ProtectedInstructions> protected_instructions(
       new ProtectedInstructions(0));
   Vector<const byte> orig_instructions(
-      reinterpret_cast<byte*>(code->raw_instruction_start()),
-      static_cast<size_t>(code->raw_instruction_size()));
+      reinterpret_cast<byte*>(code->InstructionStart()),
+      static_cast<size_t>(code->InstructionSize()));
   int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
   int safepoint_table_offset =
       code->has_safepoint_info() ? code->safepoint_table_offset() : 0;
@@ -494,7 +494,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                    std::move(protected_instructions),  // protected_instructions
                    WasmCode::kOther,                   // kind
                    WasmCode::kNoFlushICache);          // flush_icache
-  intptr_t delta = ret->instruction_start() - code->raw_instruction_start();
+  intptr_t delta = ret->instruction_start() - code->InstructionStart();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
              RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
 

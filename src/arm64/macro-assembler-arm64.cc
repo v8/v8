@@ -2456,12 +2456,12 @@ void TurboAssembler::Prologue() {
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
-  Register type_reg = temps.AcquireX();
-  Register code_reg = temps.AcquireX();
 
   if (type == StackFrame::INTERNAL) {
+    Register code_reg = temps.AcquireX();
+    Move(code_reg, CodeObject());
+    Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
-    Mov(code_reg, Operand(CodeObject()));
     Push(lr, fp, type_reg, code_reg);
     Add(fp, sp, InternalFrameConstants::kFixedFrameSizeFromFp);
     // sp[4] : lr
@@ -2469,6 +2469,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[1] : type
     // sp[0] : [code object]
   } else if (type == StackFrame::WASM_COMPILED) {
+    Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Mov(fp, sp);
@@ -2479,6 +2480,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[0] : for alignment
   } else {
     DCHECK_EQ(type, StackFrame::CONSTRUCT);
+    Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
 
     // Users of this frame type push a context pointer after the type field,

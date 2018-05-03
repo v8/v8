@@ -482,7 +482,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ li(cp, Operand(context_address));
+    __ li(cp, context_address);
     __ lw(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
@@ -583,14 +583,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ li(t1, Operand(debug_hook));
+  __ li(t1, debug_hook);
   __ lb(t1, MemOperand(t1));
   __ Branch(&prepare_step_in_if_stepping, ne, t1, Operand(zero_reg));
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ li(t1, Operand(debug_suspended_generator));
+  __ li(t1, debug_suspended_generator);
   __ lw(t1, MemOperand(t1));
   __ Branch(&prepare_step_in_suspended_generator, eq, a1, Operand(t1));
   __ bind(&stepping_prepared);
