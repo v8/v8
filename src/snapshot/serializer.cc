@@ -609,12 +609,6 @@ void Serializer<AllocatorT>::ObjectSerializer::Serialize() {
   if (object_->IsExternalString()) {
     SerializeExternalString();
     return;
-  } else if (object_->IsSeqOneByteString()) {
-    // Clear padding bytes at the end. Done here to avoid having to do this
-    // at allocation sites in generated code.
-    SeqOneByteString::cast(object_)->clear_padding();
-  } else if (object_->IsSeqTwoByteString()) {
-    SeqTwoByteString::cast(object_)->clear_padding();
   }
   if (object_->IsJSTypedArray()) {
     SerializeJSTypedArray();
