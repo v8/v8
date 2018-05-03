@@ -259,7 +259,6 @@ namespace internal {
   F(GetDefaultICULocale, 0, 1)               \
   F(InternalCompare, 3, 1)                   \
   F(InternalDateFormat, 2, 1)                \
-  F(InternalDateFormatToParts, 2, 1)         \
   F(InternalNumberFormat, 2, 1)              \
   F(IsInitializedIntlObject, 1, 1)           \
   F(IsInitializedIntlObjectOfType, 2, 1)     \

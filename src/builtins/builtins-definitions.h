@@ -1260,19 +1260,21 @@ namespace internal {
   ASM(MathPowInternal)
 
 #ifdef V8_INTL_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)        \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)         \
-  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \
-                                                               \
-  TFS(StringToLowerCaseIntl, kString)                          \
-  /* ES #sec-string.prototype.tolowercase */                   \
-  TFJ(StringPrototypeToLowerCaseIntl, 0)                       \
-  /* ES #sec-string.prototype.touppercase */                   \
-  CPP(StringPrototypeToUpperCaseIntl)                          \
-  /* ES #sec-string.prototype.normalize */                     \
-  CPP(StringPrototypeNormalizeIntl)                            \
-  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */ \
-  CPP(NumberFormatPrototypeFormatToParts)
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)          \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)       \
+                                                                 \
+  TFS(StringToLowerCaseIntl, kString)                            \
+  /* ES #sec-string.prototype.tolowercase */                     \
+  TFJ(StringPrototypeToLowerCaseIntl, 0)                         \
+  /* ES #sec-string.prototype.touppercase */                     \
+  CPP(StringPrototypeToUpperCaseIntl)                            \
+  /* ES #sec-string.prototype.normalize */                       \
+  CPP(StringPrototypeNormalizeIntl)                              \
+  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */   \
+  CPP(NumberFormatPrototypeFormatToParts)                        \
+  /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */ \
+  CPP(DateTimeFormatPrototypeFormatToParts)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

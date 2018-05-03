@@ -2733,6 +2733,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       JSObject::AddProperty(
           prototype, factory->to_string_tag_symbol(), factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallFunction(prototype, "formatToParts",
+                            Builtins::kDateTimeFormatPrototypeFormatToParts, 1,
+                            false);
     }
 
     {
@@ -2750,13 +2754,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           prototype, factory->to_string_tag_symbol(), factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-      Handle<String> name = factory->InternalizeUtf8String("formatToParts");
-      InstallFunction(
-          prototype,
-          SimpleCreateFunction(isolate, name,
-                               Builtins::kNumberFormatPrototypeFormatToParts, 1,
-                               false),
-          name);
+      SimpleInstallFunction(prototype, "formatToParts",
+                            Builtins::kNumberFormatPrototypeFormatToParts, 1,
+                            false);
     }
 
     {

@@ -301,9 +301,6 @@
   'language/expressions/arrow-function/dflt-params-duplicates': [FAIL],
   'language/expressions/async-arrow-function/dflt-params-duplicates': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5244
-  'intl402/NumberFormat/prototype/formatToParts/*': ['--harmony-number-format-to-parts'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327
   'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
   'built-ins/TypedArrays/internals/Set/BigInt/key-is-minus-zero': [FAIL],

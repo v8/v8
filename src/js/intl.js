@@ -1840,30 +1840,6 @@ function formatDate(formatter, dateValue) {
   return %InternalDateFormat(formatter, dateMs);
 }
 
-DEFINE_METHOD(
-  GlobalIntlDateTimeFormat.prototype,
-  formatToParts(dateValue) {
-    REQUIRE_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
-    if (!IS_OBJECT(this)) {
-      throw %make_type_error(kCalledOnNonObject, this);
-    }
-    if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
-      throw %make_type_error(kIncompatibleMethodReceiver,
-                            'Intl.DateTimeFormat.prototype.formatToParts',
-                            this);
-    }
-    var dateMs;
-    if (IS_UNDEFINED(dateValue)) {
-      dateMs = %DateCurrentTime();
-    } else {
-      dateMs = TO_NUMBER(dateValue);
-    }
-
-    return %InternalDateFormatToParts(this, dateMs);
-  }
-);
-
-
 // Length is 1 as specified in ECMA 402 v2+
 AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, 'dateformat',
                true);

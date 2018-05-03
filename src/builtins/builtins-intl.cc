@@ -9,15 +9,19 @@
 #include "src/builtins/builtins-intl.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/date.h"
 #include "src/intl.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 
+#include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
+#include "unicode/smpdtfmt.h"
+#include "unicode/udat.h"
 #include "unicode/ufieldpositer.h"
 #include "unicode/unistr.h"
 #include "unicode/ustring.h"
@@ -152,6 +156,57 @@ Handle<String> IcuNumberFieldIdToNumberType(int32_t field_id, double number,
   }
 }
 
+// The list comes from third_party/icu/source/i18n/unicode/udat.h.
+// They're mapped to DateTimeFormat components listed at
+// https://tc39.github.io/ecma402/#sec-datetimeformat-abstracts .
+
+Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
+  switch (field_id) {
+    case -1:
+      return isolate->factory()->literal_string();
+    case UDAT_YEAR_FIELD:
+    case UDAT_EXTENDED_YEAR_FIELD:
+    case UDAT_YEAR_NAME_FIELD:
+      return isolate->factory()->year_string();
+    case UDAT_MONTH_FIELD:
+    case UDAT_STANDALONE_MONTH_FIELD:
+      return isolate->factory()->month_string();
+    case UDAT_DATE_FIELD:
+      return isolate->factory()->day_string();
+    case UDAT_HOUR_OF_DAY1_FIELD:
+    case UDAT_HOUR_OF_DAY0_FIELD:
+    case UDAT_HOUR1_FIELD:
+    case UDAT_HOUR0_FIELD:
+      return isolate->factory()->hour_string();
+    case UDAT_MINUTE_FIELD:
+      return isolate->factory()->minute_string();
+    case UDAT_SECOND_FIELD:
+      return isolate->factory()->second_string();
+    case UDAT_DAY_OF_WEEK_FIELD:
+    case UDAT_DOW_LOCAL_FIELD:
+    case UDAT_STANDALONE_DAY_FIELD:
+      return isolate->factory()->weekday_string();
+    case UDAT_AM_PM_FIELD:
+      return isolate->factory()->dayperiod_string();
+    case UDAT_TIMEZONE_FIELD:
+    case UDAT_TIMEZONE_RFC_FIELD:
+    case UDAT_TIMEZONE_GENERIC_FIELD:
+    case UDAT_TIMEZONE_SPECIAL_FIELD:
+    case UDAT_TIMEZONE_LOCALIZED_GMT_OFFSET_FIELD:
+    case UDAT_TIMEZONE_ISO_FIELD:
+    case UDAT_TIMEZONE_ISO_LOCAL_FIELD:
+      return isolate->factory()->timeZoneName_string();
+    case UDAT_ERA_FIELD:
+      return isolate->factory()->era_string();
+    default:
+      // Other UDAT_*_FIELD's cannot show up because there is no way to specify
+      // them via options of Intl.DateTimeFormat.
+      UNREACHABLE();
+      // To prevent MSVC from issuing C4715 warning.
+      return Handle<String>();
+  }
+}
+
 bool AddElement(Handle<JSArray> array, int index,
                 Handle<String> field_type_string,
                 const icu::UnicodeString& formatted, int32_t begin, int32_t end,
@@ -240,6 +295,53 @@ Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
 
   return *result;
 }
+
+Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
+                          double date_value) {
+  Factory* factory = isolate->factory();
+
+  icu::UnicodeString formatted;
+  icu::FieldPositionIterator fp_iter;
+  icu::FieldPosition fp;
+  UErrorCode status = U_ZERO_ERROR;
+  format->format(date_value, formatted, &fp_iter, status);
+  if (U_FAILURE(status)) return isolate->heap()->undefined_value();
+
+  Handle<JSArray> result = factory->NewJSArray(0);
+  int32_t length = formatted.length();
+  if (length == 0) return *result;
+
+  int index = 0;
+  int32_t previous_end_pos = 0;
+  while (fp_iter.next(fp)) {
+    int32_t begin_pos = fp.getBeginIndex();
+    int32_t end_pos = fp.getEndIndex();
+
+    if (previous_end_pos < begin_pos) {
+      if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
+                      formatted, previous_end_pos, begin_pos, isolate)) {
+        return isolate->heap()->undefined_value();
+      }
+      ++index;
+    }
+    if (!AddElement(result, index,
+                    IcuDateFieldIdToDateType(fp.getField(), isolate), formatted,
+                    begin_pos, end_pos, isolate)) {
+      return isolate->heap()->undefined_value();
+    }
+    previous_end_pos = end_pos;
+    ++index;
+  }
+  if (previous_end_pos < length) {
+    if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
+                    formatted, previous_end_pos, length, isolate)) {
+      return isolate->heap()->undefined_value();
+    }
+  }
+  JSObject::ValidateElements(*result);
+  return *result;
+}
+
 }  // namespace
 
 // Flattens a list of possibly-overlapping "regions" to a list of
@@ -364,6 +466,43 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Object* result = FormatNumberToParts(isolate, number_format, x->Number());
   return result;
+}
+
+BUILTIN(DateTimeFormatPrototypeFormatToParts) {
+  const char* const method = "Intl.DateTimeFormat.prototype.formatToParts";
+  HandleScope handle_scope(isolate);
+  CHECK_RECEIVER(JSObject, date_format_holder, method);
+  Factory* factory = isolate->factory();
+
+  Handle<Symbol> marker = factory->intl_initialized_marker_symbol();
+  Handle<Object> tag = JSReceiver::GetDataProperty(date_format_holder, marker);
+  Handle<String> expected_tag = factory->NewStringFromStaticChars("dateformat");
+  if (!(tag->IsString() && String::cast(*tag)->Equals(*expected_tag))) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              factory->NewStringFromAsciiChecked(method),
+                              date_format_holder));
+  }
+
+  Handle<Object> x = args.atOrUndefined(isolate, 1);
+  if (x->IsUndefined(isolate)) {
+    x = factory->NewNumber(JSDate::CurrentTimeValue(isolate));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                       Object::ToNumber(args.at(1)));
+  }
+
+  double date_value = DateCache::TimeClip(x->Number());
+  if (std::isnan(date_value)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+
+  icu::SimpleDateFormat* date_format =
+      DateFormat::UnpackDateFormat(isolate, date_format_holder);
+  CHECK_NOT_NULL(date_format);
+
+  return FormatDateToParts(isolate, date_format, date_value);
 }
 
 }  // namespace internal

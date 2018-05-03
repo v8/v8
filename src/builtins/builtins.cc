@@ -1022,6 +1022,7 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kWeakSetPrototypeAdd:
     case kWeakSetPrototypeDelete:
 #ifdef V8_INTL_SUPPORT
+    case kDateTimeFormatPrototypeFormatToParts:
     case kNumberFormatPrototypeFormatToParts:
     case kStringPrototypeNormalizeIntl:
     case kStringPrototypeToLowerCaseIntl:
