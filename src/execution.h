@@ -135,7 +135,6 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
   Object* HandleInterrupts();
-  void HandleGCInterrupt();
 
  private:
   StackGuard();

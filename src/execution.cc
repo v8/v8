@@ -493,13 +493,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 // --- C a l l s   t o   n a t i v e s ---
 
 
-void StackGuard::HandleGCInterrupt() {
-  if (CheckAndClearInterrupt(GC_REQUEST)) {
-    isolate_->heap()->HandleGCRequest();
-  }
-}
-
-
 Object* StackGuard::HandleInterrupts() {
   if (FLAG_verify_predictable) {
     // Advance synthetic time by making a time request.
