@@ -7407,7 +7407,13 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::WasmCompiledModule> compiled_part =
       i::handle(i::WasmCompiledModule::cast(obj->compiled_module()));
-  return i::wasm::SerializeNativeModule(obj->GetIsolate(), compiled_part);
+  size_t buffer_size =
+      i::wasm::GetSerializedNativeModuleSize(obj->GetIsolate(), compiled_part);
+  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
+  if (i::wasm::SerializeNativeModule(obj->GetIsolate(), compiled_part,
+                                     {buffer.get(), buffer_size}))
+    return {std::move(buffer), buffer_size};
+  return {};
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(

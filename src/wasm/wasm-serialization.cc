@@ -391,21 +391,25 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   return true;
 }
 
-// static
-std::pair<std::unique_ptr<const byte[]>, size_t> SerializeNativeModule(
+size_t GetSerializedNativeModuleSize(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   NativeModule* native_module = compiled_module->GetNativeModule();
   NativeModuleSerializer serializer(isolate, native_module);
-  size_t buffer_size = kVersionSize + serializer.Measure();
-  std::unique_ptr<byte[]> buffer(new byte[buffer_size]);
+  return kVersionSize + serializer.Measure();
+}
 
-  Writer writer({buffer.get(), buffer_size});
+bool SerializeNativeModule(Isolate* isolate,
+                           Handle<WasmCompiledModule> compiled_module,
+                           Vector<byte> buffer) {
+  NativeModule* native_module = compiled_module->GetNativeModule();
+  NativeModuleSerializer serializer(isolate, native_module);
+  size_t measured_size = serializer.Measure();
+  if (buffer.size() < measured_size) return false;
+
+  Writer writer(buffer);
   WriteVersion(isolate, &writer);
 
-  if (!serializer.Write(&writer)) return {};
-  if (writer.bytes_written() != buffer_size) return {};
-
-  return {std::move(buffer), buffer_size};
+  return serializer.Write(&writer);
 }
 
 class V8_EXPORT_PRIVATE NativeModuleDeserializer {

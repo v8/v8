@@ -885,10 +885,17 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
   }
 
-  std::pair<std::unique_ptr<const byte[]>, size_t> serialized_module =
-      wasm::SerializeNativeModule(isolate_, compiled_part);
-  WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
-  WriteRawBytes(serialized_module.first.get(), serialized_module.second);
+  size_t module_size =
+      wasm::GetSerializedNativeModuleSize(isolate_, compiled_part);
+  CHECK_GE(std::numeric_limits<uint32_t>::max(), module_size);
+  WriteVarint<uint32_t>(static_cast<uint32_t>(module_size));
+  uint8_t* module_buffer;
+  if (ReserveRawBytes(module_size).To(&module_buffer)) {
+    if (!wasm::SerializeNativeModule(isolate_, compiled_part,
+                                     {module_buffer, module_size})) {
+      return Nothing<bool>();
+    }
+  }
   return ThrowIfOutOfMemory();
 }
 
