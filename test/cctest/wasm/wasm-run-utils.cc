@@ -226,6 +226,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       WasmCompiledModule::New(isolate_, test_module_ptr_, export_wrappers, env);
   compiled_module->set_shared(*shared_module_data);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared_module_data);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate_, compiled_module);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
@@ -233,7 +235,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 
   DCHECK(compiled_module->IsWasmCompiledModule());
   script->set_wasm_compiled_module(*compiled_module);
-  auto instance = WasmInstanceObject::New(isolate_, compiled_module);
+  auto instance =
+      WasmInstanceObject::New(isolate_, module_object, compiled_module);
   instance->set_globals_start(globals_data_);
   Handle<WeakCell> weak_instance = isolate()->factory()->NewWeakCell(instance);
   compiled_module->set_weak_owning_instance(*weak_instance);
