@@ -418,12 +418,10 @@ Response V8DebuggerAgentImpl::disable() {
                       v8::debug::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
-  if (isPaused()) m_debugger->continueProgram(m_session->contextGroupId());
   if (m_breakpointsActive) {
     m_debugger->setBreakpointsActive(false);
     m_breakpointsActive = false;
   }
-  m_debugger->disable();
   m_blackboxedPositions.clear();
   m_blackboxPattern.reset();
   resetBlackboxedStateCache();
@@ -440,6 +438,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_state->remove(DebuggerAgentState::blackboxPattern);
   m_enabled = false;
   m_state->setBoolean(DebuggerAgentState::debuggerEnabled, false);
+  m_debugger->disable();
   return Response::OK();
 }
 

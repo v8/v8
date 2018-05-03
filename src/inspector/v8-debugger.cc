@@ -184,6 +184,18 @@ void V8Debugger::enable() {
 }
 
 void V8Debugger::disable() {
+  if (isPaused()) {
+    bool scheduledOOMBreak = m_scheduledOOMBreak;
+    bool hasAgentAcceptsPause = false;
+    m_inspector->forEachSession(
+        m_pausedContextGroupId, [&scheduledOOMBreak, &hasAgentAcceptsPause](
+                                    V8InspectorSessionImpl* session) {
+          if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
+            hasAgentAcceptsPause = true;
+          }
+        });
+    if (!hasAgentAcceptsPause) m_inspector->client()->quitMessageLoopOnPause();
+  }
   if (--m_enableCount) return;
   clearContinueToLocation();
   allAsyncTasksCanceled();
