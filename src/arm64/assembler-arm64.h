@@ -124,10 +124,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 
   RegisterType type() const { return reg_type_; }
-  RegList bit() const {
-    DCHECK(static_cast<size_t>(reg_code_) < (sizeof(RegList) * kBitsPerByte));
-    return IsValid() ? 1UL << reg_code_ : 0;
-  }
   int SizeInBits() const {
     DCHECK(IsValid());
     return reg_size_;
@@ -485,14 +481,11 @@ bool AreAliased(const CPURegister& reg1,
 // same size, and are of the same type. The system stack pointer may be
 // specified. Arguments set to NoReg are ignored, as are any subsequent
 // arguments. At least one argument (reg1) must be valid (not NoCPUReg).
-bool AreSameSizeAndType(const CPURegister& reg1,
-                        const CPURegister& reg2,
-                        const CPURegister& reg3 = NoCPUReg,
-                        const CPURegister& reg4 = NoCPUReg,
-                        const CPURegister& reg5 = NoCPUReg,
-                        const CPURegister& reg6 = NoCPUReg,
-                        const CPURegister& reg7 = NoCPUReg,
-                        const CPURegister& reg8 = NoCPUReg);
+bool AreSameSizeAndType(
+    const CPURegister& reg1, const CPURegister& reg2 = NoCPUReg,
+    const CPURegister& reg3 = NoCPUReg, const CPURegister& reg4 = NoCPUReg,
+    const CPURegister& reg5 = NoCPUReg, const CPURegister& reg6 = NoCPUReg,
+    const CPURegister& reg7 = NoCPUReg, const CPURegister& reg8 = NoCPUReg);
 
 // AreSameFormat returns true if all of the specified VRegisters have the same
 // vector format. Arguments set to NoVReg are ignored, as are any subsequent
@@ -517,12 +510,12 @@ typedef VRegister Simd128Register;
 // Lists of registers.
 class CPURegList {
  public:
-  explicit CPURegList(CPURegister reg1, CPURegister reg2 = NoCPUReg,
-                      CPURegister reg3 = NoCPUReg, CPURegister reg4 = NoCPUReg)
-      : list_(reg1.bit() | reg2.bit() | reg3.bit() | reg4.bit()),
-        size_(reg1.SizeInBits()),
-        type_(reg1.type()) {
-    DCHECK(AreSameSizeAndType(reg1, reg2, reg3, reg4));
+  template <typename... CPURegisters>
+  explicit CPURegList(CPURegister reg0, CPURegisters... regs)
+      : list_(CPURegister::ListOf(reg0, regs...)),
+        size_(reg0.SizeInBits()),
+        type_(reg0.type()) {
+    DCHECK(AreSameSizeAndType(reg0, regs...));
     DCHECK(IsValid());
   }
 
@@ -646,8 +639,8 @@ class CPURegList {
   CPURegister::RegisterType type_;
 
   bool IsValid() const {
-    const RegList kValidRegisters = 0x8000000ffffffff;
-    const RegList kValidVRegisters = 0x0000000ffffffff;
+    constexpr RegList kValidRegisters{0x8000000ffffffff};
+    constexpr RegList kValidVRegisters{0x0000000ffffffff};
     switch (type_) {
       case CPURegister::kRegister:
         return (list_ & kValidRegisters) == list_;
