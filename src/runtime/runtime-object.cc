@@ -21,6 +21,9 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                bool* is_found_out) {
   if (object->IsNullOrUndefined(isolate)) {
+    if (*key == isolate->heap()->iterator_symbol()) {
+      return Runtime::ThrowIteratorError(isolate, object);
+    }
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
