@@ -357,16 +357,6 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
   }
 }
 
-void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
-                                            ValueType type) {
-  // TODO(wasm): Extract the destination register from the CallDescriptor.
-  // TODO(wasm): Add multi-return support.
-  LiftoffRegister dst = reg.is_pair() ? LiftoffRegister::ForPair(eax, edx)
-                                      : reg.is_gp() ? LiftoffRegister(eax)
-                                                    : LiftoffRegister(xmm1);
-  if (reg != dst) Move(dst, reg, type);
-}
-
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   DCHECK_NE(dst, src);
   DCHECK_EQ(kWasmI32, type);

@@ -1074,7 +1074,14 @@ class LiftoffCompiler {
     if (!values.is_empty()) {
       if (values.size() > 1) return unsupported(decoder, "multi-return");
       LiftoffRegister reg = __ PopToRegister();
-      __ MoveToReturnRegister(reg, values[0].type);
+      LiftoffRegister return_reg =
+          kNeedI64RegPair && values[0].type == kWasmI64
+              ? LiftoffRegister::ForPair(kGpReturnRegisters[0],
+                                         kGpReturnRegisters[1])
+              : reg_class_for(values[0].type) == kGpReg
+                    ? LiftoffRegister(kGpReturnRegisters[0])
+                    : LiftoffRegister(kFpReturnRegisters[0]);
+      if (reg != return_reg) __ Move(return_reg, reg, values[0].type);
     }
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(

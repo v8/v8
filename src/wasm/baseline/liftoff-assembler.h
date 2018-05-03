@@ -372,7 +372,6 @@ class LiftoffAssembler : public TurboAssembler {
                                   ValueType);
   inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
 
-  inline void MoveToReturnRegister(LiftoffRegister src, ValueType);
   inline void Move(Register dst, Register src, ValueType);
   inline void Move(DoubleRegister dst, DoubleRegister src, ValueType);
 

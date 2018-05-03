@@ -306,15 +306,6 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
   Str(scratch, liftoff::GetStackSlot(dst_index));
 }
 
-void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
-                                            ValueType type) {
-  if (reg.is_gp()) {
-    Move(x0, reg.gp(), type);
-  } else {
-    Move(d0, reg.fp(), type);
-  }
-}
-
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   if (type == kWasmI32) {
     Mov(dst.W(), src.W());
