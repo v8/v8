@@ -485,7 +485,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ mov(ip, Operand(debug_hook));
+  __ Move(ip, debug_hook);
   __ LoadByte(ip, MemOperand(ip), r0);
   __ extsb(ip, ip);
   __ CmpSmiLiteral(ip, Smi::kZero, r0);
@@ -496,7 +496,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
 
-  __ mov(ip, Operand(debug_suspended_generator));
+  __ Move(ip, debug_suspended_generator);
   __ LoadP(ip, MemOperand(ip));
   __ cmp(ip, r4);
   __ beq(&prepare_step_in_suspended_generator);
@@ -627,11 +627,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r6: argc
   // r7: argv
   // r0,r8-r9, cp may be clobbered
-  {
-    NoRootArrayScope no_root_array(masm);
-    ProfileEntryHookStub::MaybeCallEntryHook(masm);
-    __ InitializeRootRegister();
-  }
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Enter an internal frame.
   {
@@ -1355,8 +1351,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsSmi: Is builtin
   __ JumpIfNotSmi(sfi_data, &check_is_bytecode_array);
-  __ mov(scratch1,
-         Operand(ExternalReference::builtins_address(masm->isolate())));
+  __ Move(scratch1, ExternalReference::builtins_address(masm->isolate()));
   __ SmiUntag(sfi_data, LeaveRC, kPointerSizeLog2);
   __ LoadPX(sfi_data, MemOperand(scratch1, sfi_data));
   __ b(&done);
@@ -1445,7 +1440,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   GetSharedFunctionInfoCode(masm, entry, r8);
 
   // If code entry points to anything other than CompileLazy, install that.
-  __ mov(r8, Operand(masm->CodeObject()));
+  __ Move(r8, masm->CodeObject());
   __ cmp(entry, r8);
   __ beq(&gotta_call_runtime);
 
@@ -1500,8 +1495,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
     // Load the code object at builtins_table[builtin_id] into scratch1.
 
     __ SmiUntag(scratch1);
-    __ mov(scratch0,
-           Operand(ExternalReference::builtins_address(masm->isolate())));
+    __ Move(scratch0, ExternalReference::builtins_address(masm->isolate()));
     __ ShiftLeftImm(scratch1, scratch1, Operand(kPointerSizeLog2));
     __ LoadPX(scratch1, MemOperand(scratch0, scratch1));
 

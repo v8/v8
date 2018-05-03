@@ -150,6 +150,7 @@ void TurboAssembler::LookupConstant(Register destination,
       FixedArray::kHeaderSize + index * kPointerSize - kHeapObjectTag;
 
   CHECK(is_uint19(offset));
+  DCHECK_NE(destination, r0);
   LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
   LoadP(destination, MemOperand(destination, offset));
 }
@@ -1015,8 +1016,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
   PushCommonFrame(ip);
 
   if (type == StackFrame::INTERNAL) {
-    mov(r0, Operand(CodeObject()));
-    push(r0);
+    Move(r1, CodeObject());
+    push(r1);
   }
 }
 
@@ -1447,7 +1448,7 @@ void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
       ExternalReference::debug_restart_fp_address(isolate());
-  mov(r3, Operand(restart_fp));
+  Move(r3, restart_fp);
   LoadP(r3, MemOperand(r3));
   CmpP(r3, Operand::Zero());
   Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
