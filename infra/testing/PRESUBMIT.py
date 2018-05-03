@@ -21,7 +21,7 @@ SUPPORTED_BUILDER_SPEC_KEYS = [
 # This is not an exhaustive list. It only reflects what we currently use. If
 # there's need to specify a different dimension, just add it here.
 SUPPORTED_SWARMING_DIMENSIONS = [
-  'cores'
+  'cores',
   'cpu',
   'os',
 ]
