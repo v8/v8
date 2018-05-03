@@ -823,9 +823,9 @@
 }], # arch != x64 and arch != ia32
 
 ##############################################################################
-['variant == liftoff', {
-  # In the liftoff variant, liftoff compilation happens even though the test
-  # does not explicitly enable it.
+['variant == liftoff or variant == future', {
+  # In the liftoff and future variant, liftoff compilation happens even
+  # though the test does not explicitly enable it.
   'wasm/default-liftoff-setting': [SKIP],
 }], # variant == liftoff
 

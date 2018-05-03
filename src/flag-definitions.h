@@ -535,6 +535,7 @@ DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
 DEFINE_BOOL(wasm_tier_up, false,
             "enable basic tiering up to the optimizing compiler")
+DEFINE_IMPLICATION(future, wasm_tier_up)
 DEFINE_IMPLICATION(wasm_tier_up, liftoff)
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_decode_time, false,
