@@ -2894,33 +2894,8 @@ class MapSpace : public PagedSpace {
 
 class ReadOnlySpace : public PagedSpace {
  public:
-  class WritableScope {
-   public:
-    explicit WritableScope(ReadOnlySpace* space) : space_(space) {
-      space_->MarkAsReadWrite();
-    }
-
-    ~WritableScope() { space_->MarkAsReadOnly(); }
-
-   private:
-    ReadOnlySpace* space_;
-  };
-
   ReadOnlySpace(Heap* heap, AllocationSpace id, Executability executable)
       : PagedSpace(heap, id, executable) {}
-
-  ~ReadOnlySpace() {
-    // Mark as writable as tearing down the space writes to it.
-    // MarkAsReadWrite();
-  }
-
-  void MarkAsReadOnly();
-
- private:
-  void MarkAsReadWrite();
-  void SetPermissionsForPages(PageAllocator::Permission access);
-
-  bool is_marked_read_only_ = false;
 };
 
 // -----------------------------------------------------------------------------

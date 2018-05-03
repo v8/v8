@@ -761,42 +761,28 @@ StartupData SnapshotCreator::CreateBlob(
   CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
   i::HeapIterator heap_iterator(isolate->heap());
-  {
-    // Make RO_SPACE writable temporarily so the padding on its strings can be
-    // cleared.
-    i::ReadOnlySpace::WritableScope writable_read_only_scope(
-        isolate->heap()->read_only_space());
+  while (i::HeapObject* current_obj = heap_iterator.next()) {
+    if (current_obj->IsJSFunction()) {
+      i::JSFunction* fun = i::JSFunction::cast(current_obj);
 
-    while (i::HeapObject* current_obj = heap_iterator.next()) {
-      if (current_obj->IsJSFunction()) {
-        i::JSFunction* fun = i::JSFunction::cast(current_obj);
+      // Complete in-object slack tracking for all functions.
+      fun->CompleteInobjectSlackTrackingIfActive();
 
-        // Complete in-object slack tracking for all functions.
-        fun->CompleteInobjectSlackTrackingIfActive();
+      // Also, clear out feedback vectors.
+      fun->feedback_cell()->set_value(isolate->heap()->undefined_value());
+    }
 
-        // Also, clear out feedback vectors.
-        fun->feedback_cell()->set_value(isolate->heap()->undefined_value());
+    // Clear out re-compilable data from all shared function infos. Any
+    // JSFunctions using these SFIs will have their code pointers reset by the
+    // partial serializer.
+    if (current_obj->IsSharedFunctionInfo() &&
+        function_code_handling == FunctionCodeHandling::kClear) {
+      i::SharedFunctionInfo* shared = i::SharedFunctionInfo::cast(current_obj);
+      if (shared->CanFlushCompiled()) {
+        shared->FlushCompiled();
       }
-
-      // Clear out re-compilable data from all shared function infos. Any
-      // JSFunctions using these SFIs will have their code pointers reset by the
-      // partial serializer.
-      if (current_obj->IsSharedFunctionInfo() &&
-          function_code_handling == FunctionCodeHandling::kClear) {
-        i::SharedFunctionInfo* shared =
-            i::SharedFunctionInfo::cast(current_obj);
-        if (shared->CanFlushCompiled()) {
-          shared->FlushCompiled();
-        }
-        DCHECK(shared->HasCodeObject() || shared->HasBuiltinId() ||
-               shared->IsApiFunction());
-      }
-
-      if (current_obj->IsSeqOneByteString()) {
-        i::SeqOneByteString::cast(current_obj)->clear_padding();
-      } else if (current_obj->IsSeqTwoByteString()) {
-        i::SeqTwoByteString::cast(current_obj)->clear_padding();
-      }
+      DCHECK(shared->HasCodeObject() || shared->HasBuiltinId() ||
+             shared->IsApiFunction());
     }
   }
 
@@ -6733,9 +6719,8 @@ bool v8::String::CanMakeExternal() {
   if (obj->IsExternalString()) return false;
 
   // Old space strings should be externalized.
-  i::Heap* heap = obj->GetIsolate()->heap();
-  return !heap->new_space()->Contains(*obj) &&
-         !heap->read_only_space()->Contains(*obj);
+  i::Isolate* isolate = obj->GetIsolate();
+  return !isolate->heap()->new_space()->Contains(*obj);
 }
 
 
