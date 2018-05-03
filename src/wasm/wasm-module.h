@@ -12,10 +12,10 @@
 #include "src/handles.h"
 #include "src/objects/managed.h"
 #include "src/parsing/preparse-data.h"
-
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
