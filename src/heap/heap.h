@@ -1345,11 +1345,14 @@ class Heap {
 
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
-  inline bool InFromSpace(Object* object);
-  inline bool InToSpace(Object* object);
   inline bool InNewSpace(MaybeObject* object);
+  inline bool InNewSpace(HeapObject* heap_object);
+  inline bool InFromSpace(Object* object);
   inline bool InFromSpace(MaybeObject* object);
+  inline bool InFromSpace(HeapObject* heap_object);
+  inline bool InToSpace(Object* object);
   inline bool InToSpace(MaybeObject* object);
+  inline bool InToSpace(HeapObject* heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object* object);
