@@ -233,6 +233,7 @@ enum RoundingMode {
 
 class Immediate BASE_EMBEDDED {
  public:
+  // Calls where x is an Address (uintptr_t) resolve to this overload.
   inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE) {
     value_.immediate = x;
     rmode_ = rmode;
@@ -243,9 +244,6 @@ class Immediate BASE_EMBEDDED {
       : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
   inline explicit Immediate(Smi* value)
       : Immediate(reinterpret_cast<intptr_t>(value)) {}
-  inline explicit Immediate(Address addr,
-                            RelocInfo::Mode rmode = RelocInfo::NONE)
-      : Immediate(static_cast<int32_t>(addr), rmode) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);
