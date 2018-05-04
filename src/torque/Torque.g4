@@ -80,8 +80,8 @@ INCREMENT: '++';
 DECREMENT: '--';
 NOT: '!';
 
-STRING_LITERAL : ('"' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) + '"')
-               | ('\'' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) + '\'');
+STRING_LITERAL : ('"' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) * '"')
+               | ('\'' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) * '\'');
 fragment ESCAPE : '\\' ( '\'' | '\\' | '"' );
 
 IDENTIFIER  :   [A-Za-z][0-9A-Za-z_]* ;

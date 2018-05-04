@@ -287,8 +287,13 @@ antlrcpp::Any AstGenerator::visitExpressionStatement(
 
 antlrcpp::Any AstGenerator::visitReturnStatement(
     TorqueParser::ReturnStatementContext* context) {
-  return implicit_cast<Statement*>(RegisterNode(new ReturnStatement{
-      Pos(context), context->expression()->accept(this).as<Expression*>()}));
+  if (context->expression() != nullptr) {
+    return implicit_cast<Statement*>(RegisterNode(new ReturnStatement{
+        Pos(context), context->expression()->accept(this).as<Expression*>()}));
+  } else {
+    return implicit_cast<Statement*>(
+        RegisterNode(new ReturnStatement{Pos(context), {}}));
+  }
 }
 
 antlrcpp::Any AstGenerator::visitBreakStatement(
