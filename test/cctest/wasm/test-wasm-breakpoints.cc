@@ -122,12 +122,13 @@ void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   Handle<WasmInstanceObject> instance = runner.builder().instance_object();
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module());
+  Handle<WasmModuleObject> module_object(instance->module_object());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
       runner.main_isolate()->factory()->NewBreakPoint(
           break_index++, runner.main_isolate()->factory()->empty_string());
-  CHECK(WasmCompiledModule::SetBreakPoint(compiled_module, &code_offset,
-                                          break_point));
+  CHECK(WasmModuleObject::SetBreakPoint(module_object, &code_offset,
+                                        break_point));
   int set_byte_offset = code_offset - func_offset;
   CHECK_EQ(expected_set_byte_offset, set_byte_offset);
   // Also set breakpoint on the debug info of the instance directly, since the

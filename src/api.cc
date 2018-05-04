@@ -9260,7 +9260,7 @@ bool debug::Script::GetPossibleBreakpoints(
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     i::WasmSharedModuleData* shared =
-        i::WasmCompiledModule::cast(script->wasm_compiled_module())->shared();
+        i::WasmModuleObject::cast(script->wasm_module_object())->shared();
     return shared->GetPossibleBreakpoints(start, end, locations);
   }
 
@@ -9309,7 +9309,7 @@ bool debug::Script::GetPossibleBreakpoints(
 int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    return i::WasmCompiledModule::cast(script->wasm_compiled_module())
+    return i::WasmModuleObject::cast(script->wasm_module_object())
                ->shared()
                ->GetFunctionOffset(location.GetLineNumber()) +
            location.GetColumnNumber();
@@ -9382,9 +9382,9 @@ int debug::WasmScript::NumFunctions() const {
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::WasmCompiledModule* compiled_module =
-      i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  i::WasmModuleObject* module_object =
+      i::WasmModuleObject::cast(script->wasm_module_object());
+  i::wasm::WasmModule* module = module_object->shared()->module();
   DCHECK_GE(i::kMaxInt, module->functions.size());
   return static_cast<int>(module->functions.size());
 }
@@ -9393,9 +9393,9 @@ int debug::WasmScript::NumImportedFunctions() const {
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::WasmCompiledModule* compiled_module =
-      i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  i::WasmModuleObject* module_object =
+      i::WasmModuleObject::cast(script->wasm_module_object());
+  i::wasm::WasmModule* module = module_object->shared()->module();
   DCHECK_GE(i::kMaxInt, module->num_imported_functions);
   return static_cast<int>(module->num_imported_functions);
 }
@@ -9405,9 +9405,9 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::WasmCompiledModule* compiled_module =
-      i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  i::WasmModuleObject* module_object =
+      i::WasmModuleObject::cast(script->wasm_module_object());
+  i::wasm::WasmModule* module = module_object->shared()->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
   i::wasm::WasmFunction& func = module->functions[function_index];
@@ -9421,13 +9421,13 @@ uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::WasmCompiledModule* compiled_module =
-      i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  i::WasmModuleObject* module_object =
+      i::WasmModuleObject::cast(script->wasm_module_object());
+  i::wasm::WasmModule* module = module_object->shared()->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
   i::wasm::WasmFunction& func = module->functions[function_index];
-  i::SeqOneByteString* module_bytes = compiled_module->shared()->module_bytes();
+  i::SeqOneByteString* module_bytes = module_object->shared()->module_bytes();
   i::wasm::ModuleWireBytes wire_bytes(
       module_bytes->GetFlatContent().ToOneByteVector());
   i::Vector<const i::byte> function_bytes = wire_bytes.GetFunctionBytes(&func);
@@ -9441,9 +9441,9 @@ debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::WasmCompiledModule* compiled_module =
-      i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  return compiled_module->shared()->DisassembleFunction(function_index);
+  i::WasmModuleObject* module_object =
+      i::WasmModuleObject::cast(script->wasm_module_object());
+  return module_object->shared()->DisassembleFunction(function_index);
 }
 
 debug::Location::Location(int line_number, int column_number)

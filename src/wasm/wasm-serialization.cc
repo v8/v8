@@ -618,7 +618,6 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
       WasmCompiledModule::New(isolate, shared->module(), export_wrappers, env);
   compiled_module->set_shared(*shared);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared);
-  script->set_wasm_compiled_module(*compiled_module);
   NativeModuleDeserializer deserializer(isolate,
                                         compiled_module->GetNativeModule());
 

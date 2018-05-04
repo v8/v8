@@ -108,6 +108,11 @@ class WasmModuleObject : public JSObject {
   // Shared compiled code between multiple WebAssembly.Module objects.
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
 
+  // TODO(mstarzinger): Currently this getter uses an indirection via the
+  // {WasmCompiledModule}, but we will soon move the reference to the shared
+  // data directly into this {WasmModuleObject}, making this a normal accessor.
+  inline WasmSharedModuleData* shared() const;
+
 // Layout description.
 #define WASM_MODULE_OBJECT_FIELDS(V)     \
   V(kCompiledModuleOffset, kPointerSize) \
@@ -119,6 +124,15 @@ class WasmModuleObject : public JSObject {
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+
+  // Set a breakpoint on the given byte position inside the given module.
+  // This will affect all live and future instances of the module.
+  // The passed position might be modified to point to the next breakable
+  // location inside the same function.
+  // If it points outside a function, or behind the last breakable location,
+  // this function returns false and does not set any breakpoint.
+  static bool SetBreakPoint(Handle<WasmModuleObject>, int* position,
+                            Handle<BreakPoint> break_point);
 
   static void ValidateStateForTesting(Isolate* isolate,
                                       Handle<WasmModuleObject> module);
@@ -560,15 +574,6 @@ class WasmCompiledModule : public Struct {
 
   static void ReinitializeAfterDeserialization(Isolate*,
                                                Handle<WasmCompiledModule>);
-
-  // Set a breakpoint on the given byte position inside the given module.
-  // This will affect all live and future instances of the module.
-  // The passed position might be modified to point to the next breakable
-  // location inside the same function.
-  // If it points outside a function, or behind the last breakable location,
-  // this function returns false and does not set any breakpoint.
-  static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
-                            Handle<BreakPoint> break_point);
 
   void LogWasmCodes(Isolate* isolate);
 

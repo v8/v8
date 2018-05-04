@@ -1441,7 +1441,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
     // Close the CodeSpaceMemoryModificationScope before calling into the
     // debugger.
     modification_scope.reset();
-    script->set_wasm_compiled_module(*compiled_module);
     isolate->debug()->OnAfterCompile(script);
   }
 
@@ -2885,7 +2884,6 @@ void AsyncCompileJob::FinishCompile() {
       script, asm_js_offset_table);
   compiled_module_->set_shared(*shared);
   compiled_module_->GetNativeModule()->SetSharedModuleData(shared);
-  script->set_wasm_compiled_module(*compiled_module_);
 
   // Finish the wasm script now and make it public to the debugger.
   isolate_->debug()->OnAfterCompile(

@@ -234,7 +234,6 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_ = compiled_module->GetNativeModule();
 
   DCHECK(compiled_module->IsWasmCompiledModule());
-  script->set_wasm_compiled_module(*compiled_module);
   auto instance =
       WasmInstanceObject::New(isolate_, module_object, compiled_module);
   instance->set_globals_start(globals_data_);

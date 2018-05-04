@@ -223,8 +223,9 @@ class CompiledModuleInstancesIterator
 };
 
 v8::base::iterator_range<CompiledModuleInstancesIterator>
-iterate_compiled_module_instance_chain(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+iterate_compiled_module_instance_chain(Isolate* isolate,
+                                       Handle<WasmModuleObject> module_object) {
+  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module());
   return {CompiledModuleInstancesIterator(isolate, compiled_module, false),
           CompiledModuleInstancesIterator(isolate, compiled_module, true)};
 }
@@ -267,9 +268,43 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
   module_object->set_compiled_module(*compiled_module);
+  if (compiled_module->shared()->script()->type() == Script::TYPE_WASM) {
+    compiled_module->shared()->script()->set_wasm_module_object(*module_object);
+  }
 
   compiled_module->LogWasmCodes(isolate);
   return module_object;
+}
+
+bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
+                                     int* position,
+                                     Handle<BreakPoint> break_point) {
+  Isolate* isolate = module_object->GetIsolate();
+  Handle<WasmSharedModuleData> shared(module_object->shared(), isolate);
+
+  // Find the function for this breakpoint.
+  int func_index = shared->GetContainingFunction(*position);
+  if (func_index < 0) return false;
+  WasmFunction& func = shared->module()->functions[func_index];
+  int offset_in_func = *position - func.code.offset();
+
+  // According to the current design, we should only be called with valid
+  // breakable positions.
+  DCHECK(IsBreakablePosition(*shared, func_index, offset_in_func));
+
+  // Insert new break point into break_positions of shared module data.
+  WasmSharedModuleData::AddBreakpoint(shared, *position, break_point);
+
+  // Iterate over all instances of this module and tell them to set this new
+  // breakpoint.
+  for (Handle<WasmInstanceObject> instance :
+       iterate_compiled_module_instance_chain(isolate, module_object)) {
+    Handle<WasmDebugInfo> debug_info =
+        WasmInstanceObject::GetOrCreateDebugInfo(instance);
+    WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+  }
+
+  return true;
 }
 
 void WasmModuleObject::ValidateStateForTesting(
@@ -1562,37 +1597,6 @@ bool WasmSharedModuleData::GetPositionInfo(uint32_t position,
   info->column = position - function.code.offset();
   info->line_start = function.code.offset();
   info->line_end = function.code.end_offset();
-  return true;
-}
-
-bool WasmCompiledModule::SetBreakPoint(
-    Handle<WasmCompiledModule> compiled_module, int* position,
-    Handle<BreakPoint> break_point) {
-  Isolate* isolate = compiled_module->GetIsolate();
-  Handle<WasmSharedModuleData> shared(compiled_module->shared(), isolate);
-
-  // Find the function for this breakpoint.
-  int func_index = shared->GetContainingFunction(*position);
-  if (func_index < 0) return false;
-  WasmFunction& func = shared->module()->functions[func_index];
-  int offset_in_func = *position - func.code.offset();
-
-  // According to the current design, we should only be called with valid
-  // breakable positions.
-  DCHECK(IsBreakablePosition(*shared, func_index, offset_in_func));
-
-  // Insert new break point into break_positions of shared module data.
-  WasmSharedModuleData::AddBreakpoint(shared, *position, break_point);
-
-  // Iterate over all instances of this module and tell them to set this new
-  // breakpoint.
-  for (Handle<WasmInstanceObject> instance :
-       iterate_compiled_module_instance_chain(isolate, compiled_module)) {
-    Handle<WasmDebugInfo> debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
-  }
-
   return true;
 }
 

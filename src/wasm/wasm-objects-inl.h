@@ -48,6 +48,10 @@ CAST_ACCESSOR(WasmTableObject)
 ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
 
+WasmSharedModuleData* WasmModuleObject::shared() const {
+  return compiled_module()->shared();
+}
+
 // WasmTableObject
 ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)

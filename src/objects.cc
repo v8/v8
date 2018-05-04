@@ -13365,11 +13365,10 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // For wasm, we do not rely on the line_ends array, but do the translation
   // directly.
   if (type() == Script::TYPE_WASM) {
-    Handle<WasmCompiledModule> compiled_module(
-        WasmCompiledModule::cast(wasm_compiled_module()));
     DCHECK_LE(0, position);
-    return compiled_module->shared()->GetPositionInfo(
-        static_cast<uint32_t>(position), info);
+    return WasmModuleObject::cast(wasm_module_object())
+        ->shared()
+        ->GetPositionInfo(static_cast<uint32_t>(position), info);
   }
 
   if (line_ends()->IsUndefined(GetIsolate())) {
