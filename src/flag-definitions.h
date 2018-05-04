@@ -209,7 +209,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
@@ -237,7 +236,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
   V(harmony_import_meta, "harmony import.meta property")                      \
   V(harmony_bigint, "harmony arbitrary precision integers")                   \
-  V(harmony_dynamic_import, "harmony dynamic import")
+  V(harmony_dynamic_import, "harmony dynamic import")                         \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,

@@ -467,19 +467,6 @@
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-  # We do not expose Array.prototype.values due to webcompat issues.
-  # Most recent incompatibility: https://crbug.com/615873
-  # https://code.google.com/p/v8/issues/detail?id=4247
-  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
-  'built-ins/Array/prototype/values/prop-desc': [FAIL],
-  'built-ins/Array/prototype/values/name': [FAIL],
-  'built-ins/Array/prototype/values/length': [FAIL],
-  'built-ins/Array/prototype/values/iteration': [FAIL],
-  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
-  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
-
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
