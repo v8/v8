@@ -12090,7 +12090,7 @@ void SeqTwoByteString::clear_padding() {
 }
 
 int ExternalString::ExternalPayloadSize() const {
-  int length_multiplier = IsTwoByteRepresentation() ? kShortSize : kCharSize;
+  int length_multiplier = IsTwoByteRepresentation() ? i::kShortSize : kCharSize;
   return length() * length_multiplier;
 }
 
