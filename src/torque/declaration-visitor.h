@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "src/base/macros.h"
 #include "src/torque/declarations.h"
 #include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
@@ -43,11 +44,11 @@ class DeclarationVisitor : public FileVisitor {
   }
   void Visit(DefaultModuleDeclaration* decl) {
     decl->SetModule(global_context_.GetDefaultModule());
-    Visit(base::implicit_cast<ModuleDeclaration*>(decl));
+    Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
   void Visit(ExplicitModuleDeclaration* decl) {
     decl->SetModule(global_context_.GetModule(decl->name));
-    Visit(base::implicit_cast<ModuleDeclaration*>(decl));
+    Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
 
   void Visit(IdentifierExpression* expr) {}

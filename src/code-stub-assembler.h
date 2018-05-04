@@ -7,6 +7,7 @@
 
 #include <functional>
 
+#include "src/base/macros.h"
 #include "src/compiler/code-assembler.h"
 #include "src/globals.h"
 #include "src/objects.h"
@@ -409,8 +410,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   const G& false_body) {
     return UncheckedCast<A>(SelectImpl(
         condition,
-        [&]() -> Node* { return base::implicit_cast<TNode<A>>(true_body()); },
-        [&]() -> Node* { return base::implicit_cast<TNode<A>>(false_body()); },
+        [&]() -> Node* { return implicit_cast<TNode<A>>(true_body()); },
+        [&]() -> Node* { return implicit_cast<TNode<A>>(false_body()); },
         MachineRepresentationOf<A>::value));
   }
 
@@ -2547,11 +2548,11 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   const Flags flags_;
 };
 
-#define CSA_CHECK(csa, x)                                              \
-  (csa)->Check(                                                        \
-      [&]() -> compiler::Node* {                                       \
-        return base::implicit_cast<compiler::SloppyTNode<Word32T>>(x); \
-      },                                                               \
+#define CSA_CHECK(csa, x)                                        \
+  (csa)->Check(                                                  \
+      [&]() -> compiler::Node* {                                 \
+        return implicit_cast<compiler::SloppyTNode<Word32T>>(x); \
+      },                                                         \
       #x, __FILE__, __LINE__)
 
 #ifdef DEBUG
@@ -2584,7 +2585,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #define CSA_ASSERT(csa, ...)                                             \
   (csa)->Assert(                                                         \
       [&]() -> compiler::Node* {                                         \
-        return base::implicit_cast<compiler::SloppyTNode<Word32T>>(      \
+        return implicit_cast<compiler::SloppyTNode<Word32T>>(            \
             EXPAND(CSA_ASSERT_GET_FIRST(__VA_ARGS__)));                  \
       },                                                                 \
       EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, __LINE__, \

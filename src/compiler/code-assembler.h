@@ -11,7 +11,7 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
-#include "src/base/template-utils.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/globals.h"
@@ -608,7 +608,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
     template <class A>
     operator SloppyTNode<A>() {
-      return base::implicit_cast<TNode<A>>(*this);
+      return implicit_cast<TNode<A>>(*this);
     }
 
     Node* node() const { return node_; }
@@ -949,7 +949,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> CallRuntime(Runtime::FunctionId function,
                             SloppyTNode<Object> context, TArgs... args) {
     return CallRuntimeImpl(function, context,
-                           base::implicit_cast<SloppyTNode<Object>>(args)...);
+                           implicit_cast<SloppyTNode<Object>>(args)...);
   }
 
   template <class... TArgs>
@@ -958,8 +958,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   TNode<Object> TailCallRuntime(Runtime::FunctionId function,
                                 SloppyTNode<Object> context, TArgs... args) {
-    return TailCallRuntimeImpl(
-        function, context, base::implicit_cast<SloppyTNode<Object>>(args)...);
+    return TailCallRuntimeImpl(function, context,
+                               implicit_cast<SloppyTNode<Object>>(args)...);
   }
 
   //
@@ -970,14 +970,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
     Node* target = HeapConstant(callable.code());
     return CallStub(callable.descriptor(), target, context,
-                    base::implicit_cast<Node*>(args)...);
+                    implicit_cast<Node*>(args)...);
   }
 
   template <class... TArgs>
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, TArgs... args) {
     return CallStubR(descriptor, 1, target, context,
-                     base::implicit_cast<Node*>(args)...);
+                     implicit_cast<Node*>(args)...);
   }
 
   template <class... TArgs>
@@ -998,7 +998,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, TArgs... args) {
     return TailCallStubImpl(descriptor, target, context,
-                            base::implicit_cast<Node*>(args)...);
+                            implicit_cast<Node*>(args)...);
   }
   template <class... TArgs>
   Node* TailCallStubImpl(const CallInterfaceDescriptor& descriptor,

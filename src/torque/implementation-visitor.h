@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "src/base/macros.h"
 #include "src/torque/ast.h"
 #include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
@@ -90,10 +91,10 @@ class ImplementationVisitor : public FileVisitor {
 
   void Visit(ModuleDeclaration* decl);
   void Visit(DefaultModuleDeclaration* decl) {
-    Visit(base::implicit_cast<ModuleDeclaration*>(decl));
+    Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
   void Visit(ExplicitModuleDeclaration* decl) {
-    Visit(base::implicit_cast<ModuleDeclaration*>(decl));
+    Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
   void Visit(MacroDeclaration* decl);
   void Visit(BuiltinDeclaration* decl);

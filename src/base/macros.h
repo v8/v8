@@ -43,7 +43,6 @@ template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
 
-
 // bit_cast<Dest,Source> is a template function that implements the
 // equivalent of "*reinterpret_cast<Dest*>(&source)".  We need this in
 // very low-level functions like the protobuf library and fast math
@@ -270,6 +269,14 @@ struct Use {
 
 }  // namespace base
 }  // namespace v8
+
+// implicit_cast<A>(x) triggers an implicit cast from {x} to type {A}. This is
+// useful in situations where static_cast<A>(x) would do too much.
+// Only use this for cheap-to-copy types, or use move semantics explicitly.
+template <class A>
+V8_INLINE A implicit_cast(A x) {
+  return x;
+}
 
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
