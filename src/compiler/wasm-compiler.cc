@@ -2693,16 +2693,19 @@ Node* WasmGraphBuilder::BuildChangeInt32ToTagged(Node* value) {
     return BuildChangeInt32ToSmi(value);
   }
 
+  Node* effect = *effect_;
+  Node* control = *control_;
   Node* add = graph()->NewNode(machine->Int32AddWithOverflow(), value, value,
                                graph()->start());
 
   Node* ovf = graph()->NewNode(common->Projection(1), add, graph()->start());
-  Node* branch = graph()->NewNode(common->Branch(BranchHint::kFalse), ovf,
-                                  graph()->start());
+  Node* branch =
+      graph()->NewNode(common->Branch(BranchHint::kFalse), ovf, control);
 
   Node* if_true = graph()->NewNode(common->IfTrue(), branch);
   Node* vtrue = BuildAllocateHeapNumberWithValue(
       graph()->NewNode(machine->ChangeInt32ToFloat64(), value), if_true);
+  Node* etrue = *effect_;
 
   Node* if_false = graph()->NewNode(common->IfFalse(), branch);
   Node* vfalse = graph()->NewNode(common->Projection(0), add, if_false);
@@ -2710,6 +2713,8 @@ Node* WasmGraphBuilder::BuildChangeInt32ToTagged(Node* value) {
   Node* merge = graph()->NewNode(common->Merge(2), if_true, if_false);
   Node* phi = graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
                                vtrue, vfalse, merge);
+  *effect_ = graph()->NewNode(common->EffectPhi(2), etrue, effect, merge);
+  *control_ = merge;
   return phi;
 }
 
@@ -2717,12 +2722,13 @@ Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
   MachineOperatorBuilder* machine = jsgraph()->machine();
   CommonOperatorBuilder* common = jsgraph()->common();
 
+  Node* effect = *effect_;
+  Node* control = *control_;
   Node* value32 = graph()->NewNode(machine->RoundFloat64ToInt32(), value);
   Node* check_same = graph()->NewNode(
       machine->Float64Equal(), value,
       graph()->NewNode(machine->ChangeInt32ToFloat64(), value32));
-  Node* branch_same =
-      graph()->NewNode(common->Branch(), check_same, graph()->start());
+  Node* branch_same = graph()->NewNode(common->Branch(), check_same, control);
 
   Node* if_smi = graph()->NewNode(common->IfTrue(), branch_same);
   Node* vsmi;
@@ -2774,10 +2780,13 @@ Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
 
   // Allocate the box for the {value}.
   vbox = BuildAllocateHeapNumberWithValue(value, if_box);
+  Node* ebox = *effect_;
 
-  Node* control = graph()->NewNode(common->Merge(2), if_smi, if_box);
+  Node* merge = graph()->NewNode(common->Merge(2), if_smi, if_box);
   value = graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2), vsmi,
-                           vbox, control);
+                           vbox, merge);
+  *effect_ = graph()->NewNode(common->EffectPhi(2), effect, ebox, merge);
+  *control_ = merge;
   return value;
 }
 
@@ -2960,23 +2969,26 @@ Node* WasmGraphBuilder::BuildAllocateHeapNumberWithValue(Node* value,
                                             Builtins::kAllocateHeapNumber);
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* js_context = jsgraph()->NoContextConstant();
-  Node* effect =
-      graph()->NewNode(common->BeginRegion(RegionObservability::kNotObservable),
-                       graph()->start());
+  Node* begin_region = graph()->NewNode(
+      common->BeginRegion(RegionObservability::kNotObservable), *effect_);
   if (!allocate_heap_number_operator_.is_set()) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNoFlags, Operator::kNoThrow);
     allocate_heap_number_operator_.set(common->Call(call_descriptor));
   }
-  Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
-                                       target, js_context, effect, control);
+  Node* heap_number =
+      graph()->NewNode(allocate_heap_number_operator_.get(), target, js_context,
+                       begin_region, control);
   Node* store =
       graph()->NewNode(machine->Store(StoreRepresentation(
                            MachineRepresentation::kFloat64, kNoWriteBarrier)),
                        heap_number, BuildHeapNumberValueIndexConstant(), value,
                        heap_number, control);
-  return graph()->NewNode(common->FinishRegion(), heap_number, store);
+  Node* finish_region =
+      graph()->NewNode(common->FinishRegion(), heap_number, store);
+  *effect_ = finish_region;
+  return finish_region;
 }
 
 Node* WasmGraphBuilder::BuildLoadHeapNumberValue(Node* value, Node* control) {
