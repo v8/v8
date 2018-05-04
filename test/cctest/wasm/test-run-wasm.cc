@@ -3176,10 +3176,13 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
 // This test targets binops in Liftoff.
 // Initialize a number of local variables to force them into different
 // registers, then perform a binary operation on two of the locals.
+// Afterwards, write back all locals to memory, to check that their value was
+// not overwritten.
 template <typename ctype>
-void BinOpOnDifferentRegisters(WasmExecutionMode execution_mode, ValueType type,
-                               Vector<const ctype> inputs, WasmOpcode opcode,
-                               std::function<ctype(ctype, ctype)> expect_fn) {
+void BinOpOnDifferentRegisters(
+    WasmExecutionMode execution_mode, ValueType type,
+    Vector<const ctype> inputs, WasmOpcode opcode,
+    std::function<ctype(ctype, ctype, bool*)> expect_fn) {
   static constexpr int kMaxNumLocals = 8;
   for (int num_locals = 1; num_locals < kMaxNumLocals; ++num_locals) {
     // {init_locals_code} is shared by all code generated in the loop below.
@@ -3191,6 +3194,15 @@ void BinOpOnDifferentRegisters(WasmExecutionMode execution_mode, ValueType type,
           WASM_SET_LOCAL(i, WASM_LOAD_MEM(ValueTypes::MachineTypeFor(type),
                                           WASM_I32V_2(sizeof(ctype) * i))));
     }
+    // {write_locals_code} is shared by all code generated in the loop below.
+    std::vector<byte> write_locals_code;
+    // Write locals back into memory, shifted by one element to the right.
+    for (int i = 0; i < num_locals; ++i) {
+      ADD_CODE(write_locals_code,
+               WASM_STORE_MEM(ValueTypes::MachineTypeFor(type),
+                              WASM_I32V_2(sizeof(ctype) * (i + 1)),
+                              WASM_GET_LOCAL(i)));
+    }
     for (int lhs = 0; lhs < num_locals; ++lhs) {
       for (int rhs = 0; rhs < num_locals; ++rhs) {
         WasmRunner<int32_t> r(execution_mode);
@@ -3201,24 +3213,41 @@ void BinOpOnDifferentRegisters(WasmExecutionMode execution_mode, ValueType type,
         }
         std::vector<byte> code(init_locals_code);
         ADD_CODE(code,
-                 // Store the result of the binary operation at memory 0.
+                 // Store the result of the binary operation at memory[0].
                  WASM_STORE_MEM(ValueTypes::MachineTypeFor(type), WASM_ZERO,
                                 WASM_BINOP(opcode, WASM_GET_LOCAL(lhs),
                                            WASM_GET_LOCAL(rhs))),
                  // Return 0.
                  WASM_ZERO);
+        code.insert(code.end(), write_locals_code.begin(),
+                    write_locals_code.end());
         r.Build(code.data(), code.data() + code.size());
         for (ctype lhs_value : inputs) {
           for (ctype rhs_value : inputs) {
             if (lhs == rhs) lhs_value = rhs_value;
-            WriteLittleEndianValue<ctype>(
-                reinterpret_cast<Address>(&memory[lhs]), lhs_value);
-            WriteLittleEndianValue<ctype>(
-                reinterpret_cast<Address>(&memory[rhs]), rhs_value);
-            int64_t expect = expect_fn(lhs_value, rhs_value);
+            for (int i = 0; i < num_locals; ++i) {
+              ctype value =
+                  i == lhs ? lhs_value
+                           : i == rhs ? rhs_value : static_cast<ctype>(i + 47);
+              WriteLittleEndianValue<ctype>(
+                  reinterpret_cast<Address>(&memory[i]), value);
+            }
+            bool trap = false;
+            int64_t expect = expect_fn(lhs_value, rhs_value, &trap);
+            if (trap) {
+              CHECK_TRAP(r.Call());
+              continue;
+            }
             CHECK_EQ(0, r.Call());
             CHECK_EQ(expect, ReadLittleEndianValue<ctype>(
                                  reinterpret_cast<Address>(&memory[0])));
+            for (int i = 0; i < num_locals; ++i) {
+              ctype value =
+                  i == lhs ? lhs_value
+                           : i == rhs ? rhs_value : static_cast<ctype>(i + 47);
+              CHECK_EQ(value, ReadLittleEndianValue<ctype>(
+                                  reinterpret_cast<Address>(&memory[i + 1])));
+            }
           }
         }
       }
@@ -3235,76 +3264,149 @@ static constexpr int64_t kSome64BitInputs[] = {
 WASM_EXEC_TEST(I32AddOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
       execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Add,
-      [](int32_t lhs, int32_t rhs) { return lhs + rhs; });
+      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs + rhs; });
 }
 
 WASM_EXEC_TEST(I32SubOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
       execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Sub,
-      [](int32_t lhs, int32_t rhs) { return lhs - rhs; });
+      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs - rhs; });
 }
 
 WASM_EXEC_TEST(I32MulOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
       execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Mul,
-      [](int32_t lhs, int32_t rhs) { return lhs * rhs; });
+      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs * rhs; });
 }
 
 WASM_EXEC_TEST(I32ShlOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
       execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Shl,
-      [](int32_t lhs, int32_t rhs) { return lhs << (rhs & 31); });
+      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs << (rhs & 31); });
 }
 
 WASM_EXEC_TEST(I32ShrSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
       execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32ShrS,
-      [](int32_t lhs, int32_t rhs) { return lhs >> (rhs & 31); });
+      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs >> (rhs & 31); });
 }
 
 WASM_EXEC_TEST(I32ShrUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
       execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32ShrU,
-      [](int32_t lhs, int32_t rhs) {
+      [](int32_t lhs, int32_t rhs, bool* trap) {
         return static_cast<uint32_t>(lhs) >> (rhs & 31);
+      });
+}
+
+WASM_EXEC_TEST(I32DivSOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int32_t>(
+      execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32DivS,
+      [](int32_t lhs, int32_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap ? 0 : lhs / rhs;
+      });
+}
+
+WASM_EXEC_TEST(I32DivUOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int32_t>(
+      execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32DivU,
+      [](uint32_t lhs, uint32_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap ? 0 : lhs / rhs;
+      });
+}
+
+WASM_EXEC_TEST(I32RemSOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int32_t>(
+      execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32RemS,
+      [](int32_t lhs, int32_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap || rhs == -1 ? 0 : lhs % rhs;
+      });
+}
+
+WASM_EXEC_TEST(I32RemUOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int32_t>(
+      execution_mode, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32RemU,
+      [](uint32_t lhs, uint32_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap ? 0 : lhs % rhs;
       });
 }
 
 WASM_EXEC_TEST(I64AddOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
       execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Add,
-      [](int64_t lhs, int64_t rhs) { return lhs + rhs; });
+      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs + rhs; });
 }
 
 WASM_EXEC_TEST(I64SubOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
       execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Sub,
-      [](int64_t lhs, int64_t rhs) { return lhs - rhs; });
+      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs - rhs; });
 }
 
 WASM_EXEC_TEST(I64MulOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
       execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Mul,
-      [](int64_t lhs, int64_t rhs) { return lhs * rhs; });
+      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs * rhs; });
 }
 
 WASM_EXEC_TEST(I64ShlOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
       execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Shl,
-      [](int64_t lhs, int64_t rhs) { return lhs << (rhs & 63); });
+      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs << (rhs & 63); });
 }
 
 WASM_EXEC_TEST(I64ShrSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
       execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64ShrS,
-      [](int64_t lhs, int64_t rhs) { return lhs >> (rhs & 63); });
+      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs >> (rhs & 63); });
 }
 
 WASM_EXEC_TEST(I64ShrUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
       execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64ShrU,
-      [](int64_t lhs, int64_t rhs) {
+      [](int64_t lhs, int64_t rhs, bool* trap) {
         return static_cast<uint64_t>(lhs) >> (rhs & 63);
+      });
+}
+
+WASM_EXEC_TEST(I64DivSOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int64_t>(
+      execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64DivS,
+      [](int64_t lhs, int64_t rhs, bool* trap) {
+        *trap = rhs == 0 ||
+                (rhs == -1 && lhs == std::numeric_limits<int64_t>::min());
+        return *trap ? 0 : lhs / rhs;
+      });
+}
+
+WASM_EXEC_TEST(I64DivUOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int64_t>(
+      execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64DivU,
+      [](uint64_t lhs, uint64_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap ? 0 : lhs / rhs;
+      });
+}
+
+WASM_EXEC_TEST(I64RemSOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int64_t>(
+      execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64RemS,
+      [](int64_t lhs, int64_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap || rhs == -1 ? 0 : lhs % rhs;
+      });
+}
+
+WASM_EXEC_TEST(I64RemUOnDifferentRegisters) {
+  BinOpOnDifferentRegisters<int64_t>(
+      execution_mode, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64RemU,
+      [](uint64_t lhs, uint64_t rhs, bool* trap) {
+        *trap = rhs == 0;
+        return *trap ? 0 : lhs % rhs;
       });
 }
 
