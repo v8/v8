@@ -3257,9 +3257,9 @@ void BinOpOnDifferentRegisters(
 
 // Keep this list small, the BinOpOnDifferentRegisters test is running long
 // enough already.
-static constexpr int32_t kSome32BitInputs[] = {0, 1, 31, 0xff112233};
+static constexpr int32_t kSome32BitInputs[] = {0, 1, -1, 31, 0xff112233};
 static constexpr int64_t kSome64BitInputs[] = {
-    0, 1, 31, 63, 0x100000000, 0xff11223344556677};
+    0, 1, -1, 31, 63, 0x100000000, 0xff11223344556677};
 
 WASM_EXEC_TEST(I32AddOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(

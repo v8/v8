@@ -455,6 +455,19 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
     }                             \
   } while (false)
 
+  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
+  // these registers are unused. If {rhs} is stored in one of them, move it to
+  // another temporary register.
+  // Do all this before any branch, such that the code is executed
+  // unconditionally, as the cache state will also be modified unconditionally.
+  liftoff::SpillRegisters(assm, rdx, rax);
+  if (rhs == rax || rhs == rdx) {
+    LiftoffRegList unavailable = LiftoffRegList::ForRegs(rax, rdx, lhs);
+    Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
+    iop(mov, tmp, rhs);
+    rhs = tmp;
+  }
+
   // Check for division by zero.
   iop(test, rhs, rhs);
   assm->j(zero, trap_div_by_zero);
@@ -481,17 +494,6 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
     // clang-format on
     assm->jmp(&done);
     assm->bind(&do_rem);
-  }
-
-  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
-  // these registers are unused. If {rhs} is stored in one of them, move it to
-  // another temporary register.
-  liftoff::SpillRegisters(assm, rdx, rax);
-  if (rhs == rax || rhs == rdx) {
-    LiftoffRegList unavailable = LiftoffRegList::ForRegs(rax, rdx, lhs);
-    Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
-    iop(mov, tmp, rhs);
-    rhs = tmp;
   }
 
   // Now move {lhs} into {eax}, then zero-extend or sign-extend into {edx}, then
