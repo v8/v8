@@ -10,9 +10,49 @@
   #   ],
   # },
 
+  ##############################################################################
+  # Linux32
+  'v8_linux_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'benchmarks', 'variant': 'extra'},
+      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mozilla'},
+      {'name': 'mozilla', 'variant': 'extra'},
+      {'name': 'test262'},
+      {'name': 'test262_variants', 'shards': 3, 'variant': 'extra'},
+      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 2, 'variant': 'extra'},
+    ],
+  },
   'v8_linux_gc_stress_dbg': {
     'tests': [
       {'name': 'mjsunit', 'variant': 'slow_path', 'shards': 2},
+    ],
+  },
+  'v8_linux_nodcheck_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'benchmarks', 'variant': 'extra'},
+      {'name': 'mozilla'},
+      {'name': 'mozilla', 'variant': 'extra'},
+      {'name': 'test262_variants', 'shards': 2},
+      {'name': 'test262_variants', 'shards': 2, 'variant': 'extra'},
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
+    ],
+  },
+  'v8_linux_noi18n_rel_ng_triggered': {
+    'tests': [
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing', 'shards': 2, 'variant': 'default'},
     ],
   },
   'v8_linux_rel_ng_triggered': {
@@ -33,30 +73,188 @@
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
+  'v8_linux_verify_csa_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
+  ##############################################################################
+  # Linux32 with arm simulators
+  'v8_linux_arm_rel_ng_triggered': {
+    'tests': [
+      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing', 'shards': 7},
+      {'name': 'v8testing', 'shards': 3, 'variant': 'extra'},
+    ],
+  },
+  ##############################################################################
+  # Linux64
   'v8_linux64_asan_rel_ng_triggered': {
     'tests': [
-      {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+      {'name': 'test262_variants', 'shards': 7},
+      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 2, 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'slow_path'},
+    ],
+  },
+  'v8_linux64_cfi_rel_ng_triggered': {
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'mozilla'},
+      {'name': 'optimize_for_size'},
+      {'name': 'test262'},
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  'v8_linux64_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'benchmarks', 'variant': 'extra'},
+      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mozilla'},
+      {'name': 'mozilla', 'variant': 'extra'},
+      {'name': 'test262'},
+      {'name': 'test262_variants', 'shards': 3, 'variant': 'extra'},
+      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 2, 'variant': 'extra'},
     ],
   },
   'v8_linux64_fyi_rel_ng_triggered': {
     'tests': [
       # Stress sampling.
-      {'name': 'mjsunit', 'shards': 1, 'variant': 'stress_sampling'},
-      {'name': 'webkit', 'shards': 1, 'variant': 'stress_sampling'},
+      {'name': 'mjsunit', 'variant': 'stress_sampling'},
+      {'name': 'webkit', 'variant': 'stress_sampling'},
       # Infra staging.
       {'name': 'test262_variants', 'shards': 2, 'variant': 'infra_staging'},
       {'name': 'v8testing', 'shards': 2, 'variant': 'infra_staging'},
     ],
   },
   'v8_linux64_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
     'tests': [
-      {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
-      {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+      # TODO(machenbach): Add benchmarks.
+      {'name': 'mjsunit_sp_frame_access'},
+      # TODO(machenbach): Add mozilla tests.
+      {'name': 'optimize_for_size'},
+      {'name': 'test262_variants', 'shards': 4},
+      {'name': 'test262_variants', 'shards': 2, 'variant': 'extra'},
+      {'name': 'v8initializers'},
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'minor_mc'},
+      {'name': 'v8testing', 'variant': 'slow_path'},
     ],
   },
   'v8_linux64_tsan_rel': {
     'tests': [
-      {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+      {'name': 'v8testing', 'variant': 'slow_path'},
+    ],
+  },
+  'v8_linux64_ubsan_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  'v8_linux64_verify_csa_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
+  ##############################################################################
+  # Linux64 with arm64 simulators
+  'v8_linux_arm64_rel_ng_triggered': {
+    'tests': [
+      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing', 'shards': 7},
+      {'name': 'v8testing', 'shards': 3, 'variant': 'extra'},
+    ],
+  },
+  ##############################################################################
+  # Win32
+  'v8_win_nosnap_shared_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Windows-7-SP1',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3, 'variant': 'default'},
+    ],
+  },
+  'v8_win_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Windows-7-SP1',
+    },
+    'tests': [
+      {'name': 'test262'},
+      {'name': 'v8testing'},
+    ],
+  },
+  ##############################################################################
+  # Win64
+  'v8_win64_asan_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Windows-10',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 5},
+    ],
+  },
+  'v8_win64_msvc_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Windows-7-SP1',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing'},
+    ],
+  },
+  'v8_win64_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Windows-7-SP1',
+    },
+    'tests': [
+      {'name': 'test262'},
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
+    ],
+  },
+  ##############################################################################
+  # Mac64
+  'v8_mac64_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.13',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 2, 'variant': 'extra'},
+    ],
+  },
+  'v8_mac64_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.13',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
 }
