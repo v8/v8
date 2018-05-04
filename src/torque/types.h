@@ -14,9 +14,11 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+static const char* const CONSTEXPR_TYPE_PREFIX = "constexpr ";
 static const char* const NEVER_TYPE_STRING = "never";
 static const char* const BRANCH_TYPE_STRING = "branch";
-static const char* const BIT_TYPE_STRING = "bit";
+static const char* const CONSTEXPR_BOOL_TYPE_STRING = "constexpr bool";
+static const char* const BOOL_TYPE_STRING = "bool";
 static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "Arguments";
 static const char* const TAGGED_TYPE_STRING = "tagged";
@@ -25,9 +27,9 @@ static const char* const EXCEPTION_TYPE_STRING = "Exception";
 static const char* const OBJECT_TYPE_STRING = "Object";
 static const char* const STRING_TYPE_STRING = "String";
 static const char* const INTPTR_TYPE_STRING = "intptr";
-static const char* const CONST_INT31_TYPE_STRING = "const_int31";
-static const char* const CONST_INT32_TYPE_STRING = "const_int32";
-static const char* const CONST_FLOAT64_TYPE_STRING = "const_float64";
+static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
+static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
+static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 class Label;
 
@@ -47,8 +49,13 @@ typedef struct Type {
   bool IsException() const { return name() == EXCEPTION_TYPE_STRING; }
   bool IsVoid() const { return name() == VOID_TYPE_STRING; }
   bool IsNever() const { return name() == NEVER_TYPE_STRING; }
-  bool IsBit() const { return name() == BIT_TYPE_STRING; }
+  bool IsBool() const { return name() == BOOL_TYPE_STRING; }
   bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
+
+  bool IsConstexpr() const {
+    return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
+           CONSTEXPR_TYPE_PREFIX;
+  }
 
   const std::string& name() const;
 

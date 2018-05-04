@@ -23,7 +23,7 @@ module array {
     if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
 
     // Fast path only works on fast elements kind and with writable length.
-    let elementsKind: int32 = EnsureArrayPushable(map) otherwise Bailout;
+    let elementsKind: ElementsKind = EnsureArrayPushable(map) otherwise Bailout;
     if (!IsFastElementsKind(elementsKind)) goto Bailout;
 
     // For now, only support non-double fast elements

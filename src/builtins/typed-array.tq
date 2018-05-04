@@ -14,7 +14,7 @@ module typed_array {
   extern builtin TypedArrayStoreElementFromTagged(
       Context, JSTypedArray, Smi, Smi, Object);
 
-  extern macro NumberIsNaN(Number): bit;
+  extern macro NumberIsNaN(Number): bool;
 
   macro CallCompareWithDetachedCheck(
       context: Context, array: JSTypedArray, comparefn: Callable, a: Object,
@@ -164,7 +164,7 @@ module typed_array {
           Store(context, array, kind, low_end, element);
           low_end++;
         } else if (order > 0) {
-          let break_for: bit = no;
+          let break_for: bool = no;
 
           while (order > 0) {
             high_start--;

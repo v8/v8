@@ -334,10 +334,15 @@ struct ExpressionStatement : Statement {
 
 struct IfStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IfStatement)
-  IfStatement(SourcePosition p, Expression* c, Statement* t,
+  IfStatement(SourcePosition p, Expression* c, bool cexpr, Statement* t,
               base::Optional<Statement*> f)
-      : Statement(kKind, p), condition(c), if_true(t), if_false(f) {}
+      : Statement(kKind, p),
+        condition(c),
+        is_constexpr(cexpr),
+        if_true(t),
+        if_false(f) {}
   Expression* condition;
+  bool is_constexpr;
   Statement* if_true;
   base::Optional<Statement*> if_false;
 };
@@ -501,6 +506,7 @@ struct TypeDeclaration : Declaration {
   std::string name;
   base::Optional<std::string> extends;
   base::Optional<std::string> generates;
+  base::Optional<std::string> constexpr_generates;
 };
 
 struct LabelAndTypes {

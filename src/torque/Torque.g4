@@ -22,6 +22,7 @@ CONVERT_KEYWORD: 'convert';
 FOR: 'for';
 WHILE: 'while';
 RETURN: 'return';
+CONSTEXPR: 'constexpr';
 CONTINUE: 'continue';
 BREAK: 'break';
 GOTO: 'goto';
@@ -81,7 +82,7 @@ DECREMENT: '--';
 NOT: '!';
 
 STRING_LITERAL : ('"' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) * '"')
-               | ('\'' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) * '\'');
+               | ('\'' ( ESCAPE | ~('\'' | '\\' | '\n' | '\r') ) * '\'');
 fragment ESCAPE : '\\' ( '\'' | '\\' | '"' );
 
 IDENTIFIER  :   [A-Za-z][0-9A-Za-z_]* ;
@@ -115,7 +116,7 @@ DECIMAL_LITERAL
         | MINUS? DECIMAL_INTEGER_LITERAL EXPONENT_PART?
         ;
 
-type : IDENTIFIER;
+type : CONSTEXPR? IDENTIFIER;
 typeList : '(' type? (',' type)* ')';
 
 typeListMaybeVarArgs: '(' type? (',' type)* (',' VARARGS)? ')'
@@ -225,7 +226,7 @@ variableDeclaration: LET IDENTIFIER ':' type;
 variableDeclarationWithInitialization: variableDeclaration ('=' expression)?;
 helperCallStatement: (TAIL)? helperCall;
 expressionStatement: assignment;
-ifStatement: IF '(' expression ')' statementBlock ('else' statementBlock)?;
+ifStatement: IF CONSTEXPR? '(' expression ')' statementBlock ('else' statementBlock)?;
 whileLoop: WHILE '(' expression ')' statementBlock;
 returnStatement: RETURN expression?;
 breakStatement: BREAK;
@@ -259,9 +260,10 @@ statementBlock
 
 helperBody : statementScope;
 
-generatesDeclaration: 'generates' STRING_LITERAL;
 extendsDeclaration: 'extends' IDENTIFIER;
-typeDeclaration : 'type' IDENTIFIER extendsDeclaration? generatesDeclaration? ';';
+generatesDeclaration: 'generates' STRING_LITERAL;
+constexprDeclaration: 'constexpr' STRING_LITERAL;
+typeDeclaration : 'type' IDENTIFIER extendsDeclaration? generatesDeclaration? constexprDeclaration?';';
 
 externalBuiltin : 'extern' JAVASCRIPT? BUILTIN IDENTIFIER typeList optionalType ';';
 externalMacro : 'extern' (IMPLICIT? 'operator' STRING_LITERAL)? MACRO IDENTIFIER typeListMaybeVarArgs optionalType optionalLabelList ';';

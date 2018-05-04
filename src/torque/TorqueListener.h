@@ -236,15 +236,20 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void enterHelperBody(TorqueParser::HelperBodyContext* ctx) = 0;
   virtual void exitHelperBody(TorqueParser::HelperBodyContext* ctx) = 0;
 
+  virtual void enterExtendsDeclaration(
+      TorqueParser::ExtendsDeclarationContext* ctx) = 0;
+  virtual void exitExtendsDeclaration(
+      TorqueParser::ExtendsDeclarationContext* ctx) = 0;
+
   virtual void enterGeneratesDeclaration(
       TorqueParser::GeneratesDeclarationContext* ctx) = 0;
   virtual void exitGeneratesDeclaration(
       TorqueParser::GeneratesDeclarationContext* ctx) = 0;
 
-  virtual void enterExtendsDeclaration(
-      TorqueParser::ExtendsDeclarationContext* ctx) = 0;
-  virtual void exitExtendsDeclaration(
-      TorqueParser::ExtendsDeclarationContext* ctx) = 0;
+  virtual void enterConstexprDeclaration(
+      TorqueParser::ConstexprDeclarationContext* ctx) = 0;
+  virtual void exitConstexprDeclaration(
+      TorqueParser::ConstexprDeclarationContext* ctx) = 0;
 
   virtual void enterTypeDeclaration(
       TorqueParser::TypeDeclarationContext* ctx) = 0;

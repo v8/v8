@@ -72,10 +72,19 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(TailCallStatement* stmt) { Visit(stmt->call); }
 
   void Visit(TypeDeclaration* decl) {
-    std::string generates_class_name =
-        decl->generates ? *decl->generates : decl->name;
-    declarations()->DeclareType(decl->pos, decl->name, generates_class_name,
-                                decl->extends ? &*decl->extends : nullptr);
+    std::string extends = decl->extends ? *decl->extends : std::string("");
+    std::string* extends_ptr = decl->extends ? &extends : nullptr;
+
+    std::string generates =
+        decl->generates ? *decl->generates : std::string("");
+    declarations()->DeclareType(decl->pos, decl->name, generates, extends_ptr);
+
+    if (decl->constexpr_generates) {
+      std::string constexpr_name =
+          std::string(CONSTEXPR_TYPE_PREFIX) + decl->name;
+      declarations()->DeclareType(decl->pos, constexpr_name,
+                                  *decl->constexpr_generates, &(decl->name));
+    }
   }
 
   void Visit(ExternalBuiltinDeclaration* decl) {
@@ -125,6 +134,7 @@ class DeclarationVisitor : public FileVisitor {
       std::cout << "found declaration of external runtime " << decl->name
                 << " with signature ";
     }
+
     Type return_type = declarations()->LookupType(decl->pos, decl->return_type);
     TypeVector parameter_types =
         GetTypeVector(decl->pos, decl->parameters.types);
@@ -260,12 +270,16 @@ class DeclarationVisitor : public FileVisitor {
   }
 
   void Visit(IfStatement* stmt) {
-    PushControlSplit();
+    if (!stmt->is_constexpr) {
+      PushControlSplit();
+    }
     DeclareExpressionForBranch(stmt->condition);
     Visit(stmt->if_true);
     if (stmt->if_false) Visit(*stmt->if_false);
-    auto changed_vars = PopControlSplit();
-    global_context_.AddControlSplitChangedVariables(stmt, changed_vars);
+    if (!stmt->is_constexpr) {
+      auto changed_vars = PopControlSplit();
+      global_context_.AddControlSplitChangedVariables(stmt, changed_vars);
+    }
   }
 
   void Visit(WhileStatement* stmt) {

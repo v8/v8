@@ -341,7 +341,7 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
         Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
     GenerateLabelDefinition(false_label);
     VisitResult left_result = Visit(expr->left);
-    if (left_result.type().IsBit()) {
+    if (left_result.type().IsBool()) {
       Label* true_label =
           Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
       GenerateIndent();
@@ -361,7 +361,7 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
         Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
     GenerateLabelDefinition(true_label);
     VisitResult left_result = Visit(expr->left);
-    if (left_result.type().IsBit()) {
+    if (left_result.type().IsBool()) {
       Label* false_label =
           Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
       GenerateIndent();
@@ -484,38 +484,70 @@ Type ImplementationVisitor::Visit(IfStatement* stmt) {
 
   bool has_else = stmt->if_false.has_value();
 
-  Label* true_label = nullptr;
-  Label* false_label = nullptr;
-  {
-    Declarations::NodeScopeActivator scope(declarations(), &*stmt->condition);
-    true_label =
-        Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
-    GenerateLabelDefinition(true_label);
-    false_label =
-        Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
-    GenerateLabelDefinition(false_label, !has_else ? stmt : nullptr);
-  }
+  if (stmt->is_constexpr) {
+    VisitResult expression_result = Visit(stmt->condition);
 
-  Label* done_label = nullptr;
-  bool live = false;
-  if (has_else) {
-    done_label =
-        declarations()->DeclarePrivateLabel(stmt->pos, "if_done_label");
-    GenerateLabelDefinition(done_label, stmt);
+    if (!expression_result.type().Is(GetTypeOracle().GetConstexprBoolType())) {
+      std::stringstream stream;
+      stream
+          << "expression should return type \"constexpr bool\" but doesn't at"
+          << PositionAsString(stmt->pos);
+      ReportError(stream.str());
+    }
+
+    {
+      GenerateIndent();
+      source_out() << "if ((" << expression_result.variable() << ")) ";
+      ScopedIndent indent(this, false);
+      source_out() << std::endl;
+      Visit(stmt->if_true);
+    }
+
+    if (has_else) {
+      source_out() << " else ";
+      ScopedIndent indent(this, false);
+      source_out() << std::endl;
+      Visit(*stmt->if_false);
+    }
+
+    source_out() << std::endl;
+
+    return GetTypeOracle().GetVoidType();
   } else {
-    done_label = false_label;
-    live = true;
+    Label* true_label = nullptr;
+    Label* false_label = nullptr;
+    {
+      Declarations::NodeScopeActivator scope(declarations(), &*stmt->condition);
+      true_label =
+          Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
+      GenerateLabelDefinition(true_label);
+      false_label =
+          Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
+      GenerateLabelDefinition(false_label, !has_else ? stmt : nullptr);
+    }
+
+    Label* done_label = nullptr;
+    bool live = false;
+    if (has_else) {
+      done_label =
+          declarations()->DeclarePrivateLabel(stmt->pos, "if_done_label");
+      GenerateLabelDefinition(done_label, stmt);
+    } else {
+      done_label = false_label;
+      live = true;
+    }
+    std::vector<Statement*> blocks = {stmt->if_true};
+    std::vector<Label*> labels = {true_label, false_label};
+    if (has_else) blocks.push_back(*stmt->if_false);
+    if (GenerateExpressionBranch(stmt->condition, labels, blocks, done_label)) {
+      live = true;
+    }
+    if (live) {
+      GenerateLabelBind(done_label);
+    }
+    return live ? GetTypeOracle().GetVoidType()
+                : GetTypeOracle().GetNeverType();
   }
-  std::vector<Statement*> blocks = {stmt->if_true};
-  std::vector<Label*> labels = {true_label, false_label};
-  if (has_else) blocks.push_back(*stmt->if_false);
-  if (GenerateExpressionBranch(stmt->condition, labels, blocks, done_label)) {
-    live = true;
-  }
-  if (live) {
-    GenerateLabelBind(done_label);
-  }
-  return live ? GetTypeOracle().GetVoidType() : GetTypeOracle().GetNeverType();
 }
 
 Type ImplementationVisitor::Visit(WhileStatement* stmt) {
@@ -605,7 +637,7 @@ Type ImplementationVisitor::Visit(AssertStatement* stmt) {
 
   Expression* expression = stmt->expression;
   VisitResult expression_result = Visit(stmt->expression);
-  if (expression_result.type() == GetTypeOracle().GetBitType()) {
+  if (expression_result.type() == GetTypeOracle().GetBoolType()) {
     GenerateBranch(expression_result, true_label, false_label);
   } else {
     if (expression_result.type() != GetTypeOracle().GetNeverType()) {
@@ -1009,7 +1041,8 @@ VisitResult ImplementationVisitor::GenerateOperation(
           }
         }
 
-        if (!return_type || (return_type->IsSubclass(handler.result_type))) {
+        if (!return_type || (GetTypeOracle().IsAssignableFrom(
+                                *return_type, handler.result_type))) {
           return GenerateCall(pos, handler.macro_name, arguments, false);
         }
       }
@@ -1362,7 +1395,7 @@ bool ImplementationVisitor::GenerateExpressionBranch(
   Declarations::NodeScopeActivator scope(declarations(), expression);
 
   VisitResult expression_result = Visit(expression);
-  if (expression_result.type() == GetTypeOracle().GetBitType()) {
+  if (expression_result.type() == GetTypeOracle().GetBoolType()) {
     GenerateBranch(expression_result, statement_labels[0], statement_labels[1]);
   } else {
     if (expression_result.type() != GetTypeOracle().GetNeverType()) {

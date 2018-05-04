@@ -25,7 +25,11 @@ class TypeOracle {
 
   Type GetArgumentsType() { return GetBuiltinType(ARGUMENTS_TYPE_STRING); }
 
-  Type GetBitType() { return GetBuiltinType(BIT_TYPE_STRING); }
+  Type GetBoolType() { return GetBuiltinType(BOOL_TYPE_STRING); }
+
+  Type GetConstexprBoolType() {
+    return GetBuiltinType(CONSTEXPR_BOOL_TYPE_STRING);
+  }
 
   Type GetVoidType() { return GetBuiltinType(VOID_TYPE_STRING); }
 
@@ -40,7 +44,8 @@ class TypeOracle {
   Type GetConstInt31Type() { return GetBuiltinType(CONST_INT31_TYPE_STRING); }
 
   bool IsAssignableFrom(Type to, Type from) {
-    if (to.IsSubclass(from)) return true;
+    if (to == from) return true;
+    if (to.IsSubclass(from) && !from.IsConstexpr()) return true;
     return IsImplicitlyConverableFrom(to, from);
   }
 
