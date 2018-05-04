@@ -3318,9 +3318,9 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
-    constexpr bool use_default_signal_handler = true;
-    if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler)) {
-      fprintf(stderr, "Could not register signal handler");
+    constexpr bool use_default_trap_handler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_trap_handler)) {
+      fprintf(stderr, "Could not register trap handler");
       exit(1);
     }
   }

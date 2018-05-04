@@ -6017,7 +6017,7 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 #endif
 
 bool V8::RegisterDefaultSignalHandler() {
-  return v8::internal::trap_handler::RegisterDefaultSignalHandler();
+  return v8::internal::trap_handler::RegisterDefaultTrapHandler();
 }
 
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {

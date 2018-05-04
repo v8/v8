@@ -99,7 +99,7 @@ class ThreadInWasmScope {
   ~ThreadInWasmScope() { ClearThreadInWasm(); }
 };
 
-bool RegisterDefaultSignalHandler();
+bool RegisterDefaultTrapHandler();
 V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
 
 #if V8_OS_LINUX
