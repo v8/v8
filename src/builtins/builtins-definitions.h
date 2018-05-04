@@ -6,7 +6,7 @@
 #define V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 
 // include generated header
-#include "builtin-definitions-from-dsl.h"  //NOLINT
+#include "torque-generated/builtin-definitions-from-dsl.h"
 
 namespace v8 {
 namespace internal {

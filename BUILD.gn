@@ -842,6 +842,18 @@ action("postmortem-metadata") {
          rebase_path(sources, root_build_dir)
 }
 
+torque_files = [
+  "src/builtins/base.tq",
+  "src/builtins/array.tq",
+  "src/builtins/typed-array.tq",
+]
+
+torque_modules = [
+  "base",
+  "array",
+  "typed-array",
+]
+
 action("run_torque") {
   visibility = [
     ":*",
@@ -863,32 +875,61 @@ action("run_torque") {
 
   script = "tools/run.py"
 
-  inputs = [
-    "src/builtins/base.tq",
-    "src/builtins/array.tq",
-    "src/builtins/typed-array.tq",
-  ]
+  sources = torque_files
 
   outputs = [
-    "$target_gen_dir/builtin-definitions-from-dsl.h",
-    "$target_gen_dir/builtins-array-from-dsl-gen.cc",
-    "$target_gen_dir/builtins-array-from-dsl-gen.h",
-    "$target_gen_dir/builtins-base-from-dsl-gen.cc",
-    "$target_gen_dir/builtins-base-from-dsl-gen.h",
-    "$target_gen_dir/builtins-typed-array-from-dsl-gen.cc",
-    "$target_gen_dir/builtins-typed-array-from-dsl-gen.h",
+    "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
   ]
+  foreach(module, torque_modules) {
+    outputs += [
+      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.cc",
+      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.h",
+    ]
+  }
 
   args = [
     "./" + rebase_path(get_label_info(":torque($v8_torque_toolchain)",
                                       "root_out_dir") + "/torque",
                        root_build_dir),
     "-o",
-    rebase_path("$target_gen_dir", root_build_dir),
-    rebase_path("src/builtins/base.tq", root_build_dir),
-    rebase_path("src/builtins/array.tq", root_build_dir),
-    rebase_path("src/builtins/typed-array.tq", root_build_dir),
+    rebase_path("$target_gen_dir/torque-generated", root_build_dir),
   ]
+
+  foreach(file, torque_files) {
+    args += [ rebase_path(file, root_build_dir) ]
+  }
+}
+
+v8_source_set("torque_generated_core") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  deps = [
+    ":run_torque",
+  ]
+
+  sources = [
+    "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_source_set("torque_generated_initializers") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  deps = [
+    ":run_torque",
+  ]
+
+  sources = []
+  foreach(module, torque_modules) {
+    sources += [
+      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.cc",
+      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.h",
+    ]
+  }
+
+  configs = [ ":internal_config" ]
 }
 
 # Template to generate different V8 snapshots based on different runtime flags.
@@ -1200,15 +1241,11 @@ v8_source_set("v8_initializers") {
   ]
 
   deps = [
-    ":run_torque",
+    ":torque_generated_initializers",
     ":v8_base",
   ]
 
   sources = [
-    "$target_gen_dir/builtins-array-from-dsl-gen.cc",
-    "$target_gen_dir/builtins-base-from-dsl-gen.cc",
-    "$target_gen_dir/builtins-typed-array-from-dsl-gen.cc",
-
     ### gcmole(all) ###
     "src/builtins/builtins-arguments-gen.cc",
     "src/builtins/builtins-arguments-gen.h",
@@ -1389,7 +1426,6 @@ v8_source_set("v8_base") {
   split_count = 2
 
   sources = [
-    "$target_gen_dir/builtin-definitions-from-dsl.h",
     "//base/trace_event/common/trace_event_common.h",
 
     ### gcmole(all) ###
@@ -2699,7 +2735,7 @@ v8_source_set("v8_base") {
 
   defines = []
   deps = [
-    ":run_torque",
+    ":torque_generated_core",
     ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",
@@ -3450,7 +3486,7 @@ v8_source_set("wasm_module_runner") {
   ]
 
   deps = [
-    ":run_torque",
+    ":torque_generated_core",
   ]
 
   configs = [
@@ -3527,7 +3563,7 @@ v8_source_set("lib_wasm_fuzzer_common") {
   ]
 
   deps = [
-    ":run_torque",
+    ":torque_generated_core",
   ]
 
   configs = [
