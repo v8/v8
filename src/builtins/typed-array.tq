@@ -21,7 +21,7 @@ module typed_array {
       b: Object): Number labels Detached {
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
     let v: Number =
-        ToNumber_Inline(context, Call(context, comparefn, undefined, a, b));
+        ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
 
     // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(array.buffer)) goto Detached;
@@ -164,12 +164,12 @@ module typed_array {
           Store(context, array, kind, low_end, element);
           low_end++;
         } else if (order > 0) {
-          let break_for: bool = no;
+          let break_for: bool = false;
 
           while (order > 0) {
             high_start--;
             if (high_start == idx) {
-              break_for = yes;
+              break_for = true;
               break;
             }
 
@@ -226,8 +226,8 @@ module typed_array {
       context: Context, receiver: Object, ...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
-    let comparefn_obj: Object = arguments.length > 0 ? arguments[0] : undefined;
-    if (comparefn_obj != undefined && !TaggedIsCallable(comparefn_obj)) {
+    let comparefn_obj: Object = arguments.length > 0 ? arguments[0] : Undefined;
+    if (comparefn_obj != Undefined && !TaggedIsCallable(comparefn_obj)) {
       ThrowTypeError(context, kBadSortComparisonFunction, comparefn_obj);
     }
 
@@ -240,7 +240,7 @@ module typed_array {
         ValidateTypedArray(context, obj, kTypedArrayProtoSort);
 
     // Default sorting is done in C++ using std::sort
-    if (comparefn_obj == undefined) {
+    if (comparefn_obj == Undefined) {
       return TypedArraySortFast(context, obj);
     }
 

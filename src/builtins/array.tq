@@ -86,7 +86,7 @@ module array {
     if (elements == newElements) {
       let limit: Smi = elements.length;
       while (k < limit) {
-        newElements[k++] = hole;
+        newElements[k++] = Hole;
       }
     }
 
@@ -173,7 +173,7 @@ module array {
           HasPropertyObject(o, from, context, kHasProperty);
 
       // c. If fromPresent is true, then
-      if (fromPresent == true) {
+      if (fromPresent == True) {
         // i. Let fromValue be ? Get(O, from).
         let fromValue: Object = GetProperty(context, o, from);
 
@@ -212,7 +212,7 @@ module array {
             HasPropertyObject(o, from, context, kHasProperty);
 
         // iv. If fromPresent is true, then
-        if (fromPresent == true) {
+        if (fromPresent == True) {
           // 1. Let fromValue be ? Get(O, from).
           let fromValue: Object = GetProperty(context, o, from);
 
@@ -256,7 +256,7 @@ module array {
             HasPropertyObject(o, from, context, kHasProperty);
 
         // iv. If fromPresent is true, then
-        if (fromPresent == true) {
+        if (fromPresent == True) {
           // 1. Let fromValue be ? Get(O, from).
           let fromValue: Object = GetProperty(context, o, from);
 

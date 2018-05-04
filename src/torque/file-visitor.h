@@ -38,12 +38,12 @@ class FileVisitor {
   Declarations* declarations() { return global_context_.declarations(); }
 
  protected:
-  static constexpr const char* kTrueLabelName = "True";
-  static constexpr const char* kFalseLabelName = "False";
-  static constexpr const char* kReturnValueVariable = "return";
-  static constexpr const char* kConditionValueVariable = "condition";
-  static constexpr const char* kDoneLabelName = "done";
-  static constexpr const char* kForIndexValueVariable = "for_index";
+  static constexpr const char* kTrueLabelName = "_True";
+  static constexpr const char* kFalseLabelName = "_False";
+  static constexpr const char* kReturnValueVariable = "_return";
+  static constexpr const char* kConditionValueVariable = "_condition";
+  static constexpr const char* kDoneLabelName = "_done";
+  static constexpr const char* kForIndexValueVariable = "_for_index";
 
   Module* CurrentModule() const { return module_; }
 

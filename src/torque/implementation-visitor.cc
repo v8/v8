@@ -302,11 +302,10 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
     ScopedIndent indent(this);
     Declarations::NodeScopeActivator scope(declarations(), expr->condition);
 
-    Label* true_label =
-        Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
+    Label* true_label = declarations()->LookupLabel(expr->pos, kTrueLabelName);
     GenerateLabelDefinition(true_label);
     Label* false_label =
-        Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
+        declarations()->LookupLabel(expr->pos, kFalseLabelName);
     GenerateLabelDefinition(false_label);
     Label* done_label =
         declarations()->DeclarePrivateLabel(expr->pos, kDoneLabelName);
@@ -338,15 +337,15 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
   {
     Declarations::NodeScopeActivator scope(declarations(), expr->left);
     Label* false_label =
-        Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
+        declarations()->LookupLabel(expr->pos, kFalseLabelName);
     GenerateLabelDefinition(false_label);
     VisitResult left_result = Visit(expr->left);
     if (left_result.type().IsBool()) {
       Label* true_label =
-          Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
+          declarations()->LookupLabel(expr->pos, kTrueLabelName);
       GenerateIndent();
       source_out() << "GotoIf(" << left_result.variable() << ", "
-                   << true_label->GetValueForRead() << ");" << std::endl;
+                   << true_label->generated() << ");" << std::endl;
     } else {
       GenerateLabelBind(false_label);
     }
@@ -357,16 +356,15 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
   {
     Declarations::NodeScopeActivator scope(declarations(), expr->left);
-    Label* true_label =
-        Label::cast(declarations()->LookupValue(expr->pos, kTrueLabelName));
+    Label* true_label = declarations()->LookupLabel(expr->pos, kTrueLabelName);
     GenerateLabelDefinition(true_label);
     VisitResult left_result = Visit(expr->left);
     if (left_result.type().IsBool()) {
       Label* false_label =
-          Label::cast(declarations()->LookupValue(expr->pos, kFalseLabelName));
+          declarations()->LookupLabel(expr->pos, kFalseLabelName);
       GenerateIndent();
       source_out() << "GotoIfNot(" << left_result.variable() << ", "
-                   << false_label->GetValueForRead() << ");" << std::endl;
+                   << false_label->generated() << ");" << std::endl;
     } else {
       GenerateLabelBind(true_label);
     }
@@ -456,7 +454,7 @@ VisitResult ImplementationVisitor::Visit(ConvertExpression* expr) {
 }
 
 Type ImplementationVisitor::Visit(GotoStatement* stmt) {
-  Label* label = GetLabel(stmt->pos, stmt->label);
+  Label* label = declarations()->LookupLabel(stmt->pos, stmt->label);
 
   if (stmt->arguments.size() != label->GetParameterCount()) {
     std::stringstream stream;
@@ -518,11 +516,9 @@ Type ImplementationVisitor::Visit(IfStatement* stmt) {
     Label* false_label = nullptr;
     {
       Declarations::NodeScopeActivator scope(declarations(), &*stmt->condition);
-      true_label =
-          Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
+      true_label = declarations()->LookupLabel(stmt->pos, kTrueLabelName);
       GenerateLabelDefinition(true_label);
-      false_label =
-          Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
+      false_label = declarations()->LookupLabel(stmt->pos, kFalseLabelName);
       GenerateLabelDefinition(false_label, !has_else ? stmt : nullptr);
     }
 
@@ -557,11 +553,9 @@ Type ImplementationVisitor::Visit(WhileStatement* stmt) {
   Label* exit_label = nullptr;
   {
     Declarations::NodeScopeActivator scope(declarations(), stmt->condition);
-    body_label =
-        Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
+    body_label = declarations()->LookupLabel(stmt->pos, kTrueLabelName);
     GenerateLabelDefinition(body_label);
-    exit_label =
-        Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
+    exit_label = declarations()->LookupLabel(stmt->pos, kFalseLabelName);
     GenerateLabelDefinition(exit_label);
   }
 
@@ -628,11 +622,9 @@ Type ImplementationVisitor::Visit(AssertStatement* stmt) {
   Label* true_label = nullptr;
   Label* false_label = nullptr;
   Declarations::NodeScopeActivator scope(declarations(), stmt->expression);
-  true_label =
-      Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
+  true_label = declarations()->LookupLabel(stmt->pos, kTrueLabelName);
   GenerateLabelDefinition(true_label);
-  false_label =
-      Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
+  false_label = declarations()->LookupLabel(stmt->pos, kFalseLabelName);
   GenerateLabelDefinition(false_label);
 
   Expression* expression = stmt->expression;
@@ -674,10 +666,9 @@ Type ImplementationVisitor::Visit(ReturnStatement* stmt) {
       << PositionAsString(stmt->pos);
     ReportError(s.str());
   }
-  Label* end =
-      current_callable->IsMacro()
-          ? Label::cast(declarations()->LookupValue(stmt->pos, "macro_end"))
-          : nullptr;
+  Label* end = current_callable->IsMacro()
+                   ? declarations()->LookupLabel(stmt->pos, "macro_end")
+                   : nullptr;
   if (current_callable->HasReturnValue()) {
     if (!stmt->value) {
       std::stringstream s;
@@ -800,8 +791,7 @@ Type ImplementationVisitor::Visit(TryCatchStatement* stmt) {
     // Activate a new scope to see handler labels
     Declarations::NodeScopeActivator scope(declarations(), stmt);
     for (LabelBlock* block : stmt->label_blocks) {
-      Label* label =
-          Label::cast(declarations()->LookupValue(block->pos, block->label));
+      Label* label = declarations()->LookupLabel(block->pos, block->label);
       labels.push_back(label);
       GenerateLabelDefinition(label);
     }
@@ -887,11 +877,9 @@ Type ImplementationVisitor::Visit(ForLoopStatement* stmt) {
   Label* exit_label = nullptr;
   {
     Declarations::NodeScopeActivator scope(declarations(), stmt->test);
-    body_label =
-        Label::cast(declarations()->LookupValue(stmt->pos, kTrueLabelName));
+    body_label = declarations()->LookupLabel(stmt->pos, kTrueLabelName);
     GenerateLabelDefinition(body_label);
-    exit_label =
-        Label::cast(declarations()->LookupValue(stmt->pos, kFalseLabelName));
+    exit_label = declarations()->LookupLabel(stmt->pos, kFalseLabelName);
     GenerateLabelDefinition(exit_label);
   }
 
@@ -919,17 +907,6 @@ Type ImplementationVisitor::Visit(ForLoopStatement* stmt) {
 
   GenerateLabelBind(exit_label);
   return GetTypeOracle().GetVoidType();
-}
-
-Label* ImplementationVisitor::GetLabel(SourcePosition pos,
-                                       const std::string& label) {
-  Value* value = declarations()->LookupValue(pos, label);
-  if (!value->IsLabel()) {
-    std::stringstream s;
-    s << label << " is not a label at " << PositionAsString(pos);
-    ReportError(s.str());
-  }
-  return Label::cast(value);
 }
 
 void ImplementationVisitor::GenerateImplementation(const std::string& dir,
@@ -1003,11 +980,11 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
   }
 
   for (const LabelDeclaration& label_info : macro->signature().labels) {
-    Label* label = GetLabel(pos, label_info.name);
+    Label* label = declarations()->LookupLabel(pos, label_info.name);
     if (!first) {
       o << ", ";
     }
-    o << "Label* " << label->GetValueForDeclaration();
+    o << "Label* " << label->generated();
     for (Variable* var : label->GetParameters()) {
       std::string generated_type_name("TVariable<");
       generated_type_name += var->type().GetGeneratedTNodeTypeName();
@@ -1034,9 +1011,11 @@ VisitResult ImplementationVisitor::GenerateOperation(
         // return but have a True and False label
         if (!return_type && handler.result_type.IsNever()) {
           if (arguments.labels.size() == 0) {
-            Label* true_label = GetLabel(pos, kTrueLabelName);
+            Label* true_label =
+                declarations()->LookupLabel(pos, kTrueLabelName);
             arguments.labels.push_back(true_label);
-            Label* false_label = GetLabel(pos, kFalseLabelName);
+            Label* false_label =
+                declarations()->LookupLabel(pos, kFalseLabelName);
             arguments.labels.push_back(false_label);
           }
         }
@@ -1303,14 +1282,14 @@ VisitResult ImplementationVisitor::GenerateCall(
         callable->signature().labels[i].types.size();
     if (label->GetParameterCount() != callee_label_parameters) {
       std::stringstream s;
-      s << "label " << label->GetSourceName()
+      s << "label " << label->name()
         << " doesn't have the right number of parameters (found "
         << std::to_string(label->GetParameterCount()) << " expected "
         << std::to_string(callee_label_parameters) << ") at "
         << PositionAsString(pos);
       ReportError(s.str());
     }
-    source_out() << label->GetValueForRead();
+    source_out() << label->generated();
     size_t j = 0;
     for (auto t : callable->signature().labels[i].types) {
       source_out() << ", ";
@@ -1384,8 +1363,8 @@ void ImplementationVisitor::GenerateBranch(const VisitResult& condition,
                                            Label* false_label) {
   GenerateIndent();
   source_out() << "Branch(" << condition.variable() << ", "
-               << true_label->GetValueForRead() << ", "
-               << false_label->GetValueForRead() << ");" << std::endl;
+               << true_label->generated() << ", " << false_label->generated()
+               << ");" << std::endl;
 }
 
 bool ImplementationVisitor::GenerateExpressionBranch(
@@ -1449,7 +1428,7 @@ std::string ImplementationVisitor::GenerateNewTempVariable(Type type) {
 
 void ImplementationVisitor::GenerateLabelDefinition(Label* label,
                                                     AstNode* node) {
-  std::string label_string = label->GetValueForRead();
+  std::string label_string = label->generated();
   std::string label_string_impl = label_string + "_impl";
   GenerateIndent();
   source_out() << "Label " + label_string_impl + "(this";
@@ -1467,19 +1446,19 @@ void ImplementationVisitor::GenerateLabelDefinition(Label* label,
 
 void ImplementationVisitor::GenerateLabelBind(Label* label) {
   GenerateIndent();
-  source_out() << "BIND(" << label->GetValueForRead() << ");" << std::endl;
+  source_out() << "BIND(" << label->generated() << ");" << std::endl;
 }
 
 void ImplementationVisitor::GenerateLabelGoto(Label* label) {
   GenerateIndent();
-  source_out() << "Goto(" << label->GetValueForRead() << ");" << std::endl;
+  source_out() << "Goto(" << label->generated() << ");" << std::endl;
 }
 
 std::vector<Label*> ImplementationVisitor::LabelsFromIdentifiers(
     SourcePosition pos, const std::vector<std::string>& names) {
   std::vector<Label*> result;
   for (auto name : names) {
-    result.push_back(GetLabel(pos, name));
+    result.push_back(declarations()->LookupLabel(pos, name));
   }
   return result;
 }

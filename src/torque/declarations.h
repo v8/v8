@@ -38,7 +38,9 @@ class Declarations {
   Macro* LookupMacro(SourcePosition pos, const std::string& name,
                      const TypeVector& types);
 
-  Builtin* LookupBuiltin(const SourcePosition& pos, const std::string& name);
+  Builtin* LookupBuiltin(SourcePosition pos, const std::string& name);
+
+  Label* LookupLabel(SourcePosition pos, const std::string& name);
 
   Type DeclareType(SourcePosition pos, const std::string& name,
                    const std::string& generated,

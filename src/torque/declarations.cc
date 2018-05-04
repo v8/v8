@@ -51,6 +51,17 @@ Value* Declarations::LookupValue(SourcePosition pos, const std::string& name) {
   return Value::cast(d);
 }
 
+Label* Declarations::LookupLabel(SourcePosition pos, const std::string& name) {
+  Declarable* d = Lookup(pos, name);
+  if (!d->IsLabel()) {
+    std::stringstream s;
+    s << "declaration \"" << name << "\" is not a Label at "
+      << PositionAsString(pos);
+    ReportError(s.str());
+  }
+  return Label::cast(d);
+}
+
 Macro* Declarations::LookupMacro(SourcePosition pos, const std::string& name,
                                  const TypeVector& types) {
   Declarable* declarable = Lookup(name);
@@ -71,7 +82,7 @@ Macro* Declarations::LookupMacro(SourcePosition pos, const std::string& name,
   return nullptr;
 }
 
-Builtin* Declarations::LookupBuiltin(const SourcePosition& pos,
+Builtin* Declarations::LookupBuiltin(SourcePosition pos,
                                      const std::string& name) {
   Declarable* declarable = Lookup(name);
   if (declarable != nullptr) {

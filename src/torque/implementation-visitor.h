@@ -135,8 +135,6 @@ class ImplementationVisitor : public FileVisitor {
   Type Visit(DebugStatement* stmt);
   Type Visit(AssertStatement* stmt);
 
-  Label* GetLabel(SourcePosition pos, const std::string& label);
-
   void GenerateImplementation(const std::string& dir, Module* module);
 
  private:

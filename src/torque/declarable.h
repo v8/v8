@@ -44,9 +44,7 @@ class Declarable {
   bool IsVariable() const { return kind() == kVariable; }
   bool IsMacroList() const { return kind() == kMacroList; }
   bool IsConstant() const { return kind() == kConstant; }
-  bool IsValue() const {
-    return IsVariable() || IsConstant() || IsParameter() || IsLabel();
-  }
+  bool IsValue() const { return IsVariable() || IsConstant() || IsParameter(); }
   virtual const char* type_name() const { return "<<unknown>>"; }
 
  private:
@@ -55,11 +53,11 @@ class Declarable {
 
 #define DECLARE_DECLARABLE_BOILERPLATE(x, y)           \
   static x* cast(Declarable* declarable) {             \
-    assert(declarable->Is##x());                       \
+    DCHECK(declarable->Is##x());                       \
     return static_cast<x*>(declarable);                \
   }                                                    \
   static const x* cast(const Declarable* declarable) { \
-    assert(declarable->Is##x());                       \
+    DCHECK(declarable->Is##x());                       \
     return static_cast<const x*>(declarable);          \
   }                                                    \
   const char* type_name() const override { return #y; }
@@ -140,11 +138,11 @@ class Variable : public Value {
   bool defined_;
 };
 
-class Label : public Value {
+class Label : public Declarable {
  public:
   void AddVariable(Variable* var) { parameters_.push_back(var); }
-  std::string GetSourceName() const { return source_name_; }
-  std::string GetValueForDeclaration() const override { return name(); }
+  std::string name() const { return name_; }
+  std::string generated() const { return generated_; }
   Variable* GetParameter(size_t i) const { return parameters_[i]; }
   size_t GetParameterCount() const { return parameters_.size(); }
   const std::vector<Variable*>& GetParameters() const { return parameters_; }
@@ -156,12 +154,13 @@ class Label : public Value {
  private:
   friend class Declarations;
   explicit Label(const std::string& name)
-      : Value(Declarable::kLabel, Type(),
-              "label_" + name + "_" + std::to_string(next_id_++)),
-        source_name_(name),
+      : Declarable(Declarable::kLabel),
+        name_(name),
+        generated_("label_" + name + "_" + std::to_string(next_id_++)),
         used_(false) {}
 
-  std::string source_name_;
+  std::string name_;
+  std::string generated_;
   std::vector<Variable*> parameters_;
   static size_t next_id_;
   bool used_;

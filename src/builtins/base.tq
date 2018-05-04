@@ -38,7 +38,7 @@ type InstanceType extends int32 generates 'TNode<Int32T>';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
 type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags generates
-    'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
+'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
 
 type MessageTemplate;
 type HasPropertyFlag generates 'HasPropertyLookupMode';
@@ -82,13 +82,13 @@ const kDetachedOperation: MessageTemplate =
 const kBadSortComparisonFunction: MessageTemplate =
     'MessageTemplate::kBadSortComparisonFunction';
 
-const hole: Oddball = 'TheHoleConstant()';
-const null: Oddball = 'NullConstant()';
-const undefined: Oddball = 'UndefinedConstant()';
-const true: Boolean = 'TrueConstant()';
-const false: Boolean = 'FalseConstant()';
-const yes: constexpr bool = 'true';
-const no: constexpr bool = 'false';
+const Hole: Oddball = 'TheHoleConstant()';
+const Null: Oddball = 'NullConstant()';
+const Undefined: Oddball = 'UndefinedConstant()';
+const True: Boolean = 'TrueConstant()';
+const False: Boolean = 'FalseConstant()';
+const true: constexpr bool = 'true';
+const false: constexpr bool = 'false';
 
 const strict: constexpr LanguageMode = 'LanguageMode::kStrict';
 const sloppy: constexpr LanguageMode = 'LanguageMode::kSloppy';
@@ -141,15 +141,16 @@ extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
 extern operator '==' macro Float64Equal(float64, float64): bool;
 
 extern operator
-'<' macro BranchIfNumberLessThan(Number, Number): never labels True, False;
+'<' macro BranchIfNumberLessThan(Number, Number): never labels Taken, NotTaken;
 extern operator
-'<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never labels True,
-    False;
+'<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never labels Taken,
+    NotTaken;
 extern operator
-'>' macro BranchIfNumberGreaterThan(Number, Number): never labels True, False;
+'>' macro BranchIfNumberGreaterThan(Number, Number): never labels Taken,
+    NotTaken;
 extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(Number, Number):
-    never labels True,
-    False;
+    never labels Taken,
+    NotTaken;
 
 extern operator '==' macro WordEqual(Object, Object): bool;
 extern operator '!=' macro WordNotEqual(Object, Object): bool;
@@ -215,8 +216,9 @@ extern operator 'convert<>' macro SmiTag(intptr): Smi;
 extern operator 'convert<>' macro SmiFromInt32(int32): Smi;
 extern operator 'convert<>' macro SmiUntag(Smi): intptr;
 
-extern macro BranchIfFastJSArray(Object, Context): never labels True, False;
-extern macro BranchIfNotFastJSArray(Object, Context): never labels True, False;
+extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
+extern macro BranchIfNotFastJSArray(Object, Context): never labels Taken,
+    NotTaken;
 
 extern macro IsPrototypeInitialArrayPrototype(Context, Map): bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;
@@ -278,7 +280,7 @@ macro HasPropertyObject(
     return HasProperty(cast<HeapObject>(o) otherwise CastError, p, c, f);
   }
   label CastError {
-    return false;
+    return False;
   }
 }
 
