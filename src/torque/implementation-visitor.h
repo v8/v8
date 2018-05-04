@@ -131,6 +131,8 @@ class ImplementationVisitor : public FileVisitor {
   Type Visit(ForOfLoopStatement* stmt);
   Type Visit(BlockStatement* block);
   Type Visit(ExpressionStatement* stmt);
+  Type Visit(DebugStatement* stmt);
+  Type Visit(AssertStatement* stmt);
 
   Label* GetLabel(SourcePosition pos, const std::string& label);
 

@@ -159,6 +159,9 @@ class TorqueVisitor : public antlr4::tree::AbstractParseTreeVisitor {
   virtual antlrcpp::Any visitTryCatch(
       TorqueParser::TryCatchContext* context) = 0;
 
+  virtual antlrcpp::Any visitDiagnosticStatement(
+      TorqueParser::DiagnosticStatementContext* context) = 0;
+
   virtual antlrcpp::Any visitStatement(
       TorqueParser::StatementContext* context) = 0;
 

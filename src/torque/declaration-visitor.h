@@ -190,6 +190,11 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(MacroDeclaration* decl);
   void Visit(ReturnStatement* stmt);
 
+  void Visit(DebugStatement* stmt) {}
+  void Visit(AssertStatement* stmt) {
+    DeclareExpressionForBranch(stmt->expression);
+  }
+
   void Visit(VarDeclarationStatement* stmt) {
     std::string variable_name = stmt->name;
     Type type = declarations()->LookupType(stmt->pos, stmt->type);

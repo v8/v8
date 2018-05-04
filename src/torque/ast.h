@@ -49,6 +49,8 @@ struct SourcePosition {
   V(BreakStatement)                     \
   V(ContinueStatement)                  \
   V(ReturnStatement)                    \
+  V(DebugStatement)                     \
+  V(AssertStatement)                    \
   V(TailCallStatement)                  \
   V(VarDeclarationStatement)            \
   V(GotoStatement)                      \
@@ -353,6 +355,22 @@ struct ReturnStatement : Statement {
   ReturnStatement(SourcePosition p, base::Optional<Expression*> v)
       : Statement(kKind, p), value(v) {}
   base::Optional<Expression*> value;
+};
+
+struct DebugStatement : Statement {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(DebugStatement)
+  DebugStatement(SourcePosition p, const std::string& r, bool n)
+      : Statement(kKind, p), reason(r), never_continues(n) {}
+  std::string reason;
+  bool never_continues;
+};
+
+struct AssertStatement : Statement {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(AssertStatement)
+  AssertStatement(SourcePosition p, Expression* e, const std::string& s)
+      : Statement(kKind, p), expression(e), source(s) {}
+  Expression* expression;
+  std::string source;
 };
 
 struct TailCallStatement : Statement {

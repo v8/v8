@@ -49,14 +49,6 @@ struct SourceFileContext {
   std::unique_ptr<antlr4::CommonTokenStream> tokens;
   std::unique_ptr<TorqueParser> parser;
   TorqueParser::FileContext* file;
-
-  std::string sourceFileAndLineNumber(antlr4::ParserRuleContext* context) {
-    antlr4::misc::Interval i = context->getSourceInterval();
-    auto token = tokens->get(i.a);
-    size_t line = token->getLine();
-    size_t pos = token->getCharPositionInLine();
-    return name + ":" + std::to_string(line) + ":" + std::to_string(pos);
-  }
 };
 
 class GlobalContext {

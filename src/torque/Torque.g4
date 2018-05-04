@@ -34,6 +34,9 @@ TAIL: 'tail';
 ISNT: 'isnt';
 IS: 'is';
 LET: 'let';
+ASSERT: 'assert';
+UNREACHABLE_TOKEN: 'unreachable';
+DEBUG_TOKEN: 'debug';
 
 ASSIGNMENT: '=';
 ASSIGNMENT_OPERATOR
@@ -231,6 +234,8 @@ gotoStatement: GOTO labelReference argumentList?;
 handlerWithStatement: (CATCH IDENTIFIER | LABEL labelDeclaration) statementBlock;
 tryCatch: TRY statementBlock handlerWithStatement+;
 
+diagnosticStatement: (ASSERT '(' expression ')') | UNREACHABLE_TOKEN | DEBUG_TOKEN;
+
 statement : variableDeclarationWithInitialization ';'
           | helperCallStatement ';'
           | expressionStatement ';'
@@ -239,6 +244,7 @@ statement : variableDeclarationWithInitialization ';'
           | continueStatement ';'
           | gotoStatement ';'
           | ifStatement
+          | diagnosticStatement ';'
           | whileLoop
           | forOfLoop
           | forLoop

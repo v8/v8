@@ -61,6 +61,9 @@ module array {
       a.elements = newElements;
     }
 
+    // Double check that the array is still in fast elements mode
+    assert(IsFastSmiElementsKind(a.map.elements_kind));
+
     // Copy over inserted elements.
     let k: Smi = actualStart;
     if (insertCount > 0) {

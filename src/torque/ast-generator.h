@@ -133,6 +133,9 @@ class AstGenerator : public TorqueBaseVisitor {
   antlrcpp::Any visitForOfLoop(
       TorqueParser::ForOfLoopContext* context) override;
 
+  antlrcpp::Any visitDiagnosticStatement(
+      TorqueParser::DiagnosticStatementContext* context) override;
+
   antlrcpp::Any aggregateResult(antlrcpp::Any aggregate,
                                 const antlrcpp::Any& nextResult) override {
     if (aggregate.isNull())

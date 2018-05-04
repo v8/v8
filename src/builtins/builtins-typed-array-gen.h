@@ -141,10 +141,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns true iff number is NaN.
   // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
   TNode<BoolT> NumberIsNaN(TNode<Number> number);
-
-  // Always CSA_ASSERTs false.
-  // TODO(szuend): Remove when Unreachable is supported in Torque.
-  void AssertUnreachable() { CSA_ASSERT(this, Int32FalseConstant()); }
 };
 
 }  // namespace internal

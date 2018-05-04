@@ -613,6 +613,26 @@ antlrcpp::Any AstGenerator::visitConditionalExpression(
   return context->logicalORExpression(0)->accept(this);
 }
 
+antlrcpp::Any AstGenerator::visitDiagnosticStatement(
+    TorqueParser::DiagnosticStatementContext* context) {
+  if (context->ASSERT()) {
+    size_t a = context->expression()->start->getStartIndex();
+    size_t b = context->expression()->stop->getStopIndex();
+    antlr4::misc::Interval interval(a, b);
+    std::string source = source_file_context_->stream->getText(interval);
+    return base::implicit_cast<Statement*>(RegisterNode(new AssertStatement{
+        Pos(context), context->expression()->accept(this).as<Expression*>(),
+        source}));
+  } else if (context->UNREACHABLE_TOKEN()) {
+    return base::implicit_cast<Statement*>(
+        RegisterNode(new DebugStatement{Pos(context), "unreachable", true}));
+  } else {
+    DCHECK(context->DEBUG_TOKEN());
+    return base::implicit_cast<Statement*>(
+        RegisterNode(new DebugStatement{Pos(context), "debug", false}));
+  }
+}
+
 void AstGenerator::visitSourceFile(SourceFileContext* context) {
   source_file_context_ = context;
   current_source_file_ = ast_.AddSource(context->name);
