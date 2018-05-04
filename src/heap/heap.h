@@ -1517,8 +1517,8 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline uint64_t PromotedTotalSize() {
-    return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
+  inline uint64_t OldGenerationObjectsAndPromotedExternalMemorySize() {
+    return OldGenerationSizeOfObjects() + PromotedExternalMemorySize();
   }
 
   inline void UpdateNewSpaceAllocationCounter();
@@ -1547,18 +1547,18 @@ class Heap {
   }
 
   size_t PromotedSinceLastGC() {
-    size_t old_generation_size = PromotedSpaceSizeOfObjects();
+    size_t old_generation_size = OldGenerationSizeOfObjects();
     DCHECK_GE(old_generation_size, old_generation_size_at_last_gc_);
     return old_generation_size - old_generation_size_at_last_gc_;
   }
 
   // This is called by the sweeper when it discovers more free space
-  // as expected at the end of the last GC.
+  // than expected at the end of the preceding GC.
   void NotifyRefinedOldGenerationSize(size_t decreased_bytes) {
     if (old_generation_size_at_last_gc_ != 0) {
-      // PromotedSpaceSizeOfObjects() is now smaller by |decreased_bytes|.
-      // Adjust old_generation_size_at_last_gc_ too so that PromotedSinceLastGC
-      // stay monotonically non-decreasing function.
+      // OldGenerationSizeOfObjects() is now smaller by |decreased_bytes|.
+      // Adjust old_generation_size_at_last_gc_ too, so that PromotedSinceLastGC
+      // continues to increase monotonically, rather than decreasing here.
       DCHECK_GE(old_generation_size_at_last_gc_, decreased_bytes);
       old_generation_size_at_last_gc_ -= decreased_bytes;
     }
@@ -1566,8 +1566,9 @@ class Heap {
 
   int gc_count() const { return gc_count_; }
 
-  // Returns the size of objects residing in non new spaces.
-  size_t PromotedSpaceSizeOfObjects();
+  // Returns the size of objects residing in non-new spaces.
+  // Excludes external memory held by those objects.
+  size_t OldGenerationSizeOfObjects();
 
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================
@@ -2041,9 +2042,12 @@ class Heap {
   // ===========================================================================
 
   inline size_t OldGenerationSpaceAvailable() {
-    if (old_generation_allocation_limit_ <= PromotedTotalSize()) return 0;
+    if (old_generation_allocation_limit_ <=
+        OldGenerationObjectsAndPromotedExternalMemorySize())
+      return 0;
     return old_generation_allocation_limit_ -
-           static_cast<size_t>(PromotedTotalSize());
+           static_cast<size_t>(
+               OldGenerationObjectsAndPromotedExternalMemorySize());
   }
 
   // We allow incremental marking to overshoot the allocation limit for
@@ -2053,8 +2057,11 @@ class Heap {
     // This guards against too eager finalization in small heaps.
     // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
     size_t kMarginForSmallHeaps = 32u * MB;
-    if (old_generation_allocation_limit_ >= PromotedTotalSize()) return false;
-    uint64_t overshoot = PromotedTotalSize() - old_generation_allocation_limit_;
+    if (old_generation_allocation_limit_ >=
+        OldGenerationObjectsAndPromotedExternalMemorySize())
+      return false;
+    uint64_t overshoot = OldGenerationObjectsAndPromotedExternalMemorySize() -
+                         old_generation_allocation_limit_;
     // Overshoot margin is 50% of allocation limit or half-way to the max heap
     // with special handling of small heaps.
     uint64_t margin =

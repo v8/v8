@@ -324,7 +324,7 @@ void IncrementalMarking::Deactivate() {
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
-        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+        static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
     int old_generation_limit_mb =
         static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     heap()->isolate()->PrintWithTimestamp(
@@ -350,7 +350,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
-  initial_old_generation_size_ = heap_->PromotedSpaceSizeOfObjects();
+  initial_old_generation_size_ = heap_->OldGenerationSizeOfObjects();
   old_generation_allocation_counter_ = heap_->OldGenerationAllocationCounter();
   bytes_allocated_ = 0;
   bytes_marked_ahead_of_schedule_ = 0;
@@ -811,7 +811,7 @@ void IncrementalMarking::Stop() {
   if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
-        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+        static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
     int old_generation_limit_mb =
         static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     heap()->isolate()->PrintWithTimestamp(
@@ -960,7 +960,7 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
 
   if (!heap()->CanExpandOldGeneration(oom_slack)) {
-    return heap()->PromotedSpaceSizeOfObjects() / kTargetStepCountAtOOM;
+    return heap()->OldGenerationSizeOfObjects() / kTargetStepCountAtOOM;
   }
 
   size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,

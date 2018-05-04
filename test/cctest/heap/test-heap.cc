@@ -5943,7 +5943,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
   {
     HandleScope scope(i_isolate);
-    while (heap->PromotedSpaceSizeOfObjects() <
+    while (heap->OldGenerationSizeOfObjects() <
            heap->MaxOldGenerationSize() * 0.9) {
       factory->NewFixedArray(100, TENURED);
     }

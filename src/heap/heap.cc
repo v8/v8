@@ -1399,7 +1399,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
     if (collector == MARK_COMPACTOR) {
       size_t committed_memory_after = CommittedOldGenerationMemory();
-      size_t used_memory_after = PromotedSpaceSizeOfObjects();
+      size_t used_memory_after = OldGenerationSizeOfObjects();
       MemoryReducer::Event event;
       event.type = MemoryReducer::kMarkCompact;
       event.time_ms = MonotonicallyIncreasingTimeInMs();
@@ -1727,7 +1727,7 @@ bool Heap::PerformGarbageCollection(
         // GC.
         old_generation_allocation_counter_at_last_gc_ +=
             static_cast<size_t>(promoted_objects_size_);
-        old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
+        old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
         break;
       case MINOR_MARK_COMPACTOR:
         MinorMarkCompact();
@@ -1784,7 +1784,7 @@ bool Heap::PerformGarbageCollection(
   double gc_speed = tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
   double mutator_speed =
       tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
-  size_t old_gen_size = PromotedSpaceSizeOfObjects();
+  size_t old_gen_size = OldGenerationSizeOfObjects();
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
     external_memory_at_last_mark_compact_ = external_memory_;
@@ -3032,7 +3032,7 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
 }
 
 bool Heap::HasHighFragmentation() {
-  size_t used = PromotedSpaceSizeOfObjects();
+  size_t used = OldGenerationSizeOfObjects();
   size_t committed = CommittedOldGenerationMemory();
   return HasHighFragmentation(used, committed);
 }
@@ -4206,7 +4206,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   }
 }
 
-size_t Heap::PromotedSpaceSizeOfObjects() {
+size_t Heap::OldGenerationSizeOfObjects() {
   PagedSpaces spaces(this, PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
   size_t total = 0;
   for (PagedSpace* space = spaces.next(); space != nullptr;
@@ -4439,7 +4439,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (FLAG_stress_incremental_marking) {
     return IncrementalMarkingLimit::kHardLimit;
   }
-  if (PromotedSpaceSizeOfObjects() <=
+  if (OldGenerationSizeOfObjects() <=
       IncrementalMarking::kActivationThreshold) {
     // Incremental marking is disabled or it is too early to start.
     return IncrementalMarkingLimit::kNoLimit;
@@ -4455,7 +4455,9 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     double gained_since_last_gc =
         PromotedSinceLastGC() +
         (external_memory_ - external_memory_at_last_mark_compact_);
-    double size_before_gc = PromotedTotalSize() - gained_since_last_gc;
+    double size_before_gc =
+        OldGenerationObjectsAndPromotedExternalMemorySize() -
+        gained_since_last_gc;
     double bytes_to_limit = old_generation_allocation_limit_ - size_before_gc;
     if (bytes_to_limit > 0) {
       double current_percent = (gained_since_last_gc / bytes_to_limit) * 100.0;
