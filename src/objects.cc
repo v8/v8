@@ -16671,18 +16671,17 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table,
   // there is extra room in the dictionary for additions. Don't go lower than
   // room for {kMinShrinkCapacity} elements.
   int at_least_room_for = nof + additionalCapacity;
-  DCHECK_LE(at_least_room_for, capacity);
-  if (at_least_room_for < Derived::kMinShrinkCapacity) return table;
+  int new_capacity = ComputeCapacity(at_least_room_for);
+  if (new_capacity < Derived::kMinShrinkCapacity) return table;
+  if (new_capacity == capacity) return table;
 
   Isolate* isolate = table->GetIsolate();
   const int kMinCapacityForPretenure = 256;
-  bool pretenure =
-      (at_least_room_for > kMinCapacityForPretenure) &&
-      !isolate->heap()->InNewSpace(*table);
-  Handle<Derived> new_table = HashTable::New(
-      isolate,
-      at_least_room_for,
-      pretenure ? TENURED : NOT_TENURED);
+  bool pretenure = (at_least_room_for > kMinCapacityForPretenure) &&
+                   !isolate->heap()->InNewSpace(*table);
+  Handle<Derived> new_table =
+      HashTable::New(isolate, new_capacity, pretenure ? TENURED : NOT_TENURED,
+                     USE_CUSTOM_MINIMUM_CAPACITY);
 
   table->Rehash(*new_table);
   return new_table;
@@ -17215,10 +17214,9 @@ Handle<StringTable> StringTable::CautiousShrink(Handle<StringTable> table) {
   int nof = table->NumberOfElements();
   if (capacity <= StringTable::kMinCapacity) return table;
   if (nof > (capacity / kMaxEmptyFactor)) return table;
-  // Make sure that after shrinking the table is half empty (aka. has capacity
-  // for another {nof} elements).
-  DCHECK_LE(nof * 2, capacity);
-  return Shrink(table, nof);
+  // Keep capacity for at least half of the current nof elements.
+  int slack_capacity = nof >> 2;
+  return Shrink(table, slack_capacity);
 }
 
 namespace {
