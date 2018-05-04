@@ -24,7 +24,6 @@
 #include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/perf-jit.h"
-#include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
 #include "src/source-position-table.h"
@@ -1946,13 +1945,6 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 }
 
-ProfilerListener* Logger::EnsureProfilerListener() {
-  CHECK(is_initialized_);
-  if (!profiler_listener_)
-    profiler_listener_.reset(new ProfilerListener(isolate_));
-  return profiler_listener_.get();
-}
-
 sampler::Sampler* Logger::sampler() {
   return ticker_;
 }
@@ -1994,10 +1986,6 @@ FILE* Logger::TearDown() {
     RemoveCodeEventListener(jit_logger_);
     delete jit_logger_;
     jit_logger_ = nullptr;
-  }
-
-  if (profiler_listener_.get() != nullptr) {
-    RemoveCodeEventListener(profiler_listener_.get());
   }
 
   return log_->Close();

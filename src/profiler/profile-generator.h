@@ -315,7 +315,7 @@ class CpuProfile {
 
 class CodeMap {
  public:
-  CodeMap() {}
+  CodeMap();
 
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
@@ -325,7 +325,7 @@ class CodeMap {
  private:
   struct CodeEntryInfo {
     CodeEntryInfo(CodeEntry* an_entry, unsigned a_size)
-        : entry(an_entry), size(a_size) { }
+        : entry(an_entry), size(a_size) {}
     CodeEntry* entry;
     unsigned size;
   };

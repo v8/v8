@@ -318,6 +318,7 @@ void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
 void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
+  profiler_listener_.reset();
 }
 
 void CpuProfiler::CreateEntriesForRuntimeCallStats() {
@@ -372,8 +373,11 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   generator_.reset(new ProfileGenerator(profiles_.get()));
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
+  if (!profiler_listener_) {
+    profiler_listener_.reset(new ProfilerListener(isolate_, this));
+  }
   CreateEntriesForRuntimeCallStats();
-  logger->EnsureProfilerListener()->AddObserver(this);
+  logger->AddCodeEventListener(profiler_listener_.get());
   is_profiling_ = true;
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
@@ -408,7 +412,7 @@ void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
-  logger->EnsureProfilerListener()->RemoveObserver(this);
+  logger->RemoveCodeEventListener(profiler_listener_.get());
   processor_->StopSynchronously();
   processor_.reset();
   generator_.reset();

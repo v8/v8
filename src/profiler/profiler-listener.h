@@ -23,7 +23,7 @@ class CodeEventObserver {
 
 class ProfilerListener : public CodeEventListener {
  public:
-  explicit ProfilerListener(Isolate* isolate);
+  ProfilerListener(Isolate*, CodeEventObserver*);
   ~ProfilerListener() override;
 
   void CallbackEvent(Name* name, Address entry_point) override;
@@ -61,10 +61,6 @@ class ProfilerListener : public CodeEventListener {
       std::unique_ptr<SourcePositionTable> line_info = nullptr,
       Address instruction_start = kNullAddress);
 
-  void AddObserver(CodeEventObserver* observer);
-  void RemoveObserver(CodeEventObserver* observer);
-  V8_INLINE bool HasObservers() { return !observers_.empty(); }
-
   const char* GetName(Name* name) {
     return function_and_resource_names_.GetName(name);
   }
@@ -77,22 +73,18 @@ class ProfilerListener : public CodeEventListener {
   const char* GetFunctionName(const char* name) {
     return function_and_resource_names_.GetFunctionName(name);
   }
-  size_t entries_count_for_test() const { return code_entries_.size(); }
 
  private:
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
   void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
-    for (auto observer : observers_) {
-      observer->CodeEventHandler(evt_rec);
-    }
+    observer_->CodeEventHandler(evt_rec);
   }
 
-  Isolate* isolate_;
+  CodeEventObserver* observer_;
   StringsStorage function_and_resource_names_;
-  std::vector<std::unique_ptr<CodeEntry>> code_entries_;
-  std::vector<CodeEventObserver*> observers_;
+  std::deque<std::unique_ptr<CodeEntry>> code_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
 };

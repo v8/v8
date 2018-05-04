@@ -71,7 +71,6 @@ class LowLevelLogger;
 class PerfBasicLogger;
 class PerfJitLogger;
 class Profiler;
-class ProfilerListener;
 class RuntimeCallTimer;
 class Ticker;
 class WasmCompiledModule;
@@ -108,8 +107,6 @@ class Logger : public CodeEventListener {
                            JitCodeEventHandler event_handler);
 
   sampler::Sampler* sampler();
-
-  ProfilerListener* EnsureProfilerListener();
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
@@ -318,7 +315,6 @@ class Logger : public CodeEventListener {
   PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-  std::unique_ptr<ProfilerListener> profiler_listener_;
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 

@@ -472,6 +472,8 @@ void CpuProfile::Print() {
   top_down_.Print();
 }
 
+CodeMap::CodeMap() = default;
+
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   DeleteAllCoveredCode(addr, addr + size);
   code_map_.insert({addr, CodeEntryInfo(entry, size)});
