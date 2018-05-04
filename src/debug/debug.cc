@@ -2429,6 +2429,10 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
 
 bool Debug::PerformSideEffectCheckForCallback(Handle<Object> callback_info) {
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
+  if (!callback_info.is_null() && callback_info->IsCallHandlerInfo() &&
+      i::CallHandlerInfo::cast(*callback_info)->NextCallHasNoSideEffect()) {
+    return true;
+  }
   // TODO(7515): always pass a valid callback info object.
   if (!callback_info.is_null() &&
       DebugEvaluate::CallbackHasNoSideEffect(*callback_info)) {

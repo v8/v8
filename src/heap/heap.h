@@ -132,6 +132,8 @@ using v8::MemoryPressureLevel;
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \
     SideEffectFreeCallHandlerInfoMap)                                          \
+  V(Map, next_call_side_effect_free_call_handler_info_map,                     \
+    NextCallSideEffectFreeCallHandlerInfoMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \

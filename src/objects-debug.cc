@@ -1639,7 +1639,8 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
 void CallHandlerInfo::CallHandlerInfoVerify() {
   CHECK(IsCallHandlerInfo());
   CHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-        map() == GetHeap()->side_effect_free_call_handler_info_map());
+        map() == GetHeap()->side_effect_free_call_handler_info_map() ||
+        map() == GetHeap()->next_call_side_effect_free_call_handler_info_map());
   VerifyPointer(callback());
   VerifyPointer(js_callback());
   VerifyPointer(data());

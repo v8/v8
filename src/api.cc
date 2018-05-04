@@ -5119,9 +5119,15 @@ Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
       .FromMaybe(Local<Function>());
 }
 
-
 MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
                                          v8::Local<v8::Value> argv[]) const {
+  return NewInstanceWithSideEffectType(context, argc, argv,
+                                       SideEffectType::kHasSideEffect);
+}
+
+MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
+    Local<Context> context, int argc, v8::Local<v8::Value> argv[],
+    SideEffectType side_effect_type) const {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   ENTER_V8(isolate, context, Function, NewInstance, MaybeLocal<Object>(),
@@ -5129,10 +5135,37 @@ MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
+  if (side_effect_type == SideEffectType::kHasNoSideEffect) {
+    CHECK(self->IsJSFunction() &&
+          i::JSFunction::cast(*self)->shared()->IsApiFunction());
+    DCHECK(isolate->debug_execution_mode() == i::DebugInfo::kSideEffects);
+    i::Object* obj =
+        i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
+    if (obj->IsCallHandlerInfo()) {
+      i::CallHandlerInfo* handler_info = i::CallHandlerInfo::cast(obj);
+      if (!handler_info->IsSideEffectFreeCallHandlerInfo()) {
+        handler_info->SetNextCallHasNoSideEffect();
+      }
+    }
+  }
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Object> result;
   has_pending_exception = !ToLocal<Object>(
       i::Execution::New(isolate, self, self, argc, args), &result);
+  if (side_effect_type == SideEffectType::kHasNoSideEffect) {
+    i::Object* obj =
+        i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
+    if (obj->IsCallHandlerInfo()) {
+      i::CallHandlerInfo* handler_info = i::CallHandlerInfo::cast(obj);
+      if (has_pending_exception) {
+        // Restore the map if an exception prevented restoration.
+        handler_info->NextCallHasNoSideEffect();
+      } else {
+        DCHECK(handler_info->IsSideEffectCallHandlerInfo() ||
+               handler_info->IsSideEffectFreeCallHandlerInfo());
+      }
+    }
+  }
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
