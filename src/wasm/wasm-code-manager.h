@@ -283,12 +283,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class NativeModuleDeserializer;
   friend class NativeModuleModificationScope;
 
-  struct AddressHasher {
-    size_t operator()(const Address& addr) const {
-      return std::hash<Address>()(addr);
-    }
-  };
-
   static base::AtomicNumber<size_t> next_id_;
   NativeModule(uint32_t num_functions, uint32_t num_imports,
                bool can_request_more, VirtualMemory* vmem,
@@ -326,7 +320,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Maps from instruction start of an immovable code object to instruction
   // start of the trampoline.
-  std::unordered_map<Address, Address, AddressHasher> trampolines_;
+  std::unordered_map<Address, Address> trampolines_;
 
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
