@@ -156,6 +156,95 @@ class GlobalHandles;
 namespace wasm {
 class StreamingDecoder;
 }  // namespace wasm
+
+/**
+ * Configuration of tagging scheme.
+ */
+const int kApiPointerSize = sizeof(void*);  // NOLINT
+const int kApiDoubleSize = sizeof(double);  // NOLINT
+const int kApiIntSize = sizeof(int);        // NOLINT
+const int kApiInt64Size = sizeof(int64_t);  // NOLINT
+
+// Tag information for HeapObject.
+const int kHeapObjectTag = 1;
+const int kWeakHeapObjectTag = 3;
+const int kHeapObjectTagSize = 2;
+const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
+
+// Tag information for Smi.
+const int kSmiTag = 0;
+const int kSmiTagSize = 1;
+const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
+
+template <size_t ptr_size>
+struct SmiTagging;
+
+template <int kSmiShiftSize>
+V8_INLINE internal::Object* IntToSmi(int value) {
+  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
+  uintptr_t tagged_value =
+      (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
+  return reinterpret_cast<internal::Object*>(tagged_value);
+}
+
+// Smi constants for 32-bit systems.
+template <>
+struct SmiTagging<4> {
+  enum { kSmiShiftSize = 0, kSmiValueSize = 31 };
+  static int SmiShiftSize() { return kSmiShiftSize; }
+  static int SmiValueSize() { return kSmiValueSize; }
+  V8_INLINE static int SmiToInt(const internal::Object* value) {
+    int shift_bits = kSmiTagSize + kSmiShiftSize;
+    // Throw away top 32 bits and shift down (requires >> to be sign extending).
+    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
+  }
+  V8_INLINE static internal::Object* IntToSmi(int value) {
+    return internal::IntToSmi<kSmiShiftSize>(value);
+  }
+  V8_INLINE static bool IsValidSmi(intptr_t value) {
+    // To be representable as an tagged small integer, the two
+    // most-significant bits of 'value' must be either 00 or 11 due to
+    // sign-extension. To check this we add 01 to the two
+    // most-significant bits, and check if the most-significant bit is 0
+    //
+    // CAUTION: The original code below:
+    // bool result = ((value + 0x40000000) & 0x80000000) == 0;
+    // may lead to incorrect results according to the C language spec, and
+    // in fact doesn't work correctly with gcc4.1.1 in some cases: The
+    // compiler may produce undefined results in case of signed integer
+    // overflow. The computation must be done w/ unsigned ints.
+    return static_cast<uintptr_t>(value) + 0x40000000U < 0x80000000U;
+  }
+};
+
+// Smi constants for 64-bit systems.
+template <>
+struct SmiTagging<8> {
+  enum { kSmiShiftSize = 31, kSmiValueSize = 32 };
+  static int SmiShiftSize() { return kSmiShiftSize; }
+  static int SmiValueSize() { return kSmiValueSize; }
+  V8_INLINE static int SmiToInt(const internal::Object* value) {
+    int shift_bits = kSmiTagSize + kSmiShiftSize;
+    // Shift down and throw away top 32 bits.
+    return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
+  }
+  V8_INLINE static internal::Object* IntToSmi(int value) {
+    return internal::IntToSmi<kSmiShiftSize>(value);
+  }
+  V8_INLINE static bool IsValidSmi(intptr_t value) {
+    // To be representable as a long smi, the value must be a 32-bit integer.
+    return (value == static_cast<int32_t>(value));
+  }
+};
+
+typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
+const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
+const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
+const int kSmiMinValue = (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
+const int kSmiMaxValue = -(kSmiMinValue + 1);
+constexpr bool SmiValuesAre31Bits() { return kSmiValueSize == 31; }
+constexpr bool SmiValuesAre32Bits() { return kSmiValueSize == 32; }
+
 }  // namespace internal
 
 namespace debug {
@@ -2546,8 +2635,9 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
-  static constexpr int kMaxLength =
-      sizeof(void*) == 4 ? (1 << 28) - 16 : (1 << 30) - 1 - 24;
+  static constexpr int kMaxLength = internal::kApiPointerSize == 4
+                                        ? (1 << 28) - 16
+                                        : internal::kSmiMaxValue / 2 - 24;
 
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
@@ -4544,8 +4634,7 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
   /*
    * The largest typed array size that can be constructed using New.
    */
-  static constexpr size_t kMaxLength =
-      sizeof(void*) == 4 ? (1u << 30) - 1 : (1u << 31) - 1;
+  static constexpr size_t kMaxLength = internal::kSmiMaxValue;
 
   /**
    * Number of elements in this typed array
@@ -9010,85 +9099,6 @@ class V8_EXPORT Locker {
 
 namespace internal {
 
-const int kApiPointerSize = sizeof(void*);  // NOLINT
-const int kApiIntSize = sizeof(int);  // NOLINT
-const int kApiInt64Size = sizeof(int64_t);  // NOLINT
-
-// Tag information for HeapObject.
-const int kHeapObjectTag = 1;
-const int kWeakHeapObjectTag = 3;
-const int kHeapObjectTagSize = 2;
-const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
-
-// Tag information for Smi.
-const int kSmiTag = 0;
-const int kSmiTagSize = 1;
-const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
-
-template <size_t ptr_size> struct SmiTagging;
-
-template<int kSmiShiftSize>
-V8_INLINE internal::Object* IntToSmi(int value) {
-  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  uintptr_t tagged_value =
-      (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
-  return reinterpret_cast<internal::Object*>(tagged_value);
-}
-
-// Smi constants for 32-bit systems.
-template <> struct SmiTagging<4> {
-  enum { kSmiShiftSize = 0, kSmiValueSize = 31 };
-  static int SmiShiftSize() { return kSmiShiftSize; }
-  static int SmiValueSize() { return kSmiValueSize; }
-  V8_INLINE static int SmiToInt(const internal::Object* value) {
-    int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Throw away top 32 bits and shift down (requires >> to be sign extending).
-    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
-  }
-  V8_INLINE static internal::Object* IntToSmi(int value) {
-    return internal::IntToSmi<kSmiShiftSize>(value);
-  }
-  V8_INLINE static bool IsValidSmi(intptr_t value) {
-    // To be representable as an tagged small integer, the two
-    // most-significant bits of 'value' must be either 00 or 11 due to
-    // sign-extension. To check this we add 01 to the two
-    // most-significant bits, and check if the most-significant bit is 0
-    //
-    // CAUTION: The original code below:
-    // bool result = ((value + 0x40000000) & 0x80000000) == 0;
-    // may lead to incorrect results according to the C language spec, and
-    // in fact doesn't work correctly with gcc4.1.1 in some cases: The
-    // compiler may produce undefined results in case of signed integer
-    // overflow. The computation must be done w/ unsigned ints.
-    return static_cast<uintptr_t>(value) + 0x40000000U < 0x80000000U;
-  }
-};
-
-// Smi constants for 64-bit systems.
-template <> struct SmiTagging<8> {
-  enum { kSmiShiftSize = 31, kSmiValueSize = 32 };
-  static int SmiShiftSize() { return kSmiShiftSize; }
-  static int SmiValueSize() { return kSmiValueSize; }
-  V8_INLINE static int SmiToInt(const internal::Object* value) {
-    int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Shift down and throw away top 32 bits.
-    return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
-  }
-  V8_INLINE static internal::Object* IntToSmi(int value) {
-    return internal::IntToSmi<kSmiShiftSize>(value);
-  }
-  V8_INLINE static bool IsValidSmi(intptr_t value) {
-    // To be representable as a long smi, the value must be a 32-bit integer.
-    return (value == static_cast<int32_t>(value));
-  }
-};
-
-typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
-const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
-const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
-V8_INLINE static bool SmiValuesAre31Bits() { return kSmiValueSize == 31; }
-V8_INLINE static bool SmiValuesAre32Bits() { return kSmiValueSize == 32; }
-
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -9102,7 +9112,7 @@ class Internals {
   static const int kMapInstanceTypeOffset = 1 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset = 3 * kApiPointerSize;
 
-  static const int kOddballKindOffset = 4 * kApiPointerSize + sizeof(double);
+  static const int kOddballKindOffset = 4 * kApiPointerSize + kApiDoubleSize;
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
