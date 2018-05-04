@@ -263,7 +263,7 @@ namespace interpreter {
   /* Context allocation */                                                     \
   V(CreateBlockContext, AccumulatorUse::kWrite, OperandType::kIdx)             \
   V(CreateCatchContext, AccumulatorUse::kWrite, OperandType::kReg,             \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kIdx)                                                         \
   V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx,          \
     OperandType::kUImm)                                                        \
   V(CreateEvalContext, AccumulatorUse::kWrite, OperandType::kIdx,              \

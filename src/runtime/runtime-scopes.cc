@@ -747,13 +747,12 @@ RUNTIME_FUNCTION(Runtime_PushModuleContext) {
 
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context = isolate->factory()->NewCatchContext(
-      current, scope_info, name, thrown_object);
+  Handle<Context> context =
+      isolate->factory()->NewCatchContext(current, scope_info, thrown_object);
   isolate->set_context(*context);
   return *context;
 }

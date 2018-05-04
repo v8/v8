@@ -4680,8 +4680,7 @@ void BytecodeGenerator::BuildNewLocalCatchContext(Scope* scope) {
 
   Register exception = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(exception);
-  builder()->CreateCatchContext(exception, scope->catch_variable()->raw_name(),
-                                scope);
+  builder()->CreateCatchContext(exception, scope);
 }
 
 void BytecodeGenerator::VisitObjectLiteralAccessor(

@@ -382,9 +382,6 @@ class ScriptContextTable : public FixedArray {
 //
 // [ extension      ]  Additional data.
 //
-//                     For catch contexts, it contains the name of the catch
-//                     variable.
-//
 //                     For module contexts, it contains the module object.
 //
 //                     For block contexts, it may contain an "extension object"
@@ -480,7 +477,6 @@ class Context: public FixedArray {
   JSObject* extension_object();
   JSReceiver* extension_receiver();
   ScopeInfo* scope_info();
-  String* catch_name();
 
   // Find the module context (assuming there is one) and return the associated
   // module object.

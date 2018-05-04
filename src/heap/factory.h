@@ -370,7 +370,6 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a catch context.
   Handle<Context> NewCatchContext(Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info,
-                                  Handle<String> name,
                                   Handle<Object> thrown_object);
 
   // Create a 'with' context.

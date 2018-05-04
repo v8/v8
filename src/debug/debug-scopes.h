@@ -139,7 +139,6 @@ class ScopeIterator {
   V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
   V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
   Handle<JSObject> MaterializeClosure();
-  Handle<JSObject> MaterializeCatchScope();
   Handle<JSObject> MaterializeInnerScope();
   Handle<JSObject> WithContextExtension();
 
@@ -151,8 +150,6 @@ class ScopeIterator {
                                Handle<Object> new_value);
   bool SetScriptVariableValue(Handle<String> variable_name,
                               Handle<Object> new_value);
-  bool SetCatchVariableValue(Handle<String> variable_name,
-                             Handle<Object> new_value);
   bool SetModuleVariableValue(Handle<String> variable_name,
                               Handle<Object> new_value);
 

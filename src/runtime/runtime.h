@@ -477,7 +477,7 @@ namespace internal {
   F(NewSloppyArguments_Generic, 1, 1)     \
   F(NewStrictArguments, 1, 1)             \
   F(PushBlockContext, 1, 1)               \
-  F(PushCatchContext, 3, 1)               \
+  F(PushCatchContext, 2, 1)               \
   F(PushModuleContext, 2, 1)              \
   F(PushWithContext, 2, 1)                \
   F(StoreLookupSlot_Sloppy, 2, 1)         \

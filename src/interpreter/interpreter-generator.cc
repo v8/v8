@@ -2527,17 +2527,16 @@ IGNITION_HANDLER(CreateBlockContext, InterpreterAssembler) {
   Dispatch();
 }
 
-// CreateCatchContext <exception> <name_idx> <scope_info_idx>
+// CreateCatchContext <exception> <scope_info_idx>
 //
-// Creates a new context for a catch block with the |exception| in a register,
-// the variable name at |name_idx|, the ScopeInfo at |scope_info_idx|.
+// Creates a new context for a catch block with the |exception| in a register
+// and the ScopeInfo at |scope_info_idx|.
 IGNITION_HANDLER(CreateCatchContext, InterpreterAssembler) {
   Node* exception = LoadRegisterAtOperandIndex(0);
-  Node* name = LoadConstantPoolEntryAtOperandIndex(1);
-  Node* scope_info = LoadConstantPoolEntryAtOperandIndex(2);
+  Node* scope_info = LoadConstantPoolEntryAtOperandIndex(1);
   Node* context = GetContext();
-  SetAccumulator(CallRuntime(Runtime::kPushCatchContext, context, name,
-                             exception, scope_info));
+  SetAccumulator(
+      CallRuntime(Runtime::kPushCatchContext, context, exception, scope_info));
   Dispatch();
 }
 

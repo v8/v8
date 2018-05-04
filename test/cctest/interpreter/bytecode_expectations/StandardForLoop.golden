@@ -381,7 +381,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 135
+bytecode array length: 134
 bytecodes: [
   /*   16 E> */ B(StackCheck),
                 B(CallJSRuntime), U8(%async_function_promise_create), R(0), U8(0),
@@ -406,10 +406,10 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(4),
                 B(Mov), R(3), R(5),
-                B(Jump), U8(56),
-                B(Jump), U8(40),
+                B(Jump), U8(55),
+                B(Jump), U8(39),
                 B(Star), R(8),
-                B(CreateCatchContext), R(8), U8(0), U8(1),
+                B(CreateCatchContext), R(8), U8(0),
                 B(Star), R(7),
                 B(LdaTheHole),
                 B(SetPendingMessage),
@@ -440,7 +440,7 @@ bytecodes: [
                 B(Ldar), R(6),
                 B(SetPendingMessage),
                 B(Ldar), R(4),
-                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(5),
   /*   67 S> */ B(Return),
@@ -450,13 +450,12 @@ bytecodes: [
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
   Smi [6],
   Smi [9],
 ]
 handlers: [
-  [10, 94, 102],
+  [10, 93, 101],
   [13, 54, 56],
 ]
 
@@ -469,7 +468,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 186
+bytecode array length: 185
 bytecodes: [
                 B(SwitchOnGeneratorState), R(1), U8(0), U8(1),
                 B(Mov), R(closure), R(3),
@@ -512,10 +511,10 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(3),
                 B(Mov), R(2), R(4),
-                B(Jump), U8(56),
-                B(Jump), U8(40),
+                B(Jump), U8(55),
+                B(Jump), U8(39),
                 B(Star), R(7),
-                B(CreateCatchContext), R(7), U8(1), U8(2),
+                B(CreateCatchContext), R(7), U8(1),
                 B(Star), R(6),
                 B(LdaTheHole),
                 B(SetPendingMessage),
@@ -546,7 +545,7 @@ bytecodes: [
                 B(Ldar), R(5),
                 B(SetPendingMessage),
                 B(Ldar), R(3),
-                B(SwitchOnSmiNoFeedback), U8(3), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(4),
   /*   61 S> */ B(Return),
@@ -557,13 +556,12 @@ bytecodes: [
 ]
 constant pool: [
   Smi [58],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
   Smi [6],
   Smi [9],
 ]
 handlers: [
-  [26, 145, 153],
+  [26, 144, 152],
   [29, 105, 107],
 ]
 

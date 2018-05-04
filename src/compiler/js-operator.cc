@@ -152,38 +152,6 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
   return OpParameter<ContextAccess>(op);
 }
 
-CreateCatchContextParameters::CreateCatchContextParameters(
-    Handle<String> catch_name, Handle<ScopeInfo> scope_info)
-    : catch_name_(catch_name), scope_info_(scope_info) {}
-
-bool operator==(CreateCatchContextParameters const& lhs,
-                CreateCatchContextParameters const& rhs) {
-  return lhs.catch_name().location() == rhs.catch_name().location() &&
-         lhs.scope_info().location() == rhs.scope_info().location();
-}
-
-bool operator!=(CreateCatchContextParameters const& lhs,
-                CreateCatchContextParameters const& rhs) {
-  return !(lhs == rhs);
-}
-
-size_t hash_value(CreateCatchContextParameters const& parameters) {
-  return base::hash_combine(parameters.catch_name().location(),
-                            parameters.scope_info().location());
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         CreateCatchContextParameters const& parameters) {
-  return os << Brief(*parameters.catch_name()) << ", "
-            << Brief(*parameters.scope_info());
-}
-
-CreateCatchContextParameters const& CreateCatchContextParametersOf(
-    Operator const* op) {
-  DCHECK_EQ(IrOpcode::kJSCreateCatchContext, op->opcode());
-  return OpParameter<CreateCatchContextParameters>(op);
-}
-
 CreateFunctionContextParameters::CreateFunctionContextParameters(
     Handle<ScopeInfo> scope_info, int slot_count, ScopeType scope_type)
     : scope_info_(scope_info),
@@ -1243,13 +1211,12 @@ const Operator* JSOperatorBuilder::CreateFunctionContext(
 }
 
 const Operator* JSOperatorBuilder::CreateCatchContext(
-    const Handle<String>& name, const Handle<ScopeInfo>& scope_info) {
-  CreateCatchContextParameters parameters(name, scope_info);
-  return new (zone()) Operator1<CreateCatchContextParameters>(
+    const Handle<ScopeInfo>& scope_info) {
+  return new (zone()) Operator1<Handle<ScopeInfo>>(
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
       1, 1, 1, 1, 1, 2,                                          // counts
-      parameters);                                               // parameter
+      scope_info);                                               // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateWithContext(
@@ -1272,7 +1239,8 @@ const Operator* JSOperatorBuilder::CreateBlockContext(
 
 Handle<ScopeInfo> ScopeInfoOf(const Operator* op) {
   DCHECK(IrOpcode::kJSCreateBlockContext == op->opcode() ||
-         IrOpcode::kJSCreateWithContext == op->opcode());
+         IrOpcode::kJSCreateWithContext == op->opcode() ||
+         IrOpcode::kJSCreateCatchContext == op->opcode());
   return OpParameter<Handle<ScopeInfo>>(op);
 }
 

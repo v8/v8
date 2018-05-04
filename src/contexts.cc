@@ -90,7 +90,7 @@ Context* Context::closure_context() {
 
 JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
-         IsEvalContext());
+         IsEvalContext() || IsCatchContext());
   HeapObject* object = extension();
   if (object->IsTheHole(GetIsolate())) return nullptr;
   DCHECK(object->IsJSContextExtensionObject() ||
@@ -115,12 +115,6 @@ Module* Context::module() {
   }
   return Module::cast(current->extension());
 }
-
-String* Context::catch_name() {
-  DCHECK(IsCatchContext());
-  return String::cast(extension());
-}
-
 
 JSGlobalObject* Context::global_object() {
   return JSGlobalObject::cast(native_context()->extension());
@@ -291,7 +285,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
         context->IsScriptContext() || context->IsEvalContext() ||
-        context->IsModuleContext()) {
+        context->IsModuleContext() || context->IsCatchContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       Handle<ScopeInfo> scope_info(context->scope_info());
@@ -356,18 +350,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                             : READ_ONLY;
           return handle(context->module(), isolate);
         }
-      }
-    } else if (context->IsCatchContext()) {
-      // Catch contexts have the variable name in the extension slot.
-      if (String::Equals(name, handle(context->catch_name()))) {
-        if (FLAG_trace_contexts) {
-          PrintF("=> found in catch context\n");
-        }
-        *index = Context::THROWN_OBJECT_INDEX;
-        *attributes = NONE;
-        *init_flag = kCreatedInitialized;
-        *variable_mode = VAR;
-        return context;
       }
     } else if (context->IsDebugEvaluateContext()) {
       // Check materialized locals.

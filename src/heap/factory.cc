@@ -1331,14 +1331,13 @@ Handle<Context> Factory::NewFunctionContext(Handle<Context> outer,
 
 Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info,
-                                         Handle<String> name,
                                          Handle<Object> thrown_object) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kCatchContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 1);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
-  context->set_extension(*name);
+  context->set_extension(*the_hole_value());
   context->set_native_context(previous->native_context());
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
   return context;
