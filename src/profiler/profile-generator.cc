@@ -515,7 +515,7 @@ void CodeMap::Print() {
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
-    : resource_names_(isolate->heap()),
+    : resource_names_(isolate->heap()->HashSeed()),
       profiler_(nullptr),
       current_profiles_semaphore_(1) {}
 

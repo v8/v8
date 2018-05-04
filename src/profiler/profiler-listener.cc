@@ -17,7 +17,8 @@ namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer)
-    : observer_(observer), function_and_resource_names_(isolate->heap()) {}
+    : observer_(observer),
+      function_and_resource_names_(isolate->heap()->HashSeed()) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
