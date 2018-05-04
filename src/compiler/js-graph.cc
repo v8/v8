@@ -111,16 +111,13 @@ Node* JSGraph::UndefinedConstant() {
   return CACHED(kUndefinedConstant, HeapConstant(factory()->undefined_value()));
 }
 
-
 Node* JSGraph::TheHoleConstant() {
   return CACHED(kTheHoleConstant, HeapConstant(factory()->the_hole_value()));
 }
 
-
 Node* JSGraph::TrueConstant() {
   return CACHED(kTrueConstant, HeapConstant(factory()->true_value()));
 }
-
 
 Node* JSGraph::FalseConstant() {
   return CACHED(kFalseConstant, HeapConstant(factory()->false_value()));
@@ -130,7 +127,6 @@ Node* JSGraph::FalseConstant() {
 Node* JSGraph::NullConstant() {
   return CACHED(kNullConstant, HeapConstant(factory()->null_value()));
 }
-
 
 Node* JSGraph::ZeroConstant() {
   return CACHED(kZeroConstant, NumberConstant(0.0));
@@ -149,7 +145,6 @@ Node* JSGraph::NaNConstant() {
                 NumberConstant(std::numeric_limits<double>::quiet_NaN()));
 }
 
-
 Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
   Node** loc = cache_.FindHeapConstant(value);
   if (*loc == nullptr) {
@@ -157,7 +152,6 @@ Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
   }
   return *loc;
 }
-
 
 Node* JSGraph::Constant(Handle<Object> value) {
   // Dereference the handle to determine if a number constant or other
@@ -179,7 +173,6 @@ Node* JSGraph::Constant(Handle<Object> value) {
   }
 }
 
-
 Node* JSGraph::Constant(double value) {
   if (bit_cast<int64_t>(value) == bit_cast<int64_t>(0.0)) return ZeroConstant();
   if (bit_cast<int64_t>(value) == bit_cast<int64_t>(1.0)) return OneConstant();
@@ -199,93 +192,12 @@ Node* JSGraph::Constant(uint32_t value) {
   return NumberConstant(value);
 }
 
-Node* JSGraph::Int32Constant(int32_t value) {
-  Node** loc = cache_.FindInt32Constant(value);
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->Int32Constant(value));
-  }
-  return *loc;
-}
-
-
-Node* JSGraph::Int64Constant(int64_t value) {
-  Node** loc = cache_.FindInt64Constant(value);
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->Int64Constant(value));
-  }
-  return *loc;
-}
-
-Node* JSGraph::RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
-  Node** loc = cache_.FindRelocatableInt32Constant(
-      value, static_cast<RelocInfoMode>(rmode));
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->RelocatableInt32Constant(value, rmode));
-  }
-  return *loc;
-}
-
-Node* JSGraph::RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode) {
-  Node** loc = cache_.FindRelocatableInt64Constant(
-      value, static_cast<RelocInfoMode>(rmode));
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->RelocatableInt64Constant(value, rmode));
-  }
-  return *loc;
-}
-
-Node* JSGraph::RelocatableIntPtrConstant(intptr_t value,
-                                         RelocInfo::Mode rmode) {
-  return kPointerSize == 8
-             ? RelocatableInt64Constant(value, rmode)
-             : RelocatableInt32Constant(static_cast<int>(value), rmode);
-}
-
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->NumberConstant(value));
   }
   return *loc;
-}
-
-
-Node* JSGraph::Float32Constant(float value) {
-  Node** loc = cache_.FindFloat32Constant(value);
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->Float32Constant(value));
-  }
-  return *loc;
-}
-
-
-Node* JSGraph::Float64Constant(double value) {
-  Node** loc = cache_.FindFloat64Constant(value);
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->Float64Constant(value));
-  }
-  return *loc;
-}
-
-Node* JSGraph::PointerConstant(intptr_t value) {
-  Node** loc = cache_.FindPointerConstant(value);
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->PointerConstant(value));
-  }
-  return *loc;
-}
-
-Node* JSGraph::ExternalConstant(ExternalReference reference) {
-  Node** loc = cache_.FindExternalConstant(reference);
-  if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->ExternalConstant(reference));
-  }
-  return *loc;
-}
-
-
-Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
-  return ExternalConstant(ExternalReference::Create(function_id));
 }
 
 Node* JSGraph::EmptyStateValues() {

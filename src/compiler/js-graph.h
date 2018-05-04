@@ -5,12 +5,10 @@
 #ifndef V8_COMPILER_JS_GRAPH_H_
 #define V8_COMPILER_JS_GRAPH_H_
 
-#include "src/base/compiler-specific.h"
-#include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/machine-operator.h"
+#include "src/compiler/machine-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/globals.h"
 #include "src/isolate.h"
@@ -25,18 +23,15 @@ class Typer;
 // Implements a facade on a Graph, enhancing the graph with JS-specific
 // notions, including various builders for operators, canonicalized global
 // constants, and various helper methods.
-class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
+class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
  public:
   JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
           JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,
           MachineOperatorBuilder* machine)
-      : isolate_(isolate),
-        graph_(graph),
-        common_(common),
+      : MachineGraph(graph, common, machine),
+        isolate_(isolate),
         javascript_(javascript),
-        simplified_(simplified),
-        machine_(machine),
-        cache_(zone()) {
+        simplified_(simplified) {
     for (int i = 0; i < kNumCachedNodes; i++) cached_nodes_[i] = nullptr;
   }
 
@@ -88,52 +83,10 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(uint32_t value);
 
-  // Creates a Int32Constant node, usually canonicalized.
-  Node* Int32Constant(int32_t value);
-  Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
-  }
-
   // Creates a HeapConstant node for either true or false.
   Node* BooleanConstant(bool is_true) {
     return is_true ? TrueConstant() : FalseConstant();
   }
-
-  // Creates a Int64Constant node, usually canonicalized.
-  Node* Int64Constant(int64_t value);
-  Node* Uint64Constant(uint64_t value) {
-    return Int64Constant(bit_cast<int64_t>(value));
-  }
-
-  // Creates a Int32Constant/Int64Constant node, depending on the word size of
-  // the target machine.
-  // TODO(turbofan): Code using Int32Constant/Int64Constant to store pointer
-  // constants is probably not serializable.
-  Node* IntPtrConstant(intptr_t value) {
-    return machine()->Is32() ? Int32Constant(static_cast<int32_t>(value))
-                             : Int64Constant(static_cast<int64_t>(value));
-  }
-
-  Node* RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode);
-  Node* RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode);
-  Node* RelocatableIntPtrConstant(intptr_t value, RelocInfo::Mode rmode);
-
-  // Creates a Float32Constant node, usually canonicalized.
-  Node* Float32Constant(float value);
-
-  // Creates a Float64Constant node, usually canonicalized.
-  Node* Float64Constant(double value);
-
-  // Creates a PointerConstant node (asm.js only).
-  Node* PointerConstant(intptr_t value);
-  template <typename T>
-  Node* PointerConstant(T* value) {
-    return PointerConstant(bit_cast<intptr_t>(value));
-  }
-
-  // Creates an ExternalConstant node, usually canonicalized.
-  Node* ExternalConstant(ExternalReference ref);
-  Node* ExternalConstant(Runtime::FunctionId function_id);
 
   Node* SmiConstant(int32_t immediate) {
     DCHECK(Smi::IsValid(immediate));
@@ -155,12 +108,8 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Create a control node that serves as dependency for dead nodes.
   Node* Dead();
 
-  CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }
-  MachineOperatorBuilder* machine() const { return machine_; }
-  Graph* graph() const { return graph_; }
-  Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate()->factory(); }
 
@@ -200,12 +149,8 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   };
 
   Isolate* isolate_;
-  Graph* graph_;
-  CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
   SimplifiedOperatorBuilder* simplified_;
-  MachineOperatorBuilder* machine_;
-  CommonNodeCache cache_;
   Node* cached_nodes_[kNumCachedNodes];
 
   Node* NumberConstant(double value);
