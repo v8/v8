@@ -1468,22 +1468,45 @@ class LiftoffCompiler {
                                              Safepoint::kNoLazyDeopt);
   }
 
+  LiftoffRegister AddMemoryMasking(LiftoffRegister index, uint32_t* offset,
+                                   LiftoffRegList& pinned) {
+    if (!FLAG_untrusted_code_mitigations || env_->use_trap_handler) {
+      return index;
+    }
+    // Make sure that we can overwrite {index}.
+    if (__ cache_state()->is_used(index)) {
+      LiftoffRegister old_index = index;
+      pinned.clear(old_index);
+      index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      if (index != old_index) __ Move(index.gp(), old_index.gp(), kWasmI32);
+    }
+    LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
+    __ LoadConstant(tmp, WasmValue(*offset));
+    __ emit_i32_add(index.gp(), index.gp(), tmp.gp());
+    LOAD_INSTANCE_FIELD(tmp, MemoryMask, LoadType::kI32Load);
+    __ emit_i32_and(index.gp(), index.gp(), tmp.gp());
+    *offset = 0;
+    return index;
+  }
+
   void LoadMem(Decoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
     LiftoffRegList pinned;
-    Register index = pinned.set(__ PopToRegister()).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
+    LiftoffRegister index = pinned.set(__ PopToRegister());
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index.gp(), pinned)) {
       return;
     }
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, pinned);
     LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerLoadType);
     RegClass rc = reg_class_for(value_type);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
     uint32_t protected_load_pc = 0;
-    __ Load(value, addr.gp(), index, imm.offset, type, pinned,
+    __ Load(value, addr.gp(), index.gp(), offset, type, pinned,
             &protected_load_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
@@ -1493,8 +1516,8 @@ class LiftoffCompiler {
     __ PushRegister(value_type, value);
 
     if (FLAG_wasm_trace_memory) {
-      TraceMemoryOperation(false, type.mem_type().representation(), index,
-                           imm.offset, decoder->position());
+      TraceMemoryOperation(false, type.mem_type().representation(), index.gp(),
+                           offset, decoder->position());
     }
   }
 
@@ -1505,14 +1528,16 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "store")) return;
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
+    LiftoffRegister index = pinned.set(__ PopToRegister(pinned));
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index.gp(), pinned)) {
       return;
     }
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, pinned);
     LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerLoadType);
     uint32_t protected_store_pc = 0;
-    __ Store(addr.gp(), index, imm.offset, value, type, pinned,
+    __ Store(addr.gp(), index.gp(), offset, value, type, pinned,
              &protected_store_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
@@ -1520,7 +1545,7 @@ class LiftoffCompiler {
                        protected_store_pc);
     }
     if (FLAG_wasm_trace_memory) {
-      TraceMemoryOperation(true, type.mem_rep(), index, imm.offset,
+      TraceMemoryOperation(true, type.mem_rep(), index.gp(), offset,
                            decoder->position());
     }
   }
