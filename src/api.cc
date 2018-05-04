@@ -2328,6 +2328,15 @@ Local<Value> Module::GetModuleNamespace() {
   return ToApiHandle<Value>(module_namespace);
 }
 
+Local<UnboundScript> Module::GetUnboundScript() {
+  Utils::ApiCheck(
+      GetStatus() < kEvaluating, "v8::Module::GetUnboundScript",
+      "v8::Module::GetUnboundScript must be used on an unevaluated module");
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  return ToApiHandle<UnboundScript>(
+      i::Handle<i::SharedFunctionInfo>(self->GetSharedFunctionInfo()));
+}
+
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
 
 Maybe<bool> Module::InstantiateModule(Local<Context> context,

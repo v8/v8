@@ -1222,6 +1222,14 @@ class V8_EXPORT Module {
    * The module's status must be at least kInstantiated.
    */
   Local<Value> GetModuleNamespace();
+
+  /**
+   * Returns the corresponding context-unbound script.
+   *
+   * The module must be unevaluated, i.e. its status must not be kEvaluating,
+   * kEvaluated or kErrored.
+   */
+  Local<UnboundScript> GetUnboundScript();
 };
 
 /**

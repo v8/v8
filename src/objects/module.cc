@@ -276,6 +276,30 @@ Object* Module::GetException() {
   return exception();
 }
 
+SharedFunctionInfo* Module::GetSharedFunctionInfo() const {
+  DisallowHeapAllocation no_alloc;
+  DCHECK_NE(status(), Module::kEvaluating);
+  DCHECK_NE(status(), Module::kEvaluated);
+  switch (status()) {
+    case kUninstantiated:
+    case kPreInstantiating:
+      DCHECK(code()->IsSharedFunctionInfo());
+      return SharedFunctionInfo::cast(code());
+    case kInstantiating:
+      DCHECK(code()->IsJSFunction());
+      return JSFunction::cast(code())->shared();
+    case kInstantiated:
+      DCHECK(code()->IsJSGeneratorObject());
+      return JSGeneratorObject::cast(code())->function()->shared();
+    case kEvaluating:
+    case kEvaluated:
+    case kErrored:
+      UNREACHABLE();
+  }
+
+  UNREACHABLE();
+}
+
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
                                         Handle<String> name, int module_request,
                                         MessageLocation loc, bool must_resolve,

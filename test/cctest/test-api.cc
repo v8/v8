@@ -24662,6 +24662,15 @@ TEST(CaptureStackTraceForStackOverflow) {
   CHECK(try_catch.HasCaught());
 }
 
+namespace {
+bool ValueEqualsString(v8::Isolate* isolate, Local<Value> lhs,
+                       const char* rhs) {
+  CHECK(!lhs.IsEmpty());
+  CHECK(lhs->IsString());
+  String::Utf8Value utf8_lhs(isolate, lhs);
+  return strcmp(rhs, *utf8_lhs) == 0;
+}
+}  // namespace
 
 TEST(ScriptNameAndLineNumber) {
   LocalContext env;
@@ -24670,13 +24679,12 @@ TEST(ScriptNameAndLineNumber) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(v8_str(url), v8::Integer::New(isolate, 13));
   v8::ScriptCompiler::Source script_source(v8_str("var foo;"), origin);
+
   Local<Script> script =
       v8::ScriptCompiler::Compile(env.local(), &script_source).ToLocalChecked();
-  Local<Value> script_name = script->GetUnboundScript()->GetScriptName();
-  CHECK(!script_name.IsEmpty());
-  CHECK(script_name->IsString());
-  String::Utf8Value utf8_name(env->GetIsolate(), script_name);
-  CHECK_EQ(0, strcmp(url, *utf8_name));
+  CHECK(ValueEqualsString(isolate, script->GetUnboundScript()->GetScriptName(),
+                          url));
+
   int line_number = script->GetUnboundScript()->GetLineNumber(0);
   CHECK_EQ(13, line_number);
 }
@@ -27316,6 +27324,39 @@ TEST(GetModuleNamespace) {
   CHECK(ns->Get(context.local(), v8_str("a"))
             .ToLocalChecked()
             ->StrictEquals(v8::Number::New(isolate, 10)));
+}
+
+TEST(ModuleGetUnboundScript) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("export default 5; export const a = 10;");
+  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
+                          Local<v8::Boolean>(), Local<v8::Integer>(),
+                          Local<v8::Value>(), Local<v8::Boolean>(),
+                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  Local<v8::UnboundScript> sfi_before_instantiation =
+      module->GetUnboundScript();
+  module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
+      .ToChecked();
+  Local<v8::UnboundScript> sfi_after_instantiation = module->GetUnboundScript();
+
+  // Check object identity.
+  {
+    i::Handle<i::Object> s1 = v8::Utils::OpenHandle(*sfi_before_instantiation);
+    i::Handle<i::Object> s2 = v8::Utils::OpenHandle(*sfi_after_instantiation);
+    CHECK_EQ(*s1, *s2);
+  }
+
+  // Check unbound script values.
+  Local<v8::UnboundScript> sfi = sfi_after_instantiation;
+  CHECK(ValueEqualsString(isolate, sfi->GetScriptName(), "www.google.com"));
+  CHECK_EQ(0, sfi->GetLineNumber(0));
 }
 
 TEST(GlobalTemplateWithDoubleProperty) {
