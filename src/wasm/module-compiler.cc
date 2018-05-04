@@ -140,11 +140,6 @@ class CompilationState {
                                           : baseline_finish_units_;
   }
 
-  size_t GetNumCompilationUnitsScheduled() const {
-    return baseline_compilation_units_.size() +
-           tiering_compilation_units_.size();
-  }
-
   Isolate* const isolate_;
   ModuleEnv module_env_;
   const size_t max_memory_;
@@ -3530,7 +3525,7 @@ void CompilationState::AddCompilationUnits(
         std::make_move_iterator(baseline_units.end()));
   }
 
-  RestartBackgroundTasks(GetNumCompilationUnitsScheduled());
+  RestartBackgroundTasks();
 }
 
 std::unique_ptr<WasmCompilationUnit>
@@ -3598,7 +3593,7 @@ void CompilationState::OnFinishedUnit() {
     // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
     // this case is already caught by the previous check.
     NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
-    RestartBackgroundTasks(GetNumCompilationUnitsScheduled());
+    RestartBackgroundTasks();
   }
 }
 
@@ -3634,16 +3629,17 @@ void CompilationState::OnBackgroundTaskStopped() {
 }
 
 void CompilationState::RestartBackgroundTasks(size_t max) {
-  size_t num_restart = max;
+  size_t num_restart;
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
     bool should_increase_workload = allocated_memory_ <= max_memory_ / 2;
     if (!should_increase_workload) return;
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
     if (num_background_tasks_ == max_background_tasks_) return;
-    num_restart = std::min(
-        num_restart, std::min(GetNumCompilationUnitsScheduled(),
-                              max_background_tasks_ - num_background_tasks_));
+    size_t num_compilation_units =
+        baseline_compilation_units_.size() + tiering_compilation_units_.size();
+    size_t stopped_tasks = max_background_tasks_ - num_background_tasks_;
+    num_restart = std::min(max, std::min(num_compilation_units, stopped_tasks));
     num_background_tasks_ += num_restart;
   }
 
