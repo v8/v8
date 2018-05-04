@@ -200,7 +200,7 @@ constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
 constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #else
-constexpr size_t kMaximalCodeRangeSize = 512 * MB;
+constexpr size_t kMaximalCodeRangeSize = 128 * MB;
 constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
