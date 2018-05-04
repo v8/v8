@@ -155,15 +155,6 @@ Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
   return result;
 }
 
-Handle<ContextExtension> Factory::NewContextExtension(
-    Handle<ScopeInfo> scope_info, Handle<Object> extension) {
-  Handle<ContextExtension> result = Handle<ContextExtension>::cast(
-      NewStruct(CONTEXT_EXTENSION_TYPE, TENURED));
-  result->set_scope_info(*scope_info);
-  result->set_extension(*extension);
-  return result;
-}
-
 Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
   Handle<ConstantElementsPair> result =
@@ -1343,12 +1334,11 @@ Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
                                          Handle<String> name,
                                          Handle<Object> thrown_object) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
-  Handle<ContextExtension> extension = NewContextExtension(scope_info, name);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kCatchContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 1);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
-  context->set_extension(*extension);
+  context->set_extension(*name);
   context->set_native_context(previous->native_context());
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
   return context;
@@ -1361,15 +1351,15 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<StringSet> whitelist) {
   STATIC_ASSERT(Context::WHITE_LIST_INDEX == Context::MIN_CONTEXT_SLOTS + 1);
   DCHECK(scope_info->IsDebugEvaluateScope());
-  Handle<ContextExtension> context_extension = NewContextExtension(
-      scope_info, extension.is_null() ? Handle<Object>::cast(undefined_value())
-                                      : Handle<Object>::cast(extension));
+  Handle<HeapObject> ext = extension.is_null()
+                               ? Handle<HeapObject>::cast(the_hole_value())
+                               : Handle<HeapObject>::cast(extension);
   Handle<Context> c = NewFixedArrayWithMap<Context>(
       Heap::kDebugEvaluateContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 2);
   c->set_scope_info(*scope_info);
   c->set_previous(*previous);
   c->set_native_context(previous->native_context());
-  c->set_extension(*context_extension);
+  c->set_extension(*ext);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
   if (!whitelist.is_null()) c->set(Context::WHITE_LIST_INDEX, *whitelist);
   return c;
@@ -1378,13 +1368,11 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
 Handle<Context> Factory::NewWithContext(Handle<Context> previous,
                                         Handle<ScopeInfo> scope_info,
                                         Handle<JSReceiver> extension) {
-  Handle<ContextExtension> context_extension =
-      NewContextExtension(scope_info, extension);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kWithContextMapRootIndex, Context::MIN_CONTEXT_SLOTS);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
-  context->set_extension(*context_extension);
+  context->set_extension(*extension);
   context->set_native_context(previous->native_context());
   return context;
 }

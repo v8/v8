@@ -93,10 +93,6 @@ JSObject* Context::extension_object() {
          IsEvalContext());
   HeapObject* object = extension();
   if (object->IsTheHole(GetIsolate())) return nullptr;
-  if (IsBlockContext()) {
-    if (!object->IsContextExtension()) return nullptr;
-    object = JSObject::cast(ContextExtension::cast(object)->extension());
-  }
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));
   return JSObject::cast(object);
@@ -105,9 +101,7 @@ JSObject* Context::extension_object() {
 JSReceiver* Context::extension_receiver() {
   DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
-  return IsWithContext() ? JSReceiver::cast(
-                               ContextExtension::cast(extension())->extension())
-                         : extension_object();
+  return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
 }
 
 ScopeInfo* Context::scope_info() {
@@ -124,7 +118,7 @@ Module* Context::module() {
 
 String* Context::catch_name() {
   DCHECK(IsCatchContext());
-  return String::cast(ContextExtension::cast(extension())->extension());
+  return String::cast(extension());
 }
 
 
@@ -378,16 +372,13 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     } else if (context->IsDebugEvaluateContext()) {
       // Check materialized locals.
       Object* ext = context->get(EXTENSION_INDEX);
-      if (ext->IsContextExtension()) {
-        Object* obj = ContextExtension::cast(ext)->extension();
-        if (obj->IsJSReceiver()) {
-          Handle<JSReceiver> extension(JSReceiver::cast(obj));
-          LookupIterator it(extension, name, extension);
-          Maybe<bool> found = JSReceiver::HasProperty(&it);
-          if (found.FromMaybe(false)) {
-            *attributes = NONE;
-            return extension;
-          }
+      if (ext->IsJSReceiver()) {
+        Handle<JSReceiver> extension(JSReceiver::cast(ext));
+        LookupIterator it(extension, name, extension);
+        Maybe<bool> found = JSReceiver::HasProperty(&it);
+        if (found.FromMaybe(false)) {
+          *attributes = NONE;
+          return extension;
         }
       }
       // Check the original context, but do not follow its context chain.

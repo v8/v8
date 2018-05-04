@@ -1611,12 +1611,6 @@ void StoreHandler::StoreHandlerVerify() {
   // TODO(ishell): check handler integrity
 }
 
-void ContextExtension::ContextExtensionVerify() {
-  CHECK(IsContextExtension());
-  VerifyObjectField(kScopeInfoOffset);
-  VerifyObjectField(kExtensionOffset);
-}
-
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
   VerifyPointer(name());

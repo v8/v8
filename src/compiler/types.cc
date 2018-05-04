@@ -327,7 +327,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case WASM_SHARED_MODULE_DATA_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
-    case CONTEXT_EXTENSION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
     case CODE_DATA_CONTAINER_TYPE:
     case CALLBACK_TASK_TYPE:

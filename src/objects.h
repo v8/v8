@@ -382,7 +382,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALLOCATION_MEMENTO_TYPE)                                    \
   V(ALLOCATION_SITE_TYPE)                                       \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
-  V(CONTEXT_EXTENSION_TYPE)                                     \
   V(DEBUG_INFO_TYPE)                                            \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
   V(INTERCEPTOR_INFO_TYPE)                                      \
@@ -557,7 +556,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
   V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
   V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
-  V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
@@ -752,7 +750,6 @@ enum InstanceType : uint16_t {
   ALLOCATION_MEMENTO_TYPE,
   ALLOCATION_SITE_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
-  CONTEXT_EXTENSION_TYPE,
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
@@ -2986,32 +2983,6 @@ class PrototypeInfo : public Struct {
   DECL_ACCESSORS(object_create_map, Object)
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
-};
-
-// Pair used to store both a ScopeInfo and an extension object in the extension
-// slot of a block, catch, or with context. Needed in the rare case where a
-// declaration block scope (a "varblock" as used to desugar parameter
-// destructuring) also contains a sloppy direct eval, or for with and catch
-// scopes. (In no other case both are needed at the same time.)
-class ContextExtension : public Struct {
- public:
-  // [scope_info]: Scope info.
-  DECL_ACCESSORS(scope_info, ScopeInfo)
-  // [extension]: Extension object.
-  DECL_ACCESSORS(extension, Object)
-
-  DECL_CAST(ContextExtension)
-
-  // Dispatched behavior.
-  DECL_PRINTER(ContextExtension)
-  DECL_VERIFIER(ContextExtension)
-
-  static const int kScopeInfoOffset = HeapObject::kHeaderSize;
-  static const int kExtensionOffset = kScopeInfoOffset + kPointerSize;
-  static const int kSize = kExtensionOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ContextExtension);
 };
 
 // List of builtin functions we want to identify to improve code

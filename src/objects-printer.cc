@@ -1645,13 +1645,6 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void ContextExtension::ContextExtensionPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ContextExtension");
-  os << "\n - scope_info: " << Brief(scope_info());
-  os << "\n - extension: " << Brief(extension());
-  os << "\n";
-}
-
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorPair");
   os << "\n - getter: " << Brief(getter());

@@ -1330,19 +1330,12 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
   Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* extension = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
 
-  AllocationBuilder aa(jsgraph(), effect, control);
-  aa.Allocate(ContextExtension::kSize);
-  aa.Store(AccessBuilder::ForMap(), factory()->context_extension_map());
-  aa.Store(AccessBuilder::ForContextExtensionScopeInfo(), scope_info);
-  aa.Store(AccessBuilder::ForContextExtensionExtension(), object);
-  Node* extension = aa.Finish();
-
-  AllocationBuilder a(jsgraph(), extension, control);
+  AllocationBuilder a(jsgraph(), effect, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
@@ -1360,27 +1353,19 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   const CreateCatchContextParameters& parameters =
       CreateCatchContextParametersOf(node->op());
   Handle<ScopeInfo> scope_info = parameters.scope_info();
+  Handle<String> catch_name = parameters.catch_name();
   Node* exception = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
 
-  AllocationBuilder aa(jsgraph(), effect, control);
-  aa.Allocate(ContextExtension::kSize);
-  aa.Store(AccessBuilder::ForMap(), factory()->context_extension_map());
-  aa.Store(AccessBuilder::ForContextExtensionScopeInfo(),
-           parameters.scope_info());
-  aa.Store(AccessBuilder::ForContextExtensionExtension(),
-           parameters.catch_name());
-  Node* extension = aa.Finish();
-
-  AllocationBuilder a(jsgraph(), extension, control);
+  AllocationBuilder a(jsgraph(), effect, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
                     factory()->catch_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
-  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
+  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), catch_name);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
           jsgraph()->HeapConstant(native_context()));
   a.Store(AccessBuilder::ForContextSlot(Context::THROWN_OBJECT_INDEX),

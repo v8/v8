@@ -3419,7 +3419,6 @@ void TranslatedState::InitializeCapturedObjectAt(
     case BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
     case PROPERTY_ARRAY_TYPE:
-    case CONTEXT_EXTENSION_TYPE:
       InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map,
                                          no_allocation);
       break;
@@ -3580,14 +3579,6 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       int instance_size = PropertyArray::SizeFor(array_length);
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
 
-      slot->set_storage(AllocateStorageFor(slot));
-      // Make sure all the remaining children (after the map) are allocated.
-      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
-                                     &value_index, worklist);
-    }
-
-    case CONTEXT_EXTENSION_TYPE: {
-      CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kPointerSize);
       slot->set_storage(AllocateStorageFor(slot));
       // Make sure all the remaining children (after the map) are allocated.
       return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,

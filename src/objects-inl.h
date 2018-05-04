@@ -571,7 +571,6 @@ CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
-CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FeedbackCell)
@@ -2323,9 +2322,6 @@ BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
-
-ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
-ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
 SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
 ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,

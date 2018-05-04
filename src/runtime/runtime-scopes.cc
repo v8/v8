@@ -297,14 +297,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     object =
         isolate->factory()->NewJSObject(isolate->context_extension_function());
 
-    if (context->IsBlockContext()) {
-      Handle<ContextExtension> extension =
-          isolate->factory()->NewContextExtension(handle(context->scope_info()),
-                                                  object);
-      context->set_extension(*extension);
-    } else {
-      context->set_extension(*object);
-    }
+    context->set_extension(*object);
   }
 
   RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(

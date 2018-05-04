@@ -273,10 +273,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
-  // Provides access to ContextExtension fields.
-  static FieldAccess ForContextExtensionScopeInfo();
-  static FieldAccess ForContextExtensionExtension();
-
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
   static ElementAccess ForFixedArrayElement(

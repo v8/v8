@@ -382,18 +382,15 @@ class ScriptContextTable : public FixedArray {
 //
 // [ extension      ]  Additional data.
 //
-//                     For catch contexts, it contains a ContextExtension object
-//                     consisting of the ScopeInfo and the name of the catch
+//                     For catch contexts, it contains the name of the catch
 //                     variable.
 //
 //                     For module contexts, it contains the module object.
 //
-//                     For block contexts, it may contain a ContextExtension
-//                     object consisting of the ScopeInfo and an "extension
-//                     object" (see below).
+//                     For block contexts, it may contain an "extension object"
+//                     (see below).
 //
-//                     For with contexts, it contains a ContextExtension object
-//                     consisting of the ScopeInfo and an "extension object".
+//                     For with contexts, it contains an "extension object".
 //
 //                     An "extension object" is used to dynamically extend a
 //                     context with additional variables, namely in the

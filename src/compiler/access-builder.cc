@@ -852,25 +852,6 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
 }
 
 // static
-FieldAccess AccessBuilder::ForContextExtensionScopeInfo() {
-  FieldAccess access = {
-      kTaggedBase,           ContextExtension::kScopeInfoOffset,
-      Handle<Name>(),        MaybeHandle<Map>(),
-      Type::OtherInternal(), MachineType::AnyTagged(),
-      kFullWriteBarrier};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForContextExtensionExtension() {
-  FieldAccess access = {kTaggedBase,      ContextExtension::kExtensionOffset,
-                        Handle<Name>(),   MaybeHandle<Map>(),
-                        Type::Any(),      MachineType::AnyTagged(),
-                        kFullWriteBarrier};
-  return access;
-}
-
-// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
                           MachineType::AnyTagged(), kFullWriteBarrier};

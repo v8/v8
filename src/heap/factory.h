@@ -186,10 +186,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
                            Handle<Object> value3, PretenureFlag pretenure);
 
-  // Create a new ContextExtension struct.
-  Handle<ContextExtension> NewContextExtension(Handle<ScopeInfo> scope_info,
-                                               Handle<Object> extension);
-
   // Create a new ConstantElementsPair struct.
   Handle<ConstantElementsPair> NewConstantElementsPair(
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
