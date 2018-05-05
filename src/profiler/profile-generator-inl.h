@@ -24,8 +24,6 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
       script_id_(v8::UnboundScript::kNoScriptId),
       position_(0),
       bailout_reason_(kEmptyBailoutReason),
-      deopt_reason_(kNoDeoptReason),
-      deopt_id_(kNoDeoptimizationId),
       line_info_(std::move(line_info)),
       instruction_start_(instruction_start) {}
 

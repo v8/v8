@@ -117,23 +117,26 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
 
 void CodeEntry::AddInlineStack(
     int pc_offset, std::vector<std::unique_ptr<CodeEntry>> inline_stack) {
-  inline_locations_.insert(std::make_pair(pc_offset, std::move(inline_stack)));
+  EnsureRareData()->inline_locations_.insert(
+      std::make_pair(pc_offset, std::move(inline_stack)));
 }
 
 const std::vector<std::unique_ptr<CodeEntry>>* CodeEntry::GetInlineStack(
     int pc_offset) const {
-  auto it = inline_locations_.find(pc_offset);
-  return it != inline_locations_.end() ? &it->second : nullptr;
+  if (!rare_data_) return nullptr;
+  auto it = rare_data_->inline_locations_.find(pc_offset);
+  return it != rare_data_->inline_locations_.end() ? &it->second : nullptr;
 }
 
 void CodeEntry::AddDeoptInlinedFrames(
     int deopt_id, std::vector<CpuProfileDeoptFrame> inlined_frames) {
-  deopt_inlined_frames_.insert(
+  EnsureRareData()->deopt_inlined_frames_.insert(
       std::make_pair(deopt_id, std::move(inlined_frames)));
 }
 
 bool CodeEntry::HasDeoptInlinedFramesFor(int deopt_id) const {
-  return deopt_inlined_frames_.find(deopt_id) != deopt_inlined_frames_.end();
+  return rare_data_ && rare_data_->deopt_inlined_frames_.find(deopt_id) !=
+                           rare_data_->deopt_inlined_frames_.end();
 }
 
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
@@ -148,17 +151,24 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
   DCHECK(has_deopt_info());
 
   CpuProfileDeoptInfo info;
-  info.deopt_reason = deopt_reason_;
-  DCHECK_NE(kNoDeoptimizationId, deopt_id_);
-  if (deopt_inlined_frames_.find(deopt_id_) == deopt_inlined_frames_.end()) {
+  info.deopt_reason = rare_data_->deopt_reason_;
+  DCHECK_NE(kNoDeoptimizationId, rare_data_->deopt_id_);
+  if (rare_data_->deopt_inlined_frames_.find(rare_data_->deopt_id_) ==
+      rare_data_->deopt_inlined_frames_.end()) {
     info.stack.push_back(CpuProfileDeoptFrame(
         {script_id_, static_cast<size_t>(std::max(0, position()))}));
   } else {
-    info.stack = deopt_inlined_frames_[deopt_id_];
+    info.stack = rare_data_->deopt_inlined_frames_[rare_data_->deopt_id_];
   }
   return info;
 }
 
+CodeEntry::RareData* CodeEntry::EnsureRareData() {
+  if (!rare_data_) {
+    rare_data_.reset(new RareData());
+  }
+  return rare_data_.get();
+}
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
   deopt_infos_.push_back(entry->GetDeoptInfo());

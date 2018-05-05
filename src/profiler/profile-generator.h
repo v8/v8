@@ -37,7 +37,6 @@ class SourcePositionTable : public Malloced {
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
-
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
@@ -64,14 +63,19 @@ class CodeEntry {
 
   void set_deopt_info(const char* deopt_reason, int deopt_id) {
     DCHECK(!has_deopt_info());
-    deopt_reason_ = deopt_reason;
-    deopt_id_ = deopt_id;
+    RareData* rare_data = EnsureRareData();
+    rare_data->deopt_reason_ = deopt_reason;
+    rare_data->deopt_id_ = deopt_id;
   }
   CpuProfileDeoptInfo GetDeoptInfo();
-  bool has_deopt_info() const { return deopt_id_ != kNoDeoptimizationId; }
+  bool has_deopt_info() const {
+    return rare_data_ && rare_data_->deopt_id_ != kNoDeoptimizationId;
+  }
   void clear_deopt_info() {
-    deopt_reason_ = kNoDeoptReason;
-    deopt_id_ = kNoDeoptimizationId;
+    if (!rare_data_) return;
+    // TODO(alph): Clear rare_data_ if that was the only field in use.
+    rare_data_->deopt_reason_ = kNoDeoptReason;
+    rare_data_->deopt_id_ = kNoDeoptimizationId;
   }
 
   void FillFunctionInfo(SharedFunctionInfo* shared);
@@ -120,6 +124,16 @@ class CodeEntry {
   }
 
  private:
+  struct RareData {
+    const char* deopt_reason_ = kNoDeoptReason;
+    int deopt_id_ = kNoDeoptimizationId;
+    // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
+    std::map<int, std::vector<std::unique_ptr<CodeEntry>>> inline_locations_;
+    std::map<int, std::vector<CpuProfileDeoptFrame>> deopt_inlined_frames_;
+  };
+
+  RareData* EnsureRareData();
+
   struct ProgramEntryCreateTrait {
     static CodeEntry* Create();
   };
@@ -153,13 +167,9 @@ class CodeEntry {
   int script_id_;
   int position_;
   const char* bailout_reason_;
-  const char* deopt_reason_;
-  int deopt_id_;
   std::unique_ptr<SourcePositionTable> line_info_;
   Address instruction_start_;
-  // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
-  std::map<int, std::vector<std::unique_ptr<CodeEntry>>> inline_locations_;
-  std::map<int, std::vector<CpuProfileDeoptFrame>> deopt_inlined_frames_;
+  std::unique_ptr<RareData> rare_data_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
