@@ -15,6 +15,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/objects/string.h"
 
 namespace v8 {

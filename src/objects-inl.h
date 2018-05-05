@@ -42,6 +42,7 @@
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects.h"

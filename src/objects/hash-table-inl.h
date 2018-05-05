@@ -121,19 +121,6 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
   return FindEntry(isolate, key, Smi::ToInt(hash)) != kNotFound;
 }
 
-int OrderedHashSet::GetMapRootIndex() {
-  return Heap::kOrderedHashSetMapRootIndex;
-}
-
-int OrderedHashMap::GetMapRootIndex() {
-  return Heap::kOrderedHashMapMapRootIndex;
-}
-
-inline Object* OrderedHashMap::ValueAt(int entry) {
-  DCHECK_LT(entry, this->UsedCapacity());
-  return get(EntryToIndex(entry) + kValueOffset);
-}
-
 }  // namespace internal
 }  // namespace v8
 
