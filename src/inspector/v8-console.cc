@@ -282,14 +282,14 @@ void V8Console::Clear(const v8::debug::ConsoleCallArguments& info,
                                        String16("console.clear"));
 }
 
-void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
-                      const v8::debug::ConsoleContext& consoleContext) {
-  ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16("default"), false);
+static String16 identifierFromTitleOrStackTrace(
+    const String16& title, const ConsoleHelper& helper,
+    const v8::debug::ConsoleContext& consoleContext,
+    V8InspectorImpl* inspector) {
   String16 identifier;
   if (title.isEmpty()) {
     std::unique_ptr<V8StackTraceImpl> stackTrace =
-        V8StackTraceImpl::capture(m_inspector->debugger(), helper.groupId(), 1);
+        V8StackTraceImpl::capture(inspector->debugger(), helper.groupId(), 1);
     if (stackTrace && !stackTrace->isEmpty()) {
       identifier = toString16(stackTrace->topSourceURL()) + ":" +
                    String16::fromInteger(stackTrace->topLineNumber());
@@ -299,12 +299,36 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
   }
   identifier = consoleContextToString(consoleContext) + "@" + identifier;
 
+  return identifier;
+}
+
+void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
+                      const v8::debug::ConsoleContext& consoleContext) {
+  ConsoleHelper helper(info, consoleContext, m_inspector);
+  String16 title = helper.firstArgToString(String16("default"), false);
+  String16 identifier = identifierFromTitleOrStackTrace(
+      title, helper, consoleContext, m_inspector);
+
   int count =
       helper.consoleMessageStorage()->count(helper.contextId(), identifier);
   String16 countString = String16::fromInteger(count);
   helper.reportCallWithArgument(
       ConsoleAPIType::kCount,
       title.isEmpty() ? countString : (title + ": " + countString));
+}
+
+void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
+                           const v8::debug::ConsoleContext& consoleContext) {
+  ConsoleHelper helper(info, consoleContext, m_inspector);
+  String16 title = helper.firstArgToString(String16("default"), false);
+  String16 identifier = identifierFromTitleOrStackTrace(
+      title, helper, consoleContext, m_inspector);
+
+  if (!helper.consoleMessageStorage()->countReset(helper.contextId(),
+                                                  identifier)) {
+    helper.reportCallWithArgument(ConsoleAPIType::kWarning,
+                                  "Count for '" + title + "' does not exist");
+  }
 }
 
 void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,

@@ -2686,6 +2686,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           NONE);
     SimpleInstallFunction(console, "count", Builtins::kConsoleCount, 1, false,
                           NONE);
+    SimpleInstallFunction(console, "countReset", Builtins::kConsoleCountReset,
+                          1, false, NONE);
     SimpleInstallFunction(console, "assert", Builtins::kFastConsoleAssert, 1,
                           false, NONE);
     SimpleInstallFunction(console, "markTimeline",
