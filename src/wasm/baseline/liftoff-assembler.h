@@ -677,10 +677,10 @@ class LiftoffStackSlots {
          RegPairHalf half)
         : src_(src), src_index_(src_index), half_(half) {}
     explicit Slot(const LiftoffAssembler::VarState& src)
-        : src_(src), src_index_(0), half_(kLowWord) {}
+        : src_(src), half_(kLowWord) {}
 
     const LiftoffAssembler::VarState src_;
-    uint32_t src_index_;
+    uint32_t src_index_ = 0;
     RegPairHalf half_;
   };
 

@@ -656,18 +656,17 @@ struct InterpreterCode {
 class SideTable : public ZoneObject {
  public:
   ControlTransferMap map_;
-  uint32_t max_stack_height_;
+  uint32_t max_stack_height_ = 0;
 
   SideTable(Zone* zone, const WasmModule* module, InterpreterCode* code)
-      : map_(zone), max_stack_height_(0) {
+      : map_(zone) {
     // Create a zone for all temporary objects.
     Zone control_transfer_zone(zone->allocator(), ZONE_NAME);
 
     // Represents a control flow label.
     class CLabel : public ZoneObject {
       explicit CLabel(Zone* zone, uint32_t target_stack_height, uint32_t arity)
-          : target(nullptr),
-            target_stack_height(target_stack_height),
+          : target_stack_height(target_stack_height),
             arity(arity),
             refs(zone) {}
 
@@ -676,7 +675,7 @@ class SideTable : public ZoneObject {
         const byte* from_pc;
         const uint32_t stack_height;
       };
-      const byte* target;
+      const byte* target = nullptr;
       uint32_t target_stack_height;
       // Arity when branching to this label.
       const uint32_t arity;

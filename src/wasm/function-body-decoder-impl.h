@@ -370,14 +370,13 @@ class BranchTableIterator {
       : decoder_(decoder),
         start_(imm.start),
         pc_(imm.table),
-        index_(0),
         table_count_(imm.table_count) {}
 
  private:
   Decoder* decoder_;
   const byte* start_;
   const byte* pc_;
-  uint32_t index_;        // the current index.
+  uint32_t index_ = 0;    // the current index.
   uint32_t table_count_;  // the count of entries, not including default.
 };
 

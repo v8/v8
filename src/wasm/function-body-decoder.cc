@@ -71,9 +71,9 @@ class WasmGraphBuildingInterface {
 
   struct TryInfo : public ZoneObject {
     SsaEnv* catch_env;
-    TFNode* exception;
+    TFNode* exception = nullptr;
 
-    explicit TryInfo(SsaEnv* c) : catch_env(c), exception(nullptr) {}
+    explicit TryInfo(SsaEnv* c) : catch_env(c) {}
   };
 
   struct Control : public ControlWithNamedConstructors<Control, Value> {
