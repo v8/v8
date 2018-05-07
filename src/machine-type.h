@@ -52,6 +52,8 @@ enum class MachineSemantic : uint8_t {
 
 V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep);
 
+V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep);
+
 class MachineType {
  public:
   constexpr MachineType()
@@ -290,6 +292,10 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
       break;
   }
   UNREACHABLE();
+}
+
+V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep) {
+  return 1 << ElementSizeLog2Of(rep);
 }
 
 }  // namespace internal

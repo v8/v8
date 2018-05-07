@@ -177,7 +177,8 @@ class InterpreterHandle {
     ScopedVector<WasmValue> wasm_args(num_params);
     Address arg_buf_ptr = arg_buffer;
     for (int i = 0; i < num_params; ++i) {
-      uint32_t param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
+      uint32_t param_size = static_cast<uint32_t>(
+          ValueTypes::ElementSizeInBytes(sig->GetParam(i)));
 #define CASE_ARG_TYPE(type, ctype)                                    \
   case type:                                                          \
     DCHECK_EQ(param_size, sizeof(ctype));                             \
@@ -240,10 +241,11 @@ class InterpreterHandle {
     DCHECK_EQ(1, kV8MaxWasmFunctionReturns);
     if (sig->return_count()) {
       WasmValue ret_val = thread->GetReturnValue(0);
-#define CASE_RET_TYPE(type, ctype)                                       \
-  case type:                                                             \
-    DCHECK_EQ(1 << ElementSizeLog2Of(sig->GetReturn(0)), sizeof(ctype)); \
-    WriteUnalignedValue<ctype>(arg_buffer, ret_val.to<ctype>());         \
+#define CASE_RET_TYPE(type, ctype)                               \
+  case type:                                                     \
+    DCHECK_EQ(ValueTypes::ElementSizeInBytes(sig->GetReturn(0)), \
+              sizeof(ctype));                                    \
+    WriteUnalignedValue<ctype>(arg_buffer, ret_val.to<ctype>()); \
     break;
       switch (sig->GetReturn(0)) {
         CASE_RET_TYPE(kWasmI32, uint32_t)

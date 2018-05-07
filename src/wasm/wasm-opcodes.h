@@ -570,6 +570,7 @@ enum TrapReason {
   kTrapCount
 #undef DECLARE_ENUM
 };
+
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:

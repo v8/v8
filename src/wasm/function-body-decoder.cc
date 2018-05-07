@@ -574,9 +574,9 @@ class WasmGraphBuildingInterface {
       try_info->exception = if_exception;
     } else {
       DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
-      try_info->exception =
-          builder_->CreateOrMergeIntoPhi(kWasmI32, try_info->catch_env->control,
-                                         try_info->exception, if_exception);
+      try_info->exception = builder_->CreateOrMergeIntoPhi(
+          MachineRepresentation::kWord32, try_info->catch_env->control,
+          try_info->exception, if_exception);
     }
 
     SetEnv(success_env);
@@ -618,7 +618,8 @@ class WasmGraphBuildingInterface {
       DCHECK(val.type == old.type || val.type == kWasmVar);
       old.node = first ? val.node
                        : builder_->CreateOrMergeIntoPhi(
-                             old.type, target->control, old.node, val.node);
+                             ValueTypes::MachineRepresentationFor(old.type),
+                             target->control, old.node, val.node);
     }
   }
 
@@ -670,7 +671,8 @@ class WasmGraphBuildingInterface {
         // Merge locals.
         for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              decoder->GetLocalType(i), merge, to->locals[i], from->locals[i]);
+              ValueTypes::MachineRepresentationFor(decoder->GetLocalType(i)),
+              merge, to->locals[i], from->locals[i]);
         }
         // Merge the instance caches.
         builder_->MergeInstanceCacheInto(&to->instance_cache,

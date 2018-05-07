@@ -12,6 +12,7 @@
 #include "src/objects.h"
 #include "src/objects/script.h"
 #include "src/signature.h"
+#include "src/wasm/value-type.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -28,7 +29,6 @@ struct WasmModule;
 class SignatureMap;
 class WireBytesRef;
 class WasmInterpreter;
-using ValueType = MachineRepresentation;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 
@@ -250,8 +250,7 @@ class WasmGlobalObject : public JSObject {
       Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
-  static inline uint32_t TypeSize(wasm::ValueType);
-  inline uint32_t type_size() const;
+  inline int type_size() const;
 
   inline int32_t GetI32();
   inline int64_t GetI64();

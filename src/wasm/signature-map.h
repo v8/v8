@@ -7,7 +7,7 @@
 
 #include <map>
 
-#include "src/machine-type.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +17,6 @@ class Signature;
 
 namespace wasm {
 
-using ValueType = MachineRepresentation;
 using FunctionSig = Signature<ValueType>;
 
 // A signature map canonicalizes signatures into a range of indices so that

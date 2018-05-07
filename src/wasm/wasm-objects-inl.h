@@ -71,17 +71,14 @@ BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, type, WasmGlobalObject::TypeBits)
 BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, is_mutable,
                     WasmGlobalObject::IsMutableBit)
 
-// static
-uint32_t WasmGlobalObject::TypeSize(wasm::ValueType type) {
-  return 1U << ElementSizeLog2Of(type);
+int WasmGlobalObject::type_size() const {
+  return wasm::ValueTypes::ElementSizeInBytes(type());
 }
-
-uint32_t WasmGlobalObject::type_size() const { return TypeSize(type()); }
 
 Address WasmGlobalObject::address() const {
   uint32_t buffer_size = 0;
   DCHECK(array_buffer()->byte_length()->ToUint32(&buffer_size));
-  DCHECK(offset() + type_size() <= buffer_size);
+  DCHECK_LE(offset() + type_size(), buffer_size);
   USE(buffer_size);
   return Address(array_buffer()->backing_store()) + offset();
 }

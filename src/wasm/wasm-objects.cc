@@ -633,7 +633,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
   auto global_obj = Handle<WasmGlobalObject>::cast(
       isolate->factory()->NewJSObject(global_ctor));
 
-  uint32_t type_size = TypeSize(type);
+  uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
 
   Handle<JSArrayBuffer> buffer;
   if (!maybe_buffer.ToHandle(&buffer)) {
