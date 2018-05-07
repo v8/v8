@@ -788,7 +788,7 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],
   'compiler/*': [SKIP],
@@ -804,7 +804,7 @@
   'math-*': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['no_harness', {

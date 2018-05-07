@@ -416,7 +416,7 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
   'test-api/*': [SKIP],
@@ -438,6 +438,6 @@
   'test-log/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ]
