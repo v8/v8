@@ -952,7 +952,7 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByLength(
   CSA_ASSERT(this, TaggedIsPositiveSmi(len));
 
   // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  TNode<JSFunction> constructor =
+  TNode<HeapObject> constructor =
       CAST(TypedArraySpeciesConstructor(context, exemplar));
   return CreateByLength(context, constructor, len, method_name);
 }
