@@ -7,11 +7,10 @@ variants specified [here](https://chromium.googlesource.com/v8/v8/+/master/tools
 Changes to src-side test specifications go through CQ like any other CL and
 require tests added for specific trybots to pass.
 
-The test specifications are defined in a V8-side folder called infra/testing.
-Every master has an optional file named `<mastername>.pyl`. E.g.
-`tryserver.v8.pyl`.
+The test specifications are defined in a V8-side python-literal file
+`infra/testing/builders.pyl`.
 
-The structure of each file is:
+The structure of the file is:
 ```
 {
   <buildername>: {

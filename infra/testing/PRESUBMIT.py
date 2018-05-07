@@ -165,16 +165,15 @@ def CheckChangeOnCommit(input_api, output_api):
 
   # Calculate which files are affected.
   if input_api.AffectedFiles(False, file_filter(r'.*PRESUBMIT\.py')):
-    # If PRESUBMIT.py itself was changed, check all configs.
+    # If PRESUBMIT.py itself was changed, check also the test spec.
     affected_files = [
-      f for f in os.listdir(input_api.PresubmitLocalPath())
-      if f.endswith('.pyl')
+      os.path.join(input_api.PresubmitLocalPath(), 'builders.pyl'),
     ]
   else:
-    # Otherwise, check only changed configs.
+    # Otherwise, check test spec only when changed.
     affected_files = [
       f.AbsoluteLocalPath()
-      for f in input_api.AffectedFiles(False, file_filter(r'.+\.pyl'))
+      for f in input_api.AffectedFiles(False, file_filter(r'.*builders\.pyl'))
     ]
 
   errors = []
