@@ -3472,14 +3472,11 @@ void LargeObjectSpace::Verify() {
     CHECK(heap()->map_space()->Contains(map) ||
           heap()->read_only_space()->Contains(map));
 
-    // We have only code, sequential strings, external strings (sequential
-    // strings that have been morphed into external strings), thin strings
-    // (sequential strings that have been morphed into thin strings), fixed
-    // arrays, fixed double arrays, byte arrays, feedback vectors, bigints and
-    // free space (right after allocation) in the large object space.
+    // We have only the following types in the large object space:
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
+          object->IsWeakFixedArray() || object->IsWeakArrayList() ||
           object->IsPropertyArray() || object->IsByteArray() ||
           object->IsFeedbackVector() || object->IsBigInt() ||
           object->IsFreeSpace());
