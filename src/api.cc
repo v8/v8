@@ -5,10 +5,7 @@
 #include "src/api.h"
 
 #include <string.h>  // For memcpy, strlen.
-#ifdef V8_USE_ADDRESS_SANITIZER
-#include <sanitizer/asan_interface.h>
-#endif  // V8_USE_ADDRESS_SANITIZER
-#include <cmath>  // For isnan.
+#include <cmath>     // For isnan.
 #include <limits>
 #include <vector>
 #include "include/v8-profiler.h"

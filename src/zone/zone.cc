@@ -6,37 +6,22 @@
 
 #include <cstring>
 
+#include "src/asan.h"
 #include "src/utils.h"
 #include "src/v8.h"
-
-#ifdef V8_USE_ADDRESS_SANITIZER
-#include <sanitizer/asan_interface.h>
-#endif  // V8_USE_ADDRESS_SANITIZER
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-#if V8_USE_ADDRESS_SANITIZER
+#ifdef V8_USE_ADDRESS_SANITIZER
 
-const size_t kASanRedzoneBytes = 24;  // Must be a multiple of 8.
+constexpr size_t kASanRedzoneBytes = 24;  // Must be a multiple of 8.
 
-#else
+#else  // !V8_USE_ADDRESS_SANITIZER
 
-#define ASAN_POISON_MEMORY_REGION(start, size) \
-  do {                                         \
-    USE(start);                                \
-    USE(size);                                 \
-  } while (false)
-
-#define ASAN_UNPOISON_MEMORY_REGION(start, size) \
-  do {                                           \
-    USE(start);                                  \
-    USE(size);                                   \
-  } while (false)
-
-const size_t kASanRedzoneBytes = 0;
+constexpr size_t kASanRedzoneBytes = 0;
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
@@ -82,7 +67,7 @@ void* Zone::New(size_t size) {
   }
 
   Address redzone_position = result + size;
-  DCHECK(redzone_position + kASanRedzoneBytes == position_);
+  DCHECK_EQ(redzone_position + kASanRedzoneBytes, position_);
   ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(redzone_position),
                             kASanRedzoneBytes);
 
