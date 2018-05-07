@@ -2969,7 +2969,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   date_cache_ = new DateCache();
   call_descriptor_data_ =
       new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
-  cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
   compiler_dispatcher_ =
@@ -4063,6 +4062,13 @@ void Isolate::SetIdle(bool is_idle) {
   } else if (state == IDLE) {
     set_current_vm_state(EXTERNAL);
   }
+}
+
+CpuProfiler* Isolate::EnsureCpuProfiler() {
+  if (!cpu_profiler_) {
+    cpu_profiler_ = new CpuProfiler(this);
+  }
+  return cpu_profiler_;
 }
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {

@@ -1495,7 +1495,7 @@ class Isolate : private HiddenFactory {
 
   // TODO(alph): Remove along with the deprecated GetCpuProfiler().
   friend v8::CpuProfiler* v8::Isolate::GetCpuProfiler();
-  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+  CpuProfiler* EnsureCpuProfiler();
 
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;

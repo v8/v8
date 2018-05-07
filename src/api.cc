@@ -8016,7 +8016,7 @@ HeapProfiler* Isolate::GetHeapProfiler() {
 
 CpuProfiler* Isolate::GetCpuProfiler() {
   i::CpuProfiler* cpu_profiler =
-      reinterpret_cast<i::Isolate*>(this)->cpu_profiler();
+      reinterpret_cast<i::Isolate*>(this)->EnsureCpuProfiler();
   return reinterpret_cast<CpuProfiler*>(cpu_profiler);
 }
 
