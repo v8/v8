@@ -32,38 +32,19 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
         isolate_(isolate),
         javascript_(javascript),
         simplified_(simplified) {
-    for (int i = 0; i < kNumCachedNodes; i++) cached_nodes_[i] = nullptr;
   }
 
-  // Canonicalized global constants.
-  Node* AllocateInNewSpaceStubConstant();
-  Node* AllocateInOldSpaceStubConstant();
-  Node* ArrayConstructorStubConstant();
-  Node* ToNumberBuiltinConstant();
+  // CEntryStubs are cached depending on the result size and other flags.
   Node* CEntryStubConstant(int result_size,
                            SaveFPRegsMode save_doubles = kDontSaveFPRegs,
                            ArgvMode argv_mode = kArgvOnStack,
                            bool builtin_exit_frame = false);
-  Node* EmptyFixedArrayConstant();
-  Node* EmptyStringConstant();
-  Node* FixedArrayMapConstant();
-  Node* PropertyArrayMapConstant();
-  Node* FixedDoubleArrayMapConstant();
-  Node* HeapNumberMapConstant();
-  Node* OptimizedOutConstant();
-  Node* StaleRegisterConstant();
-  Node* UndefinedConstant();
-  Node* TheHoleConstant();
-  Node* TrueConstant();
-  Node* FalseConstant();
-  Node* NullConstant();
-  Node* ZeroConstant();
-  Node* OneConstant();
-  Node* NaNConstant();
-  Node* MinusOneConstant();
 
-  // Used for padding frames.
+  // Used for padding frames. (alias: the hole)
   Node* PaddingConstant() { return TheHoleConstant(); }
+
+  // Used for stubs and runtime functions with no context. (alias: SMI zero)
+  Node* NoContextConstant() { return ZeroConstant(); }
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
@@ -93,66 +74,63 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
     return Constant(immediate);
   }
 
-  // Creates a dummy Constant node, used to satisfy calling conventions of
-  // stubs and runtime functions that do not require a context.
-  Node* NoContextConstant() { return ZeroConstant(); }
-
-  // Creates an empty StateValues node, used when we don't have any concrete
-  // values for a certain part of the frame state.
-  Node* EmptyStateValues();
-
-  // Typed state values with a single dead input. This is useful to represent
-  // dead accumulator.
-  Node* SingleDeadTypedStateValues();
-
-  // Create a control node that serves as dependency for dead nodes.
-  Node* Dead();
-
   JSOperatorBuilder* javascript() const { return javascript_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate()->factory(); }
 
+  // Adds all the cached nodes to the given list.
   void GetCachedNodes(NodeVector* nodes);
 
- private:
-  enum CachedNode {
-    kAllocateInNewSpaceStubConstant,
-    kAllocateInOldSpaceStubConstant,
-    kArrayConstructorStubConstant,
-    kToNumberBuiltinConstant,
-    kCEntryStub1Constant,
-    kCEntryStub2Constant,
-    kCEntryStub3Constant,
-    kCEntryStub1WithBuiltinExitFrameConstant,
-    kEmptyFixedArrayConstant,
-    kEmptyStringConstant,
-    kFixedArrayMapConstant,
-    kFixedDoubleArrayMapConstant,
-    kPropertyArrayMapConstant,
-    kHeapNumberMapConstant,
-    kOptimizedOutConstant,
-    kStaleRegisterConstant,
-    kUndefinedConstant,
-    kTheHoleConstant,
-    kTrueConstant,
-    kFalseConstant,
-    kNullConstant,
-    kZeroConstant,
-    kOneConstant,
-    kMinusOneConstant,
-    kNaNConstant,
-    kEmptyStateValues,
-    kSingleDeadTypedStateValues,
-    kDead,
-    kNumCachedNodes  // Must remain last.
-  };
+// Cached global nodes.
+#define CACHED_GLOBAL_LIST(V)       \
+  V(AllocateInNewSpaceStubConstant) \
+  V(AllocateInOldSpaceStubConstant) \
+  V(ArrayConstructorStubConstant)   \
+  V(ToNumberBuiltinConstant)        \
+  V(EmptyFixedArrayConstant)        \
+  V(EmptyStringConstant)            \
+  V(FixedArrayMapConstant)          \
+  V(PropertyArrayMapConstant)       \
+  V(FixedDoubleArrayMapConstant)    \
+  V(HeapNumberMapConstant)          \
+  V(OptimizedOutConstant)           \
+  V(StaleRegisterConstant)          \
+  V(UndefinedConstant)              \
+  V(TheHoleConstant)                \
+  V(TrueConstant)                   \
+  V(FalseConstant)                  \
+  V(NullConstant)                   \
+  V(ZeroConstant)                   \
+  V(OneConstant)                    \
+  V(NaNConstant)                    \
+  V(MinusOneConstant)               \
+  V(EmptyStateValues)               \
+  V(SingleDeadTypedStateValues)
 
+// Cached global node accessor methods.
+#define DECLARE_GETTER(name) Node* name();
+  CACHED_GLOBAL_LIST(DECLARE_GETTER)
+#undef DECLARE_FIELD
+
+ private:
   Isolate* isolate_;
   JSOperatorBuilder* javascript_;
   SimplifiedOperatorBuilder* simplified_;
-  Node* cached_nodes_[kNumCachedNodes];
 
+#define CACHED_CENTRY_LIST(V) \
+  V(CEntryStub1Constant)      \
+  V(CEntryStub2Constant)      \
+  V(CEntryStub3Constant)      \
+  V(CEntryStub1WithBuiltinExitFrameConstant)
+
+// Canonicalized global node fields.
+#define DECLARE_FIELD(name) Node* name##_ = nullptr;
+  CACHED_GLOBAL_LIST(DECLARE_FIELD)
+  CACHED_CENTRY_LIST(DECLARE_FIELD)
+#undef DECLARE_FIELD
+
+  // Internal helper to canonicalize a number constant.
   Node* NumberConstant(double value);
 
   DISALLOW_COPY_AND_ASSIGN(JSGraph);
