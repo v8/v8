@@ -184,6 +184,7 @@ v8_source_set("unittests_sources") {
     "register-configuration-unittest.cc",
     "run-all-unittests.cc",
     "source-position-table-unittest.cc",
+    "strings-storage-unittest.cc",
     "test-helpers.cc",
     "test-helpers.h",
     "test-utils.cc",
