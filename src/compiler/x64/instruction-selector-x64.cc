@@ -832,6 +832,19 @@ void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   X64OperandGenerator g(this);
+  DCHECK_EQ(node->InputCount(), 2);
+  Node* input1 = node->InputAt(0);
+  Node* input2 = node->InputAt(1);
+  if (input1->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
+      g.CanBeImmediate(input2)) {
+    // Omit truncation and turn subtractions of constant values into immediate
+    // "leal" instructions by negating the value.
+    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(input1->InputAt(0)),
+         g.TempImmediate(-g.GetImmediateIntegerValue(input2)));
+    return;
+  }
+
   Int32BinopMatcher m(node);
   if (m.left().Is(0)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
