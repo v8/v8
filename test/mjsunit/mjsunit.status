@@ -333,6 +333,10 @@
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
 
+  # Sometimes fails because the hard-coded timeout in the test is exceeded when
+  # dcheck_always_on = true.
+  'regress/regress-165637': [SKIP],
+
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
 
