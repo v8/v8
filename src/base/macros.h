@@ -149,18 +149,25 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define INLINE(declarator)    V8_INLINE declarator
 #define NO_INLINE(declarator) V8_NOINLINE declarator
 
-// Define V8_USE_ADDRESS_SANITIZER macros.
+// Define V8_USE_ADDRESS_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define V8_USE_ADDRESS_SANITIZER 1
 #endif
 #endif
 
-// Define DISABLE_ASAN macros.
+// Define DISABLE_ASAN macro.
 #ifdef V8_USE_ADDRESS_SANITIZER
 #define DISABLE_ASAN __attribute__((no_sanitize_address))
 #else
 #define DISABLE_ASAN
+#endif
+
+// Define V8_USE_MEMORY_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define V8_USE_MEMORY_SANITIZER 1
+#endif
 #endif
 
 // Helper macro to define no_sanitize attributes only with clang.
