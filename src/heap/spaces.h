@@ -2846,16 +2846,24 @@ class CompactionSpaceCollection : public Malloced {
   CompactionSpace code_space_;
 };
 
-
 // -----------------------------------------------------------------------------
-// Old object space (includes the old space of objects and code space)
+// Old generation regular object space.
 
 class OldSpace : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
-  OldSpace(Heap* heap, AllocationSpace id, Executability executable)
-      : PagedSpace(heap, id, executable) {}
+  explicit OldSpace(Heap* heap) : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE) {}
+};
+
+// -----------------------------------------------------------------------------
+// Old generation code object space.
+
+class CodeSpace : public PagedSpace {
+ public:
+  // Creates an old space object. The constructor does not allocate pages
+  // from OS.
+  explicit CodeSpace(Heap* heap) : PagedSpace(heap, CODE_SPACE, EXECUTABLE) {}
 };
 
 

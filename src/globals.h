@@ -461,6 +461,7 @@ class AccessorInfo;
 class Arguments;
 class Assembler;
 class Code;
+class CodeSpace;
 class CodeStub;
 class Context;
 class Debug;

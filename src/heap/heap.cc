@@ -4643,11 +4643,10 @@ bool Heap::SetUp() {
     return false;
   }
 
-  space_[OLD_SPACE] = old_space_ =
-      new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
+  space_[OLD_SPACE] = old_space_ = new OldSpace(this);
   if (!old_space_->SetUp()) return false;
 
-  space_[CODE_SPACE] = code_space_ = new OldSpace(this, CODE_SPACE, EXECUTABLE);
+  space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
   if (!code_space_->SetUp()) return false;
 
   space_[MAP_SPACE] = map_space_ = new MapSpace(this, MAP_SPACE);
