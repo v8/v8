@@ -262,11 +262,11 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       __ bind(&start);
       DCHECK(is_int16(i));
       if (kArchVariant == kMips64r6) {
-        __ li(at, i);
+        __ li(kScratchReg, i);
         __ BranchShort(PROTECT, &done);
       } else {
         __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
-        __ li(at, i);                           // In the delay slot.
+        __ li(kScratchReg, i);                  // In the delay slot.
         __ nop();
       }
 
@@ -276,7 +276,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
               count() * table_entry_size_);
     __ bind(&done);
-    __ Push(at);
+    __ Push(kScratchReg);
   } else {
     DCHECK_NE(kArchVariant, kMips64r6);
     // Uncommon case, the branch cannot reach.
@@ -287,14 +287,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       DCHECK(is_int16(i));
       if (j >= kMaxEntriesBranchReach) {
         j = 0;
-        __ li(at, i);
+        __ li(kScratchReg, i);
         __ bind(&trampoline_jump);
         trampoline_jump = Label();
         __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);
         __ nop();
       } else {
         __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
-        __ li(at, i);                                      // In the delay slot.
+        __ li(kScratchReg, i);                             // In the delay slot.
         __ nop();
       }
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
@@ -303,7 +303,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
               count() * table_entry_size_);
     __ bind(&trampoline_jump);
-    __ Push(at);
+    __ Push(kScratchReg);
   }
 }
 

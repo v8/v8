@@ -225,8 +225,8 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(t9, target);
-  __ li(at, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
-  __ Call(at);
+  __ li(kScratchReg, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
+  __ Call(kScratchReg);
 }
 
 
@@ -360,8 +360,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
   } else if (mode == DONT_OVERRIDE) {
     // is the low bit set? If so, we are holey and that is good.
     Label normal_sequence;
-    __ And(at, a3, Operand(1));
-    __ Branch(&normal_sequence, ne, at, Operand(zero_reg));
+    __ And(kScratchReg, a3, Operand(1));
+    __ Branch(&normal_sequence, ne, kScratchReg, Operand(zero_reg));
 
     // We are going to create a holey array, but our kind is non-holey.
     // Fix kind and retry (only if we have an allocation site in the slot).
@@ -369,8 +369,9 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
 
     if (FLAG_debug_code) {
       __ Ld(a5, FieldMemOperand(a2, 0));
-      __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-      __ Assert(eq, AbortReason::kExpectedAllocationSite, a5, Operand(at));
+      __ LoadRoot(kScratchReg, Heap::kAllocationSiteMapRootIndex);
+      __ Assert(eq, AbortReason::kExpectedAllocationSite, a5,
+                Operand(kScratchReg));
     }
 
     // Save the resulting elements kind in type info. We can't just store a3
@@ -437,8 +438,8 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm,
     AllocationSiteOverrideMode mode) {
   Label not_zero_case, not_one_case;
-  __ And(at, a0, a0);
-  __ Branch(&not_zero_case, ne, at, Operand(zero_reg));
+  __ And(kScratchReg, a0, a0);
+  __ Branch(&not_zero_case, ne, kScratchReg, Operand(zero_reg));
   CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
 
   __ bind(&not_zero_case);
@@ -467,9 +468,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ Ld(a4, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
-    __ SmiTst(a4, at);
-    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, at,
-              Operand(zero_reg));
+    __ SmiTst(a4, kScratchReg);
+    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction,
+              kScratchReg, Operand(zero_reg));
     __ GetObjectType(a4, a4, a5);
     __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction, a5,
               Operand(MAP_TYPE));
@@ -486,8 +487,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   Label no_info;
   // Get the elements kind and case on that.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&no_info, eq, a2, Operand(at));
+  __ LoadRoot(kScratchReg, Heap::kUndefinedValueRootIndex);
+  __ Branch(&no_info, eq, a2, Operand(kScratchReg));
 
   __ Ld(a3, FieldMemOperand(
                 a2, AllocationSite::kTransitionInfoOrBoilerplateOffset));
@@ -501,10 +502,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing.
   __ bind(&subclassing);
-  __ Dlsa(at, sp, a0, kPointerSizeLog2);
-  __ Sd(a1, MemOperand(at));
-  __ li(at, Operand(3));
-  __ Daddu(a0, a0, at);
+  __ Dlsa(kScratchReg, sp, a0, kPointerSizeLog2);
+  __ Sd(a1, MemOperand(kScratchReg));
+  __ li(kScratchReg, Operand(3));
+  __ Daddu(a0, a0, kScratchReg);
   __ Push(a3, a2);
   __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
 }
@@ -522,11 +523,11 @@ void InternalArrayConstructorStub::GenerateCase(
   if (IsFastPackedElementsKind(kind)) {
     // We might need to create a holey array
     // look at the first argument.
-    __ Ld(at, MemOperand(sp, 0));
+    __ Ld(kScratchReg, MemOperand(sp, 0));
 
     InternalArraySingleArgumentConstructorStub
         stub1_holey(isolate(), GetHoleyElementsKind(kind));
-    __ TailCallStub(&stub1_holey, ne, at, Operand(zero_reg));
+    __ TailCallStub(&stub1_holey, ne, kScratchReg, Operand(zero_reg));
   }
 
   InternalArraySingleArgumentConstructorStub stub1(isolate(), kind);
@@ -549,9 +550,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ Ld(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
-    __ SmiTst(a3, at);
-    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, at,
-              Operand(zero_reg));
+    __ SmiTst(a3, kScratchReg);
+    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction,
+              kScratchReg, Operand(zero_reg));
     __ GetObjectType(a3, a3, a4);
     __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction, a4,
               Operand(MAP_TYPE));
@@ -627,12 +628,12 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.
-  __ li(s3, Operand(next_address));
-  __ Ld(s0, MemOperand(s3, kNextOffset));
-  __ Ld(s1, MemOperand(s3, kLimitOffset));
-  __ Lw(s2, MemOperand(s3, kLevelOffset));
+  __ li(s5, Operand(next_address));
+  __ Ld(s0, MemOperand(s5, kNextOffset));
+  __ Ld(s1, MemOperand(s5, kLimitOffset));
+  __ Lw(s2, MemOperand(s5, kLevelOffset));
   __ Addu(s2, s2, Operand(1));
-  __ Sw(s2, MemOperand(s3, kLevelOffset));
+  __ Sw(s2, MemOperand(s5, kLevelOffset));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -669,16 +670,16 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ Sd(s0, MemOperand(s3, kNextOffset));
+  __ Sd(s0, MemOperand(s5, kNextOffset));
   if (__ emit_debug_code()) {
-    __ Lw(a1, MemOperand(s3, kLevelOffset));
+    __ Lw(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
              Operand(s2));
   }
   __ Subu(s2, s2, Operand(1));
-  __ Sw(s2, MemOperand(s3, kLevelOffset));
-  __ Ld(at, MemOperand(s3, kLimitOffset));
-  __ Branch(&delete_allocated_handles, ne, s1, Operand(at));
+  __ Sw(s2, MemOperand(s5, kLevelOffset));
+  __ Ld(kScratchReg, MemOperand(s5, kLimitOffset));
+  __ Branch(&delete_allocated_handles, ne, s1, Operand(kScratchReg));
 
   // Leave the API exit frame.
   __ bind(&leave_exit_frame);
@@ -694,8 +695,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // Check if the function scheduled an exception.
   __ LoadRoot(a4, Heap::kTheHoleValueRootIndex);
-  __ li(at, ExternalReference::scheduled_exception_address(isolate));
-  __ Ld(a5, MemOperand(at));
+  __ li(kScratchReg, ExternalReference::scheduled_exception_address(isolate));
+  __ Ld(a5, MemOperand(kScratchReg));
   __ Branch(&promote_scheduled_exception, ne, a4, Operand(a5));
 
   __ Ret();
@@ -706,7 +707,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);
-  __ Sd(s1, MemOperand(s3, kLimitOffset));
+  __ Sd(s1, MemOperand(s5, kLimitOffset));
   __ mov(s0, v0);
   __ mov(a0, v0);
   __ PrepareCallCFunction(1, s1);
@@ -774,14 +775,14 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // FunctionCallbackInfo::implicit_args_
   __ Sd(scratch, MemOperand(a0, 0 * kPointerSize));
   // FunctionCallbackInfo::values_
-  __ Daddu(at, scratch,
+  __ Daddu(kScratchReg, scratch,
            Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
-  __ Sd(at, MemOperand(a0, 1 * kPointerSize));
+  __ Sd(kScratchReg, MemOperand(a0, 1 * kPointerSize));
   // FunctionCallbackInfo::length_ = argc
   // Stored as int field, 32-bit integers within struct on stack always left
   // justified by n64 ABI.
-  __ li(at, Operand(argc()));
-  __ Sw(at, MemOperand(a0, 2 * kPointerSize));
+  __ li(kScratchReg, Operand(argc()));
+  __ Sw(kScratchReg, MemOperand(a0, 2 * kPointerSize));
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 

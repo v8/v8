@@ -492,8 +492,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ LoadRoot(at, Heap::kRealStackLimitRootIndex);
-  __ Branch(&stack_overflow, lo, sp, Operand(at));
+  __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
+  __ Branch(&stack_overflow, lo, sp, Operand(kScratchReg));
 
   // Push receiver.
   __ Ld(a5, FieldMemOperand(a1, JSGeneratorObject::kReceiverOffset));
@@ -1004,8 +1004,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Daddu(a0, kInterpreterBytecodeArrayRegister,
            kInterpreterBytecodeOffsetRegister);
   __ Lbu(a7, MemOperand(a0));
-  __ Dlsa(at, kInterpreterDispatchTableRegister, a7, kPointerSizeLog2);
-  __ Ld(kJavaScriptCallCodeStartRegister, MemOperand(at));
+  __ Dlsa(kScratchReg, kInterpreterDispatchTableRegister, a7, kPointerSizeLog2);
+  __ Ld(kJavaScriptCallCodeStartRegister, MemOperand(kScratchReg));
   __ Call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
@@ -1239,10 +1239,10 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.
-    __ SmiTst(kInterpreterBytecodeArrayRegister, at);
+    __ SmiTst(kInterpreterBytecodeArrayRegister, kScratchReg);
     __ Assert(ne,
               AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
-              at, Operand(zero_reg));
+              kScratchReg, Operand(zero_reg));
     __ GetObjectType(kInterpreterBytecodeArrayRegister, a1, a1);
     __ Assert(eq,
               AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
@@ -1760,8 +1760,8 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
 
   // 2. Get the function to call (passed as receiver) from the stack.
   // a0: actual number of arguments
-  __ Dlsa(at, sp, a0, kPointerSizeLog2);
-  __ Ld(a1, MemOperand(at));
+  __ Dlsa(kScratchReg, sp, a0, kPointerSizeLog2);
+  __ Ld(a1, MemOperand(kScratchReg));
 
   // 3. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1774,8 +1774,8 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     __ Dlsa(a2, sp, a0, kPointerSizeLog2);
 
     __ bind(&loop);
-    __ Ld(at, MemOperand(a2, -kPointerSize));
-    __ Sd(at, MemOperand(a2));
+    __ Ld(kScratchReg, MemOperand(a2, -kPointerSize));
+    __ Sd(kScratchReg, MemOperand(a2));
     __ Dsubu(a2, a2, Operand(kPointerSize));
     __ Branch(&loop, ne, a2, Operand(sp));
     // Adjust the actual number of arguments and remove the top element
@@ -1956,8 +1956,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // here which will cause ip to become negative.
     __ Dsubu(a5, sp, a5);
     // Check if the arguments will overflow the stack.
-    __ dsll(at, len, kPointerSizeLog2);
-    __ Branch(&done, gt, a5, Operand(at));  // Signed comparison.
+    __ dsll(kScratchReg, len, kPointerSizeLog2);
+    __ Branch(&done, gt, a5, Operand(kScratchReg));  // Signed comparison.
     __ TailCallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&done);
   }
@@ -2053,9 +2053,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ Daddu(a0, a0, a7);
       __ bind(&loop);
       {
-        __ Dlsa(at, a6, a7, kPointerSizeLog2);
-        __ Ld(at, MemOperand(at, 1 * kPointerSize));
-        __ push(at);
+        __ Dlsa(kScratchReg, a6, a7, kPointerSizeLog2);
+        __ Ld(kScratchReg, MemOperand(kScratchReg, 1 * kPointerSize));
+        __ push(kScratchReg);
         __ Subu(a7, a7, Operand(1));
         __ Branch(&loop, ne, a7, Operand(zero_reg));
       }
@@ -2084,8 +2084,9 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label class_constructor;
   __ Ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ Lwu(a3, FieldMemOperand(a2, SharedFunctionInfo::kFlagsOffset));
-  __ And(at, a3, Operand(SharedFunctionInfo::IsClassConstructorBit::kMask));
-  __ Branch(&class_constructor, ne, at, Operand(zero_reg));
+  __ And(kScratchReg, a3,
+         Operand(SharedFunctionInfo::IsClassConstructorBit::kMask));
+  __ Branch(&class_constructor, ne, kScratchReg, Operand(zero_reg));
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2094,10 +2095,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
   __ Lwu(a3, FieldMemOperand(a2, SharedFunctionInfo::kFlagsOffset));
-  __ And(at, a3,
+  __ And(kScratchReg, a3,
          Operand(SharedFunctionInfo::IsNativeBit::kMask |
                  SharedFunctionInfo::IsStrictBit::kMask));
-  __ Branch(&done_convert, ne, at, Operand(zero_reg));
+  __ Branch(&done_convert, ne, kScratchReg, Operand(zero_reg));
   {
     // ----------- S t a t e -------------
     //  -- a0 : the number of arguments (not including the receiver)
@@ -2111,8 +2112,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ LoadGlobalProxy(a3);
     } else {
       Label convert_to_object, convert_receiver;
-      __ Dlsa(at, sp, a0, kPointerSizeLog2);
-      __ Ld(a3, MemOperand(at));
+      __ Dlsa(kScratchReg, sp, a0, kPointerSizeLog2);
+      __ Ld(a3, MemOperand(kScratchReg));
       __ JumpIfSmi(a3, &convert_to_object);
       STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       __ GetObjectType(a3, a4, a4);
@@ -2149,8 +2150,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ Ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
       __ bind(&convert_receiver);
     }
-    __ Dlsa(at, sp, a0, kPointerSizeLog2);
-    __ Sd(a3, MemOperand(at));
+    __ Dlsa(kScratchReg, sp, a0, kPointerSizeLog2);
+    __ Sd(a3, MemOperand(kScratchReg));
   }
   __ bind(&done_convert);
 
@@ -2186,9 +2187,9 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Patch the receiver to [[BoundThis]].
   {
-    __ Ld(at, FieldMemOperand(a1, JSBoundFunction::kBoundThisOffset));
+    __ Ld(kScratchReg, FieldMemOperand(a1, JSBoundFunction::kBoundThisOffset));
     __ Dlsa(a4, sp, a0, kPointerSizeLog2);
-    __ Sd(at, MemOperand(a4));
+    __ Sd(kScratchReg, MemOperand(a4));
   }
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
@@ -2209,8 +2210,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadRoot(at, Heap::kRealStackLimitRootIndex);
-    __ Branch(&done, gt, sp, Operand(at));  // Signed comparison.
+    __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
+    __ Branch(&done, gt, sp, Operand(kScratchReg));  // Signed comparison.
     // Restore the stack pointer.
     __ Daddu(sp, sp, Operand(a5));
     {
@@ -2228,9 +2229,9 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ bind(&loop);
     __ Branch(&done_loop, gt, a5, Operand(a0));
     __ Dlsa(a6, sp, a4, kPointerSizeLog2);
-    __ Ld(at, MemOperand(a6));
+    __ Ld(kScratchReg, MemOperand(a6));
     __ Dlsa(a6, sp, a5, kPointerSizeLog2);
-    __ Sd(at, MemOperand(a6));
+    __ Sd(kScratchReg, MemOperand(a6));
     __ Daddu(a4, a4, Operand(1));
     __ Daddu(a5, a5, Operand(1));
     __ Branch(&loop);
@@ -2246,9 +2247,9 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ Dsubu(a4, a4, Operand(1));
     __ Branch(&done_loop, lt, a4, Operand(zero_reg));
     __ Dlsa(a5, a2, a4, kPointerSizeLog2);
-    __ Ld(at, MemOperand(a5));
+    __ Ld(kScratchReg, MemOperand(a5));
     __ Dlsa(a5, sp, a0, kPointerSizeLog2);
-    __ Sd(at, MemOperand(a5));
+    __ Sd(kScratchReg, MemOperand(a5));
     __ Daddu(a0, a0, Operand(1));
     __ Branch(&loop);
     __ bind(&done_loop);
@@ -2288,8 +2289,8 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // not we raise an exception).
   __ bind(&non_function);
   // Overwrite the original receiver with the (original) target.
-  __ Dlsa(at, sp, a0, kPointerSizeLog2);
-  __ Sd(a1, MemOperand(at));
+  __ Dlsa(kScratchReg, sp, a0, kPointerSizeLog2);
+  __ Sd(a1, MemOperand(kScratchReg));
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadNativeContextSlot(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, a1);
   __ Jump(masm->isolate()->builtins()->CallFunction(
@@ -2363,8 +2364,8 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadRoot(at, Heap::kRealStackLimitRootIndex);
-    __ Branch(&done, gt, sp, Operand(at));  // Signed comparison.
+    __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
+    __ Branch(&done, gt, sp, Operand(kScratchReg));  // Signed comparison.
     // Restore the stack pointer.
     __ Daddu(sp, sp, Operand(a5));
     {
@@ -2382,9 +2383,9 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ bind(&loop);
     __ Branch(&done_loop, ge, a5, Operand(a0));
     __ Dlsa(a6, sp, a4, kPointerSizeLog2);
-    __ Ld(at, MemOperand(a6));
+    __ Ld(kScratchReg, MemOperand(a6));
     __ Dlsa(a6, sp, a5, kPointerSizeLog2);
-    __ Sd(at, MemOperand(a6));
+    __ Sd(kScratchReg, MemOperand(a6));
     __ Daddu(a4, a4, Operand(1));
     __ Daddu(a5, a5, Operand(1));
     __ Branch(&loop);
@@ -2400,9 +2401,9 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ Dsubu(a4, a4, Operand(1));
     __ Branch(&done_loop, lt, a4, Operand(zero_reg));
     __ Dlsa(a5, a2, a4, kPointerSizeLog2);
-    __ Ld(at, MemOperand(a5));
+    __ Ld(kScratchReg, MemOperand(a5));
     __ Dlsa(a5, sp, a0, kPointerSizeLog2);
-    __ Sd(at, MemOperand(a5));
+    __ Sd(kScratchReg, MemOperand(a5));
     __ Daddu(a0, a0, Operand(1));
     __ Branch(&loop);
     __ bind(&done_loop);
@@ -2459,8 +2460,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ Dlsa(at, sp, a0, kPointerSizeLog2);
-    __ Sd(a1, MemOperand(at));
+    __ Dlsa(kScratchReg, sp, a0, kPointerSizeLog2);
+    __ Sd(a1, MemOperand(kScratchReg));
     // Let the "call_as_constructor_delegate" take care of the rest.
     __ LoadNativeContextSlot(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, a1);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
@@ -2534,7 +2535,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a3: new target (passed through to callee)
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, a2, a5, at, &stack_overflow);
+    Generate_StackOverflowCheck(masm, a2, a5, kScratchReg, &stack_overflow);
 
     // Calculate copy start address into a0 and copy end address into a4.
     __ SmiScale(a0, a0, kPointerSizeLog2);
@@ -2565,7 +2566,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Too few parameters: Actual < expected.
     __ bind(&too_few);
     EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, a2, a5, at, &stack_overflow);
+    Generate_StackOverflowCheck(masm, a2, a5, kScratchReg, &stack_overflow);
 
     // Calculate copy start address into a0 and copy end address into a7.
     // a0: actual number of arguments as a smi
@@ -2947,8 +2948,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // Replace the shifted bits with bits from the lower mantissa word.
   Label pos_shift, shift_done;
-  __ li(at, 32);
-  __ subu(scratch, at, scratch);
+  __ li(kScratchReg, 32);
+  __ subu(scratch, kScratchReg, scratch);
   __ Branch(&pos_shift, ge, scratch, Operand(zero_reg));
 
   // Negate scratch.
@@ -2991,7 +2992,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
 
   Label int_exponent_convert;
   // Detect integer exponents stored as double.
-  __ EmitFPUTruncate(kRoundToMinusInf, scratch, double_exponent, at,
+  __ EmitFPUTruncate(kRoundToMinusInf, scratch, double_exponent, kScratchReg,
                      double_scratch, scratch2, kCheckForInexactConversion);
   // scratch2 == 0 means there was no conversion error.
   __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
