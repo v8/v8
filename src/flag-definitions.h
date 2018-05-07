@@ -212,17 +212,17 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
-  V(harmony_array_flatten, "harmony Array.prototype.flat{ten,Map}")   \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")
+  V(harmony_array_flatten, "harmony Array.prototype.flat{ten,Map}")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                               \
-  V(harmony_restrict_constructor_return,                                \
-    "harmony disallow non undefined primitive return value from class " \
-    "constructor")                                                      \
-  V(harmony_public_fields, "harmony public fields in class literals")   \
-  V(harmony_private_fields, "harmony private fields in class literals") \
-  V(harmony_numeric_separator, "harmony numeric separator between digits")
+#define HARMONY_STAGED(V)                                                  \
+  V(harmony_restrict_constructor_return,                                   \
+    "harmony disallow non undefined primitive return value from class "    \
+    "constructor")                                                         \
+  V(harmony_public_fields, "harmony public fields in class literals")      \
+  V(harmony_private_fields, "harmony private fields in class literals")    \
+  V(harmony_numeric_separator, "harmony numeric separator between digits") \
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                                   \
