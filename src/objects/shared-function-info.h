@@ -17,6 +17,7 @@ namespace internal {
 class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
+class WasmExportedFunctionData;
 
 class PreParsedScopeData : public Struct {
  public:
@@ -166,7 +167,7 @@ class SharedFunctionInfo : public HeapObject {
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
   //  - a PreParsedScopeData for the parser [HasPreParsedScopeData()]
-  //  - a Code object otherwise [HasCodeObject()]
+  //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
   DECL_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction() const;
@@ -194,9 +195,9 @@ class SharedFunctionInfo : public HeapObject {
   inline PreParsedScopeData* preparsed_scope_data() const;
   inline void set_preparsed_scope_data(PreParsedScopeData* data);
   inline void ClearPreParsedScopeData();
-  inline bool HasCodeObject() const;
-  inline Code* code_object() const;
-  inline void set_code_object();
+  inline bool HasWasmExportedFunctionData() const;
+  inline WasmExportedFunctionData* wasm_exported_function_data() const;
+  inline void set_wasm_exported_function_data(WasmExportedFunctionData* data);
 
   // [function identifier]: This field holds an additional identifier for the
   // function.

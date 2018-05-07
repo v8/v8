@@ -11450,17 +11450,19 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_instance_type);
   TNode<Int32T> data_type = LoadInstanceType(CAST(sfi_data));
 
-  int32_t case_values[] = {BYTECODE_ARRAY_TYPE, CODE_TYPE, FIXED_ARRAY_TYPE,
+  int32_t case_values[] = {BYTECODE_ARRAY_TYPE,
+                           WASM_EXPORTED_FUNCTION_DATA_TYPE, FIXED_ARRAY_TYPE,
                            TUPLE2_TYPE, FUNCTION_TEMPLATE_INFO_TYPE};
   Label check_is_bytecode_array(this);
-  Label check_is_code(this);
+  Label check_is_exported_function_data(this);
   Label check_is_fixed_array(this);
   Label check_is_pre_parsed_scope_data(this);
   Label check_is_function_template_info(this);
   Label check_is_interpreter_data(this);
   Label* case_labels[] = {
-      &check_is_bytecode_array, &check_is_code, &check_is_fixed_array,
-      &check_is_pre_parsed_scope_data, &check_is_function_template_info};
+      &check_is_bytecode_array, &check_is_exported_function_data,
+      &check_is_fixed_array, &check_is_pre_parsed_scope_data,
+      &check_is_function_template_info};
   STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
   Switch(data_type, &check_is_interpreter_data, case_values, case_labels,
          arraysize(case_labels));
@@ -11471,12 +11473,13 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
   Goto(&done);
 
-  // IsCode: Run code
-  BIND(&check_is_code);
-  sfi_code = CAST(sfi_data);
+  // IsWasmExportedFunctionData: Use the wrapper code
+  BIND(&check_is_exported_function_data);
+  sfi_code = CAST(LoadObjectField(
+      CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
   Goto(&done);
 
-  // IsFixedArray: Instantiate using AsmWasmData,
+  // IsFixedArray: Instantiate using AsmWasmData
   BIND(&check_is_fixed_array);
   DCHECK(!Builtins::IsLazy(Builtins::kInstantiateAsmJs));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));

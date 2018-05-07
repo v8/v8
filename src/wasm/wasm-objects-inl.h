@@ -5,18 +5,21 @@
 #ifndef V8_WASM_WASM_OBJECTS_INL_H_
 #define V8_WASM_WASM_OBJECTS_INL_H_
 
-#include "src/heap/heap-inl.h"
-#include "src/v8memory.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
+#include "src/heap/heap-inl.h"
+#include "src/v8memory.h"
+#include "src/wasm/wasm-module.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
 
+namespace v8 {
+namespace internal {
+
 CAST_ACCESSOR(WasmCompiledModule)
 CAST_ACCESSOR(WasmDebugInfo)
+CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
@@ -170,6 +173,12 @@ ImportedFunctionEntry::ImportedFunctionEntry(
   DCHECK_GE(index, 0);
   DCHECK_LT(index, instance->module()->num_imported_functions);
 }
+
+// WasmExportedFunctionData
+ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
+          kInstanceOffset)
+SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 
 // WasmSharedModuleData
 ACCESSORS(WasmSharedModuleData, managed_module, Object, kManagedModuleOffset)

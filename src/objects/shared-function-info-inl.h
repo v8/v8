@@ -8,6 +8,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -233,7 +234,7 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debugging_id,
 
 void SharedFunctionInfo::DontAdaptArguments() {
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
-  DCHECK(!HasCodeObject());
+  DCHECK(!HasWasmExportedFunctionData());
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
@@ -287,10 +288,10 @@ Code* SharedFunctionInfo::GetCode() const {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
     return isolate->builtins()->builtin(Builtins::kHandleApiCall);
-  } else if (data->IsCode()) {
-    // Having a code object means we should run it.
-    DCHECK(HasCodeObject());
-    return Code::cast(data);
+  } else if (data->IsWasmExportedFunctionData()) {
+    // Having a WasmExportedFunctionData means the code is in there.
+    DCHECK(HasWasmExportedFunctionData());
+    return wasm_exported_function_data()->wrapper_code();
   } else if (data->IsInterpreterData()) {
     Code* code = InterpreterTrampoline();
     DCHECK(code->IsCode());
@@ -514,8 +515,14 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
   set_builtin_id(Builtins::kCompileLazy);
 }
 
-bool SharedFunctionInfo::HasCodeObject() const {
-  return function_data()->IsCode();
+bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
+  return function_data()->IsWasmExportedFunctionData();
+}
+
+WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
+    const {
+  DCHECK(HasWasmExportedFunctionData());
+  return WasmExportedFunctionData::cast(function_data());
 }
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {

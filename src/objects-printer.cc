@@ -1602,6 +1602,15 @@ void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmExportedFunctionData");
+  os << "\n - wrapper_code: " << Brief(wrapper_code());
+  os << "\n - instance: " << Brief(instance());
+  os << "\n - function_index: " << function_index();
+  os << "\n";
+}
+
 void WasmSharedModuleData::WasmSharedModuleDataPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WasmSharedModuleData");

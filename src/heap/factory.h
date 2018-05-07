@@ -50,6 +50,7 @@ class RegExpMatchInfo;
 class ScriptContextTable;
 class StoreHandler;
 class TemplateObjectDescription;
+class WasmExportedFunctionData;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
@@ -980,8 +981,9 @@ class V8_EXPORT_PRIVATE Factory {
 // Utility class to simplify argument handling around JSFunction creation.
 class NewFunctionArgs final {
  public:
-  static NewFunctionArgs ForWasm(Handle<String> name, Handle<Code> code,
-                                 Handle<Map> map);
+  static NewFunctionArgs ForWasm(
+      Handle<String> name,
+      Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map);
   static NewFunctionArgs ForBuiltin(Handle<String> name, Handle<Map> map,
                                     int builtin_id);
   static NewFunctionArgs ForFunctionWithoutCode(Handle<String> name,
@@ -1009,7 +1011,7 @@ class NewFunctionArgs final {
 
   Handle<String> name_;
   MaybeHandle<Map> maybe_map_;
-  MaybeHandle<Code> maybe_code_;
+  MaybeHandle<WasmExportedFunctionData> maybe_exported_function_data_;
 
   bool should_create_and_set_initial_map_ = false;
   InstanceType type_;

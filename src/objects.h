@@ -398,6 +398,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TUPLE3_TYPE)                                                \
   V(WASM_COMPILED_MODULE_TYPE)                                  \
   V(WASM_DEBUG_INFO_TYPE)                                       \
+  V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                           \
   V(WASM_SHARED_MODULE_DATA_TYPE)                               \
                                                                 \
   V(CALLABLE_TASK_TYPE)                                         \
@@ -572,6 +573,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TUPLE3, Tuple3, tuple3)                                                  \
   V(WASM_COMPILED_MODULE, WasmCompiledModule, wasm_compiled_module)          \
   V(WASM_DEBUG_INFO, WasmDebugInfo, wasm_debug_info)                         \
+  V(WASM_EXPORTED_FUNCTION_DATA, WasmExportedFunctionData,                   \
+    wasm_exported_function_data)                                             \
   V(WASM_SHARED_MODULE_DATA, WasmSharedModuleData, wasm_shared_module_data)  \
   V(CALLABLE_TASK, CallableTask, callable_task)                              \
   V(CALLBACK_TASK, CallbackTask, callback_task)                              \
@@ -766,6 +769,7 @@ enum InstanceType : uint16_t {
   TUPLE3_TYPE,
   WASM_COMPILED_MODULE_TYPE,
   WASM_DEBUG_INFO_TYPE,
+  WASM_EXPORTED_FUNCTION_DATA_TYPE,
   WASM_SHARED_MODULE_DATA_TYPE,
 
   CALLABLE_TASK_TYPE,  // FIRST_MICROTASK_TYPE

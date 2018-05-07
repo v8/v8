@@ -269,7 +269,7 @@ class WasmGlobalObject : public JSObject {
   inline Address address() const;
 };
 
-// A WebAssembly.Instance JavaScript-level object.
+// Representation of a WebAssembly.Instance JavaScript-level object.
 class WasmInstanceObject : public JSObject {
  public:
   DECL_CAST(WasmInstanceObject)
@@ -377,6 +377,33 @@ class WasmExportedFunction : public JSFunction {
                                           Handle<Code> export_wrapper);
 
   wasm::WasmCode* GetWasmCode();
+};
+
+// Information for a WasmExportedFunction which is referenced as the function
+// data of the SharedFunctionInfo underlying the function. For details please
+// see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
+class WasmExportedFunctionData : public Struct {
+ public:
+  DECL_ACCESSORS(wrapper_code, Code);
+  DECL_ACCESSORS(instance, WasmInstanceObject)
+  DECL_INT_ACCESSORS(function_index);
+
+  DECL_CAST(WasmExportedFunctionData)
+
+  // Dispatched behavior.
+  DECL_PRINTER(WasmExportedFunctionData)
+  DECL_VERIFIER(WasmExportedFunctionData)
+
+// Layout description.
+#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V) \
+  V(kWrapperCodeOffset, kPointerSize)         \
+  V(kInstanceOffset, kPointerSize)            \
+  V(kFunctionIndexOffset, kPointerSize)       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                WASM_EXPORTED_FUNCTION_DATA_FIELDS)
+#undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
 };
 
 // Information shared by all WasmCompiledModule objects for the same module.
@@ -681,9 +708,9 @@ class WasmDebugInfo : public Struct {
 #undef WCM_OBJECT_OR_WEAK
 #undef WCM_WEAK_LINK
 
-#include "src/objects/object-macros-undef.h"
-
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_WASM_WASM_OBJECTS_H_

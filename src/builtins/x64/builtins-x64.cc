@@ -1348,7 +1348,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
   // Figure out the SFI's code object.
   Label done;
   Label check_is_bytecode_array;
-  Label check_is_code;
+  Label check_is_exported_function_data;
   Label check_is_fixed_array;
   Label check_is_pre_parsed_scope_data;
   Label check_is_function_template_info;
@@ -1370,16 +1370,19 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsBytecodeArray: Interpret bytecode
   __ cmpw(data_type, Immediate(BYTECODE_ARRAY_TYPE));
-  __ j(not_equal, &check_is_code);
+  __ j(not_equal, &check_is_exported_function_data);
   __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
   __ j(always, &done);
 
-  // IsCode: Run code
-  __ bind(&check_is_code);
-  __ cmpw(data_type, Immediate(CODE_TYPE));
-  __ j(equal, &done);
+  // IsWasmExportedFunctionData: Use the wrapper code
+  __ bind(&check_is_exported_function_data);
+  __ cmpw(data_type, Immediate(WASM_EXPORTED_FUNCTION_DATA_TYPE));
+  __ j(not_equal, &check_is_fixed_array);
+  __ movp(sfi_data,
+          FieldOperand(sfi_data, WasmExportedFunctionData::kWrapperCodeOffset));
+  __ j(always, &done);
 
-  // IsFixedArray: Instantiate using AsmWasmData,
+  // IsFixedArray: Instantiate using AsmWasmData
   __ bind(&check_is_fixed_array);
   __ cmpw(data_type, Immediate(FIXED_ARRAY_TYPE));
   __ j(not_equal, &check_is_pre_parsed_scope_data);

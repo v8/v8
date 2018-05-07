@@ -896,17 +896,7 @@ bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   if (!object->IsJSFunction()) return false;
   Handle<JSFunction> js_function(JSFunction::cast(object));
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
-
-#ifdef DEBUG
-  // Any function having code of {JS_TO_WASM_FUNCTION} kind must be an exported
-  // function and hence will have a property holding the instance object.
-  Handle<Symbol> symbol(
-      js_function->GetIsolate()->factory()->wasm_instance_symbol());
-  MaybeHandle<Object> result =
-      JSObject::GetPropertyOrElement(js_function, symbol);
-  DCHECK(result.ToHandleChecked()->IsWasmInstanceObject());
-#endif
-
+  DCHECK(js_function->shared()->HasWasmExportedFunctionData());
   return true;
 }
 
@@ -916,17 +906,11 @@ WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
 }
 
 WasmInstanceObject* WasmExportedFunction::instance() {
-  Handle<Symbol> symbol(GetIsolate()->factory()->wasm_instance_symbol());
-  MaybeHandle<Object> result =
-      JSObject::GetPropertyOrElement(handle(this), symbol);
-  return WasmInstanceObject::cast(*(result.ToHandleChecked()));
+  return shared()->wasm_exported_function_data()->instance();
 }
 
 int WasmExportedFunction::function_index() {
-  Handle<Symbol> symbol = GetIsolate()->factory()->wasm_function_index_symbol();
-  MaybeHandle<Object> result =
-      JSObject::GetPropertyOrElement(handle(this), symbol);
-  return result.ToHandleChecked()->Number();
+  return shared()->wasm_exported_function_data()->function_index();
 }
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
@@ -934,6 +918,12 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     MaybeHandle<String> maybe_name, int func_index, int arity,
     Handle<Code> export_wrapper) {
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+  Handle<WasmExportedFunctionData> function_data =
+      Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
+          WASM_EXPORTED_FUNCTION_DATA_TYPE, TENURED));
+  function_data->set_wrapper_code(*export_wrapper);
+  function_data->set_instance(*instance);
+  function_data->set_function_index(func_index);
   Handle<String> name;
   if (!maybe_name.ToHandle(&name)) {
     EmbeddedVector<char, 16> buffer;
@@ -944,22 +934,13 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                .ToHandleChecked();
   }
   NewFunctionArgs args = NewFunctionArgs::ForWasm(
-      name, export_wrapper, isolate->sloppy_function_without_prototype_map());
+      name, function_data, isolate->sloppy_function_without_prototype_map());
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
   // According to the spec, exported functions should not have a [[Construct]]
   // method.
   DCHECK(!js_function->IsConstructor());
   js_function->shared()->set_length(arity);
   js_function->shared()->set_internal_formal_parameter_count(arity);
-
-  Handle<Symbol> instance_symbol(isolate->factory()->wasm_instance_symbol());
-  JSObject::AddProperty(js_function, instance_symbol, instance, DONT_ENUM);
-
-  Handle<Symbol> function_index_symbol(
-      isolate->factory()->wasm_function_index_symbol());
-  JSObject::AddProperty(js_function, function_index_symbol,
-                        isolate->factory()->NewNumber(func_index), DONT_ENUM);
-
   return Handle<WasmExportedFunction>::cast(js_function);
 }
 

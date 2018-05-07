@@ -924,8 +924,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   }
 
   Isolate* isolate = GetIsolate();
-  CHECK(HasCodeObject() || IsApiFunction() || HasBytecodeArray() ||
-        HasAsmWasmData() || HasBuiltinId() || HasPreParsedScopeData());
+  CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
+        HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
+        HasPreParsedScopeData());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
@@ -1571,6 +1572,15 @@ void WasmDebugInfo::WasmDebugInfoVerify() {
   VerifyObjectField(kLocalsNamesOffset);
   VerifyObjectField(kCWasmEntriesOffset);
   VerifyObjectField(kCWasmEntryMapOffset);
+}
+
+void WasmExportedFunctionData::WasmExportedFunctionDataVerify() {
+  CHECK(IsWasmExportedFunctionData());
+  VerifyObjectField(kWrapperCodeOffset);
+  CHECK(wrapper_code()->kind() == Code::JS_TO_WASM_FUNCTION ||
+        wrapper_code()->kind() == Code::C_WASM_ENTRY);
+  VerifyObjectField(kInstanceOffset);
+  VerifySmiField(kFunctionIndexOffset);
 }
 
 void WasmSharedModuleData::WasmSharedModuleDataVerify() {

@@ -771,10 +771,16 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
     }
     DCHECK(entries->get(index)->IsUndefined(isolate));
     Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
+    Handle<WasmExportedFunctionData> function_data =
+        Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
+            WASM_EXPORTED_FUNCTION_DATA_TYPE, TENURED));
+    function_data->set_wrapper_code(*new_entry_code);
+    function_data->set_instance(debug_info->wasm_instance());
+    function_data->set_function_index(-1);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("c-wasm-entry"));
     NewFunctionArgs args = NewFunctionArgs::ForWasm(
-        name, new_entry_code, isolate->sloppy_function_map());
+        name, function_data, isolate->sloppy_function_map());
     Handle<JSFunction> new_entry = isolate->factory()->NewFunction(args);
     new_entry->set_context(debug_info->wasm_instance()->native_context());
     new_entry->shared()->set_internal_formal_parameter_count(

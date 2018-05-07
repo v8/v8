@@ -2164,8 +2164,9 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
   // Create the SharedFunctionInfo.
   Handle<Context> context(isolate()->native_context());
   Handle<Map> map = args.GetMap(isolate());
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(
-      args.name_, args.maybe_code_, args.maybe_builtin_id_, kNormalFunction);
+  Handle<SharedFunctionInfo> info =
+      NewSharedFunctionInfo(args.name_, args.maybe_exported_function_data_,
+                            args.maybe_builtin_id_, kNormalFunction);
 
   // Proper language mode in shared function info will be set later.
   DCHECK(is_sloppy(info->language_mode()));
@@ -3889,12 +3890,13 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
 }
 
 // static
-NewFunctionArgs NewFunctionArgs::ForWasm(Handle<String> name, Handle<Code> code,
-                                         Handle<Map> map) {
+NewFunctionArgs NewFunctionArgs::ForWasm(
+    Handle<String> name,
+    Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map) {
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
-  args.maybe_code_ = code;
+  args.maybe_exported_function_data_ = exported_function_data;
   args.language_mode_ = LanguageMode::kSloppy;
   args.prototype_mutability_ = MUTABLE;
 

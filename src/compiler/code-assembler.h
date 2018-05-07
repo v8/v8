@@ -232,6 +232,7 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmExportedFunctionData;
 class WasmGlobalObject;
 class WasmMemoryObject;
 class WasmModuleObject;

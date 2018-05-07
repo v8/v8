@@ -783,7 +783,7 @@ StartupData SnapshotCreator::CreateBlob(
       if (shared->CanFlushCompiled()) {
         shared->FlushCompiled();
       }
-      DCHECK(shared->HasCodeObject() || shared->HasBuiltinId() ||
+      DCHECK(shared->HasWasmExportedFunctionData() || shared->HasBuiltinId() ||
              shared->IsApiFunction());
     }
   }
