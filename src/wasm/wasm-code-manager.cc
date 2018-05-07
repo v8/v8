@@ -357,28 +357,13 @@ void NativeModule::ResizeCodeTableForTesting(size_t num_functions,
     DCHECK_EQ(num_functions, 1);
     code_table_.reserve(max_functions);
   } else {
-    DCHECK_GT(num_functions, FunctionCount());
+    DCHECK_GT(num_functions, function_count());
     if (code_table_.capacity() == 0) {
       code_table_.reserve(max_functions);
     }
     DCHECK_EQ(code_table_.capacity(), max_functions);
     code_table_.resize(num_functions);
   }
-}
-
-WasmCode* NativeModule::GetCode(uint32_t index) const {
-  DCHECK_LT(index, FunctionCount());
-  return code_table_[index];
-}
-
-void NativeModule::SetCode(uint32_t index, WasmCode* wasm_code) {
-  DCHECK_LT(index, FunctionCount());
-  code_table_[index] = wasm_code;
-}
-
-uint32_t NativeModule::FunctionCount() const {
-  DCHECK_LE(code_table_.size(), std::numeric_limits<uint32_t>::max());
-  return static_cast<uint32_t>(code_table_.size());
 }
 
 WasmCode* NativeModule::AddOwnedCode(
@@ -439,7 +424,8 @@ WasmCode* NativeModule::AddInterpreterWrapper(Handle<Code> code,
 
 void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
-  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
+  for (uint32_t i = num_imported_functions(), e = function_count(); i < e;
+       ++i) {
     code_table_[i] = lazy_builtin;
   }
 }
@@ -714,40 +700,35 @@ WasmCode* NativeModule::Lookup(Address pc) {
   --iter;
   WasmCode* candidate = (*iter).get();
   DCHECK_NOT_NULL(candidate);
-  Address instructions_start = candidate->instruction_start();
-  if (instructions_start <= pc &&
-      pc < instructions_start + candidate->instructions().size()) {
-    return candidate;
-  }
-  return nullptr;
+  return candidate->contains(pc) ? candidate : nullptr;
 }
 
 WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
-  WasmCode* code = GetCode(func_index);
-  if (!code || code->kind() != WasmCode::kLazyStub) {
-    return code;
+  WasmCode* wasm_code = code(func_index);
+  if (!wasm_code || wasm_code->kind() != WasmCode::kLazyStub) {
+    return wasm_code;
   }
 #if DEBUG
   auto num_imported_functions =
       shared_module_data()->module()->num_imported_functions;
   if (func_index < num_imported_functions) {
-    DCHECK(!code->IsAnonymous());
+    DCHECK(!wasm_code->IsAnonymous());
   }
 #endif
-  if (!code->IsAnonymous()) {
+  if (!wasm_code->IsAnonymous()) {
     // If the function wasn't imported, its index should match.
     DCHECK_IMPLIES(func_index >= num_imported_functions,
-                   func_index == code->index());
-    return code;
+                   func_index == wasm_code->index());
+    return wasm_code;
   }
   if (!lazy_compile_stubs_.get()) {
     lazy_compile_stubs_ =
-        base::make_unique<std::vector<WasmCode*>>(FunctionCount());
+        base::make_unique<std::vector<WasmCode*>>(function_count());
   }
   WasmCode* cloned_code = lazy_compile_stubs_.get()->at(func_index);
   if (cloned_code == nullptr) {
-    cloned_code = CloneCode(code, WasmCode::kNoFlushICache);
-    RelocateCode(cloned_code, code, WasmCode::kFlushICache);
+    cloned_code = CloneCode(wasm_code, WasmCode::kNoFlushICache);
+    RelocateCode(cloned_code, wasm_code, WasmCode::kFlushICache);
     cloned_code->index_ = Just(func_index);
     lazy_compile_stubs_.get()->at(func_index) = cloned_code;
   }
@@ -787,16 +768,18 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
 }
 
 void NativeModule::UnpackAndRegisterProtectedInstructions() {
-  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
-    WasmCode* code = GetCode(i);
-    if (code == nullptr) continue;
-    code->RegisterTrapHandlerData();
+  for (uint32_t i = num_imported_functions(), e = function_count(); i < e;
+       ++i) {
+    WasmCode* wasm_code = code(i);
+    if (wasm_code == nullptr) continue;
+    wasm_code->RegisterTrapHandlerData();
   }
 }
 
 void NativeModule::ReleaseProtectedInstructions() {
-  for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
-    WasmCode* wasm_code = GetCode(i);
+  for (uint32_t i = num_imported_functions(), e = function_count(); i < e;
+       ++i) {
+    WasmCode* wasm_code = code(i);
     if (wasm_code->HasTrapHandlerIndex()) {
       CHECK_LT(wasm_code->trap_handler_index(),
                static_cast<size_t>(std::numeric_limits<int>::max()));
@@ -1032,9 +1015,7 @@ WasmCode* WasmCodeManager::LookupCode(Address pc) const {
   NativeModule* candidate = iter->second.second;
 
   DCHECK_NOT_NULL(candidate);
-  if (range_start <= pc && pc < range_end) {
-    return candidate->Lookup(pc);
-  }
+  if (range_start <= pc && pc < range_end) return candidate->Lookup(pc);
   return nullptr;
 }
 

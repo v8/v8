@@ -92,7 +92,7 @@ bool CodeSpecialization::ApplyToWholeModule(
   // Patch all wasm functions.
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
-    WasmCode* wasm_function = native_module->GetCode(func_index);
+    WasmCode* wasm_function = native_module->code(func_index);
     // TODO(clemensh): Get rid of this nullptr check
     if (wasm_function == nullptr ||
         wasm_function->kind() != WasmCode::kFunction) {
@@ -197,7 +197,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         uint32_t called_func_index = ExtractDirectCallIndex(
             patch_direct_calls_helper->decoder,
             patch_direct_calls_helper->func_bytes + byte_pos);
-        const WasmCode* new_code = native_module->GetCode(called_func_index);
+        const WasmCode* new_code = native_module->code(called_func_index);
         it.rinfo()->set_wasm_call_address(new_code->instruction_start(),
                                           icache_flush_mode);
         changed = true;

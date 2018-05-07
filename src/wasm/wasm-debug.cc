@@ -607,7 +607,7 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
   // Redirect all calls in wasm functions.
   for (uint32_t i = 0, e = GetNumFunctions(instance); i < e; ++i) {
     wasm::WasmCode* code =
-        instance->compiled_module()->GetNativeModule()->GetCode(i);
+        instance->compiled_module()->GetNativeModule()->code(i);
     RedirectCallsitesInCode(isolate, code, map);
   }
   // TODO(6668): Find instances that imported our code and also patch those.
@@ -682,7 +682,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     const wasm::WasmCode* wasm_new_code =
         native_module->AddInterpreterWrapper(new_code, func_index);
     const wasm::WasmCode* old_code =
-        native_module->GetCode(static_cast<uint32_t>(func_index));
+        native_module->code(static_cast<uint32_t>(func_index));
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
         wasm_new_code->instruction_start(), TENURED);
     interpreted_functions->set(func_index, *foreign_holder);

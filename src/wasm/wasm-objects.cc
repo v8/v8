@@ -1438,9 +1438,9 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   wasm::CodeSpecialization code_specialization;
 
   for (uint32_t i = native_module->num_imported_functions(),
-                end = native_module->FunctionCount();
+                end = native_module->function_count();
        i < end; ++i) {
-    wasm::WasmCode* code = native_module->GetCode(i);
+    wasm::WasmCode* code = native_module->code(i);
     // Skip lazy compile stubs.
     if (code == nullptr || code->kind() != wasm::WasmCode::kFunction) continue;
     bool changed = code_specialization.ApplyToWasmCode(code, SKIP_ICACHE_FLUSH);
@@ -1605,11 +1605,11 @@ void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
 
   wasm::NativeModule* native_module = GetNativeModule();
   if (native_module == nullptr) return;
-  const uint32_t number_of_codes = native_module->FunctionCount();
+  const uint32_t number_of_codes = native_module->function_count();
   if (has_shared()) {
     Handle<WasmSharedModuleData> shared_handle(shared(), isolate);
     for (uint32_t i = 0; i < number_of_codes; i++) {
-      wasm::WasmCode* code = native_module->GetCode(i);
+      wasm::WasmCode* code = native_module->code(i);
       if (code == nullptr) continue;
       code->LogCode(isolate);
     }

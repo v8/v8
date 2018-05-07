@@ -118,6 +118,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t handler_table_offset() const { return handler_table_offset_; }
   uint32_t stack_slots() const { return stack_slots_; }
   bool is_liftoff() const { return tier_ == kLiftoff; }
+  bool contains(Address pc) const {
+    return reinterpret_cast<Address>(instructions_.start()) <= pc &&
+           pc < reinterpret_cast<Address>(instructions_.end());
+  }
 
   const ProtectedInstructions& protected_instructions() const {
     // TODO(mstarzinger): Code that doesn't have trapping instruction should
@@ -239,10 +243,21 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by the runtime.
   void SetLazyBuiltin(Handle<Code> code);
 
-  // FunctionCount is WasmModule::functions.size().
-  uint32_t FunctionCount() const;
-  WasmCode* GetCode(uint32_t index) const;
-  void SetCode(uint32_t index, WasmCode* wasm_code);
+  // function_count is WasmModule::functions.size().
+  uint32_t function_count() const {
+    DCHECK_LE(code_table_.size(), std::numeric_limits<uint32_t>::max());
+    return static_cast<uint32_t>(code_table_.size());
+  }
+
+  WasmCode* code(uint32_t index) const {
+    DCHECK_LT(index, function_count());
+    return code_table_[index];
+  }
+
+  void set_code(uint32_t index, WasmCode* wasm_code) {
+    DCHECK_LT(index, function_count());
+    code_table_[index] = wasm_code;
+  }
 
   // Register/release the protected instructions in all code objects with the
   // global trap handler for this process.

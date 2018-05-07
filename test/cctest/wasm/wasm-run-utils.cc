@@ -117,7 +117,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
-  wasm::WasmCode* code = native_module_->GetCode(index);
+  wasm::WasmCode* code = native_module_->code(index);
 
   Handle<WasmCompiledModule> compiled_module(
       instance_object()->compiled_module(), isolate_);
@@ -167,7 +167,7 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_->functions[table.values[j]];
       int sig_id = test_module_->signature_map.Find(function.sig);
-      auto wasm_code = native_module_->GetCode(function.func_index);
+      auto wasm_code = native_module_->code(function.func_index);
       IndirectFunctionTableEntry(instance, j).set(sig_id, *instance, wasm_code);
     }
   }

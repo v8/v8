@@ -98,7 +98,7 @@ class TestingModuleBuilder {
 
   byte* AddMemory(uint32_t size);
 
-  size_t CodeTableLength() const { return native_module_->FunctionCount(); }
+  size_t CodeTableLength() const { return native_module_->function_count(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
@@ -196,15 +196,19 @@ class TestingModuleBuilder {
     return &test_module_->functions[index];
   }
 
-  WasmInterpreter* interpreter() { return interpreter_; }
-  bool interpret() { return interpreter_ != nullptr; }
-  LowerSimd lower_simd() { return lower_simd_; }
-  Isolate* isolate() { return isolate_; }
-  Handle<WasmInstanceObject> instance_object() { return instance_object_; }
-  wasm::WasmCode* GetFunctionCode(uint32_t index) {
-    return native_module_->GetCode(index);
+  WasmInterpreter* interpreter() const { return interpreter_; }
+  bool interpret() const { return interpreter_ != nullptr; }
+  LowerSimd lower_simd() const { return lower_simd_; }
+  Isolate* isolate() const { return isolate_; }
+  Handle<WasmInstanceObject> instance_object() const {
+    return instance_object_;
   }
-  Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
+  wasm::WasmCode* GetFunctionCode(uint32_t index) const {
+    return native_module_->code(index);
+  }
+  Address globals_start() const {
+    return reinterpret_cast<Address>(globals_data_);
+  }
   void Link() {
     if (!linked_) {
       Handle<WasmCompiledModule> compiled(instance_object()->compiled_module());

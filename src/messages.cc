@@ -650,7 +650,7 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   if (array->IsWasmInterpretedFrame(frame_ix)) {
     code_ = nullptr;
   } else {
-    code_ = wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
+    code_ = wasm_instance_->compiled_module()->GetNativeModule()->code(
         wasm_func_index_);
   }
   offset_ = array->Offset(frame_ix)->value();
