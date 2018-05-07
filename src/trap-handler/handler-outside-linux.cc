@@ -58,7 +58,7 @@ bool RegisterDefaultTrapHandler() {
   if (installed_handler.sa_sigaction != HandleSignal) {
     printf(
         "WARNING: sanitizers are preventing signal handler installation. "
-        "Trap handlers are disabled.");
+        "Trap handlers are disabled.\n");
     return false;
   }
 #endif
