@@ -65,8 +65,13 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 
   // Make the part we care about accessible.
   if (size > 0) {
-    CHECK(SetPermissions(memory, RoundUp(size, kWasmPageSize),
-                         PageAllocator::kReadWrite));
+    bool result = SetPermissions(memory, RoundUp(size, kWasmPageSize),
+                                 PageAllocator::kReadWrite);
+    // SetPermissions commits the extra memory, which may put us over the
+    // process memory limit. If so, report this as an OOM.
+    if (!result) {
+      V8::FatalProcessOutOfMemory(nullptr, "TryAllocateBackingStore");
+    }
   }
 
   memory_tracker->RegisterAllocation(*allocation_base, *allocation_length,
