@@ -3540,6 +3540,7 @@ class TypedElementsAccessor
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
       if (length + offset <= source_ta->length_value()) {
+        DCHECK(length == 0 || !source_ta->WasNeutered());
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }

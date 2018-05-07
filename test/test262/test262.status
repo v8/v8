@@ -85,10 +85,6 @@
   'language/statements/variable/binding-resolution': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],

@@ -565,7 +565,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
     TNode<Context> context, TNode<JSTypedArray> holder,
     TNode<HeapObject> array_like, TNode<Object> initial_length,
     TNode<Smi> element_size, TNode<JSReceiver> buffer_constructor) {
-  Label invalid_length(this), fill(this), fast_copy(this), done(this);
+  Label invalid_length(this, Label::kDeferred), fill(this), fast_copy(this),
+      detached_check(this), done(this), detached_error(this, Label::kDeferred);
 
   // The caller has looked up length on array_like, which is observable.
   TNode<Smi> length = ToSmiLength(initial_length, context, &invalid_length);
@@ -574,10 +575,17 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
               element_size, initialize, buffer_constructor);
 
-  GotoIf(SmiNotEqual(length, SmiConstant(0)), &fill);
-  Goto(&done);
+  GotoIf(IsJSTypedArray(array_like), &detached_check);
+  Goto(&fill);
+
+  BIND(&detached_check);
+  GotoIf(IsDetachedBuffer(
+             LoadObjectField(array_like, JSTypedArray::kBufferOffset)),
+         &detached_error);
+  Goto(&fill);
 
   BIND(&fill);
+  GotoIf(SmiEqual(length, SmiConstant(0)), &done);
   TNode<Int32T> holder_kind = LoadMapElementsKind(LoadMap(holder));
   TNode<Int32T> source_kind = LoadMapElementsKind(LoadMap(array_like));
   GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
@@ -613,6 +621,9 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
                    holder_data_ptr, source_data_ptr, byte_length_intptr);
     Goto(&done);
   }
+
+  BIND(&detached_error);
+  { ThrowTypeError(context, MessageTemplate::kDetachedOperation, "Construct"); }
 
   BIND(&invalid_length);
   {
