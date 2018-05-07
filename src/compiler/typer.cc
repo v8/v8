@@ -40,23 +40,10 @@ Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
       decorator_(nullptr),
       cache_(TypeCache::Get()),
       operation_typer_(isolate, zone()) {
-  Zone* zone = this->zone();
-  Factory* const factory = isolate->factory();
-
-  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
-  falsish_ = Type::Union(
-      Type::Undetectable(),
-      Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
-                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
-                  zone),
-      zone);
-  truish_ = Type::Union(
-      singleton_true_,
-      Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone), zone);
 
-  decorator_ = new (zone) Decorator(this);
+  decorator_ = new (zone()) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
 
@@ -489,13 +476,7 @@ Type Typer::Visitor::ToPrimitive(Type type, Typer* t) {
 }
 
 Type Typer::Visitor::ToBoolean(Type type, Typer* t) {
-  if (type.Is(Type::Boolean())) return type;
-  if (type.Is(t->falsish_)) return t->singleton_false_;
-  if (type.Is(t->truish_)) return t->singleton_true_;
-  if (type.Is(Type::Number())) {
-    return t->operation_typer()->NumberToBoolean(type);
-  }
-  return Type::Boolean();
+  return t->operation_typer()->ToBoolean(type);
 }
 
 

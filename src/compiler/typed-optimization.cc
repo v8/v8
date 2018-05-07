@@ -30,48 +30,6 @@ TypedOptimization::TypedOptimization(Editor* editor,
 TypedOptimization::~TypedOptimization() {}
 
 Reduction TypedOptimization::Reduce(Node* node) {
-  // Check if the output type is a singleton.  In that case we already know the
-  // result value and can simply replace the node if it's eliminable.
-  if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
-      node->op()->HasProperty(Operator::kEliminatable)) {
-    // TODO(v8:5303): We must not eliminate FinishRegion here. This special
-    // case can be removed once we have separate operators for value and
-    // effect regions.
-    if (node->opcode() == IrOpcode::kFinishRegion) return NoChange();
-    // We can only constant-fold nodes here, that are known to not cause any
-    // side-effect, may it be a JavaScript observable side-effect or a possible
-    // eager deoptimization exit (i.e. {node} has an operator that doesn't have
-    // the Operator::kNoDeopt property).
-    Type upper = NodeProperties::GetType(node);
-    if (!upper.IsNone()) {
-      if (upper.IsHeapConstant()) {
-        Node* replacement =
-            jsgraph()->Constant(upper.AsHeapConstant()->Value());
-        ReplaceWithValue(node, replacement);
-        return Changed(replacement);
-      } else if (upper.Is(Type::MinusZero())) {
-        Node* replacement = jsgraph()->Constant(factory()->minus_zero_value());
-        ReplaceWithValue(node, replacement);
-        return Changed(replacement);
-      } else if (upper.Is(Type::NaN())) {
-        Node* replacement = jsgraph()->NaNConstant();
-        ReplaceWithValue(node, replacement);
-        return Changed(replacement);
-      } else if (upper.Is(Type::Null())) {
-        Node* replacement = jsgraph()->NullConstant();
-        ReplaceWithValue(node, replacement);
-        return Changed(replacement);
-      } else if (upper.Is(Type::PlainNumber()) && upper.Min() == upper.Max()) {
-        Node* replacement = jsgraph()->Constant(upper.Min());
-        ReplaceWithValue(node, replacement);
-        return Changed(replacement);
-      } else if (upper.Is(Type::Undefined())) {
-        Node* replacement = jsgraph()->UndefinedConstant();
-        ReplaceWithValue(node, replacement);
-        return Changed(replacement);
-      }
-    }
-  }
   switch (node->opcode()) {
     case IrOpcode::kConvertReceiver:
       return ReduceConvertReceiver(node);

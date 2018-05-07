@@ -21,6 +21,7 @@
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/constant-folding-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/effect-control-linearizer.h"
@@ -61,6 +62,7 @@
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
+#include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -1199,6 +1201,8 @@ struct TypedLoweringPhase {
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
         data->native_context(), temp_zone);
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
+    ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
+                                                    data->jsgraph());
     TypedOptimization typed_optimization(
         &graph_reducer, data->info()->dependencies(), data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
@@ -1208,6 +1212,7 @@ struct TypedLoweringPhase {
                                          temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &create_lowering);
+    AddReducer(data, &graph_reducer, &constant_folding_reducer);
     AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &simple_reducer);
@@ -1426,10 +1431,16 @@ struct LoadEliminationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine(),
                                          temp_zone);
+    ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
+                                                    data->jsgraph());
+    TypeNarrowingReducer type_narrowing_reducer(&graph_reducer,
+                                                data->jsgraph());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
     AddReducer(data, &graph_reducer, &load_elimination);
+    AddReducer(data, &graph_reducer, &type_narrowing_reducer);
+    AddReducer(data, &graph_reducer, &constant_folding_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);

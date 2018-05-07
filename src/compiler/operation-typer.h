@@ -35,10 +35,11 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type ToPrimitive(Type type);
   Type ToNumber(Type type);
   Type ToNumeric(Type type);
+  Type ToBoolean(Type type);
 
   Type WeakenRange(Type current_range, Type previous_range);
 
-// Number unary operators.
+// Unary operators.
 #define DECLARE_METHOD(Name) Type Name(Type type);
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
@@ -102,6 +103,9 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type singleton_the_hole_;
   Type signed32ish_;
   Type unsigned32ish_;
+  Type singleton_empty_string_;
+  Type truish_;
+  Type falsish_;
 };
 
 }  // namespace compiler

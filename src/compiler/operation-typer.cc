@@ -24,6 +24,7 @@ OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
+  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
   singleton_NaN_string_ = Type::HeapConstant(factory->NaN_string(), zone);
   singleton_zero_string_ = Type::HeapConstant(factory->zero_string(), zone);
   singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
@@ -31,6 +32,16 @@ OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
   singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
+
+  falsish_ = Type::Union(
+      Type::Undetectable(),
+      Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
+                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
+                  zone),
+      zone);
+  truish_ = Type::Union(
+      singleton_true_,
+      Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone), zone);
 }
 
 Type OperationTyper::Merge(Type left, Type right) {
@@ -1151,6 +1162,16 @@ Type OperationTyper::ConvertTaggedHoleToUndefined(Type input) {
     return Type::Union(type, Type::Undefined(), zone());
   }
   return input;
+}
+
+Type OperationTyper::ToBoolean(Type type) {
+  if (type.Is(Type::Boolean())) return type;
+  if (type.Is(falsish_)) return singleton_false_;
+  if (type.Is(truish_)) return singleton_true_;
+  if (type.Is(Type::Number())) {
+    return NumberToBoolean(type);
+  }
+  return Type::Boolean();
 }
 
 }  // namespace compiler
