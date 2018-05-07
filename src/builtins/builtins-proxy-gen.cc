@@ -408,6 +408,8 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
+  PerformStackCheck(context);
+
   // 1. Assert: IsPropertyKey(P) is true.
   CSA_ASSERT(this, IsName(name));
   CSA_ASSERT(this, Word32Equal(IsPrivateSymbol(name), Int32Constant(0)));
