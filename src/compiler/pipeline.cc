@@ -125,7 +125,7 @@ class PipelineData {
 
   // For WebAssembly compile entry point.
   PipelineData(ZoneStats* zone_stats, Isolate* isolate,
-               OptimizedCompilationInfo* info, JSGraph* jsgraph,
+               OptimizedCompilationInfo* info, MachineGraph* mcgraph,
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                WasmCompilationData* wasm_compilation_data)
@@ -135,12 +135,11 @@ class PipelineData {
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
-        graph_(jsgraph->graph()),
+        graph_(mcgraph->graph()),
         source_positions_(source_positions),
-        machine_(jsgraph->machine()),
-        common_(jsgraph->common()),
-        javascript_(jsgraph->javascript()),
-        jsgraph_(jsgraph),
+        machine_(mcgraph->machine()),
+        common_(mcgraph->common()),
+        mcgraph_(mcgraph),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, ZONE_NAME),
@@ -224,6 +223,7 @@ class PipelineData {
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   JSGraph* jsgraph() const { return jsgraph_; }
+  MachineGraph* mcgraph() const { return mcgraph_; }
   Handle<Context> native_context() const {
     return handle(info()->native_context(), isolate());
   }
@@ -275,6 +275,7 @@ class PipelineData {
     common_ = nullptr;
     javascript_ = nullptr;
     jsgraph_ = nullptr;
+    mcgraph_ = nullptr;
     schedule_ = nullptr;
   }
 
@@ -389,6 +390,7 @@ class PipelineData {
   CommonOperatorBuilder* common_ = nullptr;
   JSOperatorBuilder* javascript_ = nullptr;
   JSGraph* jsgraph_ = nullptr;
+  MachineGraph* mcgraph_ = nullptr;
   Schedule* schedule_ = nullptr;
 
   // All objects in the following group of fields are allocated in
@@ -671,15 +673,6 @@ class SourcePositionWrapper final : public Reducer {
   DISALLOW_COPY_AND_ASSIGN(SourcePositionWrapper);
 };
 
-
-class JSGraphReducer final : public GraphReducer {
- public:
-  JSGraphReducer(JSGraph* jsgraph, Zone* zone)
-      : GraphReducer(zone, jsgraph->graph(), jsgraph->Dead()) {}
-  ~JSGraphReducer() final {}
-};
-
-
 void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
                 Reducer* reducer) {
   if (data->info()->is_source_positions_enabled()) {
@@ -691,7 +684,6 @@ void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
     graph_reducer->AddReducer(reducer);
   }
 }
-
 
 class PipelineRunScope {
  public:
@@ -895,7 +887,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
 class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
  public:
   explicit PipelineWasmCompilationJob(
-      OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+      OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       WasmCompilationData* wasm_compilation_data, bool asmjs_origin)
       : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), info,
@@ -903,7 +895,7 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             Handle<Script>::null(), info, isolate, &zone_stats_)),
-        data_(&zone_stats_, isolate, info, jsgraph, pipeline_statistics_.get(),
+        data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
               source_positions, wasm_compilation_data),
         pipeline_(&data_),
         linkage_(call_descriptor),
@@ -949,11 +941,12 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   if (FLAG_wasm_opt || asmjs_origin_) {
     PipelineData* data = &data_;
     PipelineRunScope scope(data, "Wasm optimization");
-    JSGraphReducer graph_reducer(data->jsgraph(), scope.zone());
+    GraphReducer graph_reducer(scope.zone(), data->graph(),
+                               data->mcgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), scope.zone());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    MachineOperatorReducer machine_reducer(data->jsgraph(), asmjs_origin_);
+    MachineOperatorReducer machine_reducer(data->mcgraph(), asmjs_origin_);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine(),
                                          scope.zone());
@@ -1099,7 +1092,8 @@ struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);
@@ -1183,7 +1177,8 @@ struct UntyperPhase {
       NodeProperties::RemoveType(node);
     }
 
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     RemoveTypeReducer remove_type_reducer;
     AddReducer(data, &graph_reducer, &remove_type_reducer);
     graph_reducer.ReduceGraph();
@@ -1194,7 +1189,8 @@ struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     JSCreateLowering create_lowering(
@@ -1229,7 +1225,7 @@ struct EscapeAnalysisPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     EscapeAnalysis escape_analysis(data->jsgraph(), temp_zone);
     escape_analysis.ReduceGraph();
-    JSGraphReducer reducer(data->jsgraph(), temp_zone);
+    GraphReducer reducer(temp_zone, data->graph(), data->jsgraph()->Dead());
     EscapeAnalysisReducer escape_reducer(&reducer, data->jsgraph(),
                                          escape_analysis.analysis_result(),
                                          temp_zone);
@@ -1304,7 +1300,8 @@ struct GenericLoweringPhase {
   static const char* phase_name() { return "generic lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     JSGenericLowering generic_lowering(data->jsgraph());
     AddReducer(data, &graph_reducer, &generic_lowering);
     graph_reducer.ReduceGraph();
@@ -1315,7 +1312,8 @@ struct EarlyOptimizationPhase {
   static const char* phase_name() { return "early optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
@@ -1388,7 +1386,8 @@ struct EffectControlLinearizationPhase {
       // Also, the following store-store elimination phase greatly benefits from
       // doing a common operator reducer and dead code elimination just before
       // it, to eliminate conditional deopts with a constant condition.
-      JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+      GraphReducer graph_reducer(temp_zone, data->graph(),
+                                 data->jsgraph()->Dead());
       DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                                 data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -1418,7 +1417,8 @@ struct LoadEliminationPhase {
   static const char* phase_name() { return "load elimination"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -1472,7 +1472,8 @@ struct LateOptimizationPhase {
   static const char* phase_name() { return "late optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
