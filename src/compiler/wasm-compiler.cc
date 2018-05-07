@@ -2503,7 +2503,8 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* function,
 Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
                                       Node*** rets,
                                       wasm::WasmCodePosition position,
-                                      Node* instance_node, bool use_retpoline) {
+                                      Node* instance_node,
+                                      UseRetpoline use_retpoline) {
   if (instance_node == nullptr) {
     DCHECK_NOT_NULL(instance_node_);
     instance_node = instance_node_.get();
@@ -2568,7 +2569,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
         jsgraph()->Int32Constant(index * sizeof(Address)),
         jsgraph()->graph()->start(), jsgraph()->graph()->start());
     args[0] = target_node;
-    return BuildWasmCall(sig, args, rets, position, instance_node);
+    return BuildWasmCall(sig, args, rets, position, instance_node, kRetpoline);
 
   } else {
     // A call to a function in this module.
@@ -2576,7 +2577,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
     Address code = static_cast<Address>(index);
     args[0] = jsgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-    return BuildWasmCall(sig, args, rets, position);
+    return BuildWasmCall(sig, args, rets, position, nullptr, kNoRetpoline);
   }
 }
 
@@ -2654,7 +2655,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
 
   args[0] = target;
 
-  return BuildWasmCall(sig, args, rets, position, target_instance);
+  return BuildWasmCall(sig, args, rets, position, target_instance, kRetpoline);
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
@@ -5208,8 +5209,9 @@ class LinkageLocationAllocator {
 }  // namespace
 
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
-                                      bool use_retpoline) {
+CallDescriptor* GetWasmCallDescriptor(
+    Zone* zone, wasm::FunctionSig* fsig,
+    WasmGraphBuilder::UseRetpoline use_retpoline) {
   // The '+ 1' here is to accomodate the instance object as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
