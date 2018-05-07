@@ -13185,6 +13185,10 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
   CHECK(
       context->Global()->Set(context.local(), v8_str("f3"), func3).FromJust());
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f3()"), true).IsEmpty());
+
+  // Check that using side effect free NewInstance works in normal evaluation
+  // (without throwOnSideEffect).
+  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), false).ToLocalChecked();
 }
 
 TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
