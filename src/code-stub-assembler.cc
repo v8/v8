@@ -1440,6 +1440,12 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(
   return LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset);
 }
 
+TNode<IntPtrT> CodeStubAssembler::LoadFeedbackVectorLength(
+    TNode<FeedbackVector> vector) {
+  return ChangeInt32ToIntPtr(
+      LoadObjectField<Int32T>(vector, FeedbackVector::kLengthOffset));
+}
+
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
     SloppyTNode<WeakFixedArray> array) {
   return LoadAndUntagObjectField(array, WeakFixedArray::kLengthOffset);
@@ -1734,17 +1740,26 @@ TNode<Object> CodeStubAssembler::ToStrongHeapObjectOrSmi(
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
-    SloppyTNode<Object> object, int array_header_size, Node* index_node,
+    SloppyTNode<HeapObject> array, int array_header_size, Node* index_node,
     int additional_offset, ParameterMode parameter_mode,
     LoadSensitivity needs_poisoning) {
   CSA_SLOW_ASSERT(this, IntPtrGreaterThanOrEqual(
                             ParameterToIntPtr(index_node, parameter_mode),
                             IntPtrConstant(0)));
+  DCHECK_EQ(additional_offset % kPointerSize, 0);
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                                  parameter_mode, header_size);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
+  // Check that index_node + additional_offset <= object.length.
+  // TODO(cbruni): Use proper LoadXXLength helpers
+  CSA_SLOW_ASSERT(
+      this,
+      IsOffsetInBounds(
+          offset, LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset),
+          FixedArray::kHeaderSize));
   return UncheckedCast<MaybeObject>(
-      Load(MachineType::AnyTagged(), object, offset, needs_poisoning));
+      Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
 }
 
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
@@ -1969,9 +1984,10 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
 }
 
 void CodeStubAssembler::StoreFixedTypedArrayElementFromTagged(
-    TNode<Context> context, TNode<RawPtrT> data_pointer,
+    TNode<Context> context, TNode<FixedTypedArrayBase> elements,
     TNode<Object> index_node, TNode<Object> value, ElementsKind elements_kind,
     ParameterMode parameter_mode) {
+  TNode<RawPtrT> data_pointer = LoadFixedTypedArrayBackingStore(elements);
   switch (elements_kind) {
     case UINT8_ELEMENTS:
     case UINT8_CLAMPED_ELEMENTS:
@@ -1999,7 +2015,8 @@ void CodeStubAssembler::StoreFixedTypedArrayElementFromTagged(
     case BIGINT64_ELEMENTS: {
       TNode<IntPtrT> offset =
           ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-      EmitBigTypedArrayElementStore(data_pointer, offset, CAST(value));
+      EmitBigTypedArrayElementStore(elements, data_pointer, offset,
+                                    CAST(value));
       break;
     }
     default:
@@ -2016,6 +2033,9 @@ TNode<Object> CodeStubAssembler::LoadFeedbackVectorSlot(
       FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(slot_index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
+  CSA_SLOW_ASSERT(
+      this, IsOffsetInBounds(offset, LoadFeedbackVectorLength(CAST(object)),
+                             FeedbackVector::kHeaderSize));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), object, offset));
 }
 
@@ -2023,14 +2043,23 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
     SloppyTNode<HeapObject> object, int array_header_size, Node* index_node,
     int additional_offset, ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
-  int32_t header_size = array_header_size + additional_offset - kHeapObjectTag;
+  DCHECK_EQ(additional_offset % kPointerSize, 0);
+  int endian_correction = 0;
 #if V8_TARGET_LITTLE_ENDIAN
-  if (Is64()) {
-    header_size += kPointerSize / 2;
-  }
+  if (Is64()) endian_correction = kPointerSize / 2;
 #endif
+  int32_t header_size = array_header_size + additional_offset - kHeapObjectTag +
+                        endian_correction;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
+  // Check that index_node + additional_offset <= object.length.
+  // TODO(cbruni): Use proper LoadXXLength helpers
+  CSA_SLOW_ASSERT(
+      this, IsOffsetInBounds(
+                offset,
+                LoadAndUntagObjectField(object, FixedArrayBase::kLengthOffset),
+                FixedArray::kHeaderSize + endian_correction));
   if (Is64()) {
     return UncheckedCast<Int32T>(Load(MachineType::Int32(), object, offset));
   } else {
@@ -2050,13 +2079,17 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
 Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
     Node* object, Node* index_node, MachineType machine_type,
     int additional_offset, ParameterMode parameter_mode, Label* if_hole) {
-  CSA_SLOW_ASSERT(this, IsFixedDoubleArray(object));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   CSA_ASSERT(this, IsFixedDoubleArray(object));
+  DCHECK_EQ(additional_offset % kPointerSize, 0);
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   int32_t header_size =
       FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_DOUBLE_ELEMENTS,
                                         parameter_mode, header_size);
+  CSA_SLOW_ASSERT(
+      this,
+      IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
+                       FixedDoubleArray::kHeaderSize, HOLEY_DOUBLE_ELEMENTS));
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
 
@@ -2302,11 +2335,18 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
+  DCHECK_EQ(additional_offset % kPointerSize, 0);
   STATIC_ASSERT(FixedArray::kHeaderSize == PropertyArray::kHeaderSize);
   int header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
+  // TODO(cbruni): Enable check once we have TNodes in this method. Currently
+  // the bounds check will fail for PropertyArray due to the different length
+  // encoding.
+  // CSA_ASSERT(this,
+  //         IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
+  //                             FixedArray::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
                                value);
@@ -2322,6 +2362,9 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
   Node* offset =
       ElementOffsetFromIndex(index_node, PACKED_DOUBLE_ELEMENTS, parameter_mode,
                              FixedArray::kHeaderSize - kHeapObjectTag);
+  CSA_ASSERT(this, IsOffsetInBounds(
+                       offset, LoadAndUntagFixedArrayBaseLength(object),
+                       FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));
   MachineRepresentation rep = MachineRepresentation::kFloat64;
   return StoreNoWriteBarrier(rep, object, offset, value);
 }
@@ -2334,12 +2377,17 @@ Node* CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
                                                  ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
+  DCHECK_EQ(additional_offset % kPointerSize, 0);
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
   int header_size =
       FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(slot_index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
+  // Check that slot_index_node <= object.length.
+  CSA_ASSERT(this,
+             IsOffsetInBounds(offset, LoadFeedbackVectorLength(CAST(object)),
+                              FeedbackVector::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
                                value);
@@ -2473,15 +2521,8 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
   } else if (IsDoubleElementsKind(kind)) {
     GotoIfNotNumber(value, bailout);
   }
-  if (IsDoubleElementsKind(kind)) {
-    Node* double_value = ChangeNumberToFloat64(value);
-    StoreFixedDoubleArrayElement(elements, index,
-                                 Float64SilenceNaN(double_value), mode);
-  } else {
-    WriteBarrierMode barrier_mode =
-        IsSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
-    StoreFixedArrayElement(elements, index, value, barrier_mode, 0, mode);
-  }
+  if (IsDoubleElementsKind(kind)) value = ChangeNumberToFloat64(value);
+  StoreElement(elements, kind, index, value, mode);
 }
 
 void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
@@ -8244,6 +8285,18 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
   return IntPtrAdd(IntPtrConstant(base_size), Signed(shifted_index));
 }
 
+TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
+                                                 SloppyTNode<IntPtrT> length,
+                                                 int header_size,
+                                                 ElementsKind kind) {
+  // Make sure we point to the last field.
+  int element_size = 1 << ElementsKindToShiftSize(kind);
+  int correction = header_size - kHeapObjectTag - element_size;
+  TNode<IntPtrT> last_offset =
+      ElementOffsetFromIndex(length, kind, INTPTR_PARAMETERS, correction);
+  return IntPtrLessThanOrEqual(offset, last_offset);
+}
+
 Node* CodeStubAssembler::LoadFeedbackVector(Node* closure) {
   Node* feedback_cell =
       LoadObjectField(closure, JSFunction::kFeedbackCellOffset);
@@ -8505,18 +8558,17 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
                  Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
     }
     Node* offset = ElementOffsetFromIndex(index, kind, mode, 0);
+    // TODO(cbruni): Add OOB check once typed.
     MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
     StoreNoWriteBarrier(rep, elements, offset, value);
     return;
-  }
-
-  WriteBarrierMode barrier_mode =
-      IsSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
-  if (IsDoubleElementsKind(kind)) {
+  } else if (IsDoubleElementsKind(kind)) {
     // Make sure we do not store signalling NaNs into double arrays.
     value = Float64SilenceNaN(value);
     StoreFixedDoubleArrayElement(elements, index, value, mode);
   } else {
+    WriteBarrierMode barrier_mode =
+        IsSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
     StoreFixedArrayElement(elements, index, value, barrier_mode, 0, mode);
   }
 }
@@ -8650,13 +8702,12 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
   TNode<RawPtrT> backing_store = LoadFixedTypedArrayBackingStore(elements);
   TNode<IntPtrT> offset = ElementOffsetFromIndex(intptr_key, BIGINT64_ELEMENTS,
                                                  INTPTR_PARAMETERS, 0);
-
-  EmitBigTypedArrayElementStore(backing_store, offset, bigint_value);
+  EmitBigTypedArrayElementStore(elements, backing_store, offset, bigint_value);
 }
 
 void CodeStubAssembler::EmitBigTypedArrayElementStore(
-    TNode<RawPtrT> backing_store, TNode<IntPtrT> offset,
-    TNode<BigInt> bigint_value) {
+    TNode<FixedTypedArrayBase> elements, TNode<RawPtrT> backing_store,
+    TNode<IntPtrT> offset, TNode<BigInt> bigint_value) {
   TNode<WordT> bitfield = LoadBigIntBitfield(bigint_value);
   TNode<UintPtrT> length = DecodeWord<BigIntBase::LengthBits>(bitfield);
   TNode<UintPtrT> sign = DecodeWord<BigIntBase::SignBits>(bitfield);
@@ -8686,6 +8737,12 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
   var_low = Unsigned(IntPtrSub(IntPtrConstant(0), var_low.value()));
   Goto(&do_store);
   BIND(&do_store);
+
+  // Assert that offset < elements.length. Given that it's an offset for a raw
+  // pointer we correct it by the usual kHeapObjectTag offset.
+  CSA_ASSERT(
+      this, IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(elements),
+                             kHeapObjectTag, BIGINT64_ELEMENTS));
 
   MachineRepresentation rep = WordT::kMachineRepresentation;
 #if defined(V8_TARGET_BIG_ENDIAN)
@@ -9032,7 +9089,7 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list, site);
 
   StoreFeedbackVectorSlot(feedback_vector, slot, site, UPDATE_WRITE_BARRIER, 0,
-                          CodeStubAssembler::SMI_PARAMETERS);
+                          SMI_PARAMETERS);
   return site;
 }
 
@@ -9048,8 +9105,7 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   StoreObjectField(cell, WeakCell::kValueOffset, value);
 
   // Store the WeakCell in the feedback vector.
-  StoreFeedbackVectorSlot(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER, 0,
-                          CodeStubAssembler::INTPTR_PARAMETERS);
+  StoreFeedbackVectorSlot(feedback_vector, slot, cell);
   return cell;
 }
 

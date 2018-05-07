@@ -2462,8 +2462,7 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
     Node* context = GetContext();
     Node* result =
         CallRuntime(Runtime::kCreateTemplateObject, context, description);
-    StoreFeedbackVectorSlot(feedback_vector, slot, result, UPDATE_WRITE_BARRIER,
-                            0, INTPTR_PARAMETERS);
+    StoreFeedbackVectorSlot(feedback_vector, slot, result);
     SetAccumulator(result);
     Dispatch();
   }

@@ -678,7 +678,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load an array element from a FixedArray / WeakFixedArray.
   TNode<MaybeObject> LoadArrayElement(
-      SloppyTNode<Object> object, int array_header_size, Node* index,
+      SloppyTNode<HeapObject> object, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
@@ -746,6 +746,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
+  TNode<IntPtrT> LoadFeedbackVectorLength(TNode<FeedbackVector>);
+
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
@@ -762,12 +764,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFixedBigUint64ArrayElementAsTagged(Node* data_pointer,
                                                Node* offset);
 
-  void StoreFixedTypedArrayElementFromTagged(TNode<Context> context,
-                                             TNode<RawPtrT> data_pointer,
-                                             TNode<Object> index_node,
-                                             TNode<Object> value,
-                                             ElementsKind elements_kind,
-                                             ParameterMode parameter_mode);
+  void StoreFixedTypedArrayElementFromTagged(
+      TNode<Context> context, TNode<FixedTypedArrayBase> elements,
+      TNode<Object> index_node, TNode<Object> value, ElementsKind elements_kind,
+      ParameterMode parameter_mode);
 
   // Context manipulation
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
@@ -2046,7 +2046,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                      TNode<Context> context,
                                      Label* opt_if_neutered);
   // Part of the above, refactored out to reuse in another place
-  void EmitBigTypedArrayElementStore(TNode<RawPtrT> backing_store,
+  void EmitBigTypedArrayElementStore(TNode<FixedTypedArrayBase> elements,
+                                     TNode<RawPtrT> backing_store,
                                      TNode<IntPtrT> offset,
                                      TNode<BigInt> bigint_value);
 
@@ -2219,6 +2220,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);
+
+  // Check that a field offset is within the bounds of the an object.
+  TNode<BoolT> IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
+                                SloppyTNode<IntPtrT> length, int header_size,
+                                ElementsKind kind = HOLEY_ELEMENTS);
 
   // Load a builtin's code from the builtin array in the isolate.
   TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);

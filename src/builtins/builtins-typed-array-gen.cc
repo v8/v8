@@ -883,12 +883,12 @@ TF_BUILTIN(TypedArrayStoreElementFromTagged, TypedArrayBuiltinsAssembler) {
   TNode<Smi> index_node = CAST(Parameter(Descriptor::kIndex));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
 
-  TNode<RawPtrT> data_pointer = UncheckedCast<RawPtrT>(LoadDataPtr(array));
+  TNode<FixedTypedArrayBase> elements = CAST(LoadElements(array));
   TNode<Int32T> elements_kind = SmiToInt32(kind);
 
   DispatchTypedArrayByElementsKind(
       elements_kind, [&](ElementsKind el_kind, int, int) {
-        StoreFixedTypedArrayElementFromTagged(context, data_pointer, index_node,
+        StoreFixedTypedArrayElementFromTagged(context, elements, index_node,
                                               value, el_kind, SMI_PARAMETERS);
       });
   Return(UndefinedConstant());
