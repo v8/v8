@@ -1996,6 +1996,8 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
+  TraceSchedule(data.info(), data.isolate(), data.schedule());
+
   pipeline.Run<VerifyGraphPhase>(false, true);
   return pipeline.GenerateCode(call_descriptor);
 }
