@@ -518,10 +518,6 @@ class NativeObjectsExplorer {
       return info1 == info2 || info1->IsEquivalent(info2);
     }
   };
-  INLINE(static bool StringsMatch(void* key1, void* key2)) {
-    return strcmp(reinterpret_cast<char*>(key1),
-                  reinterpret_cast<char*>(key2)) == 0;
-  }
 
   NativeGroupRetainedObjectInfo* FindOrAddGroupInfo(const char* label);
 
@@ -535,7 +531,9 @@ class NativeObjectsExplorer {
   std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject*>*,
                      RetainedInfoHasher, RetainedInfoEquals>
       objects_by_info_;
-  base::CustomMatcherHashMap native_groups_;
+  std::unordered_map<const char*, NativeGroupRetainedObjectInfo*,
+                     SeededStringHasher, StringEquals>
+      native_groups_;
   std::unique_ptr<HeapEntriesAllocator> synthetic_entries_allocator_;
   std::unique_ptr<HeapEntriesAllocator> native_entries_allocator_;
   std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;

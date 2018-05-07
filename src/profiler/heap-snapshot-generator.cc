@@ -2141,13 +2141,38 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
       static_cast<int>(size), 0);
 }
 
+class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
+ public:
+  explicit NativeGroupRetainedObjectInfo(const char* label)
+      : disposed_(false),
+        hash_(reinterpret_cast<intptr_t>(label)),
+        label_(label) {}
+
+  virtual ~NativeGroupRetainedObjectInfo() {}
+  virtual void Dispose() {
+    CHECK(!disposed_);
+    disposed_ = true;
+    delete this;
+  }
+  virtual bool IsEquivalent(RetainedObjectInfo* other) {
+    return hash_ == other->GetHash() && !strcmp(label_, other->GetLabel());
+  }
+  virtual intptr_t GetHash() { return hash_; }
+  virtual const char* GetLabel() { return label_; }
+
+ private:
+  bool disposed_;
+  intptr_t hash_;
+  const char* label_;
+};
+
 NativeObjectsExplorer::NativeObjectsExplorer(
     HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress)
     : isolate_(snapshot->profiler()->heap_object_map()->heap()->isolate()),
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
       embedder_queried_(false),
-      native_groups_(StringsMatch),
+      native_groups_(0, SeededStringHasher(isolate_->heap()->HashSeed())),
       synthetic_entries_allocator_(
           new BasicHeapEntriesAllocator(snapshot, HeapEntry::kSynthetic)),
       native_entries_allocator_(
@@ -2163,10 +2188,8 @@ NativeObjectsExplorer::~NativeObjectsExplorer() {
     std::vector<HeapObject*>* objects = map_entry.second;
     delete objects;
   }
-  for (base::HashMap::Entry* p = native_groups_.Start(); p != nullptr;
-       p = native_groups_.Next(p)) {
-    v8::RetainedObjectInfo* info =
-        reinterpret_cast<v8::RetainedObjectInfo*>(p->value);
+  for (auto map_entry : native_groups_) {
+    NativeGroupRetainedObjectInfo* info = map_entry.second;
     info->Dispose();
   }
 }
@@ -2319,49 +2342,15 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   return true;
 }
 
-
-class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
- public:
-  explicit NativeGroupRetainedObjectInfo(const char* label)
-      : disposed_(false),
-        hash_(reinterpret_cast<intptr_t>(label)),
-        label_(label) {
-  }
-
-  virtual ~NativeGroupRetainedObjectInfo() {}
-  virtual void Dispose() {
-    CHECK(!disposed_);
-    disposed_ = true;
-    delete this;
-  }
-  virtual bool IsEquivalent(RetainedObjectInfo* other) {
-    return hash_ == other->GetHash() && !strcmp(label_, other->GetLabel());
-  }
-  virtual intptr_t GetHash() { return hash_; }
-  virtual const char* GetLabel() { return label_; }
-
- private:
-  bool disposed_;
-  intptr_t hash_;
-  const char* label_;
-};
-
-
 NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
     const char* label) {
   const char* label_copy = names_->GetCopy(label);
-  uint32_t hash = StringHasher::HashSequentialString(
-      label_copy,
-      static_cast<int>(strlen(label_copy)),
-      isolate_->heap()->HashSeed());
-  base::HashMap::Entry* entry =
-      native_groups_.LookupOrInsert(const_cast<char*>(label_copy), hash);
-  if (entry->value == nullptr) {
-    entry->value = new NativeGroupRetainedObjectInfo(label);
+  auto map_entry = native_groups_.find(label_copy);
+  if (map_entry == native_groups_.end()) {
+    native_groups_[label_copy] = new NativeGroupRetainedObjectInfo(label);
   }
-  return static_cast<NativeGroupRetainedObjectInfo*>(entry->value);
+  return native_groups_[label_copy];
 }
-
 
 void NativeObjectsExplorer::SetNativeRootReference(
     v8::RetainedObjectInfo* info) {
@@ -2398,10 +2387,8 @@ void NativeObjectsExplorer::SetWrapperNativeReferences(
 
 
 void NativeObjectsExplorer::SetRootNativeRootsReference() {
-  for (base::HashMap::Entry* entry = native_groups_.Start(); entry;
-       entry = native_groups_.Next(entry)) {
-    NativeGroupRetainedObjectInfo* group_info =
-        static_cast<NativeGroupRetainedObjectInfo*>(entry->value);
+  for (auto map_entry : native_groups_) {
+    NativeGroupRetainedObjectInfo* group_info = map_entry.second;
     HeapEntry* group_entry =
         filler_->FindOrAddEntry(group_info, native_entries_allocator_.get());
     DCHECK_NOT_NULL(group_entry);

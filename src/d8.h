@@ -14,6 +14,7 @@
 
 #include "src/allocation.h"
 #include "src/base/platform/time.h"
+#include "src/string-hasher.h"
 #include "src/utils.h"
 
 #include "src/base/once.h"
@@ -56,7 +57,7 @@ class CounterCollection {
   Counter counters_[kMaxCounters];
 };
 
-struct StringHasher {
+struct CStringHasher {
   std::size_t operator()(const char* name) const {
     size_t h = 0;
     size_t c;
@@ -68,13 +69,8 @@ struct StringHasher {
   }
 };
 
-struct StringEquals {
-  bool operator()(const char* name1, const char* name2) const {
-    return strcmp(name1, name2) == 0;
-  }
-};
-
-typedef std::unordered_map<const char*, Counter*, StringHasher, StringEquals>
+typedef std::unordered_map<const char*, Counter*, CStringHasher,
+                           i::StringEquals>
     CounterMap;
 
 class SourceGroup {
