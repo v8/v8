@@ -1284,8 +1284,14 @@ struct ConcurrentOptimizationPrepPhase {
     data->jsgraph()->ArrayConstructorStubConstant();
 
     // This is needed for escape analysis.
-    NodeProperties::SetType(data->jsgraph()->FalseConstant(), Type::Boolean());
-    NodeProperties::SetType(data->jsgraph()->TrueConstant(), Type::Boolean());
+    NodeProperties::SetType(
+        data->jsgraph()->FalseConstant(),
+        Type::HeapConstant(data->isolate()->factory()->false_value(),
+                           data->jsgraph()->zone()));
+    NodeProperties::SetType(
+        data->jsgraph()->TrueConstant(),
+        Type::HeapConstant(data->isolate()->factory()->true_value(),
+                           data->jsgraph()->zone()));
   }
 };
 
