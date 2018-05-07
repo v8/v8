@@ -284,6 +284,69 @@ void StringBuiltinsAssembler::StringEqual_Loop(
   }
 }
 
+void StringBuiltinsAssembler::Generate_StringAdd(StringAddFlags flags,
+                                                 PretenureFlag pretenure_flag,
+                                                 Node* context, Node* left,
+                                                 Node* right) {
+  switch (flags) {
+    case STRING_ADD_CONVERT_LEFT: {
+      // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+      // combined to avoid duplicate smi and instance type checks.
+      left = ToString(context, JSReceiverToPrimitive(context, left));
+      Callable callable = CodeFactory::StringAdd(
+          isolate(), STRING_ADD_CHECK_NONE, pretenure_flag);
+      TailCallStub(callable, context, left, right);
+      break;
+    }
+    case STRING_ADD_CONVERT_RIGHT: {
+      // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+      // combined to avoid duplicate smi and instance type checks.
+      right = ToString(context, JSReceiverToPrimitive(context, right));
+      Callable callable = CodeFactory::StringAdd(
+          isolate(), STRING_ADD_CHECK_NONE, pretenure_flag);
+      TailCallStub(callable, context, left, right);
+      break;
+    }
+    case STRING_ADD_CHECK_NONE: {
+      CodeStubAssembler::AllocationFlag allocation_flags =
+          (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
+                                      : CodeStubAssembler::kNone;
+      Return(StringAdd(context, CAST(left), CAST(right), allocation_flags));
+      break;
+    }
+  }
+}
+
+TF_BUILTIN(StringAdd_CheckNone_NotTenured, StringBuiltinsAssembler) {
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* context = Parameter(Descriptor::kContext);
+  Generate_StringAdd(STRING_ADD_CHECK_NONE, NOT_TENURED, context, left, right);
+}
+
+TF_BUILTIN(StringAdd_CheckNone_Tenured, StringBuiltinsAssembler) {
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* context = Parameter(Descriptor::kContext);
+  Generate_StringAdd(STRING_ADD_CHECK_NONE, TENURED, context, left, right);
+}
+
+TF_BUILTIN(StringAdd_ConvertLeft_NotTenured, StringBuiltinsAssembler) {
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* context = Parameter(Descriptor::kContext);
+  Generate_StringAdd(STRING_ADD_CONVERT_LEFT, NOT_TENURED, context, left,
+                     right);
+}
+
+TF_BUILTIN(StringAdd_ConvertRight_NotTenured, StringBuiltinsAssembler) {
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* context = Parameter(Descriptor::kContext);
+  Generate_StringAdd(STRING_ADD_CONVERT_RIGHT, NOT_TENURED, context, left,
+                     right);
+}
+
 void StringBuiltinsAssembler::GenerateStringAt(char const* method_name,
                                                TNode<Context> context,
                                                Node* receiver,

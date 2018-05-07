@@ -491,7 +491,7 @@ class WasmGraphBuilder {
   void SetNeedsStackCheck() { needs_stack_check_ = true; }
 
   //-----------------------------------------------------------------------
-  // Operations involving the CEntryStub, a dependency we want to remove
+  // Operations involving the CEntry, a dependency we want to remove
   // to get off the GC heap.
   //-----------------------------------------------------------------------
   Node* BuildCallToRuntime(Runtime::FunctionId f, Node** parameters,

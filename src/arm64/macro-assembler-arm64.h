@@ -183,10 +183,10 @@ class TurboAssembler : public Assembler {
                  CodeObjectRequired create_code_object);
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
-  // mechanism depends on CEntryStub. If use_real_aborts is false, Abort will
-  // use a simpler abort mechanism that doesn't depend on CEntryStub.
+  // mechanism depends on CEntry. If use_real_aborts is false, Abort will
+  // use a simpler abort mechanism that doesn't depend on CEntry.
   //
-  // The purpose of this is to allow Aborts to be compiled whilst CEntryStub is
+  // The purpose of this is to allow Aborts to be compiled whilst CEntry is
   // being generated.
   bool use_real_aborts() const { return use_real_aborts_; }
 
@@ -571,6 +571,7 @@ class TurboAssembler : public Assembler {
 
   bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 

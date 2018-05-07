@@ -2600,10 +2600,6 @@ void Heap::CreateFixedStubs() {
   // we cannot create stubs while we are creating stubs.
   CodeStub::GenerateStubsAheadOfTime(isolate());
 
-  // MacroAssembler::Abort calls (usually enabled with --debug-code) depend on
-  // CEntryStub, so we need to call GenerateStubsAheadOfTime before JSEntryStub
-  // is created.
-
   // gcc-4.4 has problem generating correct code of following snippet:
   // {  JSEntryStub stub;
   //    js_entry_code_ = *stub.GetCode();

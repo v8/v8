@@ -362,7 +362,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 //                        #0          #1     #2     [...]             #n
 // Call[CodeStub]         code,       arg 1, arg 2, [...],            context
 // Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
-// Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
+// Call[Runtime]          CEntry,     arg 1, arg 2, [...], fun, #arg, context
 // Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:

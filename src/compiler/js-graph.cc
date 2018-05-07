@@ -4,7 +4,7 @@
 
 #include "src/compiler/js-graph.h"
 
-#include "src/code-stubs.h"
+#include "src/code-factory.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
 #include "src/objects-inl.h"
@@ -50,22 +50,19 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
         DCHECK_EQ(3, result_size);
         key = kCEntryStub3Constant;
       }
-      return CACHED(
-          key, HeapConstant(CEntryStub(isolate(), result_size, save_doubles,
-                                       argv_mode, builtin_exit_frame)
-                                .GetCode()));
+      return CACHED(key, HeapConstant(CodeFactory::CEntry(
+                             isolate(), result_size, save_doubles, argv_mode,
+                             builtin_exit_frame)));
     }
     CachedNode key = builtin_exit_frame
                          ? kCEntryStub1WithBuiltinExitFrameConstant
                          : kCEntryStub1Constant;
-    return CACHED(key,
-                  HeapConstant(CEntryStub(isolate(), result_size, save_doubles,
-                                          argv_mode, builtin_exit_frame)
-                                   .GetCode()));
+    return CACHED(key, HeapConstant(CodeFactory::CEntry(isolate(), result_size,
+                                                        save_doubles, argv_mode,
+                                                        builtin_exit_frame)));
   }
-  CEntryStub stub(isolate(), result_size, save_doubles, argv_mode,
-                  builtin_exit_frame);
-  return HeapConstant(stub.GetCode());
+  return HeapConstant(CodeFactory::CEntry(isolate(), result_size, save_doubles,
+                                          argv_mode, builtin_exit_frame));
 }
 
 Node* JSGraph::EmptyFixedArrayConstant() {

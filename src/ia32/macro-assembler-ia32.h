@@ -114,6 +114,7 @@ class TurboAssembler : public Assembler {
 
   void Move(Register dst, Handle<HeapObject> handle);
 
+  void Call(Register reg) { call(reg); }
   void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
   void Call(Label* target) { call(target); }
 
@@ -129,6 +130,7 @@ class TurboAssembler : public Assembler {
   inline bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);
 
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 

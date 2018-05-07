@@ -31,7 +31,6 @@ class Node;
   V(ArrayConstructor)                       \
   V(CallApiCallback)                        \
   V(CallApiGetter)                          \
-  V(CEntry)                                 \
   V(InternalArrayConstructor)               \
   V(JSEntry)                                \
   V(ProfileEntryHook)                       \
@@ -46,8 +45,6 @@ class Node;
   V(ElementsTransitionAndStore)             \
   V(KeyedLoadSloppyArguments)               \
   V(KeyedStoreSloppyArguments)              \
-  V(StringAdd)                              \
-  V(GetProperty)                            \
   V(StoreFastElement)                       \
   V(StoreInterceptor)                       \
   V(TransitionElementsKind)                 \
@@ -136,7 +133,6 @@ class CodeStub : public ZoneObject {
   virtual ~CodeStub() {}
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
-  static void GenerateFPStubs(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
@@ -189,6 +185,8 @@ class CodeStub : public ZoneObject {
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
+  // TODO(jgruber): Only required by DirectCEntryStub. Can be removed when/if
+  // that is ported to a builtin.
   virtual Movability NeedsImmovableCode() { return kMovable; }
 
   virtual void PrintName(std::ostream& os) const;        // NOLINT
@@ -482,16 +480,6 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
 };
 
-// ES6 [[Get]] operation.
-// TODO(jgruber): Convert this stub into a builtin.
-class GetPropertyStub : public TurboFanCodeStub {
- public:
-  explicit GetPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(GetProperty);
-  DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
-};
-
 enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,
   DISABLE_ALLOCATION_SITES,
@@ -578,71 +566,6 @@ class CallApiGetterStub : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiGetter);
   DEFINE_PLATFORM_CODE_STUB(CallApiGetter, PlatformCodeStub);
-};
-
-
-class StringAddStub final : public TurboFanCodeStub {
- public:
-  StringAddStub(Isolate* isolate, StringAddFlags flags,
-                PretenureFlag pretenure_flag)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = (StringAddFlagsBits::encode(flags) |
-                  PretenureFlagBits::encode(pretenure_flag));
-  }
-
-  StringAddFlags flags() const {
-    return StringAddFlagsBits::decode(minor_key_);
-  }
-
-  PretenureFlag pretenure_flag() const {
-    return PretenureFlagBits::decode(minor_key_);
-  }
-
- private:
-  class StringAddFlagsBits : public BitField<StringAddFlags, 0, 3> {};
-  class PretenureFlagBits : public BitField<PretenureFlag, 3, 1> {};
-
-  void PrintBaseName(std::ostream& os) const override;  // NOLINT
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
-  DEFINE_TURBOFAN_CODE_STUB(StringAdd, TurboFanCodeStub);
-};
-
-
-class CEntryStub : public PlatformCodeStub {
- public:
-  CEntryStub(Isolate* isolate, int result_size,
-             SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-             ArgvMode argv_mode = kArgvOnStack, bool builtin_exit_frame = false)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = SaveDoublesBits::encode(save_doubles == kSaveFPRegs) |
-                 FrameTypeBits::encode(builtin_exit_frame) |
-                 ArgvMode::encode(argv_mode == kArgvInRegister);
-    DCHECK(result_size == 1 || result_size == 2);
-    minor_key_ = ResultSizeBits::update(minor_key_, result_size);
-  }
-
-  // The version of this stub that doesn't save doubles is generated ahead of
-  // time, so it's OK to call it from other stubs that can't cope with GC during
-  // their code generation.  On machines that always have gp registers (x64) we
-  // can generate both variants ahead of time.
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
-  bool argv_in_register() const { return ArgvMode::decode(minor_key_); }
-  bool is_builtin_exit() const { return FrameTypeBits::decode(minor_key_); }
-  int result_size() const { return ResultSizeBits::decode(minor_key_); }
-
-  Movability NeedsImmovableCode() override;
-
-  class SaveDoublesBits : public BitField<bool, 0, 1> {};
-  class ArgvMode : public BitField<bool, 1, 1> {};
-  class FrameTypeBits : public BitField<bool, 2, 1> {};
-  class ResultSizeBits : public BitField<int, 3, 3> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(CEntry, PlatformCodeStub);
 };
 
 class JSEntryStub : public PlatformCodeStub {

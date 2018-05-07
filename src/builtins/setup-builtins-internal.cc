@@ -50,7 +50,10 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
   DCHECK(!masm.has_frame());
   {
     FrameScope scope(&masm, StackFrame::NONE);
-    masm.CallRuntime(Runtime::kSystemBreak);
+    // The contents of placeholder don't matter, as long as they don't create
+    // embedded constants or external references.
+    masm.Move(kJavaScriptCallCodeStartRegister, Smi::kZero);
+    masm.Call(kJavaScriptCallCodeStartRegister);
   }
   CodeDesc desc;
   masm.GetCode(isolate, &desc);

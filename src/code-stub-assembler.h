@@ -1867,7 +1867,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             SloppyTNode<Object> receiver,
                             SloppyTNode<Object> name) {
     return UncheckedCast<Object>(
-        CallStub(CodeFactory::GetProperty(isolate()), context, receiver, name));
+        CallStub(Builtins::CallableFor(isolate(), Builtins::kGetProperty),
+                 context, receiver, name));
   }
 
   Node* GetMethod(Node* context, Node* object, Handle<Name> name,

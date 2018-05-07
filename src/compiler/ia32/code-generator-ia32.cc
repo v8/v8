@@ -3587,9 +3587,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 // |                                                       |  caller frame |
 //                                                         ^ esp           ^ ebp
 
-
 // Runtime function calls are accomplished by doing a stub call to the
-// CEntryStub (a real code object). On IA32 passes arguments on the
+// CEntry (a real code object). On IA32 passes arguments on the
 // stack, the number of arguments in EAX, the address of the runtime function
 // in EBX, and the context in ESI.
 
@@ -3602,7 +3601,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 //                                       ^ esp                             ^ ebp
 //              [eax = #args, ebx = runtime function, esi = context]
 
-// --{ call #CEntryStub }-------------------------------------------------------
+// --{ call #CEntry }-----------------------------------------------------------
 //                                 | RET | args + receiver |  caller frame |
 //                                 ^ esp                                   ^ ebp
 

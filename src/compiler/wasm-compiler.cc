@@ -4660,8 +4660,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   // TODO(titzer): compile JS to WASM wrappers without a {ModuleEnv}.
   wasm::ModuleEnv env(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
 
-  WasmGraphBuilder builder(&env, &zone, &jsgraph,
-                           CEntryStub(isolate, 1).GetCode(),
+  WasmGraphBuilder builder(&env, &zone, &jsgraph, CodeFactory::CEntry(isolate),
                            isolate->factory()->null_value(), func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -4768,9 +4767,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   wasm::ModuleEnv env(nullptr, use_trap_handler,
                       wasm::kRuntimeExceptionSupport);
 
-  WasmGraphBuilder builder(
-      &env, &zone, &jsgraph, CEntryStub(isolate, 1).GetCode(),
-      isolate->factory()->null_value(), sig, source_position_table);
+  WasmGraphBuilder builder(&env, &zone, &jsgraph, CodeFactory::CEntry(isolate),
+                           isolate->factory()->null_value(), sig,
+                           source_position_table);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmToJSWrapper(target, index);
@@ -4834,7 +4833,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   Node* effect = nullptr;
 
   WasmGraphBuilder builder(nullptr, &zone, &jsgraph,
-                           CEntryStub(isolate, 1).GetCode(),
+                           CodeFactory::CEntry(isolate),
                            isolate->factory()->null_value(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -4896,7 +4895,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* effect = nullptr;
 
   WasmGraphBuilder builder(nullptr, &zone, &jsgraph,
-                           CEntryStub(isolate, 1).GetCode(),
+                           CodeFactory::CEntry(isolate),
                            isolate->factory()->null_value(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);

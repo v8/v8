@@ -256,44 +256,6 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
   return scope.CloseAndEscape(code);
 }
 
-
-void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << "StringAddStub_" << flags() << "_" << pretenure_flag();
-}
-
-TF_STUB(StringAddStub, CodeStubAssembler) {
-  StringAddFlags flags = stub->flags();
-  PretenureFlag pretenure_flag = stub->pretenure_flag();
-
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
-  Node* context = Parameter(Descriptor::kContext);
-
-  if ((flags & STRING_ADD_CHECK_LEFT) != 0) {
-    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
-    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-    // combined to avoid duplicate smi and instance type checks.
-    left = ToString(context, JSReceiverToPrimitive(context, left));
-  }
-  if ((flags & STRING_ADD_CHECK_RIGHT) != 0) {
-    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
-    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-    // combined to avoid duplicate smi and instance type checks.
-    right = ToString(context, JSReceiverToPrimitive(context, right));
-  }
-
-  if ((flags & STRING_ADD_CHECK_BOTH) == 0) {
-    CodeStubAssembler::AllocationFlag allocation_flags =
-        (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
-                                    : CodeStubAssembler::kNone;
-    Return(StringAdd(context, CAST(left), CAST(right), allocation_flags));
-  } else {
-    Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
-                                               pretenure_flag);
-    TailCallStub(callable, context, left, right);
-  }
-}
-
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
@@ -436,61 +398,6 @@ int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
   int handler_table_offset = HandlerTable::EmitReturnTableStart(masm, 1);
   HandlerTable::EmitReturnEntry(masm, 0, handler_offset_);
   return handler_table_offset;
-}
-
-
-// TODO(ishell): move to builtins.
-TF_STUB(GetPropertyStub, CodeStubAssembler) {
-  Label call_runtime(this, Label::kDeferred), return_undefined(this), end(this);
-
-  Node* object = Parameter(Descriptor::kObject);
-  Node* key = Parameter(Descriptor::kKey);
-  Node* context = Parameter(Descriptor::kContext);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
-      [=, &var_result, &end](Node* receiver, Node* holder, Node* holder_map,
-                             Node* holder_instance_type, Node* unique_name,
-                             Label* next_holder, Label* if_bailout) {
-        VARIABLE(var_value, MachineRepresentation::kTagged);
-        Label if_found(this);
-        TryGetOwnProperty(context, receiver, holder, holder_map,
-                          holder_instance_type, unique_name, &if_found,
-                          &var_value, next_holder, if_bailout);
-        BIND(&if_found);
-        {
-          var_result.Bind(var_value.value());
-          Goto(&end);
-        }
-      };
-
-  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
-      [=](Node* receiver, Node* holder, Node* holder_map,
-          Node* holder_instance_type, Node* index, Label* next_holder,
-          Label* if_bailout) {
-        // Not supported yet.
-        Use(next_holder);
-        Goto(if_bailout);
-      };
-
-  TryPrototypeChainLookup(object, key, lookup_property_in_holder,
-                          lookup_element_in_holder, &return_undefined,
-                          &call_runtime);
-
-  BIND(&return_undefined);
-  {
-    var_result.Bind(UndefinedConstant());
-    Goto(&end);
-  }
-
-  BIND(&call_runtime);
-  {
-    var_result.Bind(CallRuntime(Runtime::kGetProperty, context, object, key));
-    Goto(&end);
-  }
-
-  BIND(&end);
-  Return(var_result.value());
 }
 
 // TODO(ishell): move to builtins-handler-gen.

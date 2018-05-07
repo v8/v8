@@ -405,6 +405,7 @@ class TurboAssembler : public Assembler {
   void CallCFunction(Register function, int num_reg_arguments,
                      int num_double_arguments);
 
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void MovFromFloatParameter(DoubleRegister dst);

@@ -336,7 +336,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // just innermost catching try block).
   Object* wasm_caught_exception_ = nullptr;
 
-  // Communication channel between Isolate::FindHandler and the CEntryStub.
+  // Communication channel between Isolate::FindHandler and the CEntry.
   Context* pending_handler_context_;
   Address pending_handler_entrypoint_;
   Address pending_handler_constant_pool_;

@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/assembler-inl.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
@@ -60,7 +61,7 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
   // ordinary functions).
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
-  // CEntryStub expects r0 to contain the number of arguments including the
+  // CEntry expects r0 to contain the number of arguments including the
   // receiver and the extra arguments.
   __ add(r0, r0, Operand(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
@@ -74,9 +75,10 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
   // JumpToExternalReference. We have already loaded entry point to r5
   // in Generate_adaptor.
   __ mov(r1, r5);
-  CEntryStub stub(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                  exit_frame_type == Builtins::BUILTIN_EXIT);
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Handle<Code> code =
+      CodeFactory::CEntry(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                          exit_frame_type == Builtins::BUILTIN_EXIT);
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 }  // namespace
 
@@ -2581,7 +2583,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
     // Pass the WASM instance as an explicit argument to WasmCompileLazy.
     __ push(kWasmInstanceRegister);
-    // Initialize the JavaScript context with 0. CEntryStub will use it to
+    // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
@@ -2596,6 +2598,165 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   }
   // Finally, jump to the entrypoint.
   __ Jump(r8);
+}
+
+void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
+                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
+                               bool builtin_exit_frame) {
+  // Called from JavaScript; parameters are on stack as if calling JS function.
+  // r0: number of arguments including receiver
+  // r1: pointer to builtin function
+  // fp: frame pointer  (restored after C call)
+  // sp: stack pointer  (restored as callee's sp after C call)
+  // cp: current context  (C callee-saved)
+  //
+  // If argv_mode == kArgvInRegister:
+  // r2: pointer to the first argument
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
+  __ mov(r5, Operand(r1));
+
+  if (argv_mode == kArgvInRegister) {
+    // Move argv into the correct register.
+    __ mov(r1, Operand(r2));
+  } else {
+    // Compute the argv pointer in a callee-saved register.
+    __ add(r1, sp, Operand(r0, LSL, kPointerSizeLog2));
+    __ sub(r1, r1, Operand(kPointerSize));
+  }
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(
+      save_doubles == kSaveFPRegs, 0,
+      builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
+
+  // Store a copy of argc in callee-saved registers for later.
+  __ mov(r4, Operand(r0));
+
+// r0, r4: number of arguments including receiver  (C callee-saved)
+// r1: pointer to the first argument (C callee-saved)
+// r5: pointer to builtin function  (C callee-saved)
+
+#if V8_HOST_ARCH_ARM
+  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+  if (FLAG_debug_code) {
+    if (frame_alignment > kPointerSize) {
+      Label alignment_as_expected;
+      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
+      __ tst(sp, Operand(frame_alignment_mask));
+      __ b(eq, &alignment_as_expected);
+      // Don't use Check here, as it will call Runtime_Abort re-entering here.
+      __ stop("Unexpected alignment");
+      __ bind(&alignment_as_expected);
+    }
+  }
+#endif
+
+  // Call C built-in.
+  // r0 = argc, r1 = argv, r2 = isolate
+  __ Move(r2, ExternalReference::isolate_address(masm->isolate()));
+
+  // To let the GC traverse the return address of the exit frames, we need to
+  // know where the return address is. CEntry is unmovable, so
+  // we can store the address on the stack to be able to find it again and
+  // we never have to restore it, because it will not change.
+  // Compute the return address in lr to return to after the jump below. Pc is
+  // already at '+ 8' from the current instruction but return is after three
+  // instructions so add another 4 to pc to get the return address.
+  {
+    // Prevent literal pool emission before return address.
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ add(lr, pc, Operand(4));
+    __ str(lr, MemOperand(sp));
+    __ Call(r5);
+  }
+
+  // Result returned in r0 or r1:r0 - do not destroy these registers!
+
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ CompareRoot(r0, Heap::kExceptionRootIndex);
+  __ b(eq, &exception_returned);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned the exception sentinel.
+  if (FLAG_debug_code) {
+    Label okay;
+    ExternalReference pending_exception_address = ExternalReference::Create(
+        IsolateAddressId::kPendingExceptionAddress, masm->isolate());
+    __ Move(r3, pending_exception_address);
+    __ ldr(r3, MemOperand(r3));
+    __ CompareRoot(r3, Heap::kTheHoleValueRootIndex);
+    // Cannot use check here as it attempts to generate call into runtime.
+    __ b(eq, &okay);
+    __ stop("Unexpected pending exception");
+    __ bind(&okay);
+  }
+
+  // Exit C frame and return.
+  // r0:r1: result
+  // sp: stack pointer
+  // fp: frame pointer
+  Register argc = argv_mode == kArgvInRegister
+                      // We don't want to pop arguments so set argc to no_reg.
+                      ? no_reg
+                      // Callee-saved register r4 still holds argc.
+                      : r4;
+  __ LeaveExitFrame(save_doubles == kSaveFPRegs, argc);
+  __ mov(pc, lr);
+
+  // Handling of exception.
+  __ bind(&exception_returned);
+
+  ExternalReference pending_handler_context_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
+  ExternalReference pending_handler_entrypoint_address =
+      ExternalReference::Create(
+          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
+  ExternalReference pending_handler_fp_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
+  ExternalReference pending_handler_sp_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
+
+  // Ask the runtime for help to determine the handler. This will set r0 to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler =
+      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(3, 0);
+    __ mov(r0, Operand(0));
+    __ mov(r1, Operand(0));
+    __ Move(r2, ExternalReference::isolate_address(masm->isolate()));
+    __ CallCFunction(find_handler, 3);
+  }
+
+  // Retrieve the handler context, SP and FP.
+  __ Move(cp, pending_handler_context_address);
+  __ ldr(cp, MemOperand(cp));
+  __ Move(sp, pending_handler_sp_address);
+  __ ldr(sp, MemOperand(sp));
+  __ Move(fp, pending_handler_fp_address);
+  __ ldr(fp, MemOperand(fp));
+
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (cp == 0) for non-JS frames.
+  __ cmp(cp, Operand(0));
+  __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
+
+  // Compute the handler entry address and jump to it.
+  ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+  __ Move(r1, pending_handler_entrypoint_address);
+  __ ldr(r1, MemOperand(r1));
+  __ Jump(r1);
 }
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {

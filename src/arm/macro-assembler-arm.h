@@ -338,6 +338,7 @@ class TurboAssembler : public Assembler {
   int CallStubSize();
 
   void CallStubDelayed(CodeStub* stub);
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 

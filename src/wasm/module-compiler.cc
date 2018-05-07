@@ -10,6 +10,7 @@
 #include "src/base/optional.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
@@ -526,10 +527,9 @@ const wasm::WasmCode* LazyCompileFunction(
                     module_start + func->code.end_offset()};
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
-  WasmCompilationUnit unit(isolate, &module_env,
-                           compiled_module->GetNativeModule(), body,
-                           CStrVector(func_name.c_str()), func_index,
-                           CEntryStub(isolate, 1).GetCode());
+  WasmCompilationUnit unit(
+      isolate, &module_env, compiled_module->GetNativeModule(), body,
+      CStrVector(func_name.c_str()), func_index, CodeFactory::CEntry(isolate));
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
@@ -1327,7 +1327,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   WasmModule* wasm_module = module.get();
-  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
+  Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
   TimedHistogramScope wasm_compile_module_time_scope(
       wasm_module->is_wasm()
           ? isolate->async_counters()->wasm_compile_wasm_module_time()
@@ -3067,7 +3067,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     Isolate* isolate = job_->isolate_;
 
-    Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
+    Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
     {
       // Now reopen the handles in a deferred scope in order to use
       // them in the concurrent steps.

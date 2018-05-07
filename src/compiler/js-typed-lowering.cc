@@ -1438,10 +1438,10 @@ namespace {
 
 void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
                    int builtin_index, int arity, CallDescriptor::Flags flags) {
-  // Patch {node} to a direct CEntryStub call.
+  // Patch {node} to a direct CEntry call.
   //
   // ----------- A r g u m e n t s -----------
-  // -- 0: CEntryStub
+  // -- 0: CEntry
   // --- Stack args ---
   // -- 1: receiver
   // -- [2, 2 + n[: the n actual arguments passed to the builtin
@@ -1703,7 +1703,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
                     1 + arity, flags)));
     } else if (shared->HasBuiltinId() &&
                Builtins::HasCppImplementation(shared->builtin_id())) {
-      // Patch {node} to a direct CEntryStub call.
+      // Patch {node} to a direct CEntry call.
       ReduceBuiltin(isolate(), jsgraph(), node, shared->builtin_id(), arity,
                     flags);
     } else {

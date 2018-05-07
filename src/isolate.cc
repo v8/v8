@@ -1277,7 +1277,7 @@ Object* Isolate::UnwindAndFindHandler() {
                           intptr_t handler_offset,
                           Address constant_pool_address, Address handler_sp,
                           Address handler_fp) {
-    // Store information to be consumed by the CEntryStub.
+    // Store information to be consumed by the CEntry.
     thread_local_top()->pending_handler_context_ = context;
     thread_local_top()->pending_handler_entrypoint_ =
         instruction_start + handler_offset;
@@ -3130,13 +3130,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   {
     HandleScope scope(this);
     ast_string_constants_ = new AstStringConstants(this, heap()->HashSeed());
-  }
-
-  if (!serializer_enabled()) {
-    // Ensure that all stubs which need to be generated ahead of time, but
-    // cannot be serialized into the snapshot have been generated.
-    HandleScope scope(this);
-    CodeStub::GenerateFPStubs(this);
   }
 
   initialized_from_snapshot_ = (des != nullptr);

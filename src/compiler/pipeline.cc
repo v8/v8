@@ -917,7 +917,7 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
 
   // Temporary regression check while we get the wasm code off the GC heap, and
   // until we decontextualize wasm code.
-  // We expect the only embedded objects to be: CEntryStub, undefined, and
+  // We expect the only embedded objects to be: CEntry, undefined, and
   // the various builtins for throwing exceptions like OOB.
   void ValidateImmovableEmbeddedObjects() const;
 

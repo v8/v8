@@ -60,7 +60,6 @@ class PlatformInterfaceDescriptor;
   V(ArrayNArgumentsConstructor)       \
   V(Compare)                          \
   V(BinaryOp)                         \
-  V(StringAdd)                        \
   V(StringAt)                         \
   V(StringSubstring)                  \
   V(ForInPrepare)                     \
@@ -737,13 +736,6 @@ class BinaryOpDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kLeft, kRight)
   DECLARE_DESCRIPTOR(BinaryOpDescriptor, CallInterfaceDescriptor)
-};
-
-
-class StringAddDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLeft, kRight)
-  DECLARE_DESCRIPTOR(StringAddDescriptor, CallInterfaceDescriptor)
 };
 
 // This desciptor is shared among String.p.charAt/charCodeAt/codePointAt

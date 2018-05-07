@@ -13,6 +13,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/callable.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
@@ -1261,15 +1262,15 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     mov(scratch, Operand::Zero());
     str(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
-  mov(scratch, Operand(CodeObject()));
+  Move(scratch, CodeObject());
   str(scratch, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
   Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                           isolate()));
   str(fp, MemOperand(scratch));
-  Move(scratch, Operand(ExternalReference::Create(
-                    IsolateAddressId::kContextAddress, isolate())));
+  Move(scratch,
+       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   str(cp, MemOperand(scratch));
 
   // Optionally save all double registers.
@@ -1333,13 +1334,13 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   str(r3, MemOperand(scratch));
 
   // Restore current context from top and clear it in debug mode.
-  mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kContextAddress, isolate())));
+  Move(scratch,
+       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   ldr(cp, MemOperand(scratch));
 #ifdef DEBUG
   mov(r3, Operand(Context::kInvalidContext));
-  mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kContextAddress, isolate())));
+  Move(scratch,
+       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   str(r3, MemOperand(scratch));
 #endif
 
@@ -1801,7 +1802,9 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // smarter.
   mov(r0, Operand(f->nargs));
   Move(r1, ExternalReference::Create(f));
-  CallStubDelayed(new (zone) CEntryStub(nullptr, 1, save_doubles));
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Call(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
@@ -1820,8 +1823,9 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   mov(r0, Operand(num_arguments));
   Move(r1, ExternalReference::Create(f));
-  CEntryStub stub(isolate(), 1, save_doubles);
-  CallStub(&stub);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Call(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
@@ -1844,9 +1848,9 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   DCHECK_EQ(builtin.address() & 1, 1);
 #endif
   Move(r1, builtin);
-  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                  builtin_exit_frame);
-  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
+                                          kArgvOnStack, builtin_exit_frame);
+  Jump(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {

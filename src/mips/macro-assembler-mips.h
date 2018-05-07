@@ -538,7 +538,7 @@ class TurboAssembler : public Assembler {
   void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
   void MovToFloatResult(DoubleRegister src);
 
-  // See comments at the beginning of CEntryStub::Generate.
+  // See comments at the beginning of Builtins::Generate_CEntry.
   inline void PrepareCEntryArgs(int num_args) { li(a0, num_args); }
   inline void PrepareCEntryFunction(const ExternalReference& ref) {
     li(a1, ref);
@@ -550,9 +550,9 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub, COND_ARGS);
 #undef COND_ARGS
 
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                          BranchDelaySlot bd = PROTECT);
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -1070,22 +1070,19 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                   BranchDelaySlot bd = PROTECT);
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                   BranchDelaySlot bd = PROTECT) {
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles, bd);
+    CallRuntime(function, function->nargs, save_doubles);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                   BranchDelaySlot bd = PROTECT) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles, bd);
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: tail call a runtime routine (jump).

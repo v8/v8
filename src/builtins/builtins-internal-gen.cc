@@ -949,7 +949,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, CallbackTask::kDataOffset);
 
         // If this turns out to become a bottleneck because of the calls
-        // to C++ via CEntryStub, we can choose to speed them up using a
+        // to C++ via CEntry, we can choose to speed them up using a
         // similar mechanism that we use for the CallApiFunction stub,
         // except that calling the MicrotaskCallback is even easier, since
         // it doesn't accept any tagged parameters, doesn't return a value
@@ -1080,6 +1080,112 @@ TF_BUILTIN(AbortJS, CodeStubAssembler) {
   Node* message = Parameter(Descriptor::kObject);
   Node* reason = SmiConstant(0);
   TailCallRuntime(Runtime::kAbortJS, reason, message);
+}
+
+void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::
+    Generate_CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
+        MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvInRegister, false);
+}
+
+void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::
+    Generate_CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
+        MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvInRegister, false);
+}
+
+void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, true);
+}
+
+// ES6 [[Get]] operation.
+TF_BUILTIN(GetProperty, CodeStubAssembler) {
+  Label call_runtime(this, Label::kDeferred), return_undefined(this), end(this);
+
+  Node* object = Parameter(Descriptor::kObject);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* context = Parameter(Descriptor::kContext);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+
+  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
+      [=, &var_result, &end](Node* receiver, Node* holder, Node* holder_map,
+                             Node* holder_instance_type, Node* unique_name,
+                             Label* next_holder, Label* if_bailout) {
+        VARIABLE(var_value, MachineRepresentation::kTagged);
+        Label if_found(this);
+        TryGetOwnProperty(context, receiver, holder, holder_map,
+                          holder_instance_type, unique_name, &if_found,
+                          &var_value, next_holder, if_bailout);
+        BIND(&if_found);
+        {
+          var_result.Bind(var_value.value());
+          Goto(&end);
+        }
+      };
+
+  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
+      [=](Node* receiver, Node* holder, Node* holder_map,
+          Node* holder_instance_type, Node* index, Label* next_holder,
+          Label* if_bailout) {
+        // Not supported yet.
+        Use(next_holder);
+        Goto(if_bailout);
+      };
+
+  TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+                          lookup_element_in_holder, &return_undefined,
+                          &call_runtime);
+
+  BIND(&return_undefined);
+  {
+    var_result.Bind(UndefinedConstant());
+    Goto(&end);
+  }
+
+  BIND(&call_runtime);
+  {
+    var_result.Bind(CallRuntime(Runtime::kGetProperty, context, object, key));
+    Goto(&end);
+  }
+
+  BIND(&end);
+  Return(var_result.value());
 }
 
 }  // namespace internal

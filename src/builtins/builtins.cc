@@ -254,6 +254,18 @@ bool Builtins::IsLazy(int index) {
     case kArraySomeLoopLazyDeoptContinuation:
     case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
     case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
+    // CEntry variants must be immovable, whereas lazy deserialization allocates
+    // movable code.
+    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
+    case kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
+    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
+    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
+    case kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
+    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
     case kCompileLazy:
     case kDebugBreakTrampoline:
     case kDeserializeLazy:

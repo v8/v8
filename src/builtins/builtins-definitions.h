@@ -1256,9 +1256,27 @@ namespace internal {
   /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, 1, kValue)                                     \
                                                                                \
-  /* Miscellaneous */                                                          \
+  /* CEntry */                                                                 \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit)                 \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit)                   \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit)              \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit)                 \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit)                   \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit)              \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
                                                                                \
+  /* StringAdd */                                                              \
+  TFS(StringAdd_CheckNone_NotTenured, kLeft, kRight)                           \
+  TFS(StringAdd_CheckNone_Tenured, kLeft, kRight)                              \
+  TFS(StringAdd_ConvertLeft_NotTenured, kLeft, kRight)                         \
+  TFS(StringAdd_ConvertRight_NotTenured, kLeft, kRight)                        \
+                                                                               \
+  /* Miscellaneous */                                                          \
   ASM(DoubleToI)                                                               \
+  TFC(GetProperty, GetProperty, 1)                                             \
   ASM(MathPowInternal)
 
 #ifdef V8_INTL_SUPPORT

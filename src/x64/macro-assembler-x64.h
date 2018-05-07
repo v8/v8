@@ -381,6 +381,7 @@ class TurboAssembler : public Assembler {
   Operand ExternalOperand(ExternalReference reference,
                           Register scratch = kScratchRegister);
 
+  void Call(Register reg) { call(reg); }
   void Call(Operand op);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Call(Address destination, RelocInfo::Mode rmode);
@@ -473,6 +474,7 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine.
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 

@@ -38,6 +38,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 
   uint32_t* maybe_key = map_.Find(object);
   if (maybe_key == nullptr) {
+    DCHECK(object->IsHeapObject());
     uint32_t index = map_.size();
     map_.Set(object, index);
     return index;
@@ -72,6 +73,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
 
   uint32_t key;
   if (map_.Delete(self_reference, &key)) {
+    DCHECK(code_object->IsCode());
     map_.Set(code_object, key);
   }
 }
@@ -99,6 +101,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
       // builtin.
       value = builtins->builtin(Code::cast(value)->builtin_index());
     }
+    DCHECK(value->IsHeapObject());
     table->set(index, value);
   }
 

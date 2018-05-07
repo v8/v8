@@ -14485,8 +14485,13 @@ void SetFunctionEntryHookTest::RunTest() {
       CHECK_LE(202, CountInvocations(nullptr, "InterpreterEntryTrampoline"));
     }
 
-    // Verify that we have an entry hook on some specific stubs.
-    CHECK_NE(0, CountInvocations(nullptr, "CEntryStub"));
+    // Verify that we have an entry hook on some specific stubs and builtins.
+    CHECK_NE(0, CountInvocations(
+                    nullptr,
+                    "CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit"));
+    CHECK_NE(0, CountInvocations(
+                    nullptr,
+                    "CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit"));
     CHECK_NE(0, CountInvocations(nullptr, "JSEntryStub"));
     CHECK_NE(0, CountInvocations(nullptr, "JSEntryTrampoline"));
   }

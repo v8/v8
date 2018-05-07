@@ -320,11 +320,6 @@ class CpuFeatures : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
-
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
-
 // Specifies whether to perform icache flush operations on RelocInfo updates.
 // If FLUSH_ICACHE_IF_NEEDED, the icache will always be flushed if an
 // instruction was modified. If SKIP_ICACHE_FLUSH the flush will always be

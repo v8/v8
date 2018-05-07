@@ -4,6 +4,7 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
@@ -140,7 +141,7 @@ wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
   WasmCompilationUnit unit(isolate, env, native_module, function_body,
                            wire_bytes.GetNameOrNull(function, env->module),
                            function->func_index,
-                           CEntryStub(isolate, 1).GetCode(), mode);
+                           CodeFactory::CEntry(isolate, 1), mode);
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }
