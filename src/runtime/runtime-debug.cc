@@ -80,8 +80,16 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(bytecode,
                                                                 operand_scale);
 
-  return MakePair(side_effect_check_failed ? isolate->heap()->exception()
-                                           : isolate->debug()->return_value(),
+  if (side_effect_check_failed) {
+    return MakePair(isolate->heap()->exception(),
+                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
+  }
+  Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
+  if (interrupt_object->IsException(isolate)) {
+    return MakePair(interrupt_object,
+                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
+  }
+  return MakePair(isolate->debug()->return_value(),
                   Smi::FromInt(static_cast<uint8_t>(bytecode)));
 }
 
@@ -116,7 +124,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   if (isolate->debug()->break_points_active()) {
     isolate->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
-  return isolate->heap()->undefined_value();
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 

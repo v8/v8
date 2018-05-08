@@ -6021,7 +6021,6 @@ static void DebugBreakInlineListener(
                                       result->Int32Value(context).FromJust()));
   }
   SetDebugEventListener(CcTest::isolate(), nullptr);
-  CcTest::isolate()->TerminateExecution();
 }
 
 

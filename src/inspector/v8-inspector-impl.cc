@@ -90,6 +90,7 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
   v8::MicrotasksScope microtasksScope(m_isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
+  v8::Isolate::SafeForTerminationScope allowTermination(m_isolate);
   return unboundScript->BindToCurrentContext()->Run(context);
 }
 

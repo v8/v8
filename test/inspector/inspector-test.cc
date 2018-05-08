@@ -240,6 +240,7 @@ class ExecuteStringTask : public TaskRunner::Task {
                           expression_utf8_.length());
 
     v8::ScriptCompiler::Source scriptSource(source, origin);
+    v8::Isolate::SafeForTerminationScope allowTermination(data->isolate());
     if (!is_module_) {
       v8::Local<v8::Script> script;
       if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script))
