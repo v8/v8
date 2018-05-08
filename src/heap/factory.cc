@@ -177,17 +177,16 @@ Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
 
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
-                                    const char* type_of, byte kind,
-                                    PretenureFlag pretenure) {
-  Handle<Oddball> oddball(Oddball::cast(New(map, pretenure)), isolate());
+                                    const char* type_of, byte kind) {
+  Handle<Oddball> oddball(Oddball::cast(New(map, TENURED)), isolate());
   Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
   return oddball;
 }
 
-Handle<Oddball> Factory::NewSelfReferenceMarker(PretenureFlag pretenure) {
+Handle<Oddball> Factory::NewSelfReferenceMarker() {
   return NewOddball(self_reference_marker_map(), "self_reference_marker",
                     handle(Smi::FromInt(-1), isolate()), "undefined",
-                    Oddball::kSelfReferenceMarker, pretenure);
+                    Oddball::kSelfReferenceMarker);
 }
 
 Handle<PropertyArray> Factory::NewPropertyArray(int length,
@@ -402,12 +401,11 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
   return array;
 }
 
-Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count,
-                                                      PretenureFlag tenure) {
+Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count) {
   DCHECK_LE(0, slot_count);
   int size = FeedbackMetadata::SizeFor(slot_count);
   HeapObject* result =
-      AllocateRawWithImmortalMap(size, tenure, *feedback_metadata_map());
+      AllocateRawWithImmortalMap(size, TENURED, *feedback_metadata_map());
   Handle<FeedbackMetadata> data(FeedbackMetadata::cast(result), isolate());
   data->set_slot_count(slot_count);
 
@@ -1228,13 +1226,12 @@ Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
   return iterator;
 }
 
-Handle<Symbol> Factory::NewSymbol(PretenureFlag flag) {
-  DCHECK(flag != NOT_TENURED);
+Handle<Symbol> Factory::NewSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= kMaxRegularHeapObjectSize);
 
   HeapObject* result =
-      AllocateRawWithImmortalMap(Symbol::kSize, flag, *symbol_map());
+      AllocateRawWithImmortalMap(Symbol::kSize, TENURED, *symbol_map());
 
   // Generate a random hash value.
   int hash = isolate()->GenerateIdentityHash(Name::kHashBitMask);
@@ -1248,9 +1245,8 @@ Handle<Symbol> Factory::NewSymbol(PretenureFlag flag) {
   return symbol;
 }
 
-Handle<Symbol> Factory::NewPrivateSymbol(PretenureFlag flag) {
-  DCHECK(flag != NOT_TENURED);
-  Handle<Symbol> symbol = NewSymbol(flag);
+Handle<Symbol> Factory::NewPrivateSymbol() {
+  Handle<Symbol> symbol = NewSymbol();
   symbol->set_is_private(true);
   return symbol;
 }
@@ -1430,11 +1426,10 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   return info;
 }
 
-Handle<Script> Factory::NewScript(Handle<String> source, PretenureFlag tenure) {
-  DCHECK(tenure == TENURED || tenure == TENURED_READ_ONLY);
+Handle<Script> Factory::NewScript(Handle<String> source) {
   // Create and initialize script object.
   Heap* heap = isolate()->heap();
-  Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE, tenure));
+  Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE, TENURED));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
   script->set_id(isolate()->heap()->NextScriptId());
@@ -1621,12 +1616,11 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
   return cell;
 }
 
-Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
-                                              PretenureFlag pretenure) {
+Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name) {
   DCHECK(name->IsUniqueName());
   STATIC_ASSERT(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
-  HeapObject* result = AllocateRawWithImmortalMap(
-      PropertyCell::kSize, pretenure, *global_property_cell_map());
+  HeapObject* result = AllocateRawWithImmortalMap(PropertyCell::kSize, TENURED,
+                                                  *global_property_cell_map());
   Handle<PropertyCell> cell(PropertyCell::cast(result), isolate());
   cell->set_dependent_code(DependentCode::cast(*empty_fixed_array()),
                            SKIP_WRITE_BARRIER);

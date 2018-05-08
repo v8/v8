@@ -88,11 +88,10 @@ class V8_EXPORT_PRIVATE Factory {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
-                             byte kind,
-                             PretenureFlag pretenure = TENURED_READ_ONLY);
+                             byte kind);
 
   // Marks self references within code generation.
-  Handle<Oddball> NewSelfReferenceMarker(PretenureFlag pretenure = TENURED);
+  Handle<Oddball> NewSelfReferenceMarker();
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
@@ -159,8 +158,7 @@ class V8_EXPORT_PRIVATE Factory {
       int size, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a FeedbackMedata object and zeroes the data section.
-  Handle<FeedbackMetadata> NewFeedbackMetadata(int slot_count,
-                                               PretenureFlag tenure = TENURED);
+  Handle<FeedbackMetadata> NewFeedbackMetadata(int slot_count);
 
   Handle<FrameArray> NewFrameArray(int number_of_frames,
                                    PretenureFlag pretenure = NOT_TENURED);
@@ -348,9 +346,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<ExternalOneByteString> NewNativeSourceString(
       const ExternalOneByteString::Resource* resource);
 
-  // Create a symbol in old or read-only space.
-  Handle<Symbol> NewSymbol(PretenureFlag pretenure = TENURED);
-  Handle<Symbol> NewPrivateSymbol(PretenureFlag pretenure = TENURED);
+  // Create a symbol in old space.
+  Handle<Symbol> NewSymbol();
+  Handle<Symbol> NewPrivateSymbol();
   Handle<Symbol> NewPrivateFieldSymbol();
 
   // Create a global (but otherwise uninitialized) context.
@@ -399,8 +397,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
-  Handle<Script> NewScript(Handle<String> source,
-                           PretenureFlag tenure = TENURED);
+  Handle<Script> NewScript(Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
@@ -440,8 +437,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<Cell> NewCell(Handle<Object> value);
 
-  Handle<PropertyCell> NewPropertyCell(Handle<Name> name,
-                                       PretenureFlag pretenure = TENURED);
+  Handle<PropertyCell> NewPropertyCell(Handle<Name> name);
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value,
                                PretenureFlag pretenure = TENURED);
