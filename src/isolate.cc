@@ -3007,14 +3007,9 @@ bool Isolate::Init(StartupDeserializer* des) {
   }
 
   // Setup the wasm engine. Currently, there's one per Isolate.
-  const size_t max_code_size =
-      kRequiresCodeRange
-          ? std::min(kMaxWasmCodeMemory,
-                     heap_.memory_allocator()->code_range()->size())
-          : kMaxWasmCodeMemory;
   wasm_engine_.reset(new wasm::WasmEngine(
       std::unique_ptr<wasm::WasmCodeManager>(new wasm::WasmCodeManager(
-          reinterpret_cast<v8::Isolate*>(this), max_code_size))));
+          reinterpret_cast<v8::Isolate*>(this), kMaxWasmCodeMemory))));
   wasm_engine_->memory_tracker()->SetAllocationResultHistogram(
       counters()->wasm_memory_allocation_result());
   wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
