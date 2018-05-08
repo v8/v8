@@ -23,7 +23,7 @@ class Declarable {
  public:
   virtual ~Declarable() {}
   enum Kind {
-    kTypeImpl,
+    kType,
     kVariable,
     kParameter,
     kMacro,
@@ -35,7 +35,7 @@ class Declarable {
   };
   explicit Declarable(Kind kind) : kind_(kind) {}
   Kind kind() const { return kind_; }
-  bool IsTypeImpl() const { return kind() == kTypeImpl; }
+  bool IsType() const { return kind() == kType; }
   bool IsMacro() const { return kind() == kMacro; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
@@ -62,24 +62,39 @@ class Declarable {
   }                                                    \
   const char* type_name() const override { return #y; }
 
-class TypeImpl : public Declarable {
+class Type : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(TypeImpl, type_impl);
-  TypeImpl(TypeImpl* parent, const std::string& name,
-           const std::string& generated_type)
-      : Declarable(Declarable::kTypeImpl),
+  DECLARE_DECLARABLE_BOILERPLATE(Type, type);
+  Type(const Type* parent, const std::string& name,
+       const std::string& generated_type)
+      : Declarable(Declarable::kType),
         parent_(parent),
         name_(name),
         generated_type_(generated_type) {}
-  TypeImpl* parent() const { return parent_; }
+  const Type* parent() const { return parent_; }
   const std::string& name() const { return name_; }
-  const std::string& generated_type() const { return generated_type_; }
+  const std::string& GetGeneratedTypeName() const { return generated_type_; }
+  std::string GetGeneratedTNodeTypeName() const;
+  bool IsSubtypeOf(const Type* supertype) const;
+  bool IsVoid() const { return name() == VOID_TYPE_STRING; }
+  bool IsNever() const { return name() == NEVER_TYPE_STRING; }
+  bool IsBool() const { return name() == BOOL_TYPE_STRING; }
+  bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
+  bool IsConstexpr() const {
+    return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
+           CONSTEXPR_TYPE_PREFIX;
+  }
 
  private:
-  TypeImpl* parent_;
-  std::string name_;
-  std::string generated_type_;
+  const Type* const parent_;
+  const std::string name_;
+  const std::string generated_type_;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const Type* t) {
+  os << t->name().c_str();
+  return os;
+}
 
 class Value : public Declarable {
  public:
@@ -91,14 +106,14 @@ class Value : public Declarable {
   }
   virtual std::string GetValueForWrite() const { UNREACHABLE(); }
   DECLARE_DECLARABLE_BOILERPLATE(Value, value);
-  Type type() const { return type_; }
+  const Type* type() const { return type_; }
 
  protected:
-  Value(Kind kind, Type type, const std::string& name)
+  Value(Kind kind, const Type* type, const std::string& name)
       : Declarable(kind), type_(type), name_(name) {}
 
  private:
-  Type type_;
+  const Type* type_;
   std::string name_;
 };
 
@@ -109,7 +124,8 @@ class Parameter : public Value {
 
  private:
   friend class Declarations;
-  Parameter(const std::string& name, Type type, const std::string& var_name)
+  Parameter(const std::string& name, const Type* type,
+            const std::string& var_name)
       : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
 
   std::string var_name_;
@@ -129,7 +145,7 @@ class Variable : public Value {
 
  private:
   friend class Declarations;
-  Variable(const std::string& name, const std::string& value, Type type)
+  Variable(const std::string& name, const std::string& value, const Type* type)
       : Value(Declarable::kVariable, type, name),
         value_(value),
         defined_(false) {}
@@ -173,7 +189,7 @@ class Constant : public Value {
 
  private:
   friend class Declarations;
-  explicit Constant(const std::string& name, Type type,
+  explicit Constant(const std::string& name, const Type* type,
                     const std::string& value)
       : Value(Declarable::kConstant, type, name), value_(value) {}
 
@@ -198,7 +214,7 @@ class Callable : public Declarable {
     return signature_.parameter_names;
   }
   bool HasReturnValue() const {
-    return !signature_.return_type.IsVoidOrNever();
+    return !signature_.return_type->IsVoidOrNever();
   }
   void IncrementReturns() { ++returns_; }
   bool HasReturns() const { return returns_; }

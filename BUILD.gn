@@ -3049,6 +3049,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/torque/ast-generator.cc",
       "src/torque/ast-generator.h",
       "src/torque/ast.h",
+      "src/torque/declarable.cc",
       "src/torque/declarable.h",
       "src/torque/declaration-visitor.cc",
       "src/torque/declaration-visitor.h",

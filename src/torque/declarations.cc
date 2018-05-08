@@ -29,15 +29,16 @@ void Declarations::CheckAlreadyDeclared(SourcePosition pos,
   }
 }
 
-Type Declarations::LookupType(SourcePosition pos, const std::string& name) {
+const Type* Declarations::LookupType(SourcePosition pos,
+                                     const std::string& name) {
   Declarable* raw = Lookup(pos, name);
-  if (!raw->IsTypeImpl()) {
+  if (!raw->IsType()) {
     std::stringstream s;
     s << "declaration \"" << name << "\" is not a Type at "
       << PositionAsString(pos);
     ReportError(s.str());
   }
-  return Type(TypeImpl::cast(raw));
+  return Type::cast(raw);
 }
 
 Value* Declarations::LookupValue(SourcePosition pos, const std::string& name) {
@@ -97,11 +98,12 @@ Builtin* Declarations::LookupBuiltin(SourcePosition pos,
   return nullptr;
 }
 
-Type Declarations::DeclareType(SourcePosition pos, const std::string& name,
-                               const std::string& generated,
-                               const std::string* parent) {
+const Type* Declarations::DeclareType(SourcePosition pos,
+                                      const std::string& name,
+                                      const std::string& generated,
+                                      const std::string* parent) {
   CheckAlreadyDeclared(pos, name, "type");
-  TypeImpl* parent_type = nullptr;
+  const Type* parent_type = nullptr;
   if (parent != nullptr) {
     Declarable* maybe_parent_type = Lookup(*parent);
     if (maybe_parent_type == nullptr) {
@@ -110,18 +112,18 @@ Type Declarations::DeclareType(SourcePosition pos, const std::string& name,
         << PositionAsString(pos);
       ReportError(s.str());
     }
-    if (!maybe_parent_type->IsTypeImpl()) {
+    if (!maybe_parent_type->IsType()) {
       std::stringstream s;
       s << "parent \"" << *parent << "\" of type \"" << name << "\""
         << " is not a type "
         << " at  " << PositionAsString(pos);
       ReportError(s.str());
     }
-    parent_type = TypeImpl::cast(maybe_parent_type);
+    parent_type = Type::cast(maybe_parent_type);
   }
-  TypeImpl* result = new TypeImpl(parent_type, name, generated);
+  Type* result = new Type(parent_type, name, generated);
   Declare(name, std::unique_ptr<Declarable>(result));
-  return Type(result);
+  return result;
 }
 
 Label* Declarations::DeclareLabel(SourcePosition pos, const std::string& name) {
@@ -180,7 +182,8 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
 }
 
 Variable* Declarations::DeclareVariable(SourcePosition pos,
-                                        const std::string& var, Type type) {
+                                        const std::string& var,
+                                        const Type* type) {
   std::string name(var + std::to_string(GetNextUniqueDeclarationNumber()));
   CheckAlreadyDeclared(pos, var, "variable");
   Variable* result = new Variable(var, name, type);
@@ -191,7 +194,7 @@ Variable* Declarations::DeclareVariable(SourcePosition pos,
 Parameter* Declarations::DeclareParameter(SourcePosition pos,
                                           const std::string& name,
                                           const std::string& var_name,
-                                          Type type) {
+                                          const Type* type) {
   CheckAlreadyDeclared(pos, name, "parameter");
   Parameter* result = new Parameter(name, type, var_name);
   Declare(name, std::unique_ptr<Declarable>(result));
@@ -209,7 +212,7 @@ Label* Declarations::DeclarePrivateLabel(SourcePosition pos,
 }
 
 void Declarations::DeclareConstant(SourcePosition pos, const std::string& name,
-                                   Type type, const std::string& value) {
+                                   const Type* type, const std::string& value) {
   CheckAlreadyDeclared(pos, name, "constant, parameter or arguments");
   Constant* result = new Constant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));

@@ -39,7 +39,7 @@ class OperationHandler {
  public:
   std::string macro_name;
   ParameterTypes parameter_types;
-  Type result_type;
+  const Type* result_type;
 };
 
 struct SourceFileContext {

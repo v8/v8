@@ -31,7 +31,7 @@ class Declarations {
     return d;
   }
 
-  Type LookupType(SourcePosition pos, const std::string& name);
+  const Type* LookupType(SourcePosition pos, const std::string& name);
 
   Value* LookupValue(SourcePosition pos, const std::string& name);
 
@@ -42,9 +42,9 @@ class Declarations {
 
   Label* LookupLabel(SourcePosition pos, const std::string& name);
 
-  Type DeclareType(SourcePosition pos, const std::string& name,
-                   const std::string& generated,
-                   const std::string* parent = nullptr);
+  const Type* DeclareType(SourcePosition pos, const std::string& name,
+                          const std::string& generated,
+                          const std::string* parent = nullptr);
 
   Label* DeclareLabel(SourcePosition pos, const std::string& name);
 
@@ -59,15 +59,16 @@ class Declarations {
                                           const Signature& signature);
 
   Variable* DeclareVariable(SourcePosition pos, const std::string& var,
-                            Type type);
+                            const Type* type);
 
   Parameter* DeclareParameter(SourcePosition pos, const std::string& name,
-                              const std::string& mangled_name, Type type);
+                              const std::string& mangled_name,
+                              const Type* type);
 
   Label* DeclarePrivateLabel(SourcePosition pos, const std::string& name);
 
-  void DeclareConstant(SourcePosition pos, const std::string& name, Type type,
-                       const std::string& value);
+  void DeclareConstant(SourcePosition pos, const std::string& name,
+                       const Type* type, const std::string& value);
 
   std::set<const Variable*> GetLiveVariables() {
     return chain_.GetLiveVariables();

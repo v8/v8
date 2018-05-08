@@ -25,8 +25,6 @@ class DeclarationVisitor : public FileVisitor {
   explicit DeclarationVisitor(GlobalContext& global_context)
       : FileVisitor(global_context),
         scope_(declarations(), global_context.ast()->default_module()) {
-    declarations()->DeclareType(SourcePosition(), EXCEPTION_TYPE_STRING,
-                                "Label*", nullptr);
   }
 
   void Visit(Ast* ast) { Visit(ast->default_module()); }
@@ -97,7 +95,7 @@ class DeclarationVisitor : public FileVisitor {
         MakeSignature(decl->pos, decl->parameters, decl->return_type, {});
 
     if (signature.parameter_types.types.size() == 0 ||
-        !signature.parameter_types.types[0].Is(CONTEXT_TYPE_STRING)) {
+        !(signature.parameter_types.types[0]->name() == CONTEXT_TYPE_STRING)) {
       std::stringstream stream;
       stream << "first parameter to builtin " << decl->name
              << " is not a context but should be at "
@@ -115,7 +113,7 @@ class DeclarationVisitor : public FileVisitor {
     }
     if (javascript) {
       if (signature.types().size() < 2 ||
-          !signature.types()[1].Is(OBJECT_TYPE_STRING)) {
+          !(signature.types()[1]->name() == OBJECT_TYPE_STRING)) {
         std::stringstream stream;
         stream << "second parameter to javascript builtin " << decl->name
                << " is not a receiver type but should be at "
@@ -135,11 +133,12 @@ class DeclarationVisitor : public FileVisitor {
                 << " with signature ";
     }
 
-    Type return_type = declarations()->LookupType(decl->pos, decl->return_type);
+    const Type* return_type =
+        declarations()->LookupType(decl->pos, decl->return_type);
     TypeVector parameter_types =
         GetTypeVector(decl->pos, decl->parameters.types);
     if (parameter_types.size() == 0 ||
-        !parameter_types[0].Is(CONTEXT_TYPE_STRING)) {
+        !(parameter_types[0]->name() == CONTEXT_TYPE_STRING)) {
       std::stringstream stream;
       stream << "first parameter to runtime " << decl->name
              << " is not a context but should be at "
@@ -208,7 +207,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(VarDeclarationStatement* stmt) {
     std::string variable_name = stmt->name;
-    Type type = declarations()->LookupType(stmt->pos, stmt->type);
+    const Type* type = declarations()->LookupType(stmt->pos, stmt->type);
     declarations()->DeclareVariable(stmt->pos, variable_name, type);
     if (global_context_.verbose()) {
       std::cout << "declared variable " << variable_name << " with type "

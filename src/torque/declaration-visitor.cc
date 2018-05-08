@@ -64,7 +64,7 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
   DeclareParameterList(decl->pos, signature, {});
 
   if (signature.types().size() == 0 ||
-      !signature.types()[0].Is(CONTEXT_TYPE_STRING)) {
+      !(signature.types()[0]->name() == CONTEXT_TYPE_STRING)) {
     std::stringstream stream;
     stream << "first parameter to builtin " << decl->name
            << " is not a context but should be at "
@@ -84,7 +84,7 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
   }
   if (javascript) {
     if (signature.types().size() < 2 ||
-        !signature.types()[1].Is(OBJECT_TYPE_STRING)) {
+        !(signature.types()[1]->name() == OBJECT_TYPE_STRING)) {
       std::stringstream stream;
       stream << "second parameter to javascript builtin " << decl->name
              << " is not a receiver type but should be at "
@@ -112,7 +112,7 @@ void DeclarationVisitor::Visit(MacroDeclaration* decl) {
 
   DeclareParameterList(decl->pos, signature, decl->labels);
 
-  if (!signature.return_type.IsVoidOrNever()) {
+  if (!signature.return_type->IsVoidOrNever()) {
     declarations()->DeclareVariable(decl->pos, kReturnValueVariable,
                                     signature.return_type);
   }

@@ -34,7 +34,7 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(Ast* ast) { Visit(ast->default_module()); }
 
   VisitResult Visit(Expression* expr);
-  Type Visit(Statement* stmt);
+  const Type* Visit(Statement* stmt);
   void Visit(Declaration* decl);
 
   LocationReference GetLocationReference(LocationExpression* location);
@@ -105,7 +105,7 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(ExternalRuntimeDeclaration* decl) {}
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
-  Type Visit(TailCallStatement* stmt);
+  const Type* Visit(TailCallStatement* stmt);
 
   VisitResult Visit(ConditionalExpression* expr);
 
@@ -120,20 +120,20 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(StringLiteralExpression* expr);
   VisitResult Visit(NumberLiteralExpression* expr);
 
-  Type Visit(TryCatchStatement* stmt);
-  Type Visit(ReturnStatement* stmt);
-  Type Visit(GotoStatement* stmt);
-  Type Visit(IfStatement* stmt);
-  Type Visit(WhileStatement* stmt);
-  Type Visit(BreakStatement* stmt);
-  Type Visit(ContinueStatement* stmt);
-  Type Visit(ForLoopStatement* stmt);
-  Type Visit(VarDeclarationStatement* stmt);
-  Type Visit(ForOfLoopStatement* stmt);
-  Type Visit(BlockStatement* block);
-  Type Visit(ExpressionStatement* stmt);
-  Type Visit(DebugStatement* stmt);
-  Type Visit(AssertStatement* stmt);
+  const Type* Visit(TryCatchStatement* stmt);
+  const Type* Visit(ReturnStatement* stmt);
+  const Type* Visit(GotoStatement* stmt);
+  const Type* Visit(IfStatement* stmt);
+  const Type* Visit(WhileStatement* stmt);
+  const Type* Visit(BreakStatement* stmt);
+  const Type* Visit(ContinueStatement* stmt);
+  const Type* Visit(ForLoopStatement* stmt);
+  const Type* Visit(VarDeclarationStatement* stmt);
+  const Type* Visit(ForOfLoopStatement* stmt);
+  const Type* Visit(BlockStatement* block);
+  const Type* Visit(ExpressionStatement* stmt);
+  const Type* Visit(DebugStatement* stmt);
+  const Type* Visit(AssertStatement* stmt);
 
   void GenerateImplementation(const std::string& dir, Module* module);
 
@@ -167,7 +167,8 @@ class ImplementationVisitor : public FileVisitor {
 
   void GenerateChangedVarsFromControlSplit(AstNode* node);
 
-  Type GetCommonType(SourcePosition pos, Type left, Type right);
+  const Type* GetCommonType(SourcePosition pos, const Type* left,
+                            const Type* right);
 
   VisitResult GenerateCopy(const VisitResult& to_copy);
 
@@ -179,7 +180,8 @@ class ImplementationVisitor : public FileVisitor {
                                 VisitResult assignment_value);
 
   Variable* GenerateVariableDeclaration(
-      AstNode* node, const std::string& name, const base::Optional<Type>& type,
+      AstNode* node, const std::string& name,
+      const base::Optional<const Type*>& type,
       const base::Optional<VisitResult>& initialization = {});
 
   void GenerateParameter(SourcePosition pos, const std::string& parameter_name);
@@ -209,14 +211,15 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult GenerateOperation(SourcePosition pos,
                                 const std::string& operation,
                                 Arguments arguments,
-                                base::Optional<Type> return_type = {});
+                                base::Optional<const Type*> return_type = {});
 
-  VisitResult GenerateImplicitConvert(SourcePosition pos, Type destination_type,
+  VisitResult GenerateImplicitConvert(SourcePosition pos,
+                                      const Type* destination_type,
                                       VisitResult source);
 
   std::string NewTempVariable();
 
-  std::string GenerateNewTempVariable(Type type);
+  std::string GenerateNewTempVariable(const Type* type);
 
   void GenerateLabelDefinition(Label* label, AstNode* node = nullptr);
 

@@ -19,37 +19,41 @@ class TypeOracle {
   explicit TypeOracle(Declarations* declarations)
       : declarations_(declarations) {}
 
-  void RegisterImplicitConversion(Type to, Type from) {
+  void RegisterImplicitConversion(const Type* to, const Type* from) {
     implicit_conversions_.push_back(std::make_pair(to, from));
   }
 
-  Type GetArgumentsType() { return GetBuiltinType(ARGUMENTS_TYPE_STRING); }
+  const Type* GetArgumentsType() {
+    return GetBuiltinType(ARGUMENTS_TYPE_STRING);
+  }
 
-  Type GetBoolType() { return GetBuiltinType(BOOL_TYPE_STRING); }
+  const Type* GetBoolType() { return GetBuiltinType(BOOL_TYPE_STRING); }
 
-  Type GetConstexprBoolType() {
+  const Type* GetConstexprBoolType() {
     return GetBuiltinType(CONSTEXPR_BOOL_TYPE_STRING);
   }
 
-  Type GetVoidType() { return GetBuiltinType(VOID_TYPE_STRING); }
+  const Type* GetVoidType() { return GetBuiltinType(VOID_TYPE_STRING); }
 
-  Type GetObjectType() { return GetBuiltinType(OBJECT_TYPE_STRING); }
+  const Type* GetObjectType() { return GetBuiltinType(OBJECT_TYPE_STRING); }
 
-  Type GetStringType() { return GetBuiltinType(STRING_TYPE_STRING); }
+  const Type* GetStringType() { return GetBuiltinType(STRING_TYPE_STRING); }
 
-  Type GetIntPtrType() { return GetBuiltinType(INTPTR_TYPE_STRING); }
+  const Type* GetIntPtrType() { return GetBuiltinType(INTPTR_TYPE_STRING); }
 
-  Type GetNeverType() { return GetBuiltinType(NEVER_TYPE_STRING); }
+  const Type* GetNeverType() { return GetBuiltinType(NEVER_TYPE_STRING); }
 
-  Type GetConstInt31Type() { return GetBuiltinType(CONST_INT31_TYPE_STRING); }
+  const Type* GetConstInt31Type() {
+    return GetBuiltinType(CONST_INT31_TYPE_STRING);
+  }
 
-  bool IsAssignableFrom(Type to, Type from) {
+  bool IsAssignableFrom(const Type* to, const Type* from) {
     if (to == from) return true;
-    if (to.IsSubclass(from) && !from.IsConstexpr()) return true;
+    if (from->IsSubtypeOf(to) && !from->IsConstexpr()) return true;
     return IsImplicitlyConverableFrom(to, from);
   }
 
-  bool IsImplicitlyConverableFrom(Type to, Type from) {
+  bool IsImplicitlyConverableFrom(const Type* to, const Type* from) {
     for (auto& conversion : implicit_conversions_) {
       if (conversion.first == to && conversion.second == from) {
         return true;
@@ -72,14 +76,14 @@ class TypeOracle {
   }
 
  private:
-  Type GetBuiltinType(const std::string& name) {
+  const Type* GetBuiltinType(const std::string& name) {
     Declarable* declarable = declarations_->Lookup(name);
     DCHECK(declarable != nullptr);
-    return Type(TypeImpl::cast(declarable));
+    return Type::cast(declarable);
   }
 
   Declarations* declarations_;
-  std::vector<std::pair<Type, Type>> implicit_conversions_;
+  std::vector<std::pair<const Type*, const Type*>> implicit_conversions_;
 };
 
 }  // namespace torque
