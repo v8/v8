@@ -17,7 +17,8 @@ namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer)
-    : observer_(observer),
+    : isolate_(isolate),
+      observer_(observer),
       function_and_resource_names_(isolate->heap()->HashSeed()) {}
 
 ProfilerListener::~ProfilerListener() = default;
@@ -276,6 +277,11 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
       int deopt_id = static_cast<int>(info->data());
       DCHECK(last_position.IsKnown());
       std::vector<CpuProfileDeoptFrame> inlined_frames;
+
+      // SourcePosition::InliningStack allocates a handle for the SFI of each
+      // frame. These don't escape this function, but quickly add up. This
+      // scope limits their lifetime.
+      HandleScope scope(isolate_);
       for (SourcePositionInfo& pos_info : last_position.InliningStack(code)) {
         if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
         if (!pos_info.function->script()->IsScript()) continue;

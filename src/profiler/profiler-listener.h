@@ -84,6 +84,7 @@ class ProfilerListener : public CodeEventListener {
     observer_->CodeEventHandler(evt_rec);
   }
 
+  Isolate* isolate_;
   CodeEventObserver* observer_;
   StringsStorage function_and_resource_names_;
   std::deque<std::unique_ptr<CodeEntry>> code_entries_;
