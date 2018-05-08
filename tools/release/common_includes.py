@@ -866,6 +866,11 @@ class ScriptsBase(object):
     if not options:
       return 1
 
+    # Ensure temp dir exists for state files.
+    state_dir = os.path.dirname(self._config["PERSISTFILE_BASENAME"])
+    if not os.path.exists(state_dir):
+      os.makedirs(state_dir)
+
     state_file = "%s-state.json" % self._config["PERSISTFILE_BASENAME"]
     if options.step == 0 and os.path.exists(state_file):
       os.remove(state_file)
