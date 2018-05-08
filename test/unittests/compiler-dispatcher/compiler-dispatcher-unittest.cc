@@ -110,6 +110,11 @@ class MockPlatform : public v8::Platform {
     worker_tasks_.push_back(std::move(task));
   }
 
+  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                 double delay_in_seconds) override {
+    UNREACHABLE();
+  }
+
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     base::LockGuard<base::Mutex> lock(&mutex_);
     foreground_tasks_.push_back(std::unique_ptr<Task>(task));

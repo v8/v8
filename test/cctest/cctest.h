@@ -680,6 +680,10 @@ class TestPlatform : public v8::Platform {
     return old_platform_->OnCriticalMemoryPressure(length);
   }
 
+  int NumberOfWorkerThreads() override {
+    return old_platform_->NumberOfWorkerThreads();
+  }
+
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
     return old_platform_->GetForegroundTaskRunner(isolate);
