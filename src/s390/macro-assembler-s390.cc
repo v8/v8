@@ -12,6 +12,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/callable.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -1084,7 +1085,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   if (emit_debug_code()) {
     StoreP(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(), r1);
   }
-  mov(r1, Operand(CodeObject()));
+  Move(r1, CodeObject());
   StoreP(r1, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
@@ -1155,14 +1156,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   StoreP(MemOperand(ip), Operand(0, RelocInfo::NONE), r0);
 
   // Restore current context from top and clear it in debug mode.
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                            isolate())));
+  Move(ip,
+       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   LoadP(cp, MemOperand(ip));
 
 #ifdef DEBUG
   mov(r1, Operand(Context::kInvalidContext));
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kContextAddress,
-                                            isolate())));
+  Move(ip,
+       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   StoreP(r1, MemOperand(ip));
 #endif
 
@@ -1584,13 +1585,14 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   const Runtime::Function* f = Runtime::FunctionForId(fid);
   mov(r2, Operand(f->nargs));
   Move(r3, ExternalReference::Create(f));
-  CallStubDelayed(new (zone) CEntryStub(nullptr,
+
 #if V8_TARGET_ARCH_S390X
-                                        f->result_size,
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
 #else
-                                        1,
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
 #endif
-                                        save_doubles));
+  Call(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
@@ -1608,14 +1610,14 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
-  CEntryStub stub(isolate(),
 #if V8_TARGET_ARCH_S390X
-                  f->result_size,
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
 #else
-                  1,
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
 #endif
-                  save_doubles);
-  CallStub(&stub);
+
+  Call(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
@@ -1630,9 +1632,9 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r3, builtin);
-  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                  builtin_exit_frame);
-  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
+                                          kArgvOnStack, builtin_exit_frame);
+  Jump(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {

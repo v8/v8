@@ -12,6 +12,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/callable.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -1060,7 +1061,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     StoreP(kConstantPoolRegister,
            MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
   }
-  mov(r8, Operand(CodeObject()));
+  Move(r8, CodeObject());
   StoreP(r8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
@@ -1684,13 +1685,13 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // smarter.
   mov(r3, Operand(f->nargs));
   Move(r4, ExternalReference::Create(f));
-  CallStubDelayed(new (zone) CEntryStub(nullptr,
 #if V8_TARGET_ARCH_PPC64
-                                        f->result_size,
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
 #else
-                                        1,
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
 #endif
-                                        save_doubles));
+  Call(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
@@ -1708,14 +1709,13 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   mov(r3, Operand(num_arguments));
   Move(r4, ExternalReference::Create(f));
-  CEntryStub stub(isolate(),
 #if V8_TARGET_ARCH_PPC64
-                  f->result_size,
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
 #else
-                  1,
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
 #endif
-                  save_doubles);
-  CallStub(&stub);
+  Call(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
@@ -1731,9 +1731,9 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r4, builtin);
-  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                  builtin_exit_frame);
-  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
+                                          kArgvOnStack, builtin_exit_frame);
+  Jump(code, RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {

@@ -253,12 +253,6 @@ void BinaryOpDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void StringAddDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r4, r3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
