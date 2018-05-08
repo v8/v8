@@ -920,7 +920,10 @@ void Heap::DeoptMarkedAllocationSites() {
 
 void Heap::GarbageCollectionEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
-  ZapFromSpace();
+  // In release mode, we only zap the from space under heap verification.
+  if (Heap::ShouldZapGarbage()) {
+    ZapFromSpace();
+  }
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -3837,13 +3840,12 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
 
 void Heap::ZapFromSpace() {
   if (!new_space_->IsFromSpaceCommitted()) return;
-
   for (Page* page :
        PageRange(new_space_->FromSpaceStart(), new_space_->FromSpaceEnd())) {
-    memory_allocator()->ZapBlock(page->area_start(), page->area_size(),
-                                 Heap::ShouldZapGarbage()
-                                     ? kFromSpaceZapValue
-                                     : kClearedFreeMemoryValue);
+    for (Address cursor = page->area_start(), limit = page->area_end();
+         cursor < limit; cursor += kPointerSize) {
+      Memory::Address_at(cursor) = static_cast<Address>(kFromSpaceZapValue);
+    }
   }
 }
 
