@@ -479,10 +479,9 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
       // Log the monomorphic/polymorphic helper objects that this slot owns.
       for (int i = 0; i < it.entry_size(); i++) {
-        Object* raw_object =
-            vector->get(slot.ToInt() + i)->GetHeapObjectOrSmi();
-        if (!raw_object->IsHeapObject()) continue;
-        HeapObject* object = HeapObject::cast(raw_object);
+        MaybeObject* raw_object = vector->get(slot.ToInt() + i);
+        if (!raw_object->IsStrongOrWeakHeapObject()) continue;
+        HeapObject* object = raw_object->GetHeapObject();
         if (object->IsCell() || object->IsWeakFixedArray()) {
           RecordSimpleVirtualObjectStats(
               vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
