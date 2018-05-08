@@ -555,6 +555,9 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_EMPTY_FIXED_TYPED_ARRAY
 
   DCHECK(!InNewSpace(empty_fixed_array()));
+
+  bigint_map()->SetConstructorFunctionIndex(Context::BIGINT_FUNCTION_INDEX);
+
   return true;
 }
 
@@ -848,6 +851,10 @@ void Heap::CreateInitialObjects() {
   set_deserialize_lazy_handler(Smi::kZero);
   set_deserialize_lazy_handler_wide(Smi::kZero);
   set_deserialize_lazy_handler_extra_wide(Smi::kZero);
+
+  // Evaluate the hash values which will then be cached in the strings.
+  isolate()->factory()->zero_string()->Hash();
+  isolate()->factory()->one_string()->Hash();
 
   // Initialize builtins constants table.
   set_builtins_constants_table(empty_fixed_array());

@@ -458,6 +458,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
+    isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(isolate);
     startup_serializer.SerializeStrongReferences();
@@ -582,6 +583,7 @@ static void PartiallySerializeCustomContext(
 
     env.Reset();
 
+    isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(isolate);
     startup_serializer.SerializeStrongReferences();

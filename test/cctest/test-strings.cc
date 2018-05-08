@@ -1642,6 +1642,21 @@ GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
 
 #undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
 
+TEST(HashArrayIndexStrings) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+
+  CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
+               Name::kHashShift,
+           isolate->factory()->zero_string()->Hash());
+
+  CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
+               Name::kHashShift,
+           isolate->factory()->one_string()->Hash());
+}
+
 }  // namespace test_strings
 }  // namespace internal
 }  // namespace v8

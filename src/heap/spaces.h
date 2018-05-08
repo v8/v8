@@ -2902,8 +2902,38 @@ class MapSpace : public PagedSpace {
 
 class ReadOnlySpace : public PagedSpace {
  public:
-  ReadOnlySpace(Heap* heap, AllocationSpace id, Executability executable)
-      : PagedSpace(heap, id, executable) {}
+  class WritableScope {
+   public:
+    explicit WritableScope(ReadOnlySpace* space) : space_(space) {
+      space_->MarkAsReadWrite();
+    }
+
+    ~WritableScope() { space_->MarkAsReadOnly(); }
+
+   private:
+    ReadOnlySpace* space_;
+  };
+
+  ReadOnlySpace(Heap* heap, AllocationSpace id, Executability executable);
+
+  ~ReadOnlySpace() {
+    // Mark as writable as tearing down the space writes to it.
+    // MarkAsReadWrite();
+  }
+
+  void ClearStringPaddingIfNeeded();
+  void MarkAsReadOnly();
+
+ private:
+  void MarkAsReadWrite();
+  void SetPermissionsForPages(PageAllocator::Permission access);
+
+  bool is_marked_read_only_ = false;
+  //
+  // String padding must be cleared just before serialization and therefore the
+  // string padding in the space will already have been cleared if the space was
+  // deserialized.
+  bool is_string_padding_cleared_;
 };
 
 // -----------------------------------------------------------------------------

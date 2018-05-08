@@ -737,6 +737,8 @@ StartupData SnapshotCreator::CreateBlob(
       i::GarbageCollectionReason::kSnapshotCreator);
   isolate->heap()->CompactFixedArraysOfWeakCells();
 
+  isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
+
   i::DisallowHeapAllocation no_gc_from_here_on;
 
   int num_contexts = num_additional_contexts + 1;
@@ -6765,8 +6767,9 @@ bool v8::String::CanMakeExternal() {
   if (obj->IsExternalString()) return false;
 
   // Old space strings should be externalized.
-  i::Isolate* isolate = obj->GetIsolate();
-  return !isolate->heap()->new_space()->Contains(*obj);
+  i::Heap* heap = obj->GetIsolate()->heap();
+  return !heap->new_space()->Contains(*obj) &&
+         !heap->read_only_space()->Contains(*obj);
 }
 
 

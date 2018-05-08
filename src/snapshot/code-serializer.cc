@@ -54,6 +54,8 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   if (script->ContainsAsmModule()) return nullptr;
   if (isolate->debug()->is_loaded()) return nullptr;
 
+  isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
+
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(source));

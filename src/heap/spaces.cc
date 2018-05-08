@@ -3195,6 +3195,51 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
 void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 #endif
 
+ReadOnlySpace::ReadOnlySpace(Heap* heap, AllocationSpace id,
+                             Executability executable)
+    : PagedSpace(heap, id, executable),
+      is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()) {
+}
+
+void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
+  const size_t page_size = MemoryAllocator::GetCommitPageSize();
+  const size_t area_start_offset = RoundUp(Page::kObjectStartOffset, page_size);
+  for (Page* page : *this) {
+    CHECK(SetPermissions(page->address() + area_start_offset,
+                         page->size() - area_start_offset, access));
+  }
+}
+
+void ReadOnlySpace::ClearStringPaddingIfNeeded() {
+  if (is_string_padding_cleared_) return;
+
+  WritableScope writable_scope(this);
+  for (Page* page : *this) {
+    HeapObjectIterator iterator(page);
+    for (HeapObject* o = iterator.Next(); o != nullptr; o = iterator.Next()) {
+      if (o->IsSeqOneByteString()) {
+        SeqOneByteString::cast(o)->clear_padding();
+      } else if (o->IsSeqTwoByteString()) {
+        SeqTwoByteString::cast(o)->clear_padding();
+      }
+    }
+  }
+  is_string_padding_cleared_ = true;
+}
+
+void ReadOnlySpace::MarkAsReadOnly() {
+  DCHECK(!is_marked_read_only_);
+  FreeLinearAllocationArea();
+  is_marked_read_only_ = true;
+  SetPermissionsForPages(PageAllocator::kRead);
+}
+
+void ReadOnlySpace::MarkAsReadWrite() {
+  DCHECK(is_marked_read_only_);
+  SetPermissionsForPages(PageAllocator::kReadWrite);
+  is_marked_read_only_ = false;
+}
+
 Address LargePage::GetAddressToShrink(Address object_address,
                                       size_t object_size) {
   if (executable() == EXECUTABLE) {
