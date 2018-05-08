@@ -801,36 +801,6 @@ function InnerArraySort(array, length, comparefn) {
     }
   };
 
-  // Copy elements in the range 0..length from obj's prototype chain
-  // to obj itself, if obj has holes. Return one more than the maximal index
-  // of a prototype property.
-  function CopyFromPrototype(obj, length) {
-    var max = 0;
-    for (var proto = %object_get_prototype_of(obj); proto;
-         proto = %object_get_prototype_of(proto)) {
-      var indices = IS_PROXY(proto) ? length : %GetArrayKeys(proto, length);
-      if (IS_NUMBER(indices)) {
-        // It's an interval.
-        var proto_length = indices;
-        for (var i = 0; i < proto_length; i++) {
-          if (!HAS_OWN_PROPERTY(obj, i) && HAS_OWN_PROPERTY(proto, i)) {
-            obj[i] = proto[i];
-            if (i >= max) { max = i + 1; }
-          }
-        }
-      } else {
-        for (var i = 0; i < indices.length; i++) {
-          var index = indices[i];
-          if (!HAS_OWN_PROPERTY(obj, index) && HAS_OWN_PROPERTY(proto, index)) {
-            obj[index] = proto[index];
-            if (index >= max) { max = index + 1; }
-          }
-        }
-      }
-    }
-    return max;
-  };
-
   // Set a value of "undefined" on all indices in the range from..to
   // where a prototype of obj has an element. I.e., shadow all prototype
   // elements in that range.
@@ -870,7 +840,7 @@ function InnerArraySort(array, length, comparefn) {
     // The specification allows "implementation dependent" behavior
     // if an element on the prototype chain has an element that
     // might interact with sorting.
-    max_prototype_element = CopyFromPrototype(array, length);
+    max_prototype_element = %CopyFromPrototype(array, length);
   }
 
   // %RemoveArrayHoles moves all non-undefined elements to the front of the

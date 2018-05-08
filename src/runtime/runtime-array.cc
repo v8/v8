@@ -322,6 +322,99 @@ RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
   return PrepareElementsForSort(object, limit);
 }
 
+namespace {
+
+// Copy element at index from source to target only if target does not have the
+// element on its own. Returns true if a copy occurred, false if not
+// and Nothing if an exception occurred.
+Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
+                            Handle<JSReceiver> target, uint32_t index) {
+  Maybe<bool> source_has_prop = JSReceiver::HasOwnProperty(source, index);
+  MAYBE_RETURN(source_has_prop, Nothing<bool>());
+  if (!source_has_prop.FromJust()) return Just(false);
+
+  Maybe<bool> target_has_prop = JSReceiver::HasOwnProperty(target, index);
+  MAYBE_RETURN(target_has_prop, Nothing<bool>());
+  if (target_has_prop.FromJust()) return Just(false);
+
+  Handle<Object> source_element;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, source_element, JSReceiver::GetElement(isolate, source, index),
+      Nothing<bool>());
+
+  Handle<Object> set_result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, set_result,
+      JSReceiver::SetElement(isolate, target, index, source_element,
+                             LanguageMode::kStrict),
+      Nothing<bool>());
+
+  return Just(true);
+}
+
+}  // namespace
+
+// Copy elements in the range 0..length from objects prototype chain
+// to object itself, if object has holes. Return one more than the maximal
+// index of a prototype property.
+RUNTIME_FUNCTION(Runtime_CopyFromPrototype) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  DCHECK(!object->IsJSArray());
+  CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
+
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
+      return isolate->heap()->exception();
+    }
+  }
+
+  uint32_t max = 0;
+  for (PrototypeIterator iter(isolate, object, kStartAtPrototype);
+       !iter.IsAtEnd(); iter.Advance()) {
+    Handle<JSReceiver> current(PrototypeIterator::GetCurrent<JSReceiver>(iter));
+
+    if (current->IsJSProxy()) {
+      for (uint32_t i = 0; i < length; ++i) {
+        Maybe<bool> did_copy = ConditionalCopy(isolate, current, object, i);
+        MAYBE_RETURN(did_copy, isolate->heap()->exception());
+        if (did_copy.FromJust() && i >= max) max = i + 1;
+      }
+    } else {
+      KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
+                                 ALL_PROPERTIES);
+      accumulator.CollectOwnElementIndices(object,
+                                           Handle<JSObject>::cast(current));
+      Handle<FixedArray> keys =
+          accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
+
+#ifdef DEBUG
+      // Check that keys are sorted.
+      for (int i = 1; i < keys->length(); ++i) {
+        uint32_t a = NumberToUint32(keys->get(i - 1));
+        uint32_t b = NumberToUint32(keys->get(i));
+
+        DCHECK_LE(a, b);
+      }
+#endif
+
+      uint32_t num_indices = keys->length();
+      for (uint32_t i = 0; i < num_indices; ++i) {
+        uint32_t idx = NumberToUint32(keys->get(i));
+
+        // Prototype might have indices that go past length, but we are only
+        // interested in the range [0, length).
+        if (idx >= length) break;
+
+        Maybe<bool> did_copy = ConditionalCopy(isolate, current, object, idx);
+        MAYBE_RETURN(did_copy, isolate->heap()->exception());
+        if (did_copy.FromJust() && idx >= max) max = idx + 1;
+      }
+    }
+  }
+  return *isolate->factory()->NewNumberFromUint(max);
+}
 
 // Move contents of argument 0 (an array) to argument 1 (an array)
 RUNTIME_FUNCTION(Runtime_MoveArrayContents) {

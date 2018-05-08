@@ -345,6 +345,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(LoadLookupSlotForCall)               \
   /* Arrays */                           \
   V(ArraySpeciesConstructor)             \
+  V(CopyFromPrototype)                   \
   V(EstimateNumberOfElements)            \
   V(GetArrayKeys)                        \
   V(HasComplexElements)                  \
