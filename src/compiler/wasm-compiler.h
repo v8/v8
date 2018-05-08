@@ -27,7 +27,7 @@ namespace compiler {
 // Forward declarations for some compiler data structures.
 class CallDescriptor;
 class Graph;
-class JSGraph;
+class MachineGraph;
 class Node;
 class Operator;
 class SourcePositionTable;
@@ -38,7 +38,7 @@ struct DecodeStruct;
 class SignatureMap;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
-typedef compiler::JSGraph TFGraph;
+typedef compiler::MachineGraph TFGraph;
 class NativeModule;
 class WasmCode;
 }  // namespace wasm
@@ -90,7 +90,7 @@ class TurbofanWasmCompilationUnit {
   bool ok_ = true;
   // The graph zone is deallocated at the end of {ExecuteCompilation} by virtue
   // of it being zone allocated.
-  JSGraph* jsgraph_ = nullptr;
+  MachineGraph* mcgraph_ = nullptr;
   // The compilation_zone_, info_, and job_ fields need to survive past
   // {ExecuteCompilation}, onto {FinishCompilation} (which happens on the main
   // thread).
@@ -157,9 +157,9 @@ class WasmGraphBuilder {
   };
   enum UseRetpoline : bool { kRetpoline = true, kNoRetpoline = false };
 
-  WasmGraphBuilder(wasm::ModuleEnv* env, Zone* zone, JSGraph* graph,
-                   Handle<Code> centry_stub, Handle<Oddball> anyref_null,
-                   wasm::FunctionSig* sig,
+  WasmGraphBuilder(Isolate* isolate, wasm::ModuleEnv* env, Zone* zone,
+                   MachineGraph* mcgraph, Handle<Code> centry_stub,
+                   Handle<Oddball> anyref_null, wasm::FunctionSig* sig,
                    compiler::SourcePositionTable* spt = nullptr);
 
   Node** Buffer(size_t count) {
@@ -186,15 +186,13 @@ class WasmGraphBuilder {
                              Node* tnode, Node* fnode);
   Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
-  Node* NumberConstant(int32_t value);
+  Node* RefNull();
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* IntPtrConstant(intptr_t value);
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
-  Node* RefNull() { return anyref_null_node_; }
-  Node* HeapConstant(Handle<HeapObject> value);
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
@@ -253,14 +251,6 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(wasm::WasmCode* wasm_code);
-  bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
-                            int index);
-  void BuildWasmInterpreterEntry(uint32_t func_index);
-  void BuildCWasmEntry();
-
-  Node* ToJS(Node* node, wasm::ValueType type);
-  Node* FromJS(Node* node, Node* js_context, wasm::ValueType type);
   Node* Invert(Node* node);
 
   //-----------------------------------------------------------------------
@@ -338,29 +328,32 @@ class WasmGraphBuilder {
 
   bool use_trap_handler() const { return env_ && env_->use_trap_handler; }
 
-  JSGraph* jsgraph() { return jsgraph_; }
+  MachineGraph* mcgraph() { return mcgraph_; }
   Graph* graph();
 
- private:
+ protected:
   static const int kDefaultBufferSize = 16;
 
+  Isolate* const isolate_;
   Zone* const zone_;
-  JSGraph* const jsgraph_;
-  Node* const centry_stub_node_;
-  Node* const anyref_null_node_;
-  // env_ == nullptr means we're not compiling Wasm functions, such as for
-  // wrappers or interpreter stubs.
-  wasm::ModuleEnv* const env_ = nullptr;
-  SetOncePointer<Node> instance_node_;
-  struct FunctionTableNodes {
-    Node* table_addr;
-    Node* size;
-  };
+  MachineGraph* const mcgraph_;
+  wasm::ModuleEnv* const env_;
+
   Node** control_ = nullptr;
   Node** effect_ = nullptr;
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
+
+  Handle<Code> centry_stub_;
+  Handle<Oddball> anyref_null_;
+
+  SetOncePointer<Node> instance_node_;
   SetOncePointer<Node> globals_start_;
   SetOncePointer<Node> imported_mutable_globals_;
+  SetOncePointer<Node> centry_stub_node_;
+  SetOncePointer<Node> anyref_null_node_;
+  SetOncePointer<Node> stack_check_builtin_code_node_;
+  const Operator* stack_check_call_operator_ = nullptr;
+
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
@@ -369,11 +362,12 @@ class WasmGraphBuilder {
   const bool untrusted_code_mitigations_ = true;
 
   wasm::FunctionSig* const sig_;
-  SetOncePointer<const Operator> allocate_heap_number_operator_;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
-  Node* String(const char* string);
+  Node* CEntryStub();
+  Node* NoContextConstant();
+
   Node* MemBuffer(uint32_t offset);
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
@@ -450,22 +444,10 @@ class WasmGraphBuilder {
                        MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
-  Node* BuildJavaScriptToNumber(Node* node, Node* js_context);
-
-  Node* BuildChangeInt32ToTagged(Node* value);
-  Node* BuildChangeFloat64ToTagged(Node* value);
-  Node* BuildChangeTaggedToFloat64(Node* value);
-
   Node* BuildChangeInt32ToSmi(Node* value);
-  Node* BuildChangeSmiToInt32(Node* value);
-  Node* BuildChangeUint32ToSmi(Node* value);
-  Node* BuildChangeSmiToFloat64(Node* value);
-  Node* BuildTestNotSmi(Node* value);
+  Node* BuildChangeUint31ToSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
-
-  Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
-  Node* BuildLoadHeapNumberValue(Node* value, Node* control);
-  Node* BuildHeapNumberValueIndexConstant();
+  Node* BuildChangeSmiToInt32(Node* value);
 
   Node* BuildLoadInstanceFromExportedFunction(Node* closure);
 
@@ -491,9 +473,6 @@ class WasmGraphBuilder {
     return buf;
   }
 
-  int AddParameterNodes(Node** args, int pos, int param_count,
-                        wasm::FunctionSig* sig);
-
   void SetNeedsStackCheck() { needs_stack_check_ = true; }
 
   //-----------------------------------------------------------------------
@@ -509,7 +488,6 @@ class WasmGraphBuilder {
                                             Node* js_context,
                                             Node* const* parameters,
                                             int parameter_count);
-  Node* BuildModifyThreadInWasmFlag(bool new_value);
   Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason);
 };
 

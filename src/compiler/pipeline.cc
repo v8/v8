@@ -2089,11 +2089,11 @@ OptimizedCompilationJob* Pipeline::NewCompilationJob(
 
 // static
 OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
-    OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+    OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     WasmCompilationData* wasm_compilation_data,
     wasm::ModuleOrigin asmjs_origin) {
-  return new PipelineWasmCompilationJob(info, isolate, jsgraph, call_descriptor,
+  return new PipelineWasmCompilationJob(info, isolate, mcgraph, call_descriptor,
                                         source_positions, wasm_compilation_data,
                                         asmjs_origin);
 }

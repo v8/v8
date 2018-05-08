@@ -270,13 +270,15 @@ void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
                        const byte* start, const byte* end) {
   if (module) {
     compiler::WasmGraphBuilder builder(
-        module, zone, jsgraph, CodeFactory::CEntry(jsgraph->isolate(), 1),
+        jsgraph->isolate(), module, zone, jsgraph,
+        CodeFactory::CEntry(jsgraph->isolate(), 1),
         jsgraph->isolate()->factory()->null_value(), sig,
         source_position_table);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   } else {
     compiler::WasmGraphBuilder builder(
-        nullptr, zone, jsgraph, CodeFactory::CEntry(jsgraph->isolate(), 1),
+        jsgraph->isolate(), nullptr, zone, jsgraph,
+        CodeFactory::CEntry(jsgraph->isolate(), 1),
         jsgraph->isolate()->factory()->null_value(), sig,
         source_position_table);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);

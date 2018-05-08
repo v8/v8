@@ -27,9 +27,9 @@ enum ModuleOrigin : uint8_t;
 namespace compiler {
 
 class CallDescriptor;
-class JSGraph;
 class Graph;
 class InstructionSequence;
+class MachineGraph;
 class Schedule;
 class SourcePositionTable;
 class WasmCompilationData;
@@ -42,7 +42,7 @@ class Pipeline : public AllStatic {
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static OptimizedCompilationJob* NewWasmCompilationJob(
-      OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+      OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       WasmCompilationData* wasm_compilation_data,
       wasm::ModuleOrigin wasm_origin);
