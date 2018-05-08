@@ -211,7 +211,7 @@ class JSToWasmWrapperCache {
     }
 
     Handle<Code> code = compiler::CompileJSToWasmWrapper(
-        isolate, module, weak_instance_, wasm_code, index, use_trap_handler);
+        isolate, module, wasm_code, index, use_trap_handler);
     uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
     DCHECK_EQ(code_cache_.size(), new_cache_idx);
     USE(new_cache_idx);
@@ -219,15 +219,10 @@ class JSToWasmWrapperCache {
     return code;
   }
 
-  void SetWeakInstance(Handle<WeakCell> weak_instance) {
-    weak_instance_ = weak_instance;
-  }
-
  private:
   // sig_map_ maps signatures to an index in code_cache_.
   wasm::SignatureMap sig_map_;
   std::vector<Handle<Code>> code_cache_;
-  Handle<WeakCell> weak_instance_;
 };
 
 // A helper class to simplify instantiating a module from a compiled module.
@@ -1617,9 +1612,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   MaybeHandle<WasmInstanceObject> old_instance;
 
   TRACE("Starting new module instantiation\n");
-  Handle<WasmCompiledModule> original =
-      handle(module_object_->compiled_module());
   {
+    Handle<WasmCompiledModule> original =
+        handle(module_object_->compiled_module());
     if (original->has_instance()) {
       old_instance = handle(original->owning_instance());
       // Clone, but don't insert yet the clone in the instances chain.
@@ -1647,24 +1642,15 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             compiled_module_->GetNativeModule()->instance_id);
     }
   }
-  base::Optional<wasm::NativeModuleModificationScope>
-      native_module_modification_scope;
-  if (native_module != nullptr) {
-    native_module_modification_scope.emplace(native_module);
-  }
+  DCHECK_NOT_NULL(native_module);
+  wasm::NativeModuleModificationScope native_modification_scope(native_module);
 
   //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  CodeSpecialization code_specialization;
   Handle<WasmInstanceObject> instance =
       WasmInstanceObject::New(isolate_, module_object_, compiled_module_);
   Handle<WeakCell> weak_instance = factory->NewWeakCell(instance);
-  Handle<WeakCell> old_weak_instance(original->weak_owning_instance(),
-                                     isolate_);
-  code_specialization.UpdateInstanceReferences(old_weak_instance,
-                                               weak_instance);
-  js_to_wasm_cache_.SetWeakInstance(weak_instance);
 
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
@@ -1729,6 +1715,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize the indirect tables.
   //--------------------------------------------------------------------------
+  CodeSpecialization code_specialization;
   if (function_table_count > 0) {
     InitializeTables(instance, &code_specialization);
   }
@@ -3688,9 +3675,6 @@ void CompileJsToWasmWrappers(Isolate* isolate,
                              Handle<WasmCompiledModule> compiled_module,
                              Counters* counters) {
   JSToWasmWrapperCache js_to_wasm_cache;
-  Handle<WeakCell> weak_instance(compiled_module->weak_owning_instance(),
-                                 isolate);
-  js_to_wasm_cache.SetWeakInstance(weak_instance);
   int wrapper_index = 0;
   Handle<FixedArray> export_wrappers(compiled_module->export_wrappers(),
                                      isolate);

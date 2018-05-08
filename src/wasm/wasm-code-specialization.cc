@@ -62,14 +62,6 @@ CodeSpecialization::CodeSpecialization() {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
-void CodeSpecialization::UpdateInstanceReferences(
-    Handle<WeakCell> old_weak_instance, Handle<WeakCell> new_weak_instance) {
-  DCHECK(!old_weak_instance.is_null());
-  DCHECK(!new_weak_instance.is_null());
-  old_weak_instance_ = old_weak_instance;
-  new_weak_instance_ = new_weak_instance;
-}
-
 void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
   DCHECK_NULL(relocate_direct_calls_module_);
   DCHECK_NOT_NULL(native_module);
@@ -101,9 +93,6 @@ bool CodeSpecialization::ApplyToWholeModule(
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 
-  bool patch_wasm_weak_instances =
-      !old_weak_instance_.is_identical_to(new_weak_instance_);
-
   // Patch all exported functions (JS_TO_WASM_FUNCTION).
   int reloc_mode = 0;
   // Patch CODE_TARGET if we shall relocate direct calls. If we patch direct
@@ -112,10 +101,6 @@ bool CodeSpecialization::ApplyToWholeModule(
   if (relocate_direct_calls_module_ != nullptr) {
     DCHECK_EQ(native_module, relocate_direct_calls_module_);
     reloc_mode |= RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
-  }
-  // Instance references are simply embedded objects.
-  if (patch_wasm_weak_instances) {
-    reloc_mode |= RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   }
   if (!reloc_mode) return changed;
   int wrapper_index = 0;
@@ -133,15 +118,6 @@ bool CodeSpecialization::ApplyToWholeModule(
               native_module->GetIndirectlyCallableCode(exp.index);
           it.rinfo()->set_js_to_wasm_address(new_code->instruction_start(),
                                              icache_flush_mode);
-        } break;
-        case RelocInfo::EMBEDDED_OBJECT: {
-          changed = true;
-          const HeapObject* old = it.rinfo()->target_object();
-          if (*old_weak_instance_ == old) {
-            it.rinfo()->set_target_object(
-                *new_weak_instance_, WriteBarrierMode::UPDATE_WRITE_BARRIER,
-                icache_flush_mode);
-          }
         } break;
         default:
           UNREACHABLE();

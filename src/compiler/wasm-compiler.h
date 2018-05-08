@@ -108,9 +108,11 @@ Handle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
                                     wasm::ModuleOrigin, wasm::UseTrapHandler);
 
 // Wraps a given wasm code object, producing a code object.
-V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(
-    Isolate*, wasm::WasmModule*, Handle<WeakCell> weak_instance,
-    wasm::WasmCode*, uint32_t index, wasm::UseTrapHandler);
+V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(Isolate*,
+                                                      wasm::WasmModule*,
+                                                      wasm::WasmCode*,
+                                                      uint32_t index,
+                                                      wasm::UseTrapHandler);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
@@ -251,8 +253,7 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(Handle<WeakCell> weak_instance,
-                            wasm::WasmCode* wasm_code);
+  void BuildJSToWasmWrapper(wasm::WasmCode* wasm_code);
   bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
                             int index);
   void BuildWasmInterpreterEntry(uint32_t func_index);
@@ -465,6 +466,8 @@ class WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
   Node* BuildLoadHeapNumberValue(Node* value, Node* control);
   Node* BuildHeapNumberValueIndexConstant();
+
+  Node* BuildLoadInstanceFromExportedFunction(Node* closure);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);

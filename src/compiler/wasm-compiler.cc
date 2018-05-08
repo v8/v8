@@ -3004,8 +3004,26 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
   return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
-void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<WeakCell> weak_instance,
-                                            wasm::WasmCode* wasm_code) {
+Node* WasmGraphBuilder::BuildLoadInstanceFromExportedFunction(Node* closure) {
+  Node* shared = *effect_ = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->Int32Constant(JSFunction::kSharedFunctionInfoOffset -
+                               kHeapObjectTag),
+      *effect_, *control_);
+  Node* function_data = *effect_ = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::AnyTagged()), shared,
+      jsgraph()->Int32Constant(SharedFunctionInfo::kFunctionDataOffset -
+                               kHeapObjectTag),
+      *effect_, *control_);
+  Node* instance = *effect_ = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::AnyTagged()), function_data,
+      jsgraph()->Int32Constant(WasmExportedFunctionData::kInstanceOffset -
+                               kHeapObjectTag),
+      *effect_, *control_);
+  return instance;
+}
+
+void WasmGraphBuilder::BuildJSToWasmWrapper(wasm::WasmCode* wasm_code) {
   const int wasm_count = static_cast<int>(sig_->parameter_count());
   const int count =
       wasm_count + 4;  // wasm_code, instance_node, effect, and control.
@@ -3016,25 +3034,20 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<WeakCell> weak_instance,
   *control_ = start;
   *effect_ = start;
 
-  // Create the js_context parameter
+  // Create the js_closure and js_context parameters.
+  Node* js_closure =
+      graph()->NewNode(jsgraph()->common()->Parameter(
+                           Linkage::kJSCallClosureParamIndex, "%closure"),
+                       graph()->start());
   Node* js_context = graph()->NewNode(
       jsgraph()->common()->Parameter(
           Linkage::GetJSCallContextParamIndex(wasm_count + 1), "%context"),
       graph()->start());
 
-  // Create the instance_node node to pass as parameter. This is either
-  // an actual reference to an instance or a placeholder reference,
-  // since JSToWasm wrappers can be compiled at module compile time and
-  // patched at instance build time.
+  // Create the instance_node node to pass as parameter. It is loaded from the
+  // called {WasmExportedFunction} via the {WasmExportedFunctionData} structure.
   DCHECK_NULL(instance_node_);
-  // TODO(titzer): JSToWasmWrappers should load the instance from the
-  // incoming JSFunction, but this is currently too slow/too complex because
-  // we use a regular JS property with a private symbol.
-  instance_node_ = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::TaggedPointer()),
-      jsgraph()->HeapConstant(weak_instance),
-      jsgraph()->Int32Constant(WeakCell::kValueOffset - kHeapObjectTag),
-      *effect_, *control_);
+  instance_node_ = BuildLoadInstanceFromExportedFunction(js_closure);
 
   Address instr_start =
       wasm_code == nullptr ? kNullAddress : wasm_code->instruction_start();
@@ -4638,7 +4651,6 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 }  // namespace
 
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    Handle<WeakCell> weak_instance,
                                     wasm::WasmCode* wasm_code, uint32_t index,
                                     wasm::UseTrapHandler use_trap_handler) {
   const wasm::WasmFunction* func = &module->functions[index];
@@ -4665,7 +4677,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                            isolate->factory()->null_value(), func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildJSToWasmWrapper(weak_instance, wasm_code);
+  builder.BuildJSToWasmWrapper(wasm_code);
 
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.
