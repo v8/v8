@@ -1754,6 +1754,29 @@ class LiftoffCompiler {
     __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kWasmI32,
                       index.gp(), tmp_const.gp());
 
+    // Mask the index to prevent SSCA.
+    if (FLAG_untrusted_code_mitigations) {
+      DEBUG_CODE_COMMENT("Mask indirect call index");
+      // mask = ((index - size) & ~index) >> 31
+      // Reuse allocated registers; note: size is still stored in {tmp_const}.
+      LiftoffRegister diff = table;
+      LiftoffRegister neg_index = tmp_const;
+      LiftoffRegister mask = scratch;
+      // 1) diff = index - size
+      __ emit_i32_sub(diff.gp(), index.gp(), tmp_const.gp());
+      // 2) neg_index = ~index
+      __ LoadConstant(neg_index, WasmValue(int32_t{-1}));
+      __ emit_i32_xor(neg_index.gp(), neg_index.gp(), index.gp());
+      // 3) mask = diff & neg_index
+      __ emit_i32_and(mask.gp(), diff.gp(), neg_index.gp());
+      // 4) mask = mask >> 31
+      __ LoadConstant(tmp_const, WasmValue(int32_t{31}));
+      __ emit_i32_sar(mask.gp(), mask.gp(), tmp_const.gp(), pinned);
+
+      // Apply mask.
+      __ emit_i32_and(index.gp(), index.gp(), mask.gp());
+    }
+
     DEBUG_CODE_COMMENT("Check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kPointerLoadType);
