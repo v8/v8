@@ -1193,8 +1193,8 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<Object> feedback(p.feedback().vector()->Get(p.feedback().slot()),
-                          isolate());
+  Handle<Object> feedback(
+      p.feedback().vector()->Get(p.feedback().slot())->ToObject(), isolate());
   if (feedback->IsAllocationSite()) {
     Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
     Handle<JSObject> boilerplate(site->boilerplate(), isolate());
@@ -1215,8 +1215,8 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralArray, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
-  Handle<Object> feedback(p.feedback().vector()->Get(p.feedback().slot()),
-                          isolate());
+  Handle<Object> feedback(
+      p.feedback().vector()->Get(p.feedback().slot())->ToObject(), isolate());
   if (feedback->IsAllocationSite()) {
     Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
     DCHECK(!site->PointsToLiteral());
@@ -1269,8 +1269,8 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<Object> feedback(p.feedback().vector()->Get(p.feedback().slot()),
-                          isolate());
+  Handle<Object> feedback(
+      p.feedback().vector()->Get(p.feedback().slot())->ToObject(), isolate());
   if (feedback->IsJSRegExp()) {
     Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(feedback);
     Node* value = effect = AllocateLiteralRegExp(effect, control, boilerplate);

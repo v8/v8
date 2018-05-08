@@ -71,7 +71,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(TypedArraySpeciesProtector, typed_array_species_protector,              \
     TypedArraySpeciesProtector)                                             \
   V(UndefinedValue, undefined_value, Undefined)                             \
-  V(WeakCellMap, weak_cell_map, WeakCellMap)
+  V(WeakCellMap, weak_cell_map, WeakCellMap)                                \
+  V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)
 
 // Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
 // here to simplify use in other generated builtins.
@@ -595,6 +596,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(
       SloppyTNode<FixedArrayBase> array);
   // Load the length of a WeakFixedArray.
+  TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(
       SloppyTNode<WeakFixedArray> array);
   // Load the bit field of a Map.
@@ -656,7 +658,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a JSValue object.
   Node* LoadJSValueValue(Node* object);
   // Load value field of a WeakCell object.
-  TNode<Object> LoadWeakCellValueUnchecked(Node* weak_cell);
+  TNode<Object> LoadWeakCellValueUnchecked(SloppyTNode<HeapObject> weak_cell);
   TNode<Object> LoadWeakCellValue(SloppyTNode<WeakCell> weak_cell,
                                   Label* if_cleared = nullptr);
 
@@ -671,10 +673,30 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void DispatchMaybeObject(TNode<MaybeObject> maybe_object, Label* if_smi,
                            Label* if_cleared, Label* if_weak, Label* if_strong,
                            TVariable<Object>* extracted);
+  // See MaybeObject for semantics of these functions.
   TNode<BoolT> IsStrongHeapObject(TNode<MaybeObject> value);
-  TNode<HeapObject> GetHeapObject(TNode<MaybeObject> value);
+  // This variant is for overzealous checking.
+  TNode<BoolT> IsStrongHeapObject(TNode<Object> value) {
+    return IsStrongHeapObject(ReinterpretCast<MaybeObject>(value));
+  }
   TNode<HeapObject> ToStrongHeapObject(TNode<MaybeObject> value);
-  TNode<Object> ToStrongHeapObjectOrSmi(TNode<MaybeObject> value);
+
+  TNode<BoolT> IsWeakOrClearedHeapObject(TNode<MaybeObject> value);
+  TNode<BoolT> IsClearedWeakHeapObject(TNode<MaybeObject> value);
+  TNode<BoolT> IsNotClearedWeakHeapObject(TNode<MaybeObject> value);
+
+  // Removes the weak bit + asserts it was set.
+  TNode<HeapObject> ToWeakHeapObject(TNode<MaybeObject> value);
+
+  // IsObject == true when the MaybeObject is a strong HeapObject or a smi.
+  TNode<BoolT> IsObject(TNode<MaybeObject> value);
+  // This variant is for overzealous checking.
+  TNode<BoolT> IsObject(TNode<Object> value) {
+    return IsObject(ReinterpretCast<MaybeObject>(value));
+  }
+  TNode<Object> ToObject(TNode<MaybeObject> value);
+
+  TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
   // Load an array element from a FixedArray / WeakFixedArray.
   TNode<MaybeObject> LoadArrayElement(
@@ -734,6 +756,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
         object, IntPtrConstant(index), additional_offset, INTPTR_PARAMETERS);
   }
 
+  // Load an array element from a WeakFixedArray.
+  TNode<MaybeObject> LoadWeakFixedArrayElement(
+      TNode<WeakFixedArray> object, Node* index, int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+
+  TNode<MaybeObject> LoadWeakFixedArrayElement(
+      TNode<WeakFixedArray> object, int index, int additional_offset = 0,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return LoadWeakFixedArrayElement(object, IntPtrConstant(index),
+                                     additional_offset, INTPTR_PARAMETERS,
+                                     needs_poisoning);
+  }
+
   // Load an array element from a FixedDoubleArray.
   Node* LoadFixedDoubleArrayElement(
       Node* object, Node* index, MachineType machine_type,
@@ -742,7 +778,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Label* if_hole = nullptr);
 
   // Load a feedback slot from a FeedbackVector.
-  TNode<Object> LoadFeedbackVectorSlot(
+  TNode<MaybeObject> LoadFeedbackVectorSlot(
       Node* object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
@@ -1415,9 +1451,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsSymbol(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
   TNode<BoolT> IsWeakCell(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
-
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
 
   inline Node* IsSharedFunctionInfo(Node* object) {
     return IsSharedFunctionInfoMap(LoadMap(object));
@@ -2262,6 +2297,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   inline void Print(SloppyTNode<Object> tagged_value) {
     return Print(nullptr, tagged_value);
   }
+  inline void Print(TNode<MaybeObject> tagged_value) {
+    return Print(nullptr, tagged_value);
+  }
 
   template <class... TArgs>
   Node* MakeTypeError(MessageTemplate::Template message, Node* context,
@@ -2350,10 +2388,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);
-
-  void AssertIsStrongHeapObject(SloppyTNode<MaybeObject> object);
-  void AssertIsStrongHeapObjectOrSmi(SloppyTNode<MaybeObject> object);
-  void AssertIsStrongHeapObject(SloppyTNode<HeapObject> object);
 
  private:
   friend class CodeStubArguments;

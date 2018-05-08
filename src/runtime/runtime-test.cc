@@ -511,29 +511,54 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
+  // Hack: The argument is passed as Object* but here it's really a
+  // MaybeObject*.
+  MaybeObject* maybe_object = reinterpret_cast<MaybeObject*>(args[0]);
+
   OFStream os(stdout);
-#ifdef DEBUG
-  if (args[0]->IsString() && isolate->context() != nullptr) {
-    // If we have a string, assume it's a code "marker"
-    // and print some interesting cpu debugging info.
-    args[0]->Print(os);
-    JavaScriptFrameIterator it(isolate);
-    JavaScriptFrame* frame = it.frame();
-    os << "fp = " << reinterpret_cast<void*>(frame->fp())
-       << ", sp = " << reinterpret_cast<void*>(frame->sp())
-       << ", caller_sp = " << reinterpret_cast<void*>(frame->caller_sp())
-       << ": ";
+  if (maybe_object->IsClearedWeakHeapObject()) {
+    os << "[weak cleared]";
   } else {
-    os << "DebugPrint: ";
-    args[0]->Print(os);
-  }
-  if (args[0]->IsHeapObject()) {
-    HeapObject::cast(args[0])->map()->Print(os);
-  }
+    Object* object;
+    bool weak = false;
+    if (maybe_object->IsWeakHeapObject()) {
+      weak = true;
+      object = maybe_object->ToWeakHeapObject();
+    } else {
+      // Strong reference or SMI.
+      object = maybe_object->ToObject();
+    }
+
+#ifdef DEBUG
+    if (object->IsString() && isolate->context() != nullptr) {
+      DCHECK(!weak);
+      // If we have a string, assume it's a code "marker"
+      // and print some interesting cpu debugging info.
+      object->Print(os);
+      JavaScriptFrameIterator it(isolate);
+      JavaScriptFrame* frame = it.frame();
+      os << "fp = " << reinterpret_cast<void*>(frame->fp())
+         << ", sp = " << reinterpret_cast<void*>(frame->sp())
+         << ", caller_sp = " << reinterpret_cast<void*>(frame->caller_sp())
+         << ": ";
+    } else {
+      os << "DebugPrint: ";
+      if (weak) {
+        os << "[weak] ";
+      }
+      object->Print(os);
+    }
+    if (object->IsHeapObject()) {
+      HeapObject::cast(object)->map()->Print(os);
+    }
 #else
-  // ShortPrint is available in release mode. Print is not.
-  os << Brief(args[0]);
+    if (weak) {
+      os << "[weak] ";
+    }
+    // ShortPrint is available in release mode. Print is not.
+    os << Brief(object);
 #endif
+  }
   os << std::endl;
 
   return args[0];  // return TOS

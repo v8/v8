@@ -103,10 +103,11 @@ class AccessorAssembler : public CodeStubAssembler {
   enum class ICMode { kNonGlobalIC, kGlobalIC };
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
-      const StoreICParameters* p, Node* handler, Label* miss, ICMode ic_mode,
-      ElementSupport support_elements = kOnlyProperties);
+      const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
+      ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
   void HandleStoreICTransitionMapHandlerCase(const StoreICParameters* p,
-                                             Node* transition_map, Label* miss,
+                                             TNode<Map> transition_map,
+                                             Label* miss,
                                              bool validate_transition_handler);
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
@@ -153,16 +154,17 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
   Node* TryMonomorphicCase(Node* slot, Node* vector, Node* receiver_map,
-                           Label* if_handler, Variable* var_handler,
-                           Label* if_miss);
-  void HandlePolymorphicCase(Node* receiver_map, Node* feedback,
-                             Label* if_handler, Variable* var_handler,
+                           Label* if_handler,
+                           TVariable<MaybeObject>* var_handler, Label* if_miss);
+  void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
+                             Label* if_handler,
+                             TVariable<MaybeObject>* var_handler,
                              Label* if_miss, int min_feedback_capacity);
 
   // LoadIC implementation.
   enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
   void HandleLoadICHandlerCase(
-      const LoadICParameters* p, Node* handler, Label* miss,
+      const LoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties);

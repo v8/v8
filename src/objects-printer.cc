@@ -933,7 +933,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     if (entry_size > 0) os << " {";
     for (int i = 0; i < entry_size; i++) {
       int index = GetIndex(slot) + i;
-      os << "\n     [" << index << "]: " << Brief(get(index));
+      os << "\n     [" << index << "]: " << MaybeObjectBrief(get(index));
     }
     if (entry_size > 0) os << "\n  }";
   }

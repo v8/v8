@@ -819,9 +819,8 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         continue;
       }
       HeapObject* heap_object;
-      // Weak references have been handled explicitly.
-      DCHECK(!(*p)->ToWeakHeapObject(&heap_object));
-      if ((*p)->ToStrongHeapObject(&heap_object)) {
+      if ((*p)->ToWeakHeapObject(&heap_object) ||
+          (*p)->ToStrongHeapObject(&heap_object)) {
         generator_->SetHiddenReference(parent_obj_, parent_, next_index,
                                        heap_object, index * kPointerSize);
       }
@@ -1803,7 +1802,6 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
   }
   MarkVisitedField(field_offset);
 }
-
 
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(
     PropertyKind kind, JSObject* parent_obj, int parent_entry,

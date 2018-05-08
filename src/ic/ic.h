@@ -14,6 +14,7 @@
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects/map.h"
+#include "src/objects/maybe-object.h"
 
 namespace v8 {
 namespace internal {
@@ -92,7 +93,7 @@ class IC {
   bool vector_needs_update() {
     return (!vector_set_ &&
             (state() != MEGAMORPHIC ||
-             Smi::ToInt(nexus()->GetFeedbackExtra()) != ELEMENT));
+             Smi::ToInt(nexus()->GetFeedbackExtra()->ToSmi()) != ELEMENT));
   }
 
   // Configure for most states.
@@ -117,7 +118,8 @@ class IC {
 
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
-  void UpdateMegamorphicCache(Map* map, Name* name, Object* code);
+  void UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
+                              Handle<Object> code);
 
   StubCache* stub_cache();
 

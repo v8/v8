@@ -236,8 +236,7 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
     if (!validity_cell.is_null()) {
       transition_map->set_prototype_validity_cell(*validity_cell);
     }
-    Handle<WeakCell> cell = Map::WeakCellForMap(transition_map);
-    return cell;
+    return transition_map;
   }
 }
 

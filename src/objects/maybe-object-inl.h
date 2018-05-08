@@ -72,6 +72,10 @@ bool MaybeObject::IsWeakHeapObject() {
   return HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject();
 }
 
+bool MaybeObject::IsWeakOrClearedHeapObject() {
+  return HasWeakHeapObjectTag(this);
+}
+
 bool MaybeObject::ToWeakHeapObject(HeapObject** result) {
   if (HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject()) {
     *result = GetHeapObject();
@@ -89,6 +93,18 @@ HeapObject* MaybeObject::GetHeapObject() {
   DCHECK(!IsSmi());
   DCHECK(!IsClearedWeakHeapObject());
   return RemoveWeakHeapObjectMask(reinterpret_cast<HeapObjectReference*>(this));
+}
+
+Object* MaybeObject::GetHeapObjectOrSmi() {
+  if (IsSmi()) {
+    return reinterpret_cast<Object*>(this);
+  }
+  return GetHeapObject();
+}
+
+Object* MaybeObject::ToObject() {
+  DCHECK(!HasWeakHeapObjectTag(this));
+  return reinterpret_cast<Object*>(this);
 }
 
 MaybeObject* MaybeObject::MakeWeak(MaybeObject* object) {

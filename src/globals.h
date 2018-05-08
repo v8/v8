@@ -1519,7 +1519,7 @@ V8_INLINE static HeapObject* RemoveWeakHeapObjectMask(
                                        ~kWeakHeapObjectMask);
 }
 
-V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(HeapObject* value) {
+V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(Object* value) {
   return reinterpret_cast<HeapObjectReference*>(
       reinterpret_cast<intptr_t>(value) | kWeakHeapObjectMask);
 }

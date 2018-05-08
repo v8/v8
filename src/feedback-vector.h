@@ -196,15 +196,19 @@ class FeedbackVector : public HeapObject {
 
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(int index);
-  inline Object* Get(FeedbackSlot slot) const;
-  inline Object* get(int index) const;
+  inline MaybeObject* Get(FeedbackSlot slot) const;
+  inline MaybeObject* get(int index) const;
+  inline void Set(FeedbackSlot slot, MaybeObject* value,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, MaybeObject* value,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set(int index, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
-  inline Object** slots_start();
+  inline MaybeObject** slots_start();
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
@@ -243,6 +247,8 @@ class FeedbackVector : public HeapObject {
   // For gdb debugging.
   void Print();
 #endif  // OBJECT_PRINT
+
+  static void AssertNoLegacyTypes(Object* object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -604,7 +610,7 @@ class FeedbackNexus final {
   bool ConfigureMegamorphic(IcCheckType property_type);
 
   inline Object* GetFeedback() const;
-  inline Object* GetFeedbackExtra() const;
+  inline MaybeObject* GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
 
@@ -680,9 +686,11 @@ class FeedbackNexus final {
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetFeedbackExtra(MaybeObject* feedback_extra,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  Handle<FixedArray> EnsureArrayOfSize(int length);
-  Handle<FixedArray> EnsureExtraArrayOfSize(int length);
+  Handle<WeakFixedArray> EnsureArrayOfSize(int length);
+  Handle<WeakFixedArray> EnsureExtraArrayOfSize(int length);
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and

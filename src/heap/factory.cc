@@ -334,7 +334,8 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->set_profiler_ticks(0);
   vector->set_deopt_count(0);
   // TODO(leszeks): Initialize based on the feedback metadata.
-  MemsetPointer(vector->slots_start(), *undefined_value(), length);
+  MemsetPointer(vector->slots_start(),
+                MaybeObject::FromObject(*undefined_value()), length);
   return vector;
 }
 

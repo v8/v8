@@ -331,7 +331,7 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointer(obj, kSharedFunctionInfoOffset, v);
     IterateMaybeWeakPointer(obj, kOptimizedCodeOffset, v);
-    IteratePointers(obj, kFeedbackSlotsOffset, object_size, v);
+    IterateMaybeWeakPointers(obj, kFeedbackSlotsOffset, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* obj) {

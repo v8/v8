@@ -809,7 +809,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
     }
   } else if (nexus.ic_state() == MONOMORPHIC) {
     if (nexus.FindFirstMap() != object->map() ||
-        nexus.GetFeedbackExtra() != *name) {
+        nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
       nexus.ConfigureMegamorphic(PROPERTY);
     }
   }

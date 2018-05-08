@@ -407,7 +407,8 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
 }
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
-    Object* obj, FeedbackSlotKind kind, Isolate* isolate) {
+    MaybeObject* maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
+  HeapObject* obj = maybe_obj->ToStrongHeapObject();
   switch (kind) {
     case FeedbackSlotKind::kCall:
       if (obj == *isolate->factory()->uninitialized_symbol() ||
@@ -478,10 +479,11 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
       // Log the monomorphic/polymorphic helper objects that this slot owns.
       for (int i = 0; i < it.entry_size(); i++) {
-        Object* raw_object = vector->get(slot.ToInt() + i);
+        Object* raw_object =
+            vector->get(slot.ToInt() + i)->GetHeapObjectOrSmi();
         if (!raw_object->IsHeapObject()) continue;
         HeapObject* object = HeapObject::cast(raw_object);
-        if (object->IsCell() || object->IsFixedArrayExact()) {
+        if (object->IsCell() || object->IsWeakFixedArray()) {
           RecordSimpleVirtualObjectStats(
               vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
         }
