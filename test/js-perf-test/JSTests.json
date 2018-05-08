@@ -238,6 +238,24 @@
           ]
         },
         {
+          "name": "StringSplit",
+          "main": "run.js",
+          "resources": [ "string-split.js" ],
+          "test_flags": [ "string-split" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "ShortSubjectEmptySeparator"},
+            {"name": "LongSubjectEmptySeparator"},
+            {"name": "ShortTwoBytesSubjectEmptySeparator"},
+            {"name": "LongTwoBytesSubjectEmptySeparator"},
+            {"name": "ShortSubject"},
+            {"name": "LongSubject"},
+            {"name": "ShortTwoBytesSubject"},
+            {"name": "LongTwoBytesSubject"}
+          ]
+        },
+        {
           "name": "StringAt",
           "main": "run.js",
           "resources": [ "string-stringat.js" ],
