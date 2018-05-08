@@ -801,32 +801,6 @@ function InnerArraySort(array, length, comparefn) {
     }
   };
 
-  // Set a value of "undefined" on all indices in the range from..to
-  // where a prototype of obj has an element. I.e., shadow all prototype
-  // elements in that range.
-  function ShadowPrototypeElements(obj, from, to) {
-    for (var proto = %object_get_prototype_of(obj); proto;
-         proto = %object_get_prototype_of(proto)) {
-      var indices = IS_PROXY(proto) ? to : %GetArrayKeys(proto, to);
-      if (IS_NUMBER(indices)) {
-        // It's an interval.
-        var proto_length = indices;
-        for (var i = from; i < proto_length; i++) {
-          if (HAS_OWN_PROPERTY(proto, i)) {
-            obj[i] = UNDEFINED;
-          }
-        }
-      } else {
-        for (var i = 0; i < indices.length; i++) {
-          var index = indices[i];
-          if (from <= index && HAS_OWN_PROPERTY(proto, index)) {
-            obj[index] = UNDEFINED;
-          }
-        }
-      }
-    }
-  };
-
   if (length < 2) return array;
 
   var is_array = IS_ARRAY(array);
@@ -848,12 +822,6 @@ function InnerArraySort(array, length, comparefn) {
   var num_non_undefined = %RemoveArrayHoles(array, length);
 
   QuickSort(array, 0, num_non_undefined);
-
-  if (!is_array && (num_non_undefined + 1 < max_prototype_element)) {
-    // For compatibility with JSC, we shadow any elements in the prototype
-    // chain that has become exposed by sort moving a hole to its position.
-    ShadowPrototypeElements(array, num_non_undefined, max_prototype_element);
-  }
 
   return array;
 }

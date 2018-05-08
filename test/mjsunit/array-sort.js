@@ -281,7 +281,7 @@ function TestInheritedElementSort(depth) {
   // expected (inherited) object: [undef1,...undefdepth,hole,1,...,depth,0,hole]
 
   Array.prototype.sort.call(obj, function(a,b) { return (b < a) - (a < b); });
-  // expected result: [0,1,...,depth,undef1,...,undefdepth,undef,hole]
+  // expected result: [0,1,...,depth,undef1,...,undefdepth,hole]
   var name = "SortInherit("+depth+")-";
 
   assertEquals(length, obj.length, name+"length");
@@ -289,11 +289,12 @@ function TestInheritedElementSort(depth) {
     assertTrue(obj.hasOwnProperty(i), name + "hasvalue" + i);
     assertEquals(i, obj[i], name + "value" + i);
   }
-  for (var i = depth + 1; i <= depth * 2 + 1; i++) {
+  for (var i = depth + 1; i < depth * 2 + 1; i++) {
     assertEquals(undefined, obj[i], name + "undefined" + i);
     assertTrue(obj.hasOwnProperty(i), name + "hasundefined" + i);
   }
-  assertTrue(!obj.hasOwnProperty(depth * 2 + 2), name + "hashole");
+  assertFalse(obj.hasOwnProperty(depth * 2 + 1), name + "hashole")
+  assertFalse(obj.hasOwnProperty(depth * 2 + 2), name + "hashole");
 }
 
 TestInheritedElementSort(5);
@@ -321,9 +322,8 @@ function TestSparseInheritedElementSort(scale) {
     assertEquals(i, y[i], name + "value" + i);
   }
   for (var i = 10; i < length; i++) {
-    assertEquals(x.hasOwnProperty(i), y.hasOwnProperty(i),
-                 name + "hasundef" + i);
-    assertEquals(undefined, y[i], name+"undefined"+i);
+    assertFalse(y.hasOwnProperty(i), name + "noundef" + i);
+
     if (x.hasOwnProperty(i)) {
       assertTrue(0 == i % (2 * scale), name + "new_x" + i);
     }
@@ -376,14 +376,14 @@ function TestSpecialCasesInheritedElementSort() {
   assertFalse(sorted.length in x, name + "haspost2");
   assertTrue(x.hasOwnProperty(10), name + "hasundefined10");
   assertEquals(undefined, x[10], name + "undefined10");
-  assertTrue(x.hasOwnProperty(100), name + "hasundefined100");
-  assertEquals(undefined, x[100], name + "undefined100");
-  assertTrue(x.hasOwnProperty(1000), name + "hasundefined1000");
-  assertEquals(undefined, x[1000], name + "undefined1000");
-  assertTrue(x.hasOwnProperty(2000), name + "hasundefined2000");
-  assertEquals(undefined, x[2000], name + "undefined2000");
-  assertTrue(x.hasOwnProperty(8000), name + "hasundefined8000");
-  assertEquals(undefined, x[8000], name + "undefined8000");
+  assertFalse(x.hasOwnProperty(100), name + "hasno100");
+  assertEquals("b2", x[100], "inherits100");
+  assertFalse(x.hasOwnProperty(1000), name + "hasno1000");
+  assertEquals("c2", x[1000], "inherits1000");
+  assertFalse(x.hasOwnProperty(2000), name + "hasno2000");
+  assertEquals(undefined, x[2000], "inherits2000");
+  assertFalse(x.hasOwnProperty(8000), name + "hasno8000");
+  assertEquals("d2", x[8000], "inherits8000");
   assertFalse(x.hasOwnProperty(12000), name + "has12000");
   assertEquals("XX", x[12000], name + "XX12000");
 }
