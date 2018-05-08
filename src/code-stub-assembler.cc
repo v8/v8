@@ -1773,11 +1773,7 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
-  CSA_SLOW_ASSERT(
-      this,
-      IsOffsetInBounds(
-          offset, LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset),
-          FixedArray::kHeaderSize));
+  // TODO(cbruni): Re-add bounds check here.
   return UncheckedCast<MaybeObject>(
       Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
 }
