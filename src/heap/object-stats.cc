@@ -408,7 +408,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     MaybeObject* maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
-  HeapObject* obj = maybe_obj->ToStrongHeapObject();
+  Object* obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
     case FeedbackSlotKind::kCall:
       if (obj == *isolate->factory()->uninitialized_symbol() ||
