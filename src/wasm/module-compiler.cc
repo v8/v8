@@ -3067,14 +3067,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     Isolate* isolate = job_->isolate_;
 
-    Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
-    {
-      // Now reopen the handles in a deferred scope in order to use
-      // them in the concurrent steps.
-      DeferredHandleScope deferred(isolate);
-      job_->centry_stub_ = Handle<Code>(*centry_stub, isolate);
-      job_->deferred_handles_.push_back(deferred.Detach());
-    }
+    job_->centry_stub_ = CodeFactory::CEntry(isolate);
 
     DCHECK_LE(module_->num_imported_functions, module_->functions.size());
     // Create the compiled module object and populate with compiled functions
