@@ -585,6 +585,60 @@ assertThrows(() => {
   Array.prototype.sort.call(undefined);
 }, TypeError);
 
+// This test ensures that RemoveArrayHoles does not shadow indices in the
+// prototype chain. There are multiple code paths, we force both and check that
+// they have the same behavior.
+function TestPrototypeHoles() {
+  function test(forceGenericFallback) {
+    let proto2 = {
+      7: 27,
+    };
+
+    let proto1 = {
+      __proto__: proto2,
+      8: 18,
+      9: 19,
+    };
+
+    let xs = {
+      __proto__: proto1,
+      length: 10,
+      7: 7,
+      8: 8,
+      9: 9,
+    };
+
+    if (forceGenericFallback) {
+      Object.defineProperty(xs, "6", {
+        get: () => this.foo,
+        set: (val) => this.foo = val
+      });
+    }
+    xs[6] = 6;
+
+    Array.prototype.sort.call(xs, (a, b) => a - b);
+
+    assertEquals(10, xs.length);
+    assertEquals(6, xs[0]);
+    assertEquals(7, xs[1]);
+    assertEquals(8, xs[2]);
+    assertEquals(9, xs[3]);
+
+    // Index 7,8,9 will get the prototype values.
+    assertFalse(xs.hasOwnProperty(7));
+    assertEquals(27, xs[7]);
+
+    assertFalse(xs.hasOwnProperty(8));
+    assertEquals(18, xs[8]);
+
+    assertFalse(xs.hasOwnProperty(9));
+    assertEquals(19, xs[9]);
+  }
+
+  test(true);
+  test(false);
+}
+TestPrototypeHoles();
 
 // The following Tests make sure that there is no crash when the element kind
 // or the array length changes. Since comparison functions like this are not

@@ -29,86 +29,134 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
 }
 
 namespace {
-// As PrepareElementsForSort, but only on objects where elements is
-// a dictionary, and it will stay a dictionary.  Collates undefined and
-// unexisting elements below limit from position zero of the elements.
-Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
-  DCHECK(object->HasDictionaryElements());
-  Isolate* isolate = object->GetIsolate();
-  // Must stay in dictionary mode, either because of requires_slow_elements,
-  // or because we are not going to sort (and therefore compact) all of the
-  // elements.
-  Handle<NumberDictionary> dict(object->element_dictionary(), isolate);
-  Handle<NumberDictionary> new_dict =
-      NumberDictionary::New(isolate, dict->NumberOfElements());
+// Find the next free position. undefined and holes are both considered
+// free spots. Returns "Nothing" if an exception occurred.
+Maybe<uint32_t> FindNextFreePosition(Isolate* isolate,
+                                     Handle<JSReceiver> receiver,
+                                     uint32_t current_pos) {
+  for (uint32_t position = current_pos;; ++position) {
+    Maybe<bool> has_element = JSReceiver::HasElement(receiver, position);
+    MAYBE_RETURN(has_element, Nothing<uint32_t>());
+    if (!has_element.FromJust()) return Just(position);
 
-  uint32_t pos = 0;
-  uint32_t undefs = 0;
-  uint32_t max_key = 0;
-  int capacity = dict->Capacity();
-  Smi* bailout = Smi::FromInt(-1);
-  // Entry to the new dictionary does not cause it to grow, as we have
-  // allocated one that is large enough for all entries.
-  for (int i = 0; i < capacity; i++) {
-    Object* k;
-    if (!dict->ToKey(isolate, i, &k)) continue;
+    Handle<Object> element;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, element, JSReceiver::GetElement(isolate, receiver, position),
+        Nothing<uint32_t>());
+    if (element->IsUndefined(isolate)) return Just(position);
+  }
+}
 
-    DCHECK_LE(0, k->Number());
-    DCHECK_LE(k->Number(), kMaxUInt32);
+// As PrepareElementsForSort, but also handles Dictionary elements that stay
+// Dictionary (requires_slow_elements() is true), proxies and objects that
+// might have accessors.
+Object* PrepareElementsForSortGeneric(Handle<JSReceiver> receiver,
+                                      uint32_t limit) {
+  Isolate* isolate = receiver->GetIsolate();
+  HandleScope scope(isolate);
 
-    HandleScope scope(isolate);
-    Handle<Object> value(dict->ValueAt(i), isolate);
-    PropertyDetails details = dict->DetailsAt(i);
-    if (details.kind() == kAccessor || details.IsReadOnly()) {
-      // Bail out and do the sorting of undefineds and array holes in JS.
-      // Also bail out if the element is not supposed to be moved.
-      return bailout;
+  // For proxies, we do not collect the keys, instead we use all indices in
+  // the full range of [0, limit).
+  Handle<FixedArray> keys;
+  if (receiver->IsJSProxy()) {
+    CHECK(Smi::IsValid(limit));
+    keys = isolate->factory()->NewFixedArray(limit);
+    for (uint32_t i = 0; i < limit; ++i) {
+      keys->set(i, Smi::FromInt(i));
+    }
+  } else {
+    KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
+                               ALL_PROPERTIES);
+    accumulator.CollectOwnElementIndices(receiver,
+                                         Handle<JSObject>::cast(receiver));
+    keys = accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
+
+#ifdef DEBUG
+    // Check that keys are sorted.
+    for (int i = 1; i < keys->length(); ++i) {
+      uint32_t a = NumberToUint32(keys->get(i - 1));
+      uint32_t b = NumberToUint32(keys->get(i));
+
+      DCHECK_LE(a, b);
+    }
+#endif
+  }
+
+  uint32_t num_undefined = 0;
+  uint32_t current_pos = 0;
+  int num_indices = keys->length();
+
+  // Compact keys with undefined values and moves non-undefined
+  // values to the front.
+  // The loop does two things simultaneously:
+  //   (1) Count the number of 'undefined', i.e.
+  //       i.e.: HasProperty(receiver, key) && Get(receiver, key) == undefined
+  //   (2) Move all non-undefined values to the front. The variable current_pos
+  //       is used to track free spots in the array starting at the beginning.
+  //       Holes and 'undefined' are considered free spots.
+  //       A hole is when HasElement(receiver, key) is false.
+  for (int i = 0; i < num_indices; ++i) {
+    uint32_t key = NumberToUint32(keys->get(i));
+
+    // We only care about array indices that are smaller than the limit.
+    // The keys are sorted, so we can break as soon as we encounter the first.
+    if (key >= limit) break;
+
+    Maybe<bool> has_element = JSReceiver::HasElement(receiver, key);
+    MAYBE_RETURN(has_element, isolate->heap()->exception());
+    if (!has_element.FromJust()) {
+      continue;
     }
 
-    uint32_t key = NumberToUint32(k);
-    if (key < limit) {
-      if (value->IsUndefined(isolate)) {
-        undefs++;
-      } else {
-        Handle<Object> result =
-            NumberDictionary::Add(new_dict, pos, value, details);
-        // Add should not grow the dictionary since we allocated the right size.
-        DCHECK(result.is_identical_to(new_dict));
-        USE(result);
-        pos++;
-      }
+    Handle<Object> element;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, element, JSReceiver::GetElement(isolate, receiver, key));
+
+    if (element->IsUndefined(isolate)) {
+      ++num_undefined;
     } else {
-      Handle<Object> result =
-          NumberDictionary::Add(new_dict, key, value, details);
-      // Add should not grow the dictionary since we allocated the right size.
-      DCHECK(result.is_identical_to(new_dict));
-      USE(result);
-      max_key = Max(max_key, key);
+      // Find next free position to move elements to.
+      Maybe<uint32_t> free_position =
+          FindNextFreePosition(isolate, receiver, current_pos);
+      MAYBE_RETURN(free_position, isolate->heap()->exception());
+      current_pos = free_position.FromJust();
+
+      // Do not move elements that are already in the "packed" area.
+      if (key <= current_pos) continue;
+
+      // array[current_pos] = array[key].
+      // Deleting array[key] is done later. This is to preserve the same
+      // semantics as the old JS implementation when working with non-extensible
+      // objects:
+      // If the array contains undefineds, the position at 'key' might later
+      // bet set to 'undefined'. If we delete the element now and later set it
+      // to undefined, the set operation would throw an exception.
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, JSReceiver::SetElement(isolate, receiver, current_pos,
+                                          element, LanguageMode::kStrict));
+      ++current_pos;
     }
   }
 
-  uint32_t result = pos;
-  PropertyDetails no_details = PropertyDetails::Empty();
-  while (undefs > 0) {
-    if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
-      // Adding an entry with the key beyond smi-range requires
-      // allocation. Bailout.
-      return bailout;
-    }
-    HandleScope scope(isolate);
-    Handle<Object> result = NumberDictionary::Add(
-        new_dict, pos, isolate->factory()->undefined_value(), no_details);
-    // Add should not grow the dictionary since we allocated the right size.
-    DCHECK(result.is_identical_to(new_dict));
-    USE(result);
-    pos++;
-    undefs--;
+  // Set [current_pos, current_pos + num_undefined) to undefined.
+  uint32_t result = current_pos;
+  for (uint32_t i = 0; i < num_undefined; ++i) {
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, JSReceiver::SetElement(isolate, receiver, current_pos++,
+                                        isolate->factory()->undefined_value(),
+                                        LanguageMode::kStrict));
   }
-  max_key = Max(max_key, pos - 1);
+  DCHECK_LE(current_pos, num_indices);
 
-  object->set_elements(*new_dict);
-  new_dict->UpdateMaxNumberKey(max_key, object);
-  JSObject::ValidateElements(*object);
+  // Deleting everything after the undefineds up unto the limit.
+  for (int i = num_indices - 1; i >= 0; --i) {
+    uint32_t key = NumberToUint32(keys->get(i));
+    if (key < current_pos) break;
+    if (key >= limit) continue;
+
+    Maybe<bool> delete_result = JSReceiver::DeleteElement(receiver, key);
+    MAYBE_RETURN(delete_result, isolate->heap()->exception());
+  }
 
   return *isolate->factory()->NewNumberFromUint(result);
 }
@@ -117,14 +165,20 @@ Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
 // start of the elements array.  If the object is in dictionary mode, it is
 // converted to fast elements mode.  Undefined values are placed after
 // non-undefined values.  Returns the number of non-undefined values.
-Object* PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
-  Isolate* isolate = object->GetIsolate();
-  if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
-    return Smi::FromInt(-1);
+Object* PrepareElementsForSort(Handle<JSReceiver> receiver, uint32_t limit) {
+  Isolate* isolate = receiver->GetIsolate();
+  if (receiver->IsJSProxy()) {
+    return PrepareElementsForSortGeneric(receiver, limit);
   }
+
+  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
   if (object->HasStringWrapperElements()) {
     int len = String::cast(Handle<JSValue>::cast(object)->value())->length();
     return Smi::FromInt(len);
+  }
+
+  if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
+    return PrepareElementsForSortGeneric(receiver, limit);
   }
 
   JSObject::ValidateElements(*object);
@@ -134,7 +188,7 @@ Object* PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
     Handle<NumberDictionary> dict(object->element_dictionary());
     if (object->IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
-      return PrepareSlowElementsForSort(object, limit);
+      return PrepareElementsForSortGeneric(receiver, limit);
     }
     // Convert to fast elements.
     Handle<Map> new_map =
@@ -264,8 +318,8 @@ RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
       return isolate->heap()->exception();
     }
   }
-  if (object->IsJSProxy()) return Smi::FromInt(-1);
-  return PrepareElementsForSort(Handle<JSObject>::cast(object), limit);
+
+  return PrepareElementsForSort(object, limit);
 }
 
 
