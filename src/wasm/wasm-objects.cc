@@ -1380,10 +1380,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   ret->set_native_module(module->native_module());
 
-  Handle<FixedArray> export_copy = isolate->factory()->CopyFixedArray(
-      handle(module->export_wrappers(), isolate));
-  ret->set_export_wrappers(*export_copy);
-
   // construct the wrapper in 2 steps, because its construction may trigger GC,
   // which would shift the this pointer in set_native_module.
   Handle<Foreign> native_module_wrapper =

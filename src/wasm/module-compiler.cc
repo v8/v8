@@ -345,8 +345,7 @@ class InstanceBuilder {
   void ProcessExports(Handle<WasmInstanceObject> instance,
                       Handle<WasmCompiledModule> compiled_module);
 
-  void InitializeTables(Handle<WasmInstanceObject> instance,
-                        CodeSpecialization* code_specialization);
+  void InitializeTables(Handle<WasmInstanceObject> instance);
 
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
 };
@@ -897,14 +896,6 @@ void RecordStats(const wasm::WasmCode* code, Counters* counters) {
       static_cast<int>(code->instructions().size()));
   counters->wasm_reloc_size()->Increment(
       static_cast<int>(code->reloc_info().size()));
-}
-
-void RecordStats(Handle<FixedArray> functions, Counters* counters) {
-  DisallowHeapAllocation no_gc;
-  for (int i = 0; i < functions->length(); ++i) {
-    Object* val = functions->get(i);
-    if (val->IsCode()) RecordStats(Code::cast(val), counters);
-  }
 }
 
 void RecordStats(const wasm::NativeModule* native_module, Counters* counters) {
@@ -1605,7 +1596,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Reuse the compiled module (if no owner), otherwise clone.
   //--------------------------------------------------------------------------
-  Handle<FixedArray> export_wrappers;
   wasm::NativeModule* native_module = nullptr;
   // Root the old instance, if any, in case later allocation causes GC,
   // to prevent the finalizer running for the old instance.
@@ -1624,19 +1614,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       TRACE("Cloning from %zu\n", original->GetNativeModule()->instance_id);
       compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
       native_module = compiled_module_->GetNativeModule();
-      export_wrappers = handle(compiled_module_->export_wrappers(), isolate_);
-      for (int i = 0; i < export_wrappers->length(); ++i) {
-        Handle<Code> orig_code(Code::cast(export_wrappers->get(i)), isolate_);
-        DCHECK_EQ(orig_code->kind(), Code::JS_TO_WASM_FUNCTION);
-        Handle<Code> code = factory->CopyCode(orig_code);
-        export_wrappers->set(i, *code);
-      }
       RecordStats(native_module, counters());
-      RecordStats(export_wrappers, counters());
     } else {
       // No instance owned the original compiled module.
       compiled_module_ = original;
-      export_wrappers = handle(compiled_module_->export_wrappers(), isolate_);
       native_module = compiled_module_->GetNativeModule();
       TRACE("Reusing existing instance %zu\n",
             compiled_module_->GetNativeModule()->instance_id);
@@ -1715,9 +1696,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize the indirect tables.
   //--------------------------------------------------------------------------
-  CodeSpecialization code_specialization;
   if (function_table_count > 0) {
-    InitializeTables(instance, &code_specialization);
+    InitializeTables(instance);
   }
 
   //--------------------------------------------------------------------------
@@ -1818,13 +1798,15 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     LoadDataSegments(instance);
   }
 
+  //--------------------------------------------------------------------------
   // Patch all code with the relocations registered in code_specialization.
+  //--------------------------------------------------------------------------
+  CodeSpecialization code_specialization;
   code_specialization.RelocateDirectCalls(native_module);
-  code_specialization.ApplyToWholeModule(
-      native_module, handle(instance->compiled_module()), SKIP_ICACHE_FLUSH);
-
+  code_specialization.ApplyToWholeModule(native_module, compiled_module_,
+                                         SKIP_ICACHE_FLUSH);
   FlushICache(native_module);
-  FlushICache(export_wrappers);
+  FlushICache(handle(compiled_module_->export_wrappers()));
 
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.
@@ -2651,9 +2633,7 @@ void InstanceBuilder::ProcessExports(
   }
 }
 
-void InstanceBuilder::InitializeTables(
-    Handle<WasmInstanceObject> instance,
-    CodeSpecialization* code_specialization) {
+void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
   size_t table_count = module_->function_tables.size();
   for (size_t index = 0; index < table_count; ++index) {
     WasmIndirectFunctionTable& table = module_->function_tables[index];
