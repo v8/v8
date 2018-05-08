@@ -2852,9 +2852,16 @@ void AsyncCompileJob::FinishCompile() {
   compiled_module_->set_shared(*shared);
   compiled_module_->GetNativeModule()->SetSharedModuleData(shared);
 
+  // Create the module object.
+  module_object_ = WasmModuleObject::New(isolate_, compiled_module_);
+  {
+    DeferredHandleScope deferred(isolate_);
+    module_object_ = handle(*module_object_, isolate_);
+    deferred_handles_.push_back(deferred.Detach());
+  }
+
   // Finish the wasm script now and make it public to the debugger.
-  isolate_->debug()->OnAfterCompile(
-      handle(compiled_module_->shared()->script()));
+  isolate_->debug()->OnAfterCompile(script);
 
   // TODO(wasm): compiling wrappers should be made async as well.
   DoSync<CompileWrappers>();
@@ -3180,9 +3187,7 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
 class AsyncCompileJob::FinishModule : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(6) Finish module...\n");
-    Handle<WasmModuleObject> result =
-        WasmModuleObject::New(job_->isolate_, job_->compiled_module_);
-    job_->AsyncCompileSucceeded(result);
+    job_->AsyncCompileSucceeded(job_->module_object_);
 
     WasmModule* module = job_->compiled_module_->shared()->module();
     size_t num_functions =

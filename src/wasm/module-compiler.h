@@ -153,6 +153,7 @@ class AsyncCompileJob {
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmCompiledModule> compiled_module_;
+  Handle<WasmModuleObject> module_object_;
 
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
