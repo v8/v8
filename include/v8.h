@@ -4272,8 +4272,6 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   ~WasmModuleObjectBuilderStreaming();
 
  private:
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;
-
   WasmModuleObjectBuilderStreaming(const WasmModuleObjectBuilderStreaming&) =
       delete;
   WasmModuleObjectBuilderStreaming(WasmModuleObjectBuilderStreaming&&) =
@@ -4296,8 +4294,6 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
 #else
   Persistent<Promise> promise_;
 #endif
-  std::vector<Buffer> received_buffers_;
-  size_t total_size_ = 0;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
 };
 

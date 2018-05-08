@@ -7514,15 +7514,13 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
   Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
   promise_.Reset(isolate, resolver->GetPromise());
 
-  if (i::FLAG_wasm_stream_compilation) {
-    i::Handle<i::JSPromise> promise = Utils::OpenHandle(*GetPromise());
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    streaming_decoder_ =
-        i_isolate->wasm_engine()
-            ->compilation_manager()
-            ->StartStreamingCompilation(i_isolate, handle(i_isolate->context()),
-                                        promise);
-  }
+  i::Handle<i::JSPromise> promise = Utils::OpenHandle(*GetPromise());
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  streaming_decoder_ =
+      i_isolate->wasm_engine()
+          ->compilation_manager()
+          ->StartStreamingCompilation(i_isolate, handle(i_isolate->context()),
+                                      promise);
 }
 
 Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {
@@ -7531,38 +7529,11 @@ Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {
 
 void WasmModuleObjectBuilderStreaming::OnBytesReceived(const uint8_t* bytes,
                                                        size_t size) {
-  if (i::FLAG_wasm_stream_compilation) {
-    streaming_decoder_->OnBytesReceived(i::Vector<const uint8_t>(bytes, size));
-    return;
-  }
-  std::unique_ptr<uint8_t[]> cloned_bytes(new uint8_t[size]);
-  memcpy(cloned_bytes.get(), bytes, size);
-  received_buffers_.push_back(
-      Buffer(std::unique_ptr<const uint8_t[]>(
-                 const_cast<const uint8_t*>(cloned_bytes.release())),
-             size));
-  total_size_ += size;
+  streaming_decoder_->OnBytesReceived(i::Vector<const uint8_t>(bytes, size));
 }
 
 void WasmModuleObjectBuilderStreaming::Finish() {
-  if (i::FLAG_wasm_stream_compilation) {
-    streaming_decoder_->Finish();
-    return;
-  }
-  std::unique_ptr<uint8_t[]> wire_bytes(new uint8_t[total_size_]);
-  uint8_t* insert_at = wire_bytes.get();
-
-  for (size_t i = 0; i < received_buffers_.size(); ++i) {
-    const Buffer& buff = received_buffers_[i];
-    memcpy(insert_at, buff.first.get(), buff.second);
-    insert_at += buff.second;
-  }
-  // AsyncCompile makes its own copy of the wire bytes. This inefficiency
-  // will be resolved when we move to true streaming compilation.
-  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
-  i_isolate->wasm_engine()->AsyncCompile(
-      i_isolate, Utils::OpenHandle(*promise_.Get(isolate_)),
-      {wire_bytes.get(), wire_bytes.get() + total_size_}, false);
+  streaming_decoder_->Finish();
 }
 
 void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {
@@ -7570,7 +7541,7 @@ void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {
   // The promise has already been resolved, e.g. because of a compilation
   // error.
   if (promise->State() != v8::Promise::kPending) return;
-  if (i::FLAG_wasm_stream_compilation) streaming_decoder_->Abort();
+  streaming_decoder_->Abort();
 
   // If no exception value is provided, we do not reject the promise. This can
   // happen when streaming compilation gets aborted when no script execution is
