@@ -278,8 +278,8 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
       std::vector<CpuProfileDeoptFrame> inlined_frames;
       for (SourcePositionInfo& pos_info : last_position.InliningStack(code)) {
         if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
-        if (!pos_info.function->script()->IsScript()) continue;
-        int script_id = Script::cast(pos_info.function->script())->id();
+        if (pos_info.script.is_null()) continue;
+        int script_id = pos_info.script->id();
         size_t offset = static_cast<size_t>(pos_info.position.ScriptOffset());
         inlined_frames.push_back(CpuProfileDeoptFrame({script_id, offset}));
       }

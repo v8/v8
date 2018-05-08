@@ -418,6 +418,10 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
+
+  # https://crbug.com/v8/7738
+  # Code comments currently leak memory.
+  'regress/wasm/regress-840757': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################

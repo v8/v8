@@ -105,7 +105,7 @@ struct SourcePositionInfo {
   SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> function;
+  Handle<Script> script;
   int line = -1;
   int column = -1;
 };
