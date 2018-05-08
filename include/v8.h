@@ -1213,6 +1213,13 @@ class V8_EXPORT UnboundScript {
 };
 
 /**
+ * A compiled JavaScript module, not yet tied to a Context.
+ */
+class V8_EXPORT UnboundModuleScript {
+  // Only used as a container for code caching.
+};
+
+/**
  * A location in JavaScript source.
  */
 class V8_EXPORT Location {
@@ -1313,12 +1320,12 @@ class V8_EXPORT Module {
   Local<Value> GetModuleNamespace();
 
   /**
-   * Returns the corresponding context-unbound script.
+   * Returns the corresponding context-unbound module script.
    *
    * The module must be unevaluated, i.e. its status must not be kEvaluating,
    * kEvaluated or kErrored.
    */
-  Local<UnboundScript> GetUnboundScript();
+  Local<UnboundModuleScript> GetUnboundModuleScript();
 };
 
 /**
@@ -1676,6 +1683,14 @@ class V8_EXPORT ScriptCompiler {
    * CachedData returned by this function should be owned by the caller.
    */
   static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script);
+
+  /**
+   * Creates and returns code cache for the specified unbound_module_script.
+   * This will return nullptr if the script cannot be serialized. The
+   * CachedData returned by this function should be owned by the caller.
+   */
+  static CachedData* CreateCodeCache(
+      Local<UnboundModuleScript> unbound_module_script);
 
   V8_DEPRECATED("Source string is no longer required",
                 static CachedData* CreateCodeCache(

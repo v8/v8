@@ -25636,6 +25636,55 @@ TEST(CodeCache) {
   isolate2->Dispose();
 }
 
+v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
+                                                       Local<String> specifier,
+                                                       Local<Module> referrer) {
+  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
+}
+
+TEST(ModuleCodeCache) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  const char* origin = "code cache test";
+  v8::ScriptCompiler::CachedData* cache;
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope iscope(isolate1);
+    v8::HandleScope scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope cscope(context);
+
+    Local<String> source_text = v8_str(
+        "export default 5; export const a = 10; function f() { return 42; } "
+        "(function() { return f(); })();");
+    v8::ScriptOrigin script_origin(
+        v8_str(origin), Local<v8::Integer>(), Local<v8::Integer>(),
+        Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
+        Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate1));
+    v8::ScriptCompiler::Source source(source_text, script_origin);
+    Local<Module> module =
+        v8::ScriptCompiler::CompileModule(isolate1, &source).ToLocalChecked();
+    module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+        .ToChecked();
+
+    // Fetch the shared function info before evaluation.
+    Local<v8::UnboundModuleScript> unbound_module_script =
+        module->GetUnboundModuleScript();
+
+    // Evaluate for possible lazy compilation.
+    Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+
+    // Now create the cache.
+    cache = v8::ScriptCompiler::CreateCodeCache(unbound_module_script);
+  }
+  isolate1->Dispose();
+
+  // TODO(jgruber,v8:7685): Test module code cache consumption once implemented.
+  delete cache;
+}
 
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
   const char* garbage = "garbage garbage garbage garbage garbage garbage";
@@ -27370,12 +27419,6 @@ void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,
   meta->CreateDataProperty(context, v8_str("foo"), v8_str("bar")).ToChecked();
 }
 
-v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
-                                                       Local<String> specifier,
-                                                       Local<Module> referrer) {
-  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
-}
-
 TEST(ImportMeta) {
   i::FLAG_harmony_dynamic_import = true;
   i::FLAG_harmony_import_meta = true;
@@ -27443,7 +27486,7 @@ TEST(GetModuleNamespace) {
             ->StrictEquals(v8::Number::New(isolate, 10)));
 }
 
-TEST(ModuleGetUnboundScript) {
+TEST(ModuleGetUnboundModuleScript) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -27457,11 +27500,12 @@ TEST(ModuleGetUnboundScript) {
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  Local<v8::UnboundScript> sfi_before_instantiation =
-      module->GetUnboundScript();
+  Local<v8::UnboundModuleScript> sfi_before_instantiation =
+      module->GetUnboundModuleScript();
   module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
       .ToChecked();
-  Local<v8::UnboundScript> sfi_after_instantiation = module->GetUnboundScript();
+  Local<v8::UnboundModuleScript> sfi_after_instantiation =
+      module->GetUnboundModuleScript();
 
   // Check object identity.
   {
@@ -27469,11 +27513,6 @@ TEST(ModuleGetUnboundScript) {
     i::Handle<i::Object> s2 = v8::Utils::OpenHandle(*sfi_after_instantiation);
     CHECK_EQ(*s1, *s2);
   }
-
-  // Check unbound script values.
-  Local<v8::UnboundScript> sfi = sfi_after_instantiation;
-  CHECK(ValueEqualsString(isolate, sfi->GetScriptName(), "www.google.com"));
-  CHECK_EQ(0, sfi->GetLineNumber(0));
 }
 
 TEST(GlobalTemplateWithDoubleProperty) {

@@ -2323,12 +2323,12 @@ Local<Value> Module::GetModuleNamespace() {
   return ToApiHandle<Value>(module_namespace);
 }
 
-Local<UnboundScript> Module::GetUnboundScript() {
+Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
   Utils::ApiCheck(
       GetStatus() < kEvaluating, "v8::Module::GetUnboundScript",
       "v8::Module::GetUnboundScript must be used on an unevaluated module");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  return ToApiHandle<UnboundScript>(
+  return ToApiHandle<UnboundModuleScript>(
       i::Handle<i::SharedFunctionInfo>(self->GetSharedFunctionInfo()));
 }
 
@@ -2669,6 +2669,16 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
   i::Handle<i::SharedFunctionInfo> shared =
       i::Handle<i::SharedFunctionInfo>::cast(
           Utils::OpenHandle(*unbound_script));
+  DCHECK(shared->is_toplevel());
+  return i::CodeSerializer::Serialize(shared);
+}
+
+// static
+ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
+    Local<UnboundModuleScript> unbound_module_script) {
+  i::Handle<i::SharedFunctionInfo> shared =
+      i::Handle<i::SharedFunctionInfo>::cast(
+          Utils::OpenHandle(*unbound_module_script));
   DCHECK(shared->is_toplevel());
   return i::CodeSerializer::Serialize(shared);
 }

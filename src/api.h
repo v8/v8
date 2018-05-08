@@ -112,6 +112,7 @@ class RegisteredExtension {
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, JSFunction)                        \
+  V(UnboundModuleScript, SharedFunctionInfo)   \
   V(UnboundScript, SharedFunctionInfo)         \
   V(Module, Module)                            \
   V(Function, JSReceiver)                      \
