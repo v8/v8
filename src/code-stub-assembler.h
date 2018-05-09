@@ -777,6 +777,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   TNode<IntPtrT> LoadFeedbackVectorLength(TNode<FeedbackVector>);
+  TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
+                                          TNode<Smi> index,
+                                          Label* if_hole = nullptr);
 
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole

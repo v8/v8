@@ -17,15 +17,17 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type Number extends Object generates 'TNode<Number>';
 type Smi extends Number generates 'TNode<Smi>';
 type HeapObject extends Object generates 'TNode<HeapObject>';
+type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';
 type String extends HeapObject generates 'TNode<String>';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
+type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Boolean extends Oddball generates 'TNode<Oddball>';
-type JSArray extends Object generates 'TNode<JSArray>';
-type Callable extends HeapObject generates 'TNode<Object>';
+type JSArray extends HeapObject generates 'TNode<JSArray>';
+type Callable extends JSReceiver generates 'TNode<JSReceiver>';
 type JSFunction extends Callable;
-type Map extends Object generates 'TNode<Map>';
-type FixedArrayBase extends Object generates 'TNode<FixedArrayBase>';
+type Map extends HeapObject generates 'TNode<Map>';
+type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
 type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
 type FixedDoubleArray extends FixedArrayBase generates
 'TNode<FixedDoubleArray>';
@@ -71,6 +73,10 @@ const kEmptyFixedArray: FixedArrayBase =
 
 const kInvalidArrayLengthMessage: MessageTemplate =
     'MessageTemplate::kInvalidArrayLength';
+const kCalledNonCallable: MessageTemplate =
+    'MessageTemplate::kCalledNonCallable';
+const kCalledOnNullOrUndefined: MessageTemplate =
+    'MessageTemplate::kCalledOnNullOrUndefined';
 
 const kHasProperty: HasPropertyFlag = 'kHasProperty';
 
@@ -108,6 +114,7 @@ extern macro ArraySpeciesCreate(Context, Object, Number): Object;
 extern macro EnsureArrayPushable(Map): ElementsKind labels Bailout;
 
 extern builtin ToObject(Context, Object): Object;
+extern macro IsNullOrUndefined(Object): bool;
 
 extern runtime CreateDataProperty(Context, Object, Object, Object);
 extern runtime SetProperty(Context, Object, Object, Object, LanguageMode);
@@ -170,8 +177,8 @@ extern operator 'max' macro NumberMax(Number, Number): Number;
 
 extern operator '!' macro Word32BinaryNot(bool): bool;
 
-extern operator '.map' macro LoadMap(Object): Map;
-extern operator '.map=' macro StoreMap(Object, Map);
+extern operator '.map' macro LoadMap(HeapObject): Map;
+extern operator '.map=' macro StoreMap(HeapObject, Map);
 extern operator '.instanceType' macro LoadInstanceType(Object): InstanceType;
 
 extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
@@ -194,6 +201,8 @@ extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedArray(
     FixedArrayBase): FixedArray labels CastError;
 extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedDoubleArray(
     FixedArrayBase): FixedDoubleArray labels CastError;
+
+extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 
 extern implicit operator
 'convert<>' macro AllocateHeapNumberWithValue(constexpr float64): Number;
@@ -253,6 +262,7 @@ extern operator
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsFastSmiOrTaggedElementsKind(ElementsKind): bool;
 extern macro IsFastSmiElementsKind(ElementsKind): bool;
+extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
 extern macro AllocateFixedArray(constexpr ElementsKind, Smi): FixedArray;
 extern macro AllocateFixedArray(constexpr ElementsKind, Smi, Map): FixedArray;
@@ -266,6 +276,11 @@ extern macro CopyFixedArrayElements(
 
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
+extern macro IsElementsKindGreaterThan(
+    ElementsKind, constexpr ElementsKind): bool;
+
+extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
+labels IfHole;
 
 extern macro Call(Context, Callable, Object, ...): Object;
 

@@ -857,6 +857,12 @@ void CodeStubAssembler::Bind(Label* label, AssemblerDebugInfo debug_info) {
 void CodeStubAssembler::Bind(Label* label) { CodeAssembler::Bind(label); }
 #endif  // DEBUG
 
+TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
+    TNode<FixedDoubleArray> array, TNode<Smi> index, Label* if_hole) {
+  return TNode<Float64T>::UncheckedCast(LoadFixedDoubleArrayElement(
+      array, index, MachineType::Float64(), 0, SMI_PARAMETERS, if_hole));
+}
+
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* receiver_map, Label* definitely_no_elements,
     Label* possibly_elements) {

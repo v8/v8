@@ -24,3 +24,15 @@
   }
   a.forEach(poison);
 })();
+
+// Same, but for a double array.
+(()=>{
+  let a = [1, 2.5, 3,,,, 7];
+  function poison(v, i) {
+    if (i === 2) {
+      [].__proto__[4] = 3;
+    }
+    return v*v;
+  }
+  a.forEach(poison);
+})();

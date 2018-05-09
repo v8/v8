@@ -297,4 +297,207 @@ module array {
 
     return a;
   }
+
+  macro ArrayForEachTorqueContinuation(
+      context: Context, o: Object, len: Number, callbackfn: Callable,
+      thisArg: Object, initial_k: Smi): Object {
+    // 5. Let k be 0.
+    // 6. Repeat, while k < len
+    for (let k: Smi = initial_k; k < len; k = k + 1) {
+      // 6a. Let Pk be ! ToString(k).
+      let pK: String = ToString_Inline(context, k);
+
+      // 6b. Let kPresent be ? HasProperty(O, Pk).
+      let kPresent: Oddball = HasPropertyObject(o, pK, context, kHasProperty);
+
+      // 6c. If kPresent is true, then
+      if (kPresent == True) {
+        // 6c. i. Let kValue be ? Get(O, Pk).
+        let kValue: Object = GetProperty(context, o, pK);
+
+        // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
+        Call(context, callbackfn, thisArg, kValue, k, o);
+      }
+
+      // 6d. Increase k by 1. (done by the loop).
+    }
+    return Undefined;
+  }
+
+  javascript builtin ArrayForEachLoopEagerDeoptContinuation(
+      context: Context, receiver: Object, callback: Object, thisArg: Object,
+      initialK: Object, length: Object): Object {
+    return ArrayForEachLoopContinuation(
+        context, receiver, callback, thisArg, Undefined, receiver, initialK,
+        length, Undefined);
+  }
+
+  javascript builtin ArrayForEachLoopLazyDeoptContinuation(
+      context: Context, receiver: Object, callback: Object, thisArg: Object,
+      initialK: Object, length: Object, result: Object): Object {
+    return ArrayForEachLoopContinuation(
+        context, receiver, callback, thisArg, Undefined, receiver, initialK,
+        length, Undefined);
+  }
+
+  builtin ArrayForEachLoopContinuation(
+      context: Context, receiver: Object, callback: Object, thisArg: Object,
+      array: Object, object: Object, initialK: Object, length: Object,
+      to: Object): Object {
+    try {
+      let callbackfn: Callable = cast<Callable>(callback) otherwise TypeError;
+      let k: Smi = cast<Smi>(initialK) otherwise TypeError;
+      let number_length: Number = cast<Number>(length) otherwise TypeError;
+
+      return ArrayForEachTorqueContinuation(
+          context, object, number_length, callbackfn, thisArg, k);
+    }
+    label TypeError {
+      ThrowTypeError(context, kCalledNonCallable, callback);
+      // TODO(mvstanton): this should be unreachable.
+    }
+  }
+
+  macro VisitAllDoubleElements(
+      context: Context, a: JSArray, len: Smi, callbackfn: Callable,
+      thisArg: Object): void labels
+  Bailout(Smi) {
+    let k: Smi = 0;
+    let map: Map = a.map;
+
+    try {
+      // Build a fast loop over the smi array.
+      for (; k < len; k = k + 1) {
+        // Ensure that the map didn't change.
+        if (map != a.map) goto slow;
+        // Ensure that we haven't walked beyond a possibly updated length.
+        if (k >= a.length) goto slow;
+        let elements: FixedDoubleArray = cast<FixedDoubleArray>(a.elements)
+        otherwise slow;
+        try {
+          let value: float64 = LoadDoubleWithHoleCheck(elements, k)
+          otherwise found_hole;
+          let boxed_value: HeapNumber = AllocateHeapNumberWithValue(value);
+          Call(context, callbackfn, thisArg, boxed_value, k, a);
+        }
+        label found_hole {
+          // If we found the hole, we need to bail out if the initial
+          // array prototype has had elements inserted. This is preferable
+          // to walking the prototype chain looking for elements.
+
+          if (IsNoElementsProtectorCellInvalid()) goto Bailout(k);
+        }
+      }
+    }
+    label slow {
+      goto Bailout(k);
+    }
+  }
+
+  macro VisitAllFastElements(
+      context: Context, a: JSArray, len: Smi, callbackfn: Callable,
+      thisArg: Object): void labels
+  Bailout(Smi) {
+    let k: Smi = 0;
+    let map: Map = a.map;
+
+    try {
+      // Build a fast loop over the smi array.
+      for (; k < len; k = k + 1) {
+        // Ensure that the map didn't change.
+        if (map != a.map) goto slow;
+        // Ensure that we haven't walked beyond a possibly updated length.
+        if (k >= a.length) goto slow;
+        let elements: FixedArray = cast<FixedArray>(a.elements)
+        otherwise slow;
+        let value: Object = elements[k];
+        if (value != Hole) {
+          Call(context, callbackfn, thisArg, value, k, a);
+        } else {
+          // If we found the hole, we need to bail out if the initial
+          // array prototype has had elements inserted. This is preferable
+          // to walking the prototype chain looking for elements.
+          if (IsNoElementsProtectorCellInvalid()) goto slow;
+        }
+      }
+    }
+    label slow {
+      goto Bailout(k);
+    }
+  }
+
+  macro FastArrayForEach(
+      context: Context, o: Object, len: Number, callbackfn: Callable,
+      thisArg: Object): Object labels
+  Bailout(Smi) {
+    let k: Smi = 0;
+    try {
+      let smi_len: Smi = cast<Smi>(len) otherwise slow;
+      let a: JSArray = cast<JSArray>(o) otherwise slow;
+      let map: Map = a.map;
+
+      if (!IsPrototypeInitialArrayPrototype(context, map)) goto slow;
+      let elementsKind: ElementsKind = map.elements_kind;
+      if (!IsFastElementsKind(elementsKind)) goto slow;
+
+      if (IsElementsKindGreaterThan(elementsKind, HOLEY_ELEMENTS)) {
+        VisitAllDoubleElements(context, a, smi_len, callbackfn, thisArg)
+        otherwise Bailout;
+      } else {
+        VisitAllFastElements(context, a, smi_len, callbackfn, thisArg)
+        otherwise Bailout;
+      }
+    }
+    label slow {
+      goto Bailout(k);
+    }
+    return Undefined;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
+  javascript builtin ArrayForEach(
+      context: Context, receiver: Object, ...arguments): Object {
+    try {
+      if (IsNullOrUndefined(receiver)) {
+        goto NullOrUndefinedError;
+      }
+
+      // 1. Let O be ? ToObject(this value).
+      let o: Object = ToObject(context, receiver);
+
+      // 2. Let len be ? ToLength(? Get(O, "length")).
+      let len: Number =
+          ToLength_Inline(context, GetProperty(context, o, 'length'));
+
+      // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+      if (arguments.length == 0) {
+        goto TypeError;
+      }
+      let callbackfn: Callable =
+          cast<Callable>(arguments[0]) otherwise TypeError;
+
+      // 4. If thisArg is present, let T be thisArg; else let T be undefined.
+      let thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
+
+      // Special cases.
+      let k: Smi = 0;
+      try {
+        return FastArrayForEach(context, o, len, callbackfn, thisArg)
+        otherwise Bailout;
+      }
+      label Bailout(k_value: Smi) {
+        k = k_value;
+      }
+
+      return ArrayForEachTorqueContinuation(
+          context, o, len, callbackfn, thisArg, k);
+    }
+    label TypeError {
+      ThrowTypeError(context, kCalledNonCallable, arguments[0]);
+    }
+    label NullOrUndefinedError {
+      ThrowTypeError(
+          context, kCalledOnNullOrUndefined, 'Array.prototype.forEach');
+    }
+  }
 }
