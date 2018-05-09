@@ -1565,9 +1565,11 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  if (target == no_reg) {
-    add(esp, Immediate(kPointerSize));
-    call(Operand(esp, -4));
+  // Since we have more cache registers than parameter registers, the
+  // {LiftoffCompiler} should always be able to place {target} in a register.
+  DCHECK(target.is_valid());
+  if (FLAG_untrusted_code_mitigations) {
+    RetpolineCall(target);
   } else {
     call(target);
   }

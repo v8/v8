@@ -1422,7 +1422,11 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  call(target);
+  if (FLAG_untrusted_code_mitigations) {
+    RetpolineCall(target);
+  } else {
+    call(target);
+  }
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
