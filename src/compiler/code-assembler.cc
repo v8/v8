@@ -18,6 +18,7 @@
 #include "src/frames.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/lsan.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -500,6 +501,7 @@ void CodeAssembler::Comment(const char* format, ...) {
   const int prefix_len = 2;
   int length = builder.position() + 1;
   char* copy = reinterpret_cast<char*>(malloc(length + prefix_len));
+  LSAN_IGNORE_OBJECT(copy);
   MemCopy(copy + prefix_len, builder.Finalize(), length);
   copy[0] = ';';
   copy[1] = ' ';

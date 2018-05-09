@@ -13,6 +13,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/eh-frame.h"
 #include "src/frames.h"
+#include "src/lsan.h"
 #include "src/macro-assembler-inl.h"
 #include "src/optimized-compilation-info.h"
 
@@ -210,9 +211,9 @@ void CodeGenerator::AssembleCode() {
       current_block_ = block->rpo_number();
       unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
       if (FLAG_code_comments) {
-        // TODO(titzer): these code comments are a giant memory leak.
         Vector<char> buffer = Vector<char>::New(200);
         char* buffer_start = buffer.start();
+        LSAN_IGNORE_OBJECT(buffer_start);
 
         int next = SNPrintF(
             buffer, "-- B%d start%s%s%s%s", block->rpo_number().ToInt(),
@@ -712,7 +713,9 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
       buffer << source_position.InliningStack(info);
     }
     buffer << " --";
-    tasm()->RecordComment(StrDup(buffer.str().c_str()));
+    char* str = StrDup(buffer.str().c_str());
+    LSAN_IGNORE_OBJECT(str);
+    tasm()->RecordComment(str);
   }
 }
 
