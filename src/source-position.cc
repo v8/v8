@@ -10,9 +10,17 @@ namespace v8 {
 namespace internal {
 
 std::ostream& operator<<(std::ostream& out, const SourcePositionInfo& pos) {
+  Handle<SharedFunctionInfo> function(pos.function);
+  String* name = nullptr;
+  if (function->script()->IsScript()) {
+    Script* script = Script::cast(function->script());
+    if (script->name()->IsString()) {
+      name = String::cast(script->name());
+    }
+  }
   out << "<";
-  if (!pos.script.is_null() && pos.script->name()->IsString()) {
-    out << String::cast(pos.script->name())->ToCString(DISALLOW_NULLS).get();
+  if (name != nullptr) {
+    out << name->ToCString(DISALLOW_NULLS).get();
   } else {
     out << "unknown";
   }
@@ -117,11 +125,9 @@ void SourcePosition::Print(std::ostream& out, Code* code) const {
 
 SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
                                        Handle<SharedFunctionInfo> f)
-    : position(pos),
-      script(f.is_null() || !f->script()->IsScript()
-                 ? Handle<Script>::null()
-                 : handle(Script::cast(f->script()))) {
-  if (!script.is_null()) {
+    : position(pos), function(f) {
+  if (function->script()->IsScript()) {
+    Handle<Script> script(Script::cast(function->script()));
     Script::PositionInfo info;
     if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,
                                 Script::WITH_OFFSET)) {
