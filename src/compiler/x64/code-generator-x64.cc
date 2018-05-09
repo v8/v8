@@ -879,11 +879,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
-    case kArchComment: {
-      Address comment_string = i.InputExternalReference(0).address();
-      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+    case kArchComment:
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
       break;
-    }
     case kArchDebugAbort:
       DCHECK(i.InputRegister(0) == rdx);
       if (!frame_access_state()->has_frame()) {

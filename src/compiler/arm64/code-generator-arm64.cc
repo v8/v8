@@ -795,11 +795,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ Debug("kArchDebugBreak", 0, BREAK);
       break;
-    case kArchComment: {
-      Address comment_string = i.InputExternalReference(0).address();
-      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+    case kArchComment:
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
       break;
-    }
     case kArchThrowTerminator:
       unwinding_info_writer_.MarkBlockWillExit();
       break;
