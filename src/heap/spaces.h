@@ -1055,8 +1055,6 @@ class CodeRange {
   V8_WARN_UNUSED_RESULT Address AllocateRawMemory(const size_t requested_size,
                                                   const size_t commit_size,
                                                   size_t* allocated);
-  bool CommitRawMemory(Address start, size_t length);
-  bool UncommitRawMemory(Address start, size_t length);
   void FreeRawMemory(Address buf, size_t length);
 
  private:

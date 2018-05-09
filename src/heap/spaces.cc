@@ -227,18 +227,6 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   return current.start;
 }
 
-
-bool CodeRange::CommitRawMemory(Address start, size_t length) {
-  return isolate_->heap()->memory_allocator()->CommitMemory(start, length);
-}
-
-
-bool CodeRange::UncommitRawMemory(Address start, size_t length) {
-  return virtual_memory_.SetPermissions(start, length,
-                                        PageAllocator::kNoAccess);
-}
-
-
 void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
