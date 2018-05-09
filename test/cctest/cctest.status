@@ -198,6 +198,11 @@
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
+
+  # https://crbug.com/v8/7746
+  # MSan issues after landing https://crrev.com/c/1046657
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
