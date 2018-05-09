@@ -7257,7 +7257,11 @@ class V8_EXPORT Isolate {
 
   /**
    * Allocates a new isolate but does not initialize it. Does not change the
-   * currently entered isolate. Initialize the isolate by calling
+   * currently entered isolate.
+   *
+   * Only Isolate::GetData() and Isolate::SetData(), which access the
+   * embedder-controlled parts of the isolate, are allowed to be called on the
+   * uninitialized isolate. To initialize the isolate, call
    * Isolate::Initialize().
    *
    * When an isolate is no longer used its resources should be freed
