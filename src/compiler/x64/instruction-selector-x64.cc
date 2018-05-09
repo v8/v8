@@ -589,6 +589,23 @@ void VisitWord64Shift(InstructionSelector* selector, Node* node,
   }
 }
 
+// Shared routine for multiple shift operations with continuation.
+template <typename BinopMatcher>
+void VisitWordShift(InstructionSelector* selector, Node* node,
+                    ArchOpcode opcode, FlagsContinuation* cont) {
+  X64OperandGenerator g(selector);
+  BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  InstructionOperand output = g.DefineSameAsFirst(node);
+  InstructionOperand inputs[2];
+
+  inputs[0] = g.UseRegister(left);
+  inputs[1] =
+      g.CanBeImmediate(right) ? g.UseImmediate(right) : g.UseFixed(right, rcx);
+  selector->EmitWithContinuation(opcode, 1, &output, 2, inputs, cont);
+}
+
 void EmitLea(InstructionSelector* selector, InstructionCode opcode,
              Node* result, Node* index, int scale, Node* base,
              Node* displacement, DisplacementMode displacement_mode) {
@@ -1722,11 +1739,43 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kX64Cmp, cont);
 }
 
+// Skip Word64Sar/Word32Sar since no instruction reduction in most cases.
+#define FLAGS_SET_OP_LIST(V)                                  \
+  V(kInt32Add, VisitBinop, kX64Add32)                         \
+  V(kInt32Sub, VisitBinop, kX64Sub32)                         \
+  V(kWord32And, VisitBinop, kX64And32)                        \
+  V(kWord32Or, VisitBinop, kX64Or32)                          \
+  V(kWord32Shl, VisitWordShift<Int32BinopMatcher>, kX64Shl32) \
+  V(kWord32Shr, VisitWordShift<Int32BinopMatcher>, kX64Shr32) \
+  V(kInt64Add, VisitBinop, kX64Add)                           \
+  V(kInt64Sub, VisitBinop, kX64Sub)                           \
+  V(kWord64And, VisitBinop, kX64And)                          \
+  V(kWord64Or, VisitBinop, kX64Or)                            \
+  V(kWord64Shl, VisitWordShift<Int64BinopMatcher>, kX64Shl)   \
+  V(kWord64Shr, VisitWordShift<Int64BinopMatcher>, kX64Shr)
+
+#define FLAGS_SET_OP(opcode, Visit, archOpcode)              \
+  case IrOpcode::opcode:                                     \
+    if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) { \
+      Visit(selector, node, archOpcode, cont);               \
+      return;                                                \
+    }                                                        \
+    break;
 
 // Shared routine for comparison with zero.
-void VisitCompareZero(InstructionSelector* selector, Node* node,
+void VisitCompareZero(InstructionSelector* selector, Node* user, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
+  if (cont->IsBranch() &&
+      (cont->condition() == kNotEqual || cont->condition() == kEqual)) {
+    switch (node->opcode()) {
+      FLAGS_SET_OP_LIST(FLAGS_SET_OP)
+#undef FLAGS_SET_OP_LIST
+#undef FLAGS_SET_OP
+      default:
+        break;
+    }
+  }
   VisitCompare(selector, opcode, g.Use(node), g.TempImmediate(0), cont);
 }
 
@@ -1897,7 +1946,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                 break;
             }
           }
-          return VisitCompareZero(this, value, kX64Cmp, cont);
+          return VisitCompareZero(this, user, value, kX64Cmp, cont);
         }
         return VisitWord64Compare(this, value, cont);
       }
@@ -1992,7 +2041,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
   }
 
   // Branch could not be combined with a compare, emit compare against 0.
-  VisitCompareZero(this, value, kX64Cmp32, cont);
+  VisitCompareZero(this, user, value, kX64Cmp32, cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
