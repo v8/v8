@@ -2724,6 +2724,9 @@ bool JSObject::HasFastElements() {
   return IsFastElementsKind(GetElementsKind());
 }
 
+bool JSObject::HasFastPackedElements() {
+  return IsFastPackedElementsKind(GetElementsKind());
+}
 
 bool JSObject::HasDictionaryElements() {
   return GetElementsKind() == DICTIONARY_ELEMENTS;

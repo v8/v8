@@ -2289,6 +2289,8 @@ class JSObject: public JSReceiver {
   inline bool HasSmiOrObjectElements();
   // Returns true if an object has any of the "fast" elements kinds.
   inline bool HasFastElements();
+  // Returns true if an object has any of the PACKED elements kinds.
+  inline bool HasFastPackedElements();
   // Returns true if an object has elements of PACKED_DOUBLE_ELEMENTS or
   // HOLEY_DOUBLE_ELEMENTS ElementsKind.
   inline bool HasDoubleElements();

@@ -319,6 +319,20 @@ RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
     }
   }
 
+  // Counter for sorting arrays that have non-packed elements and where either
+  // the ElementsProtector is invalid or the prototype does not match
+  // Array.prototype.
+  if (object->IsJSArray() &&
+      !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
+    JSObject* initial_array_proto = JSObject::cast(
+        isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    if (!isolate->IsNoElementsProtectorIntact() ||
+        object->map()->prototype() != initial_array_proto) {
+      isolate->CountUsage(
+          v8::Isolate::kArrayPrototypeSortJSArrayModifiedPrototype);
+    }
+  }
+
   return PrepareElementsForSort(object, limit);
 }
 
