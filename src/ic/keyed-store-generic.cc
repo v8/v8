@@ -32,8 +32,8 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   // Generates code for [[Set]] operation, the |unique_name| is supposed to be
   // unique otherwise this code will always go to runtime.
   void SetProperty(TNode<Context> context, TNode<JSReceiver> receiver,
-                   TNode<Name> unique_name, TNode<Object> value,
-                   LanguageMode language_mode);
+                   TNode<BoolT> is_simple_receiver, TNode<Name> unique_name,
+                   TNode<Object> value, LanguageMode language_mode);
 
  private:
   enum UpdateLength {
@@ -50,12 +50,14 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   // If language mode is not provided it is deduced from the feedback slot's
   // kind.
-  void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
+  void EmitGenericPropertyStore(TNode<JSReceiver> receiver,
+                                TNode<Map> receiver_map,
                                 const StoreICParameters* p,
                                 ExitPoint* exit_point, Label* slow,
                                 Maybe<LanguageMode> maybe_language_mode);
 
-  void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
+  void EmitGenericPropertyStore(SloppyTNode<JSReceiver> receiver,
+                                SloppyTNode<Map> receiver_map,
                                 const StoreICParameters* p, Label* slow) {
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(receiver, receiver_map, p, &direct_exit, slow,
@@ -110,10 +112,11 @@ void StoreICUninitializedGenerator::Generate(
 
 void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
-    TNode<JSReceiver> receiver, TNode<Name> name, TNode<Object> value,
-    LanguageMode language_mode) {
+    TNode<JSReceiver> receiver, TNode<BoolT> is_simple_receiver,
+    TNode<Name> name, TNode<Object> value, LanguageMode language_mode) {
   KeyedStoreGenericAssembler assembler(state);
-  assembler.SetProperty(context, receiver, name, value, language_mode);
+  assembler.SetProperty(context, receiver, is_simple_receiver, name, value,
+                        language_mode);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -633,9 +636,10 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 }
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
-    Node* receiver, Node* receiver_map, const StoreICParameters* p,
-    ExitPoint* exit_point, Label* slow,
+    TNode<JSReceiver> receiver, TNode<Map> receiver_map,
+    const StoreICParameters* p, ExitPoint* exit_point, Label* slow,
     Maybe<LanguageMode> maybe_language_mode) {
+  CSA_ASSERT(this, IsSimpleObjectMap(receiver_map));
   VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
@@ -757,7 +761,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index), not_found(this);
-    Node* properties = LoadSlowProperties(receiver);
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(receiver)));
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);
@@ -982,6 +986,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
 
 void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                                              TNode<JSReceiver> receiver,
+                                             TNode<BoolT> is_simple_receiver,
                                              TNode<Name> unique_name,
                                              TNode<Object> value,
                                              LanguageMode language_mode) {
@@ -989,6 +994,10 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
 
   Label done(this), slow(this, Label::kDeferred);
   ExitPoint exit_point(this, [&](Node* result) { Goto(&done); });
+
+  CSA_ASSERT(this, Word32Equal(is_simple_receiver,
+                               IsSimpleObjectMap(LoadMap(receiver))));
+  GotoIfNot(is_simple_receiver, &slow);
 
   EmitGenericPropertyStore(receiver, LoadMap(receiver), &p, &exit_point, &slow,
                            Just(language_mode));

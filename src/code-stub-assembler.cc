@@ -7446,19 +7446,22 @@ void CodeStubAssembler::Lookup(TNode<Name> unique_name, TNode<Array> array,
   }
 }
 
+TNode<BoolT> CodeStubAssembler::IsSimpleObjectMap(TNode<Map> map) {
+  uint32_t mask =
+      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
+  // !IsSpecialReceiverType && !IsNamedInterceptor && !IsAccessCheckNeeded
+  return Select<BoolT>(
+      IsSpecialReceiverInstanceType(LoadMapInstanceType(map)),
+      [=] { return Int32FalseConstant(); },
+      [=] { return IsClearWord32(LoadMapBitField(map), mask); });
+}
+
 void CodeStubAssembler::TryLookupPropertyInSimpleObject(
     TNode<JSObject> object, TNode<Map> map, TNode<Name> unique_name,
     Label* if_found_fast, Label* if_found_dict,
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
     Label* if_not_found) {
-  CSA_ASSERT(
-      this,
-      Word32BinaryNot(IsSpecialReceiverInstanceType(LoadMapInstanceType(map))));
-
-  uint32_t mask =
-      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
-  CSA_ASSERT(this, Word32BinaryNot(IsSetWord32(LoadMapBitField(map), mask)));
-  USE(mask);
+  CSA_ASSERT(this, IsSimpleObjectMap(map));
 
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
   Label if_isfastmap(this), if_isslowmap(this);

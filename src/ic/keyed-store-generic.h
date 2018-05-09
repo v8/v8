@@ -21,8 +21,8 @@ class KeyedStoreGenericGenerator {
   // Building block for fast path of Object.assign implementation.
   static void SetProperty(compiler::CodeAssemblerState* state,
                           TNode<Context> context, TNode<JSReceiver> receiver,
-                          TNode<Name> name, TNode<Object> value,
-                          LanguageMode language_mode);
+                          TNode<BoolT> is_simple_receiver, TNode<Name> name,
+                          TNode<Object> value, LanguageMode language_mode);
 };
 
 class StoreICUninitializedGenerator {

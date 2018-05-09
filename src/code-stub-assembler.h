@@ -1442,6 +1442,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsCustomElementsReceiverInstanceType(
       TNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverMap(SloppyTNode<Map> map);
+  // Returns true if the map corresponds to non-special fast or dictionary
+  // object.
+  TNode<BoolT> IsSimpleObjectMap(TNode<Map> map);
   TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
@@ -1663,18 +1666,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Returns true if any of the |T|'s bits in given |word| are set.
   template <typename T>
-  Node* IsSetWord(Node* word) {
+  TNode<BoolT> IsSetWord(SloppyTNode<WordT> word) {
     return IsSetWord(word, T::kMask);
   }
 
   // Returns true if any of the mask's bits in given |word| are set.
-  Node* IsSetWord(Node* word, uint32_t mask) {
+  TNode<BoolT> IsSetWord(SloppyTNode<WordT> word, uint32_t mask) {
     return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
   // Returns true if any of the mask's bit are set in the given Smi.
   // Smi-encoding of the mask is performed implicitly!
-  Node* IsSetSmi(Node* smi, int untagged_mask) {
+  TNode<BoolT> IsSetSmi(SloppyTNode<Smi> smi, int untagged_mask) {
     intptr_t mask_word = bit_cast<intptr_t>(Smi::FromInt(untagged_mask));
     return WordNotEqual(
         WordAnd(BitcastTaggedToWord(smi), IntPtrConstant(mask_word)),
@@ -1683,24 +1686,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Returns true if all of the |T|'s bits in given |word32| are clear.
   template <typename T>
-  Node* IsClearWord32(Node* word32) {
+  TNode<BoolT> IsClearWord32(SloppyTNode<Word32T> word32) {
     return IsClearWord32(word32, T::kMask);
   }
 
   // Returns true if all of the mask's bits in given |word32| are clear.
-  Node* IsClearWord32(Node* word32, uint32_t mask) {
+  TNode<BoolT> IsClearWord32(SloppyTNode<Word32T> word32, uint32_t mask) {
     return Word32Equal(Word32And(word32, Int32Constant(mask)),
                        Int32Constant(0));
   }
 
   // Returns true if all of the |T|'s bits in given |word| are clear.
   template <typename T>
-  Node* IsClearWord(Node* word) {
+  TNode<BoolT> IsClearWord(SloppyTNode<WordT> word) {
     return IsClearWord(word, T::kMask);
   }
 
   // Returns true if all of the mask's bits in given |word| are clear.
-  Node* IsClearWord(Node* word, uint32_t mask) {
+  TNode<BoolT> IsClearWord(SloppyTNode<WordT> word, uint32_t mask) {
     return WordEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 

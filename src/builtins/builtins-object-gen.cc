@@ -563,6 +563,7 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
   // cached representation of the source. Handle this case in runtime.
   TNode<Map> to_map = LoadMap(to);
   GotoIf(IsDeprecatedMap(to_map), slow);
+  TNode<BoolT> to_is_simple_receiver = IsSimpleObjectMap(to_map);
 
   GotoIfNot(IsJSObjectInstanceType(from_instance_type), slow);
   TNode<Uint32T> from_bit_field3 =
@@ -673,9 +674,9 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
         // Store property to target object.
         BIND(&do_store);
         {
-          KeyedStoreGenericGenerator::SetProperty(state(), context, to,
-                                                  next_key, var_value.value(),
-                                                  LanguageMode::kStrict);
+          KeyedStoreGenericGenerator::SetProperty(
+              state(), context, to, to_is_simple_receiver, next_key,
+              var_value.value(), LanguageMode::kStrict);
 
           // Check if the |from| object is still stable, i.e. we can proceed
           // using property details from preloaded |from_descriptors|.
