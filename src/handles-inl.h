@@ -7,6 +7,7 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/msan.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -68,15 +69,17 @@ void HandleScope::CloseScope(Isolate* isolate,
 
   std::swap(current->next, prev_next);
   current->level--;
+  Object** limit = prev_next;
   if (current->limit != prev_limit) {
     current->limit = prev_limit;
+    limit = prev_limit;
     DeleteExtensions(isolate);
-#ifdef ENABLE_HANDLE_ZAPPING
-    ZapRange(current->next, prev_limit);
-  } else {
-    ZapRange(current->next, prev_next);
-#endif
   }
+#ifdef ENABLE_HANDLE_ZAPPING
+  ZapRange(current->next, limit);
+#endif
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
+      current->next, static_cast<size_t>(limit - current->next));
 }
 
 
