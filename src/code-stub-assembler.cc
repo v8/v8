@@ -565,6 +565,26 @@ TNode<Smi> CodeStubAssembler::SmiMin(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
   return SelectConstant<Smi>(SmiLessThan(a, b), a, b);
 }
 
+TNode<Smi> CodeStubAssembler::TrySmiAdd(TNode<Smi> lhs, TNode<Smi> rhs,
+                                        Label* if_overflow) {
+  TNode<PairT<IntPtrT, BoolT>> pair =
+      IntPtrAddWithOverflow(BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
+  TNode<BoolT> overflow = Projection<1>(pair);
+  GotoIf(overflow, if_overflow);
+  TNode<IntPtrT> result = Projection<0>(pair);
+  return BitcastWordToTaggedSigned(result);
+}
+
+TNode<Smi> CodeStubAssembler::TrySmiSub(TNode<Smi> lhs, TNode<Smi> rhs,
+                                        Label* if_overflow) {
+  TNode<PairT<IntPtrT, BoolT>> pair =
+      IntPtrSubWithOverflow(BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
+  TNode<BoolT> overflow = Projection<1>(pair);
+  GotoIf(overflow, if_overflow);
+  TNode<IntPtrT> result = Projection<0>(pair);
+  return BitcastWordToTaggedSigned(result);
+}
+
 TNode<Object> CodeStubAssembler::NumberMax(SloppyTNode<Object> a,
                                            SloppyTNode<Object> b) {
   // TODO(danno): This could be optimized by specifically handling smi cases.
@@ -10981,23 +11001,14 @@ TNode<Number> CodeStubAssembler::NumberInc(SloppyTNode<Number> value) {
 
   BIND(&if_issmi);
   {
-    // Try fast Smi addition first.
+    Label if_overflow(this);
+    TNode<Smi> smi_value = CAST(value);
     TNode<Smi> one = SmiConstant(1);
-    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAddWithOverflow(
-        BitcastTaggedToWord(value), BitcastTaggedToWord(one));
-    TNode<BoolT> overflow = Projection<1>(pair);
-
-    // Check if the Smi addition overflowed.
-    Label if_overflow(this), if_notoverflow(this);
-    Branch(overflow, &if_overflow, &if_notoverflow);
-
-    BIND(&if_notoverflow);
-    var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
+    var_result = TrySmiAdd(smi_value, one, &if_overflow);
     Goto(&end);
 
     BIND(&if_overflow);
     {
-      TNode<Smi> smi_value = CAST(value);
       var_finc_value = SmiToFloat64(smi_value);
       Goto(&do_finc);
     }
@@ -11033,23 +11044,14 @@ TNode<Number> CodeStubAssembler::NumberDec(SloppyTNode<Number> value) {
 
   BIND(&if_issmi);
   {
-    // Try fast Smi subtraction first.
+    TNode<Smi> smi_value = CAST(value);
     TNode<Smi> one = SmiConstant(1);
-    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrSubWithOverflow(
-        BitcastTaggedToWord(value), BitcastTaggedToWord(one));
-    TNode<BoolT> overflow = Projection<1>(pair);
-
-    // Check if the Smi subtraction overflowed.
-    Label if_overflow(this), if_notoverflow(this);
-    Branch(overflow, &if_overflow, &if_notoverflow);
-
-    BIND(&if_notoverflow);
-    var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
+    Label if_overflow(this);
+    var_result = TrySmiSub(smi_value, one, &if_overflow);
     Goto(&end);
 
     BIND(&if_overflow);
     {
-      TNode<Smi> smi_value = CAST(value);
       var_fdec_value = SmiToFloat64(smi_value);
       Goto(&do_fdec);
     }
@@ -11085,15 +11087,7 @@ TNode<Number> CodeStubAssembler::NumberAdd(SloppyTNode<Number> a,
   GotoIf(TaggedIsNotSmi(b), &float_add);
 
   // Try fast Smi addition first.
-  TNode<PairT<IntPtrT, BoolT>> pair =
-      IntPtrAddWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-  TNode<BoolT> overflow = Projection<1>(pair);
-
-  // Check if the Smi addition overflowed.
-  Label if_overflow(this), if_notoverflow(this);
-  GotoIf(overflow, &float_add);
-
-  var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
+  var_result = TrySmiAdd(CAST(a), CAST(b), &float_add);
   Goto(&end);
 
   BIND(&float_add);
@@ -11115,15 +11109,7 @@ TNode<Number> CodeStubAssembler::NumberSub(SloppyTNode<Number> a,
   GotoIf(TaggedIsNotSmi(b), &float_sub);
 
   // Try fast Smi subtraction first.
-  TNode<PairT<IntPtrT, BoolT>> pair =
-      IntPtrSubWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-  TNode<BoolT> overflow = Projection<1>(pair);
-
-  // Check if the Smi subtraction overflowed.
-  Label if_overflow(this), if_notoverflow(this);
-  GotoIf(overflow, &float_sub);
-
-  var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
+  var_result = TrySmiSub(CAST(a), CAST(b), &float_sub);
   Goto(&end);
 
   BIND(&float_sub);

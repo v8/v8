@@ -35,14 +35,18 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
     BIND(&if_xissmi);
     {
-      Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
-      Node* pair = nullptr;
+      Label if_overflow(this, Label::kDeferred);
 
       // check if support abs function
       if (IsIntPtrAbsWithOverflowSupported()) {
-        pair = IntPtrAbsWithOverflow(x);
+        Node* pair = IntPtrAbsWithOverflow(x);
         Node* overflow = Projection(1, pair);
-        Branch(overflow, &if_overflow, &if_notoverflow);
+        GotoIf(overflow, &if_overflow);
+
+        // There is a Smi representation for negated {x}.
+        Node* result = Projection(0, pair);
+        Return(BitcastWordToTagged(result));
+
       } else {
         // Check if {x} is already positive.
         Label if_xispositive(this), if_xisnotpositive(this);
@@ -58,18 +62,9 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
         BIND(&if_xisnotpositive);
         {
           // Try to negate the {x} value.
-          pair =
-              IntPtrSubWithOverflow(IntPtrConstant(0), BitcastTaggedToWord(x));
-          Node* overflow = Projection(1, pair);
-          Branch(overflow, &if_overflow, &if_notoverflow);
+          TNode<Smi> result = TrySmiSub(SmiConstant(0), CAST(x), &if_overflow);
+          Return(result);
         }
-      }
-
-      BIND(&if_notoverflow);
-      {
-        // There is a Smi representation for negated {x}.
-        Node* result = Projection(0, pair);
-        Return(BitcastWordToTagged(result));
       }
 
       BIND(&if_overflow);

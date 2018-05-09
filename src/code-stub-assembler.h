@@ -285,6 +285,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   SMI_ARITHMETIC_BINOP(SmiOr, WordOr)
 #undef SMI_ARITHMETIC_BINOP
 
+  TNode<Smi> TrySmiAdd(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
+  TNode<Smi> TrySmiSub(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
+
   Node* SmiShl(Node* a, int shift) {
     return BitcastWordToTaggedSigned(WordShl(BitcastTaggedToWord(a), shift));
   }
