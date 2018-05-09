@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fjr00814263%2Fv8.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fjr00814263%2Fv8?ref=badge_shield)
+
 V8 JavaScript Engine
 =============
 
@@ -38,3 +40,7 @@ Contributing
 
 Please follow the instructions mentioned on the
 [V8 wiki](https://github.com/v8/v8/wiki/Contributing).
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fjr00814263%2Fv8.svg?type=large)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fjr00814263%2Fv8?ref=badge_large)
