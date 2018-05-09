@@ -88,7 +88,13 @@ class WasmTranslation::TranslatorImpl::RawTranslator
   void TranslateBack(TransLocation*) override {}
   const WasmSourceInformation& GetSourceInformation(v8::Isolate*,
                                                     int index) override {
-    static const WasmSourceInformation singleEmptySourceInformation;
+    // NOTE(mmarchini): prior to 3.9, clang won't accept const object
+    // instantiations with non-user-provided default constructors, unless an
+    // empty initializer is explicitly given. Node.js still supports older
+    // clang versions, therefore we must take care when using const objects
+    // with default constructors. For more informations, please refer to CWG
+    // 253 (http://open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#253)
+    static const WasmSourceInformation singleEmptySourceInformation = {};
     return singleEmptySourceInformation;
   }
   const String16 GetHash(v8::Isolate*, int index) override {
