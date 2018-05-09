@@ -81,6 +81,7 @@ class TestIsolate : public Isolate {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(nullptr);
+    isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
     return v8_isolate;
   }
   // Wraps v8::Isolate::New, but with a TestIsolate under the hood.
@@ -458,7 +459,6 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
-    isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(isolate);
     startup_serializer.SerializeStrongReferences();
@@ -583,7 +583,6 @@ static void PartiallySerializeCustomContext(
 
     env.Reset();
 
-    isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(isolate);
     startup_serializer.SerializeStrongReferences();
