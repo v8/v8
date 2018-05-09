@@ -16,7 +16,6 @@
 #include "src/simulator.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
-#include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-specialization.h"

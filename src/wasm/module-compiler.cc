@@ -17,7 +17,6 @@
 #include "src/identity-map.h"
 #include "src/property-descriptor.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -2760,7 +2759,7 @@ void AsyncCompileJob::Abort() {
   }
   if (num_pending_foreground_tasks_ == 0) {
     // No task is pending, we can just remove the AsyncCompileJob.
-    isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
+    isolate_->wasm_engine()->RemoveCompileJob(this);
   } else {
     // There is still a compilation task in the task queue. We enter the
     // AbortCompilation state and wait for this compilation task to abort the
@@ -2871,7 +2870,7 @@ void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
   if (stream_) stream_->NotifyError();
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
-      isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
+      isolate_->wasm_engine()->RemoveCompileJob(this);
   MaybeHandle<Object> promise_result =
       JSPromise::Reject(module_promise_, error_reason);
   CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
@@ -3198,7 +3197,7 @@ class AsyncCompileJob::FinishModule : public CompileStep {
         num_functions == 0) {
       // If we do not tier up, the async compile job is done here and
       // can be deleted.
-      job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
+      job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
       return;
     }
     // If background tiering compilation finished before we resolved the
@@ -3221,14 +3220,14 @@ class AsyncCompileJob::UpdateToTopTierCompiledCode : public CompileStep {
     TRACE_COMPILE("(7) Update native module to use optimized code...\n");
 
     UpdateAllCompiledModulesWithTopTierCode(job_->compiled_module_);
-    job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
+    job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
   }
 };
 
 class AsyncCompileJob::AbortCompilation : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("Abort asynchronous compilation ...\n");
-    job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
+    job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
   }
 };
 

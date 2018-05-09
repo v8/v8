@@ -106,7 +106,6 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         isolate->wasm_engine()
-            ->compilation_manager()
             ->StartStreamingCompilation(isolate, handle(isolate->context()),
                                         promise);
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
@@ -117,9 +116,18 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
-  isolate->wasm_engine()->compilation_manager()->StartAsyncCompileJob(
-      isolate, std::move(copy), bytes.length(), handle(isolate->context()),
-      promise);
+
+  AsyncCompileJob* job =
+      CreateAsyncCompileJob(isolate, std::move(copy), bytes.length(),
+                            handle(isolate->context()), promise);
+  job->Start();
+}
+
+std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
+    Isolate* isolate, Handle<Context> context, Handle<JSPromise> promise) {
+  AsyncCompileJob* job = CreateAsyncCompileJob(
+      isolate, std::unique_ptr<byte[]>(nullptr), 0, context, promise);
+  return job->CreateStreamingDecoder();
 }
 
 void WasmEngine::Register(CancelableTaskManager* task_manager) {
@@ -130,6 +138,35 @@ void WasmEngine::Unregister(CancelableTaskManager* task_manager) {
   task_managers_.remove(task_manager);
 }
 
+AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
+    Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
+    Handle<Context> context, Handle<JSPromise> promise) {
+  AsyncCompileJob* job = new AsyncCompileJob(isolate, std::move(bytes_copy),
+                                             length, context, promise);
+  // Pass ownership to the unique_ptr in {jobs_}.
+  jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
+  return job;
+}
+
+std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
+    AsyncCompileJob* job) {
+  auto item = jobs_.find(job);
+  DCHECK(item != jobs_.end());
+  std::unique_ptr<AsyncCompileJob> result = std::move(item->second);
+  jobs_.erase(item);
+  return result;
+}
+
+void WasmEngine::AbortAllCompileJobs() {
+  // Iterate over a copy of {jobs_}, because {job->Abort} modifies {jobs_}.
+  std::vector<AsyncCompileJob*> copy;
+  copy.reserve(jobs_.size());
+
+  for (auto& entry : jobs_) copy.push_back(entry.first);
+
+  for (auto* job : copy) job->Abort();
+}
+
 void WasmEngine::TearDown() {
   // Cancel all registered task managers.
   for (auto task_manager : task_managers_) {
@@ -137,7 +174,7 @@ void WasmEngine::TearDown() {
   }
 
   // Cancel all AsyncCompileJobs.
-  compilation_manager_.TearDown();
+  jobs_.clear();
 }
 
 }  // namespace wasm

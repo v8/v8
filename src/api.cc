@@ -78,7 +78,6 @@
 #include "src/value-serializer.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
-#include "src/wasm/compilation-manager.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -7516,11 +7515,8 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
 
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*GetPromise());
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  streaming_decoder_ =
-      i_isolate->wasm_engine()
-          ->compilation_manager()
-          ->StartStreamingCompilation(i_isolate, handle(i_isolate->context()),
-                                      promise);
+  streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+      i_isolate, handle(i_isolate->context()), promise);
 }
 
 Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {
@@ -8688,7 +8684,7 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
   if (!dependant_context) {
     // We left the current context, we can abort all running WebAssembly
     // compilations.
-    isolate->wasm_engine()->compilation_manager()->AbortAllJobs();
+    isolate->wasm_engine()->AbortAllCompileJobs();
   }
   // TODO(ahaas): move other non-heap activity out of the heap call.
   return isolate->heap()->NotifyContextDisposed(dependant_context);
