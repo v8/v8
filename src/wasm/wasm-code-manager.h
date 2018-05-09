@@ -380,7 +380,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   WasmCode* LookupCode(Address pc) const;
   WasmCode* GetCodeFromStartAddress(Address pc) const;
-  intptr_t remaining_uncommitted() const;
+  size_t remaining_uncommitted() const;
 
  private:
   friend class NativeModule;
@@ -398,10 +398,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   bool WouldGCHelp() const;
 
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
-  // count of NativeModules not yet collected. Helps determine if it's
+  // Count of NativeModules not yet collected. Helps determine if it's
   // worth requesting a GC on memory pressure.
   size_t active_ = 0;
-  base::AtomicNumber<intptr_t> remaining_uncommitted_;
+  std::atomic<size_t> remaining_uncommitted_;
 
   // TODO(mtrofin): remove the dependency on isolate.
   v8::Isolate* isolate_;

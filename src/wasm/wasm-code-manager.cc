@@ -806,20 +806,22 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager(v8::Isolate* isolate, size_t max_committed)
     : isolate_(isolate) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
-  remaining_uncommitted_.SetValue(max_committed);
+  remaining_uncommitted_.store(max_committed);
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
   DCHECK(IsAligned(start, AllocatePageSize()));
   DCHECK(IsAligned(size, AllocatePageSize()));
-  if (size > static_cast<size_t>(std::numeric_limits<intptr_t>::max())) {
-    return false;
-  }
-  // reserve the size.
-  intptr_t new_value = remaining_uncommitted_.Decrement(size);
-  if (new_value < 0) {
-    remaining_uncommitted_.Increment(size);
-    return false;
+  // Reserve the size. Use CAS loop to avoid underflow on
+  // {remaining_uncommitted_}. Temporary underflow would allow concurrent
+  // threads to over-commit.
+  while (true) {
+    size_t old_value = remaining_uncommitted_.load();
+    if (old_value < size) return false;
+    if (remaining_uncommitted_.compare_exchange_weak(old_value,
+                                                     old_value - size)) {
+      break;
+    }
   }
   PageAllocator::Permission permission = FLAG_wasm_write_protect_code_memory
                                              ? PageAllocator::kReadWrite
@@ -831,7 +833,7 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
              reinterpret_cast<void*>(start + size));
   if (!ret) {
     // Highly unlikely.
-    remaining_uncommitted_.Increment(size);
+    remaining_uncommitted_.fetch_add(size);
     return false;
   }
   // This API assumes main thread
@@ -853,9 +855,8 @@ bool WasmCodeManager::WouldGCHelp() const {
   // We have an expectation on the largest size a native function
   // may have.
   constexpr size_t kMaxNativeFunction = 32 * MB;
-  intptr_t remaining = remaining_uncommitted_.Value();
-  DCHECK_GE(remaining, 0);
-  return static_cast<size_t>(remaining) < kMaxNativeFunction;
+  size_t remaining = remaining_uncommitted_.load();
+  return remaining < kMaxNativeFunction;
 }
 
 void WasmCodeManager::AssignRanges(Address start, Address end,
@@ -986,7 +987,7 @@ void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
   if (isolate_ == nullptr) return;
   size_t freed_mem = native_module->committed_memory_;
   DCHECK(IsAligned(freed_mem, AllocatePageSize()));
-  remaining_uncommitted_.Increment(freed_mem);
+  remaining_uncommitted_.fetch_add(freed_mem);
   isolate_->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<int64_t>(freed_mem));
 }
@@ -1028,8 +1029,8 @@ void WasmCodeManager::Free(VirtualMemory* mem) {
   TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);
 }
 
-intptr_t WasmCodeManager::remaining_uncommitted() const {
-  return remaining_uncommitted_.Value();
+size_t WasmCodeManager::remaining_uncommitted() const {
+  return remaining_uncommitted_.load();
 }
 
 NativeModuleModificationScope::NativeModuleModificationScope(
