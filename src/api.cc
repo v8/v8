@@ -234,20 +234,17 @@ class CallDepthScope {
       : isolate_(isolate),
         context_(context),
         escaped_(false),
-        save_for_termination_(isolate->next_v8_call_is_safe_for_termination()) {
+        safe_for_termination_(isolate->next_v8_call_is_safe_for_termination()),
+        interrupts_scope_(isolate_, i::StackGuard::TERMINATE_EXECUTION,
+                          isolate_->only_terminate_in_safe_scope()
+                              ? (safe_for_termination_
+                                     ? i::InterruptsScope::kRunInterrupts
+                                     : i::InterruptsScope::kPostponeInterrupts)
+                              : i::InterruptsScope::kNoop) {
     // TODO(dcarney): remove this when blink stops crashing.
     DCHECK(!isolate_->external_caught_exception());
     isolate_->handle_scope_implementer()->IncrementCallDepth();
     isolate_->set_next_v8_call_is_safe_for_termination(false);
-    if (isolate_->only_terminate_in_safe_scope()) {
-      if (save_for_termination_) {
-        interrupts_scope_.reset(new i::SafeForInterruptsScope(
-            isolate_, i::StackGuard::TERMINATE_EXECUTION));
-      } else {
-        interrupts_scope_.reset(new i::PostponeInterruptsScope(
-            isolate_, i::StackGuard::TERMINATE_EXECUTION));
-      }
-    }
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
@@ -272,7 +269,7 @@ class CallDepthScope {
 #ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
     if (do_callback) CheckMicrotasksScopesConsistency(isolate_);
 #endif
-    isolate_->set_next_v8_call_is_safe_for_termination(save_for_termination_);
+    isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
   }
 
   void Escape() {
@@ -289,8 +286,8 @@ class CallDepthScope {
   Local<Context> context_;
   bool escaped_;
   bool do_callback_;
-  bool save_for_termination_;
-  std::unique_ptr<i::InterruptsScope> interrupts_scope_;
+  bool safe_for_termination_;
+  i::InterruptsScope interrupts_scope_;
 };
 
 }  // namespace

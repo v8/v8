@@ -317,6 +317,7 @@ void StackGuard::DisableInterrupts() {
 
 void StackGuard::PushInterruptsScope(InterruptsScope* scope) {
   ExecutionAccess access(isolate_);
+  DCHECK_NE(scope->mode_, InterruptsScope::kNoop);
   if (scope->mode_ == InterruptsScope::kPostponeInterrupts) {
     // Intercept already requested interrupts.
     int intercepted = thread_local_.interrupt_flags_ & scope->intercept_mask_;
@@ -342,6 +343,7 @@ void StackGuard::PushInterruptsScope(InterruptsScope* scope) {
 void StackGuard::PopInterruptsScope() {
   ExecutionAccess access(isolate_);
   InterruptsScope* top = thread_local_.interrupt_scopes_;
+  DCHECK_NE(top->mode_, InterruptsScope::kNoop);
   if (top->mode_ == InterruptsScope::kPostponeInterrupts) {
     // Make intercepted interrupts active.
     DCHECK_EQ(thread_local_.interrupt_flags_ & top->intercept_mask_, 0);
