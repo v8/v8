@@ -2763,10 +2763,10 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p) {
                                        vector, slot, 0, SMI_PARAMETERS))));
 
   // Check if we have a matching handler for the {receiver_map}.
-  Node* array =
-      LoadFeedbackVectorSlot(vector, slot, kPointerSize, SMI_PARAMETERS);
-  HandlePolymorphicCase(receiver_map, CAST(array), &if_handler, &var_handler,
-                        &miss, 1);
+  TNode<WeakFixedArray> array = CAST(ToObject(
+      LoadFeedbackVectorSlot(vector, slot, kPointerSize, SMI_PARAMETERS)));
+  HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
+                        1);
 
   BIND(&if_handler);
   {
@@ -3030,10 +3030,10 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
       GotoIfNot(WordEqual(feedback, p->name), &miss);
       // If the name comparison succeeded, we know we have a feedback vector
       // with at least one map/handler pair.
-      Node* array = LoadFeedbackVectorSlot(p->vector, p->slot, kPointerSize,
-                                           SMI_PARAMETERS);
-      HandlePolymorphicCase(receiver_map, CAST(array), &if_handler,
-                            &var_handler, &miss, 1);
+      TNode<WeakFixedArray> array = CAST(ToObject(LoadFeedbackVectorSlot(
+          p->vector, p->slot, kPointerSize, SMI_PARAMETERS)));
+      HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
+                            &miss, 1);
     }
   }
   BIND(&miss);
@@ -3151,7 +3151,8 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(receiver);
-  Node* feedback = LoadFeedbackVectorSlot(vector, slot, 0, SMI_PARAMETERS);
+  TNode<Object> feedback =
+      ToObject(LoadFeedbackVectorSlot(vector, slot, 0, SMI_PARAMETERS));
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC_Noninlined(&p, receiver_map, feedback, &var_handler, &if_handler,

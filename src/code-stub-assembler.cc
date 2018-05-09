@@ -8349,8 +8349,9 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
-  Node* previous_feedback = LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Node* combined_feedback = SmiOr(previous_feedback, feedback);
+  TNode<Smi> previous_feedback =
+      CAST(ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id)));
+  TNode<Smi> combined_feedback = SmiOr(previous_feedback, feedback);
   Label end(this);
 
   GotoIf(SmiEqual(previous_feedback, combined_feedback), &end);
@@ -9082,7 +9083,7 @@ Node* CodeStubAssembler::PageFromAddress(Node* address) {
   return WordAnd(address, IntPtrConstant(~Page::kPageAlignmentMask));
 }
 
-Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
+TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
     Node* feedback_vector, Node* slot) {
   Node* size = IntPtrConstant(AllocationSite::kSize);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
@@ -9124,7 +9125,7 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
 
   StoreFeedbackVectorSlot(feedback_vector, slot, site, UPDATE_WRITE_BARRIER, 0,
                           SMI_PARAMETERS);
-  return site;
+  return CAST(site);
 }
 
 Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,

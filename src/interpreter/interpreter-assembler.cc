@@ -703,8 +703,8 @@ void InterpreterAssembler::CallEpilogue() {
 void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                               Node* slot_id) {
   Comment("increment call count");
-  Node* call_count =
-      LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
+  TNode<Smi> call_count = CAST(
+      ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize)));
   // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
   // count are used as flags. To increment the call count by 1 we hence
   // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
@@ -721,7 +721,8 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Check if we have monomorphic {target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObject> feedback_element =
+      ToStrongHeapObject(LoadFeedbackVectorSlot(feedback_vector, slot_id));
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Comment("check if monomorphic");
   Node* is_monomorphic = WordEqual(target, feedback_value);
@@ -929,7 +930,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObject> feedback_element =
+      CAST(ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id)));
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
 
@@ -1108,7 +1110,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObject> feedback_element =
+      CAST(ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id)));
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
 

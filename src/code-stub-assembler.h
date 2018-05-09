@@ -2114,7 +2114,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        Node* value);
 
   // Create a new AllocationSite and install it into a feedback vector.
-  Node* CreateAllocationSiteInFeedbackVector(Node* feedback_vector, Node* slot);
+  TNode<AllocationSite> CreateAllocationSiteInFeedbackVector(
+      Node* feedback_vector, Node* slot);
 
   enum class IndexAdvanceMode { kPre, kPost };
 
