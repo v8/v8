@@ -272,21 +272,22 @@ void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
 
 namespace {
 
-std::unique_ptr<char[]> GetScriptName(Handle<Script> script) {
-  Object* name_or_url = script->GetNameOrSourceURL();
-  int name_length = 0;
-  std::unique_ptr<char[]> name_string;
-  if (name_or_url->IsString()) {
-    return String::cast(name_or_url)
-        ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &name_length);
-  } else {
-    const char unknown[] = "<unknown>";
-    name_length = static_cast<int>(strlen(unknown));
-    char* buffer = NewArray<char>(name_length);
-    base::OS::StrNCpy(buffer, name_length + 1, unknown,
-                      static_cast<size_t>(name_length));
-    return std::unique_ptr<char[]>(buffer);
+// TODO(clemensh): The heap-allocated string returned from here is just used to
+// invoke {strlen} on it or to output it directly. Refactor this to make it
+// cheaper.
+std::unique_ptr<char[]> GetScriptName(const SourcePositionInfo& info) {
+  if (!info.script.is_null()) {
+    Object* name_or_url = info.script->GetNameOrSourceURL();
+    if (name_or_url->IsString()) {
+      return String::cast(name_or_url)
+          ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL);
+    }
   }
+  constexpr char kUnknownString[] = "<unknown>";
+  constexpr size_t kUnknownStringLen = arraysize(kUnknownString) - 1;
+  std::unique_ptr<char[]> name(NewArray<char>(kUnknownStringLen + 1));
+  memcpy(name.get(), kUnknownString, kUnknownStringLen + 1);
+  return name;
 }
 
 SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
@@ -332,8 +333,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
                                                   iterator.source_position()));
-    Handle<Script> script(Script::cast(info.function->script()));
-    std::unique_ptr<char[]> name_string = GetScriptName(script);
+    std::unique_ptr<char[]> name_string = GetScriptName(info);
     size += (static_cast<uint32_t>(strlen(name_string.get())) + 1);
   }
 
@@ -355,8 +355,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-    Handle<Script> script(Script::cast(info.function->script()));
-    std::unique_ptr<char[]> name_string = GetScriptName(script);
+    std::unique_ptr<char[]> name_string = GetScriptName(info);
     LogWriteBytes(name_string.get(),
                   static_cast<uint32_t>(strlen(name_string.get())) + 1);
   }
