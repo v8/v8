@@ -1377,8 +1377,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
   Str(src, MemOperand(sp, offset));
 }
 
-
-void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
+void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
