@@ -1410,8 +1410,8 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
 }
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  // Set instance to zero.
-  xorp(rsi, rsi);
+  // Set context to zero (Smi::kZero) for the runtime call.
+  xorp(kContextRegister, kContextRegister);
   CallRuntimeDelayed(zone, fid);
 }
 
