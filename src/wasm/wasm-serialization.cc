@@ -65,6 +65,18 @@ class Writer {
     }
   }
 
+  void Align(size_t alignment) {
+    size_t num_written_bytes = bytes_written();
+    if (num_written_bytes % alignment) {
+      size_t padding = alignment - num_written_bytes % alignment;
+      pos_ = pos_ + padding;
+      if (FLAG_wasm_trace_serialization) {
+        OFStream os(stdout);
+        os << "wrote padding, sized: " << padding << std::endl;
+      }
+    }
+  }
+
  private:
   byte* const start_;
   byte* const end_;
@@ -105,6 +117,18 @@ class Reader {
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);
       os << "read vector of " << v.size() << " elements" << std::endl;
+    }
+  }
+
+  void Align(size_t alignment) {
+    size_t num_read_bytes = bytes_read();
+    if (num_read_bytes % alignment) {
+      size_t padding = alignment - num_read_bytes % alignment;
+      pos_ = pos_ + padding;
+      if (FLAG_wasm_trace_serialization) {
+        OFStream os(stdout);
+        os << "read padding, sized: " << padding << std::endl;
+      }
     }
   }
 
@@ -261,6 +285,9 @@ size_t NativeModuleSerializer::Measure() const {
   uint32_t total_fns = native_module_->function_count();
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
     size += kCodeHeaderSize;
+    // Code start needs to be kPointerSize aligned
+    // TODO(all) Remove padding after code reallocation is removed
+    size = RoundUp(size, kPointerSize);
     size += MeasureCode(native_module_->code(i));
   }
   return size;
@@ -303,6 +330,12 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->source_positions().size());
   writer->Write(code->protected_instructions().size());
   writer->Write(code->tier());
+  // Code start needs to be kPointerSize aligned, because
+  // code is reallocated after loaded into the read buffer,
+  // and code reallocation needs to be done on properly
+  // aligned code.
+  // TODO(all) Remove padding after code reallocation is removed
+  writer->Align(kPointerSize);
   // Get a pointer to the code buffer, which we have to relocate.
   byte* serialized_code_start = writer->current_buffer().start();
   // Now write the code, reloc info, source positions, and protected code.
@@ -483,6 +516,12 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t source_position_size = reader->Read<size_t>();
   size_t protected_instructions_size = reader->Read<size_t>();
   WasmCode::Tier tier = reader->Read<WasmCode::Tier>();
+  // Code start needs to be kPointerSize aligned, because
+  // code is reallocated after loaded into the read buffer,
+  // and code reallocation needs to be done on properly
+  // aligned code.
+  // TODO(all) Remove padding after code reallocation is removed
+  reader->Align(kPointerSize);
 
   Vector<const byte> code_buffer = {reader->current_location(), code_size};
   reader->Skip(code_size);
