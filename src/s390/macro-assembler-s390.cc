@@ -3348,6 +3348,16 @@ void TurboAssembler::CmpP(Register dst, const MemOperand& opnd) {
 #endif
 }
 
+// Using cs or scy based on the offset
+void TurboAssembler::CmpAndSwap(Register old_val, Register new_val,
+                                const MemOperand& opnd) {
+  if (is_uint12(opnd.offset())) {
+    cs(old_val, new_val, opnd);
+  } else {
+    csy(old_val, new_val, opnd);
+  }
+}
+
 //-----------------------------------------------------------------------------
 // Compare Logical Helpers
 //-----------------------------------------------------------------------------
@@ -4044,6 +4054,14 @@ void TurboAssembler::StoreW(Register src, const MemOperand& mem,
   } else {
     StoreW(src, MemOperand(base, scratch));
   }
+}
+
+void TurboAssembler::LoadHalfWordP(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  lghr(dst, src);
+#else
+  lhr(dst, src);
+#endif
 }
 
 // Loads 16-bits half-word value from memory and sign extends to pointer

@@ -399,6 +399,7 @@ class TurboAssembler : public Assembler {
   void CmpP(Register dst, const Operand& opnd);
   void Cmp32(Register dst, const MemOperand& opnd);
   void CmpP(Register dst, const MemOperand& opnd);
+  void CmpAndSwap(Register old_val, Register new_val, const MemOperand& opnd);
 
   // Compare Logical
   void CmpLogical32(Register src1, Register src2);
@@ -766,6 +767,8 @@ class TurboAssembler : public Assembler {
   void LoadFloat32Literal(DoubleRegister result, float value, Register scratch);
 
   void StoreW(Register src, const MemOperand& mem, Register scratch = no_reg);
+
+  void LoadHalfWordP(Register dst, Register src);
 
   void LoadHalfWordP(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);

@@ -896,6 +896,262 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
+#define ATOMIC_COMP_EXCHANGE(start, end, shift_amount, offset)              \
+  {                                                                         \
+    __ LoadlW(temp0, MemOperand(addr, offset));                             \
+    __ llgfr(temp1, temp0);                                                 \
+    __ risbg(temp0, old_val, Operand(start), Operand(end),                  \
+             Operand(shift_amount), false);                                 \
+    __ risbg(temp1, new_val, Operand(start), Operand(end),                  \
+             Operand(shift_amount), false);                                 \
+    __ CmpAndSwap(temp0, temp1, MemOperand(addr, offset));                  \
+    __ risbg(output, temp0, Operand(start+shift_amount),                    \
+             Operand(end+shift_amount), Operand(64-shift_amount), true);    \
+  }
+
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * idx;                                     \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = (3 - idx) * 8;                             \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx);                   \
+  }
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * idx;                                    \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = (1 - idx) * 16;                            \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);               \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * (3 - idx);                               \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = idx * 8;                                   \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx);                   \
+  }
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * (1 - idx);                              \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = idx * 16;                                  \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);               \
+  }
+#endif
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(load_and_ext)            \
+  do {                                                                 \
+    Register old_val = i.InputRegister(0);                             \
+    Register new_val = i.InputRegister(1);                             \
+    Register output = i.OutputRegister();                              \
+    Register addr = kScratchReg;                                       \
+    Register temp0 = r0;                                               \
+    Register temp1 = r1;                                               \
+    size_t index = 2;                                                  \
+    AddressingMode mode = kMode_None;                                  \
+    MemOperand op = i.MemoryOperand(&mode, &index);                    \
+    Label three, two, one, done;                                       \
+    __ lay(addr, op);                                                  \
+    __ tmll(addr, Operand(3));                                         \
+    __ b(Condition(1), &three);                                        \
+    __ b(Condition(2), &two);                                          \
+    __ b(Condition(4), &one);                                          \
+    /* ending with 0b00 */                                             \
+    ATOMIC_COMP_EXCHANGE_BYTE(0);                                      \
+    __ b(&done);                                                       \
+    /* ending with 0b01 */                                             \
+    __ bind(&one);                                                     \
+    ATOMIC_COMP_EXCHANGE_BYTE(1);                                      \
+    __ b(&done);                                                       \
+    /* ending with 0b10 */                                             \
+    __ bind(&two);                                                     \
+    ATOMIC_COMP_EXCHANGE_BYTE(2);                                      \
+    __ b(&done);                                                       \
+    /* ending with 0b11 */                                             \
+    __ bind(&three);                                                   \
+    ATOMIC_COMP_EXCHANGE_BYTE(3);                                      \
+    __ bind(&done);                                                    \
+    __ load_and_ext(output, output);                                   \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(load_and_ext)          \
+  do {                                                                   \
+    Register old_val = i.InputRegister(0);                               \
+    Register new_val = i.InputRegister(1);                               \
+    Register output = i.OutputRegister();                                \
+    Register addr = kScratchReg;                                         \
+    Register temp0 = r0;                                                 \
+    Register temp1 = r1;                                                 \
+    size_t index = 2;                                                    \
+    AddressingMode mode = kMode_None;                                    \
+    MemOperand op = i.MemoryOperand(&mode, &index);                      \
+    Label two, done;                                                     \
+    __ lay(addr, op);                                                    \
+    __ tmll(addr, Operand(3));                                           \
+    __ b(Condition(2), &two);                                            \
+    ATOMIC_COMP_EXCHANGE_HALFWORD(0);                                    \
+    __ b(&done);                                                         \
+    __ bind(&two);                                                       \
+    ATOMIC_COMP_EXCHANGE_HALFWORD(1);                                    \
+    __ bind(&done);                                                      \
+    __ load_and_ext(output, output);                                     \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()                          \
+  do {                                                                   \
+    Register new_val = i.InputRegister(1);                               \
+    Register output = i.OutputRegister();                                \
+    Register addr = kScratchReg;                                         \
+    size_t index = 2;                                                    \
+    AddressingMode mode = kMode_None;                                    \
+    MemOperand op = i.MemoryOperand(&mode, &index);                      \
+    __ lay(addr, op);                                                    \
+    __ CmpAndSwap(output, new_val, MemOperand(addr));                    \
+  } while (false)
+
+// TODO(vasili.skurydzin): use immediate operand for value and
+// SI-formatted instructions (i.e. ASI/AGSI for add) to update
+// memory atomically
+#define ASSEMBLE_ATOMIC_BINOP_WORD(bin_inst, load_and_ext)                \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register addr = r1;                                                   \
+    Register prev = r0;                                                   \
+    Register next = kScratchReg;                                          \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    Label do_cs;                                                          \
+    __ lay(addr, op);                                                     \
+    __ l(prev, MemOperand(addr));                                         \
+    __ bind(&do_cs);                                                      \
+    __ bin_inst(next, prev, value);                                       \
+    __ CmpAndSwap(prev, next, MemOperand(addr));                          \
+    __ bne(&do_cs, Label::kNear);                                         \
+    __ load_and_ext(result, prev);                                        \
+  } while (false)
+
+#define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end)         \
+  do {                                                                    \
+    Label do_cs;                                                          \
+    __ LoadlW(prev, MemOperand(addr, offset));                            \
+    __ bind(&do_cs);                                                      \
+    __ risbg(temp, value, Operand(start), Operand(end),                   \
+             Operand(static_cast<intptr_t>(shift_amount)), true);         \
+    __ bin_inst(new_val, prev, temp);                                     \
+    __ lr(temp, prev);                                                    \
+    __ risbg(temp, new_val, Operand(start), Operand(end),                 \
+             Operand::Zero(), false);                                     \
+    __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                  \
+    __ bne(&do_cs, Label::kNear);                                         \
+  } while (false)
+
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)  \
+  {                                                              \
+    constexpr int offset = -(2 * index);                         \
+    constexpr int shift_amount = 16 - (index * 16);              \
+    constexpr int start = 48 - shift_amount;                     \
+    constexpr int end = start + 15;                              \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)      \
+  {                                                              \
+    constexpr int offset = -(index);                             \
+    constexpr int shift_amount = 24 - (index * 8);               \
+    constexpr int start = 56 - shift_amount;                     \
+    constexpr int end = start + 7;                               \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#else
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)  \
+  {                                                              \
+    constexpr int offset = -(2 * index);                         \
+    constexpr int shift_amount = index * 16;                     \
+    constexpr int start = 48 - shift_amount;                     \
+    constexpr int end = start + 15;                              \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)      \
+  {                                                              \
+    constexpr int offset = -(index);                             \
+    constexpr int shift_amount = index * 8;                      \
+    constexpr int start = 56 - shift_amount;                     \
+    constexpr int end = start + 7;                               \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#endif  // V8_TARGET_BIG_ENDIAN
+
+#define ASSEMBLE_ATOMIC_BINOP_HALFWORD(bin_inst, extract_result)          \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register prev = i.TempRegister(0);                                    \
+    Register new_val = r0;                                                \
+    Register addr = r1;                                                   \
+    Register temp = kScratchReg;                                          \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    Label two, done;                                                      \
+    __ lay(addr, op);                                                     \
+    __ tmll(addr, Operand(3));                                            \
+    __ b(Condition(2), &two);                                             \
+    /* word boundary */                                                   \
+    ATOMIC_BIN_OP_HALFWORD(bin_inst, 0, extract_result);                  \
+    __ b(&done);                                                          \
+    __ bind(&two);                                                        \
+    /* halfword boundary */                                               \
+    ATOMIC_BIN_OP_HALFWORD(bin_inst, 1, extract_result);                  \
+    __ bind(&done);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, extract_result)              \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register addr = i.TempRegister(0);                                    \
+    Register prev = r0;                                                   \
+    Register new_val = r1;                                                \
+    Register temp = kScratchReg;                                          \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    Label done, one, two, three;                                          \
+    __ lay(addr, op);                                                     \
+    __ tmll(addr, Operand(3));                                            \
+    __ b(Condition(1), &three);                                           \
+    __ b(Condition(2), &two);                                             \
+    __ b(Condition(4), &one);                                             \
+    /* ending with 0b00 (word boundary) */                                \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 0, extract_result);                      \
+    __ b(&done);                                                          \
+    /* ending with 0b01 */                                                \
+    __ bind(&one);                                                        \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 1, extract_result);                      \
+    __ b(&done);                                                          \
+    /* ending with 0b10 (hw boundary) */                                  \
+    __ bind(&two);                                                        \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 2, extract_result);                      \
+    __ b(&done);                                                          \
+    /* ending with 0b11 */                                                \
+    __ bind(&three);                                                      \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 3, extract_result);                      \
+    __ bind(&done);                                                       \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
@@ -2298,7 +2554,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define ATOMIC_EXCHANGE(start, end, shift_amount, offset)                    \
   {                                                                          \
     Label do_cs;                                                             \
-    __ LoadlW(output, MemOperand(r1));                                       \
+    __ LoadlW(output, MemOperand(r1, offset));                               \
     __ bind(&do_cs);                                                         \
     __ llgfr(r0, output);                                                    \
     __ risbg(r0, value, Operand(start), Operand(end), Operand(shift_amount), \
@@ -2425,6 +2681,60 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bne(&do_cs, Label::kNear);
       break;
     }
+    case kWord32AtomicCompareExchangeInt8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadB);
+      break;
+    case kWord32AtomicCompareExchangeUint8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadlB);
+      break;
+    case kWord32AtomicCompareExchangeInt16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadHalfWordP);
+      break;
+    case kWord32AtomicCompareExchangeUint16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadLogicalHalfWordP);
+      break;
+    case kWord32AtomicCompareExchangeWord32:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD();
+      break;
+#define ATOMIC_BINOP_CASE(op, inst)                                     \
+  case kWord32Atomic##op##Int8:                                         \
+    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
+          intptr_t shift_right = static_cast<intptr_t>(shift_amount);   \
+          __ srlk(result, prev, Operand(shift_right));                  \
+          __ LoadB(result, result);                                     \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Uint8:                                        \
+    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
+          int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
+          __ risbg(result, prev, Operand(56), Operand(63),              \
+                   Operand(static_cast<intptr_t>(rotate_left)), true);  \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Int16:                                        \
+    ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
+          intptr_t shift_right = static_cast<intptr_t>(shift_amount);   \
+          __ srlk(result, prev, Operand(shift_right));                  \
+          __ LoadHalfWordP(result, result);                             \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Uint16:                                       \
+    ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
+          int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
+          __ risbg(result, prev, Operand(48), Operand(63),              \
+                   Operand(static_cast<intptr_t>(rotate_left)), true);  \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Word32:                                       \
+    ASSEMBLE_ATOMIC_BINOP_WORD(inst, LoadlW);                           \
+    break;
+      ATOMIC_BINOP_CASE(Add, Add32)
+      ATOMIC_BINOP_CASE(Sub, Sub32)
+      ATOMIC_BINOP_CASE(And, And)
+      ATOMIC_BINOP_CASE(Or, Or)
+      ATOMIC_BINOP_CASE(Xor, Xor)
+#undef ATOMIC_BINOP_CASE
+
     default:
       UNREACHABLE();
       break;

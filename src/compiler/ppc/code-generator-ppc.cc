@@ -659,6 +659,60 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ bne(&exchange, cr0);                                             \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)                 \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label binop;                                                               \
+    __ bind(&binop);                                                           \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
+    __ store_inst(i.InputRegister(2), operand);                                \
+    __ bne(&binop, cr0);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst,                    \
+                                       store_inst, ext_instr)                  \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label binop;                                                               \
+    __ bind(&binop);                                                           \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ ext_instr(i.OutputRegister(), i.OutputRegister());                      \
+    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
+    __ store_inst(i.InputRegister(2), operand);                                \
+    __ bne(&binop, cr0);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst)      \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label loop;                                                                \
+    Label exit;                                                                \
+    __ bind(&loop);                                                            \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
+    __ bne(&exit, cr0);                                                        \
+    __ store_inst(i.InputRegister(3), operand);                                \
+    __ bne(&loop, cr0);                                                        \
+    __ bind(&exit);                                                            \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp_inst, load_inst,         \
+                                                  store_inst, ext_instr)       \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label loop;                                                                \
+    Label exit;                                                                \
+    __ bind(&loop);                                                            \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ ext_instr(i.OutputRegister(), i.OutputRegister());                      \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
+    __ bne(&exit, cr0);                                                        \
+    __ store_inst(i.InputRegister(3), operand);                                \
+    __ bne(&loop, cr0);                                                        \
+    __ bind(&exit);                                                            \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
@@ -1959,6 +2013,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
       break;
+
+    case kWord32AtomicCompareExchangeInt8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
+      break;
+    case kWord32AtomicCompareExchangeUint8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx);
+      break;
+    case kWord32AtomicCompareExchangeInt16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
+      break;
+    case kWord32AtomicCompareExchangeUint16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx);
+      break;
+    case kWord32AtomicCompareExchangeWord32:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx);
+      break;
+
+#define ATOMIC_BINOP_CASE(op, inst)                             \
+  case kWord32Atomic##op##Int8:                                 \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb);  \
+    break;                                                      \
+  case kWord32Atomic##op##Uint8:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                  \
+    break;                                                      \
+  case kWord32Atomic##op##Int16:                                \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh);  \
+    break;                                                      \
+  case kWord32Atomic##op##Uint16:                               \
+    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                  \
+    break;                                                      \
+  case kWord32Atomic##op##Word32:                               \
+    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                  \
+    break;
+      ATOMIC_BINOP_CASE(Add, add)
+      ATOMIC_BINOP_CASE(Sub, sub)
+      ATOMIC_BINOP_CASE(And, and_)
+      ATOMIC_BINOP_CASE(Or, orx)
+      ATOMIC_BINOP_CASE(Xor, xor_)
+#undef ATOMIC_BINOP_CASE
+
     default:
       UNREACHABLE();
       break;

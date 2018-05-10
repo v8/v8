@@ -7139,9 +7139,13 @@ EVALUATE(LLGCR) {
 }
 
 EVALUATE(LLGHR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLGHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  uint64_t r2_val = get_low_register<uint64_t>(r2);
+  r2_val <<= 48;
+  r2_val >>= 48;
+  set_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(MLGR) {
