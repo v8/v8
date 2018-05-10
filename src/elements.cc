@@ -1465,8 +1465,10 @@ class DictionaryElementsAccessor
             }
           }
 
-          // Update the number of elements.
-          dict->ElementsRemoved(removed_entries);
+          if (removed_entries > 0) {
+            // Update the number of elements.
+            dict->ElementsRemoved(removed_entries);
+          }
         }
       }
     }
