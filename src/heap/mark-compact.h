@@ -260,6 +260,7 @@ class MarkCompactCollectorBase {
   inline Isolate* isolate() { return heap()->isolate(); }
 
  protected:
+  static const int kMainThread = 0;
   explicit MarkCompactCollectorBase(Heap* heap)
       : heap_(heap), old_to_new_slots_(0) {}
 
@@ -439,8 +440,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   using MarkingState = MajorNonAtomicMarkingState;
 #endif  // V8_CONCURRENT_MARKING
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
-
-  static const int kMainThread = 0;
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
@@ -931,7 +930,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   void MarkLiveObjects() override;
-  void MarkRootSetInParallel();
+  void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
+  V8_INLINE void MarkRootObject(HeapObject* obj);
   void ProcessMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 

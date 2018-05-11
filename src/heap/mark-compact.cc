@@ -330,53 +330,6 @@ using MarkCompactMarkingVisitor =
 
 namespace {
 
-// This root visitor walks all roots and creates items bundling objects that
-// are then processed later on. Slots have to be dereferenced as they could
-// live on the native (C++) stack, which requires filtering out the indirection.
-template <class BatchedItem>
-class RootMarkingVisitorSeedOnly : public RootVisitor {
- public:
-  explicit RootMarkingVisitorSeedOnly(ItemParallelJob* job) : job_(job) {
-    buffered_objects_.reserve(kBufferSize);
-  }
-
-  void VisitRootPointer(Root root, const char* description,
-                        Object** p) override {
-    if (!(*p)->IsHeapObject()) return;
-    AddObject(*p);
-  }
-
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      if (!(*p)->IsHeapObject()) continue;
-      AddObject(*p);
-    }
-  }
-
-  void FlushObjects() {
-    job_->AddItem(new BatchedItem(std::move(buffered_objects_)));
-    // Moving leaves the container in a valid but unspecified state. Reusing the
-    // container requires a call without precondition that resets the state.
-    buffered_objects_.clear();
-    buffered_objects_.reserve(kBufferSize);
-  }
-
- private:
-  // Bundling several objects together in items avoids issues with allocating
-  // and deallocating items; both are operations that are performed on the main
-  // thread.
-  static const int kBufferSize = 128;
-
-  void AddObject(Object* object) {
-    buffered_objects_.push_back(object);
-    if (buffered_objects_.size() == kBufferSize) FlushObjects();
-  }
-
-  ItemParallelJob* job_;
-  std::vector<Object*> buffered_objects_;
-};
-
 int NumberOfAvailableCores() {
   static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
   // This number of cores should be greater than zero and never change.
@@ -3668,35 +3621,25 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
 class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
  public:
   explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
-      : collector_(collector),
-        marking_state_(collector_->non_atomic_marking_state()) {}
+      : collector_(collector) {}
 
-  void VisitRootPointer(Root root, const char* description,
-                        Object** p) override {
+  void VisitRootPointer(Root root, const char* description, Object** p) final {
     MarkObjectByPointer(p);
   }
 
   void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
-  }
-
- private:
-  void MarkObjectByPointer(Object** p) {
-    if (!(*p)->IsHeapObject()) return;
-
-    HeapObject* object = HeapObject::cast(*p);
-
-    if (!collector_->heap()->InNewSpace(object)) return;
-
-    if (marking_state_->WhiteToGrey(object)) {
-      collector_->main_marking_visitor()->Visit(object);
-      collector_->ProcessMarkingWorklist();
+                         Object** end) final {
+    for (Object** p = start; p < end; p++) {
+      MarkObjectByPointer(p);
     }
   }
 
-  MinorMarkCompactCollector* collector_;
-  MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
+ private:
+  V8_INLINE void MarkObjectByPointer(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+    collector_->MarkRootObject(HeapObject::cast(*p));
+  }
+  MinorMarkCompactCollector* const collector_;
 };
 
 void MinorMarkCompactCollector::CollectGarbage() {
@@ -4010,24 +3953,6 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
 
-class BatchedRootMarkingItem : public MarkingItem {
- public:
-  explicit BatchedRootMarkingItem(std::vector<Object*>&& objects)
-      : objects_(objects) {}
-  virtual ~BatchedRootMarkingItem() {}
-
-  void Process(YoungGenerationMarkingTask* task) override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "BatchedRootMarkingItem::Process");
-    for (Object* object : objects_) {
-      task->MarkObject(object);
-    }
-  }
-
- private:
-  std::vector<Object*> objects_;
-};
-
 class PageMarkingItem : public MarkingItem {
  public:
   explicit PageMarkingItem(MemoryChunk* chunk,
@@ -4133,7 +4058,8 @@ class GlobalHandlesMarkingItem : public MarkingItem {
   size_t end_;
 };
 
-void MinorMarkCompactCollector::MarkRootSetInParallel() {
+void MinorMarkCompactCollector::MarkRootSetInParallel(
+    RootMarkingVisitor* root_visitor) {
   base::AtomicNumber<intptr_t> slots;
   {
     ItemParallelJob job(isolate()->cancelable_task_manager(),
@@ -4142,10 +4068,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
     // Seed the root set (roots + old->new set).
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
-      // Create batches of roots.
-      RootMarkingVisitorSeedOnly<BatchedRootMarkingItem> root_seed_visitor(
-          &job);
-      heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
+      heap()->IterateRoots(root_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
       // Create batches of global handles.
       SeedGlobalHandles<GlobalHandlesMarkingItem>(isolate()->global_handles(),
                                                   &job);
@@ -4154,8 +4077,6 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
           heap(), [&job, &slots](MemoryChunk* chunk) {
             job.AddItem(new PageMarkingItem(chunk, &slots));
           });
-      // Flush any remaining objects in the seeding visitor.
-      root_seed_visitor.FlushObjects();
     }
 
     // Add tasks and run in parallel.
@@ -4182,7 +4103,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   RootMarkingVisitor root_visitor(this);
 
-  MarkRootSetInParallel();
+  MarkRootSetInParallel(&root_visitor);
 
   // Mark rest on the main thread.
   {
