@@ -426,10 +426,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   BIND(&normal);
   {
     Comment("load_normal");
-    Node* properties = LoadSlowProperties(holder);
-    VARIABLE(var_name_index, MachineType::PointerRepresentation());
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(holder));
+    TVARIABLE(IntPtrT, var_name_index);
     Label found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
+    NameDictionaryLookup<NameDictionary>(properties, CAST(p->name), &found,
                                          &var_name_index, miss);
     BIND(&found);
     {
@@ -677,10 +677,11 @@ Node* AccessorAssembler::HandleProtoHandler(
         CSA_ASSERT(this, Word32BinaryNot(HasInstanceType(
                              p->receiver, JS_GLOBAL_OBJECT_TYPE)));
 
-        Node* properties = LoadSlowProperties(p->receiver);
-        VARIABLE(var_name_index, MachineType::PointerRepresentation());
+        TNode<NameDictionary> properties =
+            CAST(LoadSlowProperties(p->receiver));
+        TVARIABLE(IntPtrT, var_name_index);
         Label found(this, &var_name_index);
-        NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
+        NameDictionaryLookup<NameDictionary>(properties, CAST(p->name), &found,
                                              &var_name_index, &done);
         BIND(&found);
         {
@@ -816,12 +817,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
            &if_proxy);
     CSA_ASSERT(this,
                WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)));
-    Node* properties = LoadSlowProperties(holder);
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(holder));
 
-    VARIABLE(var_name_index, MachineType::PointerRepresentation());
+    TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
-                                         &var_name_index, miss);
+    NameDictionaryLookup<NameDictionary>(
+        properties, CAST(p->name), &dictionary_found, &var_name_index, miss);
     BIND(&dictionary_found);
     {
       Node* details = LoadDetailsByKeyIndex<NameDictionary>(
@@ -1283,11 +1284,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // case is covered above by LookupOnReceiver bit handling of the smi
       // handler.
       Label slow(this);
-      Node* receiver_map = LoadMap(p->receiver);
+      TNode<Map> receiver_map = LoadMap(p->receiver);
       InvalidateValidityCellIfPrototype(receiver_map);
 
-      Node* properties = LoadSlowProperties(p->receiver);
-      Add<NameDictionary>(properties, p->name, p->value, &slow);
+      TNode<NameDictionary> properties = CAST(LoadSlowProperties(p->receiver));
+      Add<NameDictionary>(properties, CAST(p->name), p->value, &slow);
       Return(p->value);
 
       BIND(&slow);
@@ -1695,10 +1696,11 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(Node* object,
 }
 
 void AccessorAssembler::EmitElementLoad(
-    Node* object, Node* elements, Node* elements_kind, Node* intptr_index,
-    Node* is_jsarray_condition, Label* if_hole, Label* rebox_double,
-    Variable* var_double_value, Label* unimplemented_elements_kind,
-    Label* out_of_bounds, Label* miss, ExitPoint* exit_point) {
+    Node* object, Node* elements, Node* elements_kind,
+    SloppyTNode<IntPtrT> intptr_index, Node* is_jsarray_condition,
+    Label* if_hole, Label* rebox_double, Variable* var_double_value,
+    Label* unimplemented_elements_kind, Label* out_of_bounds, Label* miss,
+    ExitPoint* exit_point) {
   Label if_typed_array(this), if_fast_packed(this), if_fast_holey(this),
       if_fast_double(this), if_fast_holey_double(this), if_nonfast(this),
       if_dictionary(this);
@@ -1775,13 +1777,13 @@ void AccessorAssembler::EmitElementLoad(
   {
     Comment("dictionary elements");
     GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
-    VARIABLE(var_entry, MachineType::PointerRepresentation());
+    TVARIABLE(IntPtrT, var_entry);
     Label if_found(this);
-    NumberDictionaryLookup(elements, intptr_index, &if_found, &var_entry,
+    NumberDictionaryLookup(CAST(elements), intptr_index, &if_found, &var_entry,
                            if_hole);
     BIND(&if_found);
     // Check that the value is a data property.
-    Node* index = EntryToIndex<NumberDictionary>(var_entry.value());
+    TNode<IntPtrT> index = EntryToIndex<NumberDictionary>(var_entry.value());
     Node* details = LoadDetailsByKeyIndex<NumberDictionary>(elements, index);
     Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
     // TODO(jkummerow): Support accessors without missing?
@@ -1896,12 +1898,13 @@ void AccessorAssembler::EmitElementLoad(
   }
 }
 
-void AccessorAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
+void AccessorAssembler::NameDictionaryNegativeLookup(Node* object,
+                                                     SloppyTNode<Name> name,
                                                      Label* miss) {
   CSA_ASSERT(this, IsDictionaryMap(LoadMap(object)));
-  Node* properties = LoadSlowProperties(object);
+  TNode<NameDictionary> properties = CAST(LoadSlowProperties(object));
   // Ensure the property does not exist in a dictionary-mode object.
-  VARIABLE(var_name_index, MachineType::PointerRepresentation());
+  TVARIABLE(IntPtrT, var_name_index);
   Label done(this);
   NameDictionaryLookup<NameDictionary>(properties, name, miss, &var_name_index,
                                        &done);
@@ -2103,11 +2106,11 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
-    VARIABLE(var_name_index, MachineType::PointerRepresentation());
+    TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    Node* properties = LoadSlowProperties(receiver);
-    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
-                                         &var_name_index,
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
+    NameDictionaryLookup<NameDictionary>(properties, CAST(p->name),
+                                         &dictionary_found, &var_name_index,
                                          &lookup_prototype_chain);
     BIND(&dictionary_found);
     {
@@ -2910,7 +2913,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
         Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> script_context =
         LoadScriptContext(CAST(pp->context), context_index);
-    StoreContextElement(script_context, slot_index, CAST(pp->value));
+    StoreContextElement(script_context, slot_index, pp->value);
     Return(pp->value);
   }
 }

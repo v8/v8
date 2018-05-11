@@ -25,8 +25,10 @@ namespace compiler {
 
 namespace {
 
-typedef CodeAssemblerLabel Label;
-typedef CodeAssemblerVariable Variable;
+using Label = CodeAssemblerLabel;
+using Variable = CodeAssemblerVariable;
+template <class T>
+using TVariable = TypedCodeAssemblerVariable<T>;
 
 Handle<String> MakeString(const char* str) {
   Isolate* isolate = CcTest::i_isolate();
@@ -545,8 +547,8 @@ void TestEntryToIndex() {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
   {
-    Node* entry = m.SmiUntag(m.Parameter(0));
-    Node* result = m.EntryToIndex<Dictionary>(entry);
+    TNode<IntPtrT> entry = m.SmiUntag(m.Parameter(0));
+    TNode<IntPtrT> result = m.EntryToIndex<Dictionary>(entry);
     m.Return(m.SmiTag(result));
   }
 
@@ -578,14 +580,14 @@ void TestNameDictionaryLookup() {
 
   enum Result { kFound, kNotFound };
   {
-    Node* dictionary = m.Parameter(0);
-    Node* unique_name = m.Parameter(1);
-    Node* expected_result = m.Parameter(2);
-    Node* expected_arg = m.Parameter(3);
+    TNode<Dictionary> dictionary = m.CAST(m.Parameter(0));
+    TNode<Name> unique_name = m.CAST(m.Parameter(1));
+    TNode<Smi> expected_result = m.CAST(m.Parameter(2));
+    TNode<Object> expected_arg = m.CAST(m.Parameter(3));
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_name_index(&m, MachineType::PointerRepresentation());
+    TVariable<IntPtrT> var_name_index(&m);
 
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
                                        &var_name_index, &if_not_found);
@@ -593,8 +595,9 @@ void TestNameDictionaryLookup() {
     m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
-    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_name_index.value()),
-             &passed, &failed);
+    m.Branch(
+        m.WordEqual(m.SmiUntag(m.CAST(expected_arg)), var_name_index.value()),
+        &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
@@ -679,14 +682,14 @@ TEST(NumberDictionaryLookup) {
 
   enum Result { kFound, kNotFound };
   {
-    Node* dictionary = m.Parameter(0);
-    Node* key = m.SmiUntag(m.Parameter(1));
-    Node* expected_result = m.Parameter(2);
-    Node* expected_arg = m.Parameter(3);
+    TNode<NumberDictionary> dictionary = m.CAST(m.Parameter(0));
+    TNode<IntPtrT> key = m.SmiUntag(m.Parameter(1));
+    TNode<Smi> expected_result = m.CAST(m.Parameter(2));
+    TNode<Object> expected_arg = m.CAST(m.Parameter(3));
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_entry(&m, MachineType::PointerRepresentation());
+    TVariable<IntPtrT> var_entry(&m);
 
     m.NumberDictionaryLookup(dictionary, key, &if_found, &var_entry,
                              &if_not_found);
@@ -694,8 +697,8 @@ TEST(NumberDictionaryLookup) {
     m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
-    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_entry.value()), &passed,
-             &failed);
+    m.Branch(m.WordEqual(m.SmiUntag(m.CAST(expected_arg)), var_entry.value()),
+             &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(

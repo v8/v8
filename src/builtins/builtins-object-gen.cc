@@ -28,8 +28,10 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void ReturnToStringFormat(Node* context, Node* string);
-  void AddToDictionaryIf(Node* condition, Node* name_dictionary,
-                         Handle<Name> name, Node* value, Label* bailout);
+  void AddToDictionaryIf(TNode<BoolT> condition,
+                         TNode<NameDictionary> name_dictionary,
+                         Handle<Name> name, TNode<Object> value,
+                         Label* bailout);
   Node* FromPropertyDescriptor(Node* context, Node* desc);
   Node* FromPropertyDetails(Node* context, Node* raw_value, Node* details,
                             Label* if_bailout);
@@ -1492,10 +1494,9 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   args.PopAndReturn(UndefinedConstant());
 }
 
-void ObjectBuiltinsAssembler::AddToDictionaryIf(Node* condition,
-                                                Node* name_dictionary,
-                                                Handle<Name> name, Node* value,
-                                                Label* bailout) {
+void ObjectBuiltinsAssembler::AddToDictionaryIf(
+    TNode<BoolT> condition, TNode<NameDictionary> name_dictionary,
+    Handle<Name> name, TNode<Object> value, Label* bailout) {
   Label done(this);
   GotoIfNot(condition, &done);
 
@@ -1555,13 +1556,14 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
         native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP);
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
-    Node* properties = AllocateNameDictionary(6);
+    TNode<NameDictionary> properties = AllocateNameDictionary(6);
     Node* js_desc = AllocateJSObjectFromMap(map, properties);
 
     Label bailout(this, Label::kDeferred);
 
     Factory* factory = isolate()->factory();
-    Node* value = LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
+    TNode<Object> value =
+        LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
     AddToDictionaryIf(IsNotTheHole(value), properties, factory->value_string(),
                       value, &bailout);
     AddToDictionaryIf(
@@ -1571,10 +1573,12 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
             IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
         &bailout);
 
-    Node* get = LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
+    TNode<Object> get =
+        LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
     AddToDictionaryIf(IsNotTheHole(get), properties, factory->get_string(), get,
                       &bailout);
-    Node* set = LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
+    TNode<Object> set =
+        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
     AddToDictionaryIf(IsNotTheHole(set), properties, factory->set_string(), set,
                       &bailout);
 

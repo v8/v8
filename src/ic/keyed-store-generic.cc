@@ -759,15 +759,16 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
-    VARIABLE(var_name_index, MachineType::PointerRepresentation());
+    TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index), not_found(this);
     TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(receiver)));
-    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
-                                         &var_name_index, &not_found);
+    NameDictionaryLookup<NameDictionary>(properties, CAST(p->name),
+                                         &dictionary_found, &var_name_index,
+                                         &not_found);
     BIND(&dictionary_found);
     {
       Label overwrite(this);
-      Node* details = LoadDetailsByKeyIndex<NameDictionary>(
+      TNode<Uint32T> details = LoadDetailsByKeyIndex<NameDictionary>(
           properties, var_name_index.value());
       JumpIfDataProperty(details, &overwrite, &readonly);
 
@@ -800,7 +801,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
                                      &readonly, slow);
       Label add_dictionary_property_slow(this);
       InvalidateValidityCellIfPrototype(receiver_map, bitfield2);
-      Add<NameDictionary>(properties, p->name, p->value,
+      Add<NameDictionary>(properties, CAST(p->name), p->value,
                           &add_dictionary_property_slow);
       exit_point->Return(p->value);
 

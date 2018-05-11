@@ -93,11 +93,11 @@ class AccessorAssembler : public CodeStubAssembler {
 
  protected:
   struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
-                      Node* slot, Node* vector)
+    StoreICParameters(Node* context, Node* receiver, Node* name,
+                      SloppyTNode<Object> value, Node* slot, Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
           value(value) {}
-    Node* value;
+    SloppyTNode<Object> value;
   };
 
   enum class ICMode { kNonGlobalIC, kGlobalIC };
@@ -265,11 +265,13 @@ class AccessorAssembler : public CodeStubAssembler {
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
   void EmitElementLoad(Node* object, Node* elements, Node* elements_kind,
-                       Node* key, Node* is_jsarray_condition, Label* if_hole,
-                       Label* rebox_double, Variable* var_double_value,
+                       SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
+                       Label* if_hole, Label* rebox_double,
+                       Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
                        Label* miss, ExitPoint* exit_point);
-  void NameDictionaryNegativeLookup(Node* object, Node* name, Label* miss);
+  void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
+                                    Label* miss);
 
   // Stub cache access helpers.
 

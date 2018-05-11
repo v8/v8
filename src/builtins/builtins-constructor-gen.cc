@@ -459,8 +459,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     BIND(&if_dictionary);
     {
       Comment("Copy dictionary properties");
-      var_properties.Bind(
-          CopyNameDictionary(LoadSlowProperties(boilerplate), call_runtime));
+      var_properties.Bind(CopyNameDictionary(
+          CAST(LoadSlowProperties(boilerplate)), call_runtime));
       // Slow objects have no in-object properties.
       Goto(&done);
     }
