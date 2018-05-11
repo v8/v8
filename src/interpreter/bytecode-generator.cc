@@ -807,30 +807,40 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   explicit FeedbackSlotCache(Zone* zone) : map_(zone) {}
 
   void Put(FeedbackSlotKind slot_kind, Variable* variable, FeedbackSlot slot) {
-    PutImpl(slot_kind, variable, slot);
+    PutImpl(slot_kind, 0, variable, slot);
   }
   void Put(FeedbackSlotKind slot_kind, AstNode* node, FeedbackSlot slot) {
-    PutImpl(slot_kind, node, slot);
+    PutImpl(slot_kind, 0, node, slot);
+  }
+  void Put(FeedbackSlotKind slot_kind, int variable_index,
+           const AstRawString* name, FeedbackSlot slot) {
+    PutImpl(slot_kind, variable_index, name, slot);
   }
 
   FeedbackSlot Get(FeedbackSlotKind slot_kind, Variable* variable) const {
-    return GetImpl(slot_kind, variable);
+    return GetImpl(slot_kind, 0, variable);
   }
   FeedbackSlot Get(FeedbackSlotKind slot_kind, AstNode* node) const {
-    return GetImpl(slot_kind, node);
+    return GetImpl(slot_kind, 0, node);
+  }
+  FeedbackSlot Get(FeedbackSlotKind slot_kind, int variable_index,
+                   const AstRawString* name) const {
+    return GetImpl(slot_kind, variable_index, name);
   }
 
  private:
-  typedef std::pair<FeedbackSlotKind, void*> Key;
+  typedef std::tuple<FeedbackSlotKind, int, const void*> Key;
 
-  void PutImpl(FeedbackSlotKind slot_kind, void* node, FeedbackSlot slot) {
-    Key key = std::make_pair(slot_kind, node);
+  void PutImpl(FeedbackSlotKind slot_kind, int index, const void* node,
+               FeedbackSlot slot) {
+    Key key = std::make_tuple(slot_kind, index, node);
     auto entry = std::make_pair(key, slot);
     map_.insert(entry);
   }
 
-  FeedbackSlot GetImpl(FeedbackSlotKind slot_kind, void* node) const {
-    Key key = std::make_pair(slot_kind, node);
+  FeedbackSlot GetImpl(FeedbackSlotKind slot_kind, int index,
+                       const void* node) const {
+    Key key = std::make_tuple(slot_kind, index, node);
     auto iter = map_.find(key);
     if (iter != map_.end()) {
       return iter->second;
@@ -1553,7 +1563,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr) {
       const AstRawString* name =
           property->key()->AsLiteral()->AsRawPropertyName();
       builder()->LoadAccumulatorWithRegister(value);
-      FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
       builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                     language_mode());
       builder()->LoadAccumulatorWithRegister(value);
@@ -2802,7 +2812,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
         break;
       }
       case NAMED_PROPERTY: {
-        FeedbackSlot slot = feedback_spec()->AddLoadICSlot();
+        FeedbackSlot slot = GetCachedLoadICSlot(property->obj(), name);
         builder()->LoadNamedProperty(object, name, feedback_index(slot));
         break;
       }
@@ -2853,7 +2863,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     }
     case NAMED_PROPERTY: {
-      FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
       Register value;
       if (!execution_result()->IsEffect()) {
         value = register_allocator()->NewRegister();
@@ -3331,7 +3341,9 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       builder()->SetExpressionPosition(property);
       builder()->LoadNamedProperty(
           obj, property->key()->AsLiteral()->AsRawPropertyName(),
-          feedback_index(feedback_spec()->AddLoadICSlot()));
+          feedback_index(GetCachedLoadICSlot(
+              property->obj(),
+              property->key()->AsLiteral()->AsRawPropertyName())));
       break;
     }
     case KEYED_PROPERTY: {
@@ -3851,7 +3863,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       object = VisitForRegisterValue(property->obj());
       name = property->key()->AsLiteral()->AsRawPropertyName();
       builder()->LoadNamedProperty(
-          object, name, feedback_index(feedback_spec()->AddLoadICSlot()));
+          object, name,
+          feedback_index(GetCachedLoadICSlot(property->obj(), name)));
       break;
     }
     case KEYED_PROPERTY: {
@@ -3915,7 +3928,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case NAMED_PROPERTY: {
-      FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
       Register value;
       if (!execution_result()->IsEffect()) {
         value = register_allocator()->NewRegister();
@@ -5004,6 +5017,48 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
   }
   slot = feedback_spec()->AddStoreGlobalICSlot(language_mode);
   feedback_slot_cache()->Put(slot_kind, variable, slot);
+  return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
+                                                    const AstRawString* name) {
+  if (!FLAG_ignition_share_named_property_feedback) {
+    return feedback_spec()->AddLoadICSlot();
+  }
+  FeedbackSlotKind slot_kind = FeedbackSlotKind::kLoadProperty;
+  if (!expr->IsVariableProxy()) {
+    return feedback_spec()->AddLoadICSlot();
+  }
+  const VariableProxy* proxy = expr->AsVariableProxy();
+  FeedbackSlot slot =
+      feedback_slot_cache()->Get(slot_kind, proxy->var()->index(), name);
+  if (!slot.IsInvalid()) {
+    return slot;
+  }
+  slot = feedback_spec()->AddLoadICSlot();
+  feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name, slot);
+  return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetCachedStoreICSlot(const Expression* expr,
+                                                     const AstRawString* name) {
+  if (!FLAG_ignition_share_named_property_feedback) {
+    return feedback_spec()->AddStoreICSlot(language_mode());
+  }
+  FeedbackSlotKind slot_kind = is_strict(language_mode())
+                                   ? FeedbackSlotKind::kStoreNamedStrict
+                                   : FeedbackSlotKind::kStoreNamedSloppy;
+  if (!expr->IsVariableProxy()) {
+    return feedback_spec()->AddStoreICSlot(language_mode());
+  }
+  const VariableProxy* proxy = expr->AsVariableProxy();
+  FeedbackSlot slot =
+      feedback_slot_cache()->Get(slot_kind, proxy->var()->index(), name);
+  if (!slot.IsInvalid()) {
+    return slot;
+  }
+  slot = feedback_spec()->AddStoreICSlot(language_mode());
+  feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name, slot);
   return slot;
 }
 
