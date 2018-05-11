@@ -19,6 +19,10 @@ class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
 
+namespace interpreter {
+class Register;
+}
+
 // Code describes objects with on-the-fly generated machine code.
 class Code : public HeapObject {
  public:

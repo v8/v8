@@ -7,6 +7,7 @@
 
 #include "src/objects/code.h"
 
+#include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects/dictionary.h"
 #include "src/v8memory.h"

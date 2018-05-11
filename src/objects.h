@@ -16,7 +16,6 @@
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/flags.h"
-#include "src/interpreter/bytecode-register.h"
 #include "src/messages.h"
 #include "src/property-details.h"
 #include "src/unicode-decoder.h"

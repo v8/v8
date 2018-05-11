@@ -75,6 +75,11 @@ class RuntimeCallTimer;
 class Ticker;
 class WasmCompiledModule;
 
+namespace interpreter {
+enum class Bytecode : uint8_t;
+enum class OperandScale : uint8_t;
+}  // namespace interpreter
+
 namespace wasm {
 class WasmCode;
 }
