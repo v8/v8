@@ -2157,7 +2157,22 @@ class Heap {
       int size_in_bytes, AllocationSpace space,
       AllocationAlignment aligment = kWordAligned);
 
-  HeapObject* AllocateRawWithRetry(
+  // This method will try to perform an allocation of a given size in a given
+  // space. If the allocation fails, a regular full garbage collection is
+  // triggered and the allocation is retried. This is performed multiple times.
+  // If after that retry procedure the allocation still fails nullptr is
+  // returned.
+  HeapObject* AllocateRawWithLigthRetry(
+      int size, AllocationSpace space,
+      AllocationAlignment alignment = kWordAligned);
+
+  // This method will try to perform an allocation of a given size in a given
+  // space. If the allocation fails, a regular full garbage collection is
+  // triggered and the allocation is retried. This is performed multiple times.
+  // If after that retry procedure the allocation still fails a "hammer"
+  // garbage collection is triggered which tries to significantly reduce memory.
+  // If the allocation still fails after that a fatal error is thrown.
+  HeapObject* AllocateRawWithRetryOrFail(
       int size, AllocationSpace space,
       AllocationAlignment alignment = kWordAligned);
   HeapObject* AllocateRawCodeInLargeObjectSpace(int size);
@@ -2165,6 +2180,11 @@ class Heap {
   // Allocates a heap object based on the map.
   V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map* map,
                                                   AllocationSpace space);
+
+  // Takes a code object and checks if it is on memory which is not subject to
+  // compaction. This method will return a new code object on an immovable
+  // memory location if the original code object was movable.
+  HeapObject* EnsureImmovableCode(HeapObject* heap_object, int object_size);
 
   // Allocates a partial map for bootstrapping.
   V8_WARN_UNUSED_RESULT AllocationResult

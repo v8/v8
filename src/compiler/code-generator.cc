@@ -383,19 +383,24 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  Handle<Code> result = isolate()->factory()->NewCode(
+  MaybeHandle<Code> maybe_code = isolate()->factory()->TryNewCode(
       desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
       source_positions, deopt_data, kMovable, info()->stub_key(), true,
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
       handler_table_offset_);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    tasm()->AbortedCodeGeneration();
+    return Handle<Code>();
+  }
   isolate()->counters()->total_compiled_code_size()->Increment(
-      result->raw_instruction_size());
+      code->raw_instruction_size());
 
   LOG_CODE_EVENT(isolate(),
-                 CodeLinePosInfoRecordEvent(result->raw_instruction_start(),
+                 CodeLinePosInfoRecordEvent(code->raw_instruction_start(),
                                             *source_positions));
 
-  return result;
+  return code;
 }
 
 

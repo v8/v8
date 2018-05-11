@@ -30,11 +30,86 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+int ComputeCodeObjectSize(const CodeDesc& desc) {
+  bool has_unwinding_info = desc.unwinding_info != nullptr;
+  DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
+         (!has_unwinding_info && desc.unwinding_info_size == 0));
+  int body_size = desc.instr_size;
+  int unwinding_info_size_field_size = kInt64Size;
+  if (has_unwinding_info) {
+    body_size = RoundUp(body_size, kInt64Size) + desc.unwinding_info_size +
+                unwinding_info_size_field_size;
+  }
+  int object_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
+  DCHECK(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
+  return object_size;
+}
+
+void InitializeCode(Handle<Code> code, int object_size, const CodeDesc& desc,
+                    Code::Kind kind, Handle<Object> self_ref,
+                    int32_t builtin_index,
+                    Handle<ByteArray> source_position_table,
+                    Handle<DeoptimizationData> deopt_data,
+                    Handle<ByteArray> reloc_info,
+                    Handle<CodeDataContainer> data_container, uint32_t stub_key,
+                    bool is_turbofanned, int stack_slots,
+                    int safepoint_table_offset, int handler_table_offset) {
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
+  DCHECK(
+      !code->GetIsolate()->heap()->memory_allocator()->code_range()->valid() ||
+      code->GetIsolate()->heap()->memory_allocator()->code_range()->contains(
+          code->address()) ||
+      object_size <= code->GetIsolate()->heap()->code_space()->AreaSize());
+
+  bool has_unwinding_info = desc.unwinding_info != nullptr;
+
+  code->set_raw_instruction_size(desc.instr_size);
+  code->set_relocation_info(*reloc_info);
+  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
+  code->set_safepoint_table_offset(safepoint_table_offset);
+  code->set_handler_table_offset(handler_table_offset);
+  code->set_code_data_container(*data_container);
+  code->set_deoptimization_data(*deopt_data);
+  code->set_stub_key(stub_key);
+  code->set_source_position_table(*source_position_table);
+  code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
+  code->set_builtin_index(builtin_index);
+
+  // Allow self references to created code object by patching the handle to
+  // point to the newly allocated Code object.
+  if (!self_ref.is_null()) {
+    DCHECK(self_ref->IsOddball());
+    DCHECK(Oddball::cast(*self_ref)->kind() == Oddball::kSelfReferenceMarker);
+#ifdef V8_EMBEDDED_BUILTINS
+    auto builder = code->GetIsolate()->builtins_constants_table_builder();
+    if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
+#endif  // V8_EMBEDDED_BUILTINS
+    *(self_ref.location()) = *code;
+  }
+
+  // Migrate generated code.
+  // The generated code can contain Object** values (typically from handles)
+  // that are dereferenced during the copy to point directly to the actual heap
+  // objects. These pointers can include references to the code object itself,
+  // through the self_reference parameter.
+  code->CopyFrom(desc);
+
+  code->clear_padding();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) code->ObjectVerify();
+#endif
+}
+
+}  // namespace
+
 HeapObject* Factory::AllocateRawWithImmortalMap(int size,
                                                 PretenureFlag pretenure,
                                                 Map* map,
                                                 AllocationAlignment alignment) {
-  HeapObject* result = isolate()->heap()->AllocateRawWithRetry(
+  HeapObject* result = isolate()->heap()->AllocateRawWithRetryOrFail(
       size, Heap::SelectSpace(pretenure), alignment);
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   return result;
@@ -47,7 +122,8 @@ HeapObject* Factory::AllocateRawWithAllocationSite(
   int size = map->instance_size();
   if (!allocation_site.is_null()) size += AllocationMemento::kSize;
   AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject* result = isolate()->heap()->AllocateRawWithRetry(size, space);
+  HeapObject* result =
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
   WriteBarrierMode write_barrier_mode =
       space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   result->set_map_after_allocation(*map, write_barrier_mode);
@@ -72,7 +148,8 @@ void Factory::InitializeAllocationMemento(AllocationMemento* memento,
 
 HeapObject* Factory::AllocateRawArray(int size, PretenureFlag pretenure) {
   AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject* result = isolate()->heap()->AllocateRawWithRetry(size, space);
+  HeapObject* result =
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(result->address());
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
@@ -100,7 +177,8 @@ HeapObject* Factory::New(Handle<Map> map, PretenureFlag pretenure) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
   AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject* result = isolate()->heap()->AllocateRawWithRetry(size, space);
+  HeapObject* result =
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
   // New space objects are allocated white.
   WriteBarrierMode write_barrier_mode =
       space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
@@ -112,7 +190,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
                                             AllocationSpace space) {
   AllocationAlignment alignment = double_align ? kDoubleAligned : kWordAligned;
   Heap* heap = isolate()->heap();
-  HeapObject* result = heap->AllocateRawWithRetry(size, space, alignment);
+  HeapObject* result = heap->AllocateRawWithRetryOrFail(size, space, alignment);
 #ifdef DEBUG
   MemoryChunk* chunk = MemoryChunk::FromAddress(result->address());
   DCHECK(chunk->owner()->identity() == space);
@@ -1689,7 +1767,7 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind));
   HeapObject* result =
-      isolate()->heap()->AllocateRawWithRetry(Map::kSize, MAP_SPACE);
+      isolate()->heap()->AllocateRawWithRetryOrFail(Map::kSize, MAP_SPACE);
   result->set_map_after_allocation(*meta_map(), SKIP_WRITE_BARRIER);
   return handle(InitializeMap(Map::cast(result), type, instance_size,
                               elements_kind, inobject_properties),
@@ -1766,8 +1844,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   int object_size = map->instance_size();
   int adjusted_object_size =
       site.is_null() ? object_size : object_size + AllocationMemento::kSize;
-  HeapObject* raw_clone =
-      isolate()->heap()->AllocateRawWithRetry(adjusted_object_size, NEW_SPACE);
+  HeapObject* raw_clone = isolate()->heap()->AllocateRawWithRetryOrFail(
+      adjusted_object_size, NEW_SPACE);
 
   SLOW_DCHECK(isolate()->heap()->InNewSpace(raw_clone));
   // Since we know the clone is allocated in new space, we can copy
@@ -2374,15 +2452,15 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
   return data_container;
 }
 
-Handle<Code> Factory::NewCode(
+MaybeHandle<Code> Factory::TryNewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
     int safepoint_table_offset, int handler_table_offset) {
+  // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
-
   Handle<ByteArray> source_position_table =
       maybe_source_position_table.is_null()
           ? empty_byte_array()
@@ -2391,104 +2469,81 @@ Handle<Code> Factory::NewCode(
       maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
                                  : maybe_deopt_data.ToHandleChecked();
 
-  bool has_unwinding_info = desc.unwinding_info != nullptr;
-  DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
-         (!has_unwinding_info && desc.unwinding_info_size == 0));
-
-  // Compute size.
-  int body_size = desc.instr_size;
-  int unwinding_info_size_field_size = kInt64Size;
-  if (has_unwinding_info) {
-    body_size = RoundUp(body_size, kInt64Size) + desc.unwinding_info_size +
-                unwinding_info_size_field_size;
-  }
-  int object_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
-  DCHECK(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
+  int object_size = ComputeCodeObjectSize(desc);
 
   Heap* heap = isolate()->heap();
   CodePageCollectionMemoryModificationScope code_allocation(heap);
-  HeapObject* result = heap->AllocateRawWithRetry(object_size, CODE_SPACE);
+  HeapObject* result = heap->AllocateRawWithLigthRetry(object_size, CODE_SPACE);
+
+  // Return an empty handle if we cannot allocate the code object.
+  if (!result) return MaybeHandle<Code>();
 
   if (movability == kImmovable) {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(result->address());
-    // Code objects which should stay at a fixed address are allocated either
-    // in the first page of code space, in large object space, or (during
-    // snapshot creation) the containing page is marked as immovable.
-    if (!Heap::IsImmovable(result)) {
-      if (isolate()->serializer_enabled() ||
-          heap->code_space_->FirstPage()->Contains(result->address())) {
-        chunk->MarkNeverEvacuate();
-      } else {
-        // Discard the first code allocation, which was on a page where it could
-        // be moved.
-        heap->CreateFillerObjectAt(result->address(), object_size,
-                                   ClearRecordedSlots::kNo);
-        result = heap->AllocateRawCodeInLargeObjectSpace(object_size);
-        heap->UnprotectAndRegisterMemoryChunk(result);
-        heap->ZapCodeObject(result->address(), object_size);
-        heap->OnAllocationEvent(result, object_size);
-      }
-    }
+    result = heap->EnsureImmovableCode(result, object_size);
   }
-
-  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-  Handle<Code> code(Code::cast(result), isolate());
-  DCHECK(IsAligned(code->address(), kCodeAlignment));
-  DCHECK(!heap->memory_allocator()->code_range()->valid() ||
-         heap->memory_allocator()->code_range()->contains(code->address()) ||
-         object_size <= heap->code_space()->AreaSize());
 
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowHeapAllocation no_gc;
-  code->set_raw_instruction_size(desc.instr_size);
-  code->set_relocation_info(*reloc_info);
-  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
-  code->set_safepoint_table_offset(safepoint_table_offset);
-  code->set_handler_table_offset(handler_table_offset);
-  code->set_code_data_container(*data_container);
-  code->set_deoptimization_data(*deopt_data);
-  code->set_stub_key(stub_key);
-  code->set_source_position_table(*source_position_table);
-  code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
-  code->set_builtin_index(builtin_index);
 
-  // Allow self references to created code object by patching the handle to
-  // point to the newly allocated Code object.
-  if (!self_ref.is_null()) {
-    DCHECK(self_ref->IsOddball());
-    DCHECK(Oddball::cast(*self_ref)->kind() == Oddball::kSelfReferenceMarker);
-#ifdef V8_EMBEDDED_BUILTINS
-    auto builder = isolate()->builtins_constants_table_builder();
-    if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
-#endif  // V8_EMBEDDED_BUILTINS
-    *(self_ref.location()) = *code;
+  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
+  Handle<Code> code(Code::cast(result), isolate());
+
+  InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
+                 source_position_table, deopt_data, reloc_info, data_container,
+                 stub_key, is_turbofanned, stack_slots, safepoint_table_offset,
+                 handler_table_offset);
+
+  return code;
+}
+
+Handle<Code> Factory::NewCode(
+    const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
+    int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
+    MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
+    uint32_t stub_key, bool is_turbofanned, int stack_slots,
+    int safepoint_table_offset, int handler_table_offset) {
+  // Allocate objects needed for code initialization.
+  Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
+  Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
+  Handle<ByteArray> source_position_table =
+      maybe_source_position_table.is_null()
+          ? empty_byte_array()
+          : maybe_source_position_table.ToHandleChecked();
+  Handle<DeoptimizationData> deopt_data =
+      maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
+                                 : maybe_deopt_data.ToHandleChecked();
+
+  int object_size = ComputeCodeObjectSize(desc);
+
+  Heap* heap = isolate()->heap();
+  CodePageCollectionMemoryModificationScope code_allocation(heap);
+  HeapObject* result =
+      heap->AllocateRawWithRetryOrFail(object_size, CODE_SPACE);
+
+  if (movability == kImmovable) {
+    result = heap->EnsureImmovableCode(result, object_size);
   }
 
-  // Migrate generated code.
-  // The generated code can contain Object** values (typically from handles)
-  // that are dereferenced during the copy to point directly to the actual heap
-  // objects. These pointers can include references to the code object itself,
-  // through the self_reference parameter.
-  code->CopyFrom(desc);
+  // The code object has not been fully initialized yet.  We rely on the
+  // fact that no allocation will happen from this point on.
+  DisallowHeapAllocation no_gc;
 
-  code->clear_padding();
+  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
+  Handle<Code> code(Code::cast(result), isolate());
 
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) code->ObjectVerify();
-#endif
-  DCHECK(IsAligned(code->address(), kCodeAlignment));
-  DCHECK(!isolate()->heap()->memory_allocator()->code_range()->valid() ||
-         isolate()->heap()->memory_allocator()->code_range()->contains(
-             code->address()) ||
-         object_size <= isolate()->heap()->code_space()->AreaSize());
+  InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
+                 source_position_table, deopt_data, reloc_info, data_container,
+                 stub_key, is_turbofanned, stack_slots, safepoint_table_offset,
+                 handler_table_offset);
+
   return code;
 }
 
 Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
   DCHECK(IsAligned(static_cast<intptr_t>(size), kCodeAlignment));
   Heap* heap = isolate()->heap();
-  HeapObject* result = heap->AllocateRawWithRetry(size, CODE_SPACE);
+  HeapObject* result = heap->AllocateRawWithRetryOrFail(size, CODE_SPACE);
   // Unprotect the memory chunk of the object if it was not unprotected
   // already.
   heap->UnprotectAndRegisterMemoryChunk(result);
@@ -2537,7 +2592,7 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 
   Heap* heap = isolate()->heap();
   int obj_size = code->Size();
-  HeapObject* result = heap->AllocateRawWithRetry(obj_size, CODE_SPACE);
+  HeapObject* result = heap->AllocateRawWithRetryOrFail(obj_size, CODE_SPACE);
 
   // Copy code object.
   Address old_addr = code->address();
