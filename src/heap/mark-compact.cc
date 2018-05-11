@@ -270,11 +270,12 @@ void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
 void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
   for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
-    if (p->Contains(space->top()))
+    if (p->Contains(space->top())) {
+      CodePageMemoryModificationScope memory_modification_scope(p);
       heap_->CreateFillerObjectAt(
           space->top(), static_cast<int>(space->limit() - space->top()),
           ClearRecordedSlots::kNo);
-
+    }
     VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }
 }
@@ -2763,6 +2764,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "RememberedSetUpdatingItem::Process");
     base::LockGuard<base::Mutex> guard(chunk_->mutex());
+    CodePageMemoryModificationScope memory_modification_scope(chunk_);
     UpdateUntypedPointers();
     UpdateTypedPointers();
   }
