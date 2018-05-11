@@ -562,11 +562,11 @@ int Heap::GetNextTemplateSerialNumber() {
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {
-  heap_->always_allocate_scope_count_.Increment(1);
+  heap_->always_allocate_scope_count_++;
 }
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  heap_->always_allocate_scope_count_.Decrement(1);
+  heap_->always_allocate_scope_count_--;
 }
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)

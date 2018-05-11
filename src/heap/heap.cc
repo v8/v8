@@ -141,6 +141,7 @@ Heap::Heap()
     : external_memory_(0),
       external_memory_limit_(kExternalAllocationSoftLimit),
       external_memory_at_last_mark_compact_(0),
+      external_memory_concurrently_freed_(0),
       isolate_(nullptr),
       code_range_size_(0),
       // semispace_size_ should be a power of 2 and old_generation_size_ should

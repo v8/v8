@@ -936,12 +936,12 @@ class Heap {
   void update_external_memory(int64_t delta) { external_memory_ += delta; }
 
   void update_external_memory_concurrently_freed(intptr_t freed) {
-    external_memory_concurrently_freed_.Increment(freed);
+    external_memory_concurrently_freed_ += freed;
   }
 
   void account_external_memory_concurrently_freed() {
-    external_memory_ -= external_memory_concurrently_freed_.Value();
-    external_memory_concurrently_freed_.SetValue(0);
+    external_memory_ -= external_memory_concurrently_freed_;
+    external_memory_concurrently_freed_ = 0;
   }
 
   void CompactFixedArraysOfWeakCells();
@@ -2113,7 +2113,7 @@ class Heap {
     return old_generation_allocation_limit_;
   }
 
-  bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
+  bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
   bool CanExpandOldGeneration(size_t size);
 
@@ -2220,7 +2220,7 @@ class Heap {
   int64_t external_memory_at_last_mark_compact_;
 
   // The amount of memory that has been freed concurrently.
-  base::AtomicNumber<intptr_t> external_memory_concurrently_freed_;
+  std::atomic<intptr_t> external_memory_concurrently_freed_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -2253,7 +2253,7 @@ class Heap {
 
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
-  base::AtomicNumber<size_t> always_allocate_scope_count_;
+  std::atomic<size_t> always_allocate_scope_count_;
 
   // Stores the memory pressure level that set by MemoryPressureNotification
   // and reset by a mark-compact garbage collection.
