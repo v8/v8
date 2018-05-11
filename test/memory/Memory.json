@@ -1,4 +1,5 @@
 {
+  "owners": ["yangguo@chromium.org"],
   "name": "Memory",
   "run_count": 5,
   "units": "bytes",
