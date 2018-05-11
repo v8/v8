@@ -67,7 +67,7 @@ class Sweeper::SweeperTask final : public CancelableTask {
  public:
   SweeperTask(Isolate* isolate, Sweeper* sweeper,
               base::Semaphore* pending_sweeper_tasks,
-              base::AtomicNumber<intptr_t>* num_sweeping_tasks,
+              std::atomic<intptr_t>* num_sweeping_tasks,
               AllocationSpace space_to_start)
       : CancelableTask(isolate),
         sweeper_(sweeper),
@@ -93,13 +93,13 @@ class Sweeper::SweeperTask final : public CancelableTask {
       DCHECK(IsValidSweepingSpace(space_id));
       sweeper_->SweepSpaceFromTask(space_id);
     }
-    num_sweeping_tasks_->Decrement(1);
+    (*num_sweeping_tasks_)--;
     pending_sweeper_tasks_->Signal();
   }
 
   Sweeper* const sweeper_;
   base::Semaphore* const pending_sweeper_tasks_;
-  base::AtomicNumber<intptr_t>* const num_sweeping_tasks_;
+  std::atomic<intptr_t>* const num_sweeping_tasks_;
   AllocationSpace space_to_start_;
   GCTracer* const tracer_;
 
@@ -151,12 +151,12 @@ void Sweeper::StartSweeping() {
 
 void Sweeper::StartSweeperTasks() {
   DCHECK_EQ(0, num_tasks_);
-  DCHECK_EQ(0, num_sweeping_tasks_.Value());
+  DCHECK_EQ(0, num_sweeping_tasks_);
   if (FLAG_concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
     ForAllSweepingSpaces([this](AllocationSpace space) {
       DCHECK(IsValidSweepingSpace(space));
-      num_sweeping_tasks_.Increment(1);
+      num_sweeping_tasks_++;
       auto task = base::make_unique<SweeperTask>(
           heap_->isolate(), this, &pending_sweeper_tasks_semaphore_,
           &num_sweeping_tasks_, space);
@@ -200,11 +200,11 @@ void Sweeper::AbortAndWaitForTasks() {
       pending_sweeper_tasks_semaphore_.Wait();
     } else {
       // Aborted case.
-      num_sweeping_tasks_.Decrement(1);
+      num_sweeping_tasks_--;
     }
   }
   num_tasks_ = 0;
-  DCHECK_EQ(0, num_sweeping_tasks_.Value());
+  DCHECK_EQ(0, num_sweeping_tasks_);
 }
 
 void Sweeper::EnsureCompleted() {
@@ -225,9 +225,7 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
-bool Sweeper::AreSweeperTasksRunning() {
-  return num_sweeping_tasks_.Value() != 0;
-}
+bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 
 int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                       FreeSpaceTreatmentMode free_space_mode) {
