@@ -262,12 +262,14 @@ enum DispatchTableElements : int {
 }  // namespace
 
 Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    Handle<FixedArray> export_wrappers) {
   Handle<JSFunction> module_cons(
       isolate->native_context()->wasm_module_constructor());
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
   module_object->set_compiled_module(*compiled_module);
+  module_object->set_export_wrappers(*export_wrappers);
   if (compiled_module->shared()->script()->type() == Script::TYPE_WASM) {
     compiled_module->shared()->script()->set_wasm_module_object(*module_object);
   }
@@ -1347,14 +1349,11 @@ MaybeHandle<FixedArray> WasmSharedModuleData::CheckBreakPoints(
   return break_points_hit;
 }
 
-Handle<WasmCompiledModule> WasmCompiledModule::New(
-    Isolate* isolate, WasmModule* module, Handle<FixedArray> export_wrappers,
-    wasm::ModuleEnv& env) {
+Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
+                                                   WasmModule* module,
+                                                   wasm::ModuleEnv& env) {
   Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
-  if (!export_wrappers.is_null()) {
-    compiled_module->set_export_wrappers(*export_wrappers);
-  }
   compiled_module->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   {
     auto native_module =
@@ -1376,7 +1375,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   ret->set_shared(module->shared());
-  ret->set_export_wrappers(module->export_wrappers());
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   ret->set_native_module(module->native_module());
 

@@ -341,8 +341,7 @@ class InstanceBuilder {
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
-  void ProcessExports(Handle<WasmInstanceObject> instance,
-                      Handle<WasmCompiledModule> compiled_module);
+  void ProcessExports(Handle<WasmInstanceObject> instance);
 
   void InitializeTables(Handle<WasmInstanceObject> instance);
 
@@ -925,10 +924,9 @@ ModuleEnv CreateDefaultModuleEnv(WasmModule* module) {
 
 Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
                                              WasmModule* module,
-                                             Handle<FixedArray> export_wrappers,
                                              ModuleEnv& env) {
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, module, export_wrappers, env);
+      WasmCompiledModule::New(isolate, module, env);
   return compiled_module;
 }
 
@@ -1085,49 +1083,27 @@ void FinishCompilationUnits(CompilationState* compilation_state,
   }
 }
 
-void PatchNativeModule(NativeModule* cloning_module,
-                       Handle<WasmCompiledModule> compiled_module) {
-  // Link.
-  CodeSpecialization code_specialization;
-  code_specialization.RelocateDirectCalls(cloning_module);
-  code_specialization.ApplyToWholeModule(cloning_module, compiled_module);
-}
-
 void UpdateAllCompiledModulesWithTopTierCode(
-    Handle<WasmCompiledModule> compiled_module) {
-  // We want to disallow heap allocation here, as this might interfere with
-  // iterating over the chain of compiled modules for updating all native
-  // modules.
-  DisallowHeapAllocation no_gc;
-
-  WasmModule* module = compiled_module->shared()->module();
+    Handle<WasmModuleObject> module_object) {
+  WasmModule* module = module_object->compiled_module()->shared()->module();
   DCHECK_GT(module->functions.size() - module->num_imported_functions, 0);
   USE(module);
 
   CodeSpaceMemoryModificationScope modification_scope(
-      compiled_module->GetIsolate()->heap());
+      module_object->GetIsolate()->heap());
 
-  Handle<WasmCompiledModule> current = compiled_module;
-  PatchNativeModule(current->GetNativeModule(), current);
+  NativeModule* native_module =
+      module_object->compiled_module()->GetNativeModule();
 
-  // Go through the chain of compiled modules to update each (next in chain).
-  while (current->has_next_instance()) {
-    current = handle(current->next_instance());
-    PatchNativeModule(current->GetNativeModule(), current);
-  }
-
-  // Go through the chain of compiled modules to update each (previous in
-  // chain).
-  current = compiled_module;
-  while (current->has_prev_instance()) {
-    current = handle(current->prev_instance());
-    PatchNativeModule(current->GetNativeModule(), current);
-  }
+  // Link.
+  CodeSpecialization code_specialization;
+  code_specialization.RelocateDirectCalls(native_module);
+  code_specialization.ApplyToWholeModule(native_module, module_object);
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
                        const ModuleWireBytes& wire_bytes, ModuleEnv* module_env,
-                       Handle<WasmCompiledModule> compiled_module,
+                       Handle<WasmModuleObject> module_object,
                        Handle<Code> centry_stub, ErrorThrower* thrower) {
   const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
@@ -1167,17 +1143,17 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
 
   DeferredHandles* deferred_handles = nullptr;
   Handle<Code> centry_deferred = centry_stub;
-  Handle<WasmCompiledModule> compiled_module_deferred;
+  Handle<WasmModuleObject> module_object_deferred;
   if (compilation_state->compile_mode() == CompileMode::kTiering) {
     // Open a deferred handle scope for the centry_stub, in order to allow
     // for background tiering compilation.
     DeferredHandleScope deferred(isolate);
     centry_deferred = Handle<Code>(*centry_stub, isolate);
-    compiled_module_deferred = handle(*compiled_module, isolate);
+    module_object_deferred = handle(*module_object, isolate);
     deferred_handles = deferred.Detach();
   }
   compilation_state->AddCallback(
-      [compiled_module_deferred, deferred_handles](
+      [module_object_deferred, deferred_handles](
           // Callback is called from a foreground thread.
           CompilationEvent event, ErrorThrower* thrower) mutable {
         switch (event) {
@@ -1186,7 +1162,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
             // in this foreground thread.
             return;
           case CompilationEvent::kFinishedTopTierCompilation:
-            UpdateAllCompiledModulesWithTopTierCode(compiled_module_deferred);
+            UpdateAllCompiledModulesWithTopTierCode(module_object_deferred);
             // TODO(wasm): Currently compilation has to finish before the
             // {deferred_handles} can be removed. We need to make sure that
             // we can clean it up at a time when the native module
@@ -1200,7 +1176,8 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
             // a callback, in this thread through {thrower}.
             // Tier-up compilation should not fail if baseline compilation
             // did not fail.
-            DCHECK(!compiled_module_deferred->GetNativeModule()
+            DCHECK(!module_object_deferred->compiled_module()
+                        ->GetNativeModule()
                         ->compilation_state()
                         ->baseline_compilation_finished());
             delete deferred_handles;
@@ -1377,10 +1354,12 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate, shared->module(), export_wrappers, env);
+      NewCompiledModule(isolate, shared->module(), env);
   NativeModule* native_module = compiled_module->GetNativeModule();
   compiled_module->set_shared(*shared);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, compiled_module, export_wrappers);
   if (lazy_compile) {
     if (wasm_module->is_wasm()) {
       // Validate wasm modules for lazy compilation. Don't validate asm.js
@@ -1403,8 +1382,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, wire_bytes, &env,
-                        compiled_module, centry_stub, thrower);
+      CompileInParallel(isolate, native_module, wire_bytes, &env, module_object,
+                        centry_stub, thrower);
     } else {
       CompileSequentially(isolate, native_module, wire_bytes, &env, thrower);
     }
@@ -1414,11 +1393,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   }
 
   // Compile JS->wasm wrappers for exported functions.
-  CompileJsToWasmWrappers(isolate, compiled_module,
+  CompileJsToWasmWrappers(isolate, module_object,
                           isolate->async_counters().get());
-
-  Handle<WasmModuleObject> result =
-      WasmModuleObject::New(isolate, compiled_module);
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
@@ -1429,7 +1405,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
     isolate->debug()->OnAfterCompile(script);
   }
 
-  return result;
+  return module_object;
 }
 
 // The runnable task that finishes compilation in foreground (e.g. updating
@@ -1780,7 +1756,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the exports object for the new instance.
   //--------------------------------------------------------------------------
-  ProcessExports(instance, compiled_module_);
+  ProcessExports(instance);
   if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
@@ -1802,10 +1778,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   CodeSpecialization code_specialization;
   code_specialization.RelocateDirectCalls(native_module);
-  code_specialization.ApplyToWholeModule(native_module, compiled_module_,
+  code_specialization.ApplyToWholeModule(native_module, module_object_,
                                          SKIP_ICACHE_FLUSH);
   FlushICache(native_module);
-  FlushICache(handle(compiled_module_->export_wrappers()));
+  FlushICache(handle(module_object_->export_wrappers()));
 
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.
@@ -2458,10 +2434,8 @@ bool InstanceBuilder::NeedsWrappers() const {
 
 // Process the exports, creating wrappers for functions, tables, memories,
 // and globals.
-void InstanceBuilder::ProcessExports(
-    Handle<WasmInstanceObject> instance,
-    Handle<WasmCompiledModule> compiled_module) {
-  Handle<FixedArray> export_wrappers(compiled_module->export_wrappers(),
+void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
+  Handle<FixedArray> export_wrappers(module_object_->export_wrappers(),
                                      isolate_);
   if (NeedsWrappers()) {
     // Fill the table to cache the exported JSFunction wrappers.
@@ -2835,6 +2809,9 @@ void AsyncCompileJob::FinishCompile() {
                                  TENURED)
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
+  int export_wrapper_size = static_cast<int>(module_->num_exported_functions);
+  Handle<FixedArray> export_wrappers =
+      isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
 
   // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
@@ -2852,7 +2829,8 @@ void AsyncCompileJob::FinishCompile() {
   compiled_module_->GetNativeModule()->SetSharedModuleData(shared);
 
   // Create the module object.
-  module_object_ = WasmModuleObject::New(isolate_, compiled_module_);
+  module_object_ =
+      WasmModuleObject::New(isolate_, compiled_module_, export_wrappers);
   {
     DeferredHandleScope deferred(isolate_);
     module_object_ = handle(*module_object_, isolate_);
@@ -3047,13 +3025,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of
     // this object.
-    int export_wrapper_size = static_cast<int>(module_->num_exported_functions);
-    Handle<FixedArray> export_wrappers =
-        job_->isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
-
     ModuleEnv env = CreateDefaultModuleEnv(module_);
-    job_->compiled_module_ =
-        NewCompiledModule(job_->isolate_, module_, export_wrappers, env);
+    job_->compiled_module_ = NewCompiledModule(job_->isolate_, module_, env);
 
     {
       DeferredHandleScope deferred(job_->isolate_);
@@ -3174,7 +3147,7 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(job_->isolate_->heap());
     // Compile JS->wasm wrappers for exported functions.
-    CompileJsToWasmWrappers(job_->isolate_, job_->compiled_module_,
+    CompileJsToWasmWrappers(job_->isolate_, job_->module_object_,
                             job_->counters());
     job_->DoSync<FinishModule>();
   }
@@ -3219,7 +3192,7 @@ class AsyncCompileJob::UpdateToTopTierCompiledCode : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(7) Update native module to use optimized code...\n");
 
-    UpdateAllCompiledModulesWithTopTierCode(job_->compiled_module_);
+    UpdateAllCompiledModulesWithTopTierCode(job_->module_object_);
     job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
   }
 };
@@ -3656,23 +3629,23 @@ void CompilationState::NotifyOnEvent(CompilationEvent event,
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmCompiledModule> compiled_module,
+                             Handle<WasmModuleObject> module_object,
                              Counters* counters) {
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
-  Handle<FixedArray> export_wrappers(compiled_module->export_wrappers(),
-                                     isolate);
-  NativeModule* native_module = compiled_module->GetNativeModule();
+  Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
+  NativeModule* native_module =
+      module_object->compiled_module()->GetNativeModule();
   wasm::UseTrapHandler use_trap_handler =
-      compiled_module->GetNativeModule()->use_trap_handler() ? kUseTrapHandler
-                                                             : kNoTrapHandler;
-  for (auto exp : compiled_module->shared()->module()->export_table) {
+      native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
+  for (auto exp :
+       module_object->compiled_module()->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     wasm::WasmCode* wasm_code =
         native_module->GetIndirectlyCallableCode(exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, compiled_module->shared()->module(), wasm_code, exp.index,
-        use_trap_handler);
+        isolate, module_object->compiled_module()->shared()->module(),
+        wasm_code, exp.index, use_trap_handler);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters);
     ++wrapper_index;

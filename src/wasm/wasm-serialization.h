@@ -18,7 +18,7 @@ bool SerializeNativeModule(Isolate* isolate,
                            Handle<WasmCompiledModule> compiled_module,
                            Vector<byte> buffer);
 
-MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
+MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes);
 
 }  // namespace wasm

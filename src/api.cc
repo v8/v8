@@ -7461,17 +7461,16 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
     const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
     const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::MaybeHandle<i::WasmCompiledModule> maybe_compiled_module =
+  i::MaybeHandle<i::WasmModuleObject> maybe_module_object =
       i::wasm::DeserializeNativeModule(
           i_isolate, {serialized_module.first, serialized_module.second},
           {wire_bytes.first, wire_bytes.second});
-  i::Handle<i::WasmCompiledModule> compiled_module;
-  if (!maybe_compiled_module.ToHandle(&compiled_module)) {
+  i::Handle<i::WasmModuleObject> module_object;
+  if (!maybe_module_object.ToHandle(&module_object)) {
     return MaybeLocal<WasmCompiledModule>();
   }
   return Local<WasmCompiledModule>::Cast(
-      Utils::ToLocal(i::Handle<i::JSObject>::cast(
-          i::WasmModuleObject::New(i_isolate, compiled_module))));
+      Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(

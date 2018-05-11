@@ -927,7 +927,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
     wire_bytes->set_is_external(true);
     isolate->heap()->UnregisterArrayBuffer(*wire_bytes);
   }
-  MaybeHandle<WasmCompiledModule> maybe_compiled_module =
+  MaybeHandle<WasmModuleObject> maybe_module_object =
       wasm::DeserializeNativeModule(
           isolate, {mem_start, mem_size},
           Vector<const uint8_t>(
@@ -937,11 +937,11 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
     wire_bytes->set_is_external(false);
     isolate->heap()->RegisterNewArrayBuffer(*wire_bytes);
   }
-  Handle<WasmCompiledModule> compiled_module;
-  if (!maybe_compiled_module.ToHandle(&compiled_module)) {
+  Handle<WasmModuleObject> module_object;
+  if (!maybe_module_object.ToHandle(&module_object)) {
     return isolate->heap()->undefined_value();
   }
-  return *WasmModuleObject::New(isolate, compiled_module);
+  return *module_object;
 }
 
 RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {

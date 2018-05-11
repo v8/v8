@@ -1792,12 +1792,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   }
 
   // Try to deserialize the compiled module first.
-  Handle<WasmCompiledModule> compiled_module;
-  MaybeHandle<JSObject> result;
-  if (wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes)
-          .ToHandle(&compiled_module)) {
-    result = WasmModuleObject::New(isolate_, compiled_module);
-  }
+  MaybeHandle<WasmModuleObject> result =
+      wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes);
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
     result = isolate_->wasm_engine()->SyncCompile(

@@ -129,14 +129,14 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
       ret_code);
 
   // Add reference to the exported wrapper code.
-  Handle<WasmCompiledModule> compiled_module(
-      instance_object()->compiled_module(), isolate_);
-  Handle<FixedArray> old_arr(compiled_module->export_wrappers(), isolate_);
+  Handle<WasmModuleObject> module_object(instance_object()->module_object(),
+                                         isolate_);
+  Handle<FixedArray> old_arr(module_object->export_wrappers(), isolate_);
   Handle<FixedArray> new_arr =
       isolate_->factory()->NewFixedArray(old_arr->length() + 1);
   old_arr->CopyTo(0, *new_arr, 0, old_arr->length());
   new_arr->set(old_arr->length(), *ret_code);
-  compiled_module->set_export_wrappers(*new_arr);
+  module_object->set_export_wrappers(*new_arr);
 
   return ret;
 }
@@ -221,11 +221,11 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   ModuleEnv env = CreateModuleEnv();
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate_, test_module_ptr_, export_wrappers, env);
+      WasmCompiledModule::New(isolate_, test_module_ptr_, env);
   compiled_module->set_shared(*shared_module_data);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared_module_data);
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, compiled_module);
+      WasmModuleObject::New(isolate_, compiled_module, export_wrappers);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.

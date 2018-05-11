@@ -335,17 +335,18 @@ class WasmSerializationTest {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
-      MaybeHandle<WasmModuleObject> module_object =
+      MaybeHandle<WasmModuleObject> maybe_module_object =
           serialization_isolate->wasm_engine()->SyncCompile(
               serialization_isolate, &thrower,
               ModuleWireBytes(buffer.begin(), buffer.end()));
+      Handle<WasmModuleObject> module_object =
+          maybe_module_object.ToHandleChecked();
 
-      MaybeHandle<WasmCompiledModule> compiled_module(
-          module_object.ToHandleChecked()->compiled_module(),
-          serialization_isolate);
-      CHECK(!compiled_module.is_null());
+      Handle<WasmCompiledModule> compiled_module(
+          module_object->compiled_module());
+      Handle<FixedArray> export_wrappers(module_object->export_wrappers());
       Handle<JSObject> module_obj = WasmModuleObject::New(
-          serialization_isolate, compiled_module.ToHandleChecked());
+          serialization_isolate, compiled_module, export_wrappers);
       v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
       CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 

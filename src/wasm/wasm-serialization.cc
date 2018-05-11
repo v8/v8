@@ -614,7 +614,7 @@ Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
   }
 }
 
-MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
+MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     return {};
@@ -654,7 +654,7 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
   wasm::ModuleEnv env(shared->module(), use_trap_handler,
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, shared->module(), export_wrappers, env);
+      WasmCompiledModule::New(isolate, shared->module(), env);
   compiled_module->set_shared(*shared);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared);
   NativeModuleDeserializer deserializer(isolate,
@@ -663,14 +663,17 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
 
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, compiled_module, export_wrappers);
+
   // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
   // requires unlocking the code space here. This should eventually be moved
   // into the allocator.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  CompileJsToWasmWrappers(isolate, compiled_module, isolate->counters());
+  CompileJsToWasmWrappers(isolate, module_object, isolate->counters());
   WasmCompiledModule::ReinitializeAfterDeserialization(isolate,
                                                        compiled_module);
-  return compiled_module;
+  return module_object;
 }
 
 }  // namespace wasm

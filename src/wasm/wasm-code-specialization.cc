@@ -69,14 +69,14 @@ void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
 }
 
 bool CodeSpecialization::ApplyToWholeModule(
-    NativeModule* native_module, Handle<WasmCompiledModule> compiled_module,
+    NativeModule* native_module, Handle<WasmModuleObject> module_object,
     ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmSharedModuleData* shared = compiled_module->shared();
+  WasmSharedModuleData* shared = module_object->compiled_module()->shared();
   WasmModule* module = shared->module();
   std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
-  DCHECK_EQ(compiled_module->export_wrappers()->length(),
-            shared->module()->num_exported_functions);
+  FixedArray* export_wrappers = module_object->export_wrappers();
+  DCHECK_EQ(export_wrappers->length(), module->num_exported_functions);
 
   bool changed = false;
   int func_index = module->num_imported_functions;
@@ -106,8 +106,7 @@ bool CodeSpecialization::ApplyToWholeModule(
   int wrapper_index = 0;
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    Code* export_wrapper =
-        Code::cast(compiled_module->export_wrappers()->get(wrapper_index++));
+    Code* export_wrapper = Code::cast(export_wrappers->get(wrapper_index++));
     if (export_wrapper->kind() != Code::JS_TO_WASM_FUNCTION) continue;
     for (RelocIterator it(export_wrapper, reloc_mode); !it.done(); it.next()) {
       RelocInfo::Mode mode = it.rinfo()->rmode();
@@ -125,7 +124,7 @@ bool CodeSpecialization::ApplyToWholeModule(
     }
   }
   DCHECK_EQ(module->functions.size(), func_index);
-  DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
+  DCHECK_EQ(export_wrappers->length(), wrapper_index);
   return changed;
 }
 

@@ -107,6 +107,7 @@ class WasmModuleObject : public JSObject {
 
   // Shared compiled code between multiple WebAssembly.Module objects.
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
+  DECL_ACCESSORS(export_wrappers, FixedArray)
 
   // TODO(mstarzinger): Currently this getter uses an indirection via the
   // {WasmCompiledModule}, but we will soon move the reference to the shared
@@ -116,6 +117,7 @@ class WasmModuleObject : public JSObject {
 // Layout description.
 #define WASM_MODULE_OBJECT_FIELDS(V)     \
   V(kCompiledModuleOffset, kPointerSize) \
+  V(kExportWrappersOffset, kPointerSize) \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -123,7 +125,8 @@ class WasmModuleObject : public JSObject {
 #undef WASM_MODULE_OBJECT_FIELDS
 
   static Handle<WasmModuleObject> New(
-      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+      Handle<FixedArray> export_wrappers);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
@@ -535,7 +538,6 @@ class WasmCompiledModule : public Struct {
 // Layout description.
 #define WASM_COMPILED_MODULE_FIELDS(V)          \
   V(kSharedOffset, kPointerSize)                \
-  V(kExportWrappersOffset, kPointerSize)        \
   V(kNextInstanceOffset, kPointerSize)          \
   V(kPrevInstanceOffset, kPointerSize)          \
   V(kOwningInstanceOffset, kPointerSize)        \
@@ -571,7 +573,6 @@ class WasmCompiledModule : public Struct {
   // By default, instance values go to WasmInstanceObject, however, if
   // we embed the generated code with a value, then we track that value here.
   WCM_OBJECT(WasmSharedModuleData, shared)
-  WCM_OBJECT(FixedArray, export_wrappers)
   WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
@@ -580,7 +581,6 @@ class WasmCompiledModule : public Struct {
  public:
   static Handle<WasmCompiledModule> New(Isolate* isolate,
                                         wasm::WasmModule* module,
-                                        Handle<FixedArray> export_wrappers,
                                         wasm::ModuleEnv& env);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
