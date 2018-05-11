@@ -4,6 +4,9 @@
 
 #include "src/profiler/cpu-profiler.h"
 
+#include <unordered_map>
+#include <utility>
+
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/template-utils.h"
@@ -252,33 +255,30 @@ class CpuProfilersManager {
  public:
   void AddProfiler(Isolate* isolate, CpuProfiler* profiler) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    auto result = profilers_.insert(
-        std::pair<Isolate*, std::unique_ptr<std::set<CpuProfiler*>>>(
-            isolate, base::make_unique<std::set<CpuProfiler*>>()));
-    result.first->second->insert(profiler);
+    profilers_.emplace(isolate, profiler);
   }
 
   void RemoveProfiler(Isolate* isolate, CpuProfiler* profiler) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    auto it = profilers_.find(isolate);
-    DCHECK(it != profilers_.end());
-    it->second->erase(profiler);
-    if (it->second->empty()) {
+    auto range = profilers_.equal_range(isolate);
+    for (auto it = range.first; it != range.second; ++it) {
+      if (it->second != profiler) continue;
       profilers_.erase(it);
+      return;
     }
+    UNREACHABLE();
   }
 
   void CallCollectSample(Isolate* isolate) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    auto profilers = profilers_.find(isolate);
-    if (profilers == profilers_.end()) return;
-    for (auto it : *profilers->second) {
-      it->CollectSample();
+    auto range = profilers_.equal_range(isolate);
+    for (auto it = range.first; it != range.second; ++it) {
+      it->second->CollectSample();
     }
   }
 
  private:
-  std::map<Isolate*, std::unique_ptr<std::set<CpuProfiler*>>> profilers_;
+  std::unordered_multimap<Isolate*, CpuProfiler*> profilers_;
   base::Mutex mutex_;
 };
 

@@ -22,7 +22,7 @@ void SourcePositionTable::SetPosition(int pc_offset, int line) {
   DCHECK_GE(pc_offset, 0);
   DCHECK_GT(line, 0);  // The 1-based number of the source line.
   if (GetSourceLineNumber(pc_offset) != line) {
-    auto result = pc_offset_map_.insert(std::make_pair(pc_offset, line));
+    auto result = pc_offset_to_line_map_.emplace(pc_offset, line);
     // Check that a new element was inserted.
     USE(result);
     DCHECK(result.second);
@@ -30,10 +30,11 @@ void SourcePositionTable::SetPosition(int pc_offset, int line) {
 }
 
 int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
-  if (pc_offset_map_.empty()) return v8::CpuProfileNode::kNoLineNumberInfo;
-
-  PcOffsetMap::const_iterator it = pc_offset_map_.upper_bound(pc_offset);
-  if (it != pc_offset_map_.begin()) {
+  if (pc_offset_to_line_map_.empty()) {
+    return v8::CpuProfileNode::kNoLineNumberInfo;
+  }
+  auto it = pc_offset_to_line_map_.upper_bound(pc_offset);
+  if (it != pc_offset_to_line_map_.begin()) {
     return (--it)->second;
   }
   return it->second;

@@ -24,16 +24,13 @@ struct TickSample;
 // to the source line.
 class SourcePositionTable : public Malloced {
  public:
-  SourcePositionTable() {}
-  ~SourcePositionTable() {}
+  SourcePositionTable() = default;
 
   void SetPosition(int pc_offset, int line);
   int GetSourceLineNumber(int pc_offset) const;
 
  private:
-  // pc_offset -> source line
-  typedef std::map<int, int> PcOffsetMap;
-  PcOffsetMap pc_offset_map_;
+  std::map<int, int> pc_offset_to_line_map_;
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
@@ -127,9 +124,10 @@ class CodeEntry {
   struct RareData {
     const char* deopt_reason_ = kNoDeoptReason;
     int deopt_id_ = kNoDeoptimizationId;
-    // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
-    std::map<int, std::vector<std::unique_ptr<CodeEntry>>> inline_locations_;
-    std::map<int, std::vector<CpuProfileDeoptFrame>> deopt_inlined_frames_;
+    std::unordered_map<int, std::vector<std::unique_ptr<CodeEntry>>>
+        inline_locations_;
+    std::unordered_map<int, std::vector<CpuProfileDeoptFrame>>
+        deopt_inlined_frames_;
   };
 
   RareData* EnsureRareData();
