@@ -139,7 +139,7 @@ bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
-  if (heap_->lo_space()->FindPage(addr)) return false;
+  if (heap()->lo_space()->FindPage(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 

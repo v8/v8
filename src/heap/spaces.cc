@@ -1464,7 +1464,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : SpaceWithLinearArea(heap, space, executable), anchor_(this) {
+    : SpaceWithLinearArea(heap, space), executable_(executable), anchor_(this) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 }
@@ -1794,7 +1794,7 @@ void PagedSpace::FreeLinearAllocationArea() {
   // The code page of the linear allocation area needs to be unprotected
   // because we are going to write a filler into that memory area below.
   if (identity() == CODE_SPACE) {
-    heap_->UnprotectAndRegisterMemoryChunk(
+    heap()->UnprotectAndRegisterMemoryChunk(
         MemoryChunk::FromAddress(current_top));
   }
   Free(current_top, current_limit - current_top,
@@ -1828,7 +1828,7 @@ void PagedSpace::ReleasePage(Page* page) {
 void PagedSpace::SetReadAndExecutable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndExecutable();
   }
 }
@@ -1836,7 +1836,7 @@ void PagedSpace::SetReadAndExecutable() {
 void PagedSpace::SetReadAndWritable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndWritable();
   }
 }
@@ -1890,7 +1890,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
     if (identity() == CODE_SPACE) {
-      heap_->UnprotectAndRegisterMemoryChunk(page);
+      heap()->UnprotectAndRegisterMemoryChunk(page);
     }
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
@@ -2124,7 +2124,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       actual_pages++;
       current_page =
           heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-              Page::kAllocatableMemory, this, executable());
+              Page::kAllocatableMemory, this, NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
       current_page->InsertAfter(anchor());
@@ -2440,7 +2440,7 @@ bool SemiSpace::Commit() {
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            Page::kAllocatableMemory, this, executable());
+            Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       RewindPages(current, pages_added);
       return false;
@@ -2499,7 +2499,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            Page::kAllocatableMemory, this, executable());
+            Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       RewindPages(last_page, pages_added);
       return false;
@@ -3272,7 +3272,7 @@ HeapObject* LargeObjectIterator::Next() {
 // LargeObjectSpace
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
+    : Space(heap, id),  // Managed on a per-allocation basis
       first_page_(nullptr),
       size_(0),
       page_count_(0),

@@ -902,20 +902,16 @@ class LargePage : public MemoryChunk {
 // Space is the abstract superclass for all allocation spaces.
 class Space : public Malloced {
  public:
-  Space(Heap* heap, AllocationSpace id, Executability executable)
+  Space(Heap* heap, AllocationSpace id)
       : allocation_observers_paused_(false),
         heap_(heap),
         id_(id),
-        executable_(executable),
         committed_(0),
         max_committed_(0) {}
 
   virtual ~Space() {}
 
   Heap* heap() const { return heap_; }
-
-  // Does the space need executable memory?
-  Executability executable() { return executable_; }
 
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
@@ -989,12 +985,11 @@ class Space : public Malloced {
   }
 
   std::vector<AllocationObserver*> allocation_observers_;
-  bool allocation_observers_paused_;
 
- protected:
+ private:
+  bool allocation_observers_paused_;
   Heap* heap_;
   AllocationSpace id_;
-  Executability executable_;
 
   // Keeps track of committed memory in a space.
   size_t committed_;
@@ -1976,8 +1971,8 @@ class LocalAllocationBuffer {
 
 class SpaceWithLinearArea : public Space {
  public:
-  SpaceWithLinearArea(Heap* heap, AllocationSpace id, Executability executable)
-      : Space(heap, id, executable), top_on_previous_step_(0) {
+  SpaceWithLinearArea(Heap* heap, AllocationSpace id)
+      : Space(heap, id), top_on_previous_step_(0) {
     allocation_info_.Reset(kNullAddress, kNullAddress);
   }
 
@@ -2057,6 +2052,9 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline bool Contains(Object* o);
   bool ContainsSlow(Address addr);
 
+  // Does the space need executable memory?
+  Executability executable() { return executable_; }
+
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
   void RepairFreeListsAfterDeserialization();
@@ -2123,8 +2121,8 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
-    heap_->CreateFillerObjectAt(start, static_cast<int>(size_in_bytes),
-                                ClearRecordedSlots::kNo);
+    heap()->CreateFillerObjectAt(start, static_cast<int>(size_in_bytes),
+                                 ClearRecordedSlots::kNo);
     if (mode == SpaceAccountingMode::kSpaceAccounted) {
       return AccountedFree(start, size_in_bytes);
     } else {
@@ -2318,6 +2316,8 @@ class V8_EXPORT_PRIVATE PagedSpace
   V8_WARN_UNUSED_RESULT bool RawSlowRefillLinearAllocationArea(
       int size_in_bytes);
 
+  Executability executable_;
+
   size_t area_size_;
 
   // Accounting information for this space.
@@ -2354,7 +2354,7 @@ class SemiSpace : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+      : Space(heap, NEW_SPACE),
         current_capacity_(0),
         maximum_capacity_(0),
         minimum_capacity_(0),
@@ -2547,7 +2547,7 @@ class NewSpace : public SpaceWithLinearArea {
   typedef PageIterator iterator;
 
   explicit NewSpace(Heap* heap)
-      : SpaceWithLinearArea(heap, NEW_SPACE, NOT_EXECUTABLE),
+      : SpaceWithLinearArea(heap, NEW_SPACE),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_() {}
