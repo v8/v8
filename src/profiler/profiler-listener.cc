@@ -301,12 +301,8 @@ CodeEntry* ProfilerListener::NewCodeEntry(
     CodeEventListener::LogEventsAndTags tag, const char* name,
     const char* resource_name, int line_number, int column_number,
     std::unique_ptr<SourcePositionTable> line_info, Address instruction_start) {
-  std::unique_ptr<CodeEntry> code_entry = base::make_unique<CodeEntry>(
-      tag, name, resource_name, line_number, column_number,
-      std::move(line_info), instruction_start);
-  CodeEntry* raw_code_entry = code_entry.get();
-  code_entries_.push_back(std::move(code_entry));
-  return raw_code_entry;
+  return new CodeEntry(tag, name, resource_name, line_number, column_number,
+                       std::move(line_info), instruction_start);
 }
 
 }  // namespace internal

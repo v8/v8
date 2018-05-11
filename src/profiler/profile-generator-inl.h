@@ -27,6 +27,12 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
       line_info_(std::move(line_info)),
       instruction_start_(instruction_start) {}
 
+inline CodeEntry* ProfileGenerator::FindEntry(Address address) {
+  CodeEntry* entry = code_map_.FindEntry(address);
+  if (entry) entry->mark_used();
+  return entry;
+}
+
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
                          ProfileNode* parent)
     : tree_(tree),

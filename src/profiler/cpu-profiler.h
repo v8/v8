@@ -234,7 +234,6 @@ class CpuProfiler : public CodeEventObserver {
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
   std::unique_ptr<ProfilerListener> profiler_listener_;
-  std::vector<std::unique_ptr<CodeEntry>> static_entries_;
   bool saved_is_logging_;
   bool is_profiling_;
 
@@ -243,6 +242,5 @@ class CpuProfiler : public CodeEventObserver {
 
 }  // namespace internal
 }  // namespace v8
-
 
 #endif  // V8_PROFILER_CPU_PROFILER_H_

@@ -5,6 +5,7 @@
 #ifndef V8_PROFILER_PROFILER_LISTENER_H_
 #define V8_PROFILER_PROFILER_LISTENER_H_
 
+#include <memory>
 #include <vector>
 
 #include "src/code-events.h"
@@ -18,7 +19,7 @@ class CodeEventsContainer;
 class CodeEventObserver {
  public:
   virtual void CodeEventHandler(const CodeEventsContainer& evt_rec) = 0;
-  virtual ~CodeEventObserver() {}
+  virtual ~CodeEventObserver() = default;
 };
 
 class ProfilerListener : public CodeEventListener {
@@ -87,7 +88,6 @@ class ProfilerListener : public CodeEventListener {
   Isolate* isolate_;
   CodeEventObserver* observer_;
   StringsStorage function_and_resource_names_;
-  std::deque<std::unique_ptr<CodeEntry>> code_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
 };

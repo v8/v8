@@ -478,20 +478,28 @@ void CpuProfile::Print() {
 }
 
 CodeMap::CodeMap() = default;
+CodeMap::~CodeMap() = default;
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
-  DeleteAllCoveredCode(addr, addr + size);
-  code_map_.insert({addr, CodeEntryInfo(entry, size)});
+  ClearCodesInRange(addr, addr + size);
+  code_map_.emplace(
+      addr, CodeEntryInfo{static_cast<unsigned>(code_entries_.size()), size});
+  code_entries_.push_back(std::unique_ptr<CodeEntry>(entry));
 }
 
-void CodeMap::DeleteAllCoveredCode(Address start, Address end) {
+void CodeMap::ClearCodesInRange(Address start, Address end) {
   auto left = code_map_.upper_bound(start);
   if (left != code_map_.begin()) {
     --left;
     if (left->first + left->second.size <= start) ++left;
   }
   auto right = left;
-  while (right != code_map_.end() && right->first < end) ++right;
+  for (; right != code_map_.end() && right->first < end; ++right) {
+    std::unique_ptr<CodeEntry>& entry = code_entries_[right->second.index];
+    if (!entry->used()) {
+      entry.reset();
+    }
+  }
   code_map_.erase(left, right);
 }
 
@@ -500,7 +508,10 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
   if (it == code_map_.begin()) return nullptr;
   --it;
   Address end_address = it->first + it->second.size;
-  return addr < end_address ? it->second.entry : nullptr;
+  if (addr >= end_address) return nullptr;
+  CodeEntry* entry = code_entries_[it->second.index].get();
+  DCHECK(entry);
+  return entry;
 }
 
 void CodeMap::MoveCode(Address from, Address to) {
@@ -509,13 +520,15 @@ void CodeMap::MoveCode(Address from, Address to) {
   if (it == code_map_.end()) return;
   CodeEntryInfo info = it->second;
   code_map_.erase(it);
-  AddCode(to, info.entry, info.size);
+  DCHECK(from + info.size <= to || to + info.size <= from);
+  ClearCodesInRange(to, to + info.size);
+  code_map_.emplace(to, info);
 }
 
 void CodeMap::Print() {
   for (const auto& pair : code_map_) {
     base::OS::Print("%p %5d %s\n", reinterpret_cast<void*>(pair.first),
-                    pair.second.size, pair.second.entry->name());
+                    pair.second.size, code_entries_[pair.second.index]->name());
   }
 }
 

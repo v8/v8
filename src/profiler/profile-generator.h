@@ -5,7 +5,9 @@
 #ifndef V8_PROFILER_PROFILE_GENERATOR_H_
 #define V8_PROFILER_PROFILE_GENERATOR_H_
 
+#include <deque>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -74,6 +76,8 @@ class CodeEntry {
     rare_data_->deopt_reason_ = kNoDeoptReason;
     rare_data_->deopt_id_ = kNoDeoptimizationId;
   }
+  void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
+  bool used() const { return UsedField::decode(bit_field_); }
 
   void FillFunctionInfo(SharedFunctionInfo* shared);
 
@@ -154,8 +158,9 @@ class CodeEntry {
   static base::LazyDynamicInstance<CodeEntry, UnresolvedEntryCreateTrait>::type
       kUnresolvedEntry;
 
-  class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
-  class BuiltinIdField : public BitField<Builtins::Name, 8, 24> {};
+  using TagField = BitField<Logger::LogEventsAndTags, 0, 8>;
+  using BuiltinIdField = BitField<Builtins::Name, 8, 23>;
+  using UsedField = BitField<bool, 31, 1>;
 
   uint32_t bit_field_;
   const char* name_;
@@ -319,6 +324,7 @@ class CpuProfile {
 class CodeMap {
  public:
   CodeMap();
+  ~CodeMap();
 
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
@@ -327,14 +333,13 @@ class CodeMap {
 
  private:
   struct CodeEntryInfo {
-    CodeEntryInfo(CodeEntry* an_entry, unsigned a_size)
-        : entry(an_entry), size(a_size) {}
-    CodeEntry* entry;
+    unsigned index;
     unsigned size;
   };
 
-  void DeleteAllCoveredCode(Address start, Address end);
+  void ClearCodesInRange(Address start, Address end);
 
+  std::deque<std::unique_ptr<CodeEntry>> code_entries_;
   std::map<Address, CodeEntryInfo> code_map_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
@@ -374,7 +379,6 @@ class CpuProfilesCollection {
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };
 
-
 class ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles);
@@ -384,7 +388,7 @@ class ProfileGenerator {
   CodeMap* code_map() { return &code_map_; }
 
  private:
-  CodeEntry* FindEntry(Address address) { return code_map_.FindEntry(address); }
+  CodeEntry* FindEntry(Address address);
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;
@@ -392,7 +396,6 @@ class ProfileGenerator {
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };
-
 
 }  // namespace internal
 }  // namespace v8
