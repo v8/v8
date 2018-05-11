@@ -293,7 +293,8 @@ void CodeGenerator::AssembleCode() {
       last_updated = safepoints()->UpdateDeoptimizationInfo(
           ds->pc_offset(), trampoline_pc, last_updated);
     }
-    AssembleDeoptimizerCall(deoptimization_id, exit->pos());
+    result_ = AssembleDeoptimizerCall(deoptimization_id, exit->pos());
+    if (result_ != kSuccess) return;
   }
 
   FinishCode();
