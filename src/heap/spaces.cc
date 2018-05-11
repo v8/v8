@@ -870,8 +870,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     }
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, CodePageGuardStartOffset(), kZapValue);
-      ZapBlock(base + CodePageAreaStartOffset(), commit_area_size, kZapValue);
+      ZapBlock(base, CodePageGuardStartOffset());
+      ZapBlock(base + CodePageAreaStartOffset(), commit_area_size);
     }
 
     area_start = base + CodePageAreaStartOffset();
@@ -889,7 +889,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     if (base == kNullAddress) return nullptr;
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, Page::kObjectStartOffset + commit_area_size, kZapValue);
+      ZapBlock(base, Page::kObjectStartOffset + commit_area_size);
     }
 
     area_start = base + Page::kObjectStartOffset;
@@ -1179,8 +1179,9 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
 bool MemoryAllocator::CommitBlock(Address start, size_t size) {
   if (!CommitMemory(start, size)) return false;
 
-  ZapBlock(start, size,
-           Heap::ShouldZapGarbage() ? kZapValue : kClearedFreeMemoryValue);
+  if (Heap::ShouldZapGarbage()) {
+    ZapBlock(start, size);
+  }
 
   isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
   return true;
@@ -1193,10 +1194,10 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   return true;
 }
 
-void MemoryAllocator::ZapBlock(Address start, size_t size,
-                               uintptr_t zap_value) {
+
+void MemoryAllocator::ZapBlock(Address start, size_t size) {
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory::Address_at(start + s) = static_cast<Address>(zap_value);
+    Memory::Address_at(start + s) = static_cast<Address>(kZapValue);
   }
 }
 
