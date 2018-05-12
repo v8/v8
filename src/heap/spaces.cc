@@ -1395,7 +1395,7 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
 
 void MemoryChunk::AllocateLocalTracker() {
   DCHECK_NULL(local_tracker_);
-  local_tracker_ = new LocalArrayBufferTracker(heap());
+  local_tracker_ = new LocalArrayBufferTracker(owner());
 }
 
 void MemoryChunk::ReleaseLocalTracker() {

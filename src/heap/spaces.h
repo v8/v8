@@ -907,7 +907,8 @@ class Space : public Malloced {
         heap_(heap),
         id_(id),
         committed_(0),
-        max_committed_(0) {}
+        max_committed_(0),
+        external_backing_store_bytes_(0) {}
 
   virtual ~Space() {}
 
@@ -943,6 +944,11 @@ class Space : public Malloced {
   // (e.g. see LargeObjectSpace).
   virtual size_t SizeOfObjects() { return Size(); }
 
+  // Returns amount of off-heap memory in-use by objects in this Space.
+  virtual size_t ExternalBackingStoreBytes() const {
+    return external_backing_store_bytes_;
+  }
+
   // Approximate amount of physical memory committed for this space.
   virtual size_t CommittedPhysicalMemory() = 0;
 
@@ -972,6 +978,13 @@ class Space : public Malloced {
     committed_ -= bytes;
   }
 
+  void IncrementExternalBackingStoreBytes(size_t amount) {
+    external_backing_store_bytes_ += amount;
+  }
+  void DecrementExternalBackingStoreBytes(size_t amount) {
+    external_backing_store_bytes_ -= amount;
+  }
+
   V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 
 #ifdef DEBUG
@@ -994,6 +1007,9 @@ class Space : public Malloced {
   // Keeps track of committed memory in a space.
   size_t committed_;
   size_t max_committed_;
+
+  // Tracks off-heap memory used by this space.
+  std::atomic<size_t> external_backing_store_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(Space);
 };
@@ -2620,6 +2636,11 @@ class NewSpace : public SpaceWithLinearArea {
     return Capacity() - Size();
   }
 
+  size_t ExternalBackingStoreBytes() const override {
+    DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes());
+    return to_space_.ExternalBackingStoreBytes();
+  }
+
   size_t AllocatedSinceLastGC() {
     const Address age_mark = to_space_.age_mark();
     DCHECK_NE(age_mark, kNullAddress);
@@ -2968,7 +2989,6 @@ class LargeObjectSpace : public Space {
   inline size_t Available() override;
 
   size_t Size() override { return size_; }
-
   size_t SizeOfObjects() override { return objects_size_; }
 
   // Approximate amount of physical memory committed for this space.
@@ -3029,12 +3049,14 @@ class LargeObjectSpace : public Space {
  private:
   // The head of the linked list of large object chunks.
   LargePage* first_page_;
-  size_t size_;            // allocated bytes
-  int page_count_;         // number of chunks
-  size_t objects_size_;    // size of objects
+  size_t size_;          // allocated bytes
+  int page_count_;       // number of chunks
+  size_t objects_size_;  // size of objects
+
   // The chunk_map_mutex_ has to be used when the chunk map is accessed
   // concurrently.
   base::Mutex chunk_map_mutex_;
+
   // Page-aligned addresses to their corresponding LargePage.
   std::unordered_map<Address, LargePage*> chunk_map_;
 
