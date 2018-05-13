@@ -605,18 +605,12 @@ void FlagList::PrintHelp() {
   CpuFeatures::PrintFeatures();
 
   OFStream os(stdout);
-  os << "Usage:\n"
-        "  shell [options] -e string\n"
-        "    execute string in V8\n"
-        "  shell [options] file1 file2 ... filek\n"
-        "    run JavaScript scripts in file1, file2, ..., filek\n"
-        "  shell [options]\n"
-        "  shell [options] --shell [file1 file2 ... filek]\n"
-        "    run an interactive JavaScript shell\n"
-        "  d8 [options] file1 file2 ... filek\n"
-        "  d8 [options]\n"
-        "  d8 [options] --shell [file1 file2 ... filek]\n"
-        "    run the new debugging shell\n\n"
+  os << "Synopsis:\n"
+        "  shell [options] [--shell] [<file>...]\n"
+        "  d8 [options] [-e <string>] [--shell] [[--module] <file>...]\n\n"
+        "  -e        execute a string in V8\n"
+        "  --shell   run an interactive JavaScript shell\n"
+        "  --module  execute a file as a JavaScript module\n\n"
         "Options:\n";
 
   for (const Flag& f : flags) {
