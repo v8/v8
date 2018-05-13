@@ -846,18 +846,21 @@ torque_files = [
   "src/builtins/base.tq",
   "src/builtins/array.tq",
   "src/builtins/typed-array.tq",
+  "test/torque/test-torque.tq",
 ]
 
 torque_modules = [
   "base",
   "array",
   "typed-array",
+  "test",
 ]
 
 action("run_torque") {
   visibility = [
     ":*",
     "tools/gcmole/:*",
+    "test/cctest/:*",
   ]
 
   # We reuse the snapshot toolchain for building torque to not build v8_libbase

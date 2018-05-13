@@ -136,6 +136,10 @@ extern operator '<=' macro SmiLessThanOrEqual(Smi, Smi): bool;
 extern operator '>' macro SmiGreaterThan(Smi, Smi): bool;
 extern operator '>=' macro SmiGreaterThanOrEqual(Smi, Smi): bool;
 
+extern operator '==' macro ElementsKindEqual(
+    constexpr ElementsKind, constexpr ElementsKind): constexpr bool;
+extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
+
 extern macro SmiAbove(Smi, Smi): bool;
 
 extern operator '==' macro WordEqual(intptr, intptr): bool;
@@ -175,6 +179,7 @@ extern operator '-' macro NumberSub(Number, Number): Number;
 extern operator 'min' macro NumberMin(Number, Number): Number;
 extern operator 'max' macro NumberMax(Number, Number): Number;
 
+extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
 
 extern operator '.map' macro LoadMap(HeapObject): Map;

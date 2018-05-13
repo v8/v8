@@ -129,6 +129,9 @@ void DeclarationVisitor::Visit(ReturnStatement* stmt) {
     MarkVariableModified(Variable::cast(
         declarations()->LookupValue(stmt->pos, kReturnValueVariable)));
   }
+  if (stmt->value) {
+    Visit(*stmt->value);
+  }
 }
 
 void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {

@@ -1,0 +1,40 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module test {
+
+macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
+  if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+macro ElementsKindTestHelper2(kind: constexpr ElementsKind): bool {
+  return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
+}
+
+macro ElementsKindTestHelper3(kind: constexpr ElementsKind): constexpr bool {
+  return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
+}
+
+macro TestConstexpr1() {
+  assert(convert<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+}
+
+macro TestConstexprIf() {
+  assert(ElementsKindTestHelper1(UINT8_ELEMENTS));
+  assert(ElementsKindTestHelper1(UINT16_ELEMENTS));
+  assert(!ElementsKindTestHelper1(UINT32_ELEMENTS));
+}
+
+macro TestConstexprReturn() {
+  assert(convert<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
+  assert(convert<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
+  assert(!convert<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
+  assert(convert<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+}
+
+}

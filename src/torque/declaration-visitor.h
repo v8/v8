@@ -208,6 +208,12 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(VarDeclarationStatement* stmt) {
     std::string variable_name = stmt->name;
     const Type* type = declarations()->LookupType(stmt->pos, stmt->type);
+    if (type->IsConstexpr()) {
+      std::stringstream stream;
+      stream << "cannot declare variable with constexpr type at "
+             << PositionAsString(stmt->pos);
+      ReportError(stream.str());
+    }
     declarations()->DeclareVariable(stmt->pos, variable_name, type);
     if (global_context_.verbose()) {
       std::cout << "declared variable " << variable_name << " with type "

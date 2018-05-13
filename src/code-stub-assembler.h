@@ -1489,6 +1489,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
+  bool IsFastElementsKind(ElementsKind kind) {
+    return v8::internal::IsFastElementsKind(kind);
+  }
   Node* IsFastSmiOrTaggedElementsKind(Node* elements_kind);
   Node* IsFastSmiElementsKind(Node* elements_kind);
   Node* IsHoleyFastElementsKind(Node* elements_kind);
@@ -2336,6 +2339,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     CallRuntime(Runtime::kAbort, NoContextConstant(), SmiConstant(reason));
     Unreachable();
   }
+
+  bool ConstexprBoolNot(bool value) { return !value; }
 
   void PerformStackCheck(Node* context);
 

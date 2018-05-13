@@ -79,6 +79,7 @@ class Type : public Declarable {
   bool IsVoid() const { return name() == VOID_TYPE_STRING; }
   bool IsNever() const { return name() == NEVER_TYPE_STRING; }
   bool IsBool() const { return name() == BOOL_TYPE_STRING; }
+  bool IsConstexprBool() const { return name() == CONSTEXPR_BOOL_TYPE_STRING; }
   bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
   bool IsConstexpr() const {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -136,7 +137,13 @@ class Variable : public Value {
   DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
   bool IsConst() const override { return false; }
   std::string GetValueForDeclaration() const override { return value_; }
-  std::string GetValueForRead() const override { return value_ + "->value()"; }
+  std::string GetValueForRead() const override {
+    if (type()->IsConstexpr()) {
+      return std::string("*") + value_;
+    } else {
+      return value_ + "->value()";
+    }
+  }
   std::string GetValueForWrite() const override {
     return std::string("*") + value_;
   }

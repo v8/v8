@@ -78,6 +78,8 @@ class Declarations {
     return source_file_map_->PositionAsString(pos);
   }
 
+  void PrintScopeChain() { chain_.Print(); }
+
   class NodeScopeActivator;
 
  private:

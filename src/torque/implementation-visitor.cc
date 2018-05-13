@@ -65,6 +65,7 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   source << "#include \"src/builtins/builtins-utils-gen.h\"" << std::endl;
   source << "#include \"src/builtins/builtins.h\"" << std::endl;
   source << "#include \"src/code-factory.h\"" << std::endl;
+  source << "#include \"src/elements-kind.h\"" << std::endl;
   source << "#include \"src/heap/factory-inl.h\"" << std::endl;
   source << "#include \"src/objects.h\"" << std::endl;
 
@@ -149,13 +150,17 @@ void ImplementationVisitor::Visit(MacroDeclaration* decl) {
 
   const Variable* result_var = nullptr;
   if (macro->HasReturnValue()) {
-    GenerateIndent();
-    source_out() << "Node* return_default = &*SmiConstant(0);" << std::endl;
     const Type* return_type = macro->signature().return_type;
-    VisitResult init = {return_type,
-                        std::string("UncheckedCast<") +
-                            return_type->GetGeneratedTNodeTypeName() +
-                            ">(return_default)"};
+    if (!return_type->IsConstexpr()) {
+      GenerateIndent();
+      source_out() << "Node* return_default = &*SmiConstant(0);" << std::endl;
+    }
+    VisitResult init = {
+        return_type,
+        return_type->IsConstexpr()
+            ? (return_type->GetGeneratedTypeName() + "()")
+            : (std::string("UncheckedCast<") +
+               return_type->GetGeneratedTNodeTypeName() + ">(return_default)")};
     result_var =
         GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
   }
@@ -335,42 +340,73 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
+  VisitResult left_result;
   {
     Declarations::NodeScopeActivator scope(declarations(), expr->left);
     Label* false_label =
         declarations()->LookupLabel(expr->pos, kFalseLabelName);
     GenerateLabelDefinition(false_label);
-    VisitResult left_result = Visit(expr->left);
+    left_result = Visit(expr->left);
     if (left_result.type()->IsBool()) {
       Label* true_label =
           declarations()->LookupLabel(expr->pos, kTrueLabelName);
       GenerateIndent();
       source_out() << "GotoIf(" << left_result.variable() << ", "
                    << true_label->generated() << ");" << std::endl;
-    } else {
+    } else if (!left_result.type()->IsConstexprBool()) {
       GenerateLabelBind(false_label);
     }
   }
-  return Visit(expr->right);
+  VisitResult right_result = Visit(expr->right);
+  if (right_result.type() != left_result.type()) {
+    std::stringstream stream;
+    stream << "types of left and right expression of logical OR don't match (\""
+           << left_result.type() << "\" vs. \"" << right_result.type()
+           << "\") at " << PositionAsString(expr->pos);
+    ReportError(stream.str());
+  }
+  if (left_result.type()->IsConstexprBool()) {
+    return VisitResult(left_result.type(), std::string("(") +
+                                               left_result.variable() + " || " +
+                                               right_result.variable() + ")");
+  } else {
+    return right_result;
+  }
 }
 
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
+  VisitResult left_result;
   {
     Declarations::NodeScopeActivator scope(declarations(), expr->left);
     Label* true_label = declarations()->LookupLabel(expr->pos, kTrueLabelName);
     GenerateLabelDefinition(true_label);
-    VisitResult left_result = Visit(expr->left);
+    left_result = Visit(expr->left);
     if (left_result.type()->IsBool()) {
       Label* false_label =
           declarations()->LookupLabel(expr->pos, kFalseLabelName);
       GenerateIndent();
       source_out() << "GotoIfNot(" << left_result.variable() << ", "
                    << false_label->generated() << ");" << std::endl;
-    } else {
+    } else if (!left_result.type()->IsConstexprBool()) {
       GenerateLabelBind(true_label);
     }
   }
-  return Visit(expr->right);
+  VisitResult right_result = Visit(expr->right);
+  if (right_result.type() != left_result.type()) {
+    std::stringstream stream;
+    stream
+        << "types of left and right expression of logical AND don't match (\""
+        << left_result.type() << "\" vs. \"" << right_result.type() << "\") at "
+        << PositionAsString(expr->pos);
+    ReportError(stream.str());
+  }
+  if (left_result.type()->IsConstexprBool()) {
+    return VisitResult(left_result.type(), std::string("(") +
+                                               left_result.variable() + " && " +
+                                               right_result.variable() + ")");
+  } else {
+    return right_result;
+  }
 }
 
 VisitResult ImplementationVisitor::Visit(IncrementDecrementExpression* expr) {
@@ -494,24 +530,33 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
       ReportError(stream.str());
     }
 
+    const Type* left_result;
+    const Type* right_result = GetTypeOracle().GetVoidType();
     {
       GenerateIndent();
       source_out() << "if ((" << expression_result.variable() << ")) ";
       ScopedIndent indent(this, false);
       source_out() << std::endl;
-      Visit(stmt->if_true);
+      left_result = Visit(stmt->if_true);
     }
 
     if (has_else) {
       source_out() << " else ";
       ScopedIndent indent(this, false);
       source_out() << std::endl;
-      Visit(*stmt->if_false);
+      right_result = Visit(*stmt->if_false);
+    }
+    if (left_result->IsNever() != right_result->IsNever()) {
+      std::stringstream stream;
+      stream << "either both or neither branches in a constexpr if statement "
+                "must reach their end at"
+             << PositionAsString(stmt->pos);
+      ReportError(stream.str());
     }
 
     source_out() << std::endl;
 
-    return GetTypeOracle().GetVoidType();
+    return left_result;
   } else {
     Label* true_label = nullptr;
     Label* false_label = nullptr;
@@ -1041,6 +1086,7 @@ void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
   source_out() << "{";
   bool first = true;
   for (auto v : changed_vars) {
+    if (v->type()->IsConstexpr()) continue;
     if (first) {
       first = false;
     } else {
@@ -1164,10 +1210,16 @@ Variable* ImplementationVisitor::GenerateVariableDeclaration(
   }
 
   GenerateIndent();
-  source_out() << "TVARIABLE(";
-  source_out() << variable->type()->GetGeneratedTNodeTypeName();
-  source_out() << ", " << variable->GetValueForDeclaration() << "_impl);"
-               << std::endl;
+  if (variable->type()->IsConstexpr()) {
+    source_out() << variable->type()->GetGeneratedTypeName();
+    source_out() << " " << variable->GetValueForDeclaration() << "_impl;"
+                 << std::endl;
+  } else {
+    source_out() << "TVARIABLE(";
+    source_out() << variable->type()->GetGeneratedTNodeTypeName();
+    source_out() << ", " << variable->GetValueForDeclaration() << "_impl);"
+                 << std::endl;
+  }
   GenerateIndent();
   source_out() << "auto " << variable->GetValueForDeclaration() << " = &"
                << variable->GetValueForDeclaration() << "_impl;" << std::endl;
@@ -1228,9 +1280,11 @@ VisitResult ImplementationVisitor::GenerateCall(
     GenerateIndent();
   } else {
     result_variable_name = GenerateNewTempVariable(result_type);
-    source_out() << "UncheckedCast<";
-    source_out() << result_type->GetGeneratedTNodeTypeName();
-    source_out() << ">(";
+    if (!result_type->IsConstexpr()) {
+      source_out() << "UncheckedCast<";
+      source_out() << result_type->GetGeneratedTNodeTypeName();
+      source_out() << ">(";
+    }
   }
   if (callable->IsBuiltin()) {
     if (is_tailcall) {
@@ -1313,7 +1367,8 @@ VisitResult ImplementationVisitor::GenerateCall(
     std::cout << "finished generating code for call to " << callable_name
               << " at " << PositionAsString(pos) << "" << std::endl;
   }
-  if (!result_type->IsVoidOrNever() && !is_tailcall) {
+  if (!result_type->IsVoidOrNever() && !is_tailcall &&
+      !result_type->IsConstexpr()) {
     source_out() << ")";
   }
   source_out() << ");" << std::endl;
