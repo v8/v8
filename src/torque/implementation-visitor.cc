@@ -1358,6 +1358,7 @@ VisitResult ImplementationVisitor::GenerateCall(
           << std::to_string(i + 1) << ") at " << PositionAsString(pos);
         ReportError(s.str());
       }
+      j++;
       source_out() << variable->GetValueForDeclaration();
     }
     label->MarkUsed();

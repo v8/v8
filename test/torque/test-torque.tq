@@ -20,6 +20,21 @@ macro ElementsKindTestHelper3(kind: constexpr ElementsKind): constexpr bool {
   return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
 }
 
+macro LabelTestHelper1(): never
+labels Label1 {
+  goto Label1;
+}
+
+macro LabelTestHelper2(): never
+labels Label2(Smi) {
+  goto Label2(42);
+}
+
+macro LabelTestHelper3(): never
+labels Label3(String, Smi) {
+  goto Label3('foo', 7);
+}
+
 macro TestConstexpr1() {
   assert(convert<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
 }
@@ -35,6 +50,36 @@ macro TestConstexprReturn() {
   assert(convert<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
   assert(!convert<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
   assert(convert<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+}
+
+macro TestGotoLabel(): Boolean {
+  try {
+    LabelTestHelper1() otherwise Label1;
+  }
+  label Label1 {
+    return True;
+  }
+}
+
+macro TestGotoLabelWithOneParameter(): Boolean {
+  try {
+    LabelTestHelper2() otherwise Label2;
+  }
+  label Label2(smi: Smi) {
+    assert(smi == 42);
+    return True;
+  }
+}
+
+macro TestGotoLabelWithTwoParameters(): Boolean {
+  try {
+    LabelTestHelper3() otherwise Label3;
+  }
+  label Label3(str: String, smi: Smi) {
+    assert(str == 'foo');
+    assert(smi == 7);
+    return True;
+  }
 }
 
 }
