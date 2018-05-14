@@ -3398,8 +3398,10 @@ CompilationState::CompilationState(internal::Isolate* isolate, ModuleEnv& env)
     : isolate_(isolate),
       module_env_(env),
       max_memory_(GetMaxUsableMemorySize(isolate) / 2),
-      compile_mode_(FLAG_wasm_tier_up ? CompileMode::kTiering
-                                      : CompileMode::kRegular),
+      // TODO(clemensh): Fix fuzzers such that {env.module} is always non-null.
+      compile_mode_(FLAG_wasm_tier_up && (!env.module || env.module->is_wasm())
+                        ? CompileMode::kTiering
+                        : CompileMode::kRegular),
       wire_bytes_(ModuleWireBytes(nullptr, nullptr)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,

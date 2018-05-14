@@ -53,6 +53,10 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
       mode_(mode) {
   DCHECK_GE(index, env->module->num_imported_functions);
   DCHECK_LT(index, env->module->functions.size());
+  // Always disable Liftoff for asm.js, for two reasons:
+  //    1) asm-specific opcodes are not implemented, and
+  //    2) tier-up does not work with lazy compilation.
+  if (env->module->is_asm_js()) mode = CompilationMode::kTurbofan;
   SwitchMode(mode);
 }
 
