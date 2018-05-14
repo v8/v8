@@ -389,6 +389,7 @@ class DefaultSentinel(Node):
     self.stddev_regexp = None
     self.units = "score"
     self.total = False
+    self.owners = []
 
 
 class GraphConfig(Node):
