@@ -11,7 +11,6 @@ Call e.g. with tools/run-perf.py --arch ia32 some_suite.json
 The suite json format is expected to be:
 {
   "path": <relative path chunks to perf resources and main file>,
-  "owners": [<list of email addresses of benchmark owners (required)>],
   "name": <optional suite name, file name is default>,
   "archs": [<architecture name for which this suite is run>, ...],
   "binary": <name of binary to run, default "d8">,
@@ -56,7 +55,6 @@ A suite without "tests" is considered a performance test itself.
 Full example (suite with one runner):
 {
   "path": ["."],
-  "owner": ["username@chromium.org"],
   "flags": ["--expose-gc"],
   "test_flags": ["5"],
   "archs": ["ia32", "x64"],
@@ -76,7 +74,6 @@ Full example (suite with one runner):
 Full example (suite with several runners):
 {
   "path": ["."],
-  "owner": ["username@chromium.org", "otherowner@google.com"],
   "flags": ["--expose-gc"],
   "archs": ["ia32", "x64"],
   "run_count": 5,
@@ -404,7 +401,6 @@ class GraphConfig(Node):
     self._suite = suite
 
     assert isinstance(suite.get("path", []), list)
-    assert isinstance(suite.get("owners", []), list)
     assert isinstance(suite["name"], basestring)
     assert isinstance(suite.get("flags", []), list)
     assert isinstance(suite.get("test_flags", []), list)
@@ -415,7 +411,6 @@ class GraphConfig(Node):
     self.graphs = parent.graphs[:] + [suite["name"]]
     self.flags = parent.flags[:] + suite.get("flags", [])
     self.test_flags = parent.test_flags[:] + suite.get("test_flags", [])
-    self.owners = parent.owners[:] + suite.get("owners", [])
 
     # Values independent of parent node.
     self.resources = suite.get("resources", [])
@@ -456,7 +451,6 @@ class TraceConfig(GraphConfig):
   def __init__(self, suite, parent, arch):
     super(TraceConfig, self).__init__(suite, parent, arch)
     assert self.results_regexp
-    assert self.owners
 
   def CreateMeasurement(self, perform_measurement):
     if not perform_measurement:
