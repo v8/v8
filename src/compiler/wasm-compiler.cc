@@ -2599,7 +2599,9 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
         mcgraph()->Int32Constant(index * sizeof(Address)),
         mcgraph()->graph()->start(), mcgraph()->graph()->start());
     args[0] = target_node;
-    return BuildWasmCall(sig, args, rets, position, instance_node, kRetpoline);
+    return BuildWasmCall(
+        sig, args, rets, position, instance_node,
+        untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
 
   } else {
     // A call to a function in this module.
@@ -2685,7 +2687,8 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
 
   args[0] = target;
 
-  return BuildWasmCall(sig, args, rets, position, target_instance, kRetpoline);
+  return BuildWasmCall(sig, args, rets, position, target_instance,
+                       untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
