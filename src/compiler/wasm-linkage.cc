@@ -225,8 +225,9 @@ static constexpr Allocator parameter_registers(kGPParamRegisters,
 }  // namespace
 
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
-                                      bool use_retpoline) {
+CallDescriptor* GetWasmCallDescriptor(
+    Zone* zone, wasm::FunctionSig* fsig,
+    WasmGraphBuilder::UseRetpoline use_retpoline) {
   // The '+ 1' here is to accomodate the instance object as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
