@@ -1408,6 +1408,11 @@ bool ImplementationVisitor::GenerateLabeledStatementBlocks(
   bool live = false;
   auto label_iterator = statement_labels.begin();
   for (Statement* block : blocks) {
+    GenerateIndent();
+    source_out() << "if (" << (*label_iterator)->generated() << "->is_used())"
+                 << std::endl;
+    ScopedIndent indent(this);
+
     GenerateLabelBind(*label_iterator++);
     if (!Visit(block)->IsNever()) {
       GenerateLabelGoto(merge_label);

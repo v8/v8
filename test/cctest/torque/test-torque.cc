@@ -92,6 +92,15 @@ TEST(TestGotoLabelWithTwoParameters) {
   ft.CheckCall(ft.true_value());
 }
 
+TEST(TestPartiallyUnusedLabel) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  { m.Return(m.TestPartiallyUnusedLabel()); }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.CheckCall(ft.true_value());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

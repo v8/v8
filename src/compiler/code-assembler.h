@@ -1244,6 +1244,7 @@ class CodeAssemblerLabel {
   ~CodeAssemblerLabel();
 
   inline bool is_bound() const { return bound_; }
+  inline bool is_used() const { return merge_count_ != 0; }
 
  private:
   friend class CodeAssembler;

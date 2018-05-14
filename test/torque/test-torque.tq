@@ -82,4 +82,29 @@ macro TestGotoLabelWithTwoParameters(): Boolean {
   }
 }
 
+macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
+  if constexpr (flag) goto Label4;
+  else goto Label5;
+}
+
+macro CallLabelTestHelper4(flag: constexpr bool): bool {
+  try {
+    LabelTestHelper4(flag) otherwise Label4, Label5;
+  }
+  label Label4 {
+    return true;
+  }
+  label Label5 {
+    return false;
+  }
+}
+
+macro TestPartiallyUnusedLabel(): Boolean {
+  let r1: bool = CallLabelTestHelper4(true);
+  let r2: bool = CallLabelTestHelper4(false);
+
+  if (r1 && !r2) return True;
+  else return False;
+}
+
 }
