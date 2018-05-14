@@ -823,41 +823,41 @@ FP_UNOP(f64_sqrt, sqrt_d)
 #undef FP_BINOP
 #undef FP_UNOP
 
-void LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
       IsFp64Mode()) {
     Ceil_d_d(dst, src);
-  } else {
-    BAILOUT("emit_f64_ceil");
+    return true;
   }
+  return false;
 }
 
-void LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+bool LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
       IsFp64Mode()) {
     Floor_d_d(dst, src);
-  } else {
-    BAILOUT("emit_f64_floor");
+    return true;
   }
+  return false;
 }
 
-void LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+bool LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
       IsFp64Mode()) {
     Trunc_d_d(dst, src);
-  } else {
-    BAILOUT("emit_f64_trunc");
+    return true;
   }
+  return false;
 }
 
-void LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
       IsFp64Mode()) {
     Round_d_d(dst, src);
-  } else {
-    BAILOUT("emit_f64_nearest_int");
+    return true;
   }
+  return false;
 }
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,

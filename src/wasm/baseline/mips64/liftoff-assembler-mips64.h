@@ -694,6 +694,11 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     instruction(dst, src);                                                     \
   }
+#define FP_UNOP_RETURN_TRUE(name, instruction)                                 \
+  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(dst, src);                                                     \
+    return true;                                                               \
+  }
 
 FP_BINOP(f32_add, add_s)
 FP_BINOP(f32_sub, sub_s)
@@ -710,14 +715,15 @@ FP_BINOP(f64_sub, sub_d)
 FP_BINOP(f64_mul, mul_d)
 FP_BINOP(f64_div, div_d)
 FP_UNOP(f64_abs, abs_d)
-FP_UNOP(f64_ceil, Ceil_d_d)
-FP_UNOP(f64_floor, Floor_d_d)
-FP_UNOP(f64_trunc, Trunc_d_d)
-FP_UNOP(f64_nearest_int, Round_d_d)
+FP_UNOP_RETURN_TRUE(f64_ceil, Ceil_d_d)
+FP_UNOP_RETURN_TRUE(f64_floor, Floor_d_d)
+FP_UNOP_RETURN_TRUE(f64_trunc, Trunc_d_d)
+FP_UNOP_RETURN_TRUE(f64_nearest_int, Round_d_d)
 FP_UNOP(f64_sqrt, sqrt_d)
 
 #undef FP_BINOP
 #undef FP_UNOP
+#undef FP_UNOP_RETURN_TRUE
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,

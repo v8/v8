@@ -489,10 +489,10 @@ class LiftoffAssembler : public TurboAssembler {
   // f64 unops.
   inline void emit_f64_abs(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_neg(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_ceil(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_floor(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_trunc(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f64_nearest_int(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f64_ceil(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f64_floor(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f64_trunc(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f64_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_sqrt(DoubleRegister dst, DoubleRegister src);
 
   // type conversions.

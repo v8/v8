@@ -391,6 +391,11 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     instruction(dst.D(), src.D());                                             \
   }
+#define FP64_UNOP_RETURN_TRUE(name, instruction)                               \
+  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(dst.D(), src.D());                                             \
+    return true;                                                               \
+  }
 #define I32_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
@@ -441,10 +446,10 @@ FP64_BINOP(f64_min, Fmin)
 FP64_BINOP(f64_max, Fmax)
 FP64_UNOP(f64_abs, Fabs)
 FP64_UNOP(f64_neg, Fneg)
-FP64_UNOP(f64_ceil, Frintp)
-FP64_UNOP(f64_floor, Frintm)
-FP64_UNOP(f64_trunc, Frintz)
-FP64_UNOP(f64_nearest_int, Frintn)
+FP64_UNOP_RETURN_TRUE(f64_ceil, Frintp)
+FP64_UNOP_RETURN_TRUE(f64_floor, Frintm)
+FP64_UNOP_RETURN_TRUE(f64_trunc, Frintz)
+FP64_UNOP_RETURN_TRUE(f64_nearest_int, Frintn)
 FP64_UNOP(f64_sqrt, Fsqrt)
 
 #undef I32_BINOP
@@ -453,6 +458,7 @@ FP64_UNOP(f64_sqrt, Fsqrt)
 #undef FP32_UNOP
 #undef FP64_BINOP
 #undef FP64_UNOP
+#undef FP64_UNOP_RETURN_TRUE
 #undef I32_SHIFTOP
 #undef I64_SHIFTOP
 

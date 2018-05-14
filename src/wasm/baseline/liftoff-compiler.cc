@@ -624,6 +624,20 @@ class LiftoffCompiler {
     EmitUnOp<kWasmI32, kWasmI32>(emit_with_c_fallback);
   }
 
+  template <ValueType type>
+  void EmitFloatUnOpWithCFallback(
+      bool (LiftoffAssembler::*emit_fn)(DoubleRegister, DoubleRegister),
+      ExternalReference (*fallback_fn)()) {
+    auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
+      if ((asm_->*emit_fn)(dst.fp(), src.fp())) return;
+      ExternalReference ext_ref = fallback_fn();
+      ValueType sig_reps[] = {type};
+      FunctionSig sig(0, 1, sig_reps);
+      GenerateCCall(&dst, &sig, type, &src, ext_ref);
+    };
+    EmitUnOp<type, type>(emit_with_c_fallback);
+  }
+
   enum TypeConversionTrapping : bool { kCanTrap = true, kNoTrap = false };
   template <ValueType dst_type, ValueType src_type,
             TypeConversionTrapping can_trap>
@@ -676,6 +690,9 @@ class LiftoffCompiler {
           __ emit_##fn(dst.fp(), src.fp());             \
         });                                             \
     break;
+#define CASE_FLOAT_UNOP_WITH_CFALLBACK(type, fn)                        \
+  EmitFloatUnOpWithCFallback<kWasm##type>(&LiftoffAssembler::emit_##fn, \
+                                          &ExternalReference::wasm_##fn);
 #define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref, can_trap) \
   case WasmOpcode::kExpr##opcode:                                           \
     EmitTypeConversion<kWasm##dst_type, kWasm##src_type, can_trap>(         \
@@ -694,10 +711,10 @@ class LiftoffCompiler {
       CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
       CASE_FLOAT_UNOP(F64Abs, F64, f64_abs)
       CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
-      CASE_FLOAT_UNOP(F64Ceil, F64, f64_ceil)
-      CASE_FLOAT_UNOP(F64Floor, F64, f64_floor)
-      CASE_FLOAT_UNOP(F64Trunc, F64, f64_trunc)
-      CASE_FLOAT_UNOP(F64NearestInt, F64, f64_nearest_int)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_ceil)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_floor)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_trunc)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_nearest_int)
       CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
       CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr, kNoTrap)
       CASE_TYPE_CONVERSION(I32SConvertF32, I32, F32, nullptr, kCanTrap)
@@ -747,6 +764,7 @@ class LiftoffCompiler {
     }
 #undef CASE_I32_UNOP
 #undef CASE_FLOAT_UNOP
+#undef CASE_FLOAT_UNOP_WITH_CFALLBACK
 #undef CASE_TYPE_CONVERSION
   }
 
