@@ -25,6 +25,7 @@ class Schedule;
 class SourcePositionTable;
 
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
+                                                 const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix);
 

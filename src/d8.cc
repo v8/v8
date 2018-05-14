@@ -3290,7 +3290,9 @@ int Shell::Main(int argc, char* argv[]) {
   } else {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
-  SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
+  if (i::FLAG_trace_turbo_cfg_file == nullptr) {
+    SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
+  }
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
   int result = 0;
   Isolate::CreateParams create_params;

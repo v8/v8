@@ -30,6 +30,7 @@ namespace internal {
 namespace compiler {
 
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
+                                                 const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
@@ -62,16 +63,26 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   std::replace(filename.start(), filename.start() + filename.length(), ' ',
                '_');
 
+  EmbeddedVector<char, 256> base_dir;
+  if (optional_base_dir != nullptr) {
+    SNPrintF(base_dir, "%s%c", optional_base_dir,
+             base::OS::DirectorySeparator());
+  } else {
+    base_dir[0] = '\0';
+  }
+
   EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
-    SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else if (phase != nullptr && !source_available) {
-    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
-  } else if (phase == nullptr && source_available) {
-    SNPrintF(full_filename, "%s_%s.%s", filename.start(), source_file.start(),
+    SNPrintF(full_filename, "%s%s.%s", base_dir.start(), filename.start(),
              suffix);
+  } else if (phase != nullptr && !source_available) {
+    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.start(), filename.start(),
+             phase, suffix);
+  } else if (phase == nullptr && source_available) {
+    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.start(), filename.start(),
+             source_file.start(), suffix);
   } else {
-    SNPrintF(full_filename, "%s_%s-%s.%s", filename.start(),
+    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.start(), filename.start(),
              source_file.start(), phase, suffix);
   }
 

@@ -623,7 +623,9 @@ struct TurboCfgFile : public std::ofstream {
 
 struct TurboJsonFile : public std::ofstream {
   TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode)
-      : std::ofstream(GetVisualizerLogFileName(info, nullptr, "json").get(),
+      : std::ofstream(GetVisualizerLogFileName(info, FLAG_trace_turbo_path,
+                                               nullptr, "json")
+                          .get(),
                       mode) {}
 };
 
@@ -714,7 +716,8 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
-    int pos = info->IsStub() ? 0 : info->shared_info()->StartPosition();
+    int pos =
+        info->has_shared_info() ? info->shared_info()->StartPosition() : 0;
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
     if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
