@@ -304,17 +304,21 @@ class SmallOrderedHashTable : public HeapObject {
   // Returns a true if the OrderedHashTable contains the key
   bool HasKey(Isolate* isolate, Handle<Object> key);
 
-  // Iterates only fields in the DataTable.
-  class BodyDescriptor;
-
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
+  // Returns a true value if the table contains the key and
+  // the key has been deleted. This does not shrink the table.
+  static bool Delete(Isolate* isolate, Derived* table, Object* key);
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element.
   static Handle<Derived> Grow(Handle<Derived> table);
 
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
+
+  // Iterates only fields in the DataTable.
+  class BodyDescriptor;
+
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
   // Returns total size in bytes required for a table of given
   // capacity.
@@ -459,6 +463,22 @@ class SmallOrderedHashTable : public HeapObject {
   void SetNumberOfDeletedElements(int num) {
     DCHECK_LE(static_cast<unsigned>(num), Capacity());
     setByte(0, kNumberOfDeletedElementsByteIndex, num);
+  }
+
+  int FindEntry(Isolate* isolate, Object* key) {
+    DisallowHeapAllocation no_gc;
+    Object* hash = key->GetHash();
+
+    if (hash->IsUndefined(isolate)) return kNotFound;
+    int entry = HashToFirstEntry(Smi::ToInt(hash));
+
+    // Walk the chain in the bucket to find the key.
+    while (entry != kNotFound) {
+      Object* candidate_key = KeyAt(entry);
+      if (candidate_key->SameValueZero(key)) return entry;
+      entry = GetNextEntry(entry);
+    }
+    return kNotFound;
   }
 
   static const int kNumberOfElementsByteIndex = 0;

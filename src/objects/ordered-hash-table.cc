@@ -426,19 +426,28 @@ template <class Derived>
 bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
                                             Handle<Object> key) {
   DisallowHeapAllocation no_gc;
-  Object* raw_key = *key;
-  Object* hash = key->GetHash();
+  return FindEntry(isolate, *key) != kNotFound;
+}
 
-  if (hash->IsUndefined(isolate)) return false;
-  int entry = HashToFirstEntry(Smi::ToInt(hash));
+template <class Derived>
+bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived* table,
+                                            Object* key) {
+  DisallowHeapAllocation no_gc;
+  int entry = table->FindEntry(isolate, key);
+  if (entry == kNotFound) return false;
 
-  // Walk the chain in the bucket to find the key.
-  while (entry != kNotFound) {
-    Object* candidate_key = KeyAt(entry);
-    if (candidate_key->SameValueZero(raw_key)) return true;
-    entry = GetNextEntry(entry);
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+
+  Object* hole = isolate->heap()->the_hole_value();
+  for (int j = 0; j < Derived::kEntrySize; j++) {
+    table->SetDataEntry(entry, j, hole);
   }
-  return false;
+
+  table->SetNumberOfElements(nof - 1);
+  table->SetNumberOfDeletedElements(nod + 1);
+
+  return true;
 }
 
 template <class Derived>
@@ -522,6 +531,11 @@ template Handle<SmallOrderedHashMap> SmallOrderedHashTable<
     SmallOrderedHashMap>::Grow(Handle<SmallOrderedHashMap> table);
 template void SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(
     Isolate* isolate, int capacity);
+
+template bool SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
+    Isolate* isolate, SmallOrderedHashMap* table, Object* key);
+template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
+    Isolate* isolate, SmallOrderedHashSet* table, Object* key);
 
 template <class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {

@@ -190,9 +190,14 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    int start = kDataTableStartOffset;
+
+    int offset = kHeaderSize + kDataTableStartOffset;
+    int entry = 0;
     for (int i = 0; i < table->Capacity(); i++) {
-      IteratePointer(obj, start + (i * kPointerSize), v);
+      for (int j = 0; j < Derived::kEntrySize; j++) {
+        IteratePointer(obj, offset + (entry * kPointerSize), v);
+        entry++;
+      }
     }
   }
 

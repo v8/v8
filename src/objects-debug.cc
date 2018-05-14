@@ -1294,24 +1294,22 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify() {
   CHECK(IsSmallOrderedHashTable());
   Isolate* isolate = GetIsolate();
 
+  int capacity = Capacity();
+  CHECK_GE(capacity, kMinCapacity);
+  CHECK_LE(capacity, kMaxCapacity);
+
   for (int entry = 0; entry < NumberOfBuckets(); entry++) {
     int bucket = GetFirstEntry(entry);
     if (bucket == kNotFound) continue;
-
-    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(bucket, offset);
-      CHECK(!val->IsTheHole(isolate));
-    }
+    CHECK_GE(bucket, 0);
+    CHECK_LE(bucket, capacity);
   }
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
     int chain = GetNextEntry(entry);
     if (chain == kNotFound) continue;
-
-    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(chain, offset);
-      CHECK(!val->IsTheHole(isolate));
-    }
+    CHECK_GE(chain, 0);
+    CHECK_LE(chain, capacity);
   }
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
@@ -1321,7 +1319,16 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify() {
     }
   }
 
-  for (int entry = NumberOfElements(); entry < Capacity(); entry++) {
+  for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
+       entry++) {
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate));
+    }
+  }
+
+  for (int entry = NumberOfElements() + NumberOfDeletedElements();
+       entry < Capacity(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
       Object* val = GetDataEntry(entry, offset);
       CHECK(val->IsTheHole(isolate));
