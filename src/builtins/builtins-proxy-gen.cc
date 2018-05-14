@@ -716,14 +716,23 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
 
     BIND(&throw_non_configurable_data);
     {
-      ThrowTypeError(context, MessageTemplate::kProxyGetNonConfigurableData,
-                     name, var_value.value(), trap_result);
+      if (access_kind == JSProxy::kGet) {
+        ThrowTypeError(context, MessageTemplate::kProxyGetNonConfigurableData,
+                       name, var_value.value(), trap_result);
+      } else {
+        ThrowTypeError(context, MessageTemplate::kProxySetFrozenData, name);
+      }
     }
 
     BIND(&throw_non_configurable_accessor);
     {
-      ThrowTypeError(context, MessageTemplate::kProxyGetNonConfigurableAccessor,
-                     name, trap_result);
+      if (access_kind == JSProxy::kGet) {
+        ThrowTypeError(context,
+                       MessageTemplate::kProxyGetNonConfigurableAccessor, name,
+                       trap_result);
+      } else {
+        ThrowTypeError(context, MessageTemplate::kProxySetFrozenAccessor, name);
+      }
     }
   }
 }
