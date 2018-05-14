@@ -1133,7 +1133,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         BIND(&double_rep);
         {
           Node* mutable_heap_number =
-              LoadFixedArrayElement(properties, backing_store_index);
+              LoadPropertyArrayElement(properties, backing_store_index);
           Node* double_value = ChangeNumberToFloat64(value);
           StoreHeapNumberValue(mutable_heap_number, double_value);
           Goto(&done);

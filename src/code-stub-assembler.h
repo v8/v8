@@ -695,7 +695,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
-  // Load an array element from a FixedArray / WeakFixedArray.
+  // Load an array element from a FixedArray / WeakFixedArray / PropertyArray.
   TNode<MaybeObject> LoadArrayElement(
       SloppyTNode<HeapObject> object, int array_header_size, Node* index,
       int additional_offset = 0,
@@ -734,6 +734,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       TNode<Smi> index) {
     return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
   }
+
+  TNode<Object> LoadPropertyArrayElement(SloppyTNode<PropertyArray> object,
+                                         SloppyTNode<IntPtrT> index);
 
   // Load an array element from a FixedArray / WeakFixedArray, untag it and
   // return it as Word32.

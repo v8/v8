@@ -1798,9 +1798,27 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
   TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                                  parameter_mode, header_size);
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset ==
+                PropertyArray::kLengthAndHashOffset);
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
-  // TODO(cbruni): Re-add bounds check here.
+  CSA_SLOW_ASSERT(
+      this,
+      IsOffsetInBounds(
+          offset,
+          Select<IntPtrT>(
+              IsPropertyArray(array),
+              [=] {
+                TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
+                    array, PropertyArray::kLengthAndHashOffset);
+                return TNode<IntPtrT>::UncheckedCast(
+                    DecodeWord<PropertyArray::LengthField>(length_and_hash));
+              },
+              [=] {
+                return LoadAndUntagObjectField(array,
+                                               FixedArrayBase::kLengthOffset);
+              }),
+          FixedArray::kHeaderSize));
   return UncheckedCast<MaybeObject>(
       Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
 }
@@ -1813,6 +1831,18 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   // untrue. TODO(marja): Fix.
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
   return ToObject(LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
+                                   additional_offset, parameter_mode,
+                                   needs_poisoning));
+}
+
+TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
+    SloppyTNode<PropertyArray> object, SloppyTNode<IntPtrT> index) {
+  int additional_offset = 0;
+  ParameterMode parameter_mode = INTPTR_PARAMETERS;
+  LoadSensitivity needs_poisoning = LoadSensitivity::kSafe;
+  STATIC_ASSERT(PropertyArray::kHeaderSize == FixedArray::kHeaderSize);
+
+  return ToObject(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
                                    additional_offset, parameter_mode,
                                    needs_poisoning));
 }
@@ -7648,7 +7678,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       Comment("if_backing_store");
       Node* properties = LoadFastProperties(object);
       field_index = IntPtrSub(field_index, instance_size_in_words);
-      Node* value = LoadFixedArrayElement(properties, field_index);
+      Node* value = LoadPropertyArrayElement(properties, field_index);
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,
@@ -8310,6 +8340,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
                                                          ElementsKind kind,
                                                          ParameterMode mode,
                                                          int base_size) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, mode));
   int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
   int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
