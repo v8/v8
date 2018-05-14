@@ -557,7 +557,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
              RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
+             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+             RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
                           ret->constant_pool(), mask);
        !iter.done(); iter.next()) {
@@ -589,6 +590,15 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
         Address address =
             isolate_->heap()->external_reference_table()->address(tag);
         iter.rinfo()->set_target_external_reference(address, SKIP_ICACHE_FLUSH);
+        break;
+      }
+      case RelocInfo::WASM_CODE_TABLE_ENTRY: {
+        DCHECK(FLAG_wasm_tier_up);
+        DCHECK(ret->is_liftoff());
+        WasmCode* const* code_table_entry =
+            native_module_->code_table().data() + ret->index();
+        iter.rinfo()->set_wasm_code_table_entry(
+            reinterpret_cast<Address>(code_table_entry), SKIP_ICACHE_FLUSH);
         break;
       }
       default:
@@ -671,8 +681,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // into the allocator.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   CompileJsToWasmWrappers(isolate, module_object, isolate->counters());
-  WasmCompiledModule::ReinitializeAfterDeserialization(isolate,
-                                                       compiled_module);
+
+  // There are no instances for this module yet, which means we need to reset
+  // the module into a state as if the last instance was collected.
+  WasmCompiledModule::Reset(isolate, *compiled_module);
+
   return module_object;
 }
 

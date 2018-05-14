@@ -15,7 +15,6 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
@@ -1407,25 +1406,6 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   if (native_module->use_trap_handler()) {
     native_module->ReleaseProtectedInstructions();
   }
-
-  // Patch code to update memory references, global references, and function
-  // table references.
-  wasm::CodeSpecialization code_specialization;
-
-  for (uint32_t i = native_module->num_imported_functions(),
-                end = native_module->function_count();
-       i < end; ++i) {
-    wasm::WasmCode* code = native_module->code(i);
-    // Skip lazy compile stubs.
-    if (code == nullptr || code->kind() != wasm::WasmCode::kFunction) continue;
-    bool changed = code_specialization.ApplyToWasmCode(code, SKIP_ICACHE_FLUSH);
-    // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED
-    // above.
-    if (changed) {
-      Assembler::FlushICache(code->instructions().start(),
-                             code->instructions().size());
-    }
-  }
 }
 
 MaybeHandle<String> WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
@@ -1484,13 +1464,6 @@ void WasmCompiledModule::RemoveFromChain() {
   if (!next->IsUndefined(isolate)) {
     WasmCompiledModule::cast(next)->set_raw_prev_instance(prev);
   }
-}
-
-void WasmCompiledModule::ReinitializeAfterDeserialization(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  // Reset, but don't delete any global handles, because their owning instance
-  // may still be active.
-  WasmCompiledModule::Reset(isolate, *compiled_module);
 }
 
 MaybeHandle<String> WasmSharedModuleData::GetModuleNameOrNull(

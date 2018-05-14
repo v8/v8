@@ -598,9 +598,6 @@ class WasmCompiledModule : public Struct {
 
   void PrintInstancesChain();
 
-  static void ReinitializeAfterDeserialization(Isolate*,
-                                               Handle<WasmCompiledModule>);
-
   void LogWasmCodes(Isolate* isolate);
 
  private:

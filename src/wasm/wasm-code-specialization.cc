@@ -136,14 +136,10 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
   bool reloc_direct_calls = relocate_direct_calls_module_ != nullptr;
 
   int reloc_mode = 0;
-  auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
-    if (cond) reloc_mode |= RelocInfo::ModeMask(mode);
-  };
-  add_mode(reloc_direct_calls, RelocInfo::WASM_CALL);
-
-  // Always patch the code table entry address which is used in Liftoff
-  // prologue to jump to optimized code if existent.
-  reloc_mode |= RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
+  if (reloc_direct_calls) {
+    reloc_mode |= RelocInfo::ModeMask(RelocInfo::WASM_CALL);
+  }
+  if (!reloc_mode) return false;
 
   base::Optional<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
@@ -176,14 +172,6 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         it.rinfo()->set_wasm_call_address(new_code->instruction_start(),
                                           icache_flush_mode);
         changed = true;
-      } break;
-      case RelocInfo::WASM_CODE_TABLE_ENTRY: {
-        DCHECK(FLAG_wasm_tier_up);
-        DCHECK(code->is_liftoff());
-        WasmCode* const* code_table_entry =
-            native_module->code_table().data() + code->index();
-        it.rinfo()->set_wasm_code_table_entry(
-            reinterpret_cast<Address>(code_table_entry), icache_flush_mode);
       } break;
 
       default:
