@@ -146,7 +146,10 @@ Object* PrepareElementsForSortGeneric(Handle<JSReceiver> receiver,
                                         isolate->factory()->undefined_value(),
                                         LanguageMode::kStrict));
   }
-  DCHECK_LE(current_pos, num_indices);
+  // TODO(szuend): Re-enable when we also copy from the prototype chain for
+  //               JSArrays. Then we can use HasOwnProperty instead of
+  //               HasElement and this condition will hold.
+  // DCHECK_LE(current_pos, num_indices);
 
   // Deleting everything after the undefineds up unto the limit.
   for (int i = num_indices - 1; i >= 0; --i) {
