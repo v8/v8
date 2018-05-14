@@ -3199,6 +3199,54 @@ TEST(RunWord32ShrP) {
   }
 }
 
+TEST(RunWordShiftInBranch) {
+  static const uint32_t constant = 987654321;
+  FOR_UINT32_SHIFTS(shift) {
+    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineLabel blocka, blockb;
+    m.Branch(m.Word32Equal(m.Word32Shl(m.Parameter(0), m.Int32Constant(shift)),
+                           m.Int32Constant(0)),
+             &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(constant));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0 - constant));
+    FOR_UINT32_INPUTS(i) {
+      uint32_t expected = ((*i << shift) == 0) ? constant : 0 - constant;
+      CHECK_EQ(expected, m.Call(*i));
+    }
+  }
+  FOR_UINT32_SHIFTS(shift) {
+    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineLabel blocka, blockb;
+    m.Branch(m.Word32Equal(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
+                           m.Int32Constant(0)),
+             &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(constant));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0 - constant));
+    FOR_UINT32_INPUTS(i) {
+      uint32_t expected = ((*i >> shift) == 0) ? constant : 0 - constant;
+      CHECK_EQ(expected, m.Call(*i));
+    }
+  }
+  FOR_UINT32_SHIFTS(shift) {
+    RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+    RawMachineLabel blocka, blockb;
+    m.Branch(m.Word32Equal(m.Word32Sar(m.Parameter(0), m.Int32Constant(shift)),
+                           m.Int32Constant(0)),
+             &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(constant));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0 - constant));
+    FOR_INT32_INPUTS(i) {
+      int32_t expected = ((*i >> shift) == 0) ? constant : 0 - constant;
+      CHECK_EQ(expected, m.Call(*i));
+    }
+  }
+}
 
 TEST(RunWord32ShrInComparison) {
   {

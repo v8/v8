@@ -589,6 +589,28 @@ void VisitWord64Shift(InstructionSelector* selector, Node* node,
   }
 }
 
+// Shared routine for multiple shift operations with continuation.
+template <typename BinopMatcher, int Bits>
+bool TryVisitWordShift(InstructionSelector* selector, Node* node,
+                       ArchOpcode opcode, FlagsContinuation* cont) {
+  X64OperandGenerator g(selector);
+  BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+
+  // If the shift count is 0, the flags are not affected.
+  if (!g.CanBeImmediate(right) ||
+      (g.GetImmediateIntegerValue(right) & (Bits - 1)) == 0) {
+    return false;
+  }
+  InstructionOperand output = g.DefineSameAsFirst(node);
+  InstructionOperand inputs[2];
+  inputs[0] = g.UseRegister(left);
+  inputs[1] = g.UseImmediate(right);
+  selector->EmitWithContinuation(opcode, 1, &output, 2, inputs, cont);
+  return true;
+}
+
 void EmitLea(InstructionSelector* selector, InstructionCode opcode,
              Node* result, Node* index, int scale, Node* base,
              Node* displacement, DisplacementMode displacement_mode) {
@@ -1722,11 +1744,55 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kX64Cmp, cont);
 }
 
-
 // Shared routine for comparison with zero.
-void VisitCompareZero(InstructionSelector* selector, Node* node,
+void VisitCompareZero(InstructionSelector* selector, Node* user, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
+  if (cont->IsBranch() &&
+      (cont->condition() == kNotEqual || cont->condition() == kEqual)) {
+    switch (node->opcode()) {
+#define FLAGS_SET_BINOP_LIST(V)        \
+  V(kInt32Add, VisitBinop, kX64Add32)  \
+  V(kInt32Sub, VisitBinop, kX64Sub32)  \
+  V(kWord32And, VisitBinop, kX64And32) \
+  V(kWord32Or, VisitBinop, kX64Or32)   \
+  V(kInt64Add, VisitBinop, kX64Add)    \
+  V(kInt64Sub, VisitBinop, kX64Sub)    \
+  V(kWord64And, VisitBinop, kX64And)   \
+  V(kWord64Or, VisitBinop, kX64Or)
+#define FLAGS_SET_BINOP(opcode, Visit, archOpcode)           \
+  case IrOpcode::opcode:                                     \
+    if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) { \
+      return Visit(selector, node, archOpcode, cont);        \
+    }                                                        \
+    break;
+      FLAGS_SET_BINOP_LIST(FLAGS_SET_BINOP)
+#undef FLAGS_SET_BINOP_LIST
+#undef FLAGS_SET_BINOP
+
+#define TRY_VISIT_WORD32_SHIFT TryVisitWordShift<Int32BinopMatcher, 32>
+#define TRY_VISIT_WORD64_SHIFT TryVisitWordShift<Int64BinopMatcher, 64>
+// Skip Word64Sar/Word32Sar since no instruction reduction in most cases.
+#define FLAGS_SET_SHIFT_LIST(V)                    \
+  V(kWord32Shl, TRY_VISIT_WORD32_SHIFT, kX64Shl32) \
+  V(kWord32Shr, TRY_VISIT_WORD32_SHIFT, kX64Shr32) \
+  V(kWord64Shl, TRY_VISIT_WORD64_SHIFT, kX64Shl)   \
+  V(kWord64Shr, TRY_VISIT_WORD64_SHIFT, kX64Shr)
+#define FLAGS_SET_SHIFT(opcode, TryVisit, archOpcode)         \
+  case IrOpcode::opcode:                                      \
+    if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) {  \
+      if (TryVisit(selector, node, archOpcode, cont)) return; \
+    }                                                         \
+    break;
+      FLAGS_SET_SHIFT_LIST(FLAGS_SET_SHIFT)
+#undef TRY_VISIT_WORD32_SHIFT
+#undef TRY_VISIT_WORD64_SHIFT
+#undef FLAGS_SET_SHIFT_LIST
+#undef FLAGS_SET_SHIFT
+      default:
+        break;
+    }
+  }
   VisitCompare(selector, opcode, g.Use(node), g.TempImmediate(0), cont);
 }
 
@@ -1897,7 +1963,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                 break;
             }
           }
-          return VisitCompareZero(this, value, kX64Cmp, cont);
+          return VisitCompareZero(this, user, value, kX64Cmp, cont);
         }
         return VisitWord64Compare(this, value, cont);
       }
@@ -1992,7 +2058,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
   }
 
   // Branch could not be combined with a compare, emit compare against 0.
-  VisitCompareZero(this, value, kX64Cmp32, cont);
+  VisitCompareZero(this, user, value, kX64Cmp32, cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
