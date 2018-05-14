@@ -272,22 +272,41 @@ void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
 
 namespace {
 
-// TODO(clemensh): The heap-allocated string returned from here is just used to
-// invoke {strlen} on it or to output it directly. Refactor this to make it
-// cheaper.
-std::unique_ptr<char[]> GetScriptName(const SourcePositionInfo& info) {
+constexpr char kUnknownScriptNameString[] = "<unknown>";
+constexpr size_t kUnknownScriptNameStringLen =
+    arraysize(kUnknownScriptNameString) - 1;
+
+size_t GetScriptNameLength(const SourcePositionInfo& info) {
   if (!info.script.is_null()) {
     Object* name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsString()) {
-      return String::cast(name_or_url)
-          ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL);
+      String* str = String::cast(name_or_url);
+      if (str->IsOneByteRepresentation()) return str->length();
+      int length;
+      str->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
+      return static_cast<size_t>(length);
     }
   }
-  constexpr char kUnknownString[] = "<unknown>";
-  constexpr size_t kUnknownStringLen = arraysize(kUnknownString) - 1;
-  std::unique_ptr<char[]> name(NewArray<char>(kUnknownStringLen + 1));
-  memcpy(name.get(), kUnknownString, kUnknownStringLen + 1);
-  return name;
+  return kUnknownScriptNameStringLen;
+}
+
+Vector<const char> GetScriptName(const SourcePositionInfo& info,
+                                 std::unique_ptr<char[]>* storage) {
+  if (!info.script.is_null()) {
+    Object* name_or_url = info.script->GetNameOrSourceURL();
+    if (name_or_url->IsSeqOneByteString()) {
+      SeqOneByteString* str = SeqOneByteString::cast(name_or_url);
+      return {reinterpret_cast<char*>(str->GetChars()),
+              static_cast<size_t>(str->length())};
+    } else if (name_or_url->IsString()) {
+      int length;
+      *storage =
+          String::cast(name_or_url)
+              ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
+      return {storage->get(), static_cast<size_t>(length)};
+    }
+  }
+  return {kUnknownScriptNameString, kUnknownScriptNameStringLen};
 }
 
 SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
@@ -333,8 +352,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
                                                   iterator.source_position()));
-    std::unique_ptr<char[]> name_string = GetScriptName(info);
-    size += (static_cast<uint32_t>(strlen(name_string.get())) + 1);
+    size += GetScriptNameLength(info) + 1;
   }
 
   int padding = ((size + 7) & (~7)) - size;
@@ -355,11 +373,14 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-    std::unique_ptr<char[]> name_string = GetScriptName(info);
-    LogWriteBytes(name_string.get(),
-                  static_cast<uint32_t>(strlen(name_string.get())) + 1);
+    // The extracted name may point into heap-objects, thus disallow GC.
+    DisallowHeapAllocation no_gc;
+    std::unique_ptr<char[]> name_storage;
+    Vector<const char> name_string = GetScriptName(info, &name_storage);
+    LogWriteBytes(name_string.start(),
+                  static_cast<uint32_t>(name_string.size()) + 1);
   }
-  char padding_bytes[] = "\0\0\0\0\0\0\0\0";
+  char padding_bytes[8] = {0};
   LogWriteBytes(padding_bytes, padding);
 }
 
