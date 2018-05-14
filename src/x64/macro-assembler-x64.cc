@@ -1548,18 +1548,24 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   jmp(kScratchRegister);
 }
 
-
-void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
-  // TODO(X64): Inline this
+void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+                          Condition cc) {
+// TODO(X64): Inline this
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+    Label skip;
+    if (cc != always) {
+      if (cc == never) return;
+      j(NegateCondition(cc), &skip, Label::kNear);
+    }
     LookupConstant(kScratchRegister, code_object);
     leap(kScratchRegister, FieldOperand(kScratchRegister, Code::kHeaderSize));
     jmp(kScratchRegister);
+    bind(&skip);
     return;
   }
 #endif  // V8_EMBEDDED_BUILTINS
-  jmp(code_object, rmode);
+  j(cc, code_object, rmode);
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {

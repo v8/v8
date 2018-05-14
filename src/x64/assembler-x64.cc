@@ -1430,6 +1430,12 @@ void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
 void Assembler::j(Condition cc,
                   Handle<Code> target,
                   RelocInfo::Mode rmode) {
+  if (cc == always) {
+    jmp(target, rmode);
+    return;
+  } else if (cc == never) {
+    return;
+  }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   // 0000 1111 1000 tttn #32-bit disp.

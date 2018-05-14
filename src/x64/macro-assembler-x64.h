@@ -765,7 +765,8 @@ class MacroAssembler : public TurboAssembler {
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
   void Jump(Operand op);
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+            Condition cc = always);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);

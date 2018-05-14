@@ -1127,8 +1127,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   Label stack_overflow;
 
   // Number of values to be pushed.
-  __ Move(rcx, rax);
-  __ addp(rcx, Immediate(1));  // Add one for receiver.
+  __ leal(rcx, Operand(rax, 1));  // Add one for receiver.
 
   // Add a stack check before pushing arguments.
   Generate_StackOverflowCheck(masm, rcx, rdx, &stack_overflow);
@@ -1139,7 +1138,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   // Push "undefined" as the receiver arg if we need to.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ subp(rcx, Immediate(1));  // Subtract one for receiver.
+    __ decl(rcx);  // Subtract one for receiver.
   }
 
   // rbx and rdx will be modified.
@@ -1147,7 +1146,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Pop(rbx);                 // Pass the spread in a register
-    __ subp(rax, Immediate(1));  // Subtract one for spread
+    __ decl(rax);                // Subtract one for spread
   }
 
   // Call the target.
@@ -1199,7 +1198,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Pop(rbx);                 // Pass the spread in a register
-    __ subp(rax, Immediate(1));  // Subtract one for spread
+    __ decl(rax);                // Subtract one for spread
 
     // Push return address in preparation for the tail-call.
     __ PushReturnAddressFrom(kScratchRegister);
@@ -2505,37 +2504,29 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // -----------------------------------
   StackArgumentsAccessor args(rsp, rax);
 
-  // TODO(jgruber): Support conditional jumps (Assembler::j) with Code targets.
-
-  Label non_js_function, non_js_bound_function, non_callable, non_function,
-      non_smi;
+  Label non_callable;
   __ JumpIfSmi(rdi, &non_callable);
-  __ bind(&non_smi);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &non_js_function, Label::kNear);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
-          RelocInfo::CODE_TARGET);
+          RelocInfo::CODE_TARGET, equal);
 
-  __ bind(&non_js_function);
   __ CmpInstanceType(rcx, JS_BOUND_FUNCTION_TYPE);
-  __ j(not_equal, &non_js_bound_function, Label::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
-          RelocInfo::CODE_TARGET);
+          RelocInfo::CODE_TARGET, equal);
 
   // Check if target has a [[Call]] internal method.
-  __ bind(&non_js_bound_function);
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
            Immediate(Map::IsCallableBit::kMask));
   __ j(zero, &non_callable, Label::kNear);
 
   // Check if target is a proxy and call CallProxy external builtin
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_function, Label::kNear);
-  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET,
+          equal);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
-  __ bind(&non_function);
+
   // Overwrite the original receiver with the (original) target.
   __ movp(args.GetReceiverOperand(), rdi);
   // Let the "call_as_function_delegate" take care of the rest.
@@ -2567,18 +2558,13 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // rbx to contain either an AllocationSite or undefined.
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
 
-  Label call_generic_stub;
-
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ testl(FieldOperand(rcx, SharedFunctionInfo::kFlagsOffset),
            Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
-  __ j(zero, &call_generic_stub, Label::kNear);
-
   __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
-          RelocInfo::CODE_TARGET);
+          RelocInfo::CODE_TARGET, not_zero);
 
-  __ bind(&call_generic_stub);
   __ Jump(masm->isolate()->builtins()->JSConstructStubGeneric(),
           RelocInfo::CODE_TARGET);
 }
@@ -2622,7 +2608,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   StackArgumentsAccessor args(rsp, rax);
 
   // Check if target is a Smi.
-  Label non_constructor, non_proxy;
+  Label non_constructor;
   __ JumpIfSmi(rdi, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
@@ -2631,32 +2617,23 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
            Immediate(Map::IsConstructorBit::kMask));
   __ j(zero, &non_constructor);
 
-  // TODO(jgruber): Support conditional jumps (Assembler::j) with Code targets.
-  Label non_js_function, non_js_bound_function;
-
   // Dispatch based on instance type.
   __ CmpInstanceType(rcx, JS_FUNCTION_TYPE);
-  __ j(not_equal, &non_js_function);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
-          RelocInfo::CODE_TARGET);
+          RelocInfo::CODE_TARGET, equal);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
-  __ bind(&non_js_function);
   __ CmpInstanceType(rcx, JS_BOUND_FUNCTION_TYPE);
-  __ j(not_equal, &non_js_bound_function);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
-          RelocInfo::CODE_TARGET);
+          RelocInfo::CODE_TARGET, equal);
 
   // Only dispatch to proxies after checking whether they are constructors.
-  __ bind(&non_js_bound_function);
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_proxy, Label::kNear);
-  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
-          RelocInfo::CODE_TARGET);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy), RelocInfo::CODE_TARGET,
+          equal);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
-  __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
     __ movp(args.GetReceiverOperand(), rdi);
@@ -2973,16 +2950,16 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
   __ leal(result_reg, MemOperand(rcx, -HeapNumber::kExponentBias));
   __ cmpl(result_reg, Immediate(HeapNumber::kMantissaBits));
-  __ j(below, &process_64_bits);
+  __ j(below, &process_64_bits, Label::kNear);
 
   // Result is entirely in lower 32-bits of mantissa
   int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
   __ subl(rcx, Immediate(delta));
   __ xorl(result_reg, result_reg);
   __ cmpl(rcx, Immediate(31));
-  __ j(above, &done);
+  __ j(above, &done, Label::kNear);
   __ shll_cl(scratch1);
-  __ jmp(&check_negative);
+  __ jmp(&check_negative, Label::kNear);
 
   __ bind(&process_64_bits);
   __ Cvttsd2siq(result_reg, kScratchDoubleReg);
