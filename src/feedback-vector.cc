@@ -668,15 +668,11 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
   return true;
 }
 
-void FeedbackNexus::ConfigureHandlerMode(Handle<Object> handler) {
+void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
   SetFeedback(GetIsolate()->heap()->empty_weak_cell());
-  if (handler->IsMap()) {
-    SetFeedbackExtra(HeapObjectReference::Weak(HeapObject::cast(*handler)));
-  } else {
-    SetFeedbackExtra(*handler);
-  }
+  SetFeedbackExtra(*handler);
 }
 
 int FeedbackNexus::GetCallCount() {
@@ -722,7 +718,7 @@ float FeedbackNexus::ComputeCallFrequency() {
 
 void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
                                          Handle<Map> receiver_map,
-                                         Handle<Object> handler) {
+                                         const MaybeObjectHandle& handler) {
   DCHECK(handler.is_null() || IC::IsHandler(*handler));
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   if (kind() == FeedbackSlotKind::kStoreDataPropertyInLiteral) {
@@ -731,27 +727,19 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
   } else {
     if (name.is_null()) {
       SetFeedback(*cell);
-      if (handler->IsMap()) {
-        SetFeedbackExtra(HeapObjectReference::Weak(*handler));
-      } else {
-        SetFeedbackExtra(*handler);
-      }
+      SetFeedbackExtra(*handler);
     } else {
       Handle<WeakFixedArray> array = EnsureExtraArrayOfSize(2);
       SetFeedback(*name);
       array->Set(0, HeapObjectReference::Strong(*cell));
-      if (handler->IsMap()) {
-        array->Set(1, HeapObjectReference::Weak(*handler));
-      } else {
-        array->Set(1, MaybeObject::FromObject(*handler));
-      }
+      array->Set(1, *handler);
     }
   }
 }
 
 void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
                                          MapHandles const& maps,
-                                         ObjectHandles* handlers) {
+                                         MaybeObjectHandles* handlers) {
   DCHECK_EQ(handlers->size(), maps.size());
   int receiver_count = static_cast<int>(maps.size());
   DCHECK_GT(receiver_count, 1);
@@ -770,13 +758,7 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
     Handle<WeakCell> cell = Map::WeakCellForMap(map);
     array->Set(current * 2, HeapObjectReference::Strong(*cell));
     DCHECK(IC::IsHandler(*handlers->at(current)));
-    if (handlers->at(current)->IsMap()) {
-      array->Set(current * 2 + 1,
-                 HeapObjectReference::Weak(*handlers->at(current)));
-    } else {
-      array->Set(current * 2 + 1,
-                 MaybeObject::FromObject(*handlers->at(current)));
-    }
+    array->Set(current * 2 + 1, *handlers->at(current));
   }
 }
 
@@ -819,7 +801,7 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   return 0;
 }
 
-MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
+MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
          IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()));
@@ -841,8 +823,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
         Map* array_map = Map::cast(cell->value());
         if (array_map == *map &&
             !array->Get(i + increment - 1)->IsClearedWeakHeapObject()) {
-          // This converts a weak reference to a strong reference.
-          Object* handler = array->Get(i + increment - 1)->GetHeapObjectOrSmi();
+          MaybeObject* handler = array->Get(i + increment - 1);
           DCHECK(IC::IsHandler(handler));
           return handle(handler, isolate);
         }
@@ -853,18 +834,18 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
     if (!cell->cleared()) {
       Map* cell_map = Map::cast(cell->value());
       if (cell_map == *map && !GetFeedbackExtra()->IsClearedWeakHeapObject()) {
-        // This converts a weak reference to a strong reference.
-        Object* handler = GetFeedbackExtra()->GetHeapObjectOrSmi();
+        MaybeObject* handler = GetFeedbackExtra();
         DCHECK(IC::IsHandler(handler));
         return handle(handler, isolate);
       }
     }
   }
 
-  return MaybeHandle<Code>();
+  return MaybeObjectHandle();
 }
 
-bool FeedbackNexus::FindHandlers(ObjectHandles* code_list, int length) const {
+bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
+                                 int length) const {
   DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
          IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
@@ -887,8 +868,7 @@ bool FeedbackNexus::FindHandlers(ObjectHandles* code_list, int length) const {
       // Be sure to skip handlers whose maps have been cleared.
       if (!cell->cleared() &&
           !array->Get(i + increment - 1)->IsClearedWeakHeapObject()) {
-        // This converts a weak reference to a strong reference.
-        Object* handler = array->Get(i + increment - 1)->GetHeapObjectOrSmi();
+        MaybeObject* handler = array->Get(i + increment - 1);
         DCHECK(IC::IsHandler(handler));
         code_list->push_back(handle(handler, isolate));
         count++;
@@ -898,10 +878,8 @@ bool FeedbackNexus::FindHandlers(ObjectHandles* code_list, int length) const {
     WeakCell* cell = WeakCell::cast(feedback);
     MaybeObject* extra = GetFeedbackExtra();
     if (!cell->cleared() && !extra->IsClearedWeakHeapObject()) {
-      // This converts a weak reference to a strong reference.
-      Object* handler = extra->GetHeapObjectOrSmi();
-      DCHECK(IC::IsHandler(handler));
-      code_list->push_back(handle(handler, isolate));
+      DCHECK(IC::IsHandler(extra));
+      code_list->push_back(handle(extra, isolate));
       count++;
     }
   }
@@ -921,13 +899,13 @@ Name* FeedbackNexus::FindFirstName() const {
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()));
   MapHandles maps;
-  ObjectHandles handlers;
+  MaybeObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return STANDARD_LOAD;
 
   ExtractMaps(&maps);
   FindHandlers(&handlers, static_cast<int>(maps.size()));
-  for (Handle<Object> const& handler : handlers) {
+  for (MaybeObjectHandle const& handler : handlers) {
     KeyedAccessLoadMode mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
     if (mode != STANDARD_LOAD) return mode;
   }
@@ -939,26 +917,27 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
   MapHandles maps;
-  ObjectHandles handlers;
+  MaybeObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return mode;
 
   ExtractMaps(&maps);
   FindHandlers(&handlers, static_cast<int>(maps.size()));
-  for (const Handle<Object>& maybe_code_handler : handlers) {
+  for (const MaybeObjectHandle& maybe_code_handler : handlers) {
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Code> handler;
-    if (maybe_code_handler->IsStoreHandler()) {
+    if (maybe_code_handler.object()->IsStoreHandler()) {
       Handle<StoreHandler> data_handler =
-          Handle<StoreHandler>::cast(maybe_code_handler);
+          Handle<StoreHandler>::cast(maybe_code_handler.object());
       handler = handle(Code::cast(data_handler->smi_handler()));
-    } else if (maybe_code_handler->IsSmi()) {
+    } else if (maybe_code_handler.object()->IsSmi()) {
       // Skip proxy handlers.
-      DCHECK_EQ(*maybe_code_handler, *StoreHandler::StoreProxy(GetIsolate()));
+      DCHECK_EQ(*(maybe_code_handler.object()),
+                *StoreHandler::StoreProxy(GetIsolate()));
       continue;
     } else {
       // Element store without prototype chain check.
-      handler = Handle<Code>::cast(maybe_code_handler);
+      handler = Handle<Code>::cast(maybe_code_handler.object());
       if (handler->is_builtin()) continue;
     }
     CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());

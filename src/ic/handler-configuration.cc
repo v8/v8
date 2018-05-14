@@ -162,10 +162,10 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
-KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(Object* handler) {
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject* handler) {
   DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
-    int const raw_handler = Smi::cast(handler)->value();
+    int const raw_handler = Smi::cast(handler->ToSmi())->value();
     Kind const kind = KindBits::decode(raw_handler);
     if ((kind == kElement || kind == kIndexedString) &&
         AllowOutOfBoundsBits::decode(raw_handler)) {
@@ -195,8 +195,8 @@ Handle<Object> StoreHandler::StoreElementTransition(
   return handler;
 }
 
-Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
-                                             Handle<Map> transition_map) {
+MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
+                                                Handle<Map> transition_map) {
   bool is_dictionary_map = transition_map->is_dictionary_map();
 #ifdef DEBUG
   if (!is_dictionary_map) {
@@ -229,14 +229,14 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
     int config = KindBits::encode(kNormal) | LookupOnReceiverBits::encode(true);
     handler->set_smi_handler(Smi::FromInt(config));
     handler->set_validity_cell(*validity_cell);
-    return handler;
+    return MaybeObjectHandle(handler);
 
   } else {
     // Ensure the transition map contains a valid prototype validity cell.
     if (!validity_cell.is_null()) {
       transition_map->set_prototype_validity_cell(*validity_cell);
     }
-    return transition_map;
+    return MaybeObjectHandle::Weak(transition_map);
   }
 }
 

@@ -175,7 +175,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject
@@ -249,8 +249,8 @@ class StoreHandler final : public DataHandler {
                                        PropertyConstness constness,
                                        Representation representation);
 
-  static Handle<Object> StoreTransition(Isolate* isolate,
-                                        Handle<Map> transition_map);
+  static MaybeObjectHandle StoreTransition(Isolate* isolate,
+                                           Handle<Map> transition_map);
 
   // Creates a Smi-handler for storing a native data property on a fast object.
   static inline Handle<Smi> StoreNativeDataProperty(Isolate* isolate,

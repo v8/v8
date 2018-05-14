@@ -129,7 +129,7 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
 
-typedef std::vector<Handle<Object>> ObjectHandles;
+typedef std::vector<MaybeObjectHandle> MaybeObjectHandles;
 
 class FeedbackMetadata;
 
@@ -595,8 +595,8 @@ class FeedbackNexus final {
 
   InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const;
+  MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
+  bool FindHandlers(MaybeObjectHandles* code_list, int length = -1) const;
 
   bool IsCleared() const {
     InlineCacheState state = StateFromFeedback();
@@ -615,10 +615,10 @@ class FeedbackNexus final {
   inline Isolate* GetIsolate() const;
 
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Object> handler);
+                            const MaybeObjectHandle& handler);
 
   void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
-                            ObjectHandles* handlers);
+                            MaybeObjectHandles* handlers);
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
@@ -657,7 +657,7 @@ class FeedbackNexus final {
   // Returns false if given combination of indices is not allowed.
   bool ConfigureLexicalVarMode(int script_context_index,
                                int context_slot_index);
-  void ConfigureHandlerMode(Handle<Object> handler);
+  void ConfigureHandlerMode(const MaybeObjectHandle& handler);
 
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \

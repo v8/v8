@@ -39,15 +39,17 @@ Address IC::raw_constant_pool() const {
   }
 }
 
-
-bool IC::IsHandler(Object* object) {
-  return (object->IsSmi() && (object != nullptr)) || object->IsDataHandler() ||
-         object->IsMap() ||
-         (object->IsWeakCell() &&
-          (WeakCell::cast(object)->cleared() ||
-           WeakCell::cast(object)->value()->IsMap() ||
-           WeakCell::cast(object)->value()->IsPropertyCell())) ||
-         object->IsCode();
+bool IC::IsHandler(MaybeObject* object) {
+  HeapObject* heap_object;
+  return (object->IsSmi() && (object != nullptr)) ||
+         (object->ToWeakHeapObject(&heap_object) && heap_object->IsMap()) ||
+         (object->ToStrongHeapObject(&heap_object) &&
+          (heap_object->IsDataHandler() ||
+           (heap_object->IsWeakCell() &&
+            (WeakCell::cast(heap_object)->cleared() ||
+             WeakCell::cast(heap_object)->value()->IsMap() ||
+             WeakCell::cast(heap_object)->value()->IsPropertyCell())) ||
+           heap_object->IsCode()));
 }
 
 bool IC::AddressIsDeoptimizedCode() const {

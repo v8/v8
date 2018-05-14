@@ -64,7 +64,7 @@ class IC {
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
-  static inline bool IsHandler(Object* object);
+  static inline bool IsHandler(MaybeObject* object);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
@@ -101,9 +101,11 @@ class IC {
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);
+  void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
+                            const MaybeObjectHandle& handler);
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
-                            ObjectHandles* handlers);
+                            MaybeObjectHandles* handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
@@ -116,16 +118,17 @@ class IC {
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
-  void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
-  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
+  void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
   void UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
-                              Handle<Object> code);
+                              const MaybeObjectHandle& handler);
 
   StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
-  void PatchCache(Handle<Name> name, Handle<Object> code);
+  void PatchCache(Handle<Name> name, Handle<Object> handler);
+  void PatchCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
   bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }
@@ -199,7 +202,7 @@ class IC {
   State state_;
   FeedbackSlotKind kind_;
   Handle<Map> receiver_map_;
-  MaybeHandle<Object> maybe_handler_;
+  MaybeObjectHandle maybe_handler_;
 
   MapHandles target_maps_;
   bool target_maps_set_;
@@ -288,7 +291,7 @@ class KeyedLoadIC : public LoadIC {
                                     KeyedAccessLoadMode load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                      ObjectHandles* handlers,
+                                      MaybeObjectHandles* handlers,
                                       KeyedAccessLoadMode load_mode);
 
   // Returns true if the receiver_map has a kElement or kIndexedString
@@ -328,7 +331,7 @@ class StoreIC : public IC {
                     JSReceiver::StoreFromKeyed store_mode);
 
  private:
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
+  MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
 };
@@ -385,7 +388,7 @@ class KeyedStoreIC : public StoreIC {
                                      KeyedAccessStoreMode store_mode);
 
   void StoreElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                       ObjectHandles* handlers,
+                                       MaybeObjectHandles* handlers,
                                        KeyedAccessStoreMode store_mode);
 
   friend class IC;

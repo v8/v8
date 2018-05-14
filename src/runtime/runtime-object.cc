@@ -803,7 +803,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   if (nexus.ic_state() == UNINITIALIZED) {
     if (name->IsUniqueName()) {
       nexus.ConfigureMonomorphic(name, handle(object->map()),
-                                 Handle<Code>::null());
+                                 MaybeObjectHandle());
     } else {
       nexus.ConfigureMegamorphic(PROPERTY);
     }
