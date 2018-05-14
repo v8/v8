@@ -665,7 +665,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
   Handle<WasmCompiledModule> compiled_module =
       WasmCompiledModule::New(isolate, shared->module(), env);
-  compiled_module->set_shared(*shared);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared);
   NativeModuleDeserializer deserializer(isolate,
                                         compiled_module->GetNativeModule());
@@ -674,7 +673,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!deserializer.Read(&reader)) return {};
 
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, compiled_module, export_wrappers);
+      WasmModuleObject::New(isolate, compiled_module, export_wrappers, shared);
 
   // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
   // requires unlocking the code space here. This should eventually be moved

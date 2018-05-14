@@ -872,12 +872,11 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     }
   }
 
-  Handle<WasmCompiledModule> compiled_part(object->compiled_module(), isolate_);
   WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
 
-  Handle<String> wire_bytes(compiled_part->shared()->module_bytes(), isolate_);
+  Handle<String> wire_bytes(object->shared()->module_bytes(), isolate_);
   int wire_bytes_length = wire_bytes->length();
   WriteVarint<uint32_t>(wire_bytes_length);
   uint8_t* destination;
@@ -885,6 +884,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
   }
 
+  Handle<WasmCompiledModule> compiled_part(object->compiled_module(), isolate_);
   size_t module_size =
       wasm::GetSerializedNativeModuleSize(isolate_, compiled_part);
   CHECK_GE(std::numeric_limits<uint32_t>::max(), module_size);

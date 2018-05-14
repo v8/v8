@@ -51,10 +51,7 @@ CAST_ACCESSOR(WasmTableObject)
 ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
-
-WasmSharedModuleData* WasmModuleObject::shared() const {
-  return compiled_module()->shared();
-}
+ACCESSORS(WasmModuleObject, shared, WasmSharedModuleData, kSharedOffset)
 
 // WasmTableObject
 ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
@@ -232,7 +229,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
   }
 
 // WasmCompiledModule
-WCM_OBJECT(WasmSharedModuleData, shared, kSharedOffset)
 WCM_OBJECT(WasmCompiledModule, next_instance, kNextInstanceOffset)
 WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)
 WCM_WEAK_LINK(WasmInstanceObject, owning_instance, kOwningInstanceOffset)

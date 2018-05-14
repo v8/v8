@@ -72,7 +72,7 @@ bool CodeSpecialization::ApplyToWholeModule(
     NativeModule* native_module, Handle<WasmModuleObject> module_object,
     ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmSharedModuleData* shared = module_object->compiled_module()->shared();
+  WasmSharedModuleData* shared = module_object->shared();
   WasmModule* module = shared->module();
   std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
   FixedArray* export_wrappers = module_object->export_wrappers();

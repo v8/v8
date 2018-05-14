@@ -7416,9 +7416,7 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::WasmCompiledModule> compiled_part =
-      i::handle(obj->compiled_module());
-  i::Handle<i::String> wire_bytes(compiled_part->shared()->module_bytes());
+  i::Handle<i::String> wire_bytes(obj->shared()->module_bytes());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 

@@ -1644,7 +1644,6 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
 
 void WasmCompiledModule::WasmCompiledModulePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WasmCompiledModule");
-  os << "\n - shared: " << Brief(shared());
   os << "\n";
 }
 

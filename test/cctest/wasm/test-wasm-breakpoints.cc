@@ -249,7 +249,7 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
   WasmInstanceObject* instance = *runner.builder().instance_object();
-  WasmSharedModuleData* shared = instance->compiled_module()->shared();
+  WasmSharedModuleData* shared = instance->module_object()->shared();
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.

@@ -262,16 +262,17 @@ enum DispatchTableElements : int {
 
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    Handle<FixedArray> export_wrappers) {
+    Handle<FixedArray> export_wrappers, Handle<WasmSharedModuleData> shared) {
   Handle<JSFunction> module_cons(
       isolate->native_context()->wasm_module_constructor());
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
   module_object->set_compiled_module(*compiled_module);
   module_object->set_export_wrappers(*export_wrappers);
-  if (compiled_module->shared()->script()->type() == Script::TYPE_WASM) {
-    compiled_module->shared()->script()->set_wasm_module_object(*module_object);
+  if (shared->script()->type() == Script::TYPE_WASM) {
+    shared->script()->set_wasm_module_object(*module_object);
   }
+  module_object->set_shared(*shared);
 
   compiled_module->LogWasmCodes(isolate);
   return module_object;
@@ -758,7 +759,7 @@ void WasmInstanceObject::SetRawMemory(byte* mem_start, uint32_t mem_size) {
 }
 
 WasmModule* WasmInstanceObject::module() {
-  return compiled_module()->shared()->module();
+  return module_object()->shared()->module();
 }
 
 Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
@@ -782,9 +783,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   // Initialize the imported function arrays.
   auto num_imported_functions =
-      compiled_module->shared()->module()->num_imported_functions;
+      module_object->shared()->module()->num_imported_functions;
   auto num_imported_mutable_globals =
-      compiled_module->shared()->module()->num_imported_mutable_globals;
+      module_object->shared()->module()->num_imported_mutable_globals;
   auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
       isolate, instance, num_imported_functions, num_imported_mutable_globals);
   instance->set_managed_native_allocations(*native_allocations);
@@ -1373,7 +1374,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   Handle<FixedArray> code_copy;
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
-  ret->set_shared(module->shared());
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   ret->set_native_module(module->native_module());
 
@@ -1554,13 +1554,10 @@ void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
   wasm::NativeModule* native_module = GetNativeModule();
   if (native_module == nullptr) return;
   const uint32_t number_of_codes = native_module->function_count();
-  if (has_shared()) {
-    Handle<WasmSharedModuleData> shared_handle(shared(), isolate);
-    for (uint32_t i = 0; i < number_of_codes; i++) {
-      wasm::WasmCode* code = native_module->code(i);
-      if (code == nullptr) continue;
-      code->LogCode(isolate);
-    }
+  for (uint32_t i = 0; i < number_of_codes; i++) {
+    wasm::WasmCode* code = native_module->code(i);
+    if (code == nullptr) continue;
+    code->LogCode(isolate);
   }
 }
 

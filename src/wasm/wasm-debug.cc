@@ -71,7 +71,7 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
   DCHECK_LE(0, local_index);
   if (!debug_info->has_locals_names()) {
     Handle<WasmSharedModuleData> shared(
-        debug_info->wasm_instance()->compiled_module()->shared(), isolate);
+        debug_info->wasm_instance()->module_object()->shared(), isolate);
     Handle<FixedArray> locals_names = wasm::DecodeLocalNames(isolate, shared);
     debug_info->set_locals_names(*locals_names);
   }
@@ -132,10 +132,8 @@ class InterpreterHandle {
   static Vector<const byte> GetBytes(WasmDebugInfo* debug_info) {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
-    SeqOneByteString* bytes_str = debug_info->wasm_instance()
-                                      ->compiled_module()
-                                      ->shared()
-                                      ->module_bytes();
+    SeqOneByteString* bytes_str =
+        debug_info->wasm_instance()->module_object()->shared()->module_bytes();
     return {bytes_str->GetChars(), static_cast<size_t>(bytes_str->length())};
   }
 
@@ -144,7 +142,7 @@ class InterpreterHandle {
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : isolate_(isolate),
         module_(
-            debug_info->wasm_instance()->compiled_module()->shared()->module()),
+            debug_info->wasm_instance()->module_object()->shared()->module()),
         interpreter_(isolate, module_, GetBytes(debug_info),
                      handle(debug_info->wasm_instance())) {}
 
@@ -309,7 +307,7 @@ class InterpreterHandle {
     // Check whether we hit a breakpoint.
     if (isolate_->debug()->break_points_active()) {
       Handle<WasmSharedModuleData> shared(
-          GetInstanceObject()->compiled_module()->shared(), isolate_);
+          GetInstanceObject()->module_object()->shared(), isolate_);
       int position = GetTopPosition(shared);
       Handle<FixedArray> breakpoints;
       if (WasmSharedModuleData::CheckBreakPoints(isolate_, shared, position)
@@ -557,7 +555,7 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
 
 int GetNumFunctions(WasmInstanceObject* instance) {
   size_t num_functions =
-      instance->compiled_module()->shared()->module()->functions.size();
+      instance->module_object()->shared()->module()->functions.size();
   DCHECK_GE(kMaxInt, num_functions);
   return static_cast<int>(num_functions);
 }

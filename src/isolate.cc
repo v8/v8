@@ -470,7 +470,7 @@ class FrameArrayBuilder {
         }
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = 0;
-        if (instance->compiled_module()->shared()->is_asm_js()) {
+        if (instance->module_object()->shared()->is_asm_js()) {
           flags |= FrameArray::kIsAsmJsWasmFrame;
           if (WasmCompiledFrame::cast(frame)->at_to_number_conversion()) {
             flags |= FrameArray::kAsmJsAtNumberConversion;
@@ -489,7 +489,7 @@ class FrameArrayBuilder {
         const auto& summary = summ.AsWasmInterpreted();
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = FrameArray::kIsWasmInterpretedFrame;
-        DCHECK(!instance->compiled_module()->shared()->is_asm_js());
+        DCHECK(!instance->module_object()->shared()->is_asm_js());
         elements_ = FrameArray::AppendWasmFrame(elements_, instance,
                                                 summary.function_index(), {},
                                                 summary.byte_offset(), flags);
@@ -807,7 +807,7 @@ class CaptureStackTraceHelper {
     Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
 
     Handle<WasmSharedModuleData> shared(
-        summ.wasm_instance()->compiled_module()->shared(), isolate_);
+        summ.wasm_instance()->module_object()->shared(), isolate_);
     Handle<String> name = WasmSharedModuleData::GetFunctionName(
         isolate_, shared, summ.function_index());
     info->set_function_name(*name);
@@ -1738,8 +1738,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
-      Handle<WasmCompiledModule> compiled_module(
-          elements->WasmInstance(i)->compiled_module());
+      Handle<WasmInstanceObject> instance(elements->WasmInstance(i));
       uint32_t func_index =
           static_cast<uint32_t>(elements->WasmFunctionIndex(i)->value());
       int code_offset = elements->Offset(i)->value();
@@ -1748,16 +1747,16 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       // a second lookup here could lead to inconsistency.
       int byte_offset =
           FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-              compiled_module->GetNativeModule()->code(func_index),
+              instance->compiled_module()->GetNativeModule()->code(func_index),
               code_offset);
 
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
       int pos = WasmSharedModuleData::GetSourcePosition(
-          handle(compiled_module->shared(), this), func_index, byte_offset,
-          is_at_number_conversion);
-      Handle<Script> script(compiled_module->shared()->script());
+          handle(instance->module_object()->shared(), this), func_index,
+          byte_offset, is_at_number_conversion);
+      Handle<Script> script(instance->module_object()->shared()->script());
 
       *target = MessageLocation(script, pos, pos + 1);
       return true;

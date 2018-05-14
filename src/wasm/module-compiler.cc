@@ -472,21 +472,23 @@ class IndirectPatcher {
   int misses_ = 0;
 };
 
-ModuleEnv CreateModuleEnvFromCompiledModule(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  WasmModule* module = compiled_module->shared()->module();
+ModuleEnv CreateModuleEnvFromModuleObject(
+    Isolate* isolate, Handle<WasmModuleObject> module_object) {
+  WasmModule* module = module_object->shared()->module();
   wasm::UseTrapHandler use_trap_handler =
-      compiled_module->GetNativeModule()->use_trap_handler() ? kUseTrapHandler
-                                                             : kNoTrapHandler;
+      module_object->compiled_module()->GetNativeModule()->use_trap_handler()
+          ? kUseTrapHandler
+          : kNoTrapHandler;
   return ModuleEnv(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
 }
 
 const wasm::WasmCode* LazyCompileFunction(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    int func_index) {
+    Isolate* isolate, Handle<WasmModuleObject> module_object, int func_index) {
   base::ElapsedTimer compilation_timer;
-  wasm::WasmCode* existing_code = compiled_module->GetNativeModule()->code(
-      static_cast<uint32_t>(func_index));
+  NativeModule* native_module =
+      module_object->compiled_module()->GetNativeModule();
+  wasm::WasmCode* existing_code =
+      native_module->code(static_cast<uint32_t>(func_index));
   if (existing_code != nullptr &&
       existing_code->kind() == wasm::WasmCode::kFunction) {
     TRACE_LAZY("Function %d already compiled.\n", func_index);
@@ -499,7 +501,7 @@ const wasm::WasmCode* LazyCompileFunction(
   std::string func_name;
   {
     WasmName name = Vector<const char>::cast(
-        compiled_module->shared()->GetRawFunctionName(func_index));
+        module_object->shared()->GetRawFunctionName(func_index));
     // Copy to std::string, because the underlying string object might move on
     // the heap.
     func_name.assign(name.start(), static_cast<size_t>(name.length()));
@@ -508,10 +510,10 @@ const wasm::WasmCode* LazyCompileFunction(
   TRACE_LAZY("Compiling function %s, %d.\n", func_name.c_str(), func_index);
 
   ModuleEnv module_env =
-      CreateModuleEnvFromCompiledModule(isolate, compiled_module);
+      CreateModuleEnvFromModuleObject(isolate, module_object);
 
   const uint8_t* module_start =
-      compiled_module->shared()->module_bytes()->GetChars();
+      module_object->shared()->module_bytes()->GetChars();
 
   const WasmFunction* func = &module_env.module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(),
@@ -519,9 +521,9 @@ const wasm::WasmCode* LazyCompileFunction(
                     module_start + func->code.end_offset()};
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
-  WasmCompilationUnit unit(
-      isolate, &module_env, compiled_module->GetNativeModule(), body,
-      CStrVector(func_name.c_str()), func_index, CodeFactory::CEntry(isolate));
+  WasmCompilationUnit unit(isolate, &module_env, native_module, body,
+                           CStrVector(func_name.c_str()), func_index,
+                           CodeFactory::CEntry(isolate));
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
@@ -536,7 +538,7 @@ const wasm::WasmCode* LazyCompileFunction(
 
   // Now specialize the generated code for this instance.
   CodeSpecialization code_specialization;
-  code_specialization.RelocateDirectCalls(compiled_module->GetNativeModule());
+  code_specialization.RelocateDirectCalls(native_module);
   code_specialization.ApplyToWasmCode(wasm_code, SKIP_ICACHE_FLUSH);
   int64_t func_size =
       static_cast<int64_t>(func->code.end_offset() - func->code.offset());
@@ -579,14 +581,14 @@ const wasm::WasmCode* LazyCompileFromJsToWasm(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     Handle<Code> js_to_wasm_caller, uint32_t callee_func_index) {
   Decoder decoder(nullptr, nullptr);
-  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
-                                             isolate);
+  Handle<WasmModuleObject> module_object(instance->module_object());
+  NativeModule* native_module = instance->compiled_module()->GetNativeModule();
 
   TRACE_LAZY(
       "Starting lazy compilation (func %u, js_to_wasm: true, patch caller: "
       "true). \n",
       callee_func_index);
-  LazyCompileFunction(isolate, compiled_module, callee_func_index);
+  LazyCompileFunction(isolate, module_object, callee_func_index);
   {
     DisallowHeapAllocation no_gc;
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
@@ -594,7 +596,7 @@ const wasm::WasmCode* LazyCompileFromJsToWasm(
                      RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
     DCHECK(!it.done());
     const wasm::WasmCode* callee_compiled =
-        compiled_module->GetNativeModule()->code(callee_func_index);
+        native_module->code(callee_func_index);
     DCHECK_NOT_NULL(callee_compiled);
     DCHECK_EQ(WasmCode::kLazyStub,
               isolate->wasm_engine()
@@ -610,8 +612,7 @@ const wasm::WasmCode* LazyCompileFromJsToWasm(
 #endif
   }
 
-  wasm::WasmCode* ret =
-      compiled_module->GetNativeModule()->code(callee_func_index);
+  wasm::WasmCode* ret = native_module->code(callee_func_index);
   DCHECK_NOT_NULL(ret);
   DCHECK_EQ(wasm::WasmCode::kFunction, ret->kind());
   return ret;
@@ -624,9 +625,8 @@ const wasm::WasmCode* LazyCompileIndirectCall(
       "Starting lazy compilation (func %u, js_to_wasm: false, patch caller: "
       "false). \n",
       func_index);
-  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
-                                             isolate);
-  return LazyCompileFunction(isolate, compiled_module, func_index);
+  Handle<WasmModuleObject> module_object(instance->module_object());
+  return LazyCompileFunction(isolate, module_object, func_index);
 }
 
 const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
@@ -706,10 +706,10 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
       "-> %d).\n",
       wasm_caller, caller_ret_offset, callee_pos, callee_func_index);
 
-  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
-                                             isolate);
+  Handle<WasmModuleObject> module_object(instance->module_object());
+  NativeModule* native_module = instance->compiled_module()->GetNativeModule();
   const WasmCode* ret =
-      LazyCompileFunction(isolate, compiled_module, callee_func_index);
+      LazyCompileFunction(isolate, module_object, callee_func_index);
   DCHECK_NOT_NULL(ret);
 
   int patched = 0;
@@ -724,8 +724,7 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
          !it.done(); it.next(), ++pos) {
       auto callee_index = direct_callees[pos];
       if (callee_index < 0) continue;  // callee already compiled.
-      const WasmCode* callee_compiled =
-          compiled_module->GetNativeModule()->code(callee_index);
+      const WasmCode* callee_compiled = native_module->code(callee_index);
       if (callee_compiled->kind() != WasmCode::kFunction) continue;
       DCHECK_EQ(WasmCode::kLazyStub,
                 isolate->wasm_engine()
@@ -1085,7 +1084,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 
 void UpdateAllCompiledModulesWithTopTierCode(
     Handle<WasmModuleObject> module_object) {
-  WasmModule* module = module_object->compiled_module()->shared()->module();
+  WasmModule* module = module_object->shared()->module();
   DCHECK_GT(module->functions.size() - module->num_imported_functions, 0);
   USE(module);
 
@@ -1356,10 +1355,9 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   Handle<WasmCompiledModule> compiled_module =
       NewCompiledModule(isolate, shared->module(), env);
   NativeModule* native_module = compiled_module->GetNativeModule();
-  compiled_module->set_shared(*shared);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared);
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, compiled_module, export_wrappers);
+      WasmModuleObject::New(isolate, compiled_module, export_wrappers, shared);
   if (lazy_compile) {
     if (wasm_module->is_wasm()) {
       // Validate wasm modules for lazy compilation. Don't validate asm.js
@@ -1536,7 +1534,7 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                                  MaybeHandle<JSReceiver> ffi,
                                  MaybeHandle<JSArrayBuffer> memory)
     : isolate_(isolate),
-      module_(module_object->compiled_module()->shared()->module()),
+      module_(module_object->shared()->module()),
       async_counters_(isolate->async_counters()),
       thrower_(thrower),
       module_object_(module_object),
@@ -1809,7 +1807,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set all breakpoints that were set on the shared module.
   WasmSharedModuleData::SetBreakpointsOnNewInstance(
-      handle(compiled_module_->shared(), isolate_), instance);
+      handle(module_object_->shared(), isolate_), instance);
 
   if (FLAG_wasm_interpret_all && module_->is_wasm()) {
     Handle<WasmDebugInfo> debug_info =
@@ -1951,7 +1949,7 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
 // Load data segments into the memory.
 void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
   Handle<SeqOneByteString> module_bytes(
-      compiled_module_->shared()->module_bytes(), isolate_);
+      module_object_->shared()->module_bytes(), isolate_);
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t source_size = segment.source.length();
     // Segments of size == 0 are just nops.
@@ -2026,7 +2024,7 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
 
 void InstanceBuilder::SanitizeImports() {
   Handle<SeqOneByteString> module_bytes(
-      module_object_->compiled_module()->shared()->module_bytes());
+      module_object_->shared()->module_bytes());
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     WasmImport& import = module_->import_table[index];
 
@@ -2483,7 +2481,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   for (WasmExport& exp : module_->export_table) {
     Handle<String> name =
         WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-            isolate_, handle(compiled_module_->shared(), isolate_), exp.name)
+            isolate_, handle(module_object_->shared(), isolate_), exp.name)
             .ToHandleChecked();
     Handle<JSObject> export_to;
     if (module_->is_asm_js() && exp.kind == kExternalFunction &&
@@ -2505,12 +2503,11 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           MaybeHandle<String> func_name;
           if (module_->is_asm_js()) {
             // For modules arising from asm.js, honor the names section.
-            WireBytesRef func_name_ref =
-                module_->LookupName(compiled_module_->shared()->module_bytes(),
-                                    function.func_index);
+            WireBytesRef func_name_ref = module_->LookupName(
+                module_object_->shared()->module_bytes(), function.func_index);
             func_name =
                 WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-                    isolate_, handle(compiled_module_->shared(), isolate_),
+                    isolate_, handle(module_object_->shared(), isolate_),
                     func_name_ref)
                     .ToHandleChecked();
           }
@@ -2669,10 +2666,10 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
               WireBytesRef func_name_ref = module_->LookupName(
-                  compiled_module_->shared()->module_bytes(), func_index);
+                  module_object_->shared()->module_bytes(), func_index);
               func_name =
                   WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-                      isolate_, handle(compiled_module_->shared(), isolate_),
+                      isolate_, handle(module_object_->shared(), isolate_),
                       func_name_ref)
                       .ToHandleChecked();
             }
@@ -2825,12 +2822,11 @@ void AsyncCompileJob::FinishCompile() {
   Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
       isolate_, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
       script, asm_js_offset_table);
-  compiled_module_->set_shared(*shared);
   compiled_module_->GetNativeModule()->SetSharedModuleData(shared);
 
   // Create the module object.
-  module_object_ =
-      WasmModuleObject::New(isolate_, compiled_module_, export_wrappers);
+  module_object_ = WasmModuleObject::New(isolate_, compiled_module_,
+                                         export_wrappers, shared);
   {
     DeferredHandleScope deferred(isolate_);
     module_object_ = handle(*module_object_, isolate_);
@@ -3161,7 +3157,7 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     TRACE_COMPILE("(6) Finish module...\n");
     job_->AsyncCompileSucceeded(job_->module_object_);
 
-    WasmModule* module = job_->compiled_module_->shared()->module();
+    WasmModule* module = job_->module_object_->shared()->module();
     size_t num_functions =
         module->functions.size() - module->num_imported_functions;
     if (job_->compiled_module_->GetNativeModule()
@@ -3640,14 +3636,13 @@ void CompileJsToWasmWrappers(Isolate* isolate,
       module_object->compiled_module()->GetNativeModule();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  for (auto exp :
-       module_object->compiled_module()->shared()->module()->export_table) {
+  for (auto exp : module_object->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     wasm::WasmCode* wasm_code =
         native_module->GetIndirectlyCallableCode(exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, module_object->compiled_module()->shared()->module(),
-        wasm_code, exp.index, use_trap_handler);
+        isolate, module_object->shared()->module(), wasm_code, exp.index,
+        use_trap_handler);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters);
     ++wrapper_index;

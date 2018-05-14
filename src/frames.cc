@@ -1317,18 +1317,18 @@ WASM_SUMMARY_DISPATCH(int, byte_offset)
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
   Handle<WasmSharedModuleData> shared(
-      wasm_instance()->compiled_module()->shared(), isolate());
+      wasm_instance()->module_object()->shared(), isolate());
   return WasmSharedModuleData::GetSourcePosition(
       shared, function_index(), byte_offset(), at_to_number_conversion());
 }
 
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
-  return handle(wasm_instance()->compiled_module()->shared()->script());
+  return handle(wasm_instance()->module_object()->shared()->script());
 }
 
 Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
   Handle<WasmSharedModuleData> shared(
-      wasm_instance()->compiled_module()->shared(), isolate());
+      wasm_instance()->module_object()->shared(), isolate());
   return WasmSharedModuleData::GetFunctionName(isolate(), shared,
                                                function_index());
 }
@@ -1803,7 +1803,7 @@ WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
 }
 
 WasmSharedModuleData* WasmCompiledFrame::shared() const {
-  return wasm_instance()->compiled_module()->shared();
+  return wasm_instance()->module_object()->shared();
 }
 
 WasmCompiledModule* WasmCompiledFrame::compiled_module() const {
@@ -1899,7 +1899,7 @@ WasmDebugInfo* WasmInterpreterEntryFrame::debug_info() const {
 }
 
 WasmSharedModuleData* WasmInterpreterEntryFrame::shared() const {
-  return wasm_instance()->compiled_module()->shared();
+  return wasm_instance()->module_object()->shared();
 }
 
 WasmCompiledModule* WasmInterpreterEntryFrame::compiled_module() const {

@@ -173,7 +173,7 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   Handle<WasmSharedModuleData> shared(
-      instance_object_->compiled_module()->shared(), isolate_);
+      instance_object_->module_object()->shared(), isolate_);
   Handle<SeqOneByteString> old_bytes(shared->module_bytes(), isolate_);
   uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
   // Avoid placing strings at offset 0, this might be interpreted as "not
@@ -222,10 +222,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   ModuleEnv env = CreateModuleEnv();
   Handle<WasmCompiledModule> compiled_module =
       WasmCompiledModule::New(isolate_, test_module_ptr_, env);
-  compiled_module->set_shared(*shared_module_data);
   compiled_module->GetNativeModule()->SetSharedModuleData(shared_module_data);
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, compiled_module, export_wrappers);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate_, compiled_module, export_wrappers, shared_module_data);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
@@ -421,8 +420,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   Handle<WasmCompiledModule> compiled_module(
       builder_->instance_object()->compiled_module(), isolate());
   NativeModule* native_module = compiled_module->GetNativeModule();
-  Handle<SeqOneByteString> wire_bytes(compiled_module->shared()->module_bytes(),
-                                      isolate());
+  Handle<SeqOneByteString> wire_bytes(
+      builder_->instance_object()->module_object()->shared()->module_bytes(),
+      isolate());
 
   ModuleEnv module_env = builder_->CreateModuleEnv();
   ErrorThrower thrower(isolate(), "WasmFunctionCompiler::Build");
