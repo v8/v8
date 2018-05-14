@@ -347,7 +347,7 @@ template <Decoder::ValidateFlag validate>
 class BranchTableIterator {
  public:
   unsigned cur_index() { return index_; }
-  bool has_next() { return decoder_->ok() && index_ <= table_count_; }
+  bool has_next() { return VALIDATE(decoder_->ok()) && index_ <= table_count_; }
   uint32_t next() {
     DCHECK(has_next());
     index_++;
@@ -687,7 +687,7 @@ class WasmDecoder : public Decoder {
     if (decoder->failed()) return false;
 
     TRACE("local decls count: %u\n", entries);
-    while (entries-- > 0 && decoder->ok() && decoder->more()) {
+    while (entries-- > 0 && VALIDATE(decoder->ok()) && decoder->more()) {
       uint32_t count = decoder->consume_u32v("local count");
       if (decoder->failed()) return false;
 
@@ -746,7 +746,7 @@ class WasmDecoder : public Decoder {
     BitVector* assigned = new (zone) BitVector(locals_count, zone);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
-    while (pc < decoder->end() && decoder->ok()) {
+    while (pc < decoder->end() && VALIDATE(decoder->ok())) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
       unsigned length = 1;
       switch (opcode) {
@@ -786,7 +786,7 @@ class WasmDecoder : public Decoder {
       if (depth <= 0) break;
       pc += length;
     }
-    return decoder->ok() ? assigned : nullptr;
+    return VALIDATE(decoder->ok()) ? assigned : nullptr;
   }
 
   inline bool Validate(const byte* pc,
@@ -1163,19 +1163,20 @@ class WasmDecoder : public Decoder {
 };
 
 #define CALL_INTERFACE(name, ...) interface_.name(this, ##__VA_ARGS__)
-#define CALL_INTERFACE_IF_REACHABLE(name, ...)       \
-  do {                                               \
-    DCHECK(!control_.empty());                       \
-    if (this->ok() && control_.back().reachable()) { \
-      interface_.name(this, ##__VA_ARGS__);          \
-    }                                                \
+#define CALL_INTERFACE_IF_REACHABLE(name, ...)                 \
+  do {                                                         \
+    DCHECK(!control_.empty());                                 \
+    if (VALIDATE(this->ok()) && control_.back().reachable()) { \
+      interface_.name(this, ##__VA_ARGS__);                    \
+    }                                                          \
   } while (false)
-#define CALL_INTERFACE_IF_PARENT_REACHABLE(name, ...)                         \
-  do {                                                                        \
-    DCHECK(!control_.empty());                                                \
-    if (this->ok() && (control_.size() == 1 || control_at(1)->reachable())) { \
-      interface_.name(this, ##__VA_ARGS__);                                   \
-    }                                                                         \
+#define CALL_INTERFACE_IF_PARENT_REACHABLE(name, ...)           \
+  do {                                                          \
+    DCHECK(!control_.empty());                                  \
+    if (VALIDATE(this->ok()) &&                                 \
+        (control_.size() == 1 || control_at(1)->reachable())) { \
+      interface_.name(this, ##__VA_ARGS__);                     \
+    }                                                           \
   } while (false)
 
 template <Decoder::ValidateFlag validate, typename Interface>
@@ -1246,9 +1247,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     if (FLAG_trace_wasm_decode_time) {
       double ms = decode_timer.Elapsed().InMillisecondsF();
-      PrintF("wasm-decode %s (%0.3f ms)\n\n", this->ok() ? "ok" : "failed", ms);
+      PrintF("wasm-decode %s (%0.3f ms)\n\n",
+             VALIDATE(this->ok()) ? "ok" : "failed", ms);
     } else {
-      TRACE("wasm-decode %s\n\n", this->ok() ? "ok" : "failed");
+      TRACE("wasm-decode %s\n\n", VALIDATE(this->ok()) ? "ok" : "failed");
     }
 
     return true;
@@ -1505,7 +1507,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&imm)) break;
             auto cond = Pop(0, kWasmI32);
             PopArgs(imm.sig);
-            if (!this->ok()) break;
+            if (!VALIDATE(this->ok())) break;
             auto* if_block = PushIf();
             SetBlockType(if_block, imm);
             CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
@@ -1983,7 +1985,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #endif
       this->pc_ += len;
     }  // end decode loop
-    if (this->pc_ > this->end_ && this->ok()) this->error("Beyond end of code");
+    if (!VALIDATE(this->pc_ == this->end_) && this->ok()) {
+      this->error("Beyond end of code");
+    }
   }
 
   void EndControl() {
