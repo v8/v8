@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <queue>
+#include <unordered_map>
 #include <vector>
 
 #include "include/v8-inspector.h"
@@ -248,6 +249,8 @@ class ThreadId {
     return *this;
   }
 
+  bool operator==(const ThreadId& other) const { return Equals(other); }
+
   // Returns ThreadId for current thread.
   static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
 
@@ -287,7 +290,6 @@ class ThreadId {
 
   friend class Isolate;
 };
-
 
 #define FIELD_ACCESSOR(type, name)                 \
   inline void set_##name(type v) { name##_ = v; }  \
@@ -550,8 +552,6 @@ class Isolate {
   void TearDown();
 
   void ReleaseManagedObjects();
-
-  static void GlobalTearDown();
 
   void ClearSerializerData();
 
@@ -1398,20 +1398,24 @@ class Isolate {
   void* embedder_data_[Internals::kNumIsolateDataSlots];
   Heap heap_;
 
-  // The per-process lock should be acquired before the ThreadDataTable is
-  // modified.
   class ThreadDataTable {
    public:
     ThreadDataTable();
     ~ThreadDataTable();
 
-    PerIsolateThreadData* Lookup(Isolate* isolate, ThreadId thread_id);
+    PerIsolateThreadData* Lookup(ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
     void Remove(PerIsolateThreadData* data);
-    void RemoveAllThreads(Isolate* isolate);
+    void RemoveAllThreads();
 
    private:
-    PerIsolateThreadData* list_;
+    struct Hasher {
+      std::size_t operator()(const ThreadId& t) const {
+        return std::hash<int>()(t.ToInteger());
+      }
+    };
+
+    std::unordered_map<ThreadId, PerIsolateThreadData*, Hasher> table_;
   };
 
   // These items form a stack synchronously with threads Enter'ing and Exit'ing
@@ -1439,12 +1443,15 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  static base::LazyMutex thread_data_table_mutex_;
+  // TODO(kenton@cloudflare.com): This mutex can be removed if
+  // thread_data_table_ is always accessed under the isolate lock. I do not
+  // know if this is the case, so I'm preserving it for now.
+  base::Mutex thread_data_table_mutex_;
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
   static base::Thread::LocalStorageKey thread_id_key_;
-  static ThreadDataTable* thread_data_table_;
+  ThreadDataTable thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
   static base::Atomic32 isolate_counter_;
