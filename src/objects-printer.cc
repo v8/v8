@@ -145,7 +145,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_GENERATOR_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
@@ -155,6 +154,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
+      break;
+    case JS_GENERATOR_OBJECT_TYPE:
+      JSGeneratorObject::cast(this)->JSGeneratorObjectPrint(os);
       break;
     case JS_PROMISE_TYPE:
       JSPromise::cast(this)->JSPromisePrint(os);
@@ -598,6 +600,56 @@ static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
 void JSObject::JSObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, nullptr);
   JSObjectPrintBody(os, this);
+}
+
+void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSGeneratorObject");
+  os << "\n - function: " << Brief(function());
+  os << "\n - context: " << Brief(context());
+  os << "\n - receiver: " << Brief(receiver());
+  if (is_executing() || is_closed()) {
+    os << "\n - input: " << Brief(input_or_debug_pos());
+  } else {
+    DCHECK(is_suspended());
+    os << "\n - debug pos: " << Brief(input_or_debug_pos());
+  }
+  const char* mode = "(invalid)";
+  switch (resume_mode()) {
+    case kNext:
+      mode = ".next()";
+      break;
+    case kReturn:
+      mode = ".return()";
+      break;
+    case kThrow:
+      mode = ".throw()";
+      break;
+  }
+  os << "\n - resume mode: " << mode;
+  os << "\n - continuation: " << continuation();
+  if (is_closed()) os << " (closed)";
+  if (is_executing()) os << " (executing)";
+  if (is_suspended()) os << " (suspended)";
+  if (is_suspended()) {
+    DisallowHeapAllocation no_gc;
+    SharedFunctionInfo* fun_info = function()->shared();
+    if (fun_info->HasSourceCode()) {
+      Script* script = Script::cast(fun_info->script());
+      int lin = script->GetLineNumber(source_position()) + 1;
+      int col = script->GetColumnNumber(source_position()) + 1;
+      String* script_name = script->name()->IsString()
+                                ? String::cast(script->name())
+                                : GetIsolate()->heap()->empty_string();
+      os << "\n - source position: " << source_position();
+      os << " (";
+      script_name->PrintUC16(os);
+      os << ", lin " << lin;
+      os << ", col " << col;
+      os << ")";
+    }
+  }
+  os << "\n - register file: " << Brief(register_file());
+  os << "\n";
 }
 
 void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT

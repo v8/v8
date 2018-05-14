@@ -3232,6 +3232,7 @@ class JSGeneratorObject: public JSObject {
   DECL_CAST(JSGeneratorObject)
 
   // Dispatched behavior.
+  DECL_PRINTER(JSGeneratorObject)
   DECL_VERIFIER(JSGeneratorObject)
 
   // Magic sentinel values for the continuation.
