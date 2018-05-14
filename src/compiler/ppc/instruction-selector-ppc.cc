@@ -66,6 +66,17 @@ class PPCOperandGenerator final : public OperandGenerator {
     }
     return false;
   }
+
+  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
+  // register.
+  InstructionOperand UseRegisterOrStackPointer(Node* node) {
+    if (node->opcode() == IrOpcode::kLoadStackPointer) {
+      return LocationOperand(LocationOperand::EXPLICIT,
+                             LocationOperand::REGISTER,
+                             MachineRepresentation::kWord32, sp.code());
+    }
+    return UseRegister(node);
+  }
 };
 
 
@@ -1483,15 +1494,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
-                 cont);
+    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
+                 g.UseImmediate(right), cont);
   } else if (g.CanBeImmediate(left, immediate_mode)) {
     if (!commutative) cont->Commute();
-    VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
-                 cont);
+    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(right),
+                 g.UseImmediate(left), cont);
   } else {
-    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
-                 cont);
+    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
+                 g.UseRegisterOrStackPointer(right), cont);
   }
 }
 
