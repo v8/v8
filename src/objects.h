@@ -18,8 +18,6 @@
 #include "src/flags.h"
 #include "src/messages.h"
 #include "src/property-details.h"
-#include "src/unicode-decoder.h"
-#include "src/unicode.h"
 
 #if V8_TARGET_ARCH_ARM
 #include "src/arm/constants-arm.h"  // NOLINT

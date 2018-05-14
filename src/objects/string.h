@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/objects/name.h"
+#include "src/unicode-decoder.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
