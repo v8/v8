@@ -1104,10 +1104,7 @@ class Isolate : private HiddenFactory {
   bool IsPromiseResolveLookupChainIntact();
 
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
-  // initial %PromisePrototype% yields the initial method. In addition this
-  // protector also guards the negative lookup of "then" on the intrinsic
-  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
-  // undefined without triggering any side-effects.
+  // initial %PromisePrototype% yields the initial method.
   bool IsPromiseThenLookupChainIntact();
   bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
 
