@@ -4,12 +4,14 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/base/adapters.h"
 #include "src/code-factory.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
+#include "src/wasm/wasm-linkage.h"
 
 namespace v8 {
 namespace internal {
@@ -2770,22 +2772,22 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr Register gp_regs[]{eax, ebx, ecx, edx};
-    constexpr XMMRegister xmm_regs[]{xmm1, xmm2, xmm3, xmm4, xmm5, xmm6};
-
-    for (auto reg : gp_regs) {
+    for (Register reg : wasm::kGpParamRegisters) {
+      if (reg == kWasmInstanceRegister) continue;
       __ Push(reg);
     }
-    __ sub(esp, Immediate(16 * arraysize(xmm_regs)));
-    for (int i = 0, e = arraysize(xmm_regs); i < e; ++i) {
-      __ movdqu(Operand(esp, 16 * i), xmm_regs[i]);
+    __ sub(esp, Immediate(16 * arraysize(wasm::kFpParamRegisters)));
+    int offset = 0;
+    for (DoubleRegister reg : wasm::kFpParamRegisters) {
+      __ movdqu(Operand(esp, offset), reg);
+      offset += 16;
     }
 
     // Pass the WASM instance as an explicit argument to WasmCompileLazy.
     __ Push(kWasmInstanceRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
-    __ Move(esi, Smi::kZero);
+    __ Move(kContextRegister, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
     // The entrypoint address is the first return value.
     __ mov(edi, kReturnRegister0);
@@ -2793,12 +2795,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mov(kWasmInstanceRegister, kReturnRegister1);
 
     // Restore registers.
-    for (int i = arraysize(xmm_regs) - 1; i >= 0; --i) {
-      __ movdqu(xmm_regs[i], Operand(esp, 16 * i));
+    for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
+      offset -= 16;
+      __ movdqu(reg, Operand(esp, offset));
     }
-    __ add(esp, Immediate(16 * arraysize(xmm_regs)));
-    for (int i = arraysize(gp_regs) - 1; i >= 0; --i) {
-      __ Pop(gp_regs[i]);
+    DCHECK_EQ(0, offset);
+    __ add(esp, Immediate(16 * arraysize(wasm::kFpParamRegisters)));
+    for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
+      if (reg == kWasmInstanceRegister) continue;
+      __ Pop(reg);
     }
   }
   // Finally, jump to the entrypoint.
