@@ -2448,6 +2448,18 @@ void Object::ShortPrint(StringStream* accumulator) {
 
 void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
 
+void MaybeObject::ShortPrint(FILE* out) {
+  OFStream os(out);
+  os << MaybeObjectBrief(this);
+}
+
+void MaybeObject::ShortPrint(StringStream* accumulator) {
+  std::ostringstream os;
+  os << MaybeObjectBrief(this);
+  accumulator->Add(os.str().c_str());
+}
+
+void MaybeObject::ShortPrint(std::ostream& os) { os << MaybeObjectBrief(this); }
 
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
   if (v.value->IsSmi()) {

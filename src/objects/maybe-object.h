@@ -61,6 +61,23 @@ class MaybeObject {
   static void VerifyMaybeObjectPointer(MaybeObject* p);
 #endif
 
+  // Prints this object without details.
+  void ShortPrint(FILE* out = stdout);
+
+  // Prints this object without details to a message accumulator.
+  void ShortPrint(StringStream* accumulator);
+
+  void ShortPrint(std::ostream& os);
+
+#ifdef OBJECT_PRINT
+  void Print();
+
+  void Print(std::ostream& os);
+#else
+  void Print() { ShortPrint(); }
+  void Print(std::ostream& os) { ShortPrint(os); }
+#endif
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(MaybeObject);
 };
