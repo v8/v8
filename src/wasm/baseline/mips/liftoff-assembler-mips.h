@@ -691,14 +691,16 @@ inline void Emit64BitShiftOperation(
   pinned.set(src);
   pinned.set(amount);
 
+  // If some of destination registers are in use, get another, unused pair.
+  // That way we prevent overwriting some input registers while shifting.
+  // Do this before any branch so that the cache state will be correct for
+  // all conditions.
+  LiftoffRegister tmp = assm->GetUnusedRegister(kGpRegPair, pinned);
+
   // If shift amount is 0, don't do the shifting.
   assm->TurboAssembler::Branch(&move, eq, amount, Operand(zero_reg));
 
   if (liftoff::IsRegInRegPair(dst, amount) || dst.overlaps(src)) {
-    // If some of destination registers are in use, get another, unused pair.
-    // That way we prevent overwriting some input registers while shifting.
-    LiftoffRegister tmp = assm->GetUnusedRegister(kGpRegPair, pinned);
-
     // Do the actual shift.
     (assm->*emit_shift)(tmp.low_gp(), tmp.high_gp(), src.low_gp(),
                         src.high_gp(), amount, kScratchReg, kScratchReg2);
