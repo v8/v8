@@ -20,15 +20,15 @@
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/objects/api-callbacks.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#include "src/objects/js-locale.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"
-
-#if V8_INTL_SUPPORT
-#include "src/objects/intl-objects.h"
-#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -4454,6 +4454,62 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   SimpleInstallFunction(dataview_prototype, "setBigUint64",
                         Builtins::kDataViewPrototypeSetBigUint64, 2, false);
 }
+
+#ifdef V8_INTL_SUPPORT
+
+void Genesis::InitializeGlobal_harmony_locale() {
+  if (!FLAG_harmony_locale) return;
+
+  Handle<JSObject> intl = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          Handle<JSReceiver>(native_context()->global_object()),
+          factory()->InternalizeUtf8String("Intl"))
+          .ToHandleChecked());
+
+  Handle<JSFunction> locale_fun = InstallFunction(
+      intl, "Locale", JS_INTL_LOCALE_TYPE, JSLocale::kSize, 0,
+      factory()->the_hole_value(), Builtins::kLocaleConstructor);
+  InstallWithIntrinsicDefaultProto(isolate(), locale_fun,
+                                   Context::INTL_LOCALE_FUNCTION_INDEX);
+  locale_fun->shared()->set_length(1);
+  locale_fun->shared()->DontAdaptArguments();
+
+  // Setup %LocalePrototype%.
+  Handle<JSObject> prototype(JSObject::cast(locale_fun->instance_prototype()));
+
+  // Install the @@toStringTag property on the {prototype}.
+  JSObject::AddProperty(prototype, factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromAsciiChecked("Locale"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  SimpleInstallFunction(prototype, "toString",
+                        Builtins::kLocalePrototypeToString, 0, false);
+  // Base locale getters.
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("language"),
+                      Builtins::kLocalePrototypeLanguage, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("script"),
+                      Builtins::kLocalePrototypeScript, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("region"),
+                      Builtins::kLocalePrototypeRegion, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("baseName"),
+                      Builtins::kLocalePrototypeBaseName, true);
+  // Unicode extension getters.
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("calendar"),
+                      Builtins::kLocalePrototypeCalendar, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("caseFirst"),
+                      Builtins::kLocalePrototypeCaseFirst, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("collation"),
+                      Builtins::kLocalePrototypeCollation, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("hourCycle"),
+                      Builtins::kLocalePrototypeHourCycle, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("numeric"),
+                      Builtins::kLocalePrototypeNumeric, true);
+  SimpleInstallGetter(prototype,
+                      factory()->InternalizeUtf8String("numberingSystem"),
+                      Builtins::kLocalePrototypeNumberingSystem, true);
+}
+
+#endif  // V8_INTL_SUPPORT
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {

@@ -2087,6 +2087,9 @@ v8_source_set("v8_base") {
     "src/objects/js-array.h",
     "src/objects/js-collection-inl.h",
     "src/objects/js-collection.h",
+    "src/objects/js-locale-inl.h",
+    "src/objects/js-locale.cc",
+    "src/objects/js-locale.h",
     "src/objects/js-promise-inl.h",
     "src/objects/js-promise.h",
     "src/objects/js-regexp-inl.h",
@@ -2761,6 +2764,9 @@ v8_source_set("v8_base") {
       "src/intl.h",
       "src/objects/intl-objects.cc",
       "src/objects/intl-objects.h",
+      "src/objects/js-locale-inl.h",
+      "src/objects/js-locale.cc",
+      "src/objects/js-locale.h",
       "src/runtime/runtime-intl.cc",
     ]
   }

@@ -17,6 +17,9 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-locale-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module.h"
@@ -314,6 +317,11 @@ void HeapObject::HeapObjectVerify() {
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(this)->CodeDataContainerVerify();
       break;
+#ifdef V8_INTL_SUPPORT
+    case JS_INTL_LOCALE_TYPE:
+      JSLocale::cast(this)->JSLocaleVerify();
+      break;
+#endif  // V8_INTL_SUPPORT
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -1770,6 +1778,23 @@ void InterpreterData::InterpreterDataVerify() {
   CHECK(bytecode_array()->IsBytecodeArray());
   CHECK(interpreter_trampoline()->IsCode());
 }
+
+#ifdef V8_INTL_SUPPORT
+void JSLocale::JSLocaleVerify() {
+  VerifyObjectField(kLanguageOffset);
+  VerifyObjectField(kScriptOffset);
+  VerifyObjectField(kRegionOffset);
+  VerifyObjectField(kBaseNameOffset);
+  VerifyObjectField(kLocaleOffset);
+  // Unicode extension fields.
+  VerifyObjectField(kCalendarOffset);
+  VerifyObjectField(kCaseFirstOffset);
+  VerifyObjectField(kCollationOffset);
+  VerifyObjectField(kHourCycleOffset);
+  VerifyObjectField(kNumericOffset);
+  VerifyObjectField(kNumberingSystemOffset);
+}
+#endif  // V8_INTL_SUPPORT
 
 #endif  // VERIFY_HEAP
 

@@ -1287,7 +1287,20 @@ namespace internal {
   /* ecma402 #sec-intl.numberformat.prototype.formattoparts */   \
   CPP(NumberFormatPrototypeFormatToParts)                        \
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */ \
-  CPP(DateTimeFormatPrototypeFormatToParts)
+  CPP(DateTimeFormatPrototypeFormatToParts)                      \
+  /* ecma402 #new proposal */                                    \
+  CPP(LocaleConstructor)                                         \
+  CPP(LocalePrototypeLanguage)                                   \
+  CPP(LocalePrototypeScript)                                     \
+  CPP(LocalePrototypeRegion)                                     \
+  CPP(LocalePrototypeBaseName)                                   \
+  CPP(LocalePrototypeCalendar)                                   \
+  CPP(LocalePrototypeCaseFirst)                                  \
+  CPP(LocalePrototypeCollation)                                  \
+  CPP(LocalePrototypeHourCycle)                                  \
+  CPP(LocalePrototypeNumeric)                                    \
+  CPP(LocalePrototypeNumberingSystem)                            \
+  CPP(LocalePrototypeToString)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \
