@@ -1459,7 +1459,7 @@ class Object {
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
-  Object* GetHash();
+  inline Object* GetHash();
 
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
@@ -1539,6 +1539,15 @@ class Object {
 
   // Return the map of the root of object's prototype chain.
   Map* GetPrototypeChainRootMap(Isolate* isolate) const;
+
+  // Returns a non-SMI for JSReceivers, but returns the hash code for
+  // simple objects.  This avoids a double lookup in the cases where
+  // we know we will add the hash to the JSReceiver if it does not
+  // already exist.
+  //
+  // Despite its size, this needs to be inlined for performance
+  // reasons.
+  static inline Object* GetSimpleHash(Object* object);
 
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.

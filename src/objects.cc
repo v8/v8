@@ -2253,60 +2253,6 @@ Map* Map::GetPrototypeChainRootMap(Isolate* isolate) const {
   return isolate->heap()->null_value()->map();
 }
 
-namespace {
-
-// Returns a non-SMI for JSReceivers, but returns the hash code for simple
-// objects.  This avoids a double lookup in the cases where we know we will
-// add the hash to the JSReceiver if it does not already exist.
-Object* GetSimpleHash(Object* object) {
-  DisallowHeapAllocation no_gc;
-  if (object->IsSmi()) {
-    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
-    return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  if (object->IsHeapNumber()) {
-    double num = HeapNumber::cast(object)->value();
-    if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
-    // Use ComputeIntegerHash for all values in Signed32 range, including -0,
-    // which is considered equal to 0 because collections use SameValueZero.
-    uint32_t hash;
-    // Check range before conversion to avoid undefined behavior.
-    if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
-      hash = ComputeIntegerHash(FastD2I(num));
-    } else {
-      hash = ComputeLongHash(double_to_uint64(num));
-    }
-    return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  if (object->IsName()) {
-    uint32_t hash = Name::cast(object)->Hash();
-    return Smi::FromInt(hash);
-  }
-  if (object->IsOddball()) {
-    uint32_t hash = Oddball::cast(object)->to_string()->Hash();
-    return Smi::FromInt(hash);
-  }
-  if (object->IsBigInt()) {
-    uint32_t hash = BigInt::cast(object)->Hash();
-    return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  DCHECK(object->IsJSReceiver());
-  return object;
-}
-
-}  // namespace
-
-Object* Object::GetHash() {
-  DisallowHeapAllocation no_gc;
-  Object* hash = GetSimpleHash(this);
-  if (hash->IsSmi()) return hash;
-
-  DCHECK(IsJSReceiver());
-  JSReceiver* receiver = JSReceiver::cast(this);
-  Isolate* isolate = receiver->GetIsolate();
-  return receiver->GetIdentityHash(isolate);
-}
-
 // static
 Smi* Object::GetOrCreateHash(Isolate* isolate, Object* key) {
   DisallowHeapAllocation no_gc;
@@ -2315,7 +2261,7 @@ Smi* Object::GetOrCreateHash(Isolate* isolate, Object* key) {
 
 Smi* Object::GetOrCreateHash(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
-  Object* hash = GetSimpleHash(this);
+  Object* hash = Object::GetSimpleHash(this);
   if (hash->IsSmi()) return Smi::cast(hash);
 
   DCHECK(IsJSReceiver());

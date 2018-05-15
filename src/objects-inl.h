@@ -3217,6 +3217,53 @@ uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
   return Smi::ToInt(other->GetHash());
 }
 
+// static
+Object* Object::GetSimpleHash(Object* object) {
+  DisallowHeapAllocation no_gc;
+  if (object->IsSmi()) {
+    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsHeapNumber()) {
+    double num = HeapNumber::cast(object)->value();
+    if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
+    // Use ComputeIntegerHash for all values in Signed32 range, including -0,
+    // which is considered equal to 0 because collections use SameValueZero.
+    uint32_t hash;
+    // Check range before conversion to avoid undefined behavior.
+    if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
+      hash = ComputeIntegerHash(FastD2I(num));
+    } else {
+      hash = ComputeLongHash(double_to_uint64(num));
+    }
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsName()) {
+    uint32_t hash = Name::cast(object)->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (object->IsOddball()) {
+    uint32_t hash = Oddball::cast(object)->to_string()->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (object->IsBigInt()) {
+    uint32_t hash = BigInt::cast(object)->Hash();
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  DCHECK(object->IsJSReceiver());
+  return object;
+}
+
+Object* Object::GetHash() {
+  DisallowHeapAllocation no_gc;
+  Object* hash = GetSimpleHash(this);
+  if (hash->IsSmi()) return hash;
+
+  DCHECK(IsJSReceiver());
+  JSReceiver* receiver = JSReceiver::cast(this);
+  Isolate* isolate = receiver->GetIsolate();
+  return receiver->GetIdentityHash(isolate);
+}
 
 Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
                                               Handle<Object> key) {
