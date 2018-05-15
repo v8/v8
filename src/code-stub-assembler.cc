@@ -1836,9 +1836,11 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   // and thus the reasonable assert IsFixedArraySubclass(object) is
   // untrue. TODO(marja): Fix.
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
-  return ToObject(LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
-                                   additional_offset, parameter_mode,
-                                   needs_poisoning));
+  TNode<MaybeObject> element =
+      LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
+                       additional_offset, parameter_mode, needs_poisoning);
+  CSA_ASSERT(this, IsObject(element));
+  return ToObject(element);
 }
 
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
@@ -7270,8 +7272,11 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
 
   BuildFastLoop(last_exclusive, first_inclusive,
                 [=](SloppyTNode<IntPtrT> name_index) {
-                  TNode<Name> candidate_name = CAST(ToStrongHeapObject(
-                      LoadArrayElement(array, Array::kHeaderSize, name_index)));
+                  TNode<MaybeObject> element =
+                      LoadArrayElement(array, Array::kHeaderSize, name_index);
+                  CSA_ASSERT(this, IsStrongHeapObject(element));
+                  TNode<Name> candidate_name =
+                      CAST(ToStrongHeapObject(element));
                   *var_name_index = name_index;
                   GotoIf(WordEqual(candidate_name, unique_name), if_found);
                 },
@@ -7340,10 +7345,11 @@ TNode<Name> CodeStubAssembler::GetKey(TNode<Array> array,
                     std::is_base_of<TransitionArray, Array>::value,
                 "T must be a descendant of FixedArray or a TransitionArray");
   const int key_offset = Array::ToKeyIndex(0) * kPointerSize;
-  TNode<Name> key = CAST(ToStrongHeapObject(
+  TNode<MaybeObject> element =
       LoadArrayElement(array, Array::kHeaderSize,
-                       EntryIndexToIndex<Array>(entry_index), key_offset)));
-  return key;
+                       EntryIndexToIndex<Array>(entry_index), key_offset);
+  CSA_ASSERT(this, IsStrongHeapObject(element));
+  return CAST(ToStrongHeapObject(element));
 }
 
 template TNode<Name> CodeStubAssembler::GetKey<DescriptorArray>(
@@ -8405,8 +8411,10 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
-  TNode<Smi> previous_feedback =
-      CAST(ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id)));
+  TNode<MaybeObject> feedback_element =
+      LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  CSA_ASSERT(this, IsObject(feedback_element));
+  TNode<Smi> previous_feedback = CAST(ToObject(feedback_element));
   TNode<Smi> combined_feedback = SmiOr(previous_feedback, feedback);
   Label end(this);
 
