@@ -3149,7 +3149,19 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
+    case kMips64CmpS:
+    case kMips64CmpD: {
+      bool predicate;
+      FlagsConditionToConditionCmpFPU(predicate, condition);
+      if (predicate) {
+        __ LoadZeroIfFPUCondition(kSpeculationPoisonRegister);
+      } else {
+        __ LoadZeroIfNotFPUCondition(kSpeculationPoisonRegister);
+      }
+    }
+      return;
     default:
+      UNREACHABLE();
       break;
   }
 }
