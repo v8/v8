@@ -2557,8 +2557,20 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   Node* new_from_index = jsgraph()->ZeroConstant();
   if (node->op()->ValueInputCount() >= 4) {
     Node* from_index = NodeProperties::GetValueInput(node, 3);
-    new_from_index = effect = graph()->NewNode(
-        simplified()->CheckSmi(p.feedback()), from_index, effect, control);
+    from_index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                           from_index, effect, control);
+    // If the index is negative, it means the offset from the end and therefore
+    // needs to be added to the length. If the result is still negative, it
+    // needs to be clamped to 0.
+    new_from_index = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+        graph()->NewNode(simplified()->NumberLessThan(), from_index,
+                         jsgraph()->ZeroConstant()),
+        graph()->NewNode(
+            simplified()->NumberMax(),
+            graph()->NewNode(simplified()->NumberAdd(), length, from_index),
+            jsgraph()->ZeroConstant()),
+        from_index);
   }
 
   Node* context = NodeProperties::GetContextInput(node);
