@@ -162,7 +162,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  // TODO(ksreten): Add check if unaligned memory access
   MemOperand src_op(src_addr, offset_imm);
   if (offset_reg != no_reg) {
     Register src = GetUnusedRegister(kGpReg, pinned).gp();
@@ -219,7 +218,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  // TODO(ksreten): Add check if unaligned memory access
   Register dst = no_reg;
   if (offset_reg != no_reg) {
     dst = GetUnusedRegister(kGpReg, pinned).gp();
@@ -1203,8 +1201,8 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   if (target == no_reg) {
-    pop(at);
-    Call(at);
+    pop(kScratchReg);
+    Call(kScratchReg);
   } else {
     Call(target);
   }
@@ -1224,15 +1222,15 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
-        asm_->ld(at, liftoff::GetStackSlot(slot.src_index_));
-        asm_->push(at);
+        asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_index_));
+        asm_->push(kScratchReg);
         break;
       case LiftoffAssembler::VarState::kRegister:
         liftoff::push(asm_, src.reg(), src.type());
         break;
       case LiftoffAssembler::VarState::KIntConst: {
-        asm_->li(at, Operand(src.i32_const()));
-        asm_->push(at);
+        asm_->li(kScratchReg, Operand(src.i32_const()));
+        asm_->push(kScratchReg);
         break;
       }
     }

@@ -173,7 +173,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  // TODO(ksreten): Add check if unaligned memory access
   Register src = no_reg;
   if (offset_reg != no_reg) {
     src = GetUnusedRegister(kGpReg, pinned).gp();
@@ -255,7 +254,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  // TODO(ksreten): Add check if unaligned memory access
   Register dst = no_reg;
   if (offset_reg != no_reg) {
     dst = GetUnusedRegister(kGpReg, pinned).gp();
@@ -323,9 +321,9 @@ void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
     case LoadType::kI64Load8U:
     case LoadType::kI64Load8S:
       // Swap low and high registers.
-      TurboAssembler::Move(at, tmp.low_gp());
+      TurboAssembler::Move(kScratchReg, tmp.low_gp());
       TurboAssembler::Move(tmp.low_gp(), tmp.high_gp());
-      TurboAssembler::Move(tmp.high_gp(), at);
+      TurboAssembler::Move(tmp.high_gp(), kScratchReg);
       V8_FALLTHROUGH;
     case LoadType::kI32Load8U:
     case LoadType::kI32Load8S:
@@ -351,9 +349,9 @@ void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
       emit_type_conversion(kExprI64ReinterpretF64, tmp, dst);
       V8_FALLTHROUGH;
     case LoadType::kI64Load:
-      TurboAssembler::Move(at, tmp.low_gp());
+      TurboAssembler::Move(kScratchReg, tmp.low_gp());
       TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
-      TurboAssembler::ByteSwapSigned(tmp.high_gp(), at, 4);
+      TurboAssembler::ByteSwapSigned(tmp.high_gp(), kScratchReg, 4);
       break;
     case LoadType::kI64Load16U:
       TurboAssembler::ByteSwapUnsigned(tmp.low_gp(), tmp.high_gp(), 2);
@@ -397,9 +395,9 @@ void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
   switch (type.value()) {
     case StoreType::kI64Store8:
       // Swap low and high registers.
-      TurboAssembler::Move(at, tmp.low_gp());
+      TurboAssembler::Move(kScratchReg, tmp.low_gp());
       TurboAssembler::Move(tmp.low_gp(), tmp.high_gp());
-      TurboAssembler::Move(tmp.high_gp(), at);
+      TurboAssembler::Move(tmp.high_gp(), kScratchReg);
       V8_FALLTHROUGH;
     case StoreType::kI32Store8:
       // No need to change endianness for byte size.
@@ -421,9 +419,9 @@ void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
     case StoreType::kI64Store:
     case StoreType::kI64Store32:
     case StoreType::kI64Store16:
-      TurboAssembler::Move(at, tmp.low_gp());
+      TurboAssembler::Move(kScratchReg, tmp.low_gp());
       TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
-      TurboAssembler::ByteSwapSigned(tmp.high_gp(), at, 4);
+      TurboAssembler::ByteSwapSigned(tmp.high_gp(), kScratchReg, 4);
       break;
     default:
       UNREACHABLE();
@@ -1337,8 +1335,8 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   if (target == no_reg) {
-    pop(at);
-    Call(at);
+    pop(kScratchReg);
+    Call(kScratchReg);
   } else {
     Call(target);
   }
@@ -1360,13 +1358,14 @@ void LiftoffStackSlots::Construct() {
       case LiftoffAssembler::VarState::kStack: {
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
-          asm_->lw(at, liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
-          asm_->push(at);
+          asm_->lw(kScratchReg,
+                   liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
+          asm_->push(kScratchReg);
         }
-        asm_->lw(at,
+        asm_->lw(kScratchReg,
                  liftoff::GetHalfStackSlot(2 * slot.src_index_ +
                                            (slot.half_ == kLowWord ? 0 : 1)));
-        asm_->push(at);
+        asm_->push(kScratchReg);
         break;
       }
       case LiftoffAssembler::VarState::kRegister:
@@ -1380,9 +1379,10 @@ void LiftoffStackSlots::Construct() {
         break;
       case LiftoffAssembler::VarState::KIntConst: {
         // The high word is the sign extension of the low word.
-        asm_->li(at, Operand(slot.half_ == kLowWord ? src.i32_const()
-                                                    : src.i32_const() >> 31));
-        asm_->push(at);
+        asm_->li(kScratchReg,
+                 Operand(slot.half_ == kLowWord ? src.i32_const()
+                                                : src.i32_const() >> 31));
+        asm_->push(kScratchReg);
         break;
       }
     }
