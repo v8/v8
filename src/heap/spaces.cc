@@ -3190,10 +3190,24 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap, AllocationSpace id,
       is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()) {
 }
 
+void ReadOnlyPage::MakeHeaderRelocatable() {
+  if (mutex_ != nullptr) {
+    // TODO(v8:7464): heap_ and owner_ need to be cleared as well.
+    delete mutex_;
+    mutex_ = nullptr;
+    local_tracker_ = nullptr;
+    reservation_.Reset();
+  }
+}
+
 void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
   const size_t page_size = MemoryAllocator::GetCommitPageSize();
   const size_t area_start_offset = RoundUp(Page::kObjectStartOffset, page_size);
-  for (Page* page : *this) {
+  for (Page* p : *this) {
+    ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);
+    if (access == PageAllocator::kRead) {
+      page->MakeHeaderRelocatable();
+    }
     CHECK(SetPermissions(page->address() + area_start_offset,
                          page->size() - area_start_offset, access));
   }

@@ -3804,7 +3804,10 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
 
 void Heap::VerifyRememberedSetFor(HeapObject* object) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-  base::LockGuard<base::Mutex> lock_guard(chunk->mutex());
+  DCHECK_IMPLIES(chunk->mutex() == nullptr, InReadOnlySpace(object));
+  // In RO_SPACE chunk->mutex() may be nullptr, so just ignore it.
+  base::LockGuard<base::Mutex, base::NullBehavior::kIgnoreIfNull> lock_guard(
+      chunk->mutex());
   Address start = object->address();
   Address end = start + object->Size();
   std::set<Address> old_to_new;

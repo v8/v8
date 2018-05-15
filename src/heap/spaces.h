@@ -868,6 +868,13 @@ class Page : public MemoryChunk {
   friend class MemoryAllocator;
 };
 
+class ReadOnlyPage : public Page {
+ public:
+  // Clears any pointers in the header that point out of the page that would
+  // otherwise make the header non-relocatable.
+  void MakeHeaderRelocatable();
+};
+
 class LargePage : public MemoryChunk {
  public:
   HeapObject* GetObject() { return HeapObject::FromAddress(area_start()); }
@@ -2934,11 +2941,6 @@ class ReadOnlySpace : public PagedSpace {
   };
 
   ReadOnlySpace(Heap* heap, AllocationSpace id, Executability executable);
-
-  ~ReadOnlySpace() {
-    // Mark as writable as tearing down the space writes to it.
-    // MarkAsReadWrite();
-  }
 
   void ClearStringPaddingIfNeeded();
   void MarkAsReadOnly();
