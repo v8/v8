@@ -415,7 +415,7 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot', 'x64', 'coverage', 'gcc'],
+      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_enable_embedded_builtins',
       'v8_snapshot_internal'],
@@ -663,6 +663,10 @@
 
     'msvc': {
       'gn_args': 'is_clang=false',
+    },
+
+    'no_custom_libcxx': {
+      'gn_args': 'use_custom_libcxx=false',
     },
 
     'no_sysroot': {
