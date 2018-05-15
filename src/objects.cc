@@ -14009,8 +14009,16 @@ void Code::Relocate(intptr_t delta) {
   Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
+void Code::FlushICache() const {
+  Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
+}
 
 void Code::CopyFrom(const CodeDesc& desc) {
+  CopyFromNoFlush(desc);
+  FlushICache();
+}
+
+void Code::CopyFromNoFlush(const CodeDesc& desc) {
   // copy code
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
@@ -14060,7 +14068,6 @@ void Code::CopyFrom(const CodeDesc& desc) {
       it.rinfo()->apply(delta);
     }
   }
-  Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
 

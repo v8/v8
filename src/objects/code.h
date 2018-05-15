@@ -306,6 +306,13 @@ class Code : public HeapObject {
   // Migrate code described by desc.
   void CopyFrom(const CodeDesc& desc);
 
+  // Migrate code from desc without flushing the instruction cache.
+  void CopyFromNoFlush(const CodeDesc& desc);
+
+  // Flushes the instruction cache for the executable instructions of this code
+  // object.
+  void FlushICache() const;
+
   // Returns the object size for a given body (used for allocation).
   static int SizeFor(int body_size) {
     DCHECK_SIZE_TAG_ALIGNED(body_size);

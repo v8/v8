@@ -94,7 +94,7 @@ void InitializeCode(Handle<Code> code, int object_size, const CodeDesc& desc,
   // that are dereferenced during the copy to point directly to the actual heap
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
-  code->CopyFrom(desc);
+  code->CopyFromNoFlush(desc);
 
   code->clear_padding();
 
@@ -2468,31 +2468,36 @@ MaybeHandle<Code> Factory::TryNewCode(
   Handle<DeoptimizationData> deopt_data =
       maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
                                  : maybe_deopt_data.ToHandleChecked();
+  Handle<Code> code;
+  {
+    int object_size = ComputeCodeObjectSize(desc);
 
-  int object_size = ComputeCodeObjectSize(desc);
+    Heap* heap = isolate()->heap();
+    CodePageCollectionMemoryModificationScope code_allocation(heap);
+    HeapObject* result =
+        heap->AllocateRawWithLigthRetry(object_size, CODE_SPACE);
 
-  Heap* heap = isolate()->heap();
-  CodePageCollectionMemoryModificationScope code_allocation(heap);
-  HeapObject* result = heap->AllocateRawWithLigthRetry(object_size, CODE_SPACE);
+    // Return an empty handle if we cannot allocate the code object.
+    if (!result) return MaybeHandle<Code>();
 
-  // Return an empty handle if we cannot allocate the code object.
-  if (!result) return MaybeHandle<Code>();
+    if (movability == kImmovable) {
+      result = heap->EnsureImmovableCode(result, object_size);
+    }
 
-  if (movability == kImmovable) {
-    result = heap->EnsureImmovableCode(result, object_size);
+    // The code object has not been fully initialized yet.  We rely on the
+    // fact that no allocation will happen from this point on.
+    DisallowHeapAllocation no_gc;
+
+    result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
+    code = handle(Code::cast(result), isolate());
+
+    InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
+                   source_position_table, deopt_data, reloc_info,
+                   data_container, stub_key, is_turbofanned, stack_slots,
+                   safepoint_table_offset, handler_table_offset);
   }
-
-  // The code object has not been fully initialized yet.  We rely on the
-  // fact that no allocation will happen from this point on.
-  DisallowHeapAllocation no_gc;
-
-  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-  Handle<Code> code(Code::cast(result), isolate());
-
-  InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
-                 source_position_table, deopt_data, reloc_info, data_container,
-                 stub_key, is_turbofanned, stack_slots, safepoint_table_offset,
-                 handler_table_offset);
+  // Flush the instruction cache after changing the permissions.
+  code->FlushICache();
 
   return code;
 }
@@ -2514,28 +2519,33 @@ Handle<Code> Factory::NewCode(
       maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
                                  : maybe_deopt_data.ToHandleChecked();
 
-  int object_size = ComputeCodeObjectSize(desc);
+  Handle<Code> code;
+  {
+    int object_size = ComputeCodeObjectSize(desc);
 
-  Heap* heap = isolate()->heap();
-  CodePageCollectionMemoryModificationScope code_allocation(heap);
-  HeapObject* result =
-      heap->AllocateRawWithRetryOrFail(object_size, CODE_SPACE);
+    Heap* heap = isolate()->heap();
+    CodePageCollectionMemoryModificationScope code_allocation(heap);
+    HeapObject* result =
+        heap->AllocateRawWithRetryOrFail(object_size, CODE_SPACE);
 
-  if (movability == kImmovable) {
-    result = heap->EnsureImmovableCode(result, object_size);
+    if (movability == kImmovable) {
+      result = heap->EnsureImmovableCode(result, object_size);
+    }
+
+    // The code object has not been fully initialized yet.  We rely on the
+    // fact that no allocation will happen from this point on.
+    DisallowHeapAllocation no_gc;
+
+    result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
+    code = handle(Code::cast(result), isolate());
+
+    InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
+                   source_position_table, deopt_data, reloc_info,
+                   data_container, stub_key, is_turbofanned, stack_slots,
+                   safepoint_table_offset, handler_table_offset);
   }
-
-  // The code object has not been fully initialized yet.  We rely on the
-  // fact that no allocation will happen from this point on.
-  DisallowHeapAllocation no_gc;
-
-  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-  Handle<Code> code(Code::cast(result), isolate());
-
-  InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
-                 source_position_table, deopt_data, reloc_info, data_container,
-                 stub_key, is_turbofanned, stack_slots, safepoint_table_offset,
-                 handler_table_offset);
+  // Flush the instruction cache after changing the permissions.
+  code->FlushICache();
 
   return code;
 }
