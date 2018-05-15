@@ -87,8 +87,9 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) return "<unknown>";
-  return isolate->heap()->external_reference_table()->name(
-      maybe_index.FromJust());
+  Value value(maybe_index.FromJust());
+  if (value.is_from_api()) return "<from api>";
+  return isolate->heap()->external_reference_table()->name(value.index());
 }
 
 void SerializedData::AllocateData(uint32_t size) {

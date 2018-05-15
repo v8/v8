@@ -30,7 +30,6 @@ class ExternalReferenceEncoder {
 
     bool is_from_api() const { return IsFromAPI::decode(value_); }
     uint32_t index() const { return Index::decode(value_); }
-    uint32_t raw() const { return value_; }
 
    private:
     class Index : public BitField<uint32_t, 0, 31> {};
