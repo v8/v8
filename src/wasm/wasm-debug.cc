@@ -678,7 +678,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
         isolate, func_index, module->functions[func_index].sig);
     const wasm::WasmCode* wasm_new_code =
-        native_module->AddInterpreterWrapper(new_code, func_index);
+        native_module->AddInterpreterEntry(new_code, func_index);
     const wasm::WasmCode* old_code =
         native_module->code(static_cast<uint32_t>(func_index));
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(

@@ -85,7 +85,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kFunction,
     kWasmToJsWrapper,
     kLazyStub,
-    kInterpreterStub,
+    kInterpreterEntry,
     kTrampoline
   };
 
@@ -230,11 +230,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // certain wrappers using a different pipeline.
   WasmCode* AddCodeCopy(Handle<Code> code, WasmCode::Kind kind, uint32_t index);
 
-  // Add an interpreter wrapper. For the same reason as AddCodeCopy, we
+  // Add an interpreter entry. For the same reason as AddCodeCopy, we
   // currently compile these using a different pipeline and we can't get a
   // CodeDesc here. When adding interpreter wrappers, we do not insert them in
   // the code_table, however, we let them self-identify as the {index} function
-  WasmCode* AddInterpreterWrapper(Handle<Code> code, uint32_t index);
+  WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
 
   // When starting lazy compilation, provide the WasmLazyCompile builtin by
   // calling SetLazyBuiltin. It will initialize the code table with it. Copies

@@ -2455,7 +2455,7 @@ class ThreadImpl {
     }
 
     // Call to external function.
-    if (code->kind() == wasm::WasmCode::kInterpreterStub ||
+    if (code->kind() == wasm::WasmCode::kInterpreterEntry ||
         code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
       return CallExternalWasmFunction(isolate, instance, code, signature);
     }

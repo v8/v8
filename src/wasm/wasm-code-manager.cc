@@ -304,8 +304,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm-to-js";
     case WasmCode::kLazyStub:
       return "lazy-compile";
-    case WasmCode::kInterpreterStub:
-      return "interpreter-entry";
+    case WasmCode::kInterpreterEntry:
+      return "interpreter entry";
     case WasmCode::kTrampoline:
       return "trampoline";
   }
@@ -415,9 +415,8 @@ WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
   return ret;
 }
 
-WasmCode* NativeModule::AddInterpreterWrapper(Handle<Code> code,
-                                              uint32_t index) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterStub);
+WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
+  WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterEntry);
   ret->index_ = Just(index);
   return ret;
 }

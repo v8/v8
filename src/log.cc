@@ -61,7 +61,7 @@ static const char* ComputeMarker(const wasm::WasmCode* code) {
   switch (code->kind()) {
     case wasm::WasmCode::kFunction:
       return code->is_liftoff() ? "" : "*";
-    case wasm::WasmCode::kInterpreterStub:
+    case wasm::WasmCode::kInterpreterEntry:
       return "~";
     default:
       return "";
