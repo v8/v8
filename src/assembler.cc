@@ -451,50 +451,39 @@ void RelocIterator::next() {
 }
 
 RelocIterator::RelocIterator(Code* code, int mode_mask)
-    : mode_mask_(mode_mask) {
-  rinfo_.host_ = code;
-  rinfo_.pc_ = code->raw_instruction_start();
-  rinfo_.data_ = 0;
-  rinfo_.constant_pool_ = code->constant_pool();
-  // Relocation info is read backwards.
-  pos_ = code->relocation_end();
-  end_ = code->relocation_start();
-  if (mode_mask_ == 0) pos_ = end_;
-  next();
-}
+    : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
+                    code->relocation_end(), code->relocation_start(),
+                    mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
-    : mode_mask_(mode_mask) {
-  rinfo_.pc_ = code_reference.instruction_start();
-  rinfo_.data_ = 0;
-  rinfo_.constant_pool_ = code_reference.constant_pool();
-  // Relocation info is read backwards.
-  pos_ = code_reference.relocation_end();
-  end_ = code_reference.relocation_start();
-  if (mode_mask_ == 0) pos_ = end_;
-  next();
-}
+    : RelocIterator(nullptr, code_reference.instruction_start(),
+                    code_reference.constant_pool(),
+                    code_reference.relocation_end(),
+                    code_reference.relocation_start(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
-    : mode_mask_(mode_mask) {
-  rinfo_.pc_ = reinterpret_cast<Address>(desc.buffer);
-  // Relocation info is read backwards.
-  pos_ = desc.buffer + desc.buffer_size;
-  end_ = pos_ - desc.reloc_size;
-  if (mode_mask_ == 0) pos_ = end_;
-  next();
-}
+    : RelocIterator(nullptr, reinterpret_cast<Address>(desc.buffer), 0,
+                    desc.buffer + desc.buffer_size,
+                    desc.buffer + desc.buffer_size - desc.reloc_size,
+                    mode_mask) {}
 
 RelocIterator::RelocIterator(Vector<byte> instructions,
                              Vector<const byte> reloc_info, Address const_pool,
                              int mode_mask)
-    : mode_mask_(mode_mask) {
-  rinfo_.pc_ = reinterpret_cast<Address>(instructions.start());
-  rinfo_.constant_pool_ = const_pool;
+    : RelocIterator(nullptr, reinterpret_cast<Address>(instructions.start()),
+                    const_pool, reloc_info.start() + reloc_info.size(),
+                    reloc_info.start(), mode_mask) {
   rinfo_.flags_ = RelocInfo::kInNativeWasmCode;
+}
+
+RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
+                             const byte* pos, const byte* end, int mode_mask)
+    : pos_(pos), end_(end), mode_mask_(mode_mask) {
   // Relocation info is read backwards.
-  pos_ = reloc_info.start() + reloc_info.size();
-  end_ = reloc_info.start();
+  DCHECK_GE(pos_, end_);
+  rinfo_.host_ = host;
+  rinfo_.pc_ = pc;
+  rinfo_.constant_pool_ = constant_pool;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }

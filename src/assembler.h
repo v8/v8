@@ -699,6 +699,9 @@ class RelocIterator: public Malloced {
   }
 
  private:
+  RelocIterator(Code* host, Address pc, Address constant_pool, const byte* pos,
+                const byte* end, int mode_mask);
+
   // Advance* moves the position before/after reading.
   // *Read* reads from current byte(s) into rinfo_.
   // *Get* just reads and returns info on current byte.
