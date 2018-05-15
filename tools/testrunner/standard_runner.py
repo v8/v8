@@ -165,6 +165,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         options.extra_flags.append("--invoke-weak-callbacks")
         options.extra_flags.append("--omit-quit")
 
+      if self.build_config.no_snap:
+        # Speed up slow nosnap runs. Allocation verification is covered by
+        # running mksnapshot on other builders.
+        options.extra_flags.append("--no-turbo-verify-allocation")
+
       if options.novfp3:
         options.extra_flags.append("--noenable-vfp3")
 
