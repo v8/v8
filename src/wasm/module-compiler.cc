@@ -394,7 +394,7 @@ class IndirectPatcher {
           DCHECK_EQ(
               func_index,
               code_manager->GetCodeFromStartAddress(entry.target())->index());
-          entry.set(*target_instance, new_code);
+          entry.set_wasm_to_wasm(*target_instance, new_code);
           patched++;
         }
       } else {
@@ -436,7 +436,7 @@ class IndirectPatcher {
               code->index());
       if (new_code->kind() != WasmCode::kLazyStub) {
         // Patch an imported function entry which is already compiled.
-        entry.set(target_instance, new_code);
+        entry.set_wasm_to_wasm(target_instance, new_code);
       } else {
         int key = code->index();
         int index = -1 - i;
@@ -2111,7 +2111,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           // The import reference is the instance object itself.
           auto wasm_code = imported_function->GetWasmCode();
           ImportedFunctionEntry(instance, func_index)
-              .set(*imported_instance, wasm_code);
+              .set_wasm_to_wasm(*imported_instance, wasm_code);
           native_module->set_code(func_index, wasm_code);
         } else {
           // The imported function is a callable.
@@ -2124,7 +2124,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           WasmCode* wasm_code = native_module->AddCodeCopy(
               wrapper_code, wasm::WasmCode::kWasmToJsWrapper, func_index);
           ImportedFunctionEntry(instance, func_index)
-              .set(*js_receiver, wasm_code);
+              .set_wasm_to_js(*js_receiver, wasm_code);
         }
         num_imported_functions++;
         break;

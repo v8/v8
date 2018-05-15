@@ -54,7 +54,7 @@ TestingModuleBuilder::TestingModuleBuilder(
         code, wasm::WasmCode::kWasmToJsWrapper, maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .set(*maybe_import->js_function, wasm_to_js_wrapper);
+        .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
   }
 
   if (mode == kExecuteInterpreter) {

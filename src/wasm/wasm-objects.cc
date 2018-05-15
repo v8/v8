@@ -695,8 +695,8 @@ Address IndirectFunctionTableEntry::target() {
   return instance_->indirect_function_table_targets()[index_];
 }
 
-void ImportedFunctionEntry::set(JSReceiver* callable,
-                                const wasm::WasmCode* wasm_to_js_wrapper) {
+void ImportedFunctionEntry::set_wasm_to_js(
+    JSReceiver* callable, const wasm::WasmCode* wasm_to_js_wrapper) {
   TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", *instance_,
             index_, callable, wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
@@ -706,8 +706,8 @@ void ImportedFunctionEntry::set(JSReceiver* callable,
       wasm_to_js_wrapper->instruction_start();
 }
 
-void ImportedFunctionEntry::set(WasmInstanceObject* instance,
-                                const wasm::WasmCode* wasm_code) {
+void ImportedFunctionEntry::set_wasm_to_wasm(WasmInstanceObject* instance,
+                                             const wasm::WasmCode* wasm_code) {
   TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%p}\n", *instance_,
             index_, instance, wasm_code->instructions().start());
   instance_->imported_function_instances()->set(index_, instance);

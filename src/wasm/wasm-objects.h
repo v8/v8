@@ -85,10 +85,11 @@ class ImportedFunctionEntry {
   inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
 
   // Initialize this entry as a {JSReceiver} call.
-  void set(JSReceiver* callable, const wasm::WasmCode* wasm_to_js_wrapper);
+  void set_wasm_to_js(JSReceiver* callable,
+                      const wasm::WasmCode* wasm_to_js_wrapper);
   // Initialize this entry as a WASM to WASM call.
-  void set(WasmInstanceObject* target_instance,
-           const wasm::WasmCode* wasm_function);
+  void set_wasm_to_wasm(WasmInstanceObject* target_instance,
+                        const wasm::WasmCode* wasm_function);
 
   WasmInstanceObject* instance();
   JSReceiver* callable();
