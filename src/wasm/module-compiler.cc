@@ -195,7 +195,7 @@ namespace {
 class JSToWasmWrapperCache {
  public:
   Handle<Code> CloneOrCompileJSToWasmWrapper(
-      Isolate* isolate, wasm::WasmModule* module, wasm::WasmCode* wasm_code,
+      Isolate* isolate, wasm::WasmModule* module, Address call_target,
       uint32_t index, wasm::UseTrapHandler use_trap_handler) {
     const wasm::WasmFunction* func = &module->functions[index];
     int cached_idx = sig_map_.Find(func->sig);
@@ -204,13 +204,12 @@ class JSToWasmWrapperCache {
       // Now patch the call to wasm code.
       RelocIterator it(*code, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
       DCHECK(!it.done());
-      it.rinfo()->set_js_to_wasm_address(
-          wasm_code == nullptr ? kNullAddress : wasm_code->instruction_start());
+      it.rinfo()->set_js_to_wasm_address(call_target);
       return code;
     }
 
     Handle<Code> code = compiler::CompileJSToWasmWrapper(
-        isolate, module, wasm_code, index, use_trap_handler);
+        isolate, module, call_target, index, use_trap_handler);
     uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
     DCHECK_EQ(code_cache_.size(), new_cache_idx);
     USE(new_cache_idx);
@@ -369,13 +368,11 @@ class IndirectPatcher {
  public:
   void Patch(Handle<WasmInstanceObject> caller_instance,
              Handle<WasmInstanceObject> target_instance, int func_index,
-             Address old_target, const WasmCode* new_code) {
+             Address old_target, Address new_target) {
     TRACE_LAZY(
         "IndirectPatcher::Patch(caller=%p, target=%p, func_index=%i, "
-        "old_target=%p, "
-        "new_code=%p)\n",
-        *caller_instance, *target_instance, func_index,
-        reinterpret_cast<void*>(old_target), new_code);
+        "old_target=%" PRIuPTR ", new_target=%" PRIuPTR ")\n",
+        *caller_instance, *target_instance, func_index, old_target, new_target);
     if (mapping_.size() == 0 || misses_ >= kMaxMisses) {
       BuildMapping(caller_instance);
     }
@@ -394,7 +391,7 @@ class IndirectPatcher {
           DCHECK_EQ(
               func_index,
               code_manager->GetCodeFromStartAddress(entry.target())->index());
-          entry.set_wasm_to_wasm(*target_instance, new_code);
+          entry.set_wasm_to_wasm(*target_instance, new_target);
           patched++;
         }
       } else {
@@ -405,7 +402,7 @@ class IndirectPatcher {
           DCHECK_EQ(
               func_index,
               code_manager->GetCodeFromStartAddress(entry.target())->index());
-          entry.set(entry.sig_id(), *target_instance, new_code);
+          entry.set(entry.sig_id(), *target_instance, new_target);
           patched++;
         }
       }
@@ -436,7 +433,7 @@ class IndirectPatcher {
               code->index());
       if (new_code->kind() != WasmCode::kLazyStub) {
         // Patch an imported function entry which is already compiled.
-        entry.set_wasm_to_wasm(target_instance, new_code);
+        entry.set_wasm_to_wasm(target_instance, new_code->instruction_start());
       } else {
         int key = code->index();
         int index = -1 - i;
@@ -458,7 +455,8 @@ class IndirectPatcher {
               code->index());
       if (new_code->kind() != WasmCode::kLazyStub) {
         // Patch an indirect function table entry which is already compiled.
-        entry.set(entry.sig_id(), target_instance, new_code);
+        entry.set(entry.sig_id(), target_instance,
+                  new_code->instruction_start());
       } else {
         int key = code->index();
         int index = i;
@@ -849,7 +847,7 @@ Address CompileLazy(Isolate* isolate,
                                    ->raw();
     Address old_target = lazy_stub->instruction_start();
     patcher->Patch(caller_instance, target_instance, target_func_index,
-                   old_target, result);
+                   old_target, result->instruction_start());
   }
 
   return result->instruction_start();
@@ -1829,21 +1827,19 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     Handle<WasmInstanceObject> start_function_instance = instance;
-    wasm::WasmCode* start_code;
+    Address start_call_address;
     if (static_cast<uint32_t>(start_index) < module_->num_imported_functions) {
       ImportedFunctionEntry entry(instance, start_index);
       start_function_instance = handle(entry.instance(), isolate_);
-      start_code =
-          isolate_->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-              entry.target());
-      DCHECK_EQ(start_code->native_module(),
-                start_function_instance->compiled_module()->GetNativeModule());
+      start_call_address = entry.target();
     } else {
-      start_code = native_module->GetIndirectlyCallableCode(start_index);
+      start_call_address = native_module->GetCallTargetForFunction(start_index);
     }
     FunctionSig* sig = module_->functions[start_index].sig;
     Handle<Code> wrapper_code = js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-        isolate_, module_, start_code, start_index, use_trap_handler());
+        isolate_, module_, start_call_address, start_index, use_trap_handler());
+    // TODO(clemensh): Don't generate an exported function for the start
+    // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
         isolate_, start_function_instance, MaybeHandle<String>(), start_index,
         static_cast<int>(sig->parameter_count()), wrapper_code);
@@ -2119,10 +2115,12 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             return -1;
           }
           // The import reference is the instance object itself.
-          auto wasm_code = imported_function->GetWasmCode();
           ImportedFunctionEntry(instance, func_index)
-              .set_wasm_to_wasm(*imported_instance, wasm_code);
-          native_module->set_code(func_index, wasm_code);
+              .set_wasm_to_wasm(*imported_instance,
+                                imported_function->GetWasmCallTarget());
+          // TODO(clemensh): Remove this. NativeModule must be instance
+          // independent.
+          native_module->set_code(func_index, imported_function->GetWasmCode());
         } else {
           // The imported function is a callable.
           Handle<JSReceiver> js_receiver(JSReceiver::cast(*value), isolate_);
@@ -2205,13 +2203,13 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           auto target = Handle<WasmExportedFunction>::cast(val);
           Handle<WasmInstanceObject> imported_instance =
               handle(target->instance());
-          const wasm::WasmCode* exported_code = target->GetWasmCode();
+          Address exported_call_target = target->GetWasmCallTarget();
           FunctionSig* sig = imported_instance->module()
-                                 ->functions[exported_code->index()]
+                                 ->functions[target->function_index()]
                                  .sig;
           IndirectFunctionTableEntry(instance, i)
               .set(module_->signature_map.Find(sig), *imported_instance,
-                   exported_code);
+                   exported_call_target);
         }
         num_imported_tables++;
         break;
@@ -2646,18 +2644,18 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
         // Update the local dispatch table first.
         uint32_t sig_id = module_->signature_ids[function->sig_index];
-        wasm::WasmCode* wasm_code =
-            native_module->GetIndirectlyCallableCode(func_index);
+        Address call_target =
+            native_module->GetCallTargetForFunction(func_index);
 
         if (func_index < module_->num_imported_functions) {
           // Imported functions have the target instance put into the IFT.
           WasmInstanceObject* target_instance =
               ImportedFunctionEntry(instance, func_index).instance();
           IndirectFunctionTableEntry(instance, table_index)
-              .set(sig_id, target_instance, wasm_code);
+              .set(sig_id, target_instance, call_target);
         } else {
           IndirectFunctionTableEntry(instance, table_index)
-              .set(sig_id, *instance, wasm_code);
+              .set(sig_id, *instance, call_target);
         }
 
         if (!table_instance.table_object.is_null()) {
@@ -2670,7 +2668,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
             Handle<Code> wrapper_code =
                 js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-                    isolate_, module_, wasm_code, func_index,
+                    isolate_, module_, call_target, func_index,
                     use_trap_handler());
             MaybeHandle<String> func_name;
             if (module_->is_asm_js()) {
@@ -2695,7 +2693,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
           // UpdateDispatchTables() should update this instance as well.
           WasmTableObject::UpdateDispatchTables(
               isolate_, table_instance.table_object, table_index, function->sig,
-              instance, wasm_code);
+              instance, call_target);
         }
       }
     }
@@ -3646,13 +3644,12 @@ void CompileJsToWasmWrappers(Isolate* isolate,
       module_object->compiled_module()->GetNativeModule();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  for (auto exp : module_object->shared()->module()->export_table) {
+  WasmModule* module = native_module->shared_module_data()->module();
+  for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    wasm::WasmCode* wasm_code =
-        native_module->GetIndirectlyCallableCode(exp.index);
+    Address call_target = native_module->GetCallTargetForFunction(exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, module_object->shared()->module(), wasm_code, exp.index,
-        use_trap_handler);
+        isolate, module, call_target, exp.index, use_trap_handler);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters);
     ++wrapper_index;

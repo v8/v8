@@ -405,16 +405,16 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   auto* wasm_function = &other_instance->module()->functions[func_index];
   DCHECK_NOT_NULL(wasm_function);
   DCHECK_NOT_NULL(wasm_function->sig);
-  wasm::WasmCode* wasm_code = exported_function->GetWasmCode();
+  Address call_target = exported_function->GetWasmCallTarget();
   UpdateDispatchTables(isolate, table, table_index, wasm_function->sig,
-                       handle(exported_function->instance()), wasm_code);
+                       handle(exported_function->instance()), call_target);
   array->set(table_index, *function);
 }
 
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int table_index,
     wasm::FunctionSig* sig, Handle<WasmInstanceObject> from_instance,
-    wasm::WasmCode* wasm_code) {
+    Address call_target) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
@@ -430,7 +430,7 @@ void WasmTableObject::UpdateDispatchTables(
     // not found; it will simply never match any check.
     auto sig_id = to_instance->module()->signature_map.Find(sig);
     IndirectFunctionTableEntry(to_instance, table_index)
-        .set(sig_id, *from_instance, wasm_code);
+        .set(sig_id, *from_instance, call_target);
   }
 }
 
@@ -672,13 +672,12 @@ void IndirectFunctionTableEntry::clear() {
 }
 
 void IndirectFunctionTableEntry::set(int sig_id, WasmInstanceObject* instance,
-                                     const wasm::WasmCode* wasm_code) {
-  TRACE_IFT("IFT entry %p[%d] = {sig_id=%d, instance=%p, target=%p}\n",
-            *instance_, index_, sig_id, instance,
-            wasm_code->instructions().start());
+                                     Address call_target) {
+  TRACE_IFT("IFT entry %p[%d] = {sig_id=%d, instance=%p, target=%" PRIuPTR
+            "}\n",
+            *instance_, index_, sig_id, instance, call_target);
   instance_->indirect_function_table_sig_ids()[index_] = sig_id;
-  instance_->indirect_function_table_targets()[index_] =
-      wasm_code->instruction_start();
+  instance_->indirect_function_table_targets()[index_] = call_target;
   instance_->indirect_function_table_instances()->set(index_, instance);
 }
 
@@ -707,14 +706,13 @@ void ImportedFunctionEntry::set_wasm_to_js(
 }
 
 void ImportedFunctionEntry::set_wasm_to_wasm(WasmInstanceObject* instance,
-                                             const wasm::WasmCode* wasm_code) {
-  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%p}\n", *instance_,
-            index_, instance, wasm_code->instructions().start());
+                                             Address call_target) {
+  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%" PRIuPTR "}\n",
+            *instance_, index_, instance, call_target);
   instance_->imported_function_instances()->set(index_, instance);
   instance_->imported_function_callables()->set(
       index_, instance_->GetHeap()->undefined_value());
-  instance_->imported_function_targets()[index_] =
-      wasm_code->instruction_start();
+  instance_->imported_function_targets()[index_] = call_target;
 }
 
 WasmInstanceObject* ImportedFunctionEntry::instance() {
@@ -947,15 +945,19 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 }
 
 wasm::WasmCode* WasmExportedFunction::GetWasmCode() {
+  Address target = GetWasmCallTarget();
+  wasm::WasmCode* wasm_code =
+      GetIsolate()->wasm_engine()->code_manager()->LookupCode(target);
+  return wasm_code;
+}
+
+Address WasmExportedFunction::GetWasmCallTarget() {
   DisallowHeapAllocation no_gc;
-  Handle<Code> export_wrapper_code = handle(this->code());
-  DCHECK_EQ(export_wrapper_code->kind(), Code::JS_TO_WASM_FUNCTION);
+  DCHECK_EQ(code()->kind(), Code::JS_TO_WASM_FUNCTION);
   int mask = RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
-  RelocIterator it(*export_wrapper_code, mask);
+  RelocIterator it(code(), mask);
   DCHECK(!it.done());
-  wasm::WasmCode* target =
-      GetIsolate()->wasm_engine()->code_manager()->LookupCode(
-          it.rinfo()->js_to_wasm_address());
+  Address target = it.rinfo()->js_to_wasm_address();
 #ifdef DEBUG
   // There should only be this one call to wasm code.
   it.next();

@@ -259,15 +259,21 @@ class V8_EXPORT_PRIVATE NativeModule final {
     code_table_[index] = wasm_code;
   }
 
+  bool has_code(uint32_t index) const {
+    DCHECK_LT(index, function_count());
+    return code_table_[index] != nullptr;
+  }
+
   // Register/release the protected instructions in all code objects with the
   // global trap handler for this process.
   void UnpackAndRegisterProtectedInstructions();
   void ReleaseProtectedInstructions();
 
-  // Gets code suitable for indirect or import calls for the given function
-  // index. If the code at the given index is the lazy compile stub, it will
-  // clone a non-anonymous lazy compile stub for the purpose.
-  WasmCode* GetIndirectlyCallableCode(uint32_t func_index);
+  // Returns the instruction start of code suitable for indirect or import calls
+  // for the given function index. If the code at the given index is the lazy
+  // compile stub, it will clone a non-anonymous lazy compile stub for the
+  // purpose. This will soon change to always return a jump table slot.
+  Address GetCallTargetForFunction(uint32_t index);
 
   bool SetExecutable(bool executable);
 

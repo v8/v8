@@ -697,16 +697,19 @@ WasmCode* NativeModule::Lookup(Address pc) {
                                WasmCodeUniquePtrComparator());
   if (iter == owned_code_.begin()) return nullptr;
   --iter;
-  WasmCode* candidate = (*iter).get();
+  WasmCode* candidate = iter->get();
   DCHECK_NOT_NULL(candidate);
   return candidate->contains(pc) ? candidate : nullptr;
 }
 
-WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
+Address NativeModule::GetCallTargetForFunction(uint32_t func_index) {
+  // TODO(clemensh): Introduce a jump table and return a slot of it here.
   WasmCode* wasm_code = code(func_index);
-  if (!wasm_code || wasm_code->kind() != WasmCode::kLazyStub) {
-    return wasm_code;
+  if (!wasm_code) return kNullAddress;
+  if (wasm_code->kind() != WasmCode::kLazyStub) {
+    return wasm_code->instruction_start();
   }
+
 #if DEBUG
   auto num_imported_functions =
       shared_module_data()->module()->num_imported_functions;
@@ -718,7 +721,7 @@ WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
     // If the function wasn't imported, its index should match.
     DCHECK_IMPLIES(func_index >= num_imported_functions,
                    func_index == wasm_code->index());
-    return wasm_code;
+    return wasm_code->instruction_start();
   }
   if (!lazy_compile_stubs_.get()) {
     lazy_compile_stubs_ =
@@ -732,7 +735,7 @@ WasmCode* NativeModule::GetIndirectlyCallableCode(uint32_t func_index) {
     lazy_compile_stubs_.get()->at(func_index) = cloned_code;
   }
   DCHECK_EQ(func_index, cloned_code->index());
-  return cloned_code;
+  return cloned_code->instruction_start();
 }
 
 WasmCode* NativeModule::CloneCode(const WasmCode* original_code,

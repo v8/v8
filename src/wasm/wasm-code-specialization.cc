@@ -113,10 +113,9 @@ bool CodeSpecialization::ApplyToWholeModule(
       switch (mode) {
         case RelocInfo::JS_TO_WASM_CALL: {
           changed = true;
-          const WasmCode* new_code =
-              native_module->GetIndirectlyCallableCode(exp.index);
-          it.rinfo()->set_js_to_wasm_address(new_code->instruction_start(),
-                                             icache_flush_mode);
+          Address new_target =
+              native_module->GetCallTargetForFunction(exp.index);
+          it.rinfo()->set_js_to_wasm_address(new_target, icache_flush_mode);
         } break;
         default:
           UNREACHABLE();

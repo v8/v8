@@ -4298,7 +4298,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return instance;
   }
 
-  void BuildJSToWasmWrapper(wasm::WasmCode* wasm_code) {
+  void BuildJSToWasmWrapper(Address call_target) {
     const int wasm_count = static_cast<int>(sig_->parameter_count());
     const int count =
         wasm_count + 4;  // wasm_code, instance_node, effect, and control.
@@ -4327,10 +4327,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     DCHECK_NULL(instance_node_);
     instance_node_ = BuildLoadInstanceFromExportedFunction(js_closure);
 
-    Address instr_start =
-        wasm_code == nullptr ? kNullAddress : wasm_code->instruction_start();
     Node* wasm_code_node = mcgraph()->RelocatableIntPtrConstant(
-        instr_start, RelocInfo::JS_TO_WASM_CALL);
+        call_target, RelocInfo::JS_TO_WASM_CALL);
     if (!wasm::IsJSCompatibleSignature(sig_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
       // function (passed as a parameter), such that the generated code is
@@ -4691,7 +4689,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 }  // namespace
 
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    wasm::WasmCode* wasm_code, uint32_t index,
+                                    Address call_target, uint32_t index,
                                     wasm::UseTrapHandler use_trap_handler) {
   const wasm::WasmFunction* func = &module->functions[index];
 
@@ -4714,7 +4712,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, func->sig, nullptr);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildJSToWasmWrapper(wasm_code);
+  builder.BuildJSToWasmWrapper(call_target);
 
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.

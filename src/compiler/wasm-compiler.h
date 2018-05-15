@@ -110,7 +110,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
 // Wraps a given wasm code object, producing a code object.
 V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(Isolate*,
                                                       wasm::WasmModule*,
-                                                      wasm::WasmCode*,
+                                                      Address call_target,
                                                       uint32_t index,
                                                       wasm::UseTrapHandler);
 
