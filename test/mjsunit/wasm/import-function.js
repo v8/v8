@@ -360,3 +360,28 @@ testImportName('');
   new WebAssembly.Instance(module, {q: {imp: _ => set_global(27)}});
   assertEquals(27, global);
 })();
+
+(function testImportedStartFunctionUsesRightInstance() {
+  print(arguments.callee.name);
+  var global = 0;
+  const set_global = n => global = n;
+  const exp = (function() {
+    const builder = new WasmModuleBuilder();
+    builder.addMemory(1, 1);
+    builder.exportMemoryAs('mem');
+    const imp_index = builder.addImport('q', 'imp', kSig_v_i);
+    builder.addFunction('f', kSig_v_v)
+        .addBody([kExprI32Const, 0, kExprI32Const, 11, kExprI32StoreMem8, 0, 0])
+        .exportFunc();
+    return builder.instantiate({q: {imp: set_global}}).exports;
+  })();
+
+  const builder = new WasmModuleBuilder();
+  const imp_index = builder.addImport('q', 'imp', kSig_v_v);
+  builder.addStart(imp_index);
+  const module = builder.toModule();
+
+  assertEquals(0, new Uint8Array(exp.mem.buffer)[0], 'memory initially 0');
+  new WebAssembly.Instance(module, {q: {imp: exp.f}});
+  assertEquals(11, new Uint8Array(exp.mem.buffer)[0], 'memory changed to 11');
+})();

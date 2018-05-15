@@ -1828,15 +1828,25 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
-    wasm::WasmCode* start_code =
-        native_module->GetIndirectlyCallableCode(start_index);
+    Handle<WasmInstanceObject> start_function_instance = instance;
+    wasm::WasmCode* start_code;
+    if (static_cast<uint32_t>(start_index) < module_->num_imported_functions) {
+      ImportedFunctionEntry entry(instance, start_index);
+      start_function_instance = handle(entry.instance(), isolate_);
+      start_code =
+          isolate_->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+              entry.target());
+      DCHECK_EQ(start_code->native_module(),
+                start_function_instance->compiled_module()->GetNativeModule());
+    } else {
+      start_code = native_module->GetIndirectlyCallableCode(start_index);
+    }
     FunctionSig* sig = module_->functions[start_index].sig;
     Handle<Code> wrapper_code = js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
         isolate_, module_, start_code, start_index, use_trap_handler());
     start_function_ = WasmExportedFunction::New(
-        isolate_, instance, MaybeHandle<String>(), start_index,
+        isolate_, start_function_instance, MaybeHandle<String>(), start_index,
         static_cast<int>(sig->parameter_count()), wrapper_code);
-    RecordStats(start_code, counters());
   }
 
   DCHECK(!isolate_->has_pending_exception());
