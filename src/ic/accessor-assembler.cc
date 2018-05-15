@@ -792,7 +792,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     ICMode ic_mode, ElementSupport support_elements) {
   Label if_smi_handler(this), if_nonsmi_handler(this);
   Label if_proto_handler(this), if_element_handler(this), call_handler(this),
-      store_transition(this), store_global(this);
+      store_transition_or_global(this);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
@@ -866,38 +866,48 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   BIND(&if_nonsmi_handler);
   {
-    GotoIf(IsClearedWeakHeapObject(handler), miss);
-    GotoIf(IsWeakOrClearedHeapObject(handler), &store_transition);
-    Node* handler_map = LoadMap(ToStrongHeapObject(handler));
-    GotoIf(IsWeakCellMap(handler_map), &store_global);
+    GotoIf(IsWeakOrClearedHeapObject(handler), &store_transition_or_global);
+    TNode<HeapObject> strong_handler = ToStrongHeapObject(handler);
+    TNode<Map> handler_map = LoadMap(strong_handler);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
+
+    BIND(&if_proto_handler);
+    {
+      HandleStoreICProtoHandler(p, CAST(strong_handler), miss, ic_mode,
+                                support_elements);
+    }
+
+    // |handler| is a heap object. Must be code, call it.
+    BIND(&call_handler);
+    {
+      StoreWithVectorDescriptor descriptor(isolate());
+      TailCallStub(descriptor, strong_handler, p->context, p->receiver, p->name,
+                   p->value, p->slot, p->vector);
+    }
   }
 
-  BIND(&if_proto_handler);
-  HandleStoreICProtoHandler(p, handler, miss, ic_mode, support_elements);
-
-  // |handler| is a heap object. Must be code, call it.
-  BIND(&call_handler);
-  {
-    StoreWithVectorDescriptor descriptor(isolate());
-    TailCallStub(descriptor, handler, p->context, p->receiver, p->name,
-                 p->value, p->slot, p->vector);
-  }
-
-  BIND(&store_transition);
-  {
-    TNode<Map> map = CAST(ToWeakHeapObject(handler));
-    HandleStoreICTransitionMapHandlerCase(p, map, miss, false);
-    Return(p->value);
-  }
-
-  BIND(&store_global);
+  BIND(&store_transition_or_global);
   {
     // Load value or miss if the {handler} weak cell is cleared.
-    TNode<PropertyCell> property_cell =
-        CAST(LoadWeakCellValue(CAST(ToStrongHeapObject(handler)), miss));
-    ExitPoint direct_exit(this);
-    StoreGlobalIC_PropertyCellCase(property_cell, p->value, &direct_exit, miss);
+    CSA_ASSERT(this, IsWeakOrClearedHeapObject(handler));
+    TNode<HeapObject> map_or_property_cell = ToWeakHeapObject(handler, miss);
+
+    Label store_global(this), store_transition(this);
+    Branch(IsMap(map_or_property_cell), &store_transition, &store_global);
+
+    BIND(&store_global);
+    {
+      TNode<PropertyCell> property_cell = CAST(map_or_property_cell);
+      ExitPoint direct_exit(this);
+      StoreGlobalIC_PropertyCellCase(property_cell, p->value, &direct_exit,
+                                     miss);
+    }
+    BIND(&store_transition);
+    {
+      TNode<Map> map = CAST(map_or_property_cell);
+      HandleStoreICTransitionMapHandlerCase(p, map, miss, false);
+      Return(p->value);
+    }
   }
 }
 
@@ -1190,8 +1200,8 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
 }
 
 void AccessorAssembler::HandleStoreICProtoHandler(
-    const StoreICParameters* p, Node* handler, Label* miss, ICMode ic_mode,
-    ElementSupport support_elements) {
+    const StoreICParameters* p, TNode<StoreHandler> handler, Label* miss,
+    ICMode ic_mode, ElementSupport support_elements) {
   Comment("HandleStoreICProtoHandler");
 
   OnCodeHandler on_code_handler;
@@ -2841,7 +2851,9 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     GotoIfNot(IsWeakCell(handler), &if_handler);
 
     TNode<HeapObject> value = CAST(LoadWeakCellValue(CAST(handler), &miss));
-    GotoIfNot(IsMap(value), &if_handler);
+    TNode<Map> value_map = LoadMap(value);
+    GotoIfNot(Word32Or(IsMetaMap(value_map), IsPropertyCellMap(value_map)),
+              &if_handler);
 
     TNode<MaybeObject> weak_handler = MakeWeak(value);
     HandleStoreICHandlerCase(p, weak_handler, &miss, ICMode::kNonGlobalIC);

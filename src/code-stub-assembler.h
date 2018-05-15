@@ -685,6 +685,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Removes the weak bit + asserts it was set.
   TNode<HeapObject> ToWeakHeapObject(TNode<MaybeObject> value);
 
+  TNode<HeapObject> ToWeakHeapObject(TNode<MaybeObject> value,
+                                     Label* if_cleared);
+
   // IsObject == true when the MaybeObject is a strong HeapObject or a smi.
   TNode<BoolT> IsObject(TNode<MaybeObject> value);
   // This variant is for overzealous checking.

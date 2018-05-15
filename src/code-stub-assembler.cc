@@ -1768,6 +1768,12 @@ TNode<HeapObject> CodeStubAssembler::ToWeakHeapObject(
       BitcastMaybeObjectToWord(value), IntPtrConstant(~kWeakHeapObjectMask))));
 }
 
+TNode<HeapObject> CodeStubAssembler::ToWeakHeapObject(TNode<MaybeObject> value,
+                                                      Label* if_cleared) {
+  GotoIf(IsClearedWeakHeapObject(value), if_cleared);
+  return ToWeakHeapObject(value);
+}
+
 TNode<BoolT> CodeStubAssembler::IsObject(TNode<MaybeObject> value) {
   return WordNotEqual(WordAnd(BitcastMaybeObjectToWord(value),
                               IntPtrConstant(kHeapObjectTagMask)),

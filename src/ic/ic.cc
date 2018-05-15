@@ -734,11 +734,16 @@ StubCache* IC::stub_cache() {
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
   HeapObject* heap_object;
-  if (handler->ToWeakHeapObject(&heap_object) && heap_object->IsMap()) {
+  if (handler->ToWeakHeapObject(&heap_object)) {
     // TODO(marja): remove this conversion once megamorphic stub cache supports
     // weak handlers.
-    Handle<Object> weak_cell =
-        Map::WeakCellForMap(handle(Map::cast(heap_object)));
+    Handle<Object> weak_cell;
+    if (heap_object->IsMap()) {
+      weak_cell = Map::WeakCellForMap(handle(Map::cast(heap_object)));
+    } else {
+      weak_cell = isolate_->factory()->NewWeakCell(
+          handle(PropertyCell::cast(heap_object)));
+    }
     stub_cache()->Set(*name, *map, *weak_cell);
   } else {
     stub_cache()->Set(*name, *map, handler->ToObject());
@@ -1500,8 +1505,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           DCHECK_EQ(*lookup->GetReceiver(), *holder);
           DCHECK_EQ(*store_target, *holder);
 #endif
-          return MaybeObjectHandle(
-              StoreHandler::StoreGlobal(isolate(), lookup->transition_cell()));
+          return StoreHandler::StoreGlobal(isolate(),
+                                           lookup->transition_cell());
         }
 
         Handle<Smi> smi_handler = StoreHandler::StoreGlobalProxy(isolate());
