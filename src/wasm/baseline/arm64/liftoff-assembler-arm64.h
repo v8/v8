@@ -518,12 +518,34 @@ void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_rems");
+  Register dst_w = dst.W();
+  Register lhs_w = lhs.W();
+  Register rhs_w = rhs.W();
+  // Do early div.
+  // No need to check kMinInt / -1 because the result is kMinInt and then
+  // kMinInt * -1 -> kMinInt. In this case, the Msub result is therefore 0.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireW();
+  Sdiv(scratch, lhs_w, rhs_w);
+  // Check for division by zero.
+  Cbz(rhs_w, trap_div_by_zero);
+  // Compute remainder.
+  Msub(dst_w, scratch, rhs_w, lhs_w);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_remu");
+  Register dst_w = dst.W();
+  Register lhs_w = lhs.W();
+  Register rhs_w = rhs.W();
+  // Do early div.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireW();
+  Udiv(scratch, lhs_w, rhs_w);
+  // Check for division by zero.
+  Cbz(rhs_w, trap_div_by_zero);
+  // Compute remainder.
+  Msub(dst_w, scratch, rhs_w, lhs_w);
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
@@ -564,14 +586,36 @@ bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
 bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_rems");
+  Register dst_x = dst.gp().X();
+  Register lhs_x = lhs.gp().X();
+  Register rhs_x = rhs.gp().X();
+  // Do early div.
+  // No need to check kMinInt / -1 because the result is kMinInt and then
+  // kMinInt * -1 -> kMinInt. In this case, the Msub result is therefore 0.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Sdiv(scratch, lhs_x, rhs_x);
+  // Check for division by zero.
+  Cbz(rhs_x, trap_div_by_zero);
+  // Compute remainder.
+  Msub(dst_x, scratch, rhs_x, lhs_x);
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_remu");
+  Register dst_x = dst.gp().X();
+  Register lhs_x = lhs.gp().X();
+  Register rhs_x = rhs.gp().X();
+  // Do early div.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Udiv(scratch, lhs_x, rhs_x);
+  // Check for division by zero.
+  Cbz(rhs_x, trap_div_by_zero);
+  // Compute remainder.
+  Msub(dst_x, scratch, rhs_x, lhs_x);
   return true;
 }
 
