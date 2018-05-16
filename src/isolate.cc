@@ -3012,6 +3012,8 @@ bool Isolate::Init(StartupDeserializer* des) {
       counters()->wasm_memory_allocation_result());
   wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
       counters()->wasm_address_space_usage_mb());
+  wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
+      counters()->wasm_module_code_size_mb());
 
 // Initialize the interface descriptors ahead of time.
 #define INTERFACE_DESCRIPTOR(Name, ...) \

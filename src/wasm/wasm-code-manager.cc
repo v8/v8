@@ -985,14 +985,19 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   }
   native_module->owned_code_space_.clear();
 
+  size_t code_size = native_module->committed_code_space_;
+  DCHECK(IsAligned(code_size, AllocatePageSize()));
+
+  if (module_code_size_mb_) {
+    module_code_size_mb_->AddSample(static_cast<int>(code_size / MB));
+  }
+
   // No need to tell the GC anything if we're destroying the heap,
   // which we currently indicate by having the isolate_ as null
   if (isolate_ == nullptr) return;
-  size_t freed_code_space = native_module->committed_code_space_;
-  DCHECK(IsAligned(freed_code_space, AllocatePageSize()));
-  remaining_uncommitted_code_space_.fetch_add(freed_code_space);
+  remaining_uncommitted_code_space_.fetch_add(code_size);
   isolate_->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<int64_t>(freed_code_space));
+      -static_cast<int64_t>(code_size));
 }
 
 // TODO(wasm): We can make this more efficient if needed. For

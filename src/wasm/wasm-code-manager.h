@@ -22,6 +22,7 @@ namespace internal {
 
 struct CodeDesc;
 class Code;
+class Histogram;
 class WasmCompiledModule;
 
 namespace wasm {
@@ -388,6 +389,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   WasmCode* GetCodeFromStartAddress(Address pc) const;
   size_t remaining_uncommitted_code_space() const;
 
+  void SetModuleCodeSizeHistogram(Histogram* histogram) {
+    module_code_size_mb_ = histogram;
+  }
+
  private:
   friend class NativeModule;
 
@@ -411,6 +416,9 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   // TODO(mtrofin): remove the dependency on isolate.
   v8::Isolate* isolate_;
+
+  // Histogram to update with the maximum used code space for each NativeModule.
+  Histogram* module_code_size_mb_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(WasmCodeManager);
 };
