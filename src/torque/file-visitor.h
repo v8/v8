@@ -26,11 +26,10 @@ class FileVisitor {
         declarations_(global_context.declarations()),
         module_(global_context.GetDefaultModule()) {}
 
-  TypeVector GetTypeVector(SourcePosition pos,
-                           const std::vector<TypeExpression*>& v) {
+  TypeVector GetTypeVector(const std::vector<TypeExpression*>& v) {
     TypeVector result;
     for (TypeExpression* t : v) {
-      result.push_back(declarations()->GetType(pos, t));
+      result.push_back(declarations()->GetType(t));
     }
     return result;
   }
@@ -70,11 +69,7 @@ class FileVisitor {
     return std::string("p_") + name;
   }
 
-  std::string PositionAsString(SourcePosition pos) {
-    return global_context_.ast()->source_file_map()->PositionAsString(pos);
-  }
-
-  Callable* LookupCall(SourcePosition pos, const std::string& name,
+  Callable* LookupCall(const std::string& name,
                        const TypeVector& parameter_types);
 
   Signature MakeSignature(CallableNode* decl,

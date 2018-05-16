@@ -56,7 +56,6 @@ class GlobalContext {
   explicit GlobalContext(Ast ast)
       : verbose_(false),
         next_label_number_(0),
-        declarations_(ast.source_file_map()),
         type_oracle_(&declarations_),
         default_module_(GetModule("base")),
         ast_(std::move(ast)) {}
@@ -114,10 +113,6 @@ class GlobalContext {
   }
 
   std::map<std::string, std::vector<OperationHandler>> op_handlers_;
-
-  std::string PositionAsString(SourcePosition pos) {
-    return declarations()->PositionAsString(pos);
-  }
 
   Declarations* declarations() { return &declarations_; }
   Ast* ast() { return &ast_; }

@@ -25,6 +25,8 @@ std::string DashifyString(const std::string& underscore_string);
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents);
 
+std::string CurrentPositionAsString();
+
 template <class T>
 class Deduplicator {
  public:

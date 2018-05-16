@@ -17,95 +17,80 @@ namespace torque {
 
 class Declarations {
  public:
-  explicit Declarations(SourceFileMap* source_file_map)
-      : source_file_map_(source_file_map),
-        unique_declaration_number_(0),
+  Declarations()
+      : unique_declaration_number_(0),
         current_generic_specialization_(nullptr) {}
 
-  Declarable* Lookup(const std::string& name) { return chain_.Lookup(name); }
+  Declarable* TryLookup(const std::string& name) { return chain_.Lookup(name); }
 
-  Declarable* Lookup(SourcePosition pos, const std::string& name) {
-    Declarable* d = Lookup(name);
+  Declarable* Lookup(const std::string& name) {
+    Declarable* d = TryLookup(name);
     if (d == nullptr) {
       std::stringstream s;
-      s << "cannot find \"" << name << "\" at " << PositionAsString(pos);
+      s << "cannot find \"" << name << "\"";
       ReportError(s.str());
     }
     return d;
   }
 
   Declarable* LookupGlobalScope(const std::string& name) {
-    return chain_.LookupGlobalScope(name);
-  }
-
-  Declarable* LookupGlobalScope(SourcePosition pos, const std::string& name) {
     Declarable* d = chain_.LookupGlobalScope(name);
     if (d == nullptr) {
       std::stringstream s;
-      s << "cannot find \"" << name << "\" in global scope at "
-        << PositionAsString(pos);
+      s << "cannot find \"" << name << "\" in global scope";
       ReportError(s.str());
     }
     return d;
   }
 
-  const Type* LookupType(SourcePosition pos, const std::string& name);
+  const Type* LookupType(const std::string& name);
   const Type* LookupGlobalType(const std::string& name);
-  const Type* LookupGlobalType(SourcePosition pos, const std::string& name);
-  const Type* GetType(SourcePosition pos, TypeExpression* type_expression);
+  const Type* GetType(TypeExpression* type_expression);
 
-  const Type* GetFunctionPointerType(SourcePosition pos,
-                                     TypeVector argument_types,
+  const Type* GetFunctionPointerType(TypeVector argument_types,
                                      const Type* return_type);
 
   Builtin* FindSomeInternalBuiltinWithType(const FunctionPointerType* type);
 
-  Value* LookupValue(SourcePosition pos, const std::string& name);
+  Value* LookupValue(const std::string& name);
 
-  Macro* LookupMacro(SourcePosition pos, const std::string& name,
-                     const TypeVector& types);
+  Macro* LookupMacro(const std::string& name, const TypeVector& types);
 
-  Builtin* LookupBuiltin(SourcePosition pos, const std::string& name);
+  Builtin* LookupBuiltin(const std::string& name);
 
-  Label* LookupLabel(SourcePosition pos, const std::string& name);
+  Label* LookupLabel(const std::string& name);
 
-  Generic* LookupGeneric(const SourcePosition& pos, const std::string& name);
+  Generic* LookupGeneric(const std::string& name);
 
-  const AbstractType* DeclareAbstractType(SourcePosition pos,
-                                          const std::string& name,
+  const AbstractType* DeclareAbstractType(const std::string& name,
                                           const std::string& generated,
                                           const std::string* parent = nullptr);
 
-  void DeclareTypeAlias(SourcePosition pos, const std::string& name,
-                        const Type* aliased_type);
+  void DeclareTypeAlias(const std::string& name, const Type* aliased_type);
 
-  Label* DeclareLabel(SourcePosition pos, const std::string& name);
+  Label* DeclareLabel(const std::string& name);
 
-  Macro* DeclareMacro(SourcePosition pos, const std::string& name,
-                      const Signature& signature);
+  Macro* DeclareMacro(const std::string& name, const Signature& signature);
 
-  Builtin* DeclareBuiltin(SourcePosition pos, const std::string& name,
-                          Builtin::Kind kind, bool external,
-                          const Signature& signature);
+  Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
+                          bool external, const Signature& signature);
 
-  RuntimeFunction* DeclareRuntimeFunction(SourcePosition pos,
-                                          const std::string& name,
+  RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
                                           const Signature& signature);
 
-  Variable* DeclareVariable(SourcePosition pos, const std::string& var,
-                            const Type* type);
+  Variable* DeclareVariable(const std::string& var, const Type* type);
 
-  Parameter* DeclareParameter(SourcePosition pos, const std::string& name,
+  Parameter* DeclareParameter(const std::string& name,
                               const std::string& mangled_name,
                               const Type* type);
 
-  Label* DeclarePrivateLabel(SourcePosition pos, const std::string& name);
+  Label* DeclarePrivateLabel(const std::string& name);
 
-  void DeclareConstant(SourcePosition pos, const std::string& name,
-                       const Type* type, const std::string& value);
+  void DeclareConstant(const std::string& name, const Type* type,
+                       const std::string& value);
 
-  Generic* DeclareGeneric(SourcePosition pos, const std::string& name,
-                          Module* module, GenericDeclaration* generic);
+  Generic* DeclareGeneric(const std::string& name, Module* module,
+                          GenericDeclaration* generic);
 
   TypeVector GetCurrentSpecializationTypeNamesVector();
 
@@ -113,10 +98,6 @@ class Declarations {
 
   std::set<const Variable*> GetLiveVariables() {
     return chain_.GetLiveVariables();
-  }
-
-  std::string PositionAsString(SourcePosition pos) {
-    return source_file_map_->PositionAsString(pos);
   }
 
   Statement* next_body() const { return next_body_; }
@@ -144,10 +125,8 @@ class Declarations {
 
   int GetNextUniqueDeclarationNumber() { return unique_declaration_number_++; }
 
-  void CheckAlreadyDeclared(SourcePosition pos, const std::string& name,
-                            const char* new_type);
+  void CheckAlreadyDeclared(const std::string& name, const char* new_type);
 
-  SourceFileMap* source_file_map_;
   int unique_declaration_number_;
   ScopeChain chain_;
   const SpecializationKey* current_generic_specialization_;

@@ -7,14 +7,19 @@
 #include <iostream>
 #include <string>
 
+#include "src/torque/ast.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 
+std::string CurrentPositionAsString() {
+  return PositionAsString(CurrentSourcePosition::Get());
+}
+
 void ReportError(const std::string& error) {
-  std::cerr << error << std::endl;
+  std::cerr << CurrentPositionAsString() << ": Torque error: " << error << "\n";
   throw(-1);
 }
 

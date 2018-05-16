@@ -74,14 +74,13 @@ class DeclarationVisitor : public FileVisitor {
 
     std::string generates =
         decl->generates ? *decl->generates : std::string("");
-    declarations()->DeclareAbstractType(decl->pos, decl->name, generates,
-                                        extends_ptr);
+    declarations()->DeclareAbstractType(decl->name, generates, extends_ptr);
 
     if (decl->constexpr_generates) {
       std::string constexpr_name =
           std::string(CONSTEXPR_TYPE_PREFIX) + decl->name;
       declarations()->DeclareAbstractType(
-          decl->pos, constexpr_name, *decl->constexpr_generates, &(decl->name));
+          constexpr_name, *decl->constexpr_generates, &(decl->name));
     }
   }
 
@@ -118,14 +117,11 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(VarDeclarationStatement* stmt) {
     std::string variable_name = stmt->name;
-    const Type* type = declarations()->GetType(stmt->pos, stmt->type);
+    const Type* type = declarations()->GetType(stmt->type);
     if (type->IsConstexpr()) {
-      std::stringstream stream;
-      stream << "cannot declare variable with constexpr type at "
-             << PositionAsString(stmt->pos);
-      ReportError(stream.str());
+      ReportError("cannot declare variable with constexpr type");
     }
-    declarations()->DeclareVariable(stmt->pos, variable_name, type);
+    declarations()->DeclareVariable(variable_name, type);
     if (global_context_.verbose()) {
       std::cout << "declared variable " << variable_name << " with type "
                 << type << "\n";
@@ -134,21 +130,20 @@ class DeclarationVisitor : public FileVisitor {
       Visit(*stmt->initializer);
       if (global_context_.verbose()) {
         std::cout << "variable has initialization expression at "
-                  << PositionAsString(stmt->pos) << "\n";
+                  << CurrentPositionAsString() << "\n";
       }
     }
   }
 
   void Visit(ConstDeclaration* decl) {
     declarations()->DeclareConstant(
-        decl->pos, decl->name, declarations()->GetType(decl->pos, decl->type),
-        decl->literal);
+        decl->name, declarations()->GetType(decl->type), decl->literal);
   }
 
   void Visit(LogicalOrExpression* expr) {
     {
       Declarations::NodeScopeActivator scope(declarations(), expr->left);
-      declarations()->DeclareLabel(expr->pos, kFalseLabelName);
+      declarations()->DeclareLabel(kFalseLabelName);
       Visit(expr->left);
     }
     Visit(expr->right);
@@ -157,7 +152,7 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(LogicalAndExpression* expr) {
     {
       Declarations::NodeScopeActivator scope(declarations(), expr->left);
-      declarations()->DeclareLabel(expr->pos, kTrueLabelName);
+      declarations()->DeclareLabel(kTrueLabelName);
       Visit(expr->left);
     }
     Visit(expr->right);
@@ -171,8 +166,8 @@ class DeclarationVisitor : public FileVisitor {
     // visiting the conditional expression, those label-based
     // macro conditionals will be able to find them through normal
     // label lookups.
-    declarations()->DeclareLabel(node->pos, kTrueLabelName);
-    declarations()->DeclareLabel(node->pos, kFalseLabelName);
+    declarations()->DeclareLabel(kTrueLabelName);
+    declarations()->DeclareLabel(kFalseLabelName);
     Visit(node);
   }
 
@@ -314,7 +309,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void MarkLocationModified(Expression* location) {
     if (IdentifierExpression* id = IdentifierExpression::cast(location)) {
-      const Value* value = declarations()->LookupValue(id->pos, id->name);
+      const Value* value = declarations()->LookupValue(id->name);
       if (value->IsVariable()) {
         const Variable* variable = Variable::cast(value);
         bool was_live = MarkVariableModified(variable);
@@ -340,21 +335,21 @@ class DeclarationVisitor : public FileVisitor {
     return was_live_in_preceeding_split;
   }
 
-  void DeclareSignature(SourcePosition pos, const Signature& signature) {
+  void DeclareSignature(const Signature& signature) {
     auto name_iterator = signature.parameter_names.begin();
     for (auto t : signature.types()) {
       const std::string& name(*name_iterator++);
-      declarations()->DeclareParameter(pos, name,
-                                       GetParameterVariableFromName(name), t);
+      declarations()->DeclareParameter(name, GetParameterVariableFromName(name),
+                                       t);
     }
     for (auto& label : signature.labels) {
       auto label_params = label.types;
-      Label* new_label = declarations()->DeclareLabel(pos, label.name);
+      Label* new_label = declarations()->DeclareLabel(label.name);
       size_t i = 0;
       for (auto var_type : label_params) {
         std::string var_name = label.name + std::to_string(i++);
         new_label->AddVariable(
-            declarations()->DeclareVariable(pos, var_name, var_type));
+            declarations()->DeclareVariable(var_name, var_type));
       }
     }
   }

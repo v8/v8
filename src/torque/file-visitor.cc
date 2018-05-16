@@ -15,13 +15,13 @@ Signature FileVisitor::MakeSignature(CallableNode* decl,
   Declarations::NodeScopeActivator scope(declarations(), decl);
   LabelDeclarationVector definition_vector;
   for (auto label : signature->labels) {
-    LabelDeclaration def = {label.name, GetTypeVector(decl->pos, label.types)};
+    LabelDeclaration def = {label.name, GetTypeVector(label.types)};
     definition_vector.push_back(def);
   }
   Signature result{signature->parameters.names,
-                   {GetTypeVector(decl->pos, signature->parameters.types),
+                   {GetTypeVector(signature->parameters.types),
                     signature->parameters.has_varargs},
-                   declarations()->GetType(decl->pos, signature->return_type),
+                   declarations()->GetType(signature->return_type),
                    definition_vector};
   return result;
 }
@@ -36,10 +36,10 @@ std::string FileVisitor::GetGeneratedCallableName(
   return result;
 }
 
-Callable* FileVisitor::LookupCall(SourcePosition pos, const std::string& name,
+Callable* FileVisitor::LookupCall(const std::string& name,
                                   const TypeVector& parameter_types) {
   Callable* result = nullptr;
-  Declarable* declarable = declarations()->Lookup(pos, name);
+  Declarable* declarable = declarations()->Lookup(name);
   if (declarable->IsBuiltin()) {
     result = Builtin::cast(declarable);
   } else if (declarable->IsRuntimeFunction()) {
@@ -52,8 +52,7 @@ Callable* FileVisitor::LookupCall(SourcePosition pos, const std::string& name,
           std::stringstream stream;
           stream << "multiple matching matching parameter list for macro "
                  << name << ": (" << parameter_types << ") and ("
-                 << result->signature().parameter_types << ") at "
-                 << PositionAsString(pos);
+                 << result->signature().parameter_types << ")";
           ReportError(stream.str());
         }
         result = m;
@@ -62,16 +61,14 @@ Callable* FileVisitor::LookupCall(SourcePosition pos, const std::string& name,
     if (result == nullptr) {
       std::stringstream stream;
       stream << "no matching matching parameter list for macro " << name
-             << ": call parameters were (" << parameter_types << ") at "
-             << PositionAsString(pos);
+             << ": call parameters were (" << parameter_types << ")";
       ReportError(stream.str());
     }
   } else {
     std::stringstream stream;
     stream << "can't call " << declarable->type_name() << " " << name
            << " because it's not callable"
-           << ": call parameters were (" << parameter_types << ") at "
-           << PositionAsString(pos);
+           << ": call parameters were (" << parameter_types << ")";
     ReportError(stream.str());
   }
 

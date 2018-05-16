@@ -46,6 +46,7 @@ int WrappedMain(int argc, const char** argv) {
   size_t lexer_errors = 0;
   auto error_strategy = std::make_shared<FailedParseErrorStrategy>();
   bool verbose = false;
+  SourceFileMap::Scope scope;
   for (int i = 1; i < argc; ++i) {
     // Check for options
     if (!strcmp("-o", argv[i])) {

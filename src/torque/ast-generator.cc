@@ -747,7 +747,7 @@ antlrcpp::Any AstGenerator::visitDiagnosticStatement(
 
 void AstGenerator::visitSourceFile(SourceFileContext* context) {
   source_file_context_ = context;
-  current_source_file_ = ast_.AddSource(context->name);
+  current_source_file_ = SourceFileMap::Get().AddSource(context->name);
   for (auto* declaration : context->file->children) {
     ast_.declarations().push_back(declaration->accept(this).as<Declaration*>());
   }

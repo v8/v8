@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/base/optional.h"
+#include "src/torque/contextual.h"
 
 namespace v8 {
 namespace internal {
@@ -23,6 +24,8 @@ struct SourcePosition {
   int line;
   int column;
 };
+
+DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
@@ -185,7 +188,7 @@ struct ExplicitModuleDeclaration : ModuleDeclaration {
   std::string name;
 };
 
-class SourceFileMap {
+class SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
   SourceFileMap() {}
   const std::string& GetSource(SourceId id) const {
@@ -197,20 +200,22 @@ class SourceFileMap {
            std::to_string(pos.column);
   }
 
- private:
-  friend class Ast;
   SourceId AddSource(std::string path) {
     sources_.push_back(std::move(path));
     return static_cast<SourceId>(sources_.size() - 1);
   }
+
+ private:
   std::vector<std::string> sources_;
 };
 
+inline std::string PositionAsString(SourcePosition pos) {
+  return SourceFileMap::Get().PositionAsString(pos);
+}
+
 class Ast {
  public:
-  Ast()
-      : default_module_{SourcePosition(), {}},
-        source_file_map_(new SourceFileMap()) {}
+  Ast() : default_module_{SourcePosition(), {}} {}
 
   std::vector<Declaration*>& declarations() {
     return default_module_.declarations;
@@ -221,15 +226,10 @@ class Ast {
   void AddNode(std::unique_ptr<AstNode> node) {
     nodes_.emplace_back(std::move(node));
   }
-  SourceId AddSource(std::string path) {
-    return source_file_map_->AddSource(path);
-  }
   DefaultModuleDeclaration* default_module() { return &default_module_; }
-  SourceFileMap* source_file_map() { return &*source_file_map_; }
 
  private:
   DefaultModuleDeclaration default_module_;
-  std::unique_ptr<SourceFileMap> source_file_map_;
   std::vector<std::unique_ptr<AstNode>> nodes_;
 };
 
