@@ -1799,29 +1799,6 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
   return var_result.value();
 }
 
-TNode<Object> RegExpBuiltinsAssembler::LoadRegExpResultFirstMatch(
-    SloppyTNode<Context> context, SloppyTNode<JSObject> maybe_array) {
-  TVARIABLE(Object, var_result);
-
-  Label exit(this), if_fast(this), if_slow(this, Label::kDeferred);
-
-  BranchIfFastRegExpResult(context, maybe_array, &if_fast, &if_slow);
-  BIND(&if_fast);
-  {
-    TNode<FixedArrayBase> result_fixed_array = LoadElements(maybe_array);
-    var_result = LoadFixedArrayElement(result_fixed_array, 0);
-    Goto(&exit);
-  }
-  BIND(&if_slow);
-  {
-    var_result =
-        GetProperty(context, maybe_array, isolate()->factory()->zero_string());
-    Goto(&exit);
-  }
-  BIND(&exit);
-  return var_result.value();
-}
-
 void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
                                                        Node* const regexp,
                                                        TNode<String> string,
@@ -1890,11 +1867,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Branch(IsNull(result), &if_didnotmatch, &load_match);
 
         BIND(&load_match);
-        {
-          var_match.Bind(ToString_Inline(
-              context, LoadRegExpResultFirstMatch(context, result)));
-          Goto(&if_didmatch);
-        }
+        var_match.Bind(
+            ToString_Inline(context, GetProperty(context, result, smi_zero)));
+        Goto(&if_didmatch);
       }
 
       BIND(&if_didnotmatch);
@@ -3223,14 +3198,22 @@ TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
     {
       Label if_fast(this), if_slow(this, Label::kDeferred);
 
-      // i. Let matchStr be ? ToString(? Get(match, "0")).
-      TNode<Object> match_str =
-          LoadRegExpResultFirstMatch(context, CAST(var_match.value()));
-
       // ii. If matchStr is the empty string,
       Branch(var_is_fast_regexp.value(), &if_fast, &if_slow);
       BIND(&if_fast);
       {
+        // i. Let matchStr be ? ToString(? Get(match, "0")).
+        CSA_ASSERT_BRANCH(this, [&](Label* ok, Label* not_ok) {
+          BranchIfFastRegExpResult(context, var_match.value(), ok, not_ok);
+        });
+        CSA_ASSERT(this,
+                   SmiNotEqual(LoadFastJSArrayLength(CAST(var_match.value())),
+                               SmiConstant(0)));
+        TNode<FixedArrayBase> result_fixed_array =
+            LoadElements(CAST(var_match.value()));
+        TNode<String> match_str =
+            CAST(LoadFixedArrayElement(result_fixed_array, 0));
+
         // When iterating_regexp is fast, we assume it stays fast even after
         // accessing the first match from the RegExp result.
         CSA_ASSERT(this, IsFastRegExp(context, iterating_regexp));
@@ -3253,8 +3236,11 @@ TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
       }
       BIND(&if_slow);
       {
-        GotoIfNot(IsEmptyString(ToString_Inline(context, match_str)),
-                  &return_result);
+        // i. Let matchStr be ? ToString(? Get(match, "0")).
+        TNode<String> match_str = ToString_Inline(
+            context, GetProperty(context, var_match.value(), SmiConstant(0)));
+
+        GotoIfNot(IsEmptyString(match_str), &return_result);
 
         // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).
         TNode<Object> last_index =

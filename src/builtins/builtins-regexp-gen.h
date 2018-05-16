@@ -107,9 +107,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   Node* IsRegExp(Node* const context, Node* const maybe_receiver);
 
-  TNode<Object> LoadRegExpResultFirstMatch(SloppyTNode<Context> context,
-                                           SloppyTNode<JSObject> maybe_array);
-
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);
 
