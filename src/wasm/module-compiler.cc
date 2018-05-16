@@ -1038,10 +1038,7 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
 }
 
 size_t GetNumFunctionsToCompile(const WasmModule* wasm_module) {
-  // TODO(kimanh): Remove, FLAG_skip_compiling_wasm_funcs: previously used for
-  // debugging, and now not necessarily working anymore.
-  uint32_t start =
-      wasm_module->num_imported_functions + FLAG_skip_compiling_wasm_funcs;
+  uint32_t start = wasm_module->num_imported_functions;
   uint32_t num_funcs = static_cast<uint32_t>(wasm_module->functions.size());
   uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
   return funcs_to_compile;
@@ -1052,8 +1049,7 @@ void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
                                 const WasmModule* wasm_module,
                                 Handle<Code> centry_stub,
                                 NativeModule* native_module) {
-  uint32_t start =
-      wasm_module->num_imported_functions + FLAG_skip_compiling_wasm_funcs;
+  uint32_t start = wasm_module->num_imported_functions;
   uint32_t num_funcs = static_cast<uint32_t>(functions.size());
 
   CompilationUnitBuilder builder(native_module, centry_stub);
@@ -1253,8 +1249,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
   DCHECK(!thrower->error());
 
   const WasmModule* module = module_env->module;
-  for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
-       i < module->functions.size(); ++i) {
+  for (uint32_t i = 0; i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
@@ -3327,7 +3322,6 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", next_function_);
 
-  if (next_function_ >= FLAG_skip_compiling_wasm_funcs) {
     decoder_.DecodeFunctionBody(
         next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
 
@@ -3335,7 +3329,6 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
     const WasmFunction* func = &decoder_.module()->functions[index];
     WasmName name = {nullptr, 0};
     compilation_unit_builder_->AddUnit(func, offset, bytes, name);
-  }
   ++next_function_;
   // This method always succeeds. The return value is necessary to comply with
   // the StreamingProcessor interface.

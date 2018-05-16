@@ -559,7 +559,6 @@ DEFINE_BOOL(liftoff, false,
             "enable liftoff, the experimental wasm baseline compiler")
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace liftoff, the wasm baseline compiler")
-DEFINE_UINT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
 DEFINE_DEBUG_BOOL(wasm_break_on_decoder_error, false,
                   "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(wasm_trace_memory, false,
