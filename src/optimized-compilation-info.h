@@ -52,6 +52,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kPoisonRegisterArguments = 1 << 11,
     kAllocationFoldingEnabled = 1 << 12,
     kAnalyzeEnvironmentLiveness = 1 << 13,
+    kTraceTurboJson = 1 << 14,
+    kTraceTurboGraph = 1 << 15,
+    kTraceTurboScheduled = 1 << 16,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -170,6 +173,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     return GetFlag(kAnalyzeEnvironmentLiveness);
   }
 
+  bool trace_turbo_json_enabled() const { return GetFlag(kTraceTurboJson); }
+
+  bool trace_turbo_graph_enabled() const { return GetFlag(kTraceTurboGraph); }
+
+  bool trace_turbo_scheduled_enabled() const {
+    return GetFlag(kTraceTurboScheduled);
+  }
+
   // Code getters and setters.
 
   void SetCode(Handle<Code> code) { code_ = code; }
@@ -266,6 +277,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void SetFlag(Flag flag) { flags_ |= flag; }
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
+
+  void SetTracingFlags(bool passes_filter);
 
   // Compilation flags.
   unsigned flags_;

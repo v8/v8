@@ -1818,6 +1818,9 @@ class ThreadedListZoneEntry final : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(ThreadedListZoneEntry);
 };
 
+V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
+                                    Vector<const char> filter);
+
 }  // namespace internal
 }  // namespace v8
 
