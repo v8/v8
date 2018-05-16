@@ -427,7 +427,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
   Node* right = m.right().node();
-  InstructionOperand inputs[5];
+  InstructionOperand inputs[8];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
