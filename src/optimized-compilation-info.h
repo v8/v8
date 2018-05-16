@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
 #include "src/feedback-vector.h"
 #include "src/frames.h"

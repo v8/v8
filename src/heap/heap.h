@@ -22,8 +22,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"
-#include "src/objects/code.h"
-#include "src/objects/hash-table.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/string-table.h"
 #include "src/visitors.h"
 

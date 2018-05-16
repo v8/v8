@@ -23,6 +23,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+enum class AbortReason;
 class Zone;
 
 namespace compiler {

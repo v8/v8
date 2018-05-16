@@ -32,7 +32,8 @@ constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kWasmInstanceRegister = a0;
 
-// Forward declaration.
+// Forward declarations.
+enum class AbortReason;
 class JumpTarget;
 
 // Reserved Register Usage Summary.
