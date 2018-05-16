@@ -13,28 +13,6 @@ namespace torque {
 
 namespace {
 
-std::string GetType(TorqueParser::TypeContext* context) {
-  if (!context) return "void";
-  std::string result(context->CONSTEXPR() == nullptr ? ""
-                                                     : CONSTEXPR_TYPE_PREFIX);
-  result += context->IDENTIFIER()->getSymbol()->getText();
-  return result;
-}
-
-std::string GetOptionalType(TorqueParser::OptionalTypeContext* context) {
-  if (!context) return "";
-  return GetType(context->type());
-}
-
-std::vector<std::string> GetTypeVector(
-    TorqueParser::TypeListContext* type_list) {
-  std::vector<std::string> result;
-  for (auto s : type_list->type()) {
-    result.push_back(GetType(s));
-  }
-  return result;
-}
-
 std::vector<std::string> GetIdentifierVector(
     std::vector<antlr4::tree::TerminalNode*> source) {
   std::vector<std::string> result;
@@ -42,22 +20,6 @@ std::vector<std::string> GetIdentifierVector(
     result.push_back(s->getSymbol()->getText());
   }
   return result;
-}
-
-LabelAndTypesVector GetOptionalLabelAndTypeList(
-    TorqueParser::OptionalLabelListContext* context) {
-  LabelAndTypesVector labels;
-  if (context) {
-    for (auto label : context->labelParameter()) {
-      LabelAndTypes new_label;
-      new_label.name = label->IDENTIFIER()->getSymbol()->getText();
-      if (label->typeList() != nullptr) {
-        new_label.types = GetTypeVector(label->typeList());
-      }
-      labels.emplace_back(new_label);
-    }
-  }
-  return labels;
 }
 
 std::string StringLiteralUnquote(const std::string& s) {
@@ -92,6 +54,54 @@ std::string StringLiteralUnquote(const std::string& s) {
 }
 
 }  // namespace
+
+LabelAndTypesVector AstGenerator::GetOptionalLabelAndTypeList(
+    TorqueParser::OptionalLabelListContext* context) {
+  LabelAndTypesVector labels;
+  if (context) {
+    for (auto* label : context->labelParameter()) {
+      LabelAndTypes new_label;
+      new_label.name = label->IDENTIFIER()->getSymbol()->getText();
+      if (label->typeList() != nullptr) {
+        for (auto* type : label->typeList()->type()) {
+          new_label.types.emplace_back(GetType(type));
+        }
+      }
+      labels.emplace_back(new_label);
+    }
+  }
+  return labels;
+}
+
+TypeExpression* AstGenerator::GetType(TorqueParser::TypeContext* context) {
+  if (context->BUILTIN()) {
+    ParameterList parameters = context->typeList()->accept(this);
+    TypeExpression* return_type = GetType(context->type());
+    return RegisterNode(
+        new FunctionTypeExpression(Pos(context), parameters, return_type));
+  } else {
+    bool is_constexpr = context->CONSTEXPR() != nullptr;
+    std::string name = context->IDENTIFIER()->getSymbol()->getText();
+    return RegisterNode(
+        new BasicTypeExpression(Pos(context), is_constexpr, std::move(name)));
+  }
+}
+
+TypeExpression* AstGenerator::GetOptionalType(
+    TorqueParser::OptionalTypeContext* context) {
+  if (!context->type())
+    return RegisterNode(new BasicTypeExpression(Pos(context), false, "void"));
+  return GetType(context->type());
+}
+
+std::vector<TypeExpression*> AstGenerator::GetTypeVector(
+    TorqueParser::TypeListContext* type_list) {
+  std::vector<TypeExpression*> result;
+  for (auto t : type_list->type()) {
+    result.push_back(GetType(t));
+  }
+  return result;
+}
 
 ParameterList AstGenerator::GetOptionalParameterList(
     TorqueParser::ParameterListContext* context) {
@@ -256,8 +266,8 @@ antlrcpp::Any AstGenerator::visitExternalRuntime(
 antlrcpp::Any AstGenerator::visitGenericSpecialization(
     TorqueParser::GenericSpecializationContext* context) {
   auto name = context->IDENTIFIER()->getSymbol()->getText();
-  auto specialization_parameters = GetIdentifierVector(
-      context->optionalGenericSpecializationTypeList()->IDENTIFIER());
+  auto specialization_parameters =
+      GetTypeVector(context->genericSpecializationTypeList()->typeList());
   Statement* body = context->helperBody()->accept(this).as<Statement*>();
   return implicit_cast<Declaration*>(RegisterNode(new SpecializationDeclaration{
       Pos(context), name, specialization_parameters,
@@ -330,14 +340,18 @@ antlrcpp::Any AstGenerator::visitHelperCall(
   for (auto label : context->optionalOtherwise()->IDENTIFIER()) {
     labels.push_back(label->getSymbol()->getText());
   }
-  CallExpression* result = RegisterNode(new CallExpression{
-      Pos(context),
-      callee->getSymbol()->getText(),
-      is_operator,
-      GetIdentifierVector(
-          context->optionalGenericSpecializationTypeList()->IDENTIFIER()),
-      {},
-      labels});
+  std::vector<TypeExpression*> templateArguments;
+  if (context->genericSpecializationTypeList()) {
+    templateArguments =
+        GetTypeVector(context->genericSpecializationTypeList()->typeList());
+  }
+  CallExpression* result =
+      RegisterNode(new CallExpression{Pos(context),
+                                      callee->getSymbol()->getText(),
+                                      is_operator,
+                                      templateArguments,
+                                      {},
+                                      labels});
   for (auto* arg : context->argumentList()->argument()) {
     result->arguments.push_back(arg->accept(this).as<Expression*>());
   }

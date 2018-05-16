@@ -18,12 +18,11 @@ Signature FileVisitor::MakeSignature(CallableNode* decl,
     LabelDeclaration def = {label.name, GetTypeVector(decl->pos, label.types)};
     definition_vector.push_back(def);
   }
-  Signature result{
-      signature->parameters.names,
-      {GetTypeVector(decl->pos, signature->parameters.types),
-       signature->parameters.has_varargs},
-      declarations()->LookupType(decl->pos, signature->return_type),
-      definition_vector};
+  Signature result{signature->parameters.names,
+                   {GetTypeVector(decl->pos, signature->parameters.types),
+                    signature->parameters.has_varargs},
+                   declarations()->GetType(decl->pos, signature->return_type),
+                   definition_vector};
   return result;
 }
 
@@ -31,8 +30,8 @@ std::string FileVisitor::GetGeneratedCallableName(
     const std::string& name, const TypeVector& specialized_types) {
   std::string result = name;
   for (auto type : specialized_types) {
-    result += std::to_string(type->name().size());
-    result += type->name();
+    std::string type_string = type->MangledName();
+    result += std::to_string(type_string.size()) + type_string;
   }
   return result;
 }
@@ -69,7 +68,8 @@ Callable* FileVisitor::LookupCall(SourcePosition pos, const std::string& name,
     }
   } else {
     std::stringstream stream;
-    stream << "can't call " << name << " because it's not callable"
+    stream << "can't call " << declarable->type_name() << " " << name
+           << " because it's not callable"
            << ": call parameters were (" << parameter_types << ") at "
            << PositionAsString(pos);
     ReportError(stream.str());

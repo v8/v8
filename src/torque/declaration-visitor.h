@@ -74,22 +74,23 @@ class DeclarationVisitor : public FileVisitor {
 
     std::string generates =
         decl->generates ? *decl->generates : std::string("");
-    declarations()->DeclareType(decl->pos, decl->name, generates, extends_ptr);
+    declarations()->DeclareAbstractType(decl->pos, decl->name, generates,
+                                        extends_ptr);
 
     if (decl->constexpr_generates) {
       std::string constexpr_name =
           std::string(CONSTEXPR_TYPE_PREFIX) + decl->name;
-      declarations()->DeclareType(decl->pos, constexpr_name,
-                                  *decl->constexpr_generates, &(decl->name));
+      declarations()->DeclareAbstractType(
+          decl->pos, constexpr_name, *decl->constexpr_generates, &(decl->name));
     }
   }
 
-  Builtin* BuiltinDeclarationCommon(BuiltinDeclaration* decl,
+  Builtin* BuiltinDeclarationCommon(BuiltinDeclaration* decl, bool external,
                                     const Signature& signature);
 
   void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
              Statement* body) {
-    BuiltinDeclarationCommon(decl, signature);
+    BuiltinDeclarationCommon(decl, true, signature);
   }
 
   void Visit(ExternalRuntimeDeclaration* decl, const Signature& sig,
@@ -117,7 +118,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(VarDeclarationStatement* stmt) {
     std::string variable_name = stmt->name;
-    const Type* type = declarations()->LookupType(stmt->pos, stmt->type);
+    const Type* type = declarations()->GetType(stmt->pos, stmt->type);
     if (type->IsConstexpr()) {
       std::stringstream stream;
       stream << "cannot declare variable with constexpr type at "
@@ -140,8 +141,8 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(ConstDeclaration* decl) {
     declarations()->DeclareConstant(
-        decl->pos, decl->name,
-        declarations()->LookupType(decl->pos, decl->type), decl->literal);
+        decl->pos, decl->name, declarations()->GetType(decl->pos, decl->type),
+        decl->literal);
   }
 
   void Visit(LogicalOrExpression* expr) {

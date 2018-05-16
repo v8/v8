@@ -77,9 +77,7 @@ class TypeOracle {
 
  private:
   const Type* GetBuiltinType(const std::string& name) {
-    Declarable* declarable = declarations_->Lookup(name);
-    DCHECK(declarable != nullptr);
-    return Type::cast(declarable);
+    return declarations_->LookupGlobalType(name);
   }
 
   Declarations* declarations_;

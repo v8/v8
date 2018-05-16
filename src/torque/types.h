@@ -23,6 +23,7 @@ static const char* const ARGUMENTS_TYPE_STRING = "Arguments";
 static const char* const CONTEXT_TYPE_STRING = "Context";
 static const char* const OBJECT_TYPE_STRING = "Object";
 static const char* const STRING_TYPE_STRING = "String";
+static const char* const CODE_TYPE_STRING = "Code";
 static const char* const INTPTR_TYPE_STRING = "intptr";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";

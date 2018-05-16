@@ -17,6 +17,8 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type Number extends Object generates 'TNode<Number>';
 type Smi extends Number generates 'TNode<Smi>';
 type HeapObject extends Object generates 'TNode<HeapObject>';
+type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
+type Code extends AbstractCode generates 'TNode<Code>';
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';
 type String extends HeapObject generates 'TNode<String>';

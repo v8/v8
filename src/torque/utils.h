@@ -6,7 +6,10 @@
 #define V8_TORQUE_UTILS_H_
 
 #include <string>
+#include <unordered_set>
 #include <vector>
+
+#include "src/base/functional.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +24,15 @@ std::string DashifyString(const std::string& underscore_string);
 
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents);
+
+template <class T>
+class Deduplicator {
+ public:
+  const T* Add(T x) { return &*(storage_.insert(std::move(x)).first); }
+
+ private:
+  std::unordered_set<T, base::hash<T>> storage_;
+};
 
 }  // namespace torque
 }  // namespace internal

@@ -154,6 +154,13 @@ class AstGenerator : public TorqueBaseVisitor {
     return node;
   }
 
+  LabelAndTypesVector GetOptionalLabelAndTypeList(
+      TorqueParser::OptionalLabelListContext* context);
+  TypeExpression* GetType(TorqueParser::TypeContext* context);
+  TypeExpression* GetOptionalType(TorqueParser::OptionalTypeContext* context);
+  std::vector<TypeExpression*> GetTypeVector(
+      TorqueParser::TypeListContext* type_list);
+
   ParameterList GetOptionalParameterList(
       TorqueParser::ParameterListContext* context);
 

@@ -59,6 +59,62 @@ const Type* Declarations::LookupType(SourcePosition pos,
   return nullptr;
 }
 
+const Type* Declarations::LookupGlobalType(const std::string& name) {
+  return Type::cast(LookupGlobalScope(name));
+}
+
+const Type* Declarations::LookupGlobalType(SourcePosition pos,
+                                           const std::string& name) {
+  Declarable* raw = LookupGlobalScope(pos, name);
+  if (!raw->IsType()) {
+    std::stringstream s;
+    s << "declaration \"" << name << "\" is not a Type at "
+      << PositionAsString(pos);
+    ReportError(s.str());
+  }
+  return Type::cast(raw);
+}
+
+const Type* Declarations::GetFunctionPointerType(SourcePosition pos,
+                                                 TypeVector argument_types,
+                                                 const Type* return_type) {
+  const Type* code_type = LookupGlobalType(pos, CODE_TYPE_STRING);
+  return function_pointer_types_.Add(
+      FunctionPointerType(code_type, argument_types, return_type));
+}
+
+const Type* Declarations::GetType(SourcePosition pos,
+                                  TypeExpression* type_expression) {
+  if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
+    std::string name =
+        (basic->is_constexpr ? CONSTEXPR_TYPE_PREFIX : "") + basic->name;
+    return LookupType(pos, name);
+  } else {
+    auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
+    TypeVector argument_types;
+    for (TypeExpression* type_exp : function_type_exp->parameters.types) {
+      argument_types.push_back(GetType(pos, type_exp));
+    }
+    return GetFunctionPointerType(pos, argument_types,
+                                  GetType(pos, function_type_exp->return_type));
+  }
+}
+
+Builtin* Declarations::FindSomeInternalBuiltinWithType(
+    const FunctionPointerType* type) {
+  for (auto& declarable : declarables_) {
+    if (Builtin* builtin = Builtin::DynamicCast(declarable.get())) {
+      if (!builtin->IsExternal() && builtin->kind() == Builtin::kStub &&
+          builtin->signature().return_type == type->return_type() &&
+          builtin->signature().parameter_types.types ==
+              type->parameter_types()) {
+        return builtin;
+      }
+    }
+  }
+  return nullptr;
+}
+
 Value* Declarations::LookupValue(SourcePosition pos, const std::string& name) {
   Declarable* d = Lookup(pos, name);
   if (!d->IsValue()) {
@@ -131,10 +187,9 @@ Generic* Declarations::LookupGeneric(const SourcePosition& pos,
   return nullptr;
 }
 
-const Type* Declarations::DeclareType(SourcePosition pos,
-                                      const std::string& name,
-                                      const std::string& generated,
-                                      const std::string* parent) {
+const AbstractType* Declarations::DeclareAbstractType(
+    SourcePosition pos, const std::string& name, const std::string& generated,
+    const std::string* parent) {
   CheckAlreadyDeclared(pos, name, "type");
   const Type* parent_type = nullptr;
   if (parent != nullptr) {
@@ -154,7 +209,7 @@ const Type* Declarations::DeclareType(SourcePosition pos,
     }
     parent_type = Type::cast(maybe_parent_type);
   }
-  Type* result = new Type(parent_type, name, generated);
+  AbstractType* result = new AbstractType(parent_type, name, generated);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
@@ -205,10 +260,10 @@ Macro* Declarations::DeclareMacro(SourcePosition pos, const std::string& name,
 
 Builtin* Declarations::DeclareBuiltin(SourcePosition pos,
                                       const std::string& name,
-                                      Builtin::Kind kind,
+                                      Builtin::Kind kind, bool external,
                                       const Signature& signature) {
   CheckAlreadyDeclared(pos, name, "builtin");
-  Builtin* result = new Builtin(name, kind, signature);
+  Builtin* result = new Builtin(name, kind, external, signature);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }

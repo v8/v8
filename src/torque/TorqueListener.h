@@ -23,10 +23,10 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void enterTypeList(TorqueParser::TypeListContext* ctx) = 0;
   virtual void exitTypeList(TorqueParser::TypeListContext* ctx) = 0;
 
-  virtual void enterOptionalGenericSpecializationTypeList(
-      TorqueParser::OptionalGenericSpecializationTypeListContext* ctx) = 0;
-  virtual void exitOptionalGenericSpecializationTypeList(
-      TorqueParser::OptionalGenericSpecializationTypeListContext* ctx) = 0;
+  virtual void enterGenericSpecializationTypeList(
+      TorqueParser::GenericSpecializationTypeListContext* ctx) = 0;
+  virtual void exitGenericSpecializationTypeList(
+      TorqueParser::GenericSpecializationTypeListContext* ctx) = 0;
 
   virtual void enterOptionalGenericTypeList(
       TorqueParser::OptionalGenericTypeListContext* ctx) = 0;

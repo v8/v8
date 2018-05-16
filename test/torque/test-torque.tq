@@ -158,4 +158,19 @@ module test {
       unreachable;
     }
   }
+
+  builtin TestHelperPlus1(context : Context, x : Smi) : Smi {
+    return x + 1;
+  }
+  builtin TestHelperPlus2(context : Context, x : Smi) : Smi {
+    return x + 2;
+  }
+
+  macro TestFunctionPointers(context : Context) : Boolean {
+    let fptr : builtin(Context, Smi) => Smi = TestHelperPlus1;
+    assert(fptr(context, 42) == 43);
+    fptr = TestHelperPlus2;
+    assert(fptr(context, 42) == 44);
+    return True;
+  }
 }

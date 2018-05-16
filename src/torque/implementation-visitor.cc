@@ -495,19 +495,37 @@ VisitResult ImplementationVisitor::Visit(StringLiteralExpression* expr) {
   return VisitResult{GetTypeOracle().GetStringType(), temp};
 }
 
+VisitResult ImplementationVisitor::GetBuiltinCode(SourcePosition pos,
+                                                  Builtin* builtin) {
+  if (builtin->IsExternal() || builtin->kind() != Builtin::kStub) {
+    std::stringstream s;
+    s << "creating function pointers is only allowed for internal builtins "
+         "with stub linkage at "
+      << PositionAsString(pos);
+    ReportError(s.str());
+  }
+  const Type* type = declarations()->GetFunctionPointerType(
+      pos, builtin->signature().parameter_types.types,
+      builtin->signature().return_type);
+  std::string code =
+      "HeapConstant(Builtins::CallableFor(isolate(), Builtins::k" +
+      builtin->name() + ").code())";
+  return VisitResult(type, code);
+}
+
 VisitResult ImplementationVisitor::Visit(CastExpression* expr) {
   Arguments args;
   args.parameters = {Visit(expr->value)};
   args.labels = LabelsFromIdentifiers(expr->pos, {expr->otherwise});
   return GenerateOperation(expr->pos, "cast<>", args,
-                           declarations()->LookupType(expr->pos, expr->type));
+                           declarations()->GetType(expr->pos, expr->type));
 }
 
 VisitResult ImplementationVisitor::Visit(ConvertExpression* expr) {
   Arguments args;
   args.parameters = {Visit(expr->value)};
   return GenerateOperation(expr->pos, "convert<>", args,
-                           declarations()->LookupType(expr->pos, expr->type));
+                           declarations()->GetType(expr->pos, expr->type));
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
@@ -1281,6 +1299,65 @@ void ImplementationVisitor::GenerateParameterList(SourcePosition pos,
   }
 }
 
+VisitResult ImplementationVisitor::GeneratePointerCall(
+    SourcePosition pos, Expression* callee, const Arguments& arguments,
+    bool is_tailcall) {
+  TypeVector parameter_types(arguments.parameters.GetTypeVector());
+  VisitResult callee_result = Visit(callee);
+  if (!callee_result.type()->IsFunctionPointerType()) {
+    std::stringstream stream;
+    stream << "Expected a function pointer type but found "
+           << callee_result.type() << " at " << PositionAsString(pos);
+    ReportError(stream.str());
+  }
+  const FunctionPointerType* type =
+      FunctionPointerType::cast(callee_result.type());
+
+  std::vector<std::string> variables;
+  for (size_t current = 0; current < arguments.parameters.size(); ++current) {
+    const Type* to_type = type->parameter_types()[current];
+    VisitResult result =
+        GenerateImplicitConvert(pos, to_type, arguments.parameters[current]);
+    variables.push_back(result.variable());
+  }
+
+  std::string result_variable_name;
+  bool no_result = type->return_type()->IsVoidOrNever() || is_tailcall;
+  if (no_result) {
+    GenerateIndent();
+  } else {
+    result_variable_name = GenerateNewTempVariable(type->return_type());
+    source_out() << "UncheckedCast<";
+    source_out() << type->return_type()->GetGeneratedTNodeTypeName();
+    source_out() << ">(";
+  }
+
+  Builtin* example_builtin =
+      declarations()->FindSomeInternalBuiltinWithType(type);
+
+  if (is_tailcall) {
+    source_out() << "TailCallStub(";
+  } else {
+    source_out() << "CallStub(";
+  }
+  source_out() << "Builtins::CallableFor(isolate(), Builtins::k"
+               << example_builtin->name() << ").descriptor(), "
+               << callee_result.variable() << ", ";
+
+  size_t total_parameters = 0;
+  for (size_t i = 0; i < arguments.parameters.size(); ++i) {
+    if (total_parameters++ != 0) {
+      source_out() << ", ";
+    }
+    source_out() << variables[i];
+  }
+  if (!no_result) {
+    source_out() << ")";
+  }
+  source_out() << ");" << std::endl;
+  return VisitResult(type->return_type(), result_variable_name);
+}
+
 VisitResult ImplementationVisitor::GenerateCall(
     SourcePosition pos, const std::string& callable_name,
     const Arguments& arguments, bool is_tailcall) {
@@ -1415,9 +1492,11 @@ void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
 VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   Arguments arguments;
-  std::string name = expr->callee;
-  if (expr->generic_arguments.size() != 0) {
-    Generic* generic = declarations()->LookupGeneric(expr->pos, expr->callee);
+  std::string name = expr->callee.name;
+  bool has_template_arguments = expr->generic_arguments.size() != 0;
+  if (has_template_arguments) {
+    Generic* generic =
+        declarations()->LookupGeneric(expr->pos, expr->callee.name);
     TypeVector specialization_types =
         GetTypeVector(expr->pos, expr->generic_arguments);
     name = GetGeneratedCallableName(name, specialization_types);
@@ -1437,7 +1516,14 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     }
     return GenerateOperation(expr->pos, name, arguments);
   }
-  VisitResult result = GenerateCall(expr->pos, name, arguments, is_tailcall);
+  VisitResult result;
+  if (!has_template_arguments &&
+      declarations()->Lookup(expr->pos, expr->callee.name)->IsValue()) {
+    result =
+        GeneratePointerCall(expr->pos, &expr->callee, arguments, is_tailcall);
+  } else {
+    result = GenerateCall(expr->pos, name, arguments, is_tailcall);
+  }
   if (!result.type()->IsVoidOrNever()) {
     GenerateIndent();
     source_out() << "USE(" << result.variable() << ");" << std::endl;

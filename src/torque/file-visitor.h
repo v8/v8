@@ -27,10 +27,10 @@ class FileVisitor {
         module_(global_context.GetDefaultModule()) {}
 
   TypeVector GetTypeVector(SourcePosition pos,
-                           const std::vector<std::string>& v) {
+                           const std::vector<TypeExpression*>& v) {
     TypeVector result;
-    for (const std::string& s : v) {
-      result.push_back(declarations()->LookupType(pos, s));
+    for (TypeExpression* t : v) {
+      result.push_back(declarations()->GetType(pos, t));
     }
     return result;
   }

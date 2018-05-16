@@ -25,8 +25,8 @@ class TorqueVisitor : public antlr4::tree::AbstractParseTreeVisitor {
   virtual antlrcpp::Any visitTypeList(
       TorqueParser::TypeListContext* context) = 0;
 
-  virtual antlrcpp::Any visitOptionalGenericSpecializationTypeList(
-      TorqueParser::OptionalGenericSpecializationTypeListContext* context) = 0;
+  virtual antlrcpp::Any visitGenericSpecializationTypeList(
+      TorqueParser::GenericSpecializationTypeListContext* context) = 0;
 
   virtual antlrcpp::Any visitOptionalGenericTypeList(
       TorqueParser::OptionalGenericTypeListContext* context) = 0;

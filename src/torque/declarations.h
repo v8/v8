@@ -9,6 +9,7 @@
 
 #include "src/torque/declarable.h"
 #include "src/torque/scope.h"
+#include "src/torque/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +34,31 @@ class Declarations {
     return d;
   }
 
+  Declarable* LookupGlobalScope(const std::string& name) {
+    return chain_.LookupGlobalScope(name);
+  }
+
+  Declarable* LookupGlobalScope(SourcePosition pos, const std::string& name) {
+    Declarable* d = chain_.LookupGlobalScope(name);
+    if (d == nullptr) {
+      std::stringstream s;
+      s << "cannot find \"" << name << "\" in global scope at "
+        << PositionAsString(pos);
+      ReportError(s.str());
+    }
+    return d;
+  }
+
   const Type* LookupType(SourcePosition pos, const std::string& name);
+  const Type* LookupGlobalType(const std::string& name);
+  const Type* LookupGlobalType(SourcePosition pos, const std::string& name);
+  const Type* GetType(SourcePosition pos, TypeExpression* type_expression);
+
+  const Type* GetFunctionPointerType(SourcePosition pos,
+                                     TypeVector argument_types,
+                                     const Type* return_type);
+
+  Builtin* FindSomeInternalBuiltinWithType(const FunctionPointerType* type);
 
   Value* LookupValue(SourcePosition pos, const std::string& name);
 
@@ -46,9 +71,10 @@ class Declarations {
 
   Generic* LookupGeneric(const SourcePosition& pos, const std::string& name);
 
-  const Type* DeclareType(SourcePosition pos, const std::string& name,
-                          const std::string& generated,
-                          const std::string* parent = nullptr);
+  const AbstractType* DeclareAbstractType(SourcePosition pos,
+                                          const std::string& name,
+                                          const std::string& generated,
+                                          const std::string* parent = nullptr);
 
   void DeclareTypeAlias(SourcePosition pos, const std::string& name,
                         const Type* aliased_type);
@@ -59,7 +85,8 @@ class Declarations {
                       const Signature& signature);
 
   Builtin* DeclareBuiltin(SourcePosition pos, const std::string& name,
-                          const Builtin::Kind kind, const Signature& signature);
+                          Builtin::Kind kind, bool external,
+                          const Signature& signature);
 
   RuntimeFunction* DeclareRuntimeFunction(SourcePosition pos,
                                           const std::string& name,
@@ -104,10 +131,15 @@ class Declarations {
   Scope* GetNodeScope(const AstNode* node);
   Scope* GetGenericScope(Generic* generic, const TypeVector& types);
 
+  template <class T>
+  T* RegisterDeclarable(std::unique_ptr<T> d) {
+    T* ptr = d.get();
+    declarables_.push_back(std::move(d));
+    return ptr;
+  }
+
   void Declare(const std::string& name, std::unique_ptr<Declarable> d) {
-    Declarable* ptr = d.get();
-    declarables_.emplace_back(std::move(d));
-    chain_.Declare(name, ptr);
+    chain_.Declare(name, RegisterDeclarable(std::move(d)));
   }
 
   int GetNextUniqueDeclarationNumber() { return unique_declaration_number_++; }
@@ -121,6 +153,7 @@ class Declarations {
   const SpecializationKey* current_generic_specialization_;
   Statement* next_body_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
+  Deduplicator<FunctionPointerType> function_pointer_types_;
   std::map<std::pair<const AstNode*, TypeVector>, Scope*> scopes_;
   std::map<Generic*, ScopeChain::Snapshot> generic_declaration_scopes_;
 };

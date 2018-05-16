@@ -58,7 +58,7 @@ void DeclarationVisitor::Visit(CallableNode* decl, const Signature& signature,
 }
 
 Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
-    BuiltinDeclaration* decl, const Signature& signature) {
+    BuiltinDeclaration* decl, bool external, const Signature& signature) {
   const bool javascript = decl->javascript_linkage;
   const bool varargs = decl->signature->parameters.has_varargs;
   Builtin::Kind kind = !javascript ? Builtin::kStub
@@ -66,7 +66,8 @@ Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
                                              : Builtin::kFixedArgsJavaScript;
 
   if (signature.types().size() == 0 ||
-      !(signature.types()[0]->name() == CONTEXT_TYPE_STRING)) {
+      !(signature.types()[0] ==
+        declarations()->LookupGlobalType(decl->pos, CONTEXT_TYPE_STRING))) {
     std::stringstream stream;
     stream << "first parameter to builtin " << decl->name
            << " is not a context but should be at "
@@ -84,10 +85,11 @@ Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
 
   if (javascript) {
     if (signature.types().size() < 2 ||
-        !(signature.types()[1]->name() == OBJECT_TYPE_STRING)) {
+        !(signature.types()[1] ==
+          declarations()->LookupGlobalType(decl->pos, OBJECT_TYPE_STRING))) {
       std::stringstream stream;
       stream << "second parameter to javascript builtin " << decl->name
-             << " is not a receiver type but should be at "
+             << " is " << signature.types()[1] << " but should be Object at "
              << PositionAsString(decl->pos);
       ReportError(stream.str());
     }
@@ -96,7 +98,7 @@ Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
   std::string generated_name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
   return declarations()->DeclareBuiltin(decl->pos, generated_name, kind,
-                                        signature);
+                                        external, signature);
 }
 
 void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
@@ -107,7 +109,8 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
   }
 
   if (signature.parameter_types.types.size() == 0 ||
-      !(signature.parameter_types.types[0]->name() == CONTEXT_TYPE_STRING)) {
+      !(signature.parameter_types.types[0] ==
+        declarations()->LookupGlobalType(CONTEXT_TYPE_STRING))) {
     std::stringstream stream;
     stream << "first parameter to runtime " << decl->name
            << " is not a context but should be at "
@@ -161,7 +164,7 @@ void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
                                const Signature& signature, Statement* body) {
-  Builtin* builtin = BuiltinDeclarationCommon(decl, signature);
+  Builtin* builtin = BuiltinDeclarationCommon(decl, false, signature);
   CurrentCallableActivator activator(global_context_, builtin, decl);
   DeclareSignature(decl->pos, builtin->signature());
   if (builtin->signature().parameter_types.var_args) {
@@ -280,8 +283,7 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
         for (auto p : block->parameters.names) {
           shared_label->AddVariable(declarations()->DeclareVariable(
               stmt->pos, p,
-              declarations()->LookupType(stmt->pos,
-                                         block->parameters.types[i])));
+              declarations()->GetType(stmt->pos, block->parameters.types[i])));
           ++i;
         }
       }
@@ -307,10 +309,11 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
 
 void DeclarationVisitor::Visit(CallExpression* expr) {
   if (expr->generic_arguments.size() != 0) {
-    Generic* generic = declarations()->LookupGeneric(expr->pos, expr->callee);
+    Generic* generic =
+        declarations()->LookupGeneric(expr->pos, expr->callee.name);
     TypeVector specialization_types;
     for (auto t : expr->generic_arguments) {
-      specialization_types.push_back(declarations()->LookupType(expr->pos, t));
+      specialization_types.push_back(declarations()->GetType(expr->pos, t));
     }
     CallableNode* callable = generic->declaration()->callable;
     QueueGenericSpecialization({generic, specialization_types}, callable,

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <string>
 
+#include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/types.h"
@@ -24,7 +25,8 @@ class Declarable {
  public:
   virtual ~Declarable() {}
   enum Kind {
-    kType,
+    kAbstractType,
+    kFunctionPointerType,
     kVariable,
     kParameter,
     kMacro,
@@ -36,9 +38,10 @@ class Declarable {
     kLabel,
     kConstant
   };
-  explicit Declarable(Kind kind) : kind_(kind) {}
   Kind kind() const { return kind_; }
-  bool IsType() const { return kind() == kType; }
+  bool IsAbstractType() const { return kind() == kAbstractType; }
+  bool IsFunctionPointerType() const { return kind() == kFunctionPointerType; }
+  bool IsType() const { return IsAbstractType() || IsFunctionPointerType(); }
   bool IsMacro() const { return kind() == kMacro; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
@@ -52,53 +55,130 @@ class Declarable {
   bool IsValue() const { return IsVariable() || IsConstant() || IsParameter(); }
   virtual const char* type_name() const { return "<<unknown>>"; }
 
+ protected:
+  explicit Declarable(Kind kind) : kind_(kind) {}
+
  private:
   Kind kind_;
 };
 
-#define DECLARE_DECLARABLE_BOILERPLATE(x, y)           \
-  static x* cast(Declarable* declarable) {             \
-    DCHECK(declarable->Is##x());                       \
-    return static_cast<x*>(declarable);                \
-  }                                                    \
-  static const x* cast(const Declarable* declarable) { \
-    DCHECK(declarable->Is##x());                       \
-    return static_cast<const x*>(declarable);          \
-  }                                                    \
-  const char* type_name() const override { return #y; }
+#define DECLARE_DECLARABLE_BOILERPLATE(x, y)                  \
+  static x* cast(Declarable* declarable) {                    \
+    DCHECK(declarable->Is##x());                              \
+    return static_cast<x*>(declarable);                       \
+  }                                                           \
+  static const x* cast(const Declarable* declarable) {        \
+    DCHECK(declarable->Is##x());                              \
+    return static_cast<const x*>(declarable);                 \
+  }                                                           \
+  const char* type_name() const override { return #y; }       \
+  static x* DynamicCast(Declarable* declarable) {             \
+    if (!declarable) return nullptr;                          \
+    if (!declarable->Is##x()) return nullptr;                 \
+    return static_cast<x*>(declarable);                       \
+  }                                                           \
+  static const x* DynamicCast(const Declarable* declarable) { \
+    if (!declarable) return nullptr;                          \
+    if (!declarable->Is##x()) return nullptr;                 \
+    return static_cast<const x*>(declarable);                 \
+  }
 
 class Type : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Type, type);
-  Type(const Type* parent, const std::string& name,
-       const std::string& generated_type)
-      : Declarable(Declarable::kType),
-        parent_(parent),
+
+  bool IsSubtypeOf(const Type* supertype) const;
+  virtual std::string ToString() const = 0;
+  virtual std::string MangledName() const = 0;
+  bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }
+  bool IsNever() const { return IsAbstractName(NEVER_TYPE_STRING); }
+  bool IsBool() const { return IsAbstractName(BOOL_TYPE_STRING); }
+  bool IsConstexprBool() const {
+    return IsAbstractName(CONSTEXPR_BOOL_TYPE_STRING);
+  }
+  bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
+  virtual const std::string& GetGeneratedTypeName() const = 0;
+  virtual std::string GetGeneratedTNodeTypeName() const = 0;
+  virtual bool IsConstexpr() const = 0;
+
+ protected:
+  Type(Declarable::Kind kind, const Type* parent)
+      : Declarable(kind), parent_(parent) {}
+  const Type* parent() const { return parent_; }
+
+ private:
+  bool IsAbstractName(const std::string& name) const;
+
+  const Type* const parent_;
+};
+
+class AbstractType : public Type {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(AbstractType, abstract_type);
+  AbstractType(const Type* parent, const std::string& name,
+               const std::string& generated_type)
+      : Type(Declarable::kAbstractType, parent),
         name_(name),
         generated_type_(generated_type) {}
-  const Type* parent() const { return parent_; }
   const std::string& name() const { return name_; }
-  const std::string& GetGeneratedTypeName() const { return generated_type_; }
-  std::string GetGeneratedTNodeTypeName() const;
-  bool IsSubtypeOf(const Type* supertype) const;
-  bool IsVoid() const { return name() == VOID_TYPE_STRING; }
-  bool IsNever() const { return name() == NEVER_TYPE_STRING; }
-  bool IsBool() const { return name() == BOOL_TYPE_STRING; }
-  bool IsConstexprBool() const { return name() == CONSTEXPR_BOOL_TYPE_STRING; }
-  bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
-  bool IsConstexpr() const {
+  std::string ToString() const override { return name(); }
+  std::string MangledName() const override { return "AT" + name(); }
+  const std::string& GetGeneratedTypeName() const override {
+    return generated_type_;
+  }
+  std::string GetGeneratedTNodeTypeName() const override;
+  bool IsConstexpr() const override {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
            CONSTEXPR_TYPE_PREFIX;
   }
 
  private:
-  const Type* const parent_;
   const std::string name_;
   const std::string generated_type_;
 };
 
+// For now, function pointers are restricted to Code objects of Torque-defined
+// builtins.
+class FunctionPointerType : public Type {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(FunctionPointerType, function_pointer_type);
+  FunctionPointerType(const Type* parent, TypeVector parameter_types,
+                      const Type* return_type)
+      : Type(Declarable::kFunctionPointerType, parent),
+        parameter_types_(parameter_types),
+        return_type_(return_type) {}
+  std::string ToString() const override;
+  std::string MangledName() const override;
+  const std::string& GetGeneratedTypeName() const override {
+    return parent()->GetGeneratedTypeName();
+  }
+  std::string GetGeneratedTNodeTypeName() const override {
+    return parent()->GetGeneratedTNodeTypeName();
+  }
+  bool IsConstexpr() const override { return parent()->IsConstexpr(); }
+
+  const TypeVector& parameter_types() const { return parameter_types_; }
+  const Type* return_type() const { return return_type_; }
+
+  friend size_t hash_value(const FunctionPointerType& p) {
+    size_t result = base::hash_value(p.return_type_);
+    for (const Type* parameter : p.parameter_types_) {
+      result = base::hash_combine(result, parameter);
+    }
+    return result;
+  }
+  bool operator==(const FunctionPointerType& other) const {
+    return parameter_types_ == other.parameter_types_ &&
+           return_type_ == other.return_type_;
+  }
+
+ private:
+  const TypeVector parameter_types_;
+  const Type* const return_type_;
+};
+
 inline std::ostream& operator<<(std::ostream& os, const Type* t) {
-  os << t->name().c_str();
+  os << t->ToString();
   return os;
 }
 
@@ -275,20 +355,24 @@ class MacroList : public Declarable {
 
 class Builtin : public Callable {
  public:
-  enum Kind { kStub = 0, kFixedArgsJavaScript, kVarArgsJavaScript };
+  enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin);
   Kind kind() const { return kind_; }
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
+  bool IsExternal() const { return external_; }
 
  private:
   friend class Declarations;
-  Builtin(const std::string& name, Builtin::Kind kind,
+  Builtin(const std::string& name, Builtin::Kind kind, bool external,
           const Signature& signature)
-      : Callable(Declarable::kBuiltin, name, signature), kind_(kind) {}
+      : Callable(Declarable::kBuiltin, name, signature),
+        kind_(kind),
+        external_(external) {}
 
   Kind kind_;
+  bool external_;
 };
 
 class RuntimeFunction : public Callable {

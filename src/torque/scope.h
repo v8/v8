@@ -112,6 +112,11 @@ class ScopeChain {
     return e->Lookup(name);
   }
 
+  Declarable* LookupGlobalScope(const std::string& name) {
+    auto& e = current_scopes_.front();
+    return e->Lookup(name);
+  }
+
   void Print() {
     for (auto s : current_scopes_) {
       s->Print();

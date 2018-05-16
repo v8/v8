@@ -76,7 +76,13 @@ class ImplementationVisitor : public FileVisitor {
     return GenerateOperation(expr->pos, "[]", arguments);
   }
 
+  VisitResult GetBuiltinCode(SourcePosition pos, Builtin* builtin);
+
   VisitResult Visit(IdentifierExpression* expr) {
+    if (Builtin* builtin =
+            Builtin::DynamicCast(declarations()->Lookup(expr->name))) {
+      return GetBuiltinCode(expr->pos, builtin);
+    }
     return GenerateFetchFromLocation(expr, GetLocationReference(expr));
   }
   VisitResult Visit(FieldAccessExpression* expr) {
@@ -201,6 +207,8 @@ class ImplementationVisitor : public FileVisitor {
 
   VisitResult GenerateCall(SourcePosition pos, const std::string& callable_name,
                            const Arguments& parameters, bool tail_call);
+  VisitResult GeneratePointerCall(SourcePosition pos, Expression* callee,
+                                  const Arguments& parameters, bool tail_call);
 
   bool GenerateLabeledStatementBlocks(
       const std::vector<Statement*>& blocks,
