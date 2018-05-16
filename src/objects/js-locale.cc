@@ -32,15 +32,6 @@ namespace internal {
 
 namespace {
 
-// gcc has problem with constexpr here, so falling back to const.
-const std::array<std::pair<const char*, const char*>, 6>
-    kOptionToUnicodeTagMap = {{{"calendar", "ca"},
-                               {"collation", "co"},
-                               {"hourCycle", "hc"},
-                               {"caseFirst", "kf"},
-                               {"numeric", "kn"},
-                               {"numberingSystem", "nu"}}};
-
 // Extracts value of a given property key in the Object.
 Maybe<bool> ExtractStringSetting(Isolate* isolate, Handle<JSReceiver> options,
                                  const char* key, icu::UnicodeString* setting) {
@@ -70,6 +61,14 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                     char* icu_locale) {
   CHECK(isolate);
   CHECK(icu_locale);
+
+  static const std::array<std::pair<const char*, const char*>, 6>
+      kOptionToUnicodeTagMap = {{{"calendar", "ca"},
+                                 {"collation", "co"},
+                                 {"hourCycle", "hc"},
+                                 {"caseFirst", "kf"},
+                                 {"numeric", "kn"},
+                                 {"numberingSystem", "nu"}}};
 
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
     UErrorCode status = U_ZERO_ERROR;
@@ -120,11 +119,6 @@ bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
 
   Factory* factory = isolate->factory();
 
-  static std::map<std::string, std::string> bcp47_to_option_map;
-  for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
-    bcp47_to_option_map.emplace(option_to_bcp47.second, option_to_bcp47.first);
-  }
-
   UErrorCode status = U_ZERO_ERROR;
   UEnumeration* keywords = uloc_openKeywords(icu_locale, &status);
   if (!keywords) return true;
@@ -143,10 +137,8 @@ bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
     if (bcp47_key) {
       const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
       if (bcp47_value) {
-        auto iterator = bcp47_to_option_map.find(bcp47_key);
-        if (iterator != bcp47_to_option_map.end()) {
           // It's either Boolean value.
-          if (iterator->second == "numeric") {
+          if (strncmp(bcp47_key, "kn", 2) == 0) {
             bool numeric = strcmp(bcp47_value, "true") == 0 ? true : false;
             Handle<Object> numeric_handle = factory->ToBoolean(numeric);
             locale_holder->set_numeric(*numeric_handle);
@@ -155,18 +147,17 @@ bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
           // Or a string.
           Handle<String> bcp47_handle =
               factory->NewStringFromAsciiChecked(bcp47_value);
-          if (iterator->second == "calendar") {
+          if (strncmp(bcp47_key, "ca", 2) == 0) {
             locale_holder->set_calendar(*bcp47_handle);
-          } else if (iterator->second == "caseFirst") {
+          } else if (strncmp(bcp47_key, "kf", 2) == 0) {
             locale_holder->set_case_first(*bcp47_handle);
-          } else if (iterator->second == "collation") {
+          } else if (strncmp(bcp47_key, "co", 2) == 0) {
             locale_holder->set_collation(*bcp47_handle);
-          } else if (iterator->second == "hourCycle") {
+          } else if (strncmp(bcp47_key, "hc", 2) == 0) {
             locale_holder->set_hour_cycle(*bcp47_handle);
-          } else if (iterator->second == "numberingSystem") {
+          } else if (strncmp(bcp47_key, "nu", 2) == 0) {
             locale_holder->set_numbering_system(*bcp47_handle);
           }
-        }
       }
     }
   }
