@@ -49,8 +49,7 @@ namespace internal {
   F(MoveArrayContents, 2, 1)        \
   F(NewArray, -1 /* >= 3 */, 1)     \
   F(NormalizeElements, 1, 1)        \
-  F(RemoveArrayHoles, 2, 1)         \
-  F(CopyFromPrototype, 2, 1)        \
+  F(PrepareElementsForSort, 2, 1)   \
   F(TransitionElementsKind, 2, 1)   \
   F(TrySliceSimpleNonFastElements, 3, 1)
 

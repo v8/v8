@@ -803,23 +803,19 @@ function InnerArraySort(array, length, comparefn) {
 
   if (length < 2) return array;
 
-  var is_array = IS_ARRAY(array);
-  var max_prototype_element;
-  if (!is_array) {
-    // For compatibility with JSC, we also sort elements inherited from
-    // the prototype chain on non-Array objects.
-    // We do this by copying them to this object and sorting only
-    // own elements. This is not very efficient, but sorting with
-    // inherited elements happens very, very rarely, if at all.
-    // The specification allows "implementation dependent" behavior
-    // if an element on the prototype chain has an element that
-    // might interact with sorting.
-    max_prototype_element = %CopyFromPrototype(array, length);
-  }
-
-  // %RemoveArrayHoles moves all non-undefined elements to the front of the
-  // array and moves the undefineds after that. Holes are removed.
-  var num_non_undefined = %RemoveArrayHoles(array, length);
+  // For compatibility with JSC, we also sort elements inherited from
+  // the prototype chain on non-Array objects.
+  // We do this by copying them to this object and sorting only
+  // own elements. This is not very efficient, but sorting with
+  // inherited elements happens very, very rarely, if at all.
+  // The specification allows "implementation dependent" behavior
+  // if an element on the prototype chain has an element that
+  // might interact with sorting.
+  //
+  // We also move all non-undefined elements to the front of the
+  // array and move the undefineds after that. Holes are removed.
+  // This happens for Array as well as non-Array objects.
+  var num_non_undefined = %PrepareElementsForSort(array, length);
 
   QuickSort(array, 0, num_non_undefined);
 

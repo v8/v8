@@ -8896,6 +8896,18 @@ MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
                                try_fast_path, true);
 }
 
+Handle<FixedArray> JSReceiver::GetOwnElementIndices(Isolate* isolate,
+                                                    Handle<JSReceiver> receiver,
+                                                    Handle<JSObject> object) {
+  KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
+                             ALL_PROPERTIES);
+  accumulator.CollectOwnElementIndices(receiver, object);
+  Handle<FixedArray> keys =
+      accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
+  DCHECK(keys->ContainsSortedNumbers());
+  return keys;
+}
+
 bool Map::DictionaryElementsInPrototypeChainOnly() {
   if (IsDictionaryElementsKind(elements_kind())) {
     return false;
@@ -10090,6 +10102,20 @@ Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);
   return new_array;
+}
+
+bool FixedArray::ContainsSortedNumbers() {
+  for (int i = 1; i < length(); ++i) {
+    Object* a_obj = get(i - 1);
+    Object* b_obj = get(i);
+    if (!a_obj->IsNumber() || !b_obj->IsNumber()) return false;
+
+    uint32_t a = NumberToUint32(a_obj);
+    uint32_t b = NumberToUint32(b_obj);
+
+    if (a > b) return false;
+  }
+  return true;
 }
 
 void FixedArray::Shrink(int new_length) {

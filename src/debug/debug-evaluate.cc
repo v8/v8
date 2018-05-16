@@ -345,14 +345,13 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(LoadLookupSlotForCall)               \
   /* Arrays */                           \
   V(ArraySpeciesConstructor)             \
-  V(CopyFromPrototype)                   \
   V(EstimateNumberOfElements)            \
   V(GetArrayKeys)                        \
   V(HasComplexElements)                  \
   V(HasFastPackedElements)               \
   V(NewArray)                            \
   V(NormalizeElements)                   \
-  V(RemoveArrayHoles)                    \
+  V(PrepareElementsForSort)              \
   V(TrySliceSimpleNonFastElements)       \
   V(TypedArrayGetBuffer)                 \
   /* Errors */                           \

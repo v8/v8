@@ -31,6 +31,7 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
 namespace {
 // Find the next free position. undefined and holes are both considered
 // free spots. Returns "Nothing" if an exception occurred.
+V8_WARN_UNUSED_RESULT
 Maybe<uint32_t> FindNextFreePosition(Isolate* isolate,
                                      Handle<JSReceiver> receiver,
                                      uint32_t current_pos) {
@@ -47,12 +48,12 @@ Maybe<uint32_t> FindNextFreePosition(Isolate* isolate,
   }
 }
 
-// As PrepareElementsForSort, but also handles Dictionary elements that stay
+// As RemoveArrayHoles, but also handles Dictionary elements that stay
 // Dictionary (requires_slow_elements() is true), proxies and objects that
 // might have accessors.
-Object* PrepareElementsForSortGeneric(Handle<JSReceiver> receiver,
-                                      uint32_t limit) {
-  Isolate* isolate = receiver->GetIsolate();
+V8_WARN_UNUSED_RESULT
+Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
+                                uint32_t limit) {
   HandleScope scope(isolate);
 
   // For proxies, we do not collect the keys, instead we use all indices in
@@ -65,21 +66,8 @@ Object* PrepareElementsForSortGeneric(Handle<JSReceiver> receiver,
       keys->set(i, Smi::FromInt(i));
     }
   } else {
-    KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
-                               ALL_PROPERTIES);
-    accumulator.CollectOwnElementIndices(receiver,
-                                         Handle<JSObject>::cast(receiver));
-    keys = accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
-
-#ifdef DEBUG
-    // Check that keys are sorted.
-    for (int i = 1; i < keys->length(); ++i) {
-      uint32_t a = NumberToUint32(keys->get(i - 1));
-      uint32_t b = NumberToUint32(keys->get(i));
-
-      DCHECK_LE(a, b);
-    }
-#endif
+    keys = JSReceiver::GetOwnElementIndices(isolate, receiver,
+                                            Handle<JSObject>::cast(receiver));
   }
 
   uint32_t num_undefined = 0;
@@ -168,10 +156,11 @@ Object* PrepareElementsForSortGeneric(Handle<JSReceiver> receiver,
 // start of the elements array.  If the object is in dictionary mode, it is
 // converted to fast elements mode.  Undefined values are placed after
 // non-undefined values.  Returns the number of non-undefined values.
-Object* PrepareElementsForSort(Handle<JSReceiver> receiver, uint32_t limit) {
-  Isolate* isolate = receiver->GetIsolate();
+V8_WARN_UNUSED_RESULT
+Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
+                         uint32_t limit) {
   if (receiver->IsJSProxy()) {
-    return PrepareElementsForSortGeneric(receiver, limit);
+    return RemoveArrayHolesGeneric(isolate, receiver, limit);
   }
 
   Handle<JSObject> object = Handle<JSObject>::cast(receiver);
@@ -181,7 +170,7 @@ Object* PrepareElementsForSort(Handle<JSReceiver> receiver, uint32_t limit) {
   }
 
   if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
-    return PrepareElementsForSortGeneric(receiver, limit);
+    return RemoveArrayHolesGeneric(isolate, receiver, limit);
   }
 
   JSObject::ValidateElements(*object);
@@ -191,7 +180,7 @@ Object* PrepareElementsForSort(Handle<JSReceiver> receiver, uint32_t limit) {
     Handle<NumberDictionary> dict(object->element_dictionary());
     if (object->IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
-      return PrepareElementsForSortGeneric(receiver, limit);
+      return RemoveArrayHolesGeneric(isolate, receiver, limit);
     }
     // Convert to fast elements.
     Handle<Map> new_map =
@@ -303,47 +292,10 @@ Object* PrepareElementsForSort(Handle<JSReceiver> receiver, uint32_t limit) {
   return *isolate->factory()->NewNumberFromUint(result);
 }
 
-}  // namespace
-
-// Moves all own elements of an object, that are below a limit, to positions
-// starting at zero. All undefined values are placed after non-undefined values,
-// and are followed by non-existing element. Does not change the length
-// property.
-// Returns the number of non-undefined elements collected.
-// Returns -1 if hole removal is not supported by this method.
-RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
-    if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
-      return isolate->heap()->exception();
-    }
-  }
-
-  // Counter for sorting arrays that have non-packed elements and where either
-  // the ElementsProtector is invalid or the prototype does not match
-  // Array.prototype.
-  if (object->IsJSArray() &&
-      !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
-    JSObject* initial_array_proto = JSObject::cast(
-        isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
-    if (!isolate->IsNoElementsProtectorIntact() ||
-        object->map()->prototype() != initial_array_proto) {
-      isolate->CountUsage(
-          v8::Isolate::kArrayPrototypeSortJSArrayModifiedPrototype);
-    }
-  }
-
-  return PrepareElementsForSort(object, limit);
-}
-
-namespace {
-
 // Copy element at index from source to target only if target does not have the
 // element on its own. Returns true if a copy occurred, false if not
 // and Nothing if an exception occurred.
+V8_WARN_UNUSED_RESULT
 Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
                             Handle<JSReceiver> target, uint32_t index) {
   Maybe<bool> source_has_prop = JSReceiver::HasOwnProperty(source, index);
@@ -369,52 +321,24 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
   return Just(true);
 }
 
-}  // namespace
-
 // Copy elements in the range 0..length from objects prototype chain
-// to object itself, if object has holes. Return one more than the maximal
-// index of a prototype property.
-RUNTIME_FUNCTION(Runtime_CopyFromPrototype) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  DCHECK(!object->IsJSArray());
-  CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
-
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
-    if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
-      return isolate->heap()->exception();
-    }
-  }
-
-  uint32_t max = 0;
+// to object itself, if object has holes. Returns null on error and undefined on
+// success.
+V8_WARN_UNUSED_RESULT
+MaybeHandle<Object> CopyFromPrototype(Isolate* isolate,
+                                      Handle<JSReceiver> object,
+                                      uint32_t length) {
   for (PrototypeIterator iter(isolate, object, kStartAtPrototype);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<JSReceiver> current(PrototypeIterator::GetCurrent<JSReceiver>(iter));
 
     if (current->IsJSProxy()) {
       for (uint32_t i = 0; i < length; ++i) {
-        Maybe<bool> did_copy = ConditionalCopy(isolate, current, object, i);
-        MAYBE_RETURN(did_copy, isolate->heap()->exception());
-        if (did_copy.FromJust() && i >= max) max = i + 1;
+        MAYBE_RETURN_NULL(ConditionalCopy(isolate, current, object, i));
       }
     } else {
-      KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
-                                 ALL_PROPERTIES);
-      accumulator.CollectOwnElementIndices(object,
-                                           Handle<JSObject>::cast(current));
-      Handle<FixedArray> keys =
-          accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
-
-#ifdef DEBUG
-      // Check that keys are sorted.
-      for (int i = 1; i < keys->length(); ++i) {
-        uint32_t a = NumberToUint32(keys->get(i - 1));
-        uint32_t b = NumberToUint32(keys->get(i));
-
-        DCHECK_LE(a, b);
-      }
-#endif
+      Handle<FixedArray> keys = JSReceiver::GetOwnElementIndices(
+          isolate, object, Handle<JSObject>::cast(current));
 
       uint32_t num_indices = keys->length();
       for (uint32_t i = 0; i < num_indices; ++i) {
@@ -424,13 +348,46 @@ RUNTIME_FUNCTION(Runtime_CopyFromPrototype) {
         // interested in the range [0, length).
         if (idx >= length) break;
 
-        Maybe<bool> did_copy = ConditionalCopy(isolate, current, object, idx);
-        MAYBE_RETURN(did_copy, isolate->heap()->exception());
-        if (did_copy.FromJust() && idx >= max) max = idx + 1;
+        MAYBE_RETURN_NULL(ConditionalCopy(isolate, current, object, idx));
       }
     }
   }
-  return *isolate->factory()->NewNumberFromUint(max);
+  return isolate->factory()->undefined_value();
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
+
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
+      return isolate->heap()->exception();
+    }
+  }
+
+  // Counter for sorting arrays that have non-packed elements and where either
+  // the ElementsProtector is invalid or the prototype does not match
+  // Array.prototype.
+  if (object->IsJSArray() &&
+      !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
+    JSObject* initial_array_proto = JSObject::cast(
+        isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    if (!isolate->IsNoElementsProtectorIntact() ||
+        object->map()->prototype() != initial_array_proto) {
+      isolate->CountUsage(
+          v8::Isolate::kArrayPrototypeSortJSArrayModifiedPrototype);
+    }
+  }
+
+  if (!object->IsJSArray()) {
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
+                                CopyFromPrototype(isolate, object, length));
+  }
+  return RemoveArrayHoles(isolate, object, length);
 }
 
 // Move contents of argument 0 (an array) to argument 1 (an array)

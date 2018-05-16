@@ -127,6 +127,8 @@ class FixedArray : public FixedArrayBase {
 
   inline Object** GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
+  // Returns true iff the elements are Numbers and sorted ascending.
+  bool ContainsSortedNumbers();
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
