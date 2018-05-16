@@ -681,7 +681,13 @@ DEFINE_BOOL(incremental_marking_wrappers, true,
 DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
-DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
+#define V8_WRITE_PROTECT_CODE_MEMORY_BOOL false
+#else
+#define V8_WRITE_PROTECT_CODE_MEMORY_BOOL true
+#endif
+DEFINE_BOOL(write_protect_code_memory, V8_WRITE_PROTECT_CODE_MEMORY_BOOL,
+            "write protect code memory")
 #ifdef V8_CONCURRENT_MARKING
 #define V8_CONCURRENT_MARKING_BOOL true
 #else
