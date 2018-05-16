@@ -207,7 +207,7 @@ INSTANTIATE_TEST_CASE_P(Parameterized, WasmCodeManagerTest,
 
 TEST_P(WasmCodeManagerTest, EmptyCase) {
   WasmCodeManager manager(v8_isolate(), 0 * page());
-  CHECK_EQ(0, manager.remaining_uncommitted());
+  CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   NativeModulePtr native_module = AllocModule(&manager, 1 * page(), GetParam());
   CHECK(native_module);
@@ -217,22 +217,22 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
   WasmCodeManager manager(v8_isolate(), 1 * page());
-  CHECK_EQ(1 * page(), manager.remaining_uncommitted());
+  CHECK_EQ(1 * page(), manager.remaining_uncommitted_code_space());
   NativeModulePtr native_module = AllocModule(&manager, 1 * page(), GetParam());
   CHECK(native_module);
-  CHECK_EQ(1 * page(), manager.remaining_uncommitted());
+  CHECK_EQ(1 * page(), manager.remaining_uncommitted_code_space());
   uint32_t index = 0;
   WasmCode* code = AddCode(native_module.get(), index++, 1 * kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(0, manager.remaining_uncommitted());
+  CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   code = AddCode(native_module.get(), index++, 3 * kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(0, manager.remaining_uncommitted());
+  CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   code = AddCode(native_module.get(), index++, page() - 4 * kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(0, manager.remaining_uncommitted());
+  CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   ASSERT_DEATH_IF_SUPPORTED(
       AddCode(native_module.get(), index++, 1 * kCodeAlignment),
@@ -260,7 +260,7 @@ TEST_P(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
   CHECK(nm2);
   WasmCode* code = AddCode(nm1.get(), 0, 1 * page());
   CHECK_NOT_NULL(code);
-  CHECK_EQ(0, manager1.remaining_uncommitted());
+  CHECK_EQ(0, manager1.remaining_uncommitted_code_space());
   code = AddCode(nm2.get(), 0, 1 * page());
   CHECK_NOT_NULL(code);
 }
@@ -273,7 +273,7 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
                               "OOM in NativeModule::AddOwnedCode");
   } else {
     CHECK_NOT_NULL(AddCode(nm.get(), 0, 1 * page() + kCodeAlignment));
-    CHECK_EQ(manager.remaining_uncommitted(), 1 * page());
+    CHECK_EQ(manager.remaining_uncommitted_code_space(), 1 * page());
   }
 }
 
@@ -282,13 +282,13 @@ TEST_P(WasmCodeManagerTest, CommitIncrements) {
   NativeModulePtr nm = AllocModule(&manager, 3 * page(), GetParam());
   WasmCode* code = AddCode(nm.get(), 0, kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(manager.remaining_uncommitted(), 9 * page());
+  CHECK_EQ(manager.remaining_uncommitted_code_space(), 9 * page());
   code = AddCode(nm.get(), 1, 2 * page());
   CHECK_NOT_NULL(code);
-  CHECK_EQ(manager.remaining_uncommitted(), 7 * page());
+  CHECK_EQ(manager.remaining_uncommitted_code_space(), 7 * page());
   code = AddCode(nm.get(), 2, page() - kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(manager.remaining_uncommitted(), 7 * page());
+  CHECK_EQ(manager.remaining_uncommitted_code_space(), 7 * page());
 }
 
 TEST_P(WasmCodeManagerTest, Lookup) {

@@ -290,7 +290,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   uint32_t num_imported_functions() const { return num_imported_functions_; }
   const std::vector<WasmCode*>& code_table() const { return code_table_; }
-  size_t committed_memory() const { return committed_memory_; }
   bool use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
@@ -306,7 +305,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   static base::AtomicNumber<size_t> next_id_;
   NativeModule(uint32_t num_functions, uint32_t num_imports,
-               bool can_request_more, VirtualMemory* vmem,
+               bool can_request_more, VirtualMemory* code_space,
                WasmCodeManager* code_manager, ModuleEnv& env);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
@@ -350,12 +349,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // when the phantom reference is cleared.
   WasmSharedModuleData** shared_module_data_ = nullptr;
 
-  DisjointAllocationPool free_memory_;
-  DisjointAllocationPool allocated_memory_;
-  std::list<VirtualMemory> owned_memory_;
+  DisjointAllocationPool free_code_space_;
+  DisjointAllocationPool allocated_code_space_;
+  std::list<VirtualMemory> owned_code_space_;
+
   WasmCodeManager* wasm_code_manager_;
   base::Mutex allocation_mutex_;
-  size_t committed_memory_ = 0;
+  size_t committed_code_space_ = 0;
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
   bool use_trap_handler_;
@@ -386,7 +386,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   WasmCode* LookupCode(Address pc) const;
   WasmCode* GetCodeFromStartAddress(Address pc) const;
-  size_t remaining_uncommitted() const;
+  size_t remaining_uncommitted_code_space() const;
 
  private:
   friend class NativeModule;
@@ -394,10 +394,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void TryAllocate(size_t size, VirtualMemory*, void* hint = nullptr);
   bool Commit(Address, size_t);
   // Currently, we uncommit a whole module, so all we need is account
-  // for the freed memory size. We do that in FreeNativeModuleMemories.
+  // for the freed memory size. We do that in FreeNativeModule.
   // There's no separate Uncommit.
 
-  void FreeNativeModuleMemories(NativeModule*);
+  void FreeNativeModule(NativeModule*);
   void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
   size_t GetAllocationChunk(const WasmModule& module);
@@ -407,7 +407,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Count of NativeModules not yet collected. Helps determine if it's
   // worth requesting a GC on memory pressure.
   size_t active_ = 0;
-  std::atomic<size_t> remaining_uncommitted_;
+  std::atomic<size_t> remaining_uncommitted_code_space_;
 
   // TODO(mtrofin): remove the dependency on isolate.
   v8::Isolate* isolate_;

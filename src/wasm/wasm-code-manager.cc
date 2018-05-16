@@ -328,20 +328,20 @@ WasmCode::~WasmCode() {
 base::AtomicNumber<size_t> NativeModule::next_id_;
 
 NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
-                           bool can_request_more, VirtualMemory* mem,
+                           bool can_request_more, VirtualMemory* code_space,
                            WasmCodeManager* code_manager, ModuleEnv& env)
     : instance_id(next_id_.Increment(1)),
       code_table_(num_functions),
       num_imported_functions_(num_imports),
       compilation_state_(NewCompilationState(
           reinterpret_cast<Isolate*>(code_manager->isolate_), env)),
-      free_memory_(mem->address(), mem->end()),
+      free_code_space_(code_space->address(), code_space->end()),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
       use_trap_handler_(env.use_trap_handler) {
   VirtualMemory my_mem;
-  owned_memory_.push_back(my_mem);
-  owned_memory_.back().TakeControl(mem);
+  owned_code_space_.push_back(my_mem);
+  owned_code_space_.back().TakeControl(code_space);
   owned_code_.reserve(num_functions);
 }
 
@@ -625,23 +625,23 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
 Address NativeModule::AllocateForCode(size_t size) {
   // this happens under a lock assumed by the caller.
   size = RoundUp(size, kCodeAlignment);
-  DisjointAllocationPool mem = free_memory_.Allocate(size);
+  DisjointAllocationPool mem = free_code_space_.Allocate(size);
   if (mem.IsEmpty()) {
     if (!can_request_more_memory_) return kNullAddress;
 
-    Address hint =
-        owned_memory_.empty() ? kNullAddress : owned_memory_.back().end();
+    Address hint = owned_code_space_.empty() ? kNullAddress
+                                             : owned_code_space_.back().end();
     VirtualMemory empty_mem;
-    owned_memory_.push_back(empty_mem);
-    VirtualMemory& new_mem = owned_memory_.back();
+    owned_code_space_.push_back(empty_mem);
+    VirtualMemory& new_mem = owned_code_space_.back();
     wasm_code_manager_->TryAllocate(size, &new_mem,
                                     reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) return kNullAddress;
     DisjointAllocationPool mem_pool(new_mem.address(), new_mem.end());
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
-    free_memory_.Merge(std::move(mem_pool));
-    mem = free_memory_.Allocate(size);
+    free_code_space_.Merge(std::move(mem_pool));
+    mem = free_code_space_.Allocate(size);
     if (mem.IsEmpty()) return kNullAddress;
   }
   Address ret = mem.ranges().front().first;
@@ -661,9 +661,10 @@ Address NativeModule::AllocateForCode(size_t size) {
     // On Windows, we cannot commit a range that straddles different
     // reservations of virtual memory. Because we bump-allocate, and because, if
     // we need more memory, we append that memory at the end of the
-    // owned_memory_ list, we traverse that list in reverse order to find the
-    // reservation(s) that guide how to chunk the region to commit.
-    for (auto it = owned_memory_.crbegin(), rend = owned_memory_.crend();
+    // owned_code_space_ list, we traverse that list in reverse order to find
+    // the reservation(s) that guide how to chunk the region to commit.
+    for (auto it = owned_code_space_.crbegin(),
+              rend = owned_code_space_.crend();
          it != rend && commit_start < commit_end; ++it) {
       if (commit_end > it->end() || it->address() >= commit_end) continue;
       Address start = std::max(commit_start, it->address());
@@ -672,7 +673,7 @@ Address NativeModule::AllocateForCode(size_t size) {
       if (!wasm_code_manager_->Commit(start, commit_size)) {
         return kNullAddress;
       }
-      committed_memory_ += commit_size;
+      committed_code_space_ += commit_size;
       commit_end = start;
     }
 #else
@@ -681,11 +682,11 @@ Address NativeModule::AllocateForCode(size_t size) {
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
       return kNullAddress;
     }
-    committed_memory_ += commit_size;
+    committed_code_space_ += commit_size;
 #endif
   }
   DCHECK(IsAligned(ret, kCodeAlignment));
-  allocated_memory_.Merge(std::move(mem));
+  allocated_code_space_.Merge(std::move(mem));
   TRACE_HEAP("ID: %zu. Code alloc: %p,+%zu\n", instance_id,
              reinterpret_cast<void*>(ret), size);
   return ret;
@@ -802,13 +803,13 @@ NativeModule::~NativeModule() {
         reinterpret_cast<Object**>(shared_module_data_));
     shared_module_data_ = nullptr;
   }
-  wasm_code_manager_->FreeNativeModuleMemories(this);
+  wasm_code_manager_->FreeNativeModule(this);
 }
 
 WasmCodeManager::WasmCodeManager(v8::Isolate* isolate, size_t max_committed)
     : isolate_(isolate) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
-  remaining_uncommitted_.store(max_committed);
+  remaining_uncommitted_code_space_.store(max_committed);
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
@@ -818,10 +819,10 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
   // {remaining_uncommitted_}. Temporary underflow would allow concurrent
   // threads to over-commit.
   while (true) {
-    size_t old_value = remaining_uncommitted_.load();
+    size_t old_value = remaining_uncommitted_code_space_.load();
     if (old_value < size) return false;
-    if (remaining_uncommitted_.compare_exchange_weak(old_value,
-                                                     old_value - size)) {
+    if (remaining_uncommitted_code_space_.compare_exchange_weak(
+            old_value, old_value - size)) {
       break;
     }
   }
@@ -835,7 +836,7 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
              reinterpret_cast<void*>(start + size));
   if (!ret) {
     // Highly unlikely.
-    remaining_uncommitted_.fetch_add(size);
+    remaining_uncommitted_code_space_.fetch_add(size);
     return false;
   }
   // This API assumes main thread
@@ -857,7 +858,7 @@ bool WasmCodeManager::WouldGCHelp() const {
   // We have an expectation on the largest size a native function
   // may have.
   constexpr size_t kMaxNativeFunction = 32 * MB;
-  size_t remaining = remaining_uncommitted_.load();
+  size_t remaining = remaining_uncommitted_code_space_.load();
   return remaining < kMaxNativeFunction;
 }
 
@@ -945,7 +946,7 @@ bool NativeModule::SetExecutable(bool executable) {
     // use. On 32-bit though, the scarce resource is the address space -
     // committed or not.
     if (can_request_more_memory_) {
-      for (auto& vmem : owned_memory_) {
+      for (auto& vmem : owned_code_space_) {
         if (!SetPermissions(vmem.address(), vmem.size(), permission)) {
           return false;
         }
@@ -956,8 +957,8 @@ bool NativeModule::SetExecutable(bool executable) {
       return true;
     }
 #endif
-    for (auto& range : allocated_memory_.ranges()) {
-      // allocated_memory_ is fine-grained, so we need to
+    for (auto& range : allocated_code_space_.ranges()) {
+      // allocated_code_space_ is fine-grained, so we need to
       // page-align it.
       size_t range_size = RoundUp(
           static_cast<size_t>(range.second - range.first), AllocatePageSize());
@@ -973,25 +974,25 @@ bool NativeModule::SetExecutable(bool executable) {
   return true;
 }
 
-void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
+void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   DCHECK_GE(active_, 1);
   --active_;
   TRACE_HEAP("Freeing %zu\n", native_module->instance_id);
-  for (auto& vmem : native_module->owned_memory_) {
+  for (auto& vmem : native_module->owned_code_space_) {
     lookup_map_.erase(vmem.address());
     Free(&vmem);
     DCHECK(!vmem.IsReserved());
   }
-  native_module->owned_memory_.clear();
+  native_module->owned_code_space_.clear();
 
   // No need to tell the GC anything if we're destroying the heap,
   // which we currently indicate by having the isolate_ as null
   if (isolate_ == nullptr) return;
-  size_t freed_mem = native_module->committed_memory_;
-  DCHECK(IsAligned(freed_mem, AllocatePageSize()));
-  remaining_uncommitted_.fetch_add(freed_mem);
+  size_t freed_code_space = native_module->committed_code_space_;
+  DCHECK(IsAligned(freed_code_space, AllocatePageSize()));
+  remaining_uncommitted_code_space_.fetch_add(freed_code_space);
   isolate_->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<int64_t>(freed_mem));
+      -static_cast<int64_t>(freed_code_space));
 }
 
 // TODO(wasm): We can make this more efficient if needed. For
@@ -1031,8 +1032,8 @@ void WasmCodeManager::Free(VirtualMemory* mem) {
   TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);
 }
 
-size_t WasmCodeManager::remaining_uncommitted() const {
-  return remaining_uncommitted_.load();
+size_t WasmCodeManager::remaining_uncommitted_code_space() const {
+  return remaining_uncommitted_code_space_.load();
 }
 
 NativeModuleModificationScope::NativeModuleModificationScope(
