@@ -148,9 +148,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   ICStats::instance()->End();
 }
 
-
-IC::IC(FrameDepth depth, Isolate* isolate, Handle<FeedbackVector> vector,
-       FeedbackSlot slot)
+IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
     : isolate_(isolate),
       vector_set_(false),
       kind_(FeedbackSlotKind::kInvalid),
@@ -169,21 +167,9 @@ IC::IC(FrameDepth depth, Isolate* isolate, Handle<FeedbackVector> vector,
   Address* pc_address =
       reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
   Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  // If there's another JavaScript frame on the stack we need to look one frame
-  // further down the stack to find the frame pointer and the return address
-  // stack slot.
-  if (depth == EXTRA_CALL_FRAME) {
-    if (FLAG_enable_embedded_constant_pool) {
-      constant_pool = reinterpret_cast<Address*>(
-          fp + StandardFrameConstants::kConstantPoolOffset);
-    }
-    const int kCallerPCOffset = StandardFrameConstants::kCallerPCOffset;
-    pc_address = reinterpret_cast<Address*>(fp + kCallerPCOffset);
-    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
-  }
 #ifdef DEBUG
   StackFrameIterator it(isolate);
-  for (int i = 0; i < depth + 1; i++) it.Advance();
+  for (int i = 0; i < 1; i++) it.Advance();
   StackFrame* frame = it.frame();
   DCHECK(fp == frame->fp() && pc_address == frame->pc_address());
 #endif

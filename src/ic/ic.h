@@ -27,10 +27,6 @@ class IC {
   // Alias the inline cache state type to make the IC code more readable.
   typedef InlineCacheState State;
 
-  // The IC code is either invoked with no extra frames on the stack
-  // or with a single extra frame for supporting calls.
-  enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
-
   static constexpr int kMaxKeyedPolymorphism = 4;
 
   // A polymorphic IC can handle at most 4 distinct maps before transitioning
@@ -39,8 +35,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, Handle<FeedbackVector> vector,
-     FeedbackSlot slot);
+  IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -216,17 +211,10 @@ class IC {
 };
 
 
-class CallIC : public IC {
- public:
-  CallIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : IC(EXTRA_CALL_FRAME, isolate, vector, slot) {}
-};
-
-
 class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : IC(NO_EXTRA_FRAME, isolate, vector, slot) {
+      : IC(isolate, vector, slot) {
     DCHECK(IsAnyLoad());
   }
 
@@ -305,7 +293,7 @@ class KeyedLoadIC : public LoadIC {
 class StoreIC : public IC {
  public:
   StoreIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : IC(NO_EXTRA_FRAME, isolate, vector, slot) {
+      : IC(isolate, vector, slot) {
     DCHECK(IsAnyStore());
   }
 
