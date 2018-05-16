@@ -81,19 +81,25 @@ class GlobalContext {
   bool verbose() const { return verbose_; }
 
   void AddControlSplitChangedVariables(const AstNode* node,
+                                       const TypeVector& specialization_types,
                                        const std::set<const Variable*>& vars) {
-    control_split_changed_variables_[node] = vars;
+    auto key = std::make_pair(node, specialization_types);
+    control_split_changed_variables_[key] = vars;
   }
 
   const std::set<const Variable*>& GetControlSplitChangedVariables(
-      const AstNode* node) {
-    assert(control_split_changed_variables_.find(node) !=
+      const AstNode* node, const TypeVector& specialization_types) {
+    auto key = std::make_pair(node, specialization_types);
+    assert(control_split_changed_variables_.find(key) !=
            control_split_changed_variables_.end());
-    return control_split_changed_variables_.find(node)->second;
+    return control_split_changed_variables_.find(key)->second;
   }
 
-  void MarkVariableChanged(const AstNode* node, Variable* var) {
-    control_split_changed_variables_[node].insert(var);
+  void MarkVariableChanged(const AstNode* node,
+                           const TypeVector& specialization_types,
+                           Variable* var) {
+    auto key = std::make_pair(node, specialization_types);
+    control_split_changed_variables_[key].insert(var);
   }
 
   friend class CurrentCallableActivator;
@@ -120,12 +126,12 @@ class GlobalContext {
   bool verbose_;
   int next_label_number_;
   Declarations declarations_;
+  Callable* current_callable_;
+  std::vector<std::pair<Label*, Label*>> break_continue_stack_;
   TypeOracle type_oracle_;
   std::map<std::string, std::unique_ptr<Module>> modules_;
   Module* default_module_;
-  std::vector<std::pair<Label*, Label*>> break_continue_stack_;
-  Callable* current_callable_;
-  std::map<const AstNode*, std::set<const Variable*>>
+  std::map<std::pair<const AstNode*, TypeVector>, std::set<const Variable*>>
       control_split_changed_variables_;
   Ast ast_;
 };
@@ -133,14 +139,18 @@ class GlobalContext {
 class CurrentCallableActivator {
  public:
   CurrentCallableActivator(GlobalContext& context, Callable* callable,
-                           Declaration* decl)
+                           CallableNode* decl)
       : context_(context), scope_activator_(context.declarations(), decl) {
+    remembered_callable_ = context_.current_callable_;
     context_.current_callable_ = callable;
   }
-  ~CurrentCallableActivator() { context_.current_callable_ = nullptr; }
+  ~CurrentCallableActivator() {
+    context_.current_callable_ = remembered_callable_;
+  }
 
  private:
   GlobalContext& context_;
+  Callable* remembered_callable_;
   Declarations::NodeScopeActivator scope_activator_;
 };
 

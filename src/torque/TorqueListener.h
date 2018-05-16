@@ -23,6 +23,16 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void enterTypeList(TorqueParser::TypeListContext* ctx) = 0;
   virtual void exitTypeList(TorqueParser::TypeListContext* ctx) = 0;
 
+  virtual void enterOptionalGenericSpecializationTypeList(
+      TorqueParser::OptionalGenericSpecializationTypeListContext* ctx) = 0;
+  virtual void exitOptionalGenericSpecializationTypeList(
+      TorqueParser::OptionalGenericSpecializationTypeListContext* ctx) = 0;
+
+  virtual void enterOptionalGenericTypeList(
+      TorqueParser::OptionalGenericTypeListContext* ctx) = 0;
+  virtual void exitOptionalGenericTypeList(
+      TorqueParser::OptionalGenericTypeListContext* ctx) = 0;
+
   virtual void enterTypeListMaybeVarArgs(
       TorqueParser::TypeListMaybeVarArgsContext* ctx) = 0;
   virtual void exitTypeListMaybeVarArgs(
@@ -273,6 +283,11 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
       TorqueParser::BuiltinDeclarationContext* ctx) = 0;
   virtual void exitBuiltinDeclaration(
       TorqueParser::BuiltinDeclarationContext* ctx) = 0;
+
+  virtual void enterGenericSpecialization(
+      TorqueParser::GenericSpecializationContext* ctx) = 0;
+  virtual void exitGenericSpecialization(
+      TorqueParser::GenericSpecializationContext* ctx) = 0;
 
   virtual void enterMacroDeclaration(
       TorqueParser::MacroDeclarationContext* ctx) = 0;

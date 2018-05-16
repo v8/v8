@@ -101,6 +101,29 @@ TEST(TestPartiallyUnusedLabel) {
   ft.CheckCall(ft.true_value());
 }
 
+TEST(TestBuiltinSpecialization) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    Node* temp = m.SmiConstant(0);
+    m.TestBuiltinSpecialization(m.UncheckedCast<Context>(temp));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+}
+
+TEST(TestMacroSpecialization) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestMacroSpecialization();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

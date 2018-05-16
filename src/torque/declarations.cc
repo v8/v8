@@ -10,10 +10,25 @@ namespace internal {
 namespace torque {
 
 Scope* Declarations::GetNodeScope(const AstNode* node) {
-  auto i = node_scopes_.find(node);
-  if (i != node_scopes_.end()) return i->second;
+  std::pair<const AstNode*, TypeVector> key(
+      node, current_generic_specialization_ == nullptr
+                ? TypeVector()
+                : current_generic_specialization_->second);
+  auto i = scopes_.find(key);
+  if (i != scopes_.end()) return i->second;
   Scope* result = chain_.NewScope();
-  node_scopes_[node] = result;
+  scopes_[key] = result;
+  return result;
+}
+
+Scope* Declarations::GetGenericScope(Generic* generic,
+                                     const TypeVector& types) {
+  std::pair<const AstNode*, TypeVector> key(generic->declaration()->callable,
+                                            types);
+  auto i = scopes_.find(key);
+  if (i != scopes_.end()) return i->second;
+  Scope* result = chain_.NewScope();
+  scopes_[key] = result;
   return result;
 }
 
@@ -32,13 +47,16 @@ void Declarations::CheckAlreadyDeclared(SourcePosition pos,
 const Type* Declarations::LookupType(SourcePosition pos,
                                      const std::string& name) {
   Declarable* raw = Lookup(pos, name);
-  if (!raw->IsType()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Type at "
-      << PositionAsString(pos);
-    ReportError(s.str());
+  if (raw->IsType()) {
+    return Type::cast(raw);
+  } else if (raw->IsTypeAlias()) {
+    return TypeAlias::cast(raw)->type();
   }
-  return Type::cast(raw);
+  std::stringstream s;
+  s << "declaration \"" << name << "\" is not a Type at "
+    << PositionAsString(pos);
+  ReportError(s.str());
+  return nullptr;
 }
 
 Value* Declarations::LookupValue(SourcePosition pos, const std::string& name) {
@@ -98,6 +116,21 @@ Builtin* Declarations::LookupBuiltin(SourcePosition pos,
   return nullptr;
 }
 
+Generic* Declarations::LookupGeneric(const SourcePosition& pos,
+                                     const std::string& name) {
+  Declarable* declarable = Lookup(name);
+  if (declarable != nullptr) {
+    if (declarable->IsGeneric()) {
+      return Generic::cast(declarable);
+    }
+    ReportError(name + " referenced at " + PositionAsString(pos) +
+                " is not a generic");
+  }
+  ReportError(std::string("generic ") + name + " referenced at " +
+              PositionAsString(pos) + " is not defined");
+  return nullptr;
+}
+
 const Type* Declarations::DeclareType(SourcePosition pos,
                                       const std::string& name,
                                       const std::string& generated,
@@ -124,6 +157,13 @@ const Type* Declarations::DeclareType(SourcePosition pos,
   Type* result = new Type(parent_type, name, generated);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
+}
+
+void Declarations::DeclareTypeAlias(SourcePosition pos, const std::string& name,
+                                    const Type* aliased_type) {
+  CheckAlreadyDeclared(pos, name, "aliased type");
+  TypeAlias* result = new TypeAlias(name, aliased_type);
+  Declare(name, std::unique_ptr<TypeAlias>(result));
 }
 
 Label* Declarations::DeclareLabel(SourcePosition pos, const std::string& name) {
@@ -216,6 +256,24 @@ void Declarations::DeclareConstant(SourcePosition pos, const std::string& name,
   CheckAlreadyDeclared(pos, name, "constant, parameter or arguments");
   Constant* result = new Constant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));
+}
+
+Generic* Declarations::DeclareGeneric(SourcePosition pos,
+                                      const std::string& name, Module* module,
+                                      GenericDeclaration* generic) {
+  CheckAlreadyDeclared(pos, name, "generic");
+  Generic* result = new Generic(name, module, generic);
+  Declare(name, std::unique_ptr<Generic>(result));
+  generic_declaration_scopes_[result] = GetScopeChainSnapshot();
+  return result;
+}
+
+TypeVector Declarations::GetCurrentSpecializationTypeNamesVector() {
+  TypeVector result;
+  if (current_generic_specialization_ != nullptr) {
+    result = current_generic_specialization_->second;
+  }
+  return result;
 }
 
 }  // namespace torque

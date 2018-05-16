@@ -49,6 +49,19 @@ void ImplementationVisitor::Visit(Declaration* decl) {
   }
 }
 
+void ImplementationVisitor::Visit(CallableNode* decl,
+                                  const Signature& signature, Statement* body) {
+  switch (decl->kind) {
+#define ENUM_ITEM(name)        \
+  case AstNode::Kind::k##name: \
+    return Visit(name::cast(decl), signature, body);
+    AST_CALLABLE_NODE_KIND_LIST(ENUM_ITEM)
+#undef ENUM_ITEM
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
 void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   Module* module = decl->GetModule();
 
@@ -120,6 +133,8 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   for (auto& child : decl->declarations) Visit(child);
   module_ = saved_module;
 
+  DrainSpecializationQueue();
+
   source << "}  // namepsace internal" << std::endl
          << "}  // namespace v8" << std::endl
          << "" << std::endl;
@@ -131,11 +146,13 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   header << "#endif  // " << headerDefine << std::endl;
 }
 
-void ImplementationVisitor::Visit(MacroDeclaration* decl) {
-  Signature signature = MakeSignature(decl->pos, decl->parameters,
-                                      decl->return_type, decl->labels);
+void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
+                                  const Signature& sig, Statement* body) {
+  Signature signature = MakeSignature(decl, decl->signature.get());
+  std::string name = GetGeneratedCallableName(
+      decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
   const TypeVector& list = signature.types();
-  Macro* macro = declarations()->LookupMacro(decl->pos, decl->name, list);
+  Macro* macro = declarations()->LookupMacro(decl->pos, name, list);
 
   CurrentCallableActivator activator(global_context_, macro, decl);
 
@@ -167,7 +184,7 @@ void ImplementationVisitor::Visit(MacroDeclaration* decl) {
   Label* macro_end = declarations()->DeclareLabel(decl->pos, "macro_end");
   GenerateLabelDefinition(macro_end, decl);
 
-  const Type* result = Visit(decl->body);
+  const Type* result = Visit(body);
   if (result->IsNever()) {
     if (!macro->signature().return_type->IsNever() && !macro->HasReturns()) {
       std::stringstream s;
@@ -206,15 +223,18 @@ void ImplementationVisitor::Visit(MacroDeclaration* decl) {
   source_out() << "}" << std::endl << std::endl;
 }
 
-void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
-  source_out() << "TF_BUILTIN(" << decl->name << ", "
+void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
+                                  const Signature& signature, Statement* body) {
+  std::string name = GetGeneratedCallableName(
+      decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
+  source_out() << "TF_BUILTIN(" << name << ", "
                << GetDSLAssemblerName(CurrentModule()) << ") {" << std::endl;
-  Builtin* builtin = declarations()->LookupBuiltin(decl->pos, decl->name);
+  Builtin* builtin = declarations()->LookupBuiltin(decl->pos, name);
   CurrentCallableActivator activator(global_context_, builtin, decl);
 
   // Context
-  const Value* val =
-      declarations()->LookupValue(decl->pos, decl->parameters.names[0]);
+  const Value* val = declarations()->LookupValue(
+      decl->pos, decl->signature->parameters.names[0]);
   GenerateIndent();
   source_out() << "TNode<Context> " << val->GetValueForDeclaration()
                << " = UncheckedCast<Context>(Parameter("
@@ -225,9 +245,9 @@ void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
 
   size_t first = 1;
   if (builtin->IsVarArgsJavaScript()) {
-    assert(decl->parameters.has_varargs);
+    assert(decl->signature->parameters.has_varargs);
     Constant* arguments = Constant::cast(declarations()->LookupValue(
-        decl->pos, decl->parameters.arguments_variable));
+        decl->pos, decl->signature->parameters.arguments_variable));
     std::string arguments_name = arguments->GetValueForDeclaration();
     GenerateIndent();
     source_out()
@@ -237,8 +257,8 @@ void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
     source_out() << "CodeStubArguments arguments_impl(this, "
                     "ChangeInt32ToIntPtr(argc));"
                  << std::endl;
-    const Value* receiver =
-        declarations()->LookupValue(decl->pos, decl->parameters.names[1]);
+    const Value* receiver = declarations()->LookupValue(
+        decl->pos, decl->signature->parameters.names[1]);
     GenerateIndent();
     source_out() << "TNode<Object> " << receiver->GetValueForDeclaration()
                  << " = arguments_impl.GetReceiver();" << std::endl;
@@ -252,8 +272,8 @@ void ImplementationVisitor::Visit(BuiltinDeclaration* decl) {
     first = 2;
   }
 
-  GenerateParameterList(decl->pos, decl->parameters.names, first);
-  Visit(decl->body);
+  GenerateParameterList(decl->pos, decl->signature->parameters.names, first);
+  Visit(body);
   source_out() << "}" << std::endl << std::endl;
 }
 
@@ -1082,7 +1102,8 @@ VisitResult ImplementationVisitor::GenerateOperation(
 
 void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
   const std::set<const Variable*>& changed_vars =
-      global_context_.GetControlSplitChangedVariables(node);
+      global_context_.GetControlSplitChangedVariables(
+          node, declarations()->GetCurrentSpecializationTypeNamesVector());
   source_out() << "{";
   bool first = true;
   for (auto v : changed_vars) {
@@ -1206,7 +1227,9 @@ Variable* ImplementationVisitor::GenerateVariableDeclaration(
     // assumed that it changes along all control split paths because it's no
     // longer possible to run the control-flow anlaysis in the declaration pass
     // over the variable.
-    global_context_.MarkVariableChanged(node, variable);
+    global_context_.MarkVariableChanged(
+        node, declarations()->GetCurrentSpecializationTypeNamesVector(),
+        variable);
   }
 
   GenerateIndent();
@@ -1376,9 +1399,33 @@ VisitResult ImplementationVisitor::GenerateCall(
   return VisitResult(result_type, result_variable_name);
 }
 
+void ImplementationVisitor::Visit(StandardDeclaration* decl) {
+  Visit(decl->callable, {}, decl->body);
+}
+
+void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
+  Generic* generic = declarations()->LookupGeneric(decl->pos, decl->name);
+  TypeVector specialization_types =
+      GetTypeVector(decl->pos, decl->generic_parameters);
+  CallableNode* callable = generic->declaration()->callable;
+  QueueGenericSpecialization({generic, specialization_types}, callable,
+                             decl->signature.get(), decl->body);
+}
+
 VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   Arguments arguments;
+  std::string name = expr->callee;
+  if (expr->generic_arguments.size() != 0) {
+    Generic* generic = declarations()->LookupGeneric(expr->pos, expr->callee);
+    TypeVector specialization_types =
+        GetTypeVector(expr->pos, expr->generic_arguments);
+    name = GetGeneratedCallableName(name, specialization_types);
+    CallableNode* callable = generic->declaration()->callable;
+    QueueGenericSpecialization({generic, specialization_types}, callable,
+                               callable->signature.get(),
+                               generic->declaration()->body);
+  }
   for (Expression* arg : expr->arguments)
     arguments.parameters.push_back(Visit(arg));
   arguments.labels = LabelsFromIdentifiers(expr->pos, expr->labels);
@@ -1388,10 +1435,9 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
       s << "can't tail call an operator" << PositionAsString(expr->pos);
       ReportError(s.str());
     }
-    return GenerateOperation(expr->pos, expr->callee, arguments);
+    return GenerateOperation(expr->pos, name, arguments);
   }
-  VisitResult result =
-      GenerateCall(expr->pos, expr->callee, arguments, is_tailcall);
+  VisitResult result = GenerateCall(expr->pos, name, arguments, is_tailcall);
   if (!result.type()->IsVoidOrNever()) {
     GenerateIndent();
     source_out() << "USE(" << result.variable() << ");" << std::endl;

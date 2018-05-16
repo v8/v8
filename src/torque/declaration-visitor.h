@@ -27,18 +27,19 @@ class DeclarationVisitor : public FileVisitor {
         scope_(declarations(), global_context.ast()->default_module()) {
   }
 
-  void Visit(Ast* ast) { Visit(ast->default_module()); }
+  void Visit(Ast* ast) {
+    Visit(ast->default_module());
+    DrainSpecializationQueue();
+  }
 
   void Visit(Expression* expr);
   void Visit(Statement* stmt);
   void Visit(Declaration* decl);
 
   void Visit(ModuleDeclaration* decl) {
-    Module* saved_module = module_;
-    module_ = decl->GetModule();
+    ScopedModuleActivator activator(this, decl->GetModule());
     Declarations::NodeScopeActivator scope(declarations(), decl);
     for (Declaration* child : decl->declarations) Visit(child);
-    module_ = saved_module;
   }
   void Visit(DefaultModuleDeclaration* decl) {
     decl->SetModule(global_context_.GetDefaultModule());
@@ -52,9 +53,7 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(IdentifierExpression* expr) {}
   void Visit(NumberLiteralExpression* expr) {}
   void Visit(StringLiteralExpression* expr) {}
-  void Visit(CallExpression* expr) {
-    for (Expression* arg : expr->arguments) Visit(arg);
-  }
+  void Visit(CallExpression* expr);
   void Visit(ElementAccessExpression* expr) {
     Visit(expr->array);
     Visit(expr->index);
@@ -85,124 +84,35 @@ class DeclarationVisitor : public FileVisitor {
     }
   }
 
-  void Visit(ExternalBuiltinDeclaration* decl) {
-    if (global_context_.verbose()) {
-      std::cout << "found declaration of external builtin " << decl->name
-                << " with signature ";
-    }
+  Builtin* BuiltinDeclarationCommon(BuiltinDeclaration* decl,
+                                    const Signature& signature);
 
-    Signature signature =
-        MakeSignature(decl->pos, decl->parameters, decl->return_type, {});
-
-    if (signature.parameter_types.types.size() == 0 ||
-        !(signature.parameter_types.types[0]->name() == CONTEXT_TYPE_STRING)) {
-      std::stringstream stream;
-      stream << "first parameter to builtin " << decl->name
-             << " is not a context but should be at "
-             << PositionAsString(decl->pos);
-      ReportError(stream.str());
-    }
-    const bool javascript = decl->javascript_linkage;
-    const bool varargs = decl->parameters.has_varargs;
-    if (varargs && !javascript) {
-      std::stringstream stream;
-      stream << "builtin " << decl->name
-             << " with rest parameters must be a JavaScript builtin at "
-             << PositionAsString(decl->pos);
-      ReportError(stream.str());
-    }
-    if (javascript) {
-      if (signature.types().size() < 2 ||
-          !(signature.types()[1]->name() == OBJECT_TYPE_STRING)) {
-        std::stringstream stream;
-        stream << "second parameter to javascript builtin " << decl->name
-               << " is not a receiver type but should be at "
-               << PositionAsString(decl->pos);
-        ReportError(stream.str());
-      }
-    }
-    Builtin::Kind kind = !javascript ? Builtin::kStub
-                                     : varargs ? Builtin::kVarArgsJavaScript
-                                               : Builtin::kFixedArgsJavaScript;
-    declarations()->DeclareBuiltin(decl->pos, decl->name, kind, signature);
+  void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
+             Statement* body) {
+    BuiltinDeclarationCommon(decl, signature);
   }
 
-  void Visit(ExternalRuntimeDeclaration* decl) {
-    if (global_context_.verbose()) {
-      std::cout << "found declaration of external runtime " << decl->name
-                << " with signature ";
-    }
+  void Visit(ExternalRuntimeDeclaration* decl, const Signature& sig,
+             Statement* body);
+  void Visit(ExternalMacroDeclaration* decl, const Signature& sig,
+             Statement* body);
+  void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
+             Statement* body);
+  void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
+             Statement* body);
 
-    const Type* return_type =
-        declarations()->LookupType(decl->pos, decl->return_type);
-    TypeVector parameter_types =
-        GetTypeVector(decl->pos, decl->parameters.types);
-    if (parameter_types.size() == 0 ||
-        !(parameter_types[0]->name() == CONTEXT_TYPE_STRING)) {
-      std::stringstream stream;
-      stream << "first parameter to runtime " << decl->name
-             << " is not a context but should be at "
-             << PositionAsString(decl->pos);
-      ReportError(stream.str());
-    }
+  void Visit(CallableNode* decl, const Signature& signature, Statement* body);
 
-    Signature signature{{},
-                        {parameter_types, decl->parameters.has_varargs},
-                        return_type,
-                        {}};
-    declarations()->DeclareRuntimeFunction(decl->pos, decl->name,
-                                           std::move(signature));
-  }
-
-  void Visit(ExternalMacroDeclaration* decl) {
-    if (global_context_.verbose()) {
-      std::cout << "found declaration of external macro " << decl->name
-                << " with signature ";
-    }
-
-    Signature signature = MakeSignature(decl->pos, decl->parameters,
-                                        decl->return_type, decl->labels);
-
-    declarations()->DeclareMacro(decl->pos, decl->name, signature);
-    if (decl->op) {
-      OperationHandler handler(
-          {decl->name, signature.parameter_types, signature.return_type});
-      auto i = global_context_.op_handlers_.find(*decl->op);
-      if (i == global_context_.op_handlers_.end()) {
-        global_context_.op_handlers_[*decl->op] =
-            std::vector<OperationHandler>();
-        i = global_context_.op_handlers_.find(*decl->op);
-      }
-      i->second.push_back(handler);
-    }
-
-    if (decl->implicit) {
-      if (!decl->op || *decl->op != "convert<>") {
-        std::stringstream s;
-        s << "implicit can only be used with cast<> operator at "
-          << PositionAsString(decl->pos) << "\n";
-        ReportError(s.str());
-      }
-
-      const TypeVector& parameter_types = signature.parameter_types.types;
-      if (parameter_types.size() != 1 || signature.parameter_types.var_args) {
-        std::stringstream s;
-        s << "implicit cast operators doesn't only have a single parameter at "
-          << PositionAsString(decl->pos) << "\n";
-        ReportError(s.str());
-      }
-      GetTypeOracle().RegisterImplicitConversion(signature.return_type,
-                                                 parameter_types[0]);
-    }
-  }
-
-  void Visit(BuiltinDeclaration* decl);
-  void Visit(MacroDeclaration* decl);
+  void Visit(StandardDeclaration* decl);
+  void Visit(GenericDeclaration* decl);
+  void Visit(SpecializationDeclaration* decl);
   void Visit(ReturnStatement* stmt);
 
   void Visit(DebugStatement* stmt) {}
   void Visit(AssertStatement* stmt) {
+#if defined(DEBUG)
     DeclareExpressionForBranch(stmt->expression);
+#endif
   }
 
   void Visit(VarDeclarationStatement* stmt) {
@@ -271,7 +181,9 @@ class DeclarationVisitor : public FileVisitor {
     Visit(expr->if_true);
     Visit(expr->if_false);
     auto changed_vars = PopControlSplit();
-    global_context_.AddControlSplitChangedVariables(expr, changed_vars);
+    global_context_.AddControlSplitChangedVariables(
+        expr, declarations()->GetCurrentSpecializationTypeNamesVector(),
+        changed_vars);
   }
 
   void Visit(IfStatement* stmt) {
@@ -283,7 +195,9 @@ class DeclarationVisitor : public FileVisitor {
     if (stmt->if_false) Visit(*stmt->if_false);
     if (!stmt->is_constexpr) {
       auto changed_vars = PopControlSplit();
-      global_context_.AddControlSplitChangedVariables(stmt, changed_vars);
+      global_context_.AddControlSplitChangedVariables(
+          stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+          changed_vars);
     }
   }
 
@@ -293,7 +207,9 @@ class DeclarationVisitor : public FileVisitor {
     PushControlSplit();
     Visit(stmt->body);
     auto changed_vars = PopControlSplit();
-    global_context_.AddControlSplitChangedVariables(stmt, changed_vars);
+    global_context_.AddControlSplitChangedVariables(
+        stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+        changed_vars);
   }
 
   void Visit(ForOfLoopStatement* stmt);
@@ -316,7 +232,9 @@ class DeclarationVisitor : public FileVisitor {
     Visit(stmt->body);
     Visit(stmt->action);
     auto changed_vars = PopControlSplit();
-    global_context_.AddControlSplitChangedVariables(stmt, changed_vars);
+    global_context_.AddControlSplitChangedVariables(
+        stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+        changed_vars);
   }
 
   void Visit(IncrementDecrementExpression* expr) {
@@ -334,7 +252,7 @@ class DeclarationVisitor : public FileVisitor {
            "\n"
            "#define BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) "
            "\\\n";
-    for (auto builtin : defined_builtins_) {
+    for (auto builtin : torque_builtins_) {
       int firstParameterIndex = 1;
       bool declareParameters = true;
       if (builtin->IsStub()) {
@@ -421,30 +339,31 @@ class DeclarationVisitor : public FileVisitor {
     return was_live_in_preceeding_split;
   }
 
-  void DeclareParameterList(SourcePosition pos, const Signature& signature,
-                            base::Optional<LabelAndTypesVector> labels) {
+  void DeclareSignature(SourcePosition pos, const Signature& signature) {
     auto name_iterator = signature.parameter_names.begin();
     for (auto t : signature.types()) {
       const std::string& name(*name_iterator++);
       declarations()->DeclareParameter(pos, name,
                                        GetParameterVariableFromName(name), t);
     }
-    if (labels) {
-      for (auto label : *labels) {
-        auto label_params = GetTypeVector(pos, label.types);
-        Label* new_label = declarations()->DeclareLabel(pos, label.name);
-        size_t i = 0;
-        for (auto var_type : label_params) {
-          std::string var_name = label.name + std::to_string(i++);
-          new_label->AddVariable(
-              declarations()->DeclareVariable(pos, var_name, var_type));
-        }
+    for (auto& label : signature.labels) {
+      auto label_params = label.types;
+      Label* new_label = declarations()->DeclareLabel(pos, label.name);
+      size_t i = 0;
+      for (auto var_type : label_params) {
+        std::string var_name = label.name + std::to_string(i++);
+        new_label->AddVariable(
+            declarations()->DeclareVariable(pos, var_name, var_type));
       }
     }
   }
 
+  void Specialize(const SpecializationKey& key, CallableNode* callable,
+                  const CallableNodeSignature* signature,
+                  Statement* body) override;
+
   Declarations::NodeScopeActivator scope_;
-  std::vector<Builtin*> defined_builtins_;
+  std::vector<Builtin*> torque_builtins_;
   std::vector<LiveAndChanged> live_and_changed_variables_;
 };
 

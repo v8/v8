@@ -25,6 +25,12 @@ class TorqueVisitor : public antlr4::tree::AbstractParseTreeVisitor {
   virtual antlrcpp::Any visitTypeList(
       TorqueParser::TypeListContext* context) = 0;
 
+  virtual antlrcpp::Any visitOptionalGenericSpecializationTypeList(
+      TorqueParser::OptionalGenericSpecializationTypeListContext* context) = 0;
+
+  virtual antlrcpp::Any visitOptionalGenericTypeList(
+      TorqueParser::OptionalGenericTypeListContext* context) = 0;
+
   virtual antlrcpp::Any visitTypeListMaybeVarArgs(
       TorqueParser::TypeListMaybeVarArgsContext* context) = 0;
 
@@ -200,6 +206,9 @@ class TorqueVisitor : public antlr4::tree::AbstractParseTreeVisitor {
 
   virtual antlrcpp::Any visitBuiltinDeclaration(
       TorqueParser::BuiltinDeclarationContext* context) = 0;
+
+  virtual antlrcpp::Any visitGenericSpecialization(
+      TorqueParser::GenericSpecializationContext* context) = 0;
 
   virtual antlrcpp::Any visitMacroDeclaration(
       TorqueParser::MacroDeclarationContext* context) = 0;

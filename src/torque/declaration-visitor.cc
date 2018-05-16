@@ -44,24 +44,26 @@ void DeclarationVisitor::Visit(Declaration* decl) {
   }
 }
 
-void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
-  if (global_context_.verbose()) {
-    std::cout << "found declaration of builtin " << decl->name;
+void DeclarationVisitor::Visit(CallableNode* decl, const Signature& signature,
+                               Statement* body) {
+  switch (decl->kind) {
+#define ENUM_ITEM(name)        \
+  case AstNode::Kind::k##name: \
+    return Visit(name::cast(decl), signature, body);
+    AST_CALLABLE_NODE_KIND_LIST(ENUM_ITEM)
+#undef ENUM_ITEM
+    default:
+      UNIMPLEMENTED();
   }
+}
 
+Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
+    BuiltinDeclaration* decl, const Signature& signature) {
   const bool javascript = decl->javascript_linkage;
-  const bool varargs = decl->parameters.has_varargs;
+  const bool varargs = decl->signature->parameters.has_varargs;
   Builtin::Kind kind = !javascript ? Builtin::kStub
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
-
-  Signature signature =
-      MakeSignature(decl->pos, decl->parameters, decl->return_type, {});
-  Builtin* builtin =
-      declarations()->DeclareBuiltin(decl->pos, decl->name, kind, signature);
-  CurrentCallableActivator activator(global_context_, builtin, decl);
-
-  DeclareParameterList(decl->pos, signature, {});
 
   if (signature.types().size() == 0 ||
       !(signature.types()[0]->name() == CONTEXT_TYPE_STRING)) {
@@ -71,9 +73,6 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
            << PositionAsString(decl->pos);
     ReportError(stream.str());
   }
-  if (global_context_.verbose()) {
-    std::cout << decl->name << " with signature " << signature << std::endl;
-  }
 
   if (varargs && !javascript) {
     std::stringstream stream;
@@ -82,6 +81,7 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
            << PositionAsString(decl->pos);
     ReportError(stream.str());
   }
+
   if (javascript) {
     if (signature.types().size() < 2 ||
         !(signature.types()[1]->name() == OBJECT_TYPE_STRING)) {
@@ -93,34 +93,142 @@ void DeclarationVisitor::Visit(BuiltinDeclaration* decl) {
     }
   }
 
-  if (varargs) {
-    declarations()->DeclareConstant(
-        decl->pos, decl->parameters.arguments_variable,
-        GetTypeOracle().GetArgumentsType(), "arguments");
-  }
-
-  defined_builtins_.push_back(builtin);
-  Visit(decl->body);
+  std::string generated_name = GetGeneratedCallableName(
+      decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
+  return declarations()->DeclareBuiltin(decl->pos, generated_name, kind,
+                                        signature);
 }
 
-void DeclarationVisitor::Visit(MacroDeclaration* decl) {
-  Signature signature = MakeSignature(decl->pos, decl->parameters,
-                                      decl->return_type, decl->labels);
+void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
+                               const Signature& signature, Statement* body) {
+  if (global_context_.verbose()) {
+    std::cout << "found declaration of external runtime " << decl->name
+              << " with signature ";
+  }
 
-  Macro* macro = declarations()->DeclareMacro(decl->pos, decl->name, signature);
+  if (signature.parameter_types.types.size() == 0 ||
+      !(signature.parameter_types.types[0]->name() == CONTEXT_TYPE_STRING)) {
+    std::stringstream stream;
+    stream << "first parameter to runtime " << decl->name
+           << " is not a context but should be at "
+           << PositionAsString(decl->pos);
+    ReportError(stream.str());
+  }
+
+  declarations()->DeclareRuntimeFunction(decl->pos, decl->name, signature);
+}
+
+void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
+                               const Signature& signature, Statement* body) {
+  if (global_context_.verbose()) {
+    std::cout << "found declaration of external macro " << decl->name
+              << " with signature ";
+  }
+
+  std::string generated_name = GetGeneratedCallableName(
+      decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
+  declarations()->DeclareMacro(decl->pos, generated_name, signature);
+  if (decl->op) {
+    OperationHandler handler(
+        {decl->name, signature.parameter_types, signature.return_type});
+    auto i = global_context_.op_handlers_.find(*decl->op);
+    if (i == global_context_.op_handlers_.end()) {
+      global_context_.op_handlers_[*decl->op] = std::vector<OperationHandler>();
+      i = global_context_.op_handlers_.find(*decl->op);
+    }
+    i->second.push_back(handler);
+  }
+
+  if (decl->implicit) {
+    if (!decl->op || *decl->op != "convert<>") {
+      std::stringstream s;
+      s << "implicit can only be used with cast<> operator at "
+        << PositionAsString(decl->pos) << "\n";
+      ReportError(s.str());
+    }
+
+    const TypeVector& parameter_types = signature.parameter_types.types;
+    if (parameter_types.size() != 1 || signature.parameter_types.var_args) {
+      std::stringstream s;
+      s << "implicit cast operators doesn't only have a single parameter at "
+        << PositionAsString(decl->pos) << "\n";
+      ReportError(s.str());
+    }
+    GetTypeOracle().RegisterImplicitConversion(signature.return_type,
+                                               parameter_types[0]);
+  }
+}
+
+void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
+                               const Signature& signature, Statement* body) {
+  Builtin* builtin = BuiltinDeclarationCommon(decl, signature);
+  CurrentCallableActivator activator(global_context_, builtin, decl);
+  DeclareSignature(decl->pos, builtin->signature());
+  if (builtin->signature().parameter_types.var_args) {
+    declarations()->DeclareConstant(
+        decl->pos, decl->signature->parameters.arguments_variable,
+        GetTypeOracle().GetArgumentsType(), "arguments");
+  }
+  torque_builtins_.push_back(builtin);
+  Visit(body);
+}
+
+void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
+                               const Signature& signature, Statement* body) {
+  std::string generated_name = GetGeneratedCallableName(
+      decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
+  Macro* macro =
+      declarations()->DeclareMacro(decl->pos, generated_name, signature);
+
   CurrentCallableActivator activator(global_context_, macro, decl);
 
-  DeclareParameterList(decl->pos, signature, decl->labels);
-
+  DeclareSignature(decl->pos, signature);
   if (!signature.return_type->IsVoidOrNever()) {
     declarations()->DeclareVariable(decl->pos, kReturnValueVariable,
                                     signature.return_type);
   }
 
   PushControlSplit();
-  Visit(decl->body);
+  Visit(body);
   auto changed_vars = PopControlSplit();
-  global_context_.AddControlSplitChangedVariables(decl, changed_vars);
+  global_context_.AddControlSplitChangedVariables(
+      decl, declarations()->GetCurrentSpecializationTypeNamesVector(),
+      changed_vars);
+}
+
+void DeclarationVisitor::Visit(StandardDeclaration* decl) {
+  Signature signature =
+      MakeSignature(decl->callable, decl->callable->signature.get());
+  Visit(decl->callable, signature, decl->body);
+}
+
+void DeclarationVisitor::Visit(GenericDeclaration* decl) {
+  declarations()->DeclareGeneric(decl->pos, decl->callable->name,
+                                 CurrentModule(), decl);
+}
+
+void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
+  Generic* generic = declarations()->LookupGeneric(decl->pos, decl->name);
+  SpecializationKey key = {generic,
+                           GetTypeVector(decl->pos, decl->generic_parameters)};
+  CallableNode* callable = generic->declaration()->callable;
+  // Ensure that the specialized signature matches the generic signature.
+  if (callable->signature->parameters.names.size() !=
+      decl->signature->parameters.names.size()) {
+    std::stringstream stream;
+    stream << "specialization parameter count doesn't match generic "
+              "declaration at "
+           << PositionAsString(decl->pos);
+    ReportError(stream.str());
+  }
+  if (callable->signature->labels.size() != decl->signature->labels.size()) {
+    std::stringstream stream;
+    stream << "specialization label count doesn't match generic "
+              "declaration at "
+           << PositionAsString(decl->pos);
+    ReportError(stream.str());
+  }
+  QueueGenericSpecialization(key, callable, decl->signature.get(), decl->body);
 }
 
 void DeclarationVisitor::Visit(ReturnStatement* stmt) {
@@ -144,7 +252,9 @@ void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
   PushControlSplit();
   Visit(stmt->body);
   auto changed_vars = PopControlSplit();
-  global_context_.AddControlSplitChangedVariables(stmt, changed_vars);
+  global_context_.AddControlSplitChangedVariables(
+      stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+      changed_vars);
 }
 
 void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
@@ -193,6 +303,57 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
   for (LabelBlock* block : stmt->label_blocks) {
     Visit(block->body);
   }
+}
+
+void DeclarationVisitor::Visit(CallExpression* expr) {
+  if (expr->generic_arguments.size() != 0) {
+    Generic* generic = declarations()->LookupGeneric(expr->pos, expr->callee);
+    TypeVector specialization_types;
+    for (auto t : expr->generic_arguments) {
+      specialization_types.push_back(declarations()->LookupType(expr->pos, t));
+    }
+    CallableNode* callable = generic->declaration()->callable;
+    QueueGenericSpecialization({generic, specialization_types}, callable,
+                               callable->signature.get(),
+                               generic->declaration()->body);
+  }
+
+  for (Expression* arg : expr->arguments) Visit(arg);
+}
+
+void DeclarationVisitor::Specialize(const SpecializationKey& key,
+                                    CallableNode* callable,
+                                    const CallableNodeSignature* signature,
+                                    Statement* body) {
+  Generic* generic = key.first;
+
+  SourcePosition pos = generic->declaration()->pos;
+  size_t generic_parameter_count =
+      generic->declaration()->generic_parameters.size();
+  if (generic_parameter_count != key.second.size()) {
+    std::stringstream stream;
+    stream << "number of template parameters ("
+           << std::to_string(key.second.size())
+           << ") to intantiation of generic " << callable->name
+           << " doesnt match the generic's declaration ("
+           << std::to_string(generic_parameter_count) << ") at "
+           << PositionAsString(pos);
+    ReportError(stream.str());
+  }
+
+  {
+    // Manually activate the specialized generic's scope when defining the
+    // generic parameter specializations.
+    Declarations::GenericScopeActivator scope(declarations(), key);
+    size_t i = 0;
+    for (auto type : key.second) {
+      std::string generic_type_name =
+          generic->declaration()->generic_parameters[i++];
+      declarations()->DeclareTypeAlias(pos, generic_type_name, type);
+    }
+  }
+
+  Visit(callable, MakeSignature(callable, signature), body);
 }
 
 }  // namespace torque

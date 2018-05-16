@@ -96,13 +96,23 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(ExplicitModuleDeclaration* decl) {
     Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
-  void Visit(MacroDeclaration* decl);
-  void Visit(BuiltinDeclaration* decl);
   void Visit(TypeDeclaration* decl) {}
   void Visit(ConstDeclaration* decl) {}
-  void Visit(ExternalMacroDeclaration* decl) {}
-  void Visit(ExternalBuiltinDeclaration* decl) {}
-  void Visit(ExternalRuntimeDeclaration* decl) {}
+  void Visit(StandardDeclaration* decl);
+  void Visit(GenericDeclaration* decl) {}
+  void Visit(SpecializationDeclaration* decl);
+
+  void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
+             Statement* body);
+  void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
+             Statement* body);
+  void Visit(ExternalMacroDeclaration* decl, const Signature& signature,
+             Statement* body) {}
+  void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
+             Statement* body) {}
+  void Visit(ExternalRuntimeDeclaration* decl, const Signature& signature,
+             Statement* body) {}
+  void Visit(CallableNode* decl, const Signature& signature, Statement* body);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   const Type* Visit(TailCallStatement* stmt);
@@ -216,6 +226,13 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult GenerateImplicitConvert(SourcePosition pos,
                                       const Type* destination_type,
                                       VisitResult source);
+
+  void Specialize(const SpecializationKey& key, CallableNode* callable,
+                  const CallableNodeSignature* signature,
+                  Statement* body) override {
+    Declarations::GenericScopeActivator scope(declarations(), key);
+    Visit(callable, MakeSignature(callable, signature), body);
+  }
 
   std::string NewTempVariable();
 

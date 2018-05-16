@@ -10,20 +10,30 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-Signature FileVisitor::MakeSignature(SourcePosition pos,
-                                     const ParameterList& parameters,
-                                     const std::string& return_type,
-                                     const LabelAndTypesVector& labels) {
+Signature FileVisitor::MakeSignature(CallableNode* decl,
+                                     const CallableNodeSignature* signature) {
+  Declarations::NodeScopeActivator scope(declarations(), decl);
   LabelDeclarationVector definition_vector;
-  for (auto label : labels) {
-    LabelDeclaration def = {label.name, GetTypeVector(pos, label.types)};
+  for (auto label : signature->labels) {
+    LabelDeclaration def = {label.name, GetTypeVector(decl->pos, label.types)};
     definition_vector.push_back(def);
   }
   Signature result{
-      parameters.names,
-      {GetTypeVector(pos, parameters.types), parameters.has_varargs},
-      declarations()->LookupType(pos, return_type),
+      signature->parameters.names,
+      {GetTypeVector(decl->pos, signature->parameters.types),
+       signature->parameters.has_varargs},
+      declarations()->LookupType(decl->pos, signature->return_type),
       definition_vector};
+  return result;
+}
+
+std::string FileVisitor::GetGeneratedCallableName(
+    const std::string& name, const TypeVector& specialized_types) {
+  std::string result = name;
+  for (auto type : specialized_types) {
+    result += std::to_string(type->name().size());
+    result += type->name();
+  }
   return result;
 }
 
@@ -57,6 +67,12 @@ Callable* FileVisitor::LookupCall(SourcePosition pos, const std::string& name,
              << PositionAsString(pos);
       ReportError(stream.str());
     }
+  } else {
+    std::stringstream stream;
+    stream << "can't call " << name << " because it's not callable"
+           << ": call parameters were (" << parameter_types << ") at "
+           << PositionAsString(pos);
+    ReportError(stream.str());
   }
 
   size_t caller_size = parameter_types.size();
@@ -64,13 +80,37 @@ Callable* FileVisitor::LookupCall(SourcePosition pos, const std::string& name,
   if (caller_size != callee_size &&
       !result->signature().parameter_types.var_args) {
     std::stringstream stream;
-    stream << "parameter count mismatch calling " << *result << ": expected "
+    stream << "parameter count mismatch calling " << *result << " - expected "
            << std::to_string(callee_size) << ", found "
            << std::to_string(caller_size);
     ReportError(stream.str());
   }
 
   return result;
+}
+
+void FileVisitor::QueueGenericSpecialization(
+    SpecializationKey key, CallableNode* callable,
+    const CallableNodeSignature* signature, Statement* body) {
+  pending_specializations_.push_back({key, callable, signature, body,
+                                      declarations()->GetScopeChainSnapshot()});
+}
+
+void FileVisitor::DrainSpecializationQueue() {
+  while (pending_specializations_.size() != 0) {
+    PendingSpecialization specialization(pending_specializations_.front());
+    pending_specializations_.pop_front();
+    if (completed_specializations_.find(specialization.key) ==
+        completed_specializations_.end()) {
+      Declarations::ScopedGenericInstantiation instantiation(
+          declarations(), specialization.key);
+      FileVisitor::ScopedModuleActivator activator(
+          this, specialization.key.first->module());
+      Specialize(specialization.key, specialization.callable,
+                 specialization.signature, specialization.body);
+      completed_specializations_.insert(specialization.key);
+    }
+  }
 }
 
 }  // namespace torque

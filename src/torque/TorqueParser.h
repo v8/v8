@@ -33,33 +33,33 @@ class TorqueParser : public antlr4::Parser {
     T__17 = 18,
     T__18 = 19,
     T__19 = 20,
-    T__20 = 21,
-    MACRO = 22,
-    BUILTIN = 23,
-    RUNTIME = 24,
-    MODULE = 25,
-    JAVASCRIPT = 26,
-    IMPLICIT = 27,
-    DEFERRED = 28,
-    IF = 29,
-    CAST_KEYWORD = 30,
-    CONVERT_KEYWORD = 31,
-    FOR = 32,
-    WHILE = 33,
-    RETURN = 34,
-    CONSTEXPR = 35,
-    CONTINUE = 36,
-    BREAK = 37,
-    GOTO = 38,
-    OTHERWISE = 39,
-    TRY = 40,
-    CATCH = 41,
-    LABEL = 42,
-    LABELS = 43,
-    TAIL = 44,
-    ISNT = 45,
-    IS = 46,
-    LET = 47,
+    MACRO = 21,
+    BUILTIN = 22,
+    RUNTIME = 23,
+    MODULE = 24,
+    JAVASCRIPT = 25,
+    IMPLICIT = 26,
+    DEFERRED = 27,
+    IF = 28,
+    CAST_KEYWORD = 29,
+    CONVERT_KEYWORD = 30,
+    FOR = 31,
+    WHILE = 32,
+    RETURN = 33,
+    CONSTEXPR = 34,
+    CONTINUE = 35,
+    BREAK = 36,
+    GOTO = 37,
+    OTHERWISE = 38,
+    TRY = 39,
+    CATCH = 40,
+    LABEL = 41,
+    LABELS = 42,
+    TAIL = 43,
+    ISNT = 44,
+    IS = 45,
+    LET = 46,
+    EXTERN = 47,
     ASSERT = 48,
     UNREACHABLE_TOKEN = 49,
     DEBUG_TOKEN = 50,
@@ -100,70 +100,73 @@ class TorqueParser : public antlr4::Parser {
   enum {
     RuleType = 0,
     RuleTypeList = 1,
-    RuleTypeListMaybeVarArgs = 2,
-    RuleLabelParameter = 3,
-    RuleOptionalType = 4,
-    RuleOptionalLabelList = 5,
-    RuleOptionalOtherwise = 6,
-    RuleParameter = 7,
-    RuleParameterList = 8,
-    RuleLabelDeclaration = 9,
-    RuleExpression = 10,
-    RuleConditionalExpression = 11,
-    RuleLogicalORExpression = 12,
-    RuleLogicalANDExpression = 13,
-    RuleBitwiseExpression = 14,
-    RuleEqualityExpression = 15,
-    RuleRelationalExpression = 16,
-    RuleShiftExpression = 17,
-    RuleAdditiveExpression = 18,
-    RuleMultiplicativeExpression = 19,
-    RuleUnaryExpression = 20,
-    RuleLocationExpression = 21,
-    RuleIncrementDecrement = 22,
-    RuleAssignment = 23,
-    RuleAssignmentExpression = 24,
-    RulePrimaryExpression = 25,
-    RuleForInitialization = 26,
-    RuleForLoop = 27,
-    RuleRangeSpecifier = 28,
-    RuleForOfRange = 29,
-    RuleForOfLoop = 30,
-    RuleArgument = 31,
-    RuleArgumentList = 32,
-    RuleHelperCall = 33,
-    RuleLabelReference = 34,
-    RuleVariableDeclaration = 35,
-    RuleVariableDeclarationWithInitialization = 36,
-    RuleHelperCallStatement = 37,
-    RuleExpressionStatement = 38,
-    RuleIfStatement = 39,
-    RuleWhileLoop = 40,
-    RuleReturnStatement = 41,
-    RuleBreakStatement = 42,
-    RuleContinueStatement = 43,
-    RuleGotoStatement = 44,
-    RuleHandlerWithStatement = 45,
-    RuleTryCatch = 46,
-    RuleDiagnosticStatement = 47,
-    RuleStatement = 48,
-    RuleStatementList = 49,
-    RuleStatementScope = 50,
-    RuleStatementBlock = 51,
-    RuleHelperBody = 52,
-    RuleExtendsDeclaration = 53,
-    RuleGeneratesDeclaration = 54,
-    RuleConstexprDeclaration = 55,
-    RuleTypeDeclaration = 56,
-    RuleExternalBuiltin = 57,
-    RuleExternalMacro = 58,
-    RuleExternalRuntime = 59,
-    RuleBuiltinDeclaration = 60,
-    RuleMacroDeclaration = 61,
-    RuleConstDeclaration = 62,
-    RuleDeclaration = 63,
-    RuleModuleDeclaration = 64,
-    RuleFile = 65
+    RuleOptionalGenericSpecializationTypeList = 2,
+    RuleOptionalGenericTypeList = 3,
+    RuleTypeListMaybeVarArgs = 4,
+    RuleLabelParameter = 5,
+    RuleOptionalType = 6,
+    RuleOptionalLabelList = 7,
+    RuleOptionalOtherwise = 8,
+    RuleParameter = 9,
+    RuleParameterList = 10,
+    RuleLabelDeclaration = 11,
+    RuleExpression = 12,
+    RuleConditionalExpression = 13,
+    RuleLogicalORExpression = 14,
+    RuleLogicalANDExpression = 15,
+    RuleBitwiseExpression = 16,
+    RuleEqualityExpression = 17,
+    RuleRelationalExpression = 18,
+    RuleShiftExpression = 19,
+    RuleAdditiveExpression = 20,
+    RuleMultiplicativeExpression = 21,
+    RuleUnaryExpression = 22,
+    RuleLocationExpression = 23,
+    RuleIncrementDecrement = 24,
+    RuleAssignment = 25,
+    RuleAssignmentExpression = 26,
+    RulePrimaryExpression = 27,
+    RuleForInitialization = 28,
+    RuleForLoop = 29,
+    RuleRangeSpecifier = 30,
+    RuleForOfRange = 31,
+    RuleForOfLoop = 32,
+    RuleArgument = 33,
+    RuleArgumentList = 34,
+    RuleHelperCall = 35,
+    RuleLabelReference = 36,
+    RuleVariableDeclaration = 37,
+    RuleVariableDeclarationWithInitialization = 38,
+    RuleHelperCallStatement = 39,
+    RuleExpressionStatement = 40,
+    RuleIfStatement = 41,
+    RuleWhileLoop = 42,
+    RuleReturnStatement = 43,
+    RuleBreakStatement = 44,
+    RuleContinueStatement = 45,
+    RuleGotoStatement = 46,
+    RuleHandlerWithStatement = 47,
+    RuleTryCatch = 48,
+    RuleDiagnosticStatement = 49,
+    RuleStatement = 50,
+    RuleStatementList = 51,
+    RuleStatementScope = 52,
+    RuleStatementBlock = 53,
+    RuleHelperBody = 54,
+    RuleExtendsDeclaration = 55,
+    RuleGeneratesDeclaration = 56,
+    RuleConstexprDeclaration = 57,
+    RuleTypeDeclaration = 58,
+    RuleExternalBuiltin = 59,
+    RuleExternalMacro = 60,
+    RuleExternalRuntime = 61,
+    RuleBuiltinDeclaration = 62,
+    RuleGenericSpecialization = 63,
+    RuleMacroDeclaration = 64,
+    RuleConstDeclaration = 65,
+    RuleDeclaration = 66,
+    RuleModuleDeclaration = 67,
+    RuleFile = 68
   };
 
   explicit TorqueParser(antlr4::TokenStream* input);
@@ -179,6 +182,8 @@ class TorqueParser : public antlr4::Parser {
 
   class TypeContext;
   class TypeListContext;
+  class OptionalGenericSpecializationTypeListContext;
+  class OptionalGenericTypeListContext;
   class TypeListMaybeVarArgsContext;
   class LabelParameterContext;
   class OptionalTypeContext;
@@ -238,6 +243,7 @@ class TorqueParser : public antlr4::Parser {
   class ExternalMacroContext;
   class ExternalRuntimeContext;
   class BuiltinDeclarationContext;
+  class GenericSpecializationContext;
   class MacroDeclarationContext;
   class ConstDeclarationContext;
   class DeclarationContext;
@@ -273,6 +279,40 @@ class TorqueParser : public antlr4::Parser {
   };
 
   TypeListContext* typeList();
+
+  class OptionalGenericSpecializationTypeListContext
+      : public antlr4::ParserRuleContext {
+   public:
+    OptionalGenericSpecializationTypeListContext(
+        antlr4::ParserRuleContext* parent, size_t invokingState);
+    size_t getRuleIndex() const override;
+    std::vector<antlr4::tree::TerminalNode*> IDENTIFIER();
+    antlr4::tree::TerminalNode* IDENTIFIER(size_t i);
+
+    void enterRule(antlr4::tree::ParseTreeListener* listener) override;
+    void exitRule(antlr4::tree::ParseTreeListener* listener) override;
+
+    antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor* visitor) override;
+  };
+
+  OptionalGenericSpecializationTypeListContext*
+  optionalGenericSpecializationTypeList();
+
+  class OptionalGenericTypeListContext : public antlr4::ParserRuleContext {
+   public:
+    OptionalGenericTypeListContext(antlr4::ParserRuleContext* parent,
+                                   size_t invokingState);
+    size_t getRuleIndex() const override;
+    std::vector<antlr4::tree::TerminalNode*> IDENTIFIER();
+    antlr4::tree::TerminalNode* IDENTIFIER(size_t i);
+
+    void enterRule(antlr4::tree::ParseTreeListener* listener) override;
+    void exitRule(antlr4::tree::ParseTreeListener* listener) override;
+
+    antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor* visitor) override;
+  };
+
+  OptionalGenericTypeListContext* optionalGenericTypeList();
 
   class TypeListMaybeVarArgsContext : public antlr4::ParserRuleContext {
    public:
@@ -817,6 +857,8 @@ class TorqueParser : public antlr4::Parser {
    public:
     HelperCallContext(antlr4::ParserRuleContext* parent, size_t invokingState);
     size_t getRuleIndex() const override;
+    OptionalGenericSpecializationTypeListContext*
+    optionalGenericSpecializationTypeList();
     ArgumentListContext* argumentList();
     OptionalOtherwiseContext* optionalOtherwise();
     antlr4::tree::TerminalNode* MIN();
@@ -1220,8 +1262,10 @@ class TorqueParser : public antlr4::Parser {
     ExternalBuiltinContext(antlr4::ParserRuleContext* parent,
                            size_t invokingState);
     size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* EXTERN();
     antlr4::tree::TerminalNode* BUILTIN();
     antlr4::tree::TerminalNode* IDENTIFIER();
+    OptionalGenericTypeListContext* optionalGenericTypeList();
     TypeListContext* typeList();
     OptionalTypeContext* optionalType();
     antlr4::tree::TerminalNode* JAVASCRIPT();
@@ -1239,8 +1283,10 @@ class TorqueParser : public antlr4::Parser {
     ExternalMacroContext(antlr4::ParserRuleContext* parent,
                          size_t invokingState);
     size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* EXTERN();
     antlr4::tree::TerminalNode* MACRO();
     antlr4::tree::TerminalNode* IDENTIFIER();
+    OptionalGenericTypeListContext* optionalGenericTypeList();
     TypeListMaybeVarArgsContext* typeListMaybeVarArgs();
     OptionalTypeContext* optionalType();
     OptionalLabelListContext* optionalLabelList();
@@ -1260,6 +1306,7 @@ class TorqueParser : public antlr4::Parser {
     ExternalRuntimeContext(antlr4::ParserRuleContext* parent,
                            size_t invokingState);
     size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* EXTERN();
     antlr4::tree::TerminalNode* RUNTIME();
     antlr4::tree::TerminalNode* IDENTIFIER();
     TypeListMaybeVarArgsContext* typeListMaybeVarArgs();
@@ -1280,6 +1327,7 @@ class TorqueParser : public antlr4::Parser {
     size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode* BUILTIN();
     antlr4::tree::TerminalNode* IDENTIFIER();
+    OptionalGenericTypeListContext* optionalGenericTypeList();
     ParameterListContext* parameterList();
     OptionalTypeContext* optionalType();
     HelperBodyContext* helperBody();
@@ -1293,6 +1341,27 @@ class TorqueParser : public antlr4::Parser {
 
   BuiltinDeclarationContext* builtinDeclaration();
 
+  class GenericSpecializationContext : public antlr4::ParserRuleContext {
+   public:
+    GenericSpecializationContext(antlr4::ParserRuleContext* parent,
+                                 size_t invokingState);
+    size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* IDENTIFIER();
+    OptionalGenericSpecializationTypeListContext*
+    optionalGenericSpecializationTypeList();
+    ParameterListContext* parameterList();
+    OptionalTypeContext* optionalType();
+    OptionalLabelListContext* optionalLabelList();
+    HelperBodyContext* helperBody();
+
+    void enterRule(antlr4::tree::ParseTreeListener* listener) override;
+    void exitRule(antlr4::tree::ParseTreeListener* listener) override;
+
+    antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor* visitor) override;
+  };
+
+  GenericSpecializationContext* genericSpecialization();
+
   class MacroDeclarationContext : public antlr4::ParserRuleContext {
    public:
     MacroDeclarationContext(antlr4::ParserRuleContext* parent,
@@ -1300,6 +1369,7 @@ class TorqueParser : public antlr4::Parser {
     size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode* MACRO();
     antlr4::tree::TerminalNode* IDENTIFIER();
+    OptionalGenericTypeListContext* optionalGenericTypeList();
     ParameterListContext* parameterList();
     OptionalTypeContext* optionalType();
     OptionalLabelListContext* optionalLabelList();
@@ -1336,6 +1406,7 @@ class TorqueParser : public antlr4::Parser {
     size_t getRuleIndex() const override;
     TypeDeclarationContext* typeDeclaration();
     BuiltinDeclarationContext* builtinDeclaration();
+    GenericSpecializationContext* genericSpecialization();
     MacroDeclarationContext* macroDeclaration();
     ExternalMacroContext* externalMacro();
     ExternalBuiltinContext* externalBuiltin();

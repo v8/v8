@@ -9,6 +9,7 @@
 #include <string>
 
 #include "src/base/logging.h"
+#include "src/torque/ast.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
@@ -30,6 +31,8 @@ class Declarable {
     kMacroList,
     kBuiltin,
     kRuntimeFunction,
+    kGeneric,
+    kTypeAlias,
     kLabel,
     kConstant
   };
@@ -39,6 +42,8 @@ class Declarable {
   bool IsMacro() const { return kind() == kMacro; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
+  bool IsGeneric() const { return kind() == kGeneric; }
+  bool IsTypeAlias() const { return kind() == kTypeAlias; }
   bool IsParameter() const { return kind() == kParameter; }
   bool IsLabel() const { return kind() == kLabel; }
   bool IsVariable() const { return kind() == kVariable; }
@@ -296,9 +301,44 @@ class RuntimeFunction : public Callable {
       : Callable(Declarable::kRuntimeFunction, name, signature) {}
 };
 
+class Generic : public Declarable {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic);
+
+  GenericDeclaration* declaration() const { return declaration_; }
+  Module* module() const { return module_; }
+
+ private:
+  friend class Declarations;
+  Generic(const std::string& name, Module* module,
+          GenericDeclaration* declaration)
+      : Declarable(Declarable::kGeneric),
+        module_(module),
+        declaration_(declaration) {}
+
+  Module* module_;
+  GenericDeclaration* declaration_;
+};
+
+typedef std::pair<Generic*, TypeVector> SpecializationKey;
+
+class TypeAlias : public Declarable {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, instantiated_type);
+
+  const Type* type() const { return type_; }
+
+ private:
+  friend class Declarations;
+  TypeAlias(const std::string& name, const Type* type)
+      : Declarable(Declarable::kTypeAlias), type_(type) {}
+
+  const Type* type_;
+};
+
 inline std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  os << "macro " << m.signature().return_type << " " << m.name()
-     << m.signature().parameter_types;
+  os << "callable " << m.name() << "(" << m.signature().parameter_types
+     << "): " << m.signature().return_type;
   return os;
 }
 

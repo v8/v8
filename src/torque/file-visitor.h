@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_FILE_VISITOR_H_
 #define V8_TORQUE_FILE_VISITOR_H_
 
+#include <deque>
 #include <string>
 
 #include "src/torque/ast.h"
@@ -37,6 +38,21 @@ class FileVisitor {
   Ast* ast() { return global_context_.ast(); }
   Declarations* declarations() { return global_context_.declarations(); }
 
+  void DrainSpecializationQueue();
+
+  class ScopedModuleActivator {
+   public:
+    ScopedModuleActivator(FileVisitor* visitor, Module* module)
+        : visitor_(visitor), saved_module_(visitor->CurrentModule()) {
+      visitor->module_ = module;
+    }
+    ~ScopedModuleActivator() { visitor_->module_ = saved_module_; }
+
+   private:
+    FileVisitor* visitor_;
+    Module* saved_module_;
+  };
+
  protected:
   static constexpr const char* kTrueLabelName = "_True";
   static constexpr const char* kFalseLabelName = "_False";
@@ -47,6 +63,7 @@ class FileVisitor {
 
   Module* CurrentModule() const { return module_; }
 
+  friend class ScopedModuleActivator;
   TypeOracle& GetTypeOracle() { return global_context_.GetTypeOracle(); }
 
   std::string GetParameterVariableFromName(const std::string& name) {
@@ -60,12 +77,32 @@ class FileVisitor {
   Callable* LookupCall(SourcePosition pos, const std::string& name,
                        const TypeVector& parameter_types);
 
-  Signature MakeSignature(SourcePosition pos, const ParameterList& parameters,
-                          const std::string& return_type,
-                          const LabelAndTypesVector& labels);
+  Signature MakeSignature(CallableNode* decl,
+                          const CallableNodeSignature* signature);
+
+  std::string GetGeneratedCallableName(const std::string& name,
+                                       const TypeVector& specialized_types);
+
+  struct PendingSpecialization {
+    SpecializationKey key;
+    CallableNode* callable;
+    const CallableNodeSignature* signature;
+    Statement* body;
+    ScopeChain::Snapshot snapshot;
+  };
+
+  void QueueGenericSpecialization(SpecializationKey, CallableNode* callable,
+                                  const CallableNodeSignature* signature,
+                                  Statement* body);
+
+  virtual void Specialize(const SpecializationKey&, CallableNode* callable,
+                          const CallableNodeSignature* signature,
+                          Statement* body) = 0;
 
   GlobalContext& global_context_;
   Declarations* declarations_;
+  std::deque<PendingSpecialization> pending_specializations_;
+  std::set<SpecializationKey> completed_specializations_;
   Callable* current_callable_;
   Module* module_;
 };

@@ -58,19 +58,25 @@ struct SourcePosition {
 
 #define AST_DECLARATION_NODE_KIND_LIST(V) \
   V(TypeDeclaration)                      \
-  V(MacroDeclaration)                     \
-  V(ExternalMacroDeclaration)             \
-  V(BuiltinDeclaration)                   \
-  V(ExternalBuiltinDeclaration)           \
-  V(ExternalRuntimeDeclaration)           \
+  V(StandardDeclaration)                  \
+  V(GenericDeclaration)                   \
+  V(SpecializationDeclaration)            \
   V(ConstDeclaration)                     \
   V(DefaultModuleDeclaration)             \
   V(ExplicitModuleDeclaration)
+
+#define AST_CALLABLE_NODE_KIND_LIST(V) \
+  V(TorqueMacroDeclaration)            \
+  V(TorqueBuiltinDeclaration)          \
+  V(ExternalMacroDeclaration)          \
+  V(ExternalBuiltinDeclaration)        \
+  V(ExternalRuntimeDeclaration)
 
 #define AST_NODE_KIND_LIST(V)       \
   AST_EXPRESSION_NODE_KIND_LIST(V)  \
   AST_STATEMENT_NODE_KIND_LIST(V)   \
   AST_DECLARATION_NODE_KIND_LIST(V) \
+  AST_CALLABLE_NODE_KIND_LIST(V)    \
   V(CatchBlock)                     \
   V(LabelBlock)
 
@@ -211,14 +217,17 @@ class Ast {
 struct CallExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(CallExpression)
   CallExpression(SourcePosition p, std::string c, bool o,
-                 std::vector<Expression*> a, std::vector<std::string> l)
+                 std::vector<std::string> ga, std::vector<Expression*> a,
+                 std::vector<std::string> l)
       : Expression(kKind, p),
         callee(std::move(c)),
         is_operator(o),
+        generic_arguments(ga),
         arguments(std::move(a)),
         labels(l) {}
   std::string callee;
   bool is_operator;
+  std::vector<std::string> generic_arguments;
   std::vector<Expression*> arguments;
   std::vector<std::string> labels;
 };
@@ -516,86 +525,112 @@ struct LabelAndTypes {
 
 typedef std::vector<LabelAndTypes> LabelAndTypesVector;
 
-struct MacroDeclaration : Declaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(MacroDeclaration)
-  MacroDeclaration(SourcePosition p, std::string n, ParameterList pl,
-                   std::string r, const LabelAndTypesVector& l, Statement* b)
-      : Declaration(kKind, p),
-        name(std::move(n)),
-        parameters(std::move(pl)),
-        return_type(std::move(r)),
-        labels(std::move(l)),
-        body(std::move(b)) {}
-  std::string name;
+struct CallableNodeSignature {
   ParameterList parameters;
   std::string return_type;
   LabelAndTypesVector labels;
-  Statement* body;
 };
 
-struct ExternalMacroDeclaration : Declaration {
+struct CallableNode : AstNode {
+  CallableNode(AstNode::Kind kind, SourcePosition p, std::string n,
+               ParameterList pl, std::string r, const LabelAndTypesVector& l)
+      : AstNode(kind, p),
+        name(std::move(n)),
+        signature(new CallableNodeSignature{pl, r, l}) {}
+  DEFINE_AST_NODE_INNER_BOILERPLATE(CallableNode)
+  std::string name;
+  std::unique_ptr<CallableNodeSignature> signature;
+};
+
+struct MacroDeclaration : CallableNode {
+  DEFINE_AST_NODE_INNER_BOILERPLATE(MacroDeclaration)
+  MacroDeclaration(AstNode::Kind kind, SourcePosition p, std::string n, bool i,
+                   base::Optional<std::string> o, ParameterList pl,
+                   std::string r, const LabelAndTypesVector& l)
+      : CallableNode(kind, p, n, pl, r, l), implicit(i), op(std::move(o)) {}
+  bool implicit;
+  base::Optional<std::string> op;
+};
+
+struct ExternalMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalMacroDeclaration)
   ExternalMacroDeclaration(SourcePosition p, std::string n, bool i,
                            base::Optional<std::string> o, ParameterList pl,
                            std::string r, const LabelAndTypesVector& l)
-      : Declaration(kKind, p),
-        name(std::move(n)),
-        implicit(i),
-        op(std::move(o)),
-        parameters(std::move(pl)),
-        return_type(std::move(r)),
-        labels(std::move(l)) {}
-  std::string name;
-  bool implicit;
-  base::Optional<std::string> op;
-  ParameterList parameters;
-  std::string return_type;
-  LabelAndTypesVector labels;
+      : MacroDeclaration(kKind, p, n, i, o, pl, r, l) {}
 };
 
-struct BuiltinDeclaration : Declaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(BuiltinDeclaration)
-  BuiltinDeclaration(SourcePosition p, bool j, std::string n, ParameterList pl,
-                     std::string r, Statement* b)
-      : Declaration(kKind, p),
-        javascript_linkage(j),
-        name(std::move(n)),
-        parameters(std::move(pl)),
-        return_type(std::move(r)),
-        body(std::move(b)) {}
+struct TorqueMacroDeclaration : MacroDeclaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueMacroDeclaration)
+  TorqueMacroDeclaration(SourcePosition p, std::string n, ParameterList pl,
+                         std::string r, const LabelAndTypesVector& l)
+      : MacroDeclaration(kKind, p, n, false, {}, pl, r, l) {}
+};
+
+struct BuiltinDeclaration : CallableNode {
+  BuiltinDeclaration(AstNode::Kind kind, SourcePosition p, bool j,
+                     std::string n, ParameterList pl, std::string r)
+      : CallableNode(kind, p, n, pl, r, {}), javascript_linkage(j) {}
   bool javascript_linkage;
-  std::string name;
-  ParameterList parameters;
-  std::string return_type;
-  Statement* body;
 };
 
-struct ExternalBuiltinDeclaration : Declaration {
+struct ExternalBuiltinDeclaration : BuiltinDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalBuiltinDeclaration)
   ExternalBuiltinDeclaration(SourcePosition p, bool j, std::string n,
                              ParameterList pl, std::string r)
-      : Declaration(kKind, p),
-        javascript_linkage(j),
-        name(std::move(n)),
-        parameters(std::move(pl)),
-        return_type(std::move(r)) {}
-  bool javascript_linkage;
-  std::string name;
-  ParameterList parameters;
-  std::string return_type;
+      : BuiltinDeclaration(kKind, p, j, n, pl, r) {}
 };
 
-struct ExternalRuntimeDeclaration : Declaration {
+struct TorqueBuiltinDeclaration : BuiltinDeclaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueBuiltinDeclaration)
+  TorqueBuiltinDeclaration(SourcePosition p, bool j, std::string n,
+                           ParameterList pl, std::string r)
+      : BuiltinDeclaration(kKind, p, j, n, pl, r) {}
+};
+
+struct ExternalRuntimeDeclaration : CallableNode {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalRuntimeDeclaration)
   ExternalRuntimeDeclaration(SourcePosition p, std::string n, ParameterList pl,
                              std::string r)
+      : CallableNode(kKind, p, n, pl, r, {}) {}
+};
+
+struct StandardDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StandardDeclaration)
+  StandardDeclaration(SourcePosition p, CallableNode* c, Statement* b)
+      : Declaration(kKind, p), callable(c), body(b) {}
+  CallableNode* callable;
+  Statement* body;
+};
+
+struct GenericDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericDeclaration)
+  GenericDeclaration(SourcePosition p, CallableNode* c,
+                     std::vector<std::string> gp, Statement* b)
+      : Declaration(kKind, p),
+        callable(c),
+        generic_parameters(std::move(gp)),
+        body(b) {}
+  CallableNode* callable;
+  std::vector<std::string> generic_parameters;
+  Statement* body;
+};
+
+struct SpecializationDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(SpecializationDeclaration)
+  SpecializationDeclaration(SourcePosition p, std::string n,
+                            std::vector<std::string> gp, ParameterList pl,
+                            std::string r, LabelAndTypesVector l, Statement* b)
       : Declaration(kKind, p),
         name(std::move(n)),
-        parameters(std::move(pl)),
-        return_type(std::move(r)) {}
+        generic_parameters(gp),
+        signature(new CallableNodeSignature{pl, r, l}),
+        body(std::move(b)) {}
+  DEFINE_AST_NODE_INNER_BOILERPLATE(SpecializationDeclaration)
   std::string name;
-  ParameterList parameters;
-  std::string return_type;
+  std::vector<std::string> generic_parameters;
+  std::unique_ptr<CallableNodeSignature> signature;
+  Statement* body;
 };
 
 struct ConstDeclaration : Declaration {

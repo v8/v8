@@ -35,6 +35,7 @@ TAIL: 'tail';
 ISNT: 'isnt';
 IS: 'is';
 LET: 'let';
+EXTERN: 'extern';
 ASSERT: 'assert';
 UNREACHABLE_TOKEN: 'unreachable';
 DEBUG_TOKEN: 'debug';
@@ -118,6 +119,9 @@ DECIMAL_LITERAL
 
 type : CONSTEXPR? IDENTIFIER;
 typeList : '(' type? (',' type)* ')';
+optionalGenericSpecializationTypeList: ('<' IDENTIFIER (',' IDENTIFIER)* '>')?;
+
+optionalGenericTypeList: ('<' IDENTIFIER ':' 'type' (',' IDENTIFIER ':' 'type')* '>')?;
 
 typeListMaybeVarArgs: '(' type? (',' type)* (',' VARARGS)? ')'
                     | '(' VARARGS ')';
@@ -219,7 +223,7 @@ forOfLoop: FOR '(' variableDeclaration 'of' expression forOfRange ')' statementB
 argument: expression;
 argumentList: '(' argument? (',' argument)* ')';
 
-helperCall: (MIN | MAX | IDENTIFIER) argumentList optionalOtherwise;
+helperCall: (MIN | MAX | IDENTIFIER) optionalGenericSpecializationTypeList argumentList optionalOtherwise;
 
 labelReference: IDENTIFIER;
 variableDeclaration: LET IDENTIFIER ':' type;
@@ -265,16 +269,18 @@ generatesDeclaration: 'generates' STRING_LITERAL;
 constexprDeclaration: 'constexpr' STRING_LITERAL;
 typeDeclaration : 'type' IDENTIFIER extendsDeclaration? generatesDeclaration? constexprDeclaration?';';
 
-externalBuiltin : 'extern' JAVASCRIPT? BUILTIN IDENTIFIER typeList optionalType ';';
-externalMacro : 'extern' (IMPLICIT? 'operator' STRING_LITERAL)? MACRO IDENTIFIER typeListMaybeVarArgs optionalType optionalLabelList ';';
-externalRuntime : 'extern' RUNTIME IDENTIFIER typeListMaybeVarArgs optionalType ';';
-builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER parameterList optionalType helperBody;
-macroDeclaration : MACRO IDENTIFIER parameterList optionalType optionalLabelList helperBody;
+externalBuiltin : EXTERN JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList typeList optionalType ';';
+externalMacro : EXTERN (IMPLICIT? 'operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList typeListMaybeVarArgs optionalType optionalLabelList ';';
+externalRuntime : EXTERN RUNTIME IDENTIFIER typeListMaybeVarArgs optionalType ';';
+builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList parameterList optionalType helperBody;
+genericSpecialization: IDENTIFIER optionalGenericSpecializationTypeList parameterList optionalType optionalLabelList helperBody;
+macroDeclaration : MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList helperBody;
 constDeclaration : 'const' IDENTIFIER ':' type '=' STRING_LITERAL ';';
 
 declaration
         : typeDeclaration
         | builtinDeclaration
+        | genericSpecialization
         | macroDeclaration
         | externalMacro
         | externalBuiltin

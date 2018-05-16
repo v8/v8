@@ -26,6 +26,24 @@ std::string GetOptionalType(TorqueParser::OptionalTypeContext* context) {
   return GetType(context->type());
 }
 
+std::vector<std::string> GetTypeVector(
+    TorqueParser::TypeListContext* type_list) {
+  std::vector<std::string> result;
+  for (auto s : type_list->type()) {
+    result.push_back(GetType(s));
+  }
+  return result;
+}
+
+std::vector<std::string> GetIdentifierVector(
+    std::vector<antlr4::tree::TerminalNode*> source) {
+  std::vector<std::string> result;
+  for (auto s : source) {
+    result.push_back(s->getSymbol()->getText());
+  }
+  return result;
+}
+
 LabelAndTypesVector GetOptionalLabelAndTypeList(
     TorqueParser::OptionalLabelListContext* context) {
   LabelAndTypesVector labels;
@@ -34,9 +52,7 @@ LabelAndTypesVector GetOptionalLabelAndTypeList(
       LabelAndTypes new_label;
       new_label.name = label->IDENTIFIER()->getSymbol()->getText();
       if (label->typeList() != nullptr) {
-        for (auto& type : label->typeList()->type()) {
-          new_label.types.emplace_back(GetType(type));
-        }
+        new_label.types = GetTypeVector(label->typeList());
       }
       labels.emplace_back(new_label);
     }
@@ -109,10 +125,7 @@ antlrcpp::Any AstGenerator::visitParameterList(
 antlrcpp::Any AstGenerator::visitTypeList(
     TorqueParser::TypeListContext* context) {
   ParameterList result{{}, {}, false, {}};
-  result.types.reserve(context->type().size());
-  for (auto* type : context->type()) {
-    result.types.push_back(GetType(type));
-  }
+  result.types = GetTypeVector(context);
   return std::move(result);
 }
 
@@ -139,27 +152,51 @@ antlrcpp::Any AstGenerator::visitModuleDeclaration(
 
 antlrcpp::Any AstGenerator::visitMacroDeclaration(
     TorqueParser::MacroDeclarationContext* context) {
-  return implicit_cast<Declaration*>(RegisterNode(new MacroDeclaration{
+  auto generic_parameters =
+      GetIdentifierVector(context->optionalGenericTypeList()->IDENTIFIER());
+  MacroDeclaration* macro = RegisterNode(new TorqueMacroDeclaration{
       Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
       GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
-      GetOptionalLabelAndTypeList(context->optionalLabelList()),
-      context->helperBody()->accept(this).as<Statement*>()}));
+      GetOptionalLabelAndTypeList(context->optionalLabelList())});
+  auto body = context->helperBody()->accept(this).as<Statement*>();
+  Declaration* result = nullptr;
+  if (generic_parameters.size() != 0) {
+    result = RegisterNode(
+        new GenericDeclaration{Pos(context), macro, generic_parameters, body});
+  } else {
+    result = RegisterNode(new StandardDeclaration{Pos(context), macro, body});
+  }
+  return result;
 }
 
 antlrcpp::Any AstGenerator::visitBuiltinDeclaration(
     TorqueParser::BuiltinDeclarationContext* context) {
-  return implicit_cast<Declaration*>(RegisterNode(new BuiltinDeclaration{
+  auto generic_parameters =
+      GetIdentifierVector(context->optionalGenericTypeList()->IDENTIFIER());
+  Statement* body = context->helperBody()->accept(this).as<Statement*>();
+
+  TorqueBuiltinDeclaration* builtin = RegisterNode(new TorqueBuiltinDeclaration{
       Pos(context), context->JAVASCRIPT() != nullptr,
       context->IDENTIFIER()->getSymbol()->getText(),
       std::move(context->parameterList()->accept(this).as<ParameterList>()),
-      GetOptionalType(context->optionalType()),
-      context->helperBody()->accept(this).as<Statement*>()}));
+      GetOptionalType(context->optionalType())});
+
+  Declaration* result = nullptr;
+  if (generic_parameters.size() != 0) {
+    result = RegisterNode(new GenericDeclaration{Pos(context), builtin,
+                                                 generic_parameters, body});
+  } else {
+    result = RegisterNode(new StandardDeclaration{Pos(context), builtin, body});
+  }
+  return result;
 }
 
 antlrcpp::Any AstGenerator::visitExternalMacro(
     TorqueParser::ExternalMacroContext* context) {
-  ExternalMacroDeclaration* result = RegisterNode(new ExternalMacroDeclaration{
+  auto generic_parameters =
+      GetIdentifierVector(context->optionalGenericTypeList()->IDENTIFIER());
+  MacroDeclaration* macro = RegisterNode(new ExternalMacroDeclaration{
       Pos(context),
       context->IDENTIFIER()->getSymbol()->getText(),
       context->IMPLICIT() != nullptr,
@@ -169,29 +206,64 @@ antlrcpp::Any AstGenerator::visitExternalMacro(
       GetOptionalType(context->optionalType()),
       GetOptionalLabelAndTypeList(context->optionalLabelList())});
   if (auto* op = context->STRING_LITERAL())
-    result->op = StringLiteralUnquote(op->getSymbol()->getText());
-  return implicit_cast<Declaration*>(result);
+    macro->op = StringLiteralUnquote(op->getSymbol()->getText());
+  Declaration* result = nullptr;
+  if (generic_parameters.size() != 0) {
+    result = RegisterNode(new GenericDeclaration{Pos(context), macro,
+                                                 generic_parameters, nullptr});
+  } else {
+    result =
+        RegisterNode(new StandardDeclaration{Pos(context), macro, nullptr});
+  }
+  return result;
 }
 
 antlrcpp::Any AstGenerator::visitExternalBuiltin(
     TorqueParser::ExternalBuiltinContext* context) {
-  return implicit_cast<Declaration*>(
+  auto generic_parameters =
+      GetIdentifierVector(context->optionalGenericTypeList()->IDENTIFIER());
+  ExternalBuiltinDeclaration* builtin =
       RegisterNode(new ExternalBuiltinDeclaration{
           Pos(context), context->JAVASCRIPT() != nullptr,
           context->IDENTIFIER()->getSymbol()->getText(),
           std::move(context->typeList()->accept(this).as<ParameterList>()),
-          GetOptionalType(context->optionalType())}));
+          GetOptionalType(context->optionalType())});
+
+  Declaration* result = nullptr;
+  if (generic_parameters.size() != 0) {
+    result = RegisterNode(new GenericDeclaration{Pos(context), builtin,
+                                                 generic_parameters, nullptr});
+  } else {
+    result =
+        RegisterNode(new StandardDeclaration{Pos(context), builtin, nullptr});
+  }
+  return result;
 }
 
 antlrcpp::Any AstGenerator::visitExternalRuntime(
     TorqueParser::ExternalRuntimeContext* context) {
-  return implicit_cast<Declaration*>(
+  ExternalRuntimeDeclaration* runtime =
       RegisterNode(new ExternalRuntimeDeclaration{
           Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
           std::move(context->typeListMaybeVarArgs()
                         ->accept(this)
                         .as<ParameterList>()),
-          GetOptionalType(context->optionalType())}));
+          GetOptionalType(context->optionalType())});
+  return implicit_cast<Declaration*>(
+      RegisterNode(new StandardDeclaration{Pos(context), runtime, nullptr}));
+}
+
+antlrcpp::Any AstGenerator::visitGenericSpecialization(
+    TorqueParser::GenericSpecializationContext* context) {
+  auto name = context->IDENTIFIER()->getSymbol()->getText();
+  auto specialization_parameters = GetIdentifierVector(
+      context->optionalGenericSpecializationTypeList()->IDENTIFIER());
+  Statement* body = context->helperBody()->accept(this).as<Statement*>();
+  return implicit_cast<Declaration*>(RegisterNode(new SpecializationDeclaration{
+      Pos(context), name, specialization_parameters,
+      GetOptionalParameterList(context->parameterList()),
+      GetOptionalType(context->optionalType()),
+      GetOptionalLabelAndTypeList(context->optionalLabelList()), body}));
 }
 
 antlrcpp::Any AstGenerator::visitConstDeclaration(
@@ -259,7 +331,13 @@ antlrcpp::Any AstGenerator::visitHelperCall(
     labels.push_back(label->getSymbol()->getText());
   }
   CallExpression* result = RegisterNode(new CallExpression{
-      Pos(context), callee->getSymbol()->getText(), is_operator, {}, labels});
+      Pos(context),
+      callee->getSymbol()->getText(),
+      is_operator,
+      GetIdentifierVector(
+          context->optionalGenericSpecializationTypeList()->IDENTIFIER()),
+      {},
+      labels});
   for (auto* arg : context->argumentList()->argument()) {
     result->arguments.push_back(arg->accept(this).as<Expression*>());
   }
@@ -501,7 +579,7 @@ antlrcpp::Any AstGenerator::visitUnaryExpression(
   std::vector<Expression*> args;
   args.push_back(context->unaryExpression()->accept(this).as<Expression*>());
   return implicit_cast<Expression*>(RegisterNode(new CallExpression{
-      Pos(context), context->op->getText(), true, std::move(args), {}}));
+      Pos(context), context->op->getText(), true, {}, std::move(args), {}}));
 }
 
 antlrcpp::Any AstGenerator::visitMultiplicativeExpression(
@@ -512,6 +590,7 @@ antlrcpp::Any AstGenerator::visitMultiplicativeExpression(
         RegisterNode(new CallExpression{Pos(context),
                                         context->op->getText(),
                                         true,
+                                        {},
                                         {left->accept(this).as<Expression*>(),
                                          right->accept(this).as<Expression*>()},
                                         {}}));
@@ -527,6 +606,7 @@ antlrcpp::Any AstGenerator::visitAdditiveExpression(
         RegisterNode(new CallExpression{Pos(context),
                                         context->op->getText(),
                                         true,
+                                        {},
                                         {left->accept(this).as<Expression*>(),
                                          right->accept(this).as<Expression*>()},
                                         {}}));
@@ -542,6 +622,7 @@ antlrcpp::Any AstGenerator::visitShiftExpression(
         RegisterNode(new CallExpression{Pos(context),
                                         context->op->getText(),
                                         true,
+                                        {},
                                         {left->accept(this).as<Expression*>(),
                                          right->accept(this).as<Expression*>()},
                                         {}}));
@@ -557,6 +638,7 @@ antlrcpp::Any AstGenerator::visitRelationalExpression(
         RegisterNode(new CallExpression{Pos(context),
                                         context->op->getText(),
                                         true,
+                                        {},
                                         {left->accept(this).as<Expression*>(),
                                          right->accept(this).as<Expression*>()},
                                         {}}));
@@ -572,6 +654,7 @@ antlrcpp::Any AstGenerator::visitEqualityExpression(
         RegisterNode(new CallExpression{Pos(context),
                                         context->op->getText(),
                                         true,
+                                        {},
                                         {left->accept(this).as<Expression*>(),
                                          right->accept(this).as<Expression*>()},
                                         {}}));
@@ -587,6 +670,7 @@ antlrcpp::Any AstGenerator::visitBitwiseExpression(
         RegisterNode(new CallExpression{Pos(context),
                                         context->op->getText(),
                                         true,
+                                        {},
                                         {left->accept(this).as<Expression*>(),
                                          right->accept(this).as<Expression*>()},
                                         {}}));
