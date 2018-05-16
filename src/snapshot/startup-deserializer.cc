@@ -45,10 +45,6 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     // Deserialize eager builtins from the builtin snapshot. Note that deferred
     // objects must have been deserialized prior to this.
     builtin_deserializer.DeserializeEagerBuiltinsAndHandlers();
-
-    // Flush the instruction cache for the entire code-space. Must happen after
-    // builtins deserialization.
-    FlushICacheForNewIsolate();
   }
 
   isolate->heap()->set_native_contexts_list(isolate->heap()->undefined_value());
