@@ -511,13 +511,23 @@ void CpuProfile::Print() {
 }
 
 CodeMap::CodeMap() = default;
-CodeMap::~CodeMap() = default;
+
+CodeMap::~CodeMap() {
+  // First clean the free list as it's otherwise impossible to tell
+  // the slot type.
+  unsigned free_slot = free_list_head_;
+  while (free_slot != kNoFreeSlot) {
+    unsigned next_slot = code_entries_[free_slot].next_free_slot;
+    code_entries_[free_slot].entry = nullptr;
+    free_slot = next_slot;
+  }
+  for (auto slot : code_entries_) delete slot.entry;
+}
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   ClearCodesInRange(addr, addr + size);
-  code_map_.emplace(
-      addr, CodeEntryInfo{static_cast<unsigned>(code_entries_.size()), size});
-  code_entries_.push_back(std::unique_ptr<CodeEntry>(entry));
+  unsigned index = AddCodeEntry(addr, entry);
+  code_map_.emplace(addr, CodeEntryMapInfo{index, size});
 }
 
 void CodeMap::ClearCodesInRange(Address start, Address end) {
@@ -528,9 +538,8 @@ void CodeMap::ClearCodesInRange(Address start, Address end) {
   }
   auto right = left;
   for (; right != code_map_.end() && right->first < end; ++right) {
-    std::unique_ptr<CodeEntry>& entry = code_entries_[right->second.index];
-    if (!entry->used()) {
-      entry.reset();
+    if (!entry(right->second.index)->used()) {
+      DeleteCodeEntry(right->second.index);
     }
   }
   code_map_.erase(left, right);
@@ -541,27 +550,41 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
   if (it == code_map_.begin()) return nullptr;
   --it;
   Address end_address = it->first + it->second.size;
-  if (addr >= end_address) return nullptr;
-  CodeEntry* entry = code_entries_[it->second.index].get();
-  DCHECK(entry);
-  return entry;
+  return addr < end_address ? entry(it->second.index) : nullptr;
 }
 
 void CodeMap::MoveCode(Address from, Address to) {
   if (from == to) return;
   auto it = code_map_.find(from);
   if (it == code_map_.end()) return;
-  CodeEntryInfo info = it->second;
+  CodeEntryMapInfo info = it->second;
   code_map_.erase(it);
   DCHECK(from + info.size <= to || to + info.size <= from);
   ClearCodesInRange(to, to + info.size);
   code_map_.emplace(to, info);
 }
 
+unsigned CodeMap::AddCodeEntry(Address start, CodeEntry* entry) {
+  if (free_list_head_ == kNoFreeSlot) {
+    code_entries_.push_back(CodeEntrySlotInfo{entry});
+    return static_cast<unsigned>(code_entries_.size()) - 1;
+  }
+  unsigned index = free_list_head_;
+  free_list_head_ = code_entries_[index].next_free_slot;
+  code_entries_[index].entry = entry;
+  return index;
+}
+
+void CodeMap::DeleteCodeEntry(unsigned index) {
+  delete code_entries_[index].entry;
+  code_entries_[index].next_free_slot = free_list_head_;
+  free_list_head_ = index;
+}
+
 void CodeMap::Print() {
   for (const auto& pair : code_map_) {
     base::OS::Print("%p %5d %s\n", reinterpret_cast<void*>(pair.first),
-                    pair.second.size, code_entries_[pair.second.index]->name());
+                    pair.second.size, entry(pair.second.index)->name());
   }
 }
 

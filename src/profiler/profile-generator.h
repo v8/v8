@@ -6,9 +6,11 @@
 #define V8_PROFILER_PROFILE_GENERATOR_H_
 
 #include <deque>
+#include <limits>
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "include/v8-profiler.h"
@@ -374,15 +376,27 @@ class CodeMap {
   void Print();
 
  private:
-  struct CodeEntryInfo {
+  struct CodeEntryMapInfo {
     unsigned index;
     unsigned size;
   };
 
-  void ClearCodesInRange(Address start, Address end);
+  union CodeEntrySlotInfo {
+    CodeEntry* entry;
+    unsigned next_free_slot;
+  };
 
-  std::deque<std::unique_ptr<CodeEntry>> code_entries_;
-  std::map<Address, CodeEntryInfo> code_map_;
+  static constexpr unsigned kNoFreeSlot = std::numeric_limits<unsigned>::max();
+
+  void ClearCodesInRange(Address start, Address end);
+  unsigned AddCodeEntry(Address start, CodeEntry*);
+  void DeleteCodeEntry(unsigned index);
+
+  CodeEntry* entry(unsigned index) { return code_entries_[index].entry; }
+
+  std::deque<CodeEntrySlotInfo> code_entries_;
+  std::map<Address, CodeEntryMapInfo> code_map_;
+  unsigned free_list_head_ = kNoFreeSlot;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };
