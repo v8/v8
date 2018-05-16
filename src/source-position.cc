@@ -94,6 +94,11 @@ void SourcePosition::Print(std::ostream& out,
   out << ":" << pos.line + 1 << ":" << pos.column + 1 << ">";
 }
 
+void SourcePosition::PrintJson(std::ostream& out) const {
+  out << "{ \"scriptOffset\" : " << ScriptOffset() << ", "
+      << "  \"inliningId\" : " << InliningId() << "}";
+}
+
 void SourcePosition::Print(std::ostream& out, Code* code) const {
   DeoptimizationData* deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());

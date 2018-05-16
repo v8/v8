@@ -22,12 +22,132 @@
 #include "src/compiler/scheduler.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+TurboJsonFile::TurboJsonFile(OptimizedCompilationInfo* info,
+                             std::ios_base::openmode mode)
+    : std::ofstream(
+          GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json")
+              .get(),
+          mode) {}
+
+std::ostream& operator<<(std::ostream& out,
+                         const SourcePositionAsJSON& asJSON) {
+  asJSON.sp.PrintJson(out);
+  return out;
+}
+
+void JsonPrintFunctionSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<Script> script, Isolate* isolate,
+                             Handle<SharedFunctionInfo> shared, bool with_key) {
+  if (with_key) os << "\"" << source_id << "\" : ";
+
+  os << "{ ";
+  os << "\"sourceId\": " << source_id;
+  os << ", \"functionName\": \"" << function_name.get() << "\" ";
+
+  int start = 0;
+  int end = 0;
+  if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
+    Object* source_name = script->name();
+    os << ", \"sourceName\": \"";
+    if (source_name->IsString()) {
+      os << String::cast(source_name)->ToCString().get();
+    }
+    os << "\"";
+    {
+      DisallowHeapAllocation no_allocation;
+      start = shared->StartPosition();
+      end = shared->EndPosition();
+      os << ", \"sourceText\": \"";
+      int len = shared->EndPosition() - start;
+      String::SubStringRange source(String::cast(script->source()), start, len);
+      for (const auto& c : source) {
+        os << AsEscapedUC16ForJSON(c);
+      }
+      os << "\"";
+    }
+  } else {
+    os << ", \"sourceName\": \"\"";
+    os << ", \"sourceText\": \"\"";
+  }
+  os << ", \"startPosition\": " << start;
+  os << ", \"endPosition\": " << end;
+  os << "}";
+}
+
+int SourceIdAssigner::GetIdFor(Handle<SharedFunctionInfo> shared) {
+  for (unsigned i = 0; i < printed_.size(); i++) {
+    if (printed_.at(i).is_identical_to(shared)) {
+      return i;
+    }
+  }
+  const int source_id = static_cast<int>(printed_.size());
+  printed_.push_back(shared);
+  source_ids_.push_back(source_id);
+  return source_id;
+}
+
+namespace {
+
+void JsonPrintInlinedFunctionInfo(
+    std::ostream& os, int source_id, int inlining_id,
+    const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
+  os << "\"" << inlining_id << "\" : ";
+  os << "{ \"inliningId\" : " << inlining_id;
+  os << ", \"sourceId\" : " << source_id;
+  const SourcePosition position = h.position.position;
+  if (position.IsKnown()) {
+    os << ", \"inliningPosition\" : " << AsJSON(position);
+  }
+  os << "}";
+}
+
+}  // namespace
+
+void JsonPrintAllSourceWithPositions(std::ostream& os,
+                                     OptimizedCompilationInfo* info,
+                                     Isolate* isolate) {
+  AllowDeferredHandleDereference allow_deference_for_print_code;
+  os << "\"sources\" : {";
+  Handle<Script> script =
+      (info->shared_info().is_null() || !info->shared_info()->script())
+          ? Handle<Script>()
+          : handle(Script::cast(info->shared_info()->script()));
+  JsonPrintFunctionSource(os, -1,
+                          info->shared_info().is_null()
+                              ? std::unique_ptr<char[]>(new char[1]{0})
+                              : info->shared_info()->DebugName()->ToCString(),
+                          script, isolate, info->shared_info(), true);
+  const auto& inlined = info->inlined_functions();
+  SourceIdAssigner id_assigner(info->inlined_functions().size());
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    os << ", ";
+    Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
+    const int source_id = id_assigner.GetIdFor(shared);
+    JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
+                            handle(Script::cast(shared->script())), isolate,
+                            shared, true);
+  }
+  os << "}, ";
+  os << "\"inlinings\" : {";
+  bool need_comma = false;
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    if (need_comma) os << ", ";
+    const int source_id = id_assigner.GetIdAt(id);
+    JsonPrintInlinedFunctionInfo(os, source_id, id, inlined[id]);
+    need_comma = true;
+  }
+  os << "}";
+}
 
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
@@ -168,7 +288,7 @@ class JSONGraphNodeWriter {
     }
     SourcePosition position = positions_->GetSourcePosition(node);
     if (position.IsKnown()) {
-      os_ << ",\"pos\":" << position.ScriptOffset();
+      os_ << ", \"sourcePosition\" : " << AsJSON(position);
     }
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
@@ -249,8 +369,7 @@ class JSONGraphEdgeWriter {
   DISALLOW_COPY_AND_ASSIGN(JSONGraphEdgeWriter);
 };
 
-
-std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
+std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
   AccountingAllocator allocator;
   Zone tmp_zone(&allocator, ZONE_NAME);
   os << "{\n\"nodes\":[";

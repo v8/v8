@@ -69,6 +69,7 @@
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-stats.h"
 #include "src/isolate-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
@@ -470,24 +471,8 @@ class PipelineImpl final {
 
 namespace {
 
-// Print function's source if it was not printed before.
-// Return a sequential id under which this function was printed.
-int PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
-                        std::vector<Handle<SharedFunctionInfo>>* printed,
-                        int inlining_id, Handle<SharedFunctionInfo> shared) {
-  // Outermost function has source id -1 and inlined functions take
-  // source ids starting from 0.
-  int source_id = -1;
-  if (inlining_id != SourcePosition::kNotInlined) {
-    for (unsigned i = 0; i < printed->size(); i++) {
-      if (printed->at(i).is_identical_to(shared)) {
-        return i;
-      }
-    }
-    source_id = static_cast<int>(printed->size());
-    printed->push_back(shared);
-  }
-
+void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
+                         int source_id, Handle<SharedFunctionInfo> shared) {
   if (!shared->script()->IsUndefined(isolate)) {
     Handle<Script> script(Script::cast(shared->script()), isolate);
 
@@ -516,8 +501,6 @@ int PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
       os << "\n--- END ---\n";
     }
   }
-
-  return source_id;
 }
 
 // Print information for the given inlining: which function was inlined and
@@ -541,18 +524,16 @@ void PrintInlinedFunctionInfo(
 
 // Print the source of all functions that participated in this optimizing
 // compilation. For inlined functions print source position of their inlining.
-void DumpParticipatingSource(OptimizedCompilationInfo* info, Isolate* isolate) {
+void PrintParticipatingSource(OptimizedCompilationInfo* info,
+                              Isolate* isolate) {
   AllowDeferredHandleDereference allow_deference_for_print_code;
 
-  std::vector<Handle<SharedFunctionInfo>> printed;
-  printed.reserve(info->inlined_functions().size());
-
-  PrintFunctionSource(info, isolate, &printed, SourcePosition::kNotInlined,
-                      info->shared_info());
+  SourceIdAssigner id_assigner(info->inlined_functions().size());
+  PrintFunctionSource(info, isolate, -1, info->shared_info());
   const auto& inlined = info->inlined_functions();
   for (unsigned id = 0; id < inlined.size(); id++) {
-    const int source_id = PrintFunctionSource(info, isolate, &printed, id,
-                                              inlined[id].shared_info);
+    const int source_id = id_assigner.GetIdFor(inlined[id].shared_info);
+    PrintFunctionSource(info, isolate, source_id, inlined[id].shared_info);
     PrintInlinedFunctionInfo(info, isolate, source_id, id, inlined[id]);
   }
 }
@@ -561,7 +542,7 @@ void DumpParticipatingSource(OptimizedCompilationInfo* info, Isolate* isolate) {
 void PrintCode(Handle<Code> code, OptimizedCompilationInfo* info) {
   Isolate* isolate = code->GetIsolate();
   if (FLAG_print_opt_source && info->IsOptimizing()) {
-    DumpParticipatingSource(info, isolate);
+    PrintParticipatingSource(info, isolate);
   }
 
 #ifdef ENABLE_DISASSEMBLER
@@ -619,14 +600,6 @@ struct TurboCfgFile : public std::ofstream {
   explicit TurboCfgFile(Isolate* isolate)
       : std::ofstream(isolate->GetTurboCfgFileName().c_str(),
                       std::ios_base::app) {}
-};
-
-struct TurboJsonFile : public std::ofstream {
-  TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode)
-      : std::ofstream(GetVisualizerLogFileName(info, FLAG_trace_turbo_path,
-                                               nullptr, "json")
-                          .get(),
-                      mode) {}
 };
 
 void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
@@ -715,21 +688,10 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
 
   if (info->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
-    std::unique_ptr<char[]> function_name = info->GetDebugName();
-    int pos =
-        info->has_shared_info() ? info->shared_info()->StartPosition() : 0;
-    json_of << "{\"function\":\"" << function_name.get()
-            << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
-    if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
-      DisallowHeapAllocation no_allocation;
-      int start = info->shared_info()->StartPosition();
-      int len = info->shared_info()->EndPosition() - start;
-      String::SubStringRange source(String::cast(script->source()), start, len);
-      for (const auto& c : source) {
-        json_of << AsEscapedUC16ForJSON(c);
-      }
-    }
-    json_of << "\",\n\"phases\":[";
+    json_of << "{\"function\" : ";
+    JsonPrintFunctionSource(json_of, -1, info->GetDebugName(), script, isolate,
+                            info->shared_info());
+    json_of << ",\n\"phases\":[";
   }
 
   return pipeline_statistics;
@@ -1755,6 +1717,7 @@ struct PrintGraphPhase {
 
     if (info->trace_turbo_json_enabled()) {  // Print JSON.
       AllowHandleDereference allow_deref;
+
       TurboJsonFile json_of(info, std::ios_base::app);
       json_of << "{\"name\":\"" << phase << "\",\"type\":\"graph\",\"data\":"
               << AsJSON(*graph, data->source_positions()) << "},\n";
@@ -2007,8 +1970,11 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
        << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
     if (info.trace_turbo_json_enabled()) {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
-      json_of << "{\"function\":\"" << info.GetDebugName().get()
-              << "\", \"source\":\"\",\n\"phases\":[";
+      json_of << "{\"function\" : ";
+      JsonPrintFunctionSource(json_of, -1, info.GetDebugName(),
+                              Handle<Script>(), isolate,
+                              Handle<SharedFunctionInfo>());
+      json_of << ",\n\"phases\":[";
     }
     pipeline.Run<PrintGraphPhase>("Machine");
   }
@@ -2194,7 +2160,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   if (info()->trace_turbo_json_enabled()) {
     std::ostringstream source_position_output;
     // Output source position information before the graph is deleted.
-    data_->source_positions()->Print(source_position_output);
+    data_->source_positions()->PrintJson(source_position_output);
     data_->set_source_position_output(source_position_output.str());
   }
 
@@ -2280,8 +2246,9 @@ Handle<Code> PipelineImpl::FinalizeCode() {
 #endif  // ENABLE_DISASSEMBLER
     json_of << "\"}\n],\n";
     json_of << "\"nodePositions\":";
-    json_of << data->source_position_output();
-    json_of << "}";
+    json_of << data->source_position_output() << ",\n";
+    JsonPrintAllSourceWithPositions(json_of, data->info(), isolate());
+    json_of << "\n}";
   }
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
