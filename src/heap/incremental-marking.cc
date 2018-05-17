@@ -102,10 +102,11 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
   }
 }
 
-int IncrementalMarking::RecordWriteFromCode(HeapObject* obj, Object** slot,
+int IncrementalMarking::RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
                                             Isolate* isolate) {
   DCHECK(obj->IsHeapObject());
-  isolate->heap()->incremental_marking()->RecordWrite(obj, slot, *slot);
+  isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
+                                                               *slot);
   // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
   return 0;
 }

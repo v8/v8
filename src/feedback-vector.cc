@@ -38,10 +38,12 @@ bool FeedbackVectorSpec::HasTypeProfileSlot() const {
   return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
-static bool IsPropertyNameFeedback(Object* feedback) {
-  if (feedback->IsString()) return true;
-  if (!feedback->IsSymbol()) return false;
-  Symbol* symbol = Symbol::cast(feedback);
+static bool IsPropertyNameFeedback(MaybeObject* feedback) {
+  HeapObject* heap_object;
+  if (!feedback->ToStrongHeapObject(&heap_object)) return false;
+  if (heap_object->IsString()) return true;
+  if (!heap_object->IsSymbol()) return false;
+  Symbol* symbol = Symbol::cast(heap_object);
   Heap* heap = symbol->GetHeap();
   return symbol != heap->uninitialized_symbol() &&
          symbol != heap->premonomorphic_symbol() &&
@@ -230,7 +232,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
-        vector->set(index, isolate->heap()->empty_weak_cell(),
+        vector->set(index, HeapObjectReference::ClearedValue(),
                     SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
@@ -345,15 +347,15 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate) {
-  Object* uninitialized_sentinel =
-      FeedbackVector::RawUninitializedSentinel(isolate);
+  MaybeObject* uninitialized_sentinel = MaybeObject::FromObject(
+      FeedbackVector::RawUninitializedSentinel(isolate));
 
   bool feedback_updated = false;
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
 
-    Object* obj = Get(slot)->ToObject();
+    MaybeObject* obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       FeedbackNexus nexus(this, slot);
       feedback_updated |= nexus.Clear();
@@ -362,23 +364,29 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
   return feedback_updated;
 }
 
-void FeedbackVector::AssertNoLegacyTypes(Object* object) {
-  // Instead of FixedArray, the Feedback and the Extra should contain
-  // WeakFixedArrays. The only allowed FixedArray subtype is HashTable.
-  DCHECK_IMPLIES(object->IsFixedArray(), object->IsHashTable());
+void FeedbackVector::AssertNoLegacyTypes(MaybeObject* object) {
+#ifdef DEBUG
+  HeapObject* heap_object;
+  if (object->ToStrongOrWeakHeapObject(&heap_object)) {
+    // Instead of FixedArray, the Feedback and the Extra should contain
+    // WeakFixedArrays. The only allowed FixedArray subtype is HashTable.
+    DCHECK_IMPLIES(heap_object->IsFixedArray(), heap_object->IsHashTable());
+    DCHECK(!heap_object->IsWeakCell());
+  }
+#endif
 }
 
 Handle<WeakFixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
   Isolate* isolate = GetIsolate();
-  Handle<Object> feedback = handle(GetFeedback(), isolate);
-  if (!feedback->IsWeakFixedArray() ||
-      WeakFixedArray::cast(*feedback)->length() != length) {
-    Handle<WeakFixedArray> array =
-        isolate->factory()->NewWeakFixedArray(length);
-    SetFeedback(*array);
-    return array;
+  HeapObject* heap_object;
+  if (GetFeedback()->ToStrongHeapObject(&heap_object) &&
+      heap_object->IsWeakFixedArray() &&
+      WeakFixedArray::cast(heap_object)->length() == length) {
+    return handle(WeakFixedArray::cast(heap_object));
   }
-  return Handle<WeakFixedArray>::cast(feedback);
+  Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(length);
+  SetFeedback(*array);
+  return array;
 }
 
 Handle<WeakFixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
@@ -401,7 +409,7 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
-      SetFeedback(isolate->heap()->empty_weak_cell(), SKIP_WRITE_BARRIER);
+      SetFeedback(HeapObjectReference::ClearedValue(), SKIP_WRITE_BARRIER);
       SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                        SKIP_WRITE_BARRIER);
       break;
@@ -495,7 +503,8 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   bool changed = false;
-  Symbol* sentinel = *FeedbackVector::MegamorphicSentinel(isolate);
+  MaybeObject* sentinel =
+      MaybeObject::FromObject(*FeedbackVector::MegamorphicSentinel(isolate));
   if (GetFeedback() != sentinel) {
     SetFeedback(sentinel, SKIP_WRITE_BARRIER);
     changed = true;
@@ -511,7 +520,7 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
 
 InlineCacheState FeedbackNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
-  Object* feedback = GetFeedback();
+  MaybeObject* feedback = GetFeedback();
 
   switch (kind()) {
     case FeedbackSlotKind::kCreateClosure:
@@ -526,8 +535,9 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
     case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
       if (feedback->IsSmi()) return MONOMORPHIC;
 
+      DCHECK(feedback->IsWeakOrClearedHeapObject());
       MaybeObject* extra = GetFeedbackExtra();
-      if (!WeakCell::cast(feedback)->cleared() ||
+      if (!feedback->IsClearedWeakHeapObject() ||
           extra != MaybeObject::FromObject(
                        *FeedbackVector::UninitializedSentinel(isolate))) {
         return MONOMORPHIC;
@@ -543,40 +553,51 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed: {
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::UninitializedSentinel(isolate))) {
         return UNINITIALIZED;
       }
-      if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::MegamorphicSentinel(isolate))) {
         return MEGAMORPHIC;
       }
-      if (feedback == *FeedbackVector::PremonomorphicSentinel(isolate)) {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::PremonomorphicSentinel(isolate))) {
         return PREMONOMORPHIC;
       }
-      if (feedback->IsWeakFixedArray()) {
-        // Determine state purely by our structure, don't check if the maps are
-        // cleared.
-        return POLYMORPHIC;
-      }
-      if (feedback->IsWeakCell()) {
+      if (feedback->IsWeakOrClearedHeapObject()) {
         // Don't check if the map is cleared.
         return MONOMORPHIC;
       }
-      if (feedback->IsName()) {
-        DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()));
-        Object* extra = GetFeedbackExtra()->ToStrongHeapObject();
-        WeakFixedArray* extra_array = WeakFixedArray::cast(extra);
-        return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
+      HeapObject* heap_object;
+      if (feedback->ToStrongHeapObject(&heap_object)) {
+        if (heap_object->IsWeakFixedArray()) {
+          // Determine state purely by our structure, don't check if the maps
+          // are cleared.
+          return POLYMORPHIC;
+        }
+        if (heap_object->IsName()) {
+          DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()));
+          Object* extra = GetFeedbackExtra()->ToStrongHeapObject();
+          WeakFixedArray* extra_array = WeakFixedArray::cast(extra);
+          return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
+        }
       }
       UNREACHABLE();
     }
     case FeedbackSlotKind::kCall: {
-      if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
+      HeapObject* heap_object;
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::MegamorphicSentinel(isolate))) {
         return GENERIC;
-      } else if (feedback->IsAllocationSite() || feedback->IsWeakCell()) {
+      } else if (feedback->IsWeakOrClearedHeapObject() ||
+                 (feedback->ToStrongHeapObject(&heap_object) &&
+                  heap_object->IsAllocationSite())) {
         return MONOMORPHIC;
       }
 
-      CHECK(feedback == *FeedbackVector::UninitializedSentinel(isolate));
+      CHECK_EQ(feedback, MaybeObject::FromObject(
+                             *FeedbackVector::UninitializedSentinel(isolate)));
       return UNINITIALIZED;
     }
     case FeedbackSlotKind::kBinaryOp: {
@@ -609,17 +630,21 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
       return MONOMORPHIC;
     }
     case FeedbackSlotKind::kInstanceOf: {
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::UninitializedSentinel(isolate))) {
         return UNINITIALIZED;
-      } else if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
+      } else if (feedback ==
+                 MaybeObject::FromObject(
+                     *FeedbackVector::MegamorphicSentinel(isolate))) {
         return MEGAMORPHIC;
       }
       return MONOMORPHIC;
     }
     case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::UninitializedSentinel(isolate))) {
         return UNINITIALIZED;
-      } else if (feedback->IsWeakCell()) {
+      } else if (feedback->IsWeakOrClearedHeapObject()) {
         // Don't check if the map is cleared.
         return MONOMORPHIC;
       }
@@ -627,7 +652,8 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
       return MEGAMORPHIC;
     }
     case FeedbackSlotKind::kTypeProfile: {
-      if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::UninitializedSentinel(isolate))) {
         return UNINITIALIZED;
       }
       return MONOMORPHIC;
@@ -644,7 +670,7 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
 void FeedbackNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
   DCHECK(IsGlobalICKind(kind()));
   Isolate* isolate = GetIsolate();
-  SetFeedback(*isolate->factory()->NewWeakCell(cell));
+  SetFeedback(HeapObjectReference::Weak(*cell));
   SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                    SKIP_WRITE_BARRIER);
 }
@@ -671,7 +697,7 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
 void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
-  SetFeedback(GetIsolate()->heap()->empty_weak_cell());
+  SetFeedback(HeapObjectReference::ClearedValue());
   SetFeedbackExtra(*handler);
 }
 
@@ -720,18 +746,17 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
                                          Handle<Map> receiver_map,
                                          const MaybeObjectHandle& handler) {
   DCHECK(handler.is_null() || IC::IsHandler(*handler));
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   if (kind() == FeedbackSlotKind::kStoreDataPropertyInLiteral) {
-    SetFeedback(*cell);
+    SetFeedback(HeapObjectReference::Weak(*receiver_map));
     SetFeedbackExtra(*name);
   } else {
     if (name.is_null()) {
-      SetFeedback(*cell);
+      SetFeedback(HeapObjectReference::Weak(*receiver_map));
       SetFeedbackExtra(*handler);
     } else {
       Handle<WeakFixedArray> array = EnsureExtraArrayOfSize(2);
       SetFeedback(*name);
-      array->Set(0, HeapObjectReference::Strong(*cell));
+      array->Set(0, HeapObjectReference::Weak(*receiver_map));
       array->Set(1, *handler);
     }
   }
@@ -755,8 +780,7 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
 
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = maps[current];
-    Handle<WeakCell> cell = Map::WeakCellForMap(map);
-    array->Set(current * 2, HeapObjectReference::Strong(*cell));
+    array->Set(current * 2, HeapObjectReference::Weak(*map));
     DCHECK(IC::IsHandler(*handlers->at(current)));
     array->Set(current * 2 + 1, *handlers->at(current));
   }
@@ -769,33 +793,34 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
          IsStoreInArrayLiteralICKind(kind()));
 
   Isolate* isolate = GetIsolate();
-  Object* feedback = GetFeedback();
+  MaybeObject* feedback = GetFeedback();
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  if (feedback->IsWeakFixedArray() || is_named_feedback) {
+  HeapObject* heap_object;
+  if ((feedback->ToStrongHeapObject(&heap_object) &&
+       heap_object->IsWeakFixedArray()) ||
+      is_named_feedback) {
     int found = 0;
     WeakFixedArray* array;
     if (is_named_feedback) {
       array = WeakFixedArray::cast(GetFeedbackExtra()->ToStrongHeapObject());
     } else {
-      array = WeakFixedArray::cast(feedback);
+      array = WeakFixedArray::cast(heap_object);
     }
     const int increment = 2;
+    HeapObject* heap_object;
     for (int i = 0; i < array->length(); i += increment) {
-      WeakCell* cell = WeakCell::cast(array->Get(i)->ToStrongHeapObject());
-      if (!cell->cleared()) {
-        Map* map = Map::cast(cell->value());
+      DCHECK(array->Get(i)->IsWeakOrClearedHeapObject());
+      if (array->Get(i)->ToWeakHeapObject(&heap_object)) {
+        Map* map = Map::cast(heap_object);
         maps->push_back(handle(map, isolate));
         found++;
       }
     }
     return found;
-  } else if (feedback->IsWeakCell()) {
-    WeakCell* cell = WeakCell::cast(feedback);
-    if (!cell->cleared()) {
-      Map* map = Map::cast(cell->value());
-      maps->push_back(handle(map, isolate));
-      return 1;
-    }
+  } else if (feedback->ToWeakHeapObject(&heap_object)) {
+    Map* map = Map::cast(heap_object);
+    maps->push_back(handle(map, isolate));
+    return 1;
   }
 
   return 0;
@@ -806,21 +831,25 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
          IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()));
 
-  Object* feedback = GetFeedback();
+  MaybeObject* feedback = GetFeedback();
   Isolate* isolate = GetIsolate();
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  if (feedback->IsWeakFixedArray() || is_named_feedback) {
+  HeapObject* heap_object;
+  if ((feedback->ToStrongHeapObject(&heap_object) &&
+       heap_object->IsWeakFixedArray()) ||
+      is_named_feedback) {
     WeakFixedArray* array;
     if (is_named_feedback) {
       array = WeakFixedArray::cast(GetFeedbackExtra()->ToStrongHeapObject());
     } else {
-      array = WeakFixedArray::cast(feedback);
+      array = WeakFixedArray::cast(heap_object);
     }
     const int increment = 2;
+    HeapObject* heap_object;
     for (int i = 0; i < array->length(); i += increment) {
-      WeakCell* cell = WeakCell::cast(array->Get(i)->ToStrongHeapObject());
-      if (!cell->cleared()) {
-        Map* array_map = Map::cast(cell->value());
+      DCHECK(array->Get(i)->IsWeakOrClearedHeapObject());
+      if (array->Get(i)->ToWeakHeapObject(&heap_object)) {
+        Map* array_map = Map::cast(heap_object);
         if (array_map == *map &&
             !array->Get(i + increment - 1)->IsClearedWeakHeapObject()) {
           MaybeObject* handler = array->Get(i + increment - 1);
@@ -829,15 +858,12 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
         }
       }
     }
-  } else if (feedback->IsWeakCell()) {
-    WeakCell* cell = WeakCell::cast(feedback);
-    if (!cell->cleared()) {
-      Map* cell_map = Map::cast(cell->value());
-      if (cell_map == *map && !GetFeedbackExtra()->IsClearedWeakHeapObject()) {
-        MaybeObject* handler = GetFeedbackExtra();
-        DCHECK(IC::IsHandler(handler));
-        return handle(handler, isolate);
-      }
+  } else if (feedback->ToWeakHeapObject(&heap_object)) {
+    Map* cell_map = Map::cast(heap_object);
+    if (cell_map == *map && !GetFeedbackExtra()->IsClearedWeakHeapObject()) {
+      MaybeObject* handler = GetFeedbackExtra();
+      DCHECK(IC::IsHandler(handler));
+      return handle(handler, isolate);
     }
   }
 
@@ -851,22 +877,26 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
          IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()));
 
-  Object* feedback = GetFeedback();
+  MaybeObject* feedback = GetFeedback();
   Isolate* isolate = GetIsolate();
   int count = 0;
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  if (feedback->IsWeakFixedArray() || is_named_feedback) {
+  HeapObject* heap_object;
+  if ((feedback->ToStrongHeapObject(&heap_object) &&
+       heap_object->IsWeakFixedArray()) ||
+      is_named_feedback) {
     WeakFixedArray* array;
     if (is_named_feedback) {
       array = WeakFixedArray::cast(GetFeedbackExtra()->ToStrongHeapObject());
     } else {
-      array = WeakFixedArray::cast(feedback);
+      array = WeakFixedArray::cast(heap_object);
     }
     const int increment = 2;
+    HeapObject* heap_object;
     for (int i = 0; i < array->length(); i += increment) {
-      WeakCell* cell = WeakCell::cast(array->Get(i)->ToStrongHeapObject());
       // Be sure to skip handlers whose maps have been cleared.
-      if (!cell->cleared() &&
+      DCHECK(array->Get(i)->IsWeakOrClearedHeapObject());
+      if (array->Get(i)->ToWeakHeapObject(&heap_object) &&
           !array->Get(i + increment - 1)->IsClearedWeakHeapObject()) {
         MaybeObject* handler = array->Get(i + increment - 1);
         DCHECK(IC::IsHandler(handler));
@@ -874,10 +904,9 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
         count++;
       }
     }
-  } else if (feedback->IsWeakCell()) {
-    WeakCell* cell = WeakCell::cast(feedback);
+  } else if (feedback->ToWeakHeapObject(&heap_object)) {
     MaybeObject* extra = GetFeedbackExtra();
-    if (!cell->cleared() && !extra->IsClearedWeakHeapObject()) {
+    if (!extra->IsClearedWeakHeapObject()) {
       DCHECK(IC::IsHandler(extra));
       code_list->push_back(handle(extra, isolate));
       count++;
@@ -888,9 +917,9 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
 
 Name* FeedbackNexus::FindFirstName() const {
   if (IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind())) {
-    Object* feedback = GetFeedback();
+    MaybeObject* feedback = GetFeedback();
     if (IsPropertyNameFeedback(feedback)) {
-      return Name::cast(feedback);
+      return Name::cast(feedback->ToStrongHeapObject());
     }
   }
   return nullptr;
@@ -960,8 +989,9 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 IcCheckType FeedbackNexus::GetKeyType() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()));
-  Object* feedback = GetFeedback();
-  if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
+  MaybeObject* feedback = GetFeedback();
+  if (feedback == MaybeObject::FromObject(
+                      *FeedbackVector::MegamorphicSentinel(GetIsolate()))) {
     return static_cast<IcCheckType>(Smi::ToInt(GetFeedbackExtra()->ToObject()));
   }
   return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
@@ -969,33 +999,34 @@ IcCheckType FeedbackNexus::GetKeyType() const {
 
 BinaryOperationHint FeedbackNexus::GetBinaryOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kBinaryOp);
-  int feedback = Smi::ToInt(GetFeedback());
+  int feedback = Smi::ToInt(GetFeedback()->ToSmi());
   return BinaryOperationHintFromFeedback(feedback);
 }
 
 CompareOperationHint FeedbackNexus::GetCompareOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kCompareOp);
-  int feedback = Smi::ToInt(GetFeedback());
+  int feedback = Smi::ToInt(GetFeedback()->ToSmi());
   return CompareOperationHintFromFeedback(feedback);
 }
 
 ForInHint FeedbackNexus::GetForInFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kForIn);
-  int feedback = Smi::ToInt(GetFeedback());
+  int feedback = Smi::ToInt(GetFeedback()->ToSmi());
   return ForInHintFromFeedback(feedback);
 }
 
 Handle<FeedbackCell> FeedbackNexus::GetFeedbackCell() const {
   DCHECK_EQ(FeedbackSlotKind::kCreateClosure, kind());
-  return handle(FeedbackCell::cast(GetFeedback()));
+  return handle(FeedbackCell::cast(GetFeedback()->ToObject()));
 }
 
 MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kInstanceOf);
   Isolate* isolate = GetIsolate();
-  Object* feedback = GetFeedback();
-  if (feedback->IsWeakCell() && !WeakCell::cast(feedback)->cleared()) {
-    return handle(JSObject::cast(WeakCell::cast(feedback)->value()), isolate);
+  MaybeObject* feedback = GetFeedback();
+  HeapObject* heap_object;
+  if (feedback->ToWeakHeapObject(&heap_object)) {
+    return handle(JSObject::cast(heap_object), isolate);
   }
   return MaybeHandle<JSObject>();
 }
@@ -1018,15 +1049,17 @@ void FeedbackNexus::Collect(Handle<String> type, int position) {
   DCHECK_GE(position, 0);
   Isolate* isolate = GetIsolate();
 
-  Object* const feedback = GetFeedback();
+  MaybeObject* const feedback = GetFeedback();
 
   // Map source position to collection of types
   Handle<SimpleNumberDictionary> types;
 
-  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+  if (feedback == MaybeObject::FromObject(
+                      *FeedbackVector::UninitializedSentinel(isolate))) {
     types = SimpleNumberDictionary::New(isolate, 1);
   } else {
-    types = handle(SimpleNumberDictionary::cast(feedback));
+    types =
+        handle(SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()));
   }
 
   Handle<ArrayList> position_specific_types;
@@ -1052,14 +1085,15 @@ std::vector<int> FeedbackNexus::GetSourcePositions() const {
   std::vector<int> source_positions;
   Isolate* isolate = GetIsolate();
 
-  Object* const feedback = GetFeedback();
+  MaybeObject* const feedback = GetFeedback();
 
-  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+  if (feedback == MaybeObject::FromObject(
+                      *FeedbackVector::UninitializedSentinel(isolate))) {
     return source_positions;
   }
 
-  Handle<SimpleNumberDictionary> types = Handle<SimpleNumberDictionary>(
-      SimpleNumberDictionary::cast(feedback), isolate);
+  Handle<SimpleNumberDictionary> types(
+      SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()), isolate);
 
   for (int index = SimpleNumberDictionary::kElementsStartIndex;
        index < types->length(); index += SimpleNumberDictionary::kEntrySize) {
@@ -1078,14 +1112,15 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
   DCHECK(IsTypeProfileKind(kind()));
   Isolate* isolate = GetIsolate();
 
-  Object* const feedback = GetFeedback();
+  MaybeObject* const feedback = GetFeedback();
   std::vector<Handle<String>> types_for_position;
-  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+  if (feedback == MaybeObject::FromObject(
+                      *FeedbackVector::UninitializedSentinel(isolate))) {
     return types_for_position;
   }
 
-  Handle<SimpleNumberDictionary> types = Handle<SimpleNumberDictionary>(
-      SimpleNumberDictionary::cast(feedback), isolate);
+  Handle<SimpleNumberDictionary> types(
+      SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()), isolate);
 
   int entry = types->FindEntry(position);
   if (entry == SimpleNumberDictionary::kNotFound) {
@@ -1137,14 +1172,16 @@ JSObject* FeedbackNexus::GetTypeProfile() const {
   DCHECK(IsTypeProfileKind(kind()));
   Isolate* isolate = GetIsolate();
 
-  Object* const feedback = GetFeedback();
+  MaybeObject* const feedback = GetFeedback();
 
-  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+  if (feedback == MaybeObject::FromObject(
+                      *FeedbackVector::UninitializedSentinel(isolate))) {
     return *isolate->factory()->NewJSObject(isolate->object_function());
   }
 
-  return *ConvertToJSObject(isolate,
-                            handle(SimpleNumberDictionary::cast(feedback)));
+  return *ConvertToJSObject(
+      isolate,
+      handle(SimpleNumberDictionary::cast(feedback->ToStrongHeapObject())));
 }
 
 void FeedbackNexus::ResetTypeProfile() {

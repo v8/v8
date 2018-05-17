@@ -1739,6 +1739,12 @@ TNode<HeapObject> CodeStubAssembler::ToStrongHeapObject(
   return ReinterpretCast<HeapObject>(value);
 }
 
+TNode<HeapObject> CodeStubAssembler::ToStrongHeapObject(
+    TNode<MaybeObject> value, Label* if_not_strong) {
+  GotoIfNot(IsStrongHeapObject(value), if_not_strong);
+  return ToStrongHeapObject(value);
+}
+
 TNode<BoolT> CodeStubAssembler::IsWeakOrClearedHeapObject(
     TNode<MaybeObject> value) {
   return WordEqual(WordAnd(BitcastMaybeObjectToWord(value),
@@ -1770,6 +1776,20 @@ TNode<HeapObject> CodeStubAssembler::ToWeakHeapObject(TNode<MaybeObject> value,
                                                       Label* if_cleared) {
   GotoIf(IsClearedWeakHeapObject(value), if_cleared);
   return ToWeakHeapObject(value);
+}
+
+TNode<BoolT> CodeStubAssembler::IsWeakReferenceTo(TNode<MaybeObject> object,
+                                                  TNode<Object> value) {
+  return WordEqual(WordAnd(BitcastMaybeObjectToWord(object),
+                           IntPtrConstant(~kWeakHeapObjectMask)),
+                   BitcastTaggedToWord(value));
+}
+
+TNode<BoolT> CodeStubAssembler::IsNotWeakReferenceTo(TNode<MaybeObject> object,
+                                                     TNode<Object> value) {
+  return WordNotEqual(WordAnd(BitcastMaybeObjectToWord(object),
+                              IntPtrConstant(~kWeakHeapObjectMask)),
+                      BitcastTaggedToWord(value));
 }
 
 TNode<BoolT> CodeStubAssembler::IsObject(TNode<MaybeObject> value) {
@@ -9191,20 +9211,12 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   return CAST(site);
 }
 
-Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
-                                                        Node* slot,
-                                                        Node* value) {
-  Node* size = IntPtrConstant(WeakCell::kSize);
-  Node* cell = Allocate(size, CodeStubAssembler::kPretenured);
-
-  // Initialize the WeakCell.
-  DCHECK(Heap::RootIsImmortalImmovable(Heap::kWeakCellMapRootIndex));
-  StoreMapNoWriteBarrier(cell, Heap::kWeakCellMapRootIndex);
-  StoreObjectField(cell, WeakCell::kValueOffset, value);
-
-  // Store the WeakCell in the feedback vector.
-  StoreFeedbackVectorSlot(feedback_vector, slot, cell);
-  return cell;
+TNode<MaybeObject> CodeStubAssembler::StoreWeakReferenceInFeedbackVector(
+    SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot,
+    TNode<HeapObject> value) {
+  TNode<MaybeObject> weak_value = MakeWeak(value);
+  StoreFeedbackVectorSlot(feedback_vector, slot, weak_value);
+  return weak_value;
 }
 
 Node* CodeStubAssembler::BuildFastLoop(

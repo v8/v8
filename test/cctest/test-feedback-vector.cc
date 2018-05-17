@@ -202,8 +202,9 @@ TEST(VectorCallFeedback) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.GetFeedback()->IsWeakCell());
-  CHECK(*foo == WeakCell::cast(nexus.GetFeedback())->value());
+  HeapObject* heap_object;
+  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(*foo, heap_object);
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
@@ -226,9 +227,9 @@ TEST(VectorCallFeedbackForArray) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.GetFeedback()->IsWeakCell());
-  CHECK(*isolate->array_function() ==
-        WeakCell::cast(nexus.GetFeedback())->value());
+  HeapObject* heap_object;
+  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(*isolate->array_function(), heap_object);
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
@@ -283,7 +284,7 @@ TEST(VectorConstructCounts) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 
-  CHECK(feedback_vector->Get(slot)->ToStrongHeapObject()->IsWeakCell());
+  CHECK(feedback_vector->Get(slot)->IsWeakHeapObject());
 
   CompileRun("f(Foo); f(Foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());

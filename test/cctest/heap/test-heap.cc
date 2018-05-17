@@ -2989,22 +2989,14 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CHECK_EQ(expected_slots, feedback_helper.slot_count());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))
-            ->ToStrongHeapObject()
-            ->IsWeakCell());
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))
-            ->ToStrongHeapObject()
-            ->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakHeapObject());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakHeapObject());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot1))
-                            ->ToStrongHeapObject())
-             ->cleared());
-  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot2))
-                            ->ToStrongHeapObject())
-             ->cleared());
+  feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakHeapObject();
+  feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakHeapObject();
 }
 
 
@@ -3033,12 +3025,12 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<FeedbackVector> vector(f->feedback_vector());
-  CHECK(vector->Get(FeedbackSlot(0))->ToStrongHeapObject()->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrClearedHeapObject());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CHECK(vector->Get(FeedbackSlot(0))->ToStrongHeapObject()->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrClearedHeapObject());
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
@@ -3960,19 +3952,19 @@ TEST(WeakFunctionInConstructor) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
-    Object* slot_value = feedback_vector->Get(FeedbackSlot(0))->ToObject();
-    CHECK(slot_value->IsWeakCell());
-    if (WeakCell::cast(slot_value)->cleared()) break;
+    MaybeObject* slot_value = feedback_vector->Get(FeedbackSlot(0));
+    CHECK(slot_value->IsWeakOrClearedHeapObject());
+    if (slot_value->IsClearedWeakHeapObject()) break;
     CcTest::CollectAllGarbage();
   }
 
-  Object* slot_value = feedback_vector->Get(FeedbackSlot(0))->ToObject();
-  CHECK(slot_value->IsWeakCell() && WeakCell::cast(slot_value)->cleared());
+  MaybeObject* slot_value = feedback_vector->Get(FeedbackSlot(0));
+  CHECK(slot_value->IsClearedWeakHeapObject());
   CompileRun(
       "function coat() { this.x = 6; }"
       "createObj(coat);");
-  slot_value = feedback_vector->Get(FeedbackSlot(0))->ToObject();
-  CHECK(slot_value->IsWeakCell() && !WeakCell::cast(slot_value)->cleared());
+  slot_value = feedback_vector->Get(FeedbackSlot(0));
+  CHECK(slot_value->IsWeakHeapObject());
 }
 
 
