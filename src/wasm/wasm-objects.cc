@@ -892,6 +892,14 @@ void WasmInstanceObject::InstallFinalizer(Isolate* isolate,
                           InstanceFinalizer, v8::WeakCallbackType::kFinalizer);
 }
 
+Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
+  wasm::NativeModule* native_module = compiled_module()->GetNativeModule();
+  if (func_index < native_module->num_imported_functions()) {
+    return imported_function_targets()[func_index];
+  }
+  return native_module->GetCallTargetForFunction(func_index);
+}
+
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   if (!object->IsJSFunction()) return false;
   Handle<JSFunction> js_function(JSFunction::cast(object));
@@ -952,18 +960,7 @@ wasm::WasmCode* WasmExportedFunction::GetWasmCode() {
 }
 
 Address WasmExportedFunction::GetWasmCallTarget() {
-  DisallowHeapAllocation no_gc;
-  DCHECK_EQ(code()->kind(), Code::JS_TO_WASM_FUNCTION);
-  int mask = RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
-  RelocIterator it(code(), mask);
-  DCHECK(!it.done());
-  Address target = it.rinfo()->js_to_wasm_address();
-#ifdef DEBUG
-  // There should only be this one call to wasm code.
-  it.next();
-  DCHECK(it.done());
-#endif
-  return target;
+  return instance()->GetCallTarget(function_index());
 }
 
 WasmModule* WasmSharedModuleData::module() const {

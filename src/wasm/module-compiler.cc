@@ -203,8 +203,9 @@ class JSToWasmWrapperCache {
       Handle<Code> code = isolate->factory()->CopyCode(code_cache_[cached_idx]);
       // Now patch the call to wasm code.
       RelocIterator it(*code, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-      DCHECK(!it.done());
-      it.rinfo()->set_js_to_wasm_address(call_target);
+      // If there is no reloc info, then it's an incompatible signature or calls
+      // an import.
+      if (!it.done()) it.rinfo()->set_js_to_wasm_address(call_target);
       return code;
     }
 
@@ -2115,9 +2116,9 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             return -1;
           }
           // The import reference is the instance object itself.
-          ImportedFunctionEntry(instance, func_index)
-              .set_wasm_to_wasm(*imported_instance,
-                                imported_function->GetWasmCallTarget());
+          ImportedFunctionEntry entry(instance, func_index);
+          Address imported_target = imported_function->GetWasmCallTarget();
+          entry.set_wasm_to_wasm(*imported_instance, imported_target);
           // TODO(clemensh): Remove this. NativeModule must be instance
           // independent.
           native_module->set_code(func_index, imported_function->GetWasmCode());
@@ -2131,8 +2132,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
               wrapper_code, wasm::WasmCode::kWasmToJsWrapper, func_index);
-          ImportedFunctionEntry(instance, func_index)
-              .set_wasm_to_js(*js_receiver, wasm_code);
+          ImportedFunctionEntry entry(instance, func_index);
+          entry.set_wasm_to_js(*js_receiver, wasm_code);
         }
         num_imported_functions++;
         break;

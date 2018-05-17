@@ -354,6 +354,8 @@ class WasmInstanceObject : public JSObject {
   static void InstallFinalizer(Isolate* isolate,
                                Handle<WasmInstanceObject> instance);
 
+  Address GetCallTarget(uint32_t func_index);
+
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
   // No weak fields.

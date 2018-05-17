@@ -4335,24 +4335,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // js_context independent.
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
                                     nullptr, 0);
-
-      // TODO(titzer): remove the below weird special case.
-      // Add a dummy call to the wasm function so that the generated wrapper
-      // contains a reference to the wrapped wasm function. Without this
-      // reference the wasm function could not be re-imported into another wasm
-      // module.
-      int pos = 0;
-      args[pos++] = wasm_code_node;
-      args[pos++] = instance_node_.get();
-      args[pos++] = *effect_;
-      args[pos++] = *control_;
-
-      // We only need a dummy call descriptor.
-      wasm::FunctionSig dummy_sig(0, 0, nullptr);
-      auto call_descriptor =
-          GetWasmCallDescriptor(mcgraph()->zone(), &dummy_sig);
-      *effect_ = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                                  pos, args);
       Return(jsgraph()->UndefinedConstant());
       return;
     }
