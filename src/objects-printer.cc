@@ -151,12 +151,15 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
+    // TODO(titzer): debug printing for more wasm objects
     case WASM_GLOBAL_TYPE:
-    case WASM_INSTANCE_TYPE:  // TODO(titzer): debug printing for wasm objects
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
+      break;
+    case WASM_INSTANCE_TYPE:
+      WasmInstanceObject::cast(this)->WasmInstanceObjectPrint(os);
       break;
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(this)->JSGeneratorObjectPrint(os);
@@ -1658,6 +1661,43 @@ void WasmCompiledModule::WasmCompiledModulePrint(std::ostream& os) {  // NOLINT
 void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WasmDebugInfo");
   os << "\n - wasm_instance: " << Brief(wasm_instance());
+  os << "\n";
+}
+
+void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmInstanceObject");
+  os << "\n - compiled_module: " << Brief(compiled_module());
+  os << "\n - module_object: " << Brief(module_object());
+  os << "\n - exports_object: " << Brief(exports_object());
+  os << "\n - native_context: " << Brief(native_context());
+  os << "\n - memory_object: " << Brief(memory_object());
+  os << "\n - globals_buffer: " << Brief(globals_buffer());
+  os << "\n - imported_mutable_globals_buffers: "
+     << Brief(imported_mutable_globals_buffers());
+  os << "\n - debug_info: " << Brief(debug_info());
+  os << "\n - table_object: " << Brief(table_object());
+  os << "\n - imported_function_instances: "
+     << Brief(imported_function_instances());
+  os << "\n - imported_function_callables: "
+     << Brief(imported_function_callables());
+  os << "\n - indirect_function_table_instances: "
+     << Brief(indirect_function_table_instances());
+  os << "\n - managed_native_allocations: "
+     << Brief(managed_native_allocations());
+  os << "\n - managed_indirect_patcher: " << Brief(managed_indirect_patcher());
+  os << "\n - memory_start: " << static_cast<void*>(memory_start());
+  os << "\n - memory_size: " << memory_size();
+  os << "\n - memory_mask: " << AsHex(memory_mask());
+  os << "\n - imported_function_targets: "
+     << static_cast<void*>(imported_function_targets());
+  os << "\n - globals_start: " << static_cast<void*>(globals_start());
+  os << "\n - imported_mutable_globals: "
+     << static_cast<void*>(imported_mutable_globals());
+  os << "\n - indirect_function_table_size: " << indirect_function_table_size();
+  os << "\n - indirect_function_table_sig_ids: "
+     << static_cast<void*>(indirect_function_table_sig_ids());
+  os << "\n - indirect_function_table_targets: "
+     << static_cast<void*>(indirect_function_table_targets());
   os << "\n";
 }
 

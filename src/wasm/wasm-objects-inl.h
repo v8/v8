@@ -137,10 +137,10 @@ ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
 ACCESSORS(WasmInstanceObject, native_context, Context, kNativeContextOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
-ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
-          kGlobalsBufferOffset)
-ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers, FixedArray,
-          kImportedMutableGlobalsBuffersOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
+                   kGlobalsBufferOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
+                   FixedArray, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
@@ -151,8 +151,8 @@ ACCESSORS(WasmInstanceObject, imported_function_callables, FixedArray,
           kImportedFunctionCallablesOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_instances,
                    FixedArray, kIndirectFunctionTableInstancesOffset)
-ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
-          kManagedNativeAllocationsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
+                   kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_indirect_patcher, Foreign,
                    kManagedIndirectPatcherOffset)
 

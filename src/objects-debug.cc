@@ -199,11 +199,13 @@ void HeapObject::HeapObjectVerify() {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case WASM_GLOBAL_TYPE:
-    case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
+      break;
+    case WASM_INSTANCE_TYPE:
+      WasmInstanceObject::cast(this)->WasmInstanceObjectVerify();
       break;
     case JS_ARGUMENTS_TYPE:
       JSArgumentsObject::cast(this)->JSArgumentsObjectVerify();
@@ -1579,6 +1581,19 @@ void WasmDebugInfo::WasmDebugInfoVerify() {
   VerifyObjectField(kLocalsNamesOffset);
   VerifyObjectField(kCWasmEntriesOffset);
   VerifyObjectField(kCWasmEntryMapOffset);
+}
+
+void WasmInstanceObject::WasmInstanceObjectVerify() {
+  JSObjectVerify();
+  CHECK(IsWasmInstanceObject());
+
+  // Just generically check all tagged fields. Don't check the untagged fields,
+  // as some of them might still contain the "undefined" value if the
+  // WasmInstanceObject is not fully set up yet.
+  for (int offset = kHeaderSize; offset < kFirstUntaggedOffset;
+       offset += kPointerSize) {
+    VerifyObjectField(offset);
+  }
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify() {
