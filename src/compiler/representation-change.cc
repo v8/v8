@@ -649,7 +649,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     return jsgraph()->graph()->NewNode(
         jsgraph()->common()->DeadValue(MachineRepresentation::kWord32), node);
   } else if (output_rep == MachineRepresentation::kBit) {
-    CHECK(output_type.Is(Type::Boolean()));
+    CHECK(output_type->Is(Type::Boolean()));
     if (use_info.truncation().IsUsedAsWord32()) {
       return node;
     } else {
