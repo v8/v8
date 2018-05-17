@@ -7,7 +7,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
-#include "src/objects/hash-table.h"
+#include "src/objects/hash-table-inl.h"
 
 namespace v8 {
 namespace internal {

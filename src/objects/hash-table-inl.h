@@ -92,6 +92,25 @@ int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key,
   return kNotFound;
 }
 
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::IsKey(Isolate* isolate, Object* k) {
+  return Shape::IsKey(isolate, k);
+}
+
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::ToKey(Isolate* isolate, int entry,
+                                      Object** out_k) {
+  Object* k = KeyAt(entry);
+  if (!IsKey(isolate, k)) return false;
+  *out_k = Shape::Unwrap(k);
+  return true;
+}
+
+template <typename KeyT>
+bool BaseShape<KeyT>::IsKey(Isolate* isolate, Object* key) {
+  return IsLive(isolate, key);
+}
+
 template <typename KeyT>
 bool BaseShape<KeyT>::IsLive(Isolate* isolate, Object* k) {
   Heap* heap = isolate->heap();

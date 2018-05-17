@@ -14,6 +14,7 @@
 #include "src/isolate.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {

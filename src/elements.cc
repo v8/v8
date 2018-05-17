@@ -11,6 +11,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/utils.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,

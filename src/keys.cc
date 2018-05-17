@@ -11,6 +11,7 @@
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 

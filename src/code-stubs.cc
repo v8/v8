@@ -20,6 +20,7 @@
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {

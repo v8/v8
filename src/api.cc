@@ -47,6 +47,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"

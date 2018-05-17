@@ -6,6 +6,8 @@
 #define V8_LAYOUT_DESCRIPTOR_INL_H_
 
 #include "src/layout-descriptor.h"
+#include "src/objects-inl.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {

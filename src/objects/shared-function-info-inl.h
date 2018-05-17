@@ -8,6 +8,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

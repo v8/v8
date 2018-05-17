@@ -11,6 +11,7 @@
 #include "src/api.h"
 #include "src/ast/modules.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 
 namespace v8 {
 namespace internal {

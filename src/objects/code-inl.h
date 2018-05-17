@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/map-inl.h"
 #include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):

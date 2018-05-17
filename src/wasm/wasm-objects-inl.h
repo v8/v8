@@ -7,7 +7,9 @@
 
 #include "src/wasm/wasm-objects.h"
 
+#include "src/contexts-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-module.h"
 

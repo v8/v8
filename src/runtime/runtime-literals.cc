@@ -9,6 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/compile-time-value.h"
 #include "src/isolate-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

@@ -59,7 +59,7 @@
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
-#include "src/objects/hash-table.h"
+#include "src/objects/hash-table-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT

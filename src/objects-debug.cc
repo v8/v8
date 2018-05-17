@@ -16,6 +16,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale-inl.h"

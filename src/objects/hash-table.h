@@ -58,9 +58,7 @@ class BaseShape {
   static inline int GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
   static Object* Unwrap(Object* key) { return key; }
-  static bool IsKey(Isolate* isolate, Object* key) {
-    return IsLive(isolate, key);
-  }
+  static inline bool IsKey(Isolate* isolate, Object* key);
   static inline bool IsLive(Isolate* isolate, Object* key);
 };
 
@@ -155,16 +153,9 @@ class HashTable : public HashTableBase {
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
-  static bool IsKey(Isolate* isolate, Object* k) {
-    return Shape::IsKey(isolate, k);
-  }
+  static bool IsKey(Isolate* isolate, Object* k);
 
-  inline bool ToKey(Isolate* isolate, int entry, Object** out_k) {
-    Object* k = KeyAt(entry);
-    if (!IsKey(isolate, k)) return false;
-    *out_k = Shape::Unwrap(k);
-    return true;
-  }
+  inline bool ToKey(Isolate* isolate, int entry, Object** out_k);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }

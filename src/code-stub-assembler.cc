@@ -8,6 +8,7 @@
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/ordered-hash-table-inl.h"
 
 namespace v8 {
 namespace internal {

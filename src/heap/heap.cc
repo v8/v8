@@ -48,6 +48,7 @@
 #include "src/instruction-stream.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
 #include "src/regexp/jsregexp.h"

@@ -21,6 +21,7 @@
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/prototype.h"
 #include "src/runtime-profiler.h"
 #include "src/runtime/runtime-utils.h"
