@@ -42,6 +42,7 @@ int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
   return it->line_number;
 }
 
+const char* const CodeEntry::kWasmResourceNamePrefix = "wasm ";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
 const char* const CodeEntry::kNoDeoptReason = "";
