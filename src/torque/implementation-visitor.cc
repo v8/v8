@@ -1437,8 +1437,10 @@ void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
   Generic* generic = declarations()->LookupGeneric(decl->name);
   TypeVector specialization_types = GetTypeVector(decl->generic_parameters);
   CallableNode* callable = generic->declaration()->callable;
-  QueueGenericSpecialization({generic, specialization_types}, callable,
-                             decl->signature.get(), decl->body);
+  SpecializeGeneric({{generic, specialization_types},
+                     callable,
+                     decl->signature.get(),
+                     decl->body});
 }
 
 VisitResult ImplementationVisitor::Visit(CallExpression* expr,

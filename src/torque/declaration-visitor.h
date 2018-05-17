@@ -354,6 +354,8 @@ class DeclarationVisitor : public FileVisitor {
     }
   }
 
+  void DeclareSpecializedTypes(const SpecializationKey& key);
+
   void Specialize(const SpecializationKey& key, CallableNode* callable,
                   const CallableNodeSignature* signature,
                   Statement* body) override;

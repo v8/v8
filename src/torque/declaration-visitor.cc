@@ -160,8 +160,8 @@ void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
                                const Signature& signature, Statement* body) {
   Builtin* builtin = BuiltinDeclarationCommon(decl, false, signature);
   CurrentCallableActivator activator(global_context_, builtin, decl);
-  DeclareSignature(builtin->signature());
-  if (builtin->signature().parameter_types.var_args) {
+  DeclareSignature(signature);
+  if (signature.parameter_types.var_args) {
     declarations()->DeclareConstant(
         decl->signature->parameters.arguments_variable,
         GetTypeOracle().GetArgumentsType(), "arguments");
@@ -206,23 +206,29 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
   Generic* generic = declarations()->LookupGeneric(decl->name);
   SpecializationKey key = {generic, GetTypeVector(decl->generic_parameters)};
   CallableNode* callable = generic->declaration()->callable;
-  // Ensure that the specialized signature matches the generic signature.
-  if (callable->signature->parameters.names.size() !=
-      decl->signature->parameters.names.size()) {
-    std::stringstream stream;
-    stream << "specialization parameter count doesn't match generic "
-              "declaration at "
-           << PositionAsString(decl->pos);
-    ReportError(stream.str());
+
+  {
+    Signature signature_with_types =
+        MakeSignature(callable, decl->signature.get());
+    // Abuse the Specialization nodes' scope to temporarily declare the
+    // specialization aliases for the generic types to compare signatures. This
+    // scope is never used for anything else, so it's OK to pollute it.
+    Declarations::NodeScopeActivator specialization_activator(declarations(),
+                                                              decl);
+    DeclareSpecializedTypes(key);
+    Signature generic_signature_with_types =
+        MakeSignature(generic->declaration()->callable,
+                      generic->declaration()->callable->signature.get());
+    if (!signature_with_types.HasSameTypesAs(generic_signature_with_types)) {
+      std::stringstream stream;
+      stream << "specialization of " << callable->name
+             << " has incompatible parameter list or label list with generic "
+                "definition";
+      ReportError(stream.str());
+    }
   }
-  if (callable->signature->labels.size() != decl->signature->labels.size()) {
-    std::stringstream stream;
-    stream << "specialization label count doesn't match generic "
-              "declaration at "
-           << PositionAsString(decl->pos);
-    ReportError(stream.str());
-  }
-  QueueGenericSpecialization(key, callable, decl->signature.get(), decl->body);
+
+  SpecializeGeneric({key, callable, decl->signature.get(), decl->body});
 }
 
 void DeclarationVisitor::Visit(ReturnStatement* stmt) {
@@ -312,6 +318,16 @@ void DeclarationVisitor::Visit(CallExpression* expr) {
   for (Expression* arg : expr->arguments) Visit(arg);
 }
 
+void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
+  size_t i = 0;
+  Generic* generic = key.first;
+  for (auto type : key.second) {
+    std::string generic_type_name =
+        generic->declaration()->generic_parameters[i++];
+    declarations()->DeclareTypeAlias(generic_type_name, type);
+  }
+}
+
 void DeclarationVisitor::Specialize(const SpecializationKey& key,
                                     CallableNode* callable,
                                     const CallableNodeSignature* signature,
@@ -334,15 +350,10 @@ void DeclarationVisitor::Specialize(const SpecializationKey& key,
   }
 
   {
-    // Manually activate the specialized generic's scope when defining the
+    // Manually activate the specialized generic's scope when declaring the
     // generic parameter specializations.
     Declarations::GenericScopeActivator scope(declarations(), key);
-    size_t i = 0;
-    for (auto type : key.second) {
-      std::string generic_type_name =
-          generic->declaration()->generic_parameters[i++];
-      declarations()->DeclareTypeAlias(generic_type_name, type);
-    }
+    DeclareSpecializedTypes(key);
   }
 
   Visit(callable, MakeSignature(callable, signature), body);

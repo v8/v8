@@ -106,7 +106,8 @@ class Declarations {
 
   class NodeScopeActivator;
   class GenericScopeActivator;
-  class ScopedGenericInstantiation;
+  class ScopedGenericSpecializationKey;
+  class ScopedGenericScopeChainSnapshot;
 
  private:
   Scope* GetNodeScope(const AstNode* node);
@@ -156,20 +157,29 @@ class Declarations::GenericScopeActivator {
   Scope::Activator activator_;
 };
 
-class Declarations::ScopedGenericInstantiation {
+class Declarations::ScopedGenericSpecializationKey {
  public:
-  ScopedGenericInstantiation(Declarations* declarations,
-                             const SpecializationKey& key)
-      : declarations_(declarations),
-        restorer_(declarations->generic_declaration_scopes_[key.first]) {
+  ScopedGenericSpecializationKey(Declarations* declarations,
+                                 const SpecializationKey& key)
+      : declarations_(declarations) {
     declarations->current_generic_specialization_ = &key;
   }
-  ~ScopedGenericInstantiation() {
+  ~ScopedGenericSpecializationKey() {
     declarations_->current_generic_specialization_ = nullptr;
   }
 
  private:
   Declarations* declarations_;
+};
+
+class Declarations::ScopedGenericScopeChainSnapshot {
+ public:
+  ScopedGenericScopeChainSnapshot(Declarations* declarations,
+                                  const SpecializationKey& key)
+      : restorer_(declarations->generic_declaration_scopes_[key.first]) {}
+  ~ScopedGenericScopeChainSnapshot() {}
+
+ private:
   ScopeChain::ScopedSnapshotRestorer restorer_;
 };
 

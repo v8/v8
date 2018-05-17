@@ -50,6 +50,24 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
   return os;
 }
 
+bool Signature::HasSameTypesAs(const Signature& other) const {
+  if (!(parameter_types.types == other.parameter_types.types &&
+        parameter_types.var_args == other.parameter_types.var_args &&
+        return_type == other.return_type)) {
+    return false;
+  }
+  if (labels.size() != other.labels.size()) {
+    return false;
+  }
+  size_t i = 0;
+  for (auto l : labels) {
+    if (l.types != other.labels[i++].types) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

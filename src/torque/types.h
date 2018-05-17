@@ -97,6 +97,7 @@ struct Signature {
   ParameterTypes parameter_types;
   const Type* return_type;
   LabelDeclarationVector labels;
+  bool HasSameTypesAs(const Signature& other) const;
 };
 
 struct Arguments {
