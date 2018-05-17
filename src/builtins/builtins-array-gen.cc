@@ -150,7 +150,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
       BIND(&fast);
       {
-        GotoIf(SmiNotEqual(LoadJSArrayLength(a()), to_.value()), &runtime);
+        GotoIf(WordNotEqual(LoadJSArrayLength(a()), to_.value()), &runtime);
         kind = EnsureArrayPushable(LoadMap(a()), &runtime);
         GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
                &object_push_pre);
@@ -211,9 +211,10 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         context(), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
-    CSA_ASSERT(this,
-               SmiLessThanOrEqual(
-                   len_, LoadObjectField(a, JSTypedArray::kLengthOffset)));
+    CSA_ASSERT(
+        this,
+        SmiLessThanOrEqual(
+            CAST(len_), CAST(LoadObjectField(a, JSTypedArray::kLengthOffset))));
     fast_typed_array_target_ =
         Word32Equal(LoadInstanceType(LoadElements(original_array)),
                     LoadInstanceType(LoadElements(a)));
@@ -706,7 +707,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
           TNode<JSArray> o_array = CAST(o());
           // Check if o's length has changed during the callback and if the
           // index is now out of range of the new length.
-          GotoIf(SmiGreaterThanOrEqual(k_.value(), LoadJSArrayLength(o_array)),
+          GotoIf(SmiGreaterThanOrEqual(CAST(k_.value()),
+                                       CAST(LoadJSArrayLength(o_array))),
                  array_changed);
 
           // Re-load the elements array. If may have been resized.
@@ -868,8 +870,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIf(WordEqual(value, protector_invalid), &runtime);
 
     GotoIfNot(TaggedIsPositiveSmi(len), &runtime);
-    GotoIf(SmiAbove(len, SmiConstant(JSArray::kInitialMaxFastElementArray)),
-           &runtime);
+    GotoIf(
+        SmiAbove(CAST(len), SmiConstant(JSArray::kInitialMaxFastElementArray)),
+        &runtime);
 
     // We need to be conservative and start with holey because the builtins
     // that create output arrays aren't guaranteed to be called for every
@@ -1163,9 +1166,9 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
     // Make sure that the length hasn't been changed by side-effect.
     Node* array_length = LoadJSArrayLength(array);
     GotoIf(TaggedIsNotSmi(array_length), slow);
-    GotoIf(SmiAbove(SmiAdd(from, count), array_length), slow);
+    GotoIf(SmiAbove(SmiAdd(CAST(from), CAST(count)), CAST(array_length)), slow);
 
-    CSA_ASSERT(this, SmiGreaterThanOrEqual(from, SmiConstant(0)));
+    CSA_ASSERT(this, SmiGreaterThanOrEqual(CAST(from), SmiConstant(0)));
 
     result.Bind(CallStub(CodeFactory::ExtractFastJSArray(isolate()), context,
                          array, from, count));
@@ -1179,8 +1182,9 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
     GotoIf(WordNotEqual(map, fast_aliasted_arguments_map), &try_simple_slice);
 
     Node* sloppy_elements = LoadElements(array);
-    Node* sloppy_elements_length = LoadFixedArrayBaseLength(sloppy_elements);
-    Node* parameter_map_length =
+    TNode<Smi> sloppy_elements_length =
+        LoadFixedArrayBaseLength(sloppy_elements);
+    TNode<Smi> parameter_map_length =
         SmiSub(sloppy_elements_length,
                SmiConstant(SloppyArgumentsElements::kParameterMapStart));
     VARIABLE(index_out, MachineType::PointerRepresentation());
@@ -1189,16 +1193,16 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /
         kPointerSize;
-    GotoIf(SmiAboveOrEqual(count, SmiConstant(max_fast_elements)),
+    GotoIf(SmiAboveOrEqual(CAST(count), SmiConstant(max_fast_elements)),
            &try_simple_slice);
 
-    GotoIf(SmiLessThan(from, SmiConstant(0)), slow);
+    GotoIf(SmiLessThan(CAST(from), SmiConstant(0)), slow);
 
-    Node* end = SmiAdd(from, count);
+    TNode<Smi> end = SmiAdd(CAST(from), CAST(count));
 
     Node* unmapped_elements = LoadFixedArrayElement(
         sloppy_elements, SloppyArgumentsElements::kArgumentsIndex);
-    Node* unmapped_elements_length =
+    TNode<Smi> unmapped_elements_length =
         LoadFixedArrayBaseLength(unmapped_elements);
 
     GotoIf(SmiAbove(end, unmapped_elements_length), slow);
@@ -1209,8 +1213,8 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
 
     index_out.Bind(IntPtrConstant(0));
     Node* result_elements = LoadElements(result.value());
-    Node* from_mapped = SmiMin(parameter_map_length, from);
-    Node* to = SmiMin(parameter_map_length, end);
+    TNode<Smi> from_mapped = SmiMin(parameter_map_length, CAST(from));
+    TNode<Smi> to = SmiMin(parameter_map_length, end);
     Node* arguments_context = LoadFixedArrayElement(
         sloppy_elements, SloppyArgumentsElements::kContextIndex);
     VariableList var_list({&index_out}, zone());
@@ -1240,7 +1244,8 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
         },
         1, SMI_PARAMETERS, IndexAdvanceMode::kPost);
 
-    Node* unmapped_from = SmiMin(SmiMax(parameter_map_length, from), end);
+    TNode<Smi> unmapped_from =
+        SmiMin(SmiMax(parameter_map_length, CAST(from)), end);
 
     BuildFastLoop(
         var_list, unmapped_from, end,
@@ -2132,7 +2137,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
     TVARIABLE(Number, index, SmiConstant(0));
 
-    GotoIf(SmiEqual(length.value(), SmiConstant(0)), &finished);
+    GotoIf(SmiEqual(CAST(length.value()), SmiConstant(0)), &finished);
 
     // Loop from 0 to length-1.
     {
@@ -3508,17 +3513,14 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Node* elements_kind = LoadMapElementsKind(array_map);
     GotoIfNot(IsFastElementsKind(elements_kind), &if_other);
 
-    Node* length = LoadJSArrayLength(array);
+    TNode<Smi> length = CAST(LoadJSArrayLength(array));
 
-    CSA_ASSERT(this, TaggedIsSmi(length));
-    CSA_ASSERT(this, TaggedIsSmi(index));
-
-    GotoIfNot(SmiBelow(index, length), &set_done);
+    GotoIfNot(SmiBelow(CAST(index), length), &set_done);
 
     var_value.Bind(index);
-    Node* one = SmiConstant(1);
+    TNode<Smi> one = SmiConstant(1);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                   SmiAdd(index, one));
+                                   SmiAdd(CAST(index), one));
     var_done.Bind(FalseConstant());
 
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
@@ -3623,17 +3625,15 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Node* buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
-    Node* length = LoadObjectField(array, JSTypedArray::kLengthOffset);
+    TNode<Smi> length =
+        CAST(LoadObjectField(array, JSTypedArray::kLengthOffset));
 
-    CSA_ASSERT(this, TaggedIsSmi(length));
-    CSA_ASSERT(this, TaggedIsSmi(index));
-
-    GotoIfNot(SmiBelow(index, length), &set_done);
+    GotoIfNot(SmiBelow(CAST(index), length), &set_done);
 
     var_value.Bind(index);
-    Node* one = SmiConstant(1);
+    TNode<Smi> one = SmiConstant(1);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                   SmiAdd(index, one));
+                                   SmiAdd(CAST(index), one));
     var_done.Bind(FalseConstant());
 
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
@@ -3784,7 +3784,8 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
       // a. Let P be ! ToString(sourceIndex).
       // b. Let exists be ? HasProperty(source, P).
-      CSA_ASSERT(this, SmiGreaterThanOrEqual(source_index, SmiConstant(0)));
+      CSA_ASSERT(this,
+                 SmiGreaterThanOrEqual(CAST(source_index), SmiConstant(0)));
       Node* const exists =
           HasProperty(source, source_index, context, kHasProperty);
 

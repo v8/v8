@@ -123,7 +123,7 @@ void AccessorAssembler::HandlePolymorphicCase(
 
     if (i >= min_feedback_capacity) {
       if (length == nullptr) length = LoadWeakFixedArrayLength(feedback);
-      GotoIf(SmiGreaterThanOrEqual(SmiConstant(handler_index), length),
+      GotoIf(SmiGreaterThanOrEqual(SmiConstant(handler_index), CAST(length)),
              if_miss);
     }
 

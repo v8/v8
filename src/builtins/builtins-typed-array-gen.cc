@@ -205,8 +205,10 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
 
     // Check the alignment.
-    GotoIf(SmiEqual(SmiMod(element_size, SmiConstant(kObjectAlignment)),
-                    SmiConstant(0)),
+    // TODO(ishell): remove <Object, Object>
+    GotoIf(WordEqual<Object, Object>(
+               SmiMod(element_size, SmiConstant(kObjectAlignment)),
+               SmiConstant(0)),
            &aligned);
 
     // Fix alignment if needed.
@@ -367,10 +369,12 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
   // Check that the offset is a multiple of the element size.
   BIND(&offset_is_smi);
   {
-    GotoIf(SmiEqual(offset.value(), SmiConstant(0)), &check_length);
-    GotoIf(SmiLessThan(offset.value(), SmiConstant(0)), &invalid_length);
-    Node* remainder = SmiMod(offset.value(), element_size);
-    Branch(SmiEqual(remainder, SmiConstant(0)), &check_length,
+    TNode<Smi> smi_offset = CAST(offset.value());
+    GotoIf(SmiEqual(smi_offset, SmiConstant(0)), &check_length);
+    GotoIf(SmiLessThan(smi_offset, SmiConstant(0)), &invalid_length);
+    TNode<Number> remainder = SmiMod(smi_offset, element_size);
+    // TODO(ishell): remove <Object, Object>
+    Branch(WordEqual<Object, Object>(remainder, SmiConstant(0)), &check_length,
            &start_offset_error);
   }
   BIND(&offset_not_smi);

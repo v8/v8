@@ -527,7 +527,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
 
   if (IsFastPackedElementsKind(elements_kind)) {
     Label abort(this, Label::kDeferred);
-    Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
+    Branch(SmiEqual(CAST(array_size), SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
     Node* reason = SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
@@ -539,7 +539,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /
         element_size;
-    Branch(SmiAboveOrEqual(array_size, SmiConstant(max_fast_elements)),
+    Branch(SmiAboveOrEqual(CAST(array_size), SmiConstant(max_fast_elements)),
            &call_runtime, &small_smi_size);
   }
 

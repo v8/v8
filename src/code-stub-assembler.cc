@@ -558,11 +558,11 @@ TNode<Float64T> CodeStubAssembler::SmiToFloat64(SloppyTNode<Smi> value) {
   return ChangeInt32ToFloat64(SmiToInt32(value));
 }
 
-TNode<Smi> CodeStubAssembler::SmiMax(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
+TNode<Smi> CodeStubAssembler::SmiMax(TNode<Smi> a, TNode<Smi> b) {
   return SelectConstant<Smi>(SmiLessThan(a, b), b, a);
 }
 
-TNode<Smi> CodeStubAssembler::SmiMin(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
+TNode<Smi> CodeStubAssembler::SmiMin(TNode<Smi> a, TNode<Smi> b) {
   return SelectConstant<Smi>(SmiLessThan(a, b), a, b);
 }
 
@@ -662,8 +662,7 @@ TNode<IntPtrT> CodeStubAssembler::ConvertToRelativeIndex(
   return result.value();
 }
 
-TNode<Number> CodeStubAssembler::SmiMod(SloppyTNode<Smi> a,
-                                        SloppyTNode<Smi> b) {
+TNode<Number> CodeStubAssembler::SmiMod(TNode<Smi> a, TNode<Smi> b) {
   TVARIABLE(Number, var_result);
   Label return_result(this, &var_result),
       return_minuszero(this, Label::kDeferred),
@@ -726,8 +725,7 @@ TNode<Number> CodeStubAssembler::SmiMod(SloppyTNode<Smi> a,
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::SmiMul(SloppyTNode<Smi> a,
-                                        SloppyTNode<Smi> b) {
+TNode<Number> CodeStubAssembler::SmiMul(TNode<Smi> a, TNode<Smi> b) {
   TVARIABLE(Number, var_result);
   VARIABLE(var_lhs_float64, MachineRepresentation::kFloat64);
   VARIABLE(var_rhs_float64, MachineRepresentation::kFloat64);
@@ -787,8 +785,8 @@ TNode<Number> CodeStubAssembler::SmiMul(SloppyTNode<Smi> a,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
-                                   Label* bailout) {
+TNode<Smi> CodeStubAssembler::TrySmiDiv(TNode<Smi> dividend, TNode<Smi> divisor,
+                                        Label* bailout) {
   // Both {a} and {b} are Smis. Bailout to floating point division if {divisor}
   // is zero.
   GotoIf(WordEqual(divisor, SmiConstant(0)), bailout);
@@ -806,8 +804,8 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
   }
   BIND(&dividend_is_not_zero);
 
-  Node* untagged_divisor = SmiToInt32(divisor);
-  Node* untagged_dividend = SmiToInt32(dividend);
+  TNode<Int32T> untagged_divisor = SmiToInt32(divisor);
+  TNode<Int32T> untagged_dividend = SmiToInt32(dividend);
 
   // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
   // if the Smi size is 31) and {divisor} is -1.
@@ -825,8 +823,8 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
   }
   BIND(&divisor_is_not_minus_one);
 
-  Node* untagged_result = Int32Div(untagged_dividend, untagged_divisor);
-  Node* truncated = Int32Mul(untagged_result, untagged_divisor);
+  TNode<Int32T> untagged_result = Int32Div(untagged_dividend, untagged_divisor);
+  TNode<Int32T> truncated = Signed(Int32Mul(untagged_result, untagged_divisor));
 
   // Do floating point division if the remainder is not 0.
   GotoIf(Word32NotEqual(untagged_dividend, truncated), bailout);
@@ -1217,7 +1215,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   BIND(&if_smi);
   {
     // The {value} is a Smi, only need to check against zero.
-    BranchIfSmiEqual(value, SmiConstant(0), if_false, if_true);
+    BranchIfSmiEqual(CAST(value), SmiConstant(0), if_false, if_true);
   }
 
   BIND(&if_notsmi);
@@ -3402,7 +3400,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
                                  : Heap::kFixedArrayMapRootIndex;
   DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
   StoreMapNoWriteBarrier(elements, elements_map_index);
-  Node* capacity_smi = ParameterToTagged(capacity, capacity_mode);
+  TNode<Smi> capacity_smi = ParameterToTagged(capacity, capacity_mode);
   CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
                                  capacity_smi);
@@ -4168,9 +4166,9 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base,
   StoreObjectFieldNoWriteBarrier(
       memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
   if (FLAG_allocation_site_pretenuring) {
-    Node* count = LoadObjectField(allocation_site,
-                                  AllocationSite::kPretenureCreateCountOffset);
-    Node* incremented_count = SmiAdd(count, SmiConstant(1));
+    TNode<Smi> count = CAST(LoadObjectField(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset));
+    TNode<Smi> incremented_count = SmiAdd(count, SmiConstant(1));
     StoreObjectFieldNoWriteBarrier(allocation_site,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    incremented_count);
@@ -4317,7 +4315,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a Numeric, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this, SmiEqual(var_feedback->value(),
+        CSA_ASSERT(this, SmiEqual(CAST(var_feedback->value()),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
       }
       GotoIf(InstanceTypeEqual(instance_type, ODDBALL_TYPE), &is_oddball);
@@ -5093,7 +5091,7 @@ TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKindOrEmpty(
 
   GotoIf(IsFixedArrayWithKind(object, kind), &out);
 
-  Node* const length = LoadFixedArrayBaseLength(CAST(object));
+  TNode<Smi> const length = LoadFixedArrayBaseLength(CAST(object));
   GotoIf(SmiEqual(length, SmiConstant(0)), &out);
 
   var_result = Int32FalseConstant();
@@ -8415,7 +8413,7 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
   CSA_ASSERT(this, IsObject(feedback_element));
   TNode<Smi> previous_feedback = CAST(ToObject(feedback_element));
-  TNode<Smi> combined_feedback = SmiOr(previous_feedback, feedback);
+  TNode<Smi> combined_feedback = SmiOr(previous_feedback, CAST(feedback));
   Label end(this);
 
   GotoIf(SmiEqual(previous_feedback, combined_feedback), &end);
@@ -8455,13 +8453,14 @@ void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,
                                         int feedback) {
   if (existing_feedback == nullptr) return;
   existing_feedback->Bind(
-      SmiOr(existing_feedback->value(), SmiConstant(feedback)));
+      SmiOr(CAST(existing_feedback->value()), SmiConstant(feedback)));
 }
 
 void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,
                                         Node* feedback) {
   if (existing_feedback == nullptr) return;
-  existing_feedback->Bind(SmiOr(existing_feedback->value(), feedback));
+  existing_feedback->Bind(
+      SmiOr(CAST(existing_feedback->value()), CAST(feedback)));
 }
 
 void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
@@ -9338,31 +9337,35 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
 
   BIND(&if_left_smi);
   {
+    TNode<Smi> smi_left = CAST(left);
+
     Label if_right_not_smi(this);
     GotoIfNot(TaggedIsSmi(right), &if_right_not_smi);
+    {
+      TNode<Smi> smi_right = CAST(right);
 
-    // Both {left} and {right} are Smi, so just perform a fast Smi comparison.
-    switch (op) {
-      case Operation::kLessThan:
-        BranchIfSmiLessThan(left, right, if_true, if_false);
-        break;
-      case Operation::kLessThanOrEqual:
-        BranchIfSmiLessThanOrEqual(left, right, if_true, if_false);
-        break;
-      case Operation::kGreaterThan:
-        BranchIfSmiLessThan(right, left, if_true, if_false);
-        break;
-      case Operation::kGreaterThanOrEqual:
-        BranchIfSmiLessThanOrEqual(right, left, if_true, if_false);
-        break;
-      default:
-        UNREACHABLE();
+      // Both {left} and {right} are Smi, so just perform a fast Smi comparison.
+      switch (op) {
+        case Operation::kLessThan:
+          BranchIfSmiLessThan(smi_left, smi_right, if_true, if_false);
+          break;
+        case Operation::kLessThanOrEqual:
+          BranchIfSmiLessThanOrEqual(smi_left, smi_right, if_true, if_false);
+          break;
+        case Operation::kGreaterThan:
+          BranchIfSmiLessThan(smi_right, smi_left, if_true, if_false);
+          break;
+        case Operation::kGreaterThanOrEqual:
+          BranchIfSmiLessThanOrEqual(smi_right, smi_left, if_true, if_false);
+          break;
+        default:
+          UNREACHABLE();
+      }
     }
-
     BIND(&if_right_not_smi);
     {
       CSA_ASSERT(this, IsHeapNumber(right));
-      var_left_float = SmiToFloat64(left);
+      var_left_float = SmiToFloat64(smi_left);
       var_right_float = LoadHeapNumberValue(right);
       Goto(&do_float_comparison);
     }
@@ -9472,6 +9475,7 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
 
     BIND(&if_left_smi);
     {
+      TNode<Smi> smi_left = CAST(left);
       Label if_right_smi(this), if_right_heapnumber(this),
           if_right_bigint(this, Label::kDeferred),
           if_right_not_numeric(this, Label::kDeferred);
@@ -9484,21 +9488,24 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
 
       BIND(&if_right_smi);
       {
+        TNode<Smi> smi_right = CAST(right);
         CombineFeedback(var_type_feedback,
                         CompareOperationFeedback::kSignedSmall);
         switch (op) {
           case Operation::kLessThan:
-            BranchIfSmiLessThan(left, right, &return_true, &return_false);
+            BranchIfSmiLessThan(smi_left, smi_right, &return_true,
+                                &return_false);
             break;
           case Operation::kLessThanOrEqual:
-            BranchIfSmiLessThanOrEqual(left, right, &return_true,
+            BranchIfSmiLessThanOrEqual(smi_left, smi_right, &return_true,
                                        &return_false);
             break;
           case Operation::kGreaterThan:
-            BranchIfSmiLessThan(right, left, &return_true, &return_false);
+            BranchIfSmiLessThan(smi_right, smi_left, &return_true,
+                                &return_false);
             break;
           case Operation::kGreaterThanOrEqual:
-            BranchIfSmiLessThanOrEqual(right, left, &return_true,
+            BranchIfSmiLessThanOrEqual(smi_right, smi_left, &return_true,
                                        &return_false);
             break;
           default:
@@ -9509,7 +9516,7 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
       BIND(&if_right_heapnumber);
       {
         CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
-        var_left_float = SmiToFloat64(left);
+        var_left_float = SmiToFloat64(smi_left);
         var_right_float = LoadHeapNumberValue(right);
         Goto(&do_float_comparison);
       }
@@ -9861,8 +9868,9 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::CollectFeedbackForString(Node* instance_type) {
-  Node* feedback = SelectSmiConstant(
+TNode<Smi> CodeStubAssembler::CollectFeedbackForString(
+    SloppyTNode<Int32T> instance_type) {
+  TNode<Smi> feedback = SelectSmiConstant(
       Word32Equal(
           Word32And(instance_type, Int32Constant(kIsNotInternalizedMask)),
           Int32Constant(kInternalizedTag)),
@@ -10459,9 +10467,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             BIND(&if_rhsisstring);
             {
               if (var_type_feedback != nullptr) {
-                Node* lhs_feedback =
+                TNode<Smi> lhs_feedback =
                     CollectFeedbackForString(lhs_instance_type);
-                Node* rhs_feedback =
+                TNode<Smi> rhs_feedback =
                     CollectFeedbackForString(rhs_instance_type);
                 var_type_feedback->Bind(SmiOr(lhs_feedback, rhs_feedback));
               }
@@ -11179,8 +11187,8 @@ void CodeStubAssembler::GotoIfNumber(Node* input, Label* is_number) {
   GotoIf(IsHeapNumber(input), is_number);
 }
 
-Node* CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
-                                   Operation bitwise_op) {
+TNode<Number> CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
+                                           Operation bitwise_op) {
   switch (bitwise_op) {
     case Operation::kBitwiseAnd:
       return ChangeInt32ToTagged(Signed(Word32And(left32, right32)));

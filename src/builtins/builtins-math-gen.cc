@@ -50,7 +50,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
       } else {
         // Check if {x} is already positive.
         Label if_xispositive(this), if_xisnotpositive(this);
-        BranchIfSmiLessThanOrEqual(SmiConstant(0), x, &if_xispositive,
+        BranchIfSmiLessThanOrEqual(SmiConstant(0), CAST(x), &if_xispositive,
                                    &if_xisnotpositive);
 
         BIND(&if_xispositive);
@@ -404,8 +404,8 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Node* native_context = LoadNativeContext(context);
 
   // Load cache index.
-  VARIABLE(smi_index, MachineRepresentation::kTagged);
-  smi_index.Bind(
+  TVARIABLE(Smi, smi_index);
+  smi_index = CAST(
       LoadContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX));
 
   // Cached random numbers are exhausted if index is 0. Go to slow path.
@@ -413,12 +413,12 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   GotoIf(SmiAbove(smi_index.value(), SmiConstant(0)), &if_cached);
 
   // Cache exhausted, populate the cache. Return value is the new index.
-  smi_index.Bind(CallRuntime(Runtime::kGenerateRandomNumbers, context));
+  smi_index = CAST(CallRuntime(Runtime::kGenerateRandomNumbers, context));
   Goto(&if_cached);
 
   // Compute next index by decrement.
   BIND(&if_cached);
-  Node* new_smi_index = SmiSub(smi_index.value(), SmiConstant(1));
+  TNode<Smi> new_smi_index = SmiSub(smi_index.value(), SmiConstant(1));
   StoreContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX,
                       new_smi_index);
 

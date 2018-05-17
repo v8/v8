@@ -544,7 +544,7 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
   Node* receiver = Parameter(Descriptor::kReceiverValue);
-  Node* language_mode = Parameter(Descriptor::kLanguageMode);
+  TNode<Smi> language_mode = CAST(Parameter(Descriptor::kLanguageMode));
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 

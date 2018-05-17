@@ -830,7 +830,7 @@ TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
                       &do_bigint);
 
   BIND(&do_smi);
-  { Return(SmiMul(var_input.value(), SmiConstant(-1))); }
+  { Return(SmiMul(CAST(var_input.value()), SmiConstant(-1))); }
 
   BIND(&do_double);
   {
@@ -858,7 +858,7 @@ TF_BUILTIN(Multiply, NumberBuiltinsAssembler) {
 
   BIND(&do_smi_mul);
   // The result is not necessarily a smi, in case of overflow.
-  Return(SmiMul(var_left.value(), var_right.value()));
+  Return(SmiMul(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mul);
   Node* value = Float64Mul(var_left_double.value(), var_right_double.value());
@@ -886,8 +886,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
   {
     // TODO(jkummerow): Consider just always doing a double division.
     Label bailout(this);
-    Node* dividend = var_left.value();
-    Node* divisor = var_right.value();
+    TNode<Smi> dividend = CAST(var_left.value());
+    TNode<Smi> divisor = CAST(var_right.value());
 
     // Do floating point division if {divisor} is zero.
     GotoIf(SmiEqual(divisor, SmiConstant(0)), &bailout);
@@ -967,7 +967,7 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
                        &var_left_double, &var_right_double, &do_bigint_mod);
 
   BIND(&do_smi_mod);
-  Return(SmiMod(var_left.value(), var_right.value()));
+  Return(SmiMod(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mod);
   Node* value = Float64Mod(var_left_double.value(), var_right_double.value());

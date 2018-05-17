@@ -125,7 +125,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                      Node* const string);
 
   void RegExpPrototypeSplitBody(Node* const context, Node* const regexp,
-                                TNode<String> const string, Node* const limit);
+                                TNode<String> const string,
+                                TNode<Smi> const limit);
 
   Node* ReplaceGlobalCallableFastPath(Node* context, Node* regexp, Node* string,
                                       Node* replace_callable);

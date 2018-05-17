@@ -983,10 +983,8 @@ void CollectionsBuiltinsAssembler::SameValueZeroHeapNumber(Node* key_float,
 }
 
 TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
-  Node* table = Parameter(Descriptor::kTable);
-  Node* index = Parameter(Descriptor::kIndex);
-  CSA_ASSERT(this, TaggedIsNotSmi(table));
-  CSA_ASSERT(this, TaggedIsSmi(index));
+  TNode<HeapObject> table = CAST(Parameter(Descriptor::kTable));
+  TNode<Smi> index = CAST(Parameter(Descriptor::kIndex));
   Label return_index(this), return_zero(this);
 
   // Check if we need to update the {index}.
@@ -1007,8 +1005,8 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
   {
     Node* i = var_i.value();
     GotoIfNot(IntPtrLessThan(i, number_of_deleted_elements), &return_index);
-    Node* removed_index = LoadFixedArrayElement(
-        table, i, OrderedHashTableBase::kRemovedHolesIndex * kPointerSize);
+    TNode<Smi> removed_index = CAST(LoadFixedArrayElement(
+        table, i, OrderedHashTableBase::kRemovedHolesIndex * kPointerSize));
     GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
     Decrement(&var_index, 1, SMI_PARAMETERS);
     Increment(&var_i);
@@ -1120,8 +1118,8 @@ TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
 
   Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
-  Node* index =
-      CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key);
+  TNode<Smi> index = CAST(
+      CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key));
 
   Label if_found(this), if_not_found(this);
   Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
@@ -1145,8 +1143,8 @@ TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.has");
 
   Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
-  Node* index =
-      CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key);
+  TNode<Smi> index = CAST(
+      CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key));
 
   Label if_found(this), if_not_found(this);
   Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
@@ -1282,8 +1280,8 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
                          OrderedHashMap::kHashTableStartIndex * kPointerSize);
 
   // Bump the elements count.
-  Node* const number_of_elements =
-      LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset);
+  TNode<Smi> const number_of_elements =
+      CAST(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset));
   StoreObjectFieldNoWriteBarrier(table, OrderedHashMap::kNumberOfElementsOffset,
                                  SmiAdd(number_of_elements, SmiConstant(1)));
 }
@@ -1320,20 +1318,20 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
                                          OrderedHashMap::kValueOffset));
 
   // Decrement the number of elements, increment the number of deleted elements.
-  Node* const number_of_elements = SmiSub(
+  TNode<Smi> const number_of_elements = SmiSub(
       CAST(LoadObjectField(table, OrderedHashMap::kNumberOfElementsOffset)),
       SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(table, OrderedHashMap::kNumberOfElementsOffset,
                                  number_of_elements);
-  Node* const number_of_deleted =
+  TNode<Smi> const number_of_deleted =
       SmiAdd(CAST(LoadObjectField(
                  table, OrderedHashMap::kNumberOfDeletedElementsOffset)),
              SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(
       table, OrderedHashMap::kNumberOfDeletedElementsOffset, number_of_deleted);
 
-  Node* const number_of_buckets =
-      LoadFixedArrayElement(table, OrderedHashMap::kNumberOfBucketsIndex);
+  TNode<Smi> const number_of_buckets =
+      CAST(LoadFixedArrayElement(table, OrderedHashMap::kNumberOfBucketsIndex));
 
   // If there fewer elements than #buckets / 2, shrink the table.
   Label shrink(this);
@@ -1445,8 +1443,8 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
                          OrderedHashSet::kHashTableStartIndex * kPointerSize);
 
   // Bump the elements count.
-  Node* const number_of_elements =
-      LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset);
+  TNode<Smi> const number_of_elements =
+      CAST(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset));
   StoreObjectFieldNoWriteBarrier(table, OrderedHashSet::kNumberOfElementsOffset,
                                  SmiAdd(number_of_elements, SmiConstant(1)));
 }
@@ -1479,20 +1477,20 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
                          kPointerSize * OrderedHashSet::kHashTableStartIndex);
 
   // Decrement the number of elements, increment the number of deleted elements.
-  Node* const number_of_elements = SmiSub(
+  TNode<Smi> const number_of_elements = SmiSub(
       CAST(LoadObjectField(table, OrderedHashSet::kNumberOfElementsOffset)),
       SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(table, OrderedHashSet::kNumberOfElementsOffset,
                                  number_of_elements);
-  Node* const number_of_deleted =
+  TNode<Smi> const number_of_deleted =
       SmiAdd(CAST(LoadObjectField(
                  table, OrderedHashSet::kNumberOfDeletedElementsOffset)),
              SmiConstant(1));
   StoreObjectFieldNoWriteBarrier(
       table, OrderedHashSet::kNumberOfDeletedElementsOffset, number_of_deleted);
 
-  Node* const number_of_buckets =
-      LoadFixedArrayElement(table, OrderedHashSet::kNumberOfBucketsIndex);
+  TNode<Smi> const number_of_buckets =
+      CAST(LoadFixedArrayElement(table, OrderedHashSet::kNumberOfBucketsIndex));
 
   // If there fewer elements than #buckets / 2, shrink the table.
   Label shrink(this);

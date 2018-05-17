@@ -187,7 +187,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
   Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
     if (mode == SMI_PARAMETERS) {                        \
-      return SmiOpName(a, b);                            \
+      return SmiOpName(CAST(a), CAST(b));                \
     } else {                                             \
       DCHECK_EQ(INTPTR_PARAMETERS, mode);                \
       return IntPtrOpName(a, b);                         \
@@ -275,7 +275,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Smi operations.
 #define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)                  \
-  TNode<Smi> SmiOpName(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {       \
+  TNode<Smi> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                   \
     return BitcastWordToTaggedSigned(                                  \
         IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b))); \
   }
@@ -288,11 +288,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Smi> TrySmiAdd(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
   TNode<Smi> TrySmiSub(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
 
-  TNode<Smi> SmiShl(SloppyTNode<Smi> a, int shift) {
+  TNode<Smi> SmiShl(TNode<Smi> a, int shift) {
     return BitcastWordToTaggedSigned(WordShl(BitcastTaggedToWord(a), shift));
   }
 
-  TNode<Smi> SmiShr(SloppyTNode<Smi> a, int shift) {
+  TNode<Smi> SmiShr(TNode<Smi> a, int shift) {
     return BitcastWordToTaggedSigned(
         WordAnd(WordShr(BitcastTaggedToWord(a), shift),
                 BitcastTaggedToWord(SmiConstant(-1))));
@@ -300,7 +300,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* WordOrSmiShl(Node* a, int shift, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) {
-      return SmiShl(a, shift);
+      return SmiShl(CAST(a), shift);
     } else {
       DCHECK_EQ(INTPTR_PARAMETERS, mode);
       return WordShl(a, shift);
@@ -309,7 +309,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* WordOrSmiShr(Node* a, int shift, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) {
-      return SmiShr(a, shift);
+      return SmiShr(CAST(a), shift);
     } else {
       DCHECK_EQ(INTPTR_PARAMETERS, mode);
       return WordShr(a, shift);
@@ -317,7 +317,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName)                       \
-  TNode<BoolT> SmiOpName(Node* a, Node* b) {                             \
+  TNode<BoolT> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                   \
     return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
   }
   SMI_COMPARISON_OP(SmiEqual, WordEqual)
@@ -330,15 +330,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   SMI_COMPARISON_OP(SmiGreaterThan, IntPtrGreaterThan)
   SMI_COMPARISON_OP(SmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual)
 #undef SMI_COMPARISON_OP
-  TNode<Smi> SmiMax(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
-  TNode<Smi> SmiMin(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
+  TNode<Smi> SmiMax(TNode<Smi> a, TNode<Smi> b);
+  TNode<Smi> SmiMin(TNode<Smi> a, TNode<Smi> b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
-  TNode<Number> SmiMod(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
+  TNode<Number> SmiMod(TNode<Smi> a, TNode<Smi> b);
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
-  TNode<Number> SmiMul(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
-  // Tries to computes dividend / divisor for Smi inputs; branching to bailout
+  TNode<Number> SmiMul(TNode<Smi> a, TNode<Smi> b);
+  // Tries to compute dividend / divisor for Smi inputs; branching to bailout
   // if the division needs to be performed as a floating point operation.
-  Node* TrySmiDiv(Node* dividend, Node* divisor, Label* bailout);
+  TNode<Smi> TrySmiDiv(TNode<Smi> dividend, TNode<Smi> divisor, Label* bailout);
 
   // Smi | HeapNumber operations.
   TNode<Number> NumberInc(SloppyTNode<Number> value);
@@ -349,7 +349,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void GotoIfNumber(Node* value, Label* is_number);
   TNode<Number> SmiToNumber(TNode<Smi> v) { return v; }
 
-  Node* BitwiseOp(Node* left32, Node* right32, Operation bitwise_op);
+  TNode<Number> BitwiseOp(Node* left32, Node* right32, Operation bitwise_op);
 
   // Allocate an object of the given size.
   Node* AllocateInNewSpace(Node* size, AllocationFlags flags = kNone);
@@ -471,15 +471,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void Bind(Label* label);
 #endif  // DEBUG
 
-  void BranchIfSmiEqual(Node* a, Node* b, Label* if_true, Label* if_false) {
+  void BranchIfSmiEqual(TNode<Smi> a, TNode<Smi> b, Label* if_true,
+                        Label* if_false) {
     Branch(SmiEqual(a, b), if_true, if_false);
   }
 
-  void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false) {
+  void BranchIfSmiLessThan(TNode<Smi> a, TNode<Smi> b, Label* if_true,
+                           Label* if_false) {
     Branch(SmiLessThan(a, b), if_true, if_false);
   }
 
-  void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
+  void BranchIfSmiLessThanOrEqual(TNode<Smi> a, TNode<Smi> b, Label* if_true,
                                   Label* if_false) {
     Branch(SmiLessThanOrEqual(a, b), if_true, if_false);
   }
@@ -2465,7 +2467,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Uint32T> GetSortedKeyIndex(TNode<Array> descriptors,
                                    TNode<Uint32T> entry_index);
 
-  Node* CollectFeedbackForString(Node* instance_type);
+  TNode<Smi> CollectFeedbackForString(SloppyTNode<Int32T> instance_type);
   void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
                           Variable* var_type_feedback = nullptr);
   TNode<String> AllocAndCopyStringCharacters(Node* from,

@@ -443,7 +443,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
                                                        Node* feedback_vector,
                                                        bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    Node* result = SmiMul(lhs, rhs);
+    TNode<Number> result = SmiMul(CAST(lhs), CAST(rhs));
     var_type_feedback->Bind(SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber));
@@ -467,7 +467,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
     // Smi and Number operations, so this path should not be marked as Deferred.
     Label bailout(this, rhs_is_smi ? Label::kDeferred : Label::kNonDeferred),
         end(this);
-    var_result.Bind(TrySmiDiv(lhs, rhs, &bailout));
+    var_result.Bind(TrySmiDiv(CAST(lhs), CAST(rhs), &bailout));
     var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
     Goto(&end);
 
@@ -495,7 +495,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
     Node* context, Node* dividend, Node* divisor, Node* slot_id,
     Node* feedback_vector, bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    Node* result = SmiMod(lhs, rhs);
+    TNode<Number> result = SmiMod(CAST(lhs), CAST(rhs));
     var_type_feedback->Bind(SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber));

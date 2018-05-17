@@ -1959,13 +1959,14 @@ TEST(ArgumentsForEach) {
 
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
-  Variable sum(&m, MachineRepresentation::kTagged);
+  TVariable<Smi> sum(&m);
   CodeAssemblerVariableList list({&sum}, m.zone());
 
-  sum.Bind(m.SmiConstant(0));
+  sum = m.SmiConstant(0);
 
-  arguments.ForEach(
-      list, [&m, &sum](Node* arg) { sum.Bind(m.SmiAdd(sum.value(), arg)); });
+  arguments.ForEach(list, [&m, &sum](Node* arg) {
+    sum = m.SmiAdd(sum.value(), m.CAST(arg));
+  });
 
   arguments.PopAndReturn(sum.value());
 

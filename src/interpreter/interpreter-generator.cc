@@ -902,8 +902,8 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
 
-    VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
-    VARIABLE(var_right_feedback, MachineRepresentation::kTaggedSigned);
+    TVARIABLE(Smi, var_left_feedback);
+    TVARIABLE(Smi, var_right_feedback);
     VARIABLE(var_left_word32, MachineRepresentation::kWord32);
     VARIABLE(var_right_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
@@ -919,12 +919,12 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
                                        &var_right_word32, &do_bigint_op,
                                        &var_right_bigint, &var_right_feedback);
     BIND(&do_number_op);
-    Node* result = BitwiseOp(var_left_word32.value(), var_right_word32.value(),
-                             bitwise_op);
-    Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                          BinaryOperationFeedback::kSignedSmall,
-                                          BinaryOperationFeedback::kNumber);
-    Node* input_feedback =
+    TNode<Number> result = BitwiseOp(var_left_word32.value(),
+                                     var_right_word32.value(), bitwise_op);
+    TNode<Smi> result_type = SelectSmiConstant(
+        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+        BinaryOperationFeedback::kNumber);
+    TNode<Smi> input_feedback =
         SmiOr(var_left_feedback.value(), var_right_feedback.value());
     UpdateFeedback(SmiOr(result_type, input_feedback), feedback_vector,
                    slot_index);
@@ -952,7 +952,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     Node* feedback_vector = LoadFeedbackVector();
     Node* context = GetContext();
 
-    VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
+    TVARIABLE(Smi, var_left_feedback);
     VARIABLE(var_left_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged);
     Label do_smi_op(this), if_bigint_mix(this);
@@ -961,11 +961,11 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
                                        &var_left_word32, &if_bigint_mix,
                                        &var_left_bigint, &var_left_feedback);
     BIND(&do_smi_op);
-    Node* result =
+    TNode<Number> result =
         BitwiseOp(var_left_word32.value(), SmiToInt32(right), bitwise_op);
-    Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                          BinaryOperationFeedback::kSignedSmall,
-                                          BinaryOperationFeedback::kNumber);
+    TNode<Smi> result_type = SelectSmiConstant(
+        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+        BinaryOperationFeedback::kNumber);
     UpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
                    feedback_vector, slot_index);
     SetAccumulator(result);
@@ -1059,7 +1059,7 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   Node* context = GetContext();
 
   VARIABLE(var_word32, MachineRepresentation::kWord32);
-  VARIABLE(var_feedback, MachineRepresentation::kTaggedSigned);
+  TVARIABLE(Smi, var_feedback);
   VARIABLE(var_bigint, MachineRepresentation::kTagged);
   Label if_number(this), if_bigint(this);
   TaggedToWord32OrBigIntWithFeedback(context, operand, &if_number, &var_word32,
@@ -1067,10 +1067,11 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
 
   // Number case.
   BIND(&if_number);
-  Node* result = ChangeInt32ToTagged(Signed(Word32Not(var_word32.value())));
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  TNode<Number> result =
+      ChangeInt32ToTagged(Signed(Word32Not(var_word32.value())));
+  TNode<Smi> result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
   UpdateFeedback(SmiOr(result_type, var_feedback.value()), feedback_vector,
                  slot_index);
   SetAccumulator(result);
@@ -1122,8 +1123,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
   virtual ~UnaryNumericOpAssembler() {}
 
   // Must return a tagged value.
-  virtual Node* SmiOp(Node* smi_value, Variable* var_feedback,
-                      Label* do_float_op, Variable* var_float) = 0;
+  virtual TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
+                              Label* do_float_op, Variable* var_float) = 0;
   // Must return a Float64 value.
   virtual Node* FloatOp(Node* float_value) = 0;
   // Must return a tagged value.
@@ -1136,8 +1137,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
     VARIABLE(var_result, MachineRepresentation::kTagged);
     VARIABLE(var_float_value, MachineRepresentation::kFloat64);
-    VARIABLE(var_feedback, MachineRepresentation::kTaggedSigned,
-             SmiConstant(BinaryOperationFeedback::kNone));
+    TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
     Variable* loop_vars[] = {&var_value, &var_feedback};
     Label start(this, arraysize(loop_vars), loop_vars), end(this);
     Label do_float_op(this, &var_float_value);
@@ -1159,7 +1159,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       BIND(&if_smi);
       {
         var_result.Bind(
-            SmiOp(value, &var_feedback, &do_float_op, &var_float_value));
+            SmiOp(CAST(value), &var_feedback, &do_float_op, &var_float_value));
         Goto(&end);
       }
 
@@ -1224,9 +1224,9 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
                                OperandScale operand_scale)
       : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
 
-  Node* SmiOp(Node* smi_value, Variable* var_feedback, Label* do_float_op,
-              Variable* var_float) override {
-    VARIABLE(var_result, MachineRepresentation::kTagged);
+  TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
+                      Label* do_float_op, Variable* var_float) override {
+    TVARIABLE(Number, var_result);
     Label if_zero(this), if_min_smi(this), end(this);
     // Return -0 if operand is 0.
     GotoIf(SmiEqual(smi_value, SmiConstant(0)), &if_zero);
@@ -1236,12 +1236,12 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
 
     // Else simply subtract operand from 0.
     CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-    var_result.Bind(SmiSub(SmiConstant(0), smi_value));
+    var_result = SmiSub(SmiConstant(0), smi_value);
     Goto(&end);
 
     BIND(&if_zero);
     CombineFeedback(var_feedback, BinaryOperationFeedback::kNumber);
-    var_result.Bind(MinusZeroConstant());
+    var_result = MinusZeroConstant();
     Goto(&end);
 
     BIND(&if_min_smi);
@@ -1320,9 +1320,8 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     return op_;
   }
 
-  Node* SmiOp(Node* smi_value, Variable* var_feedback, Label* do_float_op,
-              Variable* var_float) override {
-    TNode<Smi> value = CAST(smi_value);
+  TNode<Number> SmiOp(TNode<Smi> value, Variable* var_feedback,
+                      Label* do_float_op, Variable* var_float) override {
     TNode<Smi> one = SmiConstant(1);
     Label if_overflow(this), if_notoverflow(this);
     TNode<Smi> result = op() == Operation::kIncrement
@@ -1332,7 +1331,7 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
 
     BIND(&if_overflow);
     {
-      var_float->Bind(SmiToFloat64(smi_value));
+      var_float->Bind(SmiToFloat64(value));
       Goto(do_float_op);
     }
 
@@ -2966,9 +2965,9 @@ IGNITION_HANDLER(ForInContinue, InterpreterAssembler) {
 // Increments the loop counter in register |index| and stores the result
 // in the accumulator.
 IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
-  Node* index = LoadRegisterAtOperandIndex(0);
-  Node* one = SmiConstant(1);
-  Node* result = SmiAdd(index, one);
+  TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<Smi> one = SmiConstant(1);
+  TNode<Smi> result = SmiAdd(index, one);
   SetAccumulator(result);
   Dispatch();
 }

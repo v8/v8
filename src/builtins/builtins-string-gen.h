@@ -74,12 +74,12 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position, std::function<void(Node*)> f_return);
 
-  Node* IndexOfDollarChar(Node* const context, Node* const string);
+  TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
 
   void RequireObjectCoercible(Node* const context, Node* const value,
                               const char* method_name);
 
-  Node* SmiIsNegative(Node* const value) {
+  TNode<BoolT> SmiIsNegative(TNode<Smi> value) {
     return SmiLessThan(value, SmiConstant(0));
   }
 

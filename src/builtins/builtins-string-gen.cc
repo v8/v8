@@ -1054,7 +1054,7 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant) {
       arguments.PopAndReturn((variant == kIndexOf)
                                  ? result
                                  : SelectBooleanConstant(SmiGreaterThanOrEqual(
-                                       result, SmiConstant(0))));
+                                       CAST(result), SmiConstant(0))));
     });
   }
   BIND(&call_runtime);
@@ -1156,16 +1156,15 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   BIND(&out);
 }
 
-compiler::Node* StringBuiltinsAssembler::IndexOfDollarChar(Node* const context,
-                                                           Node* const string) {
+TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(Node* const context,
+                                                      Node* const string) {
   CSA_ASSERT(this, IsString(string));
 
-  Node* const dollar_string = HeapConstant(
+  TNode<String> const dollar_string = HeapConstant(
       isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
-  Node* const dollar_ix = CallBuiltin(Builtins::kStringIndexOf, context, string,
-                                      dollar_string, SmiConstant(0));
-
-  CSA_ASSERT(this, TaggedIsSmi(dollar_ix));
+  TNode<Smi> const dollar_ix =
+      CAST(CallBuiltin(Builtins::kStringIndexOf, context, string, dollar_string,
+                       SmiConstant(0)));
   return dollar_ix;
 }
 
@@ -1188,7 +1187,7 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
   // TODO(jgruber): Possibly extend this in the future to handle more complex
   // cases without runtime calls.
 
-  Node* const dollar_index = IndexOfDollarChar(context, replace_string);
+  TNode<Smi> const dollar_index = IndexOfDollarChar(context, replace_string);
   Branch(SmiIsNegative(dollar_index), &out, &runtime);
 
   BIND(&runtime);
@@ -1233,16 +1232,17 @@ TF_BUILTIN(StringPrototypeRepeat, StringBuiltinsAssembler) {
     Label if_count_isheapnumber(this, Label::kDeferred);
 
     GotoIfNot(TaggedIsSmi(var_count.value()), &if_count_isheapnumber);
-
-    // If count is a SMI, throw a RangeError if less than 0 or greater than
-    // the maximum string length.
-    GotoIf(SmiLessThan(var_count.value(), SmiConstant(0)), &invalid_count);
-    GotoIf(SmiEqual(var_count.value(), SmiConstant(0)), &return_emptystring);
-    GotoIf(is_stringempty, &return_emptystring);
-    GotoIf(SmiGreaterThan(var_count.value(), SmiConstant(String::kMaxLength)),
-           &invalid_string_length);
-    Return(CallBuiltin(Builtins::kStringRepeat, context, string,
-                       var_count.value()));
+    {
+      // If count is a SMI, throw a RangeError if less than 0 or greater than
+      // the maximum string length.
+      TNode<Smi> smi_count = CAST(var_count.value());
+      GotoIf(SmiLessThan(smi_count, SmiConstant(0)), &invalid_count);
+      GotoIf(SmiEqual(smi_count, SmiConstant(0)), &return_emptystring);
+      GotoIf(is_stringempty, &return_emptystring);
+      GotoIf(SmiGreaterThan(smi_count, SmiConstant(String::kMaxLength)),
+             &invalid_string_length);
+      Return(CallBuiltin(Builtins::kStringRepeat, context, string, smi_count));
+    }
 
     // If count is a Heap Number...
     // 1) If count is Infinity, throw a RangeError exception
@@ -1280,7 +1280,7 @@ TF_BUILTIN(StringPrototypeRepeat, StringBuiltinsAssembler) {
 TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const string = Parameter(Descriptor::kString);
-  Node* const count = Parameter(Descriptor::kCount);
+  TNode<Smi> const count = CAST(Parameter(Descriptor::kCount));
 
   CSA_ASSERT(this, IsString(string));
   CSA_ASSERT(this, Word32BinaryNot(IsEmptyString(string)));
@@ -1299,7 +1299,7 @@ TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
   //   }
   VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
   VARIABLE(var_temp, MachineRepresentation::kTagged, string);
-  VARIABLE(var_count, MachineRepresentation::kTagged, count);
+  TVARIABLE(Smi, var_count, count);
 
   Callable stringadd_callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
@@ -1317,7 +1317,7 @@ TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
       BIND(&next);
     }
 
-    var_count.Bind(SmiShr(var_count.value(), 1));
+    var_count = SmiShr(var_count.value(), 1);
     GotoIf(SmiEqual(var_count.value(), SmiConstant(0)), &return_result);
     var_temp.Bind(CallStub(stringadd_callable, context, var_temp.value(),
                            var_temp.value()));
@@ -1337,7 +1337,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Node* const replace = Parameter(Descriptor::kReplace);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const smi_zero = SmiConstant(0);
+  TNode<Smi> const smi_zero = SmiConstant(0);
 
   RequireObjectCoercible(context, receiver, "String.prototype.replace");
 
@@ -1392,10 +1392,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   // longer substrings - we can handle up to 8 chars (one-byte) / 4 chars
   // (2-byte).
 
-  Node* const match_start_index =
-      CallBuiltin(Builtins::kStringIndexOf, context, subject_string,
-                  search_string, smi_zero);
-  CSA_ASSERT(this, TaggedIsSmi(match_start_index));
+  TNode<Smi> const match_start_index =
+      CAST(CallBuiltin(Builtins::kStringIndexOf, context, subject_string,
+                       search_string, smi_zero));
 
   // Early exit if no match found.
   {
@@ -1421,7 +1420,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  Node* const match_end_index = SmiAdd(match_start_index, search_length);
+  TNode<Smi> const match_end_index = SmiAdd(match_start_index, search_length);
 
   Callable stringadd_callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
@@ -1638,18 +1637,20 @@ class StringPadAssembler : public StringBuiltinsAssembler {
     // If no max_length was provided, return the string.
     GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &dont_pad);
 
-    Node* const max_length = ToLength_Inline(context, arguments.AtIndex(0));
+    TNode<Number> const max_length =
+        ToLength_Inline(context, arguments.AtIndex(0));
     CSA_ASSERT(this, IsNumberNormalized(max_length));
 
     // Throw if max_length is not a smi or greater than the max string length.
-    GotoIfNot(Word32And(TaggedIsSmi(max_length),
-                        SmiLessThanOrEqual(max_length,
-                                           SmiConstant(String::kMaxLength))),
-              &invalid_string_length);
+    GotoIfNot(TaggedIsSmi(max_length), &invalid_string_length);
+    TNode<Smi> smi_max_length = CAST(max_length);
+    GotoIfNot(
+        SmiLessThanOrEqual(smi_max_length, SmiConstant(String::kMaxLength)),
+        &invalid_string_length);
 
     // If the max_length is less than length of the string, return the string.
-    CSA_ASSERT(this, TaggedIsPositiveSmi(max_length));
-    GotoIf(SmiLessThanOrEqual(max_length, string_length), &dont_pad);
+    CSA_ASSERT(this, TaggedIsPositiveSmi(smi_max_length));
+    GotoIf(SmiLessThanOrEqual(smi_max_length, string_length), &dont_pad);
 
     Branch(IntPtrEqual(argc, IntPtrConstant(1)), &pad, &argc_2);
     BIND(&argc_2);
@@ -1667,11 +1668,11 @@ class StringPadAssembler : public StringBuiltinsAssembler {
     {
       CSA_ASSERT(this,
                  IntPtrGreaterThan(var_fill_length.value(), IntPtrConstant(0)));
-      CSA_ASSERT(this, SmiGreaterThan(max_length, string_length));
+      CSA_ASSERT(this, SmiGreaterThan(smi_max_length, string_length));
 
       Callable stringadd_callable =
           CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-      TNode<Smi> const pad_length = SmiSub(max_length, string_length);
+      TNode<Smi> const pad_length = SmiSub(smi_max_length, string_length);
 
       VARIABLE(var_pad, MachineRepresentation::kTagged);
 
@@ -1841,7 +1842,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // Shortcut for {limit} == 0.
   {
     Label next(this);
-    GotoIfNot(SmiEqual(limit_number, smi_zero), &next);
+    GotoIfNot(WordEqual(limit_number, smi_zero), &next);
 
     const ElementsKind kind = PACKED_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
@@ -2069,24 +2070,24 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
 
   Label out(this);
 
-  VARIABLE(var_start, MachineRepresentation::kTagged);
-  VARIABLE(var_end, MachineRepresentation::kTagged);
+  TVARIABLE(Smi, var_start);
+  TVARIABLE(Smi, var_end);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   TNode<String> const string =
       ToThisString(context, receiver, "String.prototype.substring");
 
-  Node* const length = LoadStringLengthAsSmi(string);
+  TNode<Smi> const length = LoadStringLengthAsSmi(string);
 
   // Conversion and bounds-checks for {start}.
-  var_start.Bind(ToSmiBetweenZeroAnd(context, start, length));
+  var_start = ToSmiBetweenZeroAnd(context, start, length);
 
   // Conversion and bounds-checks for {end}.
   {
-    var_end.Bind(length);
+    var_end = length;
     GotoIf(IsUndefined(end), &out);
 
-    var_end.Bind(ToSmiBetweenZeroAnd(context, end, length));
+    var_end = ToSmiBetweenZeroAnd(context, end, length);
 
     Label if_endislessthanstart(this);
     Branch(SmiLessThan(var_end.value(), var_start.value()),
@@ -2094,9 +2095,9 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
 
     BIND(&if_endislessthanstart);
     {
-      Node* const tmp = var_end.value();
-      var_end.Bind(var_start.value());
-      var_start.Bind(tmp);
+      TNode<Smi> const tmp = var_end.value();
+      var_end = var_start.value();
+      var_start = tmp;
       Goto(&out);
     }
   }
