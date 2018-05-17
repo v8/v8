@@ -232,7 +232,8 @@ Macro* Declarations::DeclareMacro(const std::string& name,
       ReportError(s.str());
     }
   }
-  return macro_list->AddMacro(new Macro(name, signature));
+  return macro_list->AddMacro(
+      RegisterDeclarable(std::unique_ptr<Macro>(new Macro(name, signature))));
 }
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
