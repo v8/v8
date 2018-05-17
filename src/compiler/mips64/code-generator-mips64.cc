@@ -3102,15 +3102,15 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     case kMips64Dsub: {
       // Check for overflow creates 1 or 0 for result.
       __ dsrl32(kScratchReg, i.OutputRegister(), 31);
-      __ srl(kScratchReg, i.OutputRegister(), 31);
+      __ srl(kScratchReg2, i.OutputRegister(), 31);
       __ xor_(kScratchReg2, kScratchReg, kScratchReg2);
       switch (condition) {
         case kOverflow:
           __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg);
+                                        kScratchReg2);
           break;
         case kNotOverflow:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
+          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg2);
           break;
         default:
           UNSUPPORTED_COND(instr->arch_opcode(), condition);
