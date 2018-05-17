@@ -40,7 +40,7 @@ class DetectLastRoll(Step):
     self["last_roll"] = self._options.last_roll
     if not self["last_roll"]:
       # Interpret the DEPS file to retrieve the v8 revision.
-      # TODO(machenbach): This should be part or the roll-deps api of
+      # TODO(machenbach): This should be part or the setdep api of
       # depot_tools.
       Var = lambda var: '%s'
       exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
@@ -140,7 +140,7 @@ class UploadCL(Step):
     self['json_output']['monitoring_state'] = 'upload'
     cwd = self._options.chromium
     # Patch DEPS file.
-    if self.Command("roll-dep-svn", "v8 %s" %
+    if self.Command("gclient", "setdep -r src/v8@%s" %
                     self["roll"], cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self["roll"])
 
