@@ -7,7 +7,6 @@
 #include "src/assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-opcodes.h"
