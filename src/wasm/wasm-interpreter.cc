@@ -40,7 +40,7 @@ namespace wasm {
 #define FOREACH_INTERNAL_OPCODE(V) V(Breakpoint, 0xFF)
 
 #define WASM_CTYPES(V) \
-  V(I32, int32_t) V(I64, int64_t) V(F32, float) V(F64, double)
+  V(I32, int32_t) V(I64, int64_t) V(F32, float) V(F64, double) V(S128, Simd128)
 
 #define FOREACH_SIMPLE_BINOP(V) \
   V(I32Add, uint32_t, +)        \
@@ -1286,9 +1286,9 @@ class ThreadImpl {
     for (auto p : code->locals.type_list) {
       WasmValue val;
       switch (p) {
-#define CASE_TYPE(wasm, ctype)              \
-  case kWasm##wasm:                         \
-    val = WasmValue(static_cast<ctype>(0)); \
+#define CASE_TYPE(wasm, ctype) \
+  case kWasm##wasm:            \
+    val = WasmValue(ctype{});  \
     break;
         WASM_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
@@ -1619,6 +1619,42 @@ class ThreadImpl {
           instance_object_->imported_mutable_globals()[global->index]);
     } else {
       return instance_object_->globals_start() + global->offset;
+    }
+  }
+
+  bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
+                     pc_t pc, int& len) {
+    switch (opcode) {
+#define SPLAT_CASE(format, sType, valType, num) \
+  case kExpr##format##Splat: {                  \
+    WasmValue val = Pop();                      \
+    valType v = val.to<valType>();              \
+    sType s;                                    \
+    for (int i = 0; i < num; i++) s.val[i] = v; \
+    Push(WasmValue(Simd128(s)));                \
+    return true;                                \
+  }
+      SPLAT_CASE(I32x4, int4, int32_t, 4)
+      SPLAT_CASE(F32x4, float4, float, 4)
+      SPLAT_CASE(I16x8, int8, int32_t, 8)
+      SPLAT_CASE(I8x16, int16, int32_t, 16)
+#undef SPLAT_CASE
+#define EXTRACT_LANE_CASE(format, name)                                 \
+  case kExpr##format##ExtractLane: {                                    \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
+    ++len;                                                              \
+    WasmValue val = Pop();                                              \
+    Simd128 s = val.to_s128();                                          \
+    Push(WasmValue(s.to_##name().val[imm.lane]));                       \
+    return true;                                                        \
+  }
+      EXTRACT_LANE_CASE(I32x4, i32x4)
+      EXTRACT_LANE_CASE(F32x4, f32x4)
+      EXTRACT_LANE_CASE(I16x8, i16x8)
+      EXTRACT_LANE_CASE(I8x16, i8x16)
+#undef EXTRACT_LANE_CASE
+      default:
+        return false;
     }
   }
 
@@ -2081,6 +2117,11 @@ class ThreadImpl {
         }
         case kAtomicPrefix: {
           if (!ExecuteAtomicOp(opcode, &decoder, code, pc, len)) return;
+          break;
+        }
+        case kSimdPrefix: {
+          ++len;
+          if (!ExecuteSimdOp(opcode, &decoder, code, pc, len)) return;
           break;
         }
 

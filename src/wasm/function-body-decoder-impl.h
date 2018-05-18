@@ -1143,6 +1143,8 @@ class WasmDecoder : public Decoder {
           case kExprI32AtomicStore16U:
           case kExprS128StoreMem:
             return {2, 0};
+          FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+            return {1, 1};
           default: {
             sig = WasmOpcodes::Signature(opcode);
             if (sig) {
