@@ -252,12 +252,16 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* code(uint32_t index) const {
     DCHECK_LT(index, function_count());
+    DCHECK_LE(num_imported_functions(), index);
     return code_table_[index];
   }
 
-  void set_code(uint32_t index, WasmCode* wasm_code) {
+  // TODO(clemensh): Remove this method once we have the jump table
+  // (crbug.com/v8/7758).
+  void SetCodeForTesting(uint32_t index, WasmCode* code) {
     DCHECK_LT(index, function_count());
-    code_table_[index] = wasm_code;
+    DCHECK_LE(num_imported_functions(), index);
+    code_table_[index] = code;
   }
 
   bool has_code(uint32_t index) const {

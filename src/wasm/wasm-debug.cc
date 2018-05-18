@@ -553,20 +553,16 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
   return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
 }
 
-int GetNumFunctions(WasmInstanceObject* instance) {
-  size_t num_functions =
-      instance->module_object()->shared()->module()->functions.size();
-  DCHECK_GE(kMaxInt, num_functions);
-  return static_cast<int>(num_functions);
-}
-
 Handle<FixedArray> GetOrCreateInterpretedFunctions(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
   Handle<Object> obj(debug_info->interpreted_functions(), isolate);
   if (!obj->IsUndefined(isolate)) return Handle<FixedArray>::cast(obj);
 
-  Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(
-      GetNumFunctions(debug_info->wasm_instance()));
+  int num_functions = debug_info->wasm_instance()
+                          ->compiled_module()
+                          ->GetNativeModule()
+                          ->function_count();
+  Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(num_functions);
   debug_info->set_interpreted_functions(*new_arr);
   return new_arr;
 }
@@ -603,9 +599,12 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
                                  CodeRelocationMap* map) {
   DisallowHeapAllocation no_gc;
   // Redirect all calls in wasm functions.
-  for (uint32_t i = 0, e = GetNumFunctions(instance); i < e; ++i) {
-    wasm::WasmCode* code =
-        instance->compiled_module()->GetNativeModule()->code(i);
+  wasm::NativeModule* native_module =
+      instance->compiled_module()->GetNativeModule();
+  for (uint32_t i = native_module->num_imported_functions(),
+                e = native_module->function_count();
+       i < e; ++i) {
+    wasm::WasmCode* code = native_module->code(i);
     RedirectCallsitesInCode(isolate, code, map);
   }
   // TODO(6668): Find instances that imported our code and also patch those.

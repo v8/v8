@@ -871,7 +871,9 @@ bool compile_lazy(const WasmModule* module) {
 }
 
 void FlushICache(const wasm::NativeModule* native_module) {
-  for (uint32_t i = 0, e = native_module->function_count(); i < e; ++i) {
+  for (uint32_t i = native_module->num_imported_functions(),
+                e = native_module->function_count();
+       i < e; ++i) {
     const wasm::WasmCode* code = native_module->code(i);
     if (code == nullptr) continue;
     Assembler::FlushICache(code->instructions().start(),
@@ -905,7 +907,9 @@ void RecordStats(const wasm::WasmCode* code, Counters* counters) {
 }
 
 void RecordStats(const wasm::NativeModule* native_module, Counters* counters) {
-  for (uint32_t i = 0, e = native_module->function_count(); i < e; ++i) {
+  for (uint32_t i = native_module->num_imported_functions(),
+                e = native_module->function_count();
+       i < e; ++i) {
     const wasm::WasmCode* code = native_module->code(i);
     if (code != nullptr) RecordStats(code, counters);
   }
@@ -2125,9 +2129,6 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           ImportedFunctionEntry entry(instance, func_index);
           Address imported_target = imported_function->GetWasmCallTarget();
           entry.set_wasm_to_wasm(*imported_instance, imported_target);
-          // TODO(clemensh): Remove this. NativeModule must be instance
-          // independent.
-          native_module->set_code(func_index, imported_function->GetWasmCode());
         } else {
           // The imported function is a callable.
           Handle<JSReceiver> js_receiver(JSReceiver::cast(*value), isolate_);
@@ -2651,20 +2652,20 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
         // Update the local dispatch table first.
         uint32_t sig_id = module_->signature_ids[function->sig_index];
-        Address call_target =
-            native_module->GetCallTargetForFunction(func_index);
-
+        WasmInstanceObject* target_instance = *instance;
+        Address call_target;
         const bool is_import = func_index < module_->num_imported_functions;
         if (is_import) {
-          // Imported functions have the target instance put into the IFT.
-          WasmInstanceObject* target_instance =
-              ImportedFunctionEntry(instance, func_index).instance();
-          IndirectFunctionTableEntry(instance, table_index)
-              .set(sig_id, target_instance, call_target);
+          // For imported calls, take target instance and address from the
+          // import table.
+          ImportedFunctionEntry entry(instance, func_index);
+          target_instance = entry.instance();
+          call_target = entry.target();
         } else {
-          IndirectFunctionTableEntry(instance, table_index)
-              .set(sig_id, *instance, call_target);
+          call_target = native_module->GetCallTargetForFunction(func_index);
         }
+        IndirectFunctionTableEntry(instance, table_index)
+            .set(sig_id, target_instance, call_target);
 
         if (!table_instance.table_object.is_null()) {
           // Update the table object's other dispatch tables.

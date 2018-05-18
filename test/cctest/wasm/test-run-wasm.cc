@@ -3463,8 +3463,9 @@ TEST(Liftoff_prologue) {
     CHECK_EQ(10, r.Call(1, 2, 3, 4));
 
     // Update the native_module to contain the "optimized" code ({sub_locals}).
-    native_module->set_code(add_compiler.function_index(),
-                            native_module->code(sub_compiler.function_index()));
+    native_module->SetCodeForTesting(
+        add_compiler.function_index(),
+        native_module->code(sub_compiler.function_index()));
 
     // Second run should execute {add_locals}, which should detect that
     // the code was updated, and run {sub_locals}.
