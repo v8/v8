@@ -15,6 +15,7 @@
 #include "src/compiler/diamond.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/operator-properties.h"
@@ -287,7 +288,8 @@ class RepresentationSelector {
 
   RepresentationSelector(JSGraph* jsgraph, Zone* zone,
                          RepresentationChanger* changer,
-                         SourcePositionTable* source_positions)
+                         SourcePositionTable* source_positions,
+                         NodeOriginTable* node_origins)
       : jsgraph_(jsgraph),
         zone_(zone),
         count_(jsgraph->graph()->NodeCount()),
@@ -302,6 +304,7 @@ class RepresentationSelector {
         queue_(zone),
         typing_stack_(zone),
         source_positions_(source_positions),
+        node_origins_(node_origins),
         type_cache_(TypeCache::Get()),
         op_typer_(jsgraph->isolate(), graph_zone()) {
   }
@@ -621,6 +624,8 @@ class RepresentationSelector {
       // Reuse {VisitNode()} so the representation rules are in one place.
       SourcePositionTable::Scope scope(
           source_positions_, source_positions_->GetSourcePosition(node));
+      NodeOriginTable::Scope origin_scope(node_origins_, "simplified lowering",
+                                          node);
       VisitNode(node, info->truncation(), lowering);
     }
 
@@ -3235,6 +3240,7 @@ class RepresentationSelector {
   // lowering. Once this phase becomes a vanilla reducer, it should get source
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
   TypeCache const& type_cache_;
   OperationTyper op_typer_;  // helper for the feedback typer
 
@@ -3248,17 +3254,19 @@ class RepresentationSelector {
 
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                                        SourcePositionTable* source_positions,
+                                       NodeOriginTable* node_origins,
                                        PoisoningMitigationLevel poisoning_level)
     : jsgraph_(jsgraph),
       zone_(zone),
       type_cache_(TypeCache::Get()),
       source_positions_(source_positions),
+      node_origins_(node_origins),
       poisoning_level_(poisoning_level) {}
 
 void SimplifiedLowering::LowerAllNodes() {
   RepresentationChanger changer(jsgraph(), jsgraph()->isolate());
-  RepresentationSelector selector(jsgraph(), zone_, &changer,
-                                  source_positions_);
+  RepresentationSelector selector(jsgraph(), zone_, &changer, source_positions_,
+                                  node_origins_);
   selector.Run(this);
 }
 

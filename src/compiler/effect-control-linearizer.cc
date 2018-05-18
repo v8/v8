@@ -10,6 +10,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
@@ -21,13 +22,14 @@ namespace compiler {
 
 EffectControlLinearizer::EffectControlLinearizer(
     JSGraph* js_graph, Schedule* schedule, Zone* temp_zone,
-    SourcePositionTable* source_positions,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     MaskArrayIndexEnable mask_array_index)
     : js_graph_(js_graph),
       schedule_(schedule),
       temp_zone_(temp_zone),
       mask_array_index_(mask_array_index),
       source_positions_(source_positions),
+      node_origins_(node_origins),
       graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
       frame_state_zapper_(nullptr) {}
 
@@ -167,7 +169,8 @@ void RemoveRenameNode(Node* node) {
 void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
                     Graph* graph, CommonOperatorBuilder* common,
                     BlockEffectControlMap* block_effects,
-                    SourcePositionTable* source_positions) {
+                    SourcePositionTable* source_positions,
+                    NodeOriginTable* node_origins) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
 
   // This optimization is a special case of (super)block cloning. It takes an
@@ -221,6 +224,7 @@ void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
 
   SourcePositionTable::Scope scope(source_positions,
                                    source_positions->GetSourcePosition(node));
+  NodeOriginTable::Scope origin_scope(node_origins, "clone branch", node);
   Node* branch = node;
   Node* cond = NodeProperties::GetValueInput(branch, 0);
   if (!cond->OwnedBy(branch) || cond->opcode() != IrOpcode::kPhi) return;
@@ -484,7 +488,8 @@ void EffectControlLinearizer::Run() {
       case BasicBlock::kBranch:
         ProcessNode(block->control_input(), &frame_state, &effect, &control);
         TryCloneBranch(block->control_input(), block, temp_zone(), graph(),
-                       common(), &block_effects, source_positions_);
+                       common(), &block_effects, source_positions_,
+                       node_origins_);
         break;
     }
 
@@ -516,6 +521,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
                                           Node** effect, Node** control) {
   SourcePositionTable::Scope scope(source_positions_,
                                    source_positions_->GetSourcePosition(node));
+  NodeOriginTable::Scope origin_scope(node_origins_, "process node", node);
 
   // If the node needs to be wired into the effect/control chain, do this
   // here. Pass current frame state for lowering to eager deoptimization.

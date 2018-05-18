@@ -15,6 +15,7 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
+class NodeOriginTable;
 class RepresentationChanger;
 class RepresentationSelector;
 class SourcePositionTable;
@@ -24,6 +25,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
   SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                      SourcePositionTable* source_position,
+                     NodeOriginTable* node_origins,
                      PoisoningMitigationLevel poisoning_level);
   ~SimplifiedLowering() {}
 
@@ -59,6 +61,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   // lowering. Once this phase becomes a vanilla reducer, it should get source
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
 
   PoisoningMitigationLevel poisoning_level_;
 

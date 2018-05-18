@@ -28,6 +28,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/zone-stats.h"
@@ -5110,9 +5111,14 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
                      wasm_unit_->func_index_),
         compilation_zone_.get(), Code::WASM_FUNCTION));
 
+    NodeOriginTable* node_origins = info_->trace_turbo_graph_enabled()
+                                        ? new (&graph_zone)
+                                              NodeOriginTable(mcgraph_->graph())
+                                        : nullptr;
+
     job_.reset(Pipeline::NewWasmCompilationJob(
         info_.get(), wasm_unit_->isolate_, mcgraph_, call_descriptor,
-        source_positions, &wasm_compilation_data_,
+        source_positions, node_origins, &wasm_compilation_data_,
         wasm_unit_->env_->module->origin()));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.

@@ -22,6 +22,8 @@ namespace compiler {
 
 class Graph;
 class InstructionSequence;
+class NodeOrigin;
+class NodeOriginTable;
 class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
@@ -38,6 +40,15 @@ struct SourcePositionAsJSON {
 V8_INLINE V8_EXPORT_PRIVATE SourcePositionAsJSON
 AsJSON(const SourcePosition& sp) {
   return SourcePositionAsJSON(sp);
+}
+
+struct NodeOriginAsJSON {
+  explicit NodeOriginAsJSON(const NodeOrigin& no) : no(no) {}
+  const NodeOrigin& no;
+};
+
+V8_INLINE V8_EXPORT_PRIVATE NodeOriginAsJSON AsJSON(const NodeOrigin& no) {
+  return NodeOriginAsJSON(no);
 }
 
 std::ostream& operator<<(std::ostream& out, const SourcePositionAsJSON& pos);
@@ -72,15 +83,17 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* suffix);
 
 struct GraphAsJSON {
-  GraphAsJSON(const Graph& g, SourcePositionTable* p)
-      : graph(g), positions(p) {}
+  GraphAsJSON(const Graph& g, SourcePositionTable* p, NodeOriginTable* o)
+      : graph(g), positions(p), origins(o) {}
   const Graph& graph;
   const SourcePositionTable* positions;
+  const NodeOriginTable* origins;
 };
 
 V8_INLINE V8_EXPORT_PRIVATE GraphAsJSON AsJSON(const Graph& g,
-                                               SourcePositionTable* p) {
-  return GraphAsJSON(g, p);
+                                               SourcePositionTable* p,
+                                               NodeOriginTable* o) {
+  return GraphAsJSON(g, p, o);
 }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

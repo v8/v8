@@ -27,6 +27,7 @@ class JSGraph;
 class Graph;
 class Schedule;
 class SourcePositionTable;
+class NodeOriginTable;
 
 class V8_EXPORT_PRIVATE EffectControlLinearizer {
  public:
@@ -34,6 +35,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                           SourcePositionTable* source_positions,
+                          NodeOriginTable* node_origins,
                           MaskArrayIndexEnable mask_array_index);
 
   void Run();
@@ -213,6 +215,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   MaskArrayIndexEnable mask_array_index_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
   GraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
 };

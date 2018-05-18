@@ -18,7 +18,8 @@ GraphTest::GraphTest(int num_parameters)
       TestWithIsolateAndZone(),
       common_(zone()),
       graph_(zone()),
-      source_positions_(&graph_) {
+      source_positions_(&graph_),
+      node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
 }
