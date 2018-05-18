@@ -296,6 +296,40 @@ extern macro ExtractFixedArray(
 
 extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
 
+macro LoadElementNoHole<T : type>(a: JSArray, index: Smi): Object
+labels IfHole {
+  unreachable;
+}
+
+LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
+labels IfHole {
+  try {
+    let elements: FixedArray =
+        cast<FixedArray>(a.elements) otherwise Unexpected;
+    let e: Object = elements[index];
+    if (e == Hole) {
+      goto IfHole;
+    }
+    return e;
+  }
+  label Unexpected {
+    unreachable;
+  }
+}
+
+LoadElementNoHole<FixedDoubleArray>(a: JSArray, index: Smi): Object
+labels IfHole {
+  try {
+    let elements: FixedDoubleArray =
+        cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
+    let e: float64 = LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
+    return AllocateHeapNumberWithValue(e);
+  }
+  label Unexpected {
+    unreachable;
+  }
+}
+
 macro HasPropertyObject(
     o: Object, p: Object, c: Context, f: HasPropertyFlag): Oddball {
   try {
