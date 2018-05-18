@@ -535,10 +535,6 @@ class Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  // TODO(arm64): This is only needed until direct calls are supported in
-  // WebAssembly for ARM64.
-  void set_code_in_js_code_space(bool) {}
-
   static constexpr int kSpecialTargetSize = kPointerSize;
 
   // Distance between the address of the code target in the call instruction

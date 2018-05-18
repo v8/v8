@@ -554,7 +554,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
   code_target_sharing_blocked_nesting_ = 0;
-  near_branches_allowed_ = true;
   Reset();
 }
 
@@ -598,20 +597,13 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
         Instruction* instr = reinterpret_cast<Instruction*>(pc);
-        // TODO(arm64): Only keep the else part when direct calls are supported
-        // for WebAssembly.
-        if (instr->IsLdrLiteralX()) {
-          Memory::Address_at(target_pointer_address_at(pc)) =
-              request.code_stub()->GetCode().address();
-        } else {
-          DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-          DCHECK_GE(instr->ImmPCOffset(), 0);
-          DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
-          DCHECK_LT(instr->ImmPCOffset() >> kInstructionSizeLog2,
-                    code_targets_.size());
-          code_targets_[instr->ImmPCOffset() >> kInstructionSizeLog2] =
-              request.code_stub()->GetCode();
-        }
+        DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+        DCHECK_GE(instr->ImmPCOffset(), 0);
+        DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
+        DCHECK_LT(instr->ImmPCOffset() >> kInstructionSizeLog2,
+                  code_targets_.size());
+        code_targets_[instr->ImmPCOffset() >> kInstructionSizeLog2] =
+            request.code_stub()->GetCode();
         break;
       }
     }

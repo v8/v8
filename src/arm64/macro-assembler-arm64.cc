@@ -1749,18 +1749,10 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   Label start_call;
   Bind(&start_call);
 #endif
-  if (near_branches_allowed()) {
-    Operand operand = Operand::EmbeddedCode(stub);
-    near_call(operand.heap_object_request());
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-    Ldr(temp, Operand::EmbeddedCode(stub));
-    Blr(temp);
-  }
+  Operand operand = Operand::EmbeddedCode(stub);
+  near_call(operand.heap_object_request());
 #ifdef DEBUG
-  AssertSizeOfCodeGeneratedSince(
-      &start_call, near_branches_allowed() ? kNearCallSize : kFarCallSize);
+  AssertSizeOfCodeGeneratedSince(&start_call, kNearCallSize);
 #endif
 }
 
@@ -1966,13 +1958,29 @@ void TurboAssembler::JumpHelper(int64_t offset, RelocInfo::Mode rmode,
   Bind(&done);
 }
 
+namespace {
+
+// The calculated offset is either:
+// * the 'target' input unmodified if this is a WASM call, or
+// * the offset of the target from the current PC, in instructions, for any
+//   other type of call.
+static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                     byte* pc) {
+  int64_t offset = static_cast<int64_t>(target);
+  // The target of WebAssembly calls is still an index instead of an actual
+  // address at this point, and needs to be encoded as-is.
+  if (rmode != RelocInfo::WASM_CALL) {
+    offset -= reinterpret_cast<int64_t>(pc);
+    DCHECK_EQ(offset % kInstructionSize, 0);
+    offset = offset / static_cast<int>(kInstructionSize);
+  }
+  return offset;
+}
+}  // namespace
+
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
-  int64_t offset =
-      static_cast<int64_t>(target) - reinterpret_cast<int64_t>(pc_);
-  DCHECK_EQ(offset % kInstructionSize, 0);
-  offset = offset / static_cast<int>(kInstructionSize);
-  JumpHelper(offset, rmode, cond);
+  JumpHelper(CalculateTargetOffset(target, rmode, pc_), rmode, cond);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
@@ -2019,9 +2027,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
 #endif
 
   if (CanUseNearCallOrJump(rmode)) {
-    int64_t offset =
-        static_cast<int64_t>(target) - reinterpret_cast<int64_t>(pc_);
-    offset = offset / static_cast<int>(kInstructionSize);
+    int64_t offset = CalculateTargetOffset(target, rmode, pc_);
     DCHECK(IsNearCallOffset(offset));
     near_call(static_cast<int>(offset), rmode);
   } else {

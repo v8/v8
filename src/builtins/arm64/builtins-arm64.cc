@@ -3033,8 +3033,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
-  // TODO(arm64): Remove when direct calls are supported for WebAssembly.
-  Assembler::FarBranchesOnlyScope br_scope(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 

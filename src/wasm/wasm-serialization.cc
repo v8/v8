@@ -120,9 +120,6 @@ class Reader {
 
 constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
-// Start from 1 so an encoded stub id is not confused with an encoded builtin.
-constexpr int kFirstStubId = 1;
-
 void WriteVersion(Isolate* isolate, Writer* writer) {
   writer->Write(SerializedData::ComputeMagicNumber(
       isolate->heap()->external_reference_table()));
@@ -141,11 +138,22 @@ bool IsSupportedVersion(Isolate* isolate, const Vector<const byte> version) {
 
 // On Intel, call sites are encoded as a displacement. For linking and for
 // serialization/deserialization, we want to store/retrieve a tag (the function
-// index). On Intel, that means accessing the raw displacement. Everywhere else,
-// that simply means accessing the target address.
+// index). On Intel, that means accessing the raw displacement.
+// On ARM64, call sites are encoded as either a literal load or a direct branch.
+// Other platforms simply require accessing the target address.
 void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
+#elif V8_TARGET_ARCH_ARM64
+  Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
+  if (instr->IsLdrLiteralX()) {
+    Memory::Address_at(rinfo->constant_pool_entry_address()) =
+        static_cast<Address>(tag);
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    instr->SetBranchImmTarget(
+        reinterpret_cast<Instruction*>(rinfo->pc() + tag * kInstructionSize));
+  }
 #else
   Address addr = static_cast<Address>(tag);
   if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
@@ -159,6 +167,15 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   return *(reinterpret_cast<uint32_t*>(rinfo->target_address_address()));
+#elif V8_TARGET_ARCH_ARM64
+  Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
+  if (instr->IsLdrLiteralX()) {
+    return static_cast<uint32_t>(
+        Memory::Address_at(rinfo->constant_pool_entry_address()));
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    return static_cast<uint32_t>(instr->ImmPCOffset() / kInstructionSize);
+  }
 #else
   Address addr = rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE
                      ? rinfo->target_external_reference()
@@ -182,6 +199,14 @@ constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +         // source positions size
     sizeof(size_t) +         // protected instructions size
     sizeof(WasmCode::Tier);  // tier
+
+// Bitfields used for encoding stub and builtin ids in a tag. We only use 26
+// bits total as ARM64 can only encode 26 bits in branch immediate instructions.
+class IsStubIdField : public BitField<bool, 0, 1> {};
+class StubOrBuiltinIdField
+    : public BitField<uint32_t, IsStubIdField::kNext, 25> {};
+static_assert(StubOrBuiltinIdField::kNext == 26,
+              "ARM64 only supports 26 bits for this field");
 
 }  // namespace
 
@@ -280,7 +305,7 @@ void NativeModuleSerializer::WriteCopiedStubs(Writer* writer) {
   // Get the stub count from the number of keys.
   size_t num_stubs = (stubs_size - sizeof(uint32_t)) / sizeof(uint32_t);
   writer->Write(static_cast<uint32_t>(num_stubs));
-  uint32_t stub_id = kFirstStubId;
+  uint32_t stub_id = 0;
 
   for (auto pair : native_module_->trampolines_) {
     v8::internal::Code* code = Code::GetCodeFromTargetAddress(pair.first);
@@ -383,13 +408,12 @@ uint32_t NativeModuleSerializer::EncodeBuiltinOrStub(Address address) {
   if (builtin_iter != builtin_lookup_.end()) {
     uint32_t id = builtin_iter->second;
     DCHECK_LT(id, std::numeric_limits<uint16_t>::max());
-    tag = id << 16;
+    tag = IsStubIdField::encode(false) | StubOrBuiltinIdField::encode(id);
   } else {
     auto stub_iter = stub_lookup_.find(address);
     DCHECK(stub_iter != stub_lookup_.end());
     uint32_t id = stub_iter->second;
-    DCHECK_LT(id, std::numeric_limits<uint16_t>::max());
-    tag = id & 0x0000FFFF;
+    tag = IsStubIdField::encode(true) | StubOrBuiltinIdField::encode(id);
   }
   return tag;
 }
@@ -594,13 +618,12 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
 }
 
 Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
-  if ((tag & 0x0000FFFF) == 0) {
-    int builtin_id = static_cast<int>(tag >> 16);
-    v8::internal::Code* builtin = isolate_->builtins()->builtin(builtin_id);
-    return native_module_->GetLocalAddressFor(handle(builtin));
+  uint32_t id = StubOrBuiltinIdField::decode(tag);
+  if (IsStubIdField::decode(tag)) {
+    return stubs_[id];
   } else {
-    DCHECK_EQ(tag & 0xFFFF0000, 0);
-    return stubs_[tag - kFirstStubId];
+    v8::internal::Code* builtin = isolate_->builtins()->builtin(id);
+    return native_module_->GetLocalAddressFor(handle(builtin));
   }
 }
 

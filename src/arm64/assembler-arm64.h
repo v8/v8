@@ -961,16 +961,6 @@ class Assembler : public AssemblerBase {
   // for the input HeapObjectRequest.
   void near_call(HeapObjectRequest request);
 
-  // TODO(arm64): This is only needed until direct calls are supported in
-  // WebAssembly for ARM64.
-  // Only allow near calls and jumps when the code is in the JavaScript code
-  // space.
-  void set_code_in_js_code_space(bool value) {
-    set_near_branches_allowed(value);
-  }
-  void set_near_branches_allowed(bool value) { near_branches_allowed_ = value; }
-  bool near_branches_allowed() const { return near_branches_allowed_; }
-
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
   inline static Address target_pointer_address_at(Address pc);
@@ -3189,22 +3179,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
-  // Class for disabling near calls and jumps. This scope does not deal with
-  // nesting.
-  class FarBranchesOnlyScope {
-   public:
-    explicit FarBranchesOnlyScope(Assembler* assem) : assem_(assem) {
-      DCHECK(assem_->near_branches_allowed());
-      assem_->set_near_branches_allowed(false);
-    }
-    ~FarBranchesOnlyScope() { assem_->set_near_branches_allowed(true); }
-
-   private:
-    Assembler* assem_;
-
-    DISALLOW_IMPLICIT_CONSTRUCTORS(FarBranchesOnlyScope);
-  };
-
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
@@ -3561,9 +3535,6 @@ class Assembler : public AssemblerBase {
   bool IsCodeTargetSharingAllowed() const {
     return code_target_sharing_blocked_nesting_ == 0;
   }
-
-  // Allow generation of near calls and jumps.
-  bool near_branches_allowed_;
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value

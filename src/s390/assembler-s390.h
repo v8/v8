@@ -575,10 +575,6 @@ class Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  // TODO(arm64): This is only needed until direct calls are supported in
-  // WebAssembly for ARM64.
-  void set_code_in_js_code_space(bool) {}
-
   // Here we are patching the address in the IIHF/IILF instruction pair.
   // These values are used in the serialization process and must be zero for
   // S390 platform, as Code, Embedded Object or External-reference pointers
