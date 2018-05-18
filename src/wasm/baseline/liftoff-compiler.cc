@@ -2013,7 +2013,7 @@ wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
 void LiftoffCompilationUnit::AbortCompilation() {
   // The compilation is aborted. Put the assembler in a clean mode before
   // its deletion.
-  asm_.FinishCode();
+  asm_.AbortCompilation();
 }
 
 #undef __

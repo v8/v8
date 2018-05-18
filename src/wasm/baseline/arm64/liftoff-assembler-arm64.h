@@ -155,6 +155,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
 
 void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
+void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type()) {

@@ -118,6 +118,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
 
 void LiftoffAssembler::FinishCode() {}
 
+void LiftoffAssembler::AbortCompilation() {}
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type()) {

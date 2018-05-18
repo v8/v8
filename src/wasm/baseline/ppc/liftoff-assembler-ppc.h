@@ -25,6 +25,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
 
 void LiftoffAssembler::FinishCode() { EmitConstantPool(); }
 
+void LiftoffAssembler::AbortCompilation() { FinishCode(); }
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   BAILOUT("LoadConstant");
