@@ -320,8 +320,9 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
   source_out() << ";" << std::endl;
 
   const Type* common_type = GetCommonType(left.type(), right.type());
+  std::string result_var = NewTempVariable();
   const Variable* result =
-      GenerateVariableDeclaration(expr, kConditionValueVariable, common_type);
+      GenerateVariableDeclaration(expr, result_var, common_type);
 
   {
     ScopedIndent indent(this);

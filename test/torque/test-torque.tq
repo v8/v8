@@ -173,4 +173,10 @@ module test {
     assert(fptr(context, 42) == 44);
     return True;
   }
+
+  macro TestVariableRedeclaration(context : Context) : Boolean {
+    let var1 : Number = 42 == 0 ? 0 : 1;
+    let var2 : Number = 42 == 0 ? 1 : 0;
+    return True;
+  }
 }

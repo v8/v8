@@ -56,7 +56,6 @@ class FileVisitor {
   static constexpr const char* kTrueLabelName = "_True";
   static constexpr const char* kFalseLabelName = "_False";
   static constexpr const char* kReturnValueVariable = "_return";
-  static constexpr const char* kConditionValueVariable = "_condition";
   static constexpr const char* kDoneLabelName = "_done";
   static constexpr const char* kForIndexValueVariable = "_for_index";
 
