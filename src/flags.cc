@@ -389,9 +389,7 @@ bool TryParseUnsigned(Flag* flag, const char* arg, const char* value,
   if (val < 0 || static_cast<uint64_t>(val) > max || errno != 0) {
     PrintF(stderr,
            "Error: Value for flag %s of type %s is out of bounds "
-           "[0-%" PRIu64
-           "]\n"
-           "Try --help for options\n",
+           "[0-%" PRIu64 "]\n",
            arg, Type2String(flag->type()), max);
     return false;
   }
@@ -427,8 +425,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           // sense there.
           continue;
         } else {
-          PrintF(stderr, "Error: unrecognized flag %s\n"
-                 "Try --help for options\n", arg);
+          PrintF(stderr, "Error: unrecognized flag %s\n", arg);
           return_code = j;
           break;
         }
@@ -442,9 +439,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           value = argv[i++];
         }
         if (!value) {
-          PrintF(stderr, "Error: missing value for flag %s of type %s\n"
-                 "Try --help for options\n",
-                 arg, Type2String(flag->type()));
+          PrintF(stderr, "Error: missing value for flag %s of type %s\n", arg,
+                 Type2String(flag->type()));
           return_code = j;
           break;
         }
@@ -501,9 +497,10 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           flag->type() == Flag::TYPE_MAYBE_BOOL;
       if ((is_bool_type && value != nullptr) || (!is_bool_type && negated) ||
           *endp != '\0') {
-        PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
-               "Try --help for options\n",
-               arg, Type2String(flag->type()));
+        // TODO(neis): TryParseUnsigned may return with {*endp == '\0'} even in
+        // an error case.
+        PrintF(stderr, "Error: illegal value for flag %s of type %s\n", arg,
+               Type2String(flag->type()));
         if (is_bool_type) {
           PrintF(stderr,
                  "To set or unset a boolean flag, use --flag or --no-flag.\n");
@@ -521,19 +518,28 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
     }
   }
 
-  // shrink the argument list
+  if (FLAG_help) {
+    PrintHelp();
+    exit(0);
+  }
+
   if (remove_flags) {
+    // shrink the argument list
     int j = 1;
     for (int i = 1; i < *argc; i++) {
       if (argv[i] != nullptr) argv[j++] = argv[i];
     }
     *argc = j;
+  } else if (return_code != 0) {
+    if (return_code + 1 < *argc) {
+      PrintF(stderr, "The remaining arguments were ignored:");
+      for (int i = return_code + 1; i < *argc; ++i) {
+        PrintF(stderr, " %s", argv[i]);
+      }
+      PrintF(stderr, "\n");
+    }
   }
-
-  if (FLAG_help) {
-    PrintHelp();
-    exit(0);
-  }
+  if (return_code != 0) PrintF(stderr, "Try --help for options\n");
 
   return return_code;
 }
@@ -580,10 +586,7 @@ int FlagList::SetFlagsFromString(const char* str, int len) {
     p = SkipWhiteSpace(p);
   }
 
-  // set the flags
-  int result = SetFlagsFromCommandLine(&argc, argv.start(), false);
-
-  return result;
+  return SetFlagsFromCommandLine(&argc, argv.start(), false);
 }
 
 
