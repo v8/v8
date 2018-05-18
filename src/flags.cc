@@ -312,18 +312,15 @@ inline char NormalizeChar(char ch) {
 }
 
 // Helper function to parse flags: Takes an argument arg and splits it into
-// a flag name and flag value (or nullptr if they are missing). is_bool is set
+// a flag name and flag value (or nullptr if they are missing). negated is set
 // if the arg started with "-no" or "--no". The buffer may be used to NUL-
 // terminate the name, it must be large enough to hold any possible name.
-static void SplitArgument(const char* arg,
-                          char* buffer,
-                          int buffer_size,
-                          const char** name,
-                          const char** value,
-                          bool* is_bool) {
+static void SplitArgument(const char* arg, char* buffer, int buffer_size,
+                          const char** name, const char** value,
+                          bool* negated) {
   *name = nullptr;
   *value = nullptr;
-  *is_bool = false;
+  *negated = false;
 
   if (arg != nullptr && *arg == '-') {
     // find the begin of the flag name
@@ -339,7 +336,7 @@ static void SplitArgument(const char* arg,
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;  // remove "no"
       if (NormalizeChar(arg[0]) == '-') arg++;  // remove dash after "no".
-      *is_bool = true;
+      *negated = true;
     }
     *name = arg;
 
@@ -416,8 +413,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
     char buffer[1*KB];
     const char* name;
     const char* value;
-    bool is_bool;
-    SplitArgument(arg, buffer, sizeof buffer, &name, &value, &is_bool);
+    bool negated;
+    SplitArgument(arg, buffer, sizeof buffer, &name, &value, &negated);
 
     if (name != nullptr) {
       // lookup the flag
@@ -457,10 +454,10 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       char* endp = const_cast<char*>("");  // *endp is only read
       switch (flag->type()) {
         case Flag::TYPE_BOOL:
-          *flag->bool_variable() = !is_bool;
+          *flag->bool_variable() = !negated;
           break;
         case Flag::TYPE_MAYBE_BOOL:
-          *flag->maybe_bool_variable() = MaybeBoolFlag::Create(true, !is_bool);
+          *flag->maybe_bool_variable() = MaybeBoolFlag::Create(true, !negated);
           break;
         case Flag::TYPE_INT:
           *flag->int_variable() = static_cast<int>(strtol(value, &endp, 10));
@@ -502,7 +499,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       // handle errors
       bool is_bool_type = flag->type() == Flag::TYPE_BOOL ||
           flag->type() == Flag::TYPE_MAYBE_BOOL;
-      if ((is_bool_type && value != nullptr) || (!is_bool_type && is_bool) ||
+      if ((is_bool_type && value != nullptr) || (!is_bool_type && negated) ||
           *endp != '\0') {
         PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
                "Try --help for options\n",
@@ -537,7 +534,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
     PrintHelp();
     exit(0);
   }
-  // parsed all flags successfully
+
   return return_code;
 }
 
