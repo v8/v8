@@ -388,6 +388,8 @@ class WasmGraphBuilder {
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position, Node* instance_node,
                       UseRetpoline use_retpoline);
+  Node* BuildImportWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
+                            wasm::WasmCodePosition position, int func_index);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

@@ -2559,7 +2559,8 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
       GetWasmCallDescriptor(mcgraph()->zone(), sig, use_retpoline);
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call = graph()->NewNode(op, static_cast<int>(count), args);
-  SetSourcePosition(call, position);
+  DCHECK(position == wasm::kNoCodePosition || position > 0);
+  if (position > 0) SetSourcePosition(call, position);
 
   *effect_ = call;
   size_t ret_count = sig->return_count();
@@ -2579,38 +2580,43 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   return call;
 }
 
+Node* WasmGraphBuilder::BuildImportWasmCall(wasm::FunctionSig* sig, Node** args,
+                                            Node*** rets,
+                                            wasm::WasmCodePosition position,
+                                            int func_index) {
+  // Load the instance from the imported_instances array at a known offset.
+  Node* imported_instances = LOAD_INSTANCE_FIELD(ImportedFunctionInstances,
+                                                 MachineType::TaggedPointer());
+  Node* instance_node = LOAD_FIXED_ARRAY_SLOT(imported_instances, func_index);
+
+  // Load the target from the imported_targets array at a known offset.
+  Node* imported_targets =
+      LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
+  Node* target_node = graph()->NewNode(
+      mcgraph()->machine()->Load(MachineType::Pointer()), imported_targets,
+      mcgraph()->Int32Constant(func_index * sizeof(Address)),
+      mcgraph()->graph()->start(), mcgraph()->graph()->start());
+  args[0] = target_node;
+  return BuildWasmCall(sig, args, rets, position, instance_node,
+                       untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
+}
+
 Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
   wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
-    // A call to an imported function.
-    // Load the instance from the imported_instances array at a known offset.
-    Node* imported_instances = LOAD_INSTANCE_FIELD(
-        ImportedFunctionInstances, MachineType::TaggedPointer());
-    Node* instance_node = LOAD_FIXED_ARRAY_SLOT(imported_instances, index);
-
-    // Load the target from the imported_targets array at a known offset.
-    Node* imported_targets =
-        LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
-    Node* target_node = graph()->NewNode(
-        mcgraph()->machine()->Load(MachineType::Pointer()), imported_targets,
-        mcgraph()->Int32Constant(index * sizeof(Address)),
-        mcgraph()->graph()->start(), mcgraph()->graph()->start());
-    args[0] = target_node;
-    return BuildWasmCall(
-        sig, args, rets, position, instance_node,
-        untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
-
-  } else {
-    // A call to a function in this module.
-    // Just encode the function index. This will be patched at instantiation.
-    Address code = static_cast<Address>(index);
-    args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
-
-    return BuildWasmCall(sig, args, rets, position, nullptr, kNoRetpoline);
+    // Call to an imported function.
+    return BuildImportWasmCall(sig, args, rets, position, index);
   }
+
+  // A direct call to a wasm function defined in this module.
+  // Just encode the function index. This will be patched at instantiation.
+  Address code = static_cast<Address>(index);
+  args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
+
+  return BuildWasmCall(sig, args, rets, position, nullptr, kNoRetpoline);
 }
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
@@ -4298,11 +4304,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return instance;
   }
 
-  void BuildJSToWasmWrapper(Address call_target) {
+  void BuildJSToWasmWrapper(uint32_t wasm_func_index, Address call_target) {
     const int wasm_count = static_cast<int>(sig_->parameter_count());
-    const int count =
-        wasm_count + 4;  // wasm_code, instance_node, effect, and control.
-    Node** args = Buffer(count);
 
     // Build the start and the JS parameter nodes.
     Node* start = Start(wasm_count + 5);
@@ -4327,8 +4330,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     DCHECK_NULL(instance_node_);
     instance_node_ = BuildLoadInstanceFromExportedFunction(js_closure);
 
-    Node* wasm_code_node = mcgraph()->RelocatableIntPtrConstant(
-        call_target, RelocInfo::JS_TO_WASM_CALL);
     if (!wasm::IsJSCompatibleSignature(sig_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
       // function (passed as a parameter), such that the generated code is
@@ -4339,36 +4340,40 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return;
     }
 
-    int pos = 0;
-    args[pos++] = wasm_code_node;
-    args[pos++] = instance_node_.get();
+    const int args_count = wasm_count + 1;  // +1 for wasm_code.
+    Node** args = Buffer(args_count);
+    Node** rets;
 
     // Convert JS parameters to wasm numbers.
     for (int i = 0; i < wasm_count; ++i) {
       Node* param = Param(i + 1);
       Node* wasm_param = FromJS(param, js_context, sig_->GetParam(i));
-      args[pos++] = wasm_param;
+      args[i + 1] = wasm_param;
     }
 
     // Set the ThreadInWasm flag before we do the actual call.
     BuildModifyThreadInWasmFlag(true);
 
-    args[pos++] = *effect_;
-    args[pos++] = *control_;
+    if (env_ && wasm_func_index < env_->module->num_imported_functions) {
+      // Call to an imported function.
+      DCHECK_EQ(kNullAddress, call_target);
+      BuildImportWasmCall(sig_, args, &rets, wasm::kNoCodePosition,
+                          wasm_func_index);
+    } else {
+      // Call to a wasm function defined in this module.
+      DCHECK_NE(kNullAddress, call_target);
+      args[0] = mcgraph()->RelocatableIntPtrConstant(
+          call_target, RelocInfo::JS_TO_WASM_CALL);
 
-    // Call the wasm code.
-    auto call_descriptor = GetWasmCallDescriptor(mcgraph()->zone(), sig_);
+      BuildWasmCall(sig_, args, &rets, wasm::kNoCodePosition, nullptr,
+                    kNoRetpoline);
+    }
 
-    Node* call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                                  count, args);
-    *effect_ = call;
-
-    // Clear the ThreadInWasmFlag
+    // Clear the ThreadInWasm flag.
     BuildModifyThreadInWasmFlag(false);
 
-    Node* retval = call;
-    Node* jsval = ToJS(retval, sig_->return_count() == 0 ? wasm::kWasmStmt
-                                                         : sig_->GetReturn());
+    Node* jsval = sig_->return_count() == 0 ? jsgraph()->UndefinedConstant()
+                                            : ToJS(rets[0], sig_->GetReturn());
     Return(jsval);
   }
 
@@ -4694,7 +4699,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, func->sig, nullptr);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildJSToWasmWrapper(call_target);
+  builder.BuildJSToWasmWrapper(index, call_target);
 
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.
