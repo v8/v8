@@ -2137,7 +2137,9 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
     TVARIABLE(Number, index, SmiConstant(0));
 
-    GotoIf(SmiEqual(CAST(length.value()), SmiConstant(0)), &finished);
+    // TODO(ishell): remove <Object, Object>
+    GotoIf(WordEqual<Object, Object>(length.value(), SmiConstant(0)),
+           &finished);
 
     // Loop from 0 to length-1.
     {
