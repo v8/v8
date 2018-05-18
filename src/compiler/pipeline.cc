@@ -614,11 +614,12 @@ struct TurboCfgFile : public std::ofstream {
 };
 
 void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
-                   Schedule* schedule) {
+                   Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
-    json_of << "{\"name\":\"Schedule\",\"type\":\"schedule\",\"data\":\"";
+    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"schedule\""
+            << ",\"data\":\"";
     std::stringstream schedule_stream;
     schedule_stream << *schedule;
     std::string schedule_string(schedule_stream.str());
@@ -942,10 +943,10 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
             << "\", \"source\":\"\",\n\"phases\":[";
   }
 
-  pipeline_.RunPrintAndVerify("Machine", true);
+  pipeline_.RunPrintAndVerify("machine", true);
   if (FLAG_wasm_opt || asmjs_origin_) {
     PipelineData* data = &data_;
-    PipelineRunScope scope(data, "Wasm optimization");
+    PipelineRunScope scope(data, "wasm optimization");
     GraphReducer graph_reducer(scope.zone(), data->graph(),
                                data->mcgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -960,7 +961,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
-    pipeline_.RunPrintAndVerify("Optimized Machine", true);
+    pipeline_.RunPrintAndVerify("wasm optimization", true);
   }
 
   pipeline_.ComputeScheduledGraph();
@@ -1049,7 +1050,7 @@ void PipelineImpl::Run(Arg0 arg_0, Arg1 arg_1) {
 }
 
 struct GraphBuilderPhase {
-  static const char* phase_name() { return "graph builder"; }
+  static const char* phase_name() { return "bytecode graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
@@ -1368,7 +1369,8 @@ struct EffectControlLinearizationPhase {
       Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
                                                       Scheduler::kTempSchedule);
       if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
-      TraceSchedule(data->info(), data->isolate(), schedule);
+      TraceSchedule(data->info(), data->isolate(), schedule,
+                    "effect linearization schedule");
 
       EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
           (data->info()->GetPoisoningMitigationLevel() !=
@@ -1501,7 +1503,7 @@ struct LateOptimizationPhase {
 };
 
 struct EarlyGraphTrimmingPhase {
-  static const char* phase_name() { return "early graph trimming"; }
+  static const char* phase_name() { return "early trimming"; }
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
@@ -1845,15 +1847,15 @@ bool PipelineImpl::CreateGraph() {
   }
 
   Run<GraphBuilderPhase>();
-  RunPrintAndVerify("Initial untyped", true);
+  RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
   // Perform function context specialization and inlining (if enabled).
   Run<InliningPhase>();
-  RunPrintAndVerify("Inlined", true);
+  RunPrintAndVerify(InliningPhase::phase_name(), true);
 
   // Remove dead->live edges from the graph.
   Run<EarlyGraphTrimmingPhase>();
-  RunPrintAndVerify("Early trimmed", true);
+  RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
@@ -1874,11 +1876,11 @@ bool PipelineImpl::CreateGraph() {
     // leave this scope below.
     Typer typer(isolate(), flags, data->graph());
     Run<TyperPhase>(&typer);
-    RunPrintAndVerify("Typed");
+    RunPrintAndVerify(TyperPhase::phase_name());
 
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
-    RunPrintAndVerify("Lowered typed");
+    RunPrintAndVerify(TypedLoweringPhase::phase_name());
   }
 
   // Do some hacky things to prepare for the optimization phase.
@@ -1897,15 +1899,15 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   if (data->info()->is_loop_peeling_enabled()) {
     Run<LoopPeelingPhase>();
-    RunPrintAndVerify("Loops peeled", true);
+    RunPrintAndVerify(LoopPeelingPhase::phase_name(), true);
   } else {
     Run<LoopExitEliminationPhase>();
-    RunPrintAndVerify("Loop exits eliminated", true);
+    RunPrintAndVerify(LoopExitEliminationPhase::phase_name(), true);
   }
 
   if (FLAG_turbo_load_elimination) {
     Run<LoadEliminationPhase>();
-    RunPrintAndVerify("Load eliminated");
+    RunPrintAndVerify(LoadEliminationPhase::phase_name());
   }
 
   if (FLAG_turbo_escape) {
@@ -1916,14 +1918,14 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       data->EndPhaseKind();
       return false;
     }
-    RunPrintAndVerify("Escape Analysed");
+    RunPrintAndVerify(EscapeAnalysisPhase::phase_name());
   }
 
   // Perform simplified lowering. This has to run w/o the Typer decorator,
   // because we cannot compute meaningful types anyways, and the computed types
   // might even conflict with the representation/truncation logic.
   Run<SimplifiedLoweringPhase>();
-  RunPrintAndVerify("Simplified lowering", true);
+  RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
   // From now on it is invalid to look at types on the nodes, because the types
   // on the nodes might not make sense after representation selection due to the
@@ -1934,42 +1936,42 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // remove the types from the nodes (currently only in Debug builds).
 #ifdef DEBUG
   Run<UntyperPhase>();
-  RunPrintAndVerify("Untyped", true);
+  RunPrintAndVerify(UntyperPhase::phase_name(), true);
 #endif
 
   // Run generic lowering pass.
   Run<GenericLoweringPhase>();
-  RunPrintAndVerify("Generic lowering", true);
+  RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
 
   data->BeginPhaseKind("block building");
 
   // Run early optimization pass.
   Run<EarlyOptimizationPhase>();
-  RunPrintAndVerify("Early optimized", true);
+  RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
 
   Run<EffectControlLinearizationPhase>();
-  RunPrintAndVerify("Effect and control linearized", true);
+  RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
 
   if (FLAG_turbo_store_elimination) {
     Run<StoreStoreEliminationPhase>();
-    RunPrintAndVerify("Store-store elimination", true);
+    RunPrintAndVerify(StoreStoreEliminationPhase::phase_name(), true);
   }
 
   // Optimize control flow.
   if (FLAG_turbo_cf_optimization) {
     Run<ControlFlowOptimizationPhase>();
-    RunPrintAndVerify("Control flow optimized", true);
+    RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
   }
 
   // Optimize memory access and allocation operations.
   Run<MemoryOptimizationPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify("Memory optimized", true);
+  RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
   // Lower changes that have been inserted before.
   Run<LateOptimizationPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify("Late optimized", true);
+  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json_enabled()) {
@@ -2027,7 +2029,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
-  TraceSchedule(data.info(), data.isolate(), data.schedule());
+  TraceSchedule(data.info(), data.isolate(), data.schedule(), "schedule");
 
   pipeline.Run<VerifyGraphPhase>(false, true);
   return pipeline.GenerateCode(call_descriptor);
@@ -2090,7 +2092,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
             << "\", \"source\":\"\",\n\"phases\":[";
   }
   // TODO(rossberg): Should this really be untyped?
-  pipeline.RunPrintAndVerify("Machine", true);
+  pipeline.RunPrintAndVerify("machine", true);
 
   // Ensure we have a schedule.
   if (data.schedule() == nullptr) {
@@ -2138,10 +2140,10 @@ void PipelineImpl::ComputeScheduledGraph() {
   DCHECK_NULL(data->schedule());
 
   Run<LateGraphTrimmingPhase>();
-  RunPrintAndVerify("Late trimmed", true);
+  RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
 
   Run<ComputeSchedulePhase>();
-  TraceSchedule(data->info(), data->isolate(), data->schedule());
+  TraceSchedule(data->info(), data->isolate(), data->schedule(), "schedule");
 }
 
 bool PipelineImpl::SelectInstructions(Linkage* linkage) {
