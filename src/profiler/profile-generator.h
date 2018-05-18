@@ -56,9 +56,11 @@ class CodeEntry {
   int position() const { return position_; }
   void set_position(int position) { position_ = position; }
   void set_bailout_reason(const char* bailout_reason) {
-    bailout_reason_ = bailout_reason;
+    EnsureRareData()->bailout_reason_ = bailout_reason;
   }
-  const char* bailout_reason() const { return bailout_reason_; }
+  const char* bailout_reason() const {
+    return rare_data_ ? rare_data_->bailout_reason_ : kEmptyBailoutReason;
+  }
 
   void set_deopt_info(const char* deopt_reason, int deopt_id) {
     DCHECK(!has_deopt_info());
@@ -127,6 +129,7 @@ class CodeEntry {
  private:
   struct RareData {
     const char* deopt_reason_ = kNoDeoptReason;
+    const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
     std::unordered_map<int, std::vector<std::unique_ptr<CodeEntry>>>
         inline_locations_;
@@ -169,7 +172,6 @@ class CodeEntry {
   int column_number_;
   int script_id_;
   int position_;
-  const char* bailout_reason_;
   std::unique_ptr<SourcePositionTable> line_info_;
   Address instruction_start_;
   std::unique_ptr<RareData> rare_data_;

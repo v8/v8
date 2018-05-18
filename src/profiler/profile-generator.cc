@@ -145,7 +145,9 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
   Script* script = Script::cast(shared->script());
   set_script_id(script->id());
   set_position(shared->StartPosition());
-  set_bailout_reason(GetBailoutReason(shared->disable_optimization_reason()));
+  if (shared->optimization_disabled()) {
+    set_bailout_reason(GetBailoutReason(shared->disable_optimization_reason()));
+  }
 }
 
 CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {

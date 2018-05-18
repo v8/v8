@@ -23,7 +23,6 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
       column_number_(column_number),
       script_id_(v8::UnboundScript::kNoScriptId),
       position_(0),
-      bailout_reason_(kEmptyBailoutReason),
       line_info_(std::move(line_info)),
       instruction_start_(instruction_start) {}
 
