@@ -767,16 +767,24 @@ class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
   def RunStep(self):
+    reviewer = None
     if self._options.reviewer:
       print "Using account %s for review." % self._options.reviewer
       reviewer = self._options.reviewer
-    else:
+
+    tbr_reviewer = None
+    if self._options.tbr_reviewer:
+      print "Using account %s for TBR review." % self._options.tbr_reviewer
+      tbr_reviewer = self._options.tbr_reviewer
+
+    if not reviewer and not tbr_reviewer:
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
+
     self.GitUpload(reviewer, self._options.author, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc)
+                   cc=self._options.cc, tbr_reviewer=tbr_reviewer)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -829,6 +837,8 @@ class ScriptsBase(object):
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
+    parser.add_argument("--tbr-reviewer", "--tbr", default="",
+                        help="The account name to be used for TBR reviews.")
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
