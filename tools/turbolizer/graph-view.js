@@ -540,7 +540,7 @@ class GraphView extends View {
 
     var showSelectionFrontierNodes = function (inEdges, filter, select) {
       var frontier = graph.getNodeFrontier(state.selection, inEdges, filter);
-      if (frontier != undefined) {
+      if (frontier != undefined && frontier.size) {
         if (select) {
           if (!d3.event.shiftKey) {
             state.selection.clear();
@@ -585,13 +585,13 @@ class GraphView extends View {
         break;
       case 67:
         // 'c'
-        showSelectionFrontierNodes(!d3.event.altKey,
+        showSelectionFrontierNodes(d3.event.altKey,
           (edge, index) => { return edge.type == 'control'; },
           true);
         break;
       case 69:
         // 'e'
-        showSelectionFrontierNodes(!d3.event.altKey,
+        showSelectionFrontierNodes(d3.event.altKey,
             (edge, index) => { return edge.type == 'effect'; },
             true);
         break;
@@ -892,6 +892,7 @@ class GraphView extends View {
     });
 
     graph.svg.style.height = '100%';
+    redetermineGraphBoundingBox(this);
   }
 
   getVisibleTranslation(translate, scale) {

@@ -489,5 +489,4 @@ function redetermineGraphBoundingBox(graph) {
 
   graph.maxGraphX = graph.maxGraphNodeX +
     graph.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
-
 }
