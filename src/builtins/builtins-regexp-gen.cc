@@ -1866,27 +1866,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Branch(IsNull(result), &if_didnotmatch, &load_match);
 
         BIND(&load_match);
-        {
-          Label fast_result(this), slow_result(this);
-          BranchIfFastRegExpResult(context, result, &fast_result, &slow_result);
-
-          BIND(&fast_result);
-          {
-            Node* const result_fixed_array = LoadElements(result);
-            Node* const match = LoadFixedArrayElement(result_fixed_array, 0);
-
-            var_match.Bind(ToString_Inline(context, match));
-            Goto(&if_didmatch);
-          }
-
-          BIND(&slow_result);
-          {
-            // TODO(ishell): Use GetElement stub once it's available.
-            Node* const match = GetProperty(context, result, smi_zero);
-            var_match.Bind(ToString_Inline(context, match));
-            Goto(&if_didmatch);
-          }
-        }
+        Node* const match = GetProperty(context, result, smi_zero);
+        var_match.Bind(ToString_Inline(context, match));
+        Goto(&if_didmatch);
       }
 
       BIND(&if_didnotmatch);
