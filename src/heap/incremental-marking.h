@@ -196,7 +196,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   inline void RestartIfNotMarking();
 
-  static int RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
+  static int RecordWriteFromCode(HeapObject* obj, Object** slot,
                                  Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are

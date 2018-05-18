@@ -248,7 +248,7 @@ class FeedbackVector : public HeapObject {
   void Print();
 #endif  // OBJECT_PRINT
 
-  static void AssertNoLegacyTypes(MaybeObject* object);
+  static void AssertNoLegacyTypes(Object* object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -609,7 +609,7 @@ class FeedbackNexus final {
   void ConfigurePremonomorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
-  inline MaybeObject* GetFeedback() const;
+  inline Object* GetFeedback() const;
   inline MaybeObject* GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
@@ -683,8 +683,6 @@ class FeedbackNexus final {
 
  protected:
   inline void SetFeedback(Object* feedback,
-                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedback(MaybeObject* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

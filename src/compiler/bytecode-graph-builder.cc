@@ -1619,15 +1619,14 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
   FeedbackNexus nexus(feedback_vector(), slot);
 
   Handle<JSArray> cached_value;
-  if (nexus.GetFeedback() == MaybeObject::FromSmi(Smi::kZero)) {
+  if (nexus.GetFeedback() == Smi::kZero) {
     // It's not observable when the template object is created, so we
     // can just create it eagerly during graph building and bake in
     // the JSArray constant here.
     cached_value = TemplateObjectDescription::CreateTemplateObject(description);
     nexus.vector()->Set(slot, *cached_value);
   } else {
-    cached_value =
-        handle(JSArray::cast(nexus.GetFeedback()->ToStrongHeapObject()));
+    cached_value = handle(JSArray::cast(nexus.GetFeedback()));
   }
 
   Node* template_object = jsgraph()->HeapConstant(cached_value);
