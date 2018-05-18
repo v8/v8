@@ -581,6 +581,8 @@ config("toolchain") {
       "/wd4715",  # Not all control paths return a value.
 
       "/wd4718",  # Recursive call has no side-effect.
+      "/wd4723",  # https://crbug.com/v8/7771
+      "/wd4724",  # https://crbug.com/v8/7771
       "/wd4800",  # Forcing value to bool.
     ]
   }
