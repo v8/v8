@@ -1161,10 +1161,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK(!is_topmost || bailout_type_ == LAZY);
 
   Builtins* builtins = isolate_->builtins();
-  Code* construct_stub = builtins->builtin(
-      FLAG_harmony_restrict_constructor_return
-          ? Builtins::kJSConstructStubGenericRestrictedReturn
-          : Builtins::kJSConstructStubGenericUnrestrictedReturn);
+  Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;

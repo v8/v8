@@ -190,10 +190,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
   __ ret(0);
 }
+}  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
-void Generate_JSConstructStubGeneric(MacroAssembler* masm,
-                                     bool restrict_constructor_return) {
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments (untagged)
   //  -- rdi: constructor function
@@ -322,7 +322,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // If the result is an object (in the ECMA sense), we should get rid
     // of the receiver and use the result; see ECMA-262 section 13.2.2-7
     // on page 74.
-    Label use_receiver, do_throw, other_result, leave_frame;
+    Label use_receiver, do_throw, leave_frame;
 
     // If the result is undefined, we jump out to using the implicit receiver.
     __ JumpIfRoot(rax, Heap::kUndefinedValueRootIndex, &use_receiver,
@@ -332,30 +332,14 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // is a valid receiver.
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
-    __ JumpIfSmi(rax, &other_result, Label::kNear);
+    __ JumpIfSmi(rax, &use_receiver, Label::kNear);
 
     // If the type of the result (stored in its map) is less than
     // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, rcx);
     __ j(above_equal, &leave_frame, Label::kNear);
-
-    // The result is now neither undefined nor an object.
-    __ bind(&other_result);
-    __ movp(rbx, Operand(rbp, ConstructFrameConstants::kConstructorOffset));
-    __ movp(rbx, FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
-    __ testl(FieldOperand(rbx, SharedFunctionInfo::kFlagsOffset),
-             Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
-
-    if (restrict_constructor_return) {
-      // Throw if constructor function is a class constructor
-      __ j(Condition::zero, &use_receiver, Label::kNear);
-    } else {
-      __ j(not_zero, &use_receiver, Label::kNear);
-      __ CallRuntime(
-          Runtime::kIncrementUseCounterConstructorReturnNonUndefinedPrimitive);
-      __ jmp(&use_receiver, Label::kNear);
-    }
+    __ jmp(&use_receiver, Label::kNear);
 
     __ bind(&do_throw);
     __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
@@ -378,16 +362,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
   __ PushReturnAddressFrom(rcx);
   __ ret(0);
 }
-}  // namespace
 
-void Builtins::Generate_JSConstructStubGenericRestrictedReturn(
-    MacroAssembler* masm) {
-  return Generate_JSConstructStubGeneric(masm, true);
-}
-void Builtins::Generate_JSConstructStubGenericUnrestrictedReturn(
-    MacroAssembler* masm) {
-  return Generate_JSConstructStubGeneric(masm, false);
-}
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
@@ -2567,7 +2542,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
           RelocInfo::CODE_TARGET, not_zero);
 
-  __ Jump(masm->isolate()->builtins()->JSConstructStubGeneric(),
+  __ Jump(BUILTIN_CODE(masm->isolate(), JSConstructStubGeneric),
           RelocInfo::CODE_TARGET);
 }
 

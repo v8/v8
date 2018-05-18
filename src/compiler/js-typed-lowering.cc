@@ -1579,7 +1579,7 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 
     Handle<Code> code = use_builtin_construct_stub
                             ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-                            : isolate()->builtins()->JSConstructStubGeneric();
+                            : BUILTIN_CODE(isolate(), JSConstructStubGeneric);
 
     node->RemoveInput(arity + 1);
     node->InsertInput(graph()->zone(), 0, jsgraph()->HeapConstant(code));

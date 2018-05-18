@@ -68,8 +68,7 @@ namespace internal {
   TFC(ConstructWithArrayLike, ConstructWithArrayLike, 1)                       \
   ASM(ConstructForwardVarargs)                                                 \
   ASM(ConstructFunctionForwardVarargs)                                         \
-  ASM(JSConstructStubGenericRestrictedReturn)                                  \
-  ASM(JSConstructStubGenericUnrestrictedReturn)                                \
+  ASM(JSConstructStubGeneric)                                                  \
   ASM(JSBuiltinsConstructStub)                                                 \
   TFC(FastNewObject, FastNewObject, 1)                                         \
   TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \

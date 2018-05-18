@@ -754,24 +754,6 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
   return true;
 }
 
-namespace {
-
-int FixupJSConstructStub(Isolate* isolate, int builtin_id) {
-  if (isolate->serializer_enabled()) return builtin_id;
-
-  if (FLAG_harmony_restrict_constructor_return &&
-      builtin_id == Builtins::kJSConstructStubGenericUnrestrictedReturn) {
-    return Builtins::kJSConstructStubGenericRestrictedReturn;
-  } else if (!FLAG_harmony_restrict_constructor_return &&
-             builtin_id == Builtins::kJSConstructStubGenericRestrictedReturn) {
-    return Builtins::kJSConstructStubGenericUnrestrictedReturn;
-  } else {
-    return builtin_id;
-  }
-}
-
-}  // namespace
-
 template <class AllocatorT>
 void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
     HowToCode how, Isolate* isolate, void** current,
@@ -844,8 +826,7 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
     } else {
       DCHECK_EQ(where, kBuiltin);
-      int raw_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
-      int builtin_id = FixupJSConstructStub(isolate, raw_id);
+      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
       new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }

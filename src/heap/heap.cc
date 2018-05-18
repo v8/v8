@@ -76,18 +76,12 @@ void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
 }
 
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
-  // TODO(tebbi): Remove second half of DCHECK once
-  // FLAG_harmony_restrict_constructor_return is gone.
-  DCHECK(construct_stub_create_deopt_pc_offset() == Smi::kZero ||
-         construct_stub_create_deopt_pc_offset() == Smi::FromInt(pc_offset));
+  DCHECK(construct_stub_create_deopt_pc_offset() == Smi::kZero);
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
-  // TODO(tebbi): Remove second half of DCHECK once
-  // FLAG_harmony_restrict_constructor_return is gone.
-  DCHECK(construct_stub_invoke_deopt_pc_offset() == Smi::kZero ||
-         construct_stub_invoke_deopt_pc_offset() == Smi::FromInt(pc_offset));
+  DCHECK(construct_stub_invoke_deopt_pc_offset() == Smi::kZero);
   set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 

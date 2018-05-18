@@ -375,12 +375,6 @@ bool Builtins::HasCppImplementation(int index) {
   return (kind == CPP || kind == API);
 }
 
-Handle<Code> Builtins::JSConstructStubGeneric() {
-  return FLAG_harmony_restrict_constructor_return
-             ? builtin_handle(kJSConstructStubGenericRestrictedReturn)
-             : builtin_handle(kJSConstructStubGenericUnrestrictedReturn);
-}
-
 // static
 bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {

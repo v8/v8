@@ -281,7 +281,6 @@ namespace internal {
   F(ExportFromRuntime, 1, 1)                                         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)                   \
   F(IncrementUseCounter, 1, 1)                                       \
-  F(IncrementUseCounterConstructorReturnNonUndefinedPrimitive, 0, 1) \
   F(InstallToContext, 1, 1)                                          \
   F(Interrupt, 0, 1)                                                 \
   F(IS_VAR, 1, 1)                                                    \
