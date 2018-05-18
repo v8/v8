@@ -520,6 +520,7 @@ namespace internal {
   F(ClearFunctionFeedback, 1, 1)              \
   F(CompleteInobjectSlackTracking, 1, 1)      \
   F(ConstructConsString, 2, 1)                \
+  F(ConstructSlicedString, 2, 1)              \
   F(ConstructDouble, 2, 1)                    \
   F(DebugPrint, 1, 1)                         \
   F(DebugTrace, 0, 1)                         \

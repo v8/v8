@@ -116,6 +116,21 @@ RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   return *isolate->factory()->NewConsString(left, right, length, kIsOneByte);
 }
 
+RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
+
+  CHECK(string->IsOneByteRepresentation());
+  CHECK_LT(index->value(), string->length());
+
+  Handle<String> sliced_string = isolate->factory()->NewSubString(
+      string, index->value(), string->length());
+  CHECK(sliced_string->IsSlicedString());
+  return *sliced_string;
+}
+
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

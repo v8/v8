@@ -76,6 +76,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
 
+  TNode<JSArray> StringToArray(TNode<Context> context,
+                               TNode<String> subject_string,
+                               TNode<Smi> subject_length,
+                               TNode<Number> limit_number);
+
   void RequireObjectCoercible(Node* const context, Node* const value,
                               const char* method_name);
 

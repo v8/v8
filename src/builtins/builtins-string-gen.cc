@@ -1799,6 +1799,78 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   args.PopAndReturn(EmptyStringConstant());
 }
 
+TNode<JSArray> StringBuiltinsAssembler::StringToArray(
+    TNode<Context> context, TNode<String> subject_string,
+    TNode<Smi> subject_length, TNode<Number> limit_number) {
+  CSA_ASSERT(this, SmiGreaterThan(subject_length, SmiConstant(0)));
+
+  Label done(this), call_runtime(this, Label::kDeferred);
+  TVARIABLE(JSArray, result_array);
+
+  TNode<Int32T> instance_type = LoadInstanceType(subject_string);
+  GotoIfNot(IsOneByteStringInstanceType(instance_type), &call_runtime);
+
+  // Try to use cached one byte characters.
+  {
+    TNode<Smi> length_smi =
+        Select<Smi>(TaggedIsSmi(limit_number),
+                    [=] { return SmiMin(CAST(limit_number), subject_length); },
+                    [=] { return subject_length; });
+    TNode<IntPtrT> length = SmiToIntPtr(length_smi);
+
+    ToDirectStringAssembler to_direct(state(), subject_string);
+    to_direct.TryToDirect(&call_runtime);
+    TNode<RawPtrT> string_data =
+        UncheckedCast<RawPtrT>(to_direct.PointerToData(&call_runtime));
+    TNode<IntPtrT> string_data_offset = to_direct.offset();
+    TNode<Object> cache = LoadRoot(Heap::kSingleCharacterStringCacheRootIndex);
+
+    Label fill_thehole_and_call_runtime(this, Label::kDeferred);
+    TNode<FixedArray> elements =
+        AllocateFixedArray(PACKED_ELEMENTS, length_smi,
+                           AllocationFlag::kAllowLargeObjectAllocation);
+    BuildFastLoop(
+        IntPtrConstant(0), length,
+        [&](Node* index) {
+          TNode<Int32T> char_code =
+              UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data,
+                                         IntPtrAdd(index, string_data_offset)));
+          Node* code_index = ChangeUint32ToWord(char_code);
+          TNode<Object> entry = LoadFixedArrayElement(CAST(cache), code_index);
+
+          // If we cannot find a char in the cache, fill the hole for the fixed
+          // array, and call runtime.
+          GotoIf(IsUndefined(entry), &fill_thehole_and_call_runtime);
+
+          StoreFixedArrayElement(elements, index, entry);
+        },
+        1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+
+    TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
+    result_array = CAST(
+        AllocateUninitializedJSArrayWithoutElements(array_map, length_smi));
+    StoreObjectField(result_array.value(), JSObject::kElementsOffset, elements);
+    Goto(&done);
+
+    BIND(&fill_thehole_and_call_runtime);
+    {
+      FillFixedArrayWithValue(PACKED_ELEMENTS, elements, IntPtrConstant(0),
+                              length, Heap::kTheHoleValueRootIndex);
+      Goto(&call_runtime);
+    }
+  }
+
+  BIND(&call_runtime);
+  {
+    result_array = CAST(CallRuntime(Runtime::kStringToArray, context,
+                                    subject_string, limit_number));
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result_array.value();
+}
+
 // ES6 section 21.1.3.19 String.prototype.split ( separator, limit )
 TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   const int kSeparatorArg = 0;
@@ -1811,9 +1883,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   Node* const receiver = args.GetReceiver();
   Node* const separator = args.GetOptionalArgumentValue(kSeparatorArg);
   Node* const limit = args.GetOptionalArgumentValue(kLimitArg);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
-  Node* const smi_zero = SmiConstant(0);
+  TNode<Smi> smi_zero = SmiConstant(0);
 
   RequireObjectCoercible(context, receiver, "String.prototype.split");
 
@@ -1833,29 +1905,17 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   // String and integer conversions.
 
-  Node* const subject_string = ToString_Inline(context, receiver);
-  TNode<Number> const limit_number = Select<Number>(
+  TNode<String> subject_string = ToString_Inline(context, receiver);
+  TNode<Number> limit_number = Select<Number>(
       IsUndefined(limit), [=] { return NumberConstant(kMaxUInt32); },
       [=] { return ToUint32(context, limit); });
   Node* const separator_string = ToString_Inline(context, separator);
 
+  Label return_empty_array(this);
+
   // Shortcut for {limit} == 0.
-  {
-    Label next(this);
-    GotoIfNot(WordEqual(limit_number, smi_zero), &next);
-
-    const ElementsKind kind = PACKED_ELEMENTS;
-    Node* const native_context = LoadNativeContext(context);
-    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
-
-    Node* const length = smi_zero;
-    Node* const capacity = IntPtrConstant(0);
-    Node* const result = AllocateJSArray(kind, array_map, capacity, length);
-
-    args.PopAndReturn(result);
-
-    BIND(&next);
-  }
+  GotoIf(WordEqual<Object, Object>(limit_number, smi_zero),
+         &return_empty_array);
 
   // ECMA-262 says that if {separator} is undefined, the result should
   // be an array of size 1 containing the entire string.
@@ -1882,12 +1942,14 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // If the separator string is empty then return the elements in the subject.
   {
     Label next(this);
-    GotoIfNot(SmiEqual(LoadStringLengthAsSmi(separator_string), SmiConstant(0)),
+    GotoIfNot(SmiEqual(LoadStringLengthAsSmi(separator_string), smi_zero),
               &next);
 
-    Node* const result = CallRuntime(Runtime::kStringToArray, context,
-                                     subject_string, limit_number);
-    args.PopAndReturn(result);
+    TNode<Smi> subject_length = LoadStringLengthAsSmi(subject_string);
+    GotoIf(SmiEqual(subject_length, smi_zero), &return_empty_array);
+
+    args.PopAndReturn(
+        StringToArray(context, subject_string, subject_length, limit_number));
 
     BIND(&next);
   }
@@ -1896,6 +1958,19 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       CallRuntime(Runtime::kStringSplit, context, subject_string,
                   separator_string, limit_number);
   args.PopAndReturn(result);
+
+  BIND(&return_empty_array);
+  {
+    const ElementsKind kind = PACKED_ELEMENTS;
+    Node* const native_context = LoadNativeContext(context);
+    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+
+    Node* const length = smi_zero;
+    Node* const capacity = IntPtrConstant(0);
+    Node* const result = AllocateJSArray(kind, array_map, capacity, length);
+
+    args.PopAndReturn(result);
+  }
 }
 
 // ES6 #sec-string.prototype.substr
