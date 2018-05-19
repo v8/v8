@@ -12,13 +12,13 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0676f7632d4e8e6f4cb3811de8ce8c26742b898c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a07178474e3a9a0942c62ec9d1e9681a97ec7d99',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3f0591d4f12991ed39bae2dca96d3593879be382',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '083eb25f9acbe034db94a1bd5c1659125b6ebf98',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'b0e0b8429d15e4a93e4f4cca8da628644b4fec23',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'f61e46dbee9d539a32551493e3bcc1dea92f83ec',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
@@ -34,7 +34,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '78fd93090e2fc8d33179406160042024c4485622',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '669dcb14ae891f893968395fc1f77ae7aaffab42',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -52,7 +52,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '88229872dd17e71658fe96763feaa77915d8cbd6',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '833f5ebf894be1e3e6d13678d5de8479bf12ff28',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
@@ -62,7 +62,7 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a67a08488ad217c08e01fe73cfacc34dda4b30c7',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '679372d77a703d6612503abe5e1fa4f0abdf0ff9',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + 'ff0709d4283b1f233dcf0c9fec1672c6ecaed2f1',
   'v8/test/wasm-js':
