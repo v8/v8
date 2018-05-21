@@ -2506,6 +2506,7 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   if (!NodeProperties::GetMapWitness(node).ToHandle(&receiver_map))
     return NoChange();
 
+  if (receiver_map->instance_type() != JS_ARRAY_TYPE) return NoChange();
   if (!IsFastElementsKind(receiver_map->elements_kind())) return NoChange();
 
   Callable const callable =
