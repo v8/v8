@@ -591,6 +591,7 @@ void Int64Lowering::LowerNode(Node* node) {
                       machine()->Uint32LessThanOrEqual());
       break;
     }
+    case IrOpcode::kSignExtendWord32ToInt64:
     case IrOpcode::kChangeInt32ToInt64: {
       DCHECK_EQ(1, node->InputCount());
       Node* input = node->InputAt(0);
@@ -858,6 +859,40 @@ void Int64Lowering::LowerNode(Node* node) {
                                          GetReplacementHigh(input)),
                   graph()->NewNode(machine()->Word32ReverseBytes().op(),
                                    GetReplacementLow(input)));
+      break;
+    }
+    case IrOpcode::kSignExtendWord8ToInt64: {
+      DCHECK_EQ(1, node->InputCount());
+      Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
+      // Sign extend low node to Int32
+      input = graph()->NewNode(machine()->SignExtendWord8ToInt32(), input);
+
+      // We use SAR to preserve the sign in the high word.
+      ReplaceNode(
+          node, input,
+          graph()->NewNode(machine()->Word32Sar(), input,
+                           graph()->NewNode(common()->Int32Constant(31))));
+      node->NullAllInputs();
+      break;
+    }
+    case IrOpcode::kSignExtendWord16ToInt64: {
+      DCHECK_EQ(1, node->InputCount());
+      Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
+      // Sign extend low node to Int32
+      input = graph()->NewNode(machine()->SignExtendWord16ToInt32(), input);
+
+      // We use SAR to preserve the sign in the high word.
+      ReplaceNode(
+          node, input,
+          graph()->NewNode(machine()->Word32Sar(), input,
+                           graph()->NewNode(common()->Int32Constant(31))));
+      node->NullAllInputs();
       break;
     }
 
