@@ -231,7 +231,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                                   \
-  V(harmony_subsume_json, "harmony subsume JSON")                             \
   V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}")      \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")           \

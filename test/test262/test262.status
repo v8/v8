@@ -498,6 +498,8 @@
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7418
+  # TODO(mathias): These tests have been removed in upstream Test262.
+  # Remove them once we sync.
   'language/line-terminators/S7.3_A2.3': [FAIL],
   'language/line-terminators/S7.3_A2.4': [FAIL],
 
