@@ -335,7 +335,7 @@ DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
 DEFINE_BOOL(ignition_reo, true, "use ignition register equivalence optimizer")
 DEFINE_BOOL(ignition_filter_expression_positions, true,
             "filter expression positions before the bytecode pipeline")
-DEFINE_BOOL(ignition_share_named_property_feedback, false,
+DEFINE_BOOL(ignition_share_named_property_feedback, true,
             "share feedback slots when loading the same named property from "
             "the same object")
 DEFINE_BOOL(print_bytecode, false,
