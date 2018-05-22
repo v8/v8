@@ -124,3 +124,5 @@ function cmp_smaller(a, b) {
   if (b < a) return 1;
   return 0;
 }
+
+function cmp_greater(a, b) { return cmp_smaller(b, a); }

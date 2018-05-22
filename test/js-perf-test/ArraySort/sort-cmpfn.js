@@ -4,8 +4,6 @@
 
 load('sort-base.js');
 
-function cmp_greater(a, b) { return cmp_smaller(b, a); }
-
 // Each benchmark calls sort with multiple different comparison functions
 // to create polyomorphic call sites. Most/all of the
 // other sort benchmarks have monomorphic call sites.

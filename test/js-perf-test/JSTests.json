@@ -776,6 +776,21 @@
       ]
     },
     {
+      "name": "ArraySortMegamorphic",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-megamorphic.js"],
+      "test_flags": ["sort-megamorphic"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Base"},
+        {"name": "MultipleCompareFns"}
+      ]
+    },
+    {
       "name": "ForLoops",
       "path": ["ForLoops"],
       "main": "run.js",
