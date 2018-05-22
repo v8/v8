@@ -44,9 +44,7 @@ void Declarations::CheckAlreadyDeclared(const std::string& name,
 
 const Type* Declarations::LookupType(const std::string& name) {
   Declarable* raw = Lookup(name);
-  if (raw->IsType()) {
-    return Type::cast(raw);
-  } else if (raw->IsTypeAlias()) {
+  if (raw->IsTypeAlias()) {
     return TypeAlias::cast(raw)->type();
   }
   std::stringstream s;
@@ -57,12 +55,21 @@ const Type* Declarations::LookupType(const std::string& name) {
 
 const Type* Declarations::LookupGlobalType(const std::string& name) {
   Declarable* raw = LookupGlobalScope(name);
-  if (!raw->IsType()) {
+  if (!raw->IsTypeAlias()) {
     std::stringstream s;
     s << "declaration \"" << name << "\" is not a Type";
     ReportError(s.str());
   }
-  return Type::cast(raw);
+  return TypeAlias::cast(raw)->type();
+}
+
+const AbstractType* Declarations::GetAbstractType(const Type* parent,
+                                                  std::string name,
+                                                  std::string generated) {
+  AbstractType* result =
+      new AbstractType(parent, std::move(name), std::move(generated));
+  nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
+  return result;
 }
 
 const Type* Declarations::GetFunctionPointerType(TypeVector argument_types,
@@ -179,23 +186,22 @@ const AbstractType* Declarations::DeclareAbstractType(
       s << "cannot find parent type \"" << *parent << "\"";
       ReportError(s.str());
     }
-    if (!maybe_parent_type->IsType()) {
+    if (!maybe_parent_type->IsTypeAlias()) {
       std::stringstream s;
       s << "parent \"" << *parent << "\" of type \"" << name << "\""
         << " is not a type";
       ReportError(s.str());
     }
-    parent_type = Type::cast(maybe_parent_type);
+    parent_type = TypeAlias::cast(maybe_parent_type)->type();
   }
-  AbstractType* result = new AbstractType(parent_type, name, generated);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
+  const AbstractType* type = GetAbstractType(parent_type, name, generated);
+  DeclareType(name, type);
+  return type;
 }
 
-void Declarations::DeclareTypeAlias(const std::string& name,
-                                    const Type* aliased_type) {
-  CheckAlreadyDeclared(name, "aliased type");
-  TypeAlias* result = new TypeAlias(name, aliased_type);
+void Declarations::DeclareType(const std::string& name, const Type* type) {
+  CheckAlreadyDeclared(name, "type");
+  TypeAlias* result = new TypeAlias(type);
   Declare(name, std::unique_ptr<TypeAlias>(result));
 }
 

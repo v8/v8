@@ -25,8 +25,6 @@ class Declarable {
  public:
   virtual ~Declarable() {}
   enum Kind {
-    kAbstractType,
-    kFunctionPointerType,
     kVariable,
     kParameter,
     kMacro,
@@ -39,9 +37,6 @@ class Declarable {
     kConstant
   };
   Kind kind() const { return kind_; }
-  bool IsAbstractType() const { return kind() == kAbstractType; }
-  bool IsFunctionPointerType() const { return kind() == kFunctionPointerType; }
-  bool IsType() const { return IsAbstractType() || IsFunctionPointerType(); }
   bool IsMacro() const { return kind() == kMacro; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
@@ -59,7 +54,7 @@ class Declarable {
   explicit Declarable(Kind kind) : kind_(kind) {}
 
  private:
-  Kind kind_;
+  const Kind kind_;
 };
 
 #define DECLARE_DECLARABLE_BOILERPLATE(x, y)                  \
@@ -82,105 +77,6 @@ class Declarable {
     if (!declarable->Is##x()) return nullptr;                 \
     return static_cast<const x*>(declarable);                 \
   }
-
-class Type : public Declarable {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Type, type);
-
-  bool IsSubtypeOf(const Type* supertype) const;
-  virtual std::string ToString() const = 0;
-  virtual std::string MangledName() const = 0;
-  bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }
-  bool IsNever() const { return IsAbstractName(NEVER_TYPE_STRING); }
-  bool IsBool() const { return IsAbstractName(BOOL_TYPE_STRING); }
-  bool IsConstexprBool() const {
-    return IsAbstractName(CONSTEXPR_BOOL_TYPE_STRING);
-  }
-  bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
-  virtual const std::string& GetGeneratedTypeName() const = 0;
-  virtual std::string GetGeneratedTNodeTypeName() const = 0;
-  virtual bool IsConstexpr() const = 0;
-
- protected:
-  Type(Declarable::Kind kind, const Type* parent)
-      : Declarable(kind), parent_(parent) {}
-  const Type* parent() const { return parent_; }
-
- private:
-  bool IsAbstractName(const std::string& name) const;
-
-  const Type* const parent_;
-};
-
-class AbstractType : public Type {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(AbstractType, abstract_type);
-  AbstractType(const Type* parent, const std::string& name,
-               const std::string& generated_type)
-      : Type(Declarable::kAbstractType, parent),
-        name_(name),
-        generated_type_(generated_type) {}
-  const std::string& name() const { return name_; }
-  std::string ToString() const override { return name(); }
-  std::string MangledName() const override { return "AT" + name(); }
-  const std::string& GetGeneratedTypeName() const override {
-    return generated_type_;
-  }
-  std::string GetGeneratedTNodeTypeName() const override;
-  bool IsConstexpr() const override {
-    return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
-           CONSTEXPR_TYPE_PREFIX;
-  }
-
- private:
-  const std::string name_;
-  const std::string generated_type_;
-};
-
-// For now, function pointers are restricted to Code objects of Torque-defined
-// builtins.
-class FunctionPointerType : public Type {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(FunctionPointerType, function_pointer_type);
-  FunctionPointerType(const Type* parent, TypeVector parameter_types,
-                      const Type* return_type)
-      : Type(Declarable::kFunctionPointerType, parent),
-        parameter_types_(parameter_types),
-        return_type_(return_type) {}
-  std::string ToString() const override;
-  std::string MangledName() const override;
-  const std::string& GetGeneratedTypeName() const override {
-    return parent()->GetGeneratedTypeName();
-  }
-  std::string GetGeneratedTNodeTypeName() const override {
-    return parent()->GetGeneratedTNodeTypeName();
-  }
-  bool IsConstexpr() const override { return parent()->IsConstexpr(); }
-
-  const TypeVector& parameter_types() const { return parameter_types_; }
-  const Type* return_type() const { return return_type_; }
-
-  friend size_t hash_value(const FunctionPointerType& p) {
-    size_t result = base::hash_value(p.return_type_);
-    for (const Type* parameter : p.parameter_types_) {
-      result = base::hash_combine(result, parameter);
-    }
-    return result;
-  }
-  bool operator==(const FunctionPointerType& other) const {
-    return parameter_types_ == other.parameter_types_ &&
-           return_type_ == other.return_type_;
-  }
-
- private:
-  const TypeVector parameter_types_;
-  const Type* const return_type_;
-};
-
-inline std::ostream& operator<<(std::ostream& os, const Type* t) {
-  os << t->ToString();
-  return os;
-}
 
 class Value : public Declarable {
  public:
@@ -408,13 +304,13 @@ typedef std::pair<Generic*, TypeVector> SpecializationKey;
 
 class TypeAlias : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, instantiated_type);
+  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias);
 
   const Type* type() const { return type_; }
 
  private:
   friend class Declarations;
-  TypeAlias(const std::string& name, const Type* type)
+  explicit TypeAlias(const Type* type)
       : Declarable(Declarable::kTypeAlias), type_(type) {}
 
   const Type* type_;

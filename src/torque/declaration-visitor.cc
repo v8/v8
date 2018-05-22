@@ -324,7 +324,7 @@ void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
   for (auto type : key.second) {
     std::string generic_type_name =
         generic->declaration()->generic_parameters[i++];
-    declarations()->DeclareTypeAlias(generic_type_name, type);
+    declarations()->DeclareType(generic_type_name, type);
   }
 }
 
