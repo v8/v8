@@ -55,7 +55,8 @@
         {"name": "SlowReplace"},
         {"name": "SlowSearch"},
         {"name": "SlowSplit"},
-        {"name": "SlowTest"}
+        {"name": "SlowTest"},
+        {"name": "InlineTest"}
       ]
     }
   ]
