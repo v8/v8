@@ -169,13 +169,16 @@ antlrcpp::Any AstGenerator::visitMacroDeclaration(
       GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
       GetOptionalLabelAndTypeList(context->optionalLabelList())});
-  auto body = context->helperBody()->accept(this).as<Statement*>();
+  base::Optional<Statement*> body;
+  if (context->helperBody())
+    body = context->helperBody()->accept(this).as<Statement*>();
   Declaration* result = nullptr;
   if (generic_parameters.size() != 0) {
     result = RegisterNode(
         new GenericDeclaration{Pos(context), macro, generic_parameters, body});
   } else {
-    result = RegisterNode(new StandardDeclaration{Pos(context), macro, body});
+    if (!body) ReportError("A non-generic declaration needs a body.");
+    result = RegisterNode(new StandardDeclaration{Pos(context), macro, *body});
   }
   return result;
 }
@@ -184,7 +187,9 @@ antlrcpp::Any AstGenerator::visitBuiltinDeclaration(
     TorqueParser::BuiltinDeclarationContext* context) {
   auto generic_parameters =
       GetIdentifierVector(context->optionalGenericTypeList()->IDENTIFIER());
-  Statement* body = context->helperBody()->accept(this).as<Statement*>();
+  base::Optional<Statement*> body;
+  if (context->helperBody())
+    body = context->helperBody()->accept(this).as<Statement*>();
 
   TorqueBuiltinDeclaration* builtin = RegisterNode(new TorqueBuiltinDeclaration{
       Pos(context), context->JAVASCRIPT() != nullptr,
@@ -197,7 +202,9 @@ antlrcpp::Any AstGenerator::visitBuiltinDeclaration(
     result = RegisterNode(new GenericDeclaration{Pos(context), builtin,
                                                  generic_parameters, body});
   } else {
-    result = RegisterNode(new StandardDeclaration{Pos(context), builtin, body});
+    if (!body) ReportError("A non-generic declaration needs a body.");
+    result =
+        RegisterNode(new StandardDeclaration{Pos(context), builtin, *body});
   }
   return result;
 }

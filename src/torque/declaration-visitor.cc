@@ -228,7 +228,8 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     }
   }
 
-  SpecializeGeneric({key, callable, decl->signature.get(), decl->body});
+  SpecializeGeneric(
+      {key, callable, decl->signature.get(), decl->body, decl->pos});
 }
 
 void DeclarationVisitor::Visit(ReturnStatement* stmt) {

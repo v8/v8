@@ -296,10 +296,7 @@ extern macro ExtractFixedArray(
 
 extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
 
-macro LoadElementNoHole<T : type>(a: JSArray, index: Smi): Object
-labels IfHole {
-  unreachable;
-}
+macro LoadElementNoHole<T : type>(a: JSArray, index: Smi): Object labels IfHole;
 
 LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
 labels IfHole {

@@ -1459,7 +1459,8 @@ void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
   SpecializeGeneric({{generic, specialization_types},
                      callable,
                      decl->signature.get(),
-                     decl->body});
+                     decl->body,
+                     decl->pos});
 }
 
 VisitResult ImplementationVisitor::Visit(CallExpression* expr,

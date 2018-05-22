@@ -275,9 +275,9 @@ typeAliasDeclaration : 'type' IDENTIFIER '=' type ';';
 externalBuiltin : EXTERN JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList '(' typeList ')' optionalType ';';
 externalMacro : EXTERN (IMPLICIT? 'operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList typeListMaybeVarArgs optionalType optionalLabelList ';';
 externalRuntime : EXTERN RUNTIME IDENTIFIER typeListMaybeVarArgs optionalType ';';
-builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList parameterList optionalType helperBody;
+builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList parameterList optionalType (helperBody | ';');
 genericSpecialization: IDENTIFIER genericSpecializationTypeList parameterList optionalType optionalLabelList helperBody;
-macroDeclaration : MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList helperBody;
+macroDeclaration : MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList (helperBody | ';');
 constDeclaration : 'const' IDENTIFIER ':' type '=' STRING_LITERAL ';';
 
 declaration

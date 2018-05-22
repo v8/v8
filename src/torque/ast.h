@@ -651,14 +651,15 @@ struct StandardDeclaration : Declaration {
 struct GenericDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericDeclaration)
   GenericDeclaration(SourcePosition p, CallableNode* c,
-                     std::vector<std::string> gp, Statement* b)
+                     std::vector<std::string> gp,
+                     base::Optional<Statement*> b = base::nullopt)
       : Declaration(kKind, p),
         callable(c),
         generic_parameters(std::move(gp)),
         body(b) {}
   CallableNode* callable;
   std::vector<std::string> generic_parameters;
-  Statement* body;
+  base::Optional<Statement*> body;
 };
 
 struct SpecializationDeclaration : Declaration {
