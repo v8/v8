@@ -18,14 +18,18 @@ namespace compiler {
 
 class NodeOrigin {
  public:
-  NodeOrigin(const char* reducer_name, NodeId created_from)
-      : reducer_name_(reducer_name), created_from_(created_from) {}
+  NodeOrigin(const char* phase_name, const char* reducer_name,
+             NodeId created_from)
+      : phase_name_(phase_name),
+        reducer_name_(reducer_name),
+        created_from_(created_from) {}
   NodeOrigin(const NodeOrigin& other) = default;
   static NodeOrigin Unknown() { return NodeOrigin(); }
 
   bool IsKnown() { return created_from_ >= 0; }
   int64_t created_from() const { return created_from_; }
   const char* reducer_name() const { return reducer_name_; }
+  const char* phase_name() const { return phase_name_; }
 
   bool operator==(const NodeOrigin& o) const {
     return reducer_name_ == o.reducer_name_ && created_from_ == o.created_from_;
@@ -35,7 +39,10 @@ class NodeOrigin {
 
  private:
   NodeOrigin()
-      : reducer_name_(""), created_from_(std::numeric_limits<int64_t>::min()) {}
+      : phase_name_(""),
+        reducer_name_(""),
+        created_from_(std::numeric_limits<int64_t>::min()) {}
+  const char* phase_name_;
   const char* reducer_name_;
   int64_t created_from_;
 };
@@ -53,7 +60,8 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
         : origins_(origins), prev_origin_(NodeOrigin::Unknown()) {
       if (origins) {
         prev_origin_ = origins->current_origin_;
-        origins->current_origin_ = NodeOrigin(reducer_name, node->id());
+        origins->current_origin_ =
+            NodeOrigin(origins->current_phase_name_, reducer_name, node->id());
       }
     }
 
@@ -65,6 +73,27 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
     NodeOriginTable* const origins_;
     NodeOrigin prev_origin_;
     DISALLOW_COPY_AND_ASSIGN(Scope);
+  };
+
+  class PhaseScope final {
+   public:
+    PhaseScope(NodeOriginTable* origins, const char* phase_name)
+        : origins_(origins) {
+      if (origins != nullptr) {
+        prev_phase_name_ = origins->current_phase_name_;
+        origins->current_phase_name_ =
+            phase_name == nullptr ? "unnamed" : phase_name;
+      }
+    }
+
+    ~PhaseScope() {
+      if (origins_) origins_->current_phase_name_ = prev_phase_name_;
+    }
+
+   private:
+    NodeOriginTable* const origins_;
+    const char* prev_phase_name_;
+    DISALLOW_COPY_AND_ASSIGN(PhaseScope);
   };
 
   explicit NodeOriginTable(Graph* graph);
@@ -85,6 +114,8 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   Graph* const graph_;
   Decorator* decorator_;
   NodeOrigin current_origin_;
+
+  const char* current_phase_name_;
   NodeAuxData<NodeOrigin, NodeOrigin::Unknown> table_;
 
   DISALLOW_COPY_AND_ASSIGN(NodeOriginTable);

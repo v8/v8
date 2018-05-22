@@ -33,6 +33,8 @@ class SourceResolver {
     this.positionToNodes = new Map();
     // Maps phase ids to phases.
     this.phases = [];
+    // Maps phase names to phaseIds.
+    this.phaseNames = new Map();
     // The disassembly phase is stored separately.
     this.disassemblyPhase = undefined;
   }
@@ -217,8 +219,10 @@ class SourceResolver {
         this.disassemblyPhase = phase;
       } else if (phase.type == 'schedule') {
         this.phases.push(this.parseSchedule(phase))
+        this.phaseNames.set(phase.name, this.phases.length);
       } else {
         this.phases.push(phase);
+        this.phaseNames.set(phase.name, this.phases.length);
       }
     }
   }
@@ -229,6 +233,10 @@ class SourceResolver {
 
   getPhase(phaseId) {
     return this.phases[phaseId];
+  }
+
+  getPhaseIdByName(phaseName) {
+    return this.phaseNames.get(phaseName);
   }
 
   forEachPhase(f) {

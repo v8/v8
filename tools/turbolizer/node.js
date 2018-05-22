@@ -59,7 +59,7 @@ var Node = {
     }
     let title = this.title + "\n" + propsString + "\n" + this.opinfo;
     if (this.origin) {
-      title += `\nOrigin: ${this.origin.reducer} from #${this.origin.nodeId}`;
+      title += `\nOrigin: #${this.origin.nodeId} in phase ${this.origin.phase}/${this.origin.reducer}`;
     }
     return title;
   },

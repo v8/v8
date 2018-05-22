@@ -11,10 +11,11 @@ namespace internal {
 namespace compiler {
 
 void NodeOrigin::PrintJson(std::ostream& out) const {
-  out << "{ "
-      << "\"nodeId\" : " << created_from() << ", \"reducer\" : \""
-      << reducer_name() << "\""
-      << "}";
+  out << "{ ";
+  out << "\"nodeId\" : " << created_from();
+  out << ", \"reducer\" : \"" << reducer_name() << "\"";
+  out << ", \"phase\" : \"" << phase_name() << "\"";
+  out << "}";
 }
 
 class NodeOriginTable::Decorator final : public GraphDecorator {
@@ -33,6 +34,7 @@ NodeOriginTable::NodeOriginTable(Graph* graph)
     : graph_(graph),
       decorator_(nullptr),
       current_origin_(NodeOrigin::Unknown()),
+      current_phase_name_("unknown"),
       table_(graph->zone()) {}
 
 void NodeOriginTable::AddDecorator() {

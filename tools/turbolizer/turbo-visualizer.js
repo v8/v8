@@ -274,7 +274,13 @@ document.onload = (function (d3) {
       const initialPhaseIndex = sourceResolver.repairPhaseId(+window.sessionStorage.getItem("lastSelectedPhase"));
       selectMenu.selectedIndex = initialPhaseIndex;
 
-      graph = new GraphView(d3, INTERMEDIATE_PANE_ID, selectionBroker);
+      function displayPhaseByName(phaseName) {
+        const phaseId = sourceResolver.getPhaseIdByName(phaseName);
+        selectMenu.selectedIndex = phaseId - 1;
+        displayPhase(sourceResolver.getPhase(phaseId));
+      }
+
+      graph = new GraphView(d3, INTERMEDIATE_PANE_ID, selectionBroker, displayPhaseByName);
       schedule = new ScheduleView(INTERMEDIATE_PANE_ID, selectionBroker);
 
       displayPhase(sourceResolver.getPhase(initialPhaseIndex));

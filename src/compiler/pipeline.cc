@@ -706,13 +706,15 @@ class PipelineRunScope {
       : phase_scope_(
             phase_name == nullptr ? nullptr : data->pipeline_statistics(),
             phase_name),
-        zone_scope_(data->zone_stats(), ZONE_NAME) {}
+        zone_scope_(data->zone_stats(), ZONE_NAME),
+        origin_scope_(data->node_origins(), phase_name) {}
 
   Zone* zone() { return zone_scope_.zone(); }
 
  private:
   PhaseScope phase_scope_;
   ZoneStats::Scope zone_scope_;
+  NodeOriginTable::PhaseScope origin_scope_;
 };
 
 PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,

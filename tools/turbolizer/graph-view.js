@@ -15,9 +15,10 @@ class GraphView extends View {
     return pane;
   }
 
-  constructor(d3, id, broker) {
+  constructor(d3, id, broker, showPhaseByName) {
     super(id, broker);
     var graph = this;
+    this.showPhaseByName = showPhaseByName
 
     var svg = this.divElement.append("svg").attr('version', '1.1')
       .attr("width", "100%")
@@ -490,6 +491,7 @@ class GraphView extends View {
       var filterFunction = function (n) {
         return (reg.exec(n.getDisplayLabel()) != null ||
           (graph.state.showTypes && reg.exec(n.getDisplayType())) ||
+          (reg.exec(n.getTitle())) ||
           reg.exec(n.opcode) != null);
       };
 
@@ -653,16 +655,20 @@ class GraphView extends View {
   selectOrigins() {
     const state = this.state;
     const origins = [];
+    let phase = null;
     for (const n of state.selection) {
       if (n.origin) {
         const node = this.nodeMap[n.origin.nodeId];
         origins.push(node);
+        phase = n.origin.phase;
       }
     }
     if (origins.length) {
       state.selection.clear();
       state.selection.select(origins, true);
-      this.updateGraphVisibility();
+      if (phase) {
+        this.showPhaseByName(phase);
+      }
     }
   }
 
