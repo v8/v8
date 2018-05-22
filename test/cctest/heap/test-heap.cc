@@ -5817,7 +5817,7 @@ HEAP_TEST(Regress5831) {
   // Generate the code.
   Handle<Code> code = GenerateDummyImmovableCode(isolate);
   CHECK_GE(i::kMaxRegularHeapObjectSize, code->Size());
-  CHECK(!heap->code_space()->FirstPage()->Contains(code->address()));
+  CHECK(!heap->code_space()->first_page()->Contains(code->address()));
 
   // Ensure it's not in large object space.
   MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());

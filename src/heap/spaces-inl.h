@@ -45,7 +45,7 @@ HeapObject* SemiSpaceIterator::Next() {
     if (Page::IsAlignedToPageSize(current_)) {
       Page* page = Page::FromAllocationAreaAddress(current_);
       page = page->next_page();
-      DCHECK(!page->is_anchor());
+      DCHECK(page);
       current_ = page->area_start();
       if (current_ == limit_) return nullptr;
     }

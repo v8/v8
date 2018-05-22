@@ -1978,7 +1978,7 @@ void Heap::EvacuateYoungGeneration() {
   PageRange range(new_space()->bottom(), new_space()->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* p = (*++it)->prev_page();
-    p->Unlink();
+    new_space()->from_space().RemovePage(p);
     Page::ConvertNewToOld(p);
     if (incremental_marking()->IsMarking())
       mark_compact_collector()->RecordLiveSlotsOnPage(p);
@@ -4530,7 +4530,7 @@ HeapObject* Heap::EnsureImmovableCode(HeapObject* heap_object,
   DCHECK_GE(object_size, 0);
   if (!Heap::IsImmovable(heap_object)) {
     if (isolate()->serializer_enabled() ||
-        code_space_->FirstPage()->Contains(heap_object->address())) {
+        code_space_->first_page()->Contains(heap_object->address())) {
       MemoryChunk::FromAddress(heap_object->address())->MarkNeverEvacuate();
     } else {
       // Discard the first code allocation, which was on a page where it could

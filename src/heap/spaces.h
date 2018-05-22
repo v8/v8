@@ -15,6 +15,7 @@
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/iterator.h"
+#include "src/base/list.h"
 #include "src/base/platform/mutex.h"
 #include "src/cancelable-task.h"
 #include "src/flags.h"
@@ -303,12 +304,9 @@ class MemoryChunk {
     // triggering on the same page.
     COMPACTION_WAS_ABORTED_FOR_TESTING = 1u << 16,
 
-    // |ANCHOR|: Flag is set if page is an anchor.
-    ANCHOR = 1u << 17,
-
     // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
     // to iterate the page.
-    SWEEP_TO_ITERATE = 1u << 18
+    SWEEP_TO_ITERATE = 1u << 17
   };
 
   using Flags = uintptr_t;
@@ -362,17 +360,16 @@ class MemoryChunk {
       + kIntptrSize       // intptr_t live_byte_count_
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
-      + kPointerSize  // InvalidatedSlots* invalidated_slots_
-      + kPointerSize  // SkipList* skip_list_
-      + kPointerSize  // AtomicValue high_water_mark_
-      + kPointerSize  // base::Mutex* mutex_
-      + kPointerSize  // base::AtomicWord concurrent_sweeping_
-      + kPointerSize  // base::Mutex* page_protection_change_mutex_
-      + kPointerSize  // unitptr_t write_unprotect_counter_
-      + kSizetSize    // size_t allocated_bytes_
-      + kSizetSize    // size_t wasted_memory_
-      + kPointerSize  // AtomicValue next_chunk_
-      + kPointerSize  // AtomicValue prev_chunk_
+      + kPointerSize      // InvalidatedSlots* invalidated_slots_
+      + kPointerSize      // SkipList* skip_list_
+      + kPointerSize      // AtomicValue high_water_mark_
+      + kPointerSize      // base::Mutex* mutex_
+      + kPointerSize      // base::AtomicWord concurrent_sweeping_
+      + kPointerSize      // base::Mutex* page_protection_change_mutex_
+      + kPointerSize      // unitptr_t write_unprotect_counter_
+      + kSizetSize        // size_t allocated_bytes_
+      + kSizetSize        // size_t wasted_memory_
+      + kPointerSize * 2  // base::ListNode
       + kPointerSize * kNumberOfCategories
       // FreeListCategory categories_[kNumberOfCategories]
       + kPointerSize   // LocalArrayBufferTracker* local_tracker_
@@ -606,22 +603,11 @@ class MemoryChunk {
 
   bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
 
-  MemoryChunk* next_chunk() { return next_chunk_.Value(); }
-
-  MemoryChunk* prev_chunk() { return prev_chunk_.Value(); }
-
-  void set_next_chunk(MemoryChunk* next) { next_chunk_.SetValue(next); }
-
-  void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
-
   Space* owner() const { return owner_.Value(); }
 
   void set_owner(Space* space) { owner_.SetValue(space); }
 
   bool IsPagedSpace() const;
-
-  void InsertAfter(MemoryChunk* other);
-  void Unlink();
 
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::synchronized_heap() to simulate the barrier.
@@ -629,6 +615,8 @@ class MemoryChunk {
 
   void SetReadAndExecutable();
   void SetReadAndWritable();
+
+  base::ListNode<MemoryChunk>& list_node() { return list_node_; }
 
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
@@ -702,10 +690,7 @@ class MemoryChunk {
   // Freed memory that was not added to the free list.
   size_t wasted_memory_;
 
-  // next_chunk_ holds a pointer of type MemoryChunk
-  base::AtomicValue<MemoryChunk*> next_chunk_;
-  // prev_chunk_ holds a pointer of type MemoryChunk
-  base::AtomicValue<MemoryChunk*> prev_chunk_;
+  base::ListNode<MemoryChunk> list_node_;
 
   FreeListCategory* categories_[kNumberOfCategories];
 
@@ -779,18 +764,12 @@ class Page : public MemoryChunk {
 
   static Page* ConvertNewToOld(Page* old_page);
 
-  // Create a Page object that is only used as anchor for the doubly-linked
-  // list of real pages.
-  explicit Page(Space* owner) { InitializeAsAnchor(owner); }
-
   inline void MarkNeverAllocateForTesting();
   inline void MarkEvacuationCandidate();
   inline void ClearEvacuationCandidate();
 
-  Page* next_page() { return static_cast<Page*>(next_chunk()); }
-  Page* prev_page() { return static_cast<Page*>(prev_chunk()); }
-  void set_next_page(Page* page) { set_next_chunk(page); }
-  void set_prev_page(Page* page) { set_prev_chunk(page); }
+  Page* next_page() { return static_cast<Page*>(list_node_.next()); }
+  Page* prev_page() { return static_cast<Page*>(list_node_.prev()); }
 
   template <typename Callback>
   inline void ForAllFreeListCategories(Callback callback) {
@@ -830,8 +809,6 @@ class Page : public MemoryChunk {
     return categories_[type];
   }
 
-  bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
-
   size_t wasted_memory() { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
   size_t allocated_bytes() { return allocated_bytes_; }
@@ -863,8 +840,6 @@ class Page : public MemoryChunk {
  private:
   enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
 
-  void InitializeAsAnchor(Space* owner);
-
   friend class MemoryAllocator;
 };
 
@@ -880,10 +855,10 @@ class LargePage : public MemoryChunk {
   HeapObject* GetObject() { return HeapObject::FromAddress(area_start()); }
 
   inline LargePage* next_page() {
-    return static_cast<LargePage*>(next_chunk());
+    return static_cast<LargePage*>(list_node_.next());
   }
 
-  inline void set_next_page(LargePage* page) { set_next_chunk(page); }
+  inline void set_next_page(LargePage* page) { list_node_.set_next(page); }
 
   // Uncommit memory that is not in use anymore by the object. If the object
   // cannot be shrunk 0 is returned.
@@ -994,6 +969,11 @@ class Space : public Malloced {
 
   V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 
+  MemoryChunk* first_page() { return memory_chunk_list_.front(); }
+  MemoryChunk* last_page() { return memory_chunk_list_.back(); }
+
+  base::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
+
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
@@ -1005,6 +985,9 @@ class Space : public Malloced {
   }
 
   std::vector<AllocationObserver*> allocation_observers_;
+
+  // The List manages the pages that belong to the given space.
+  base::List<MemoryChunk> memory_chunk_list_;
 
  private:
   bool allocation_observers_paused_;
@@ -2196,11 +2179,10 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
-  // The dummy page that anchors the linked list of pages.
-  Page* anchor() { return &anchor_; }
-
   Page* InitializePage(MemoryChunk* chunk, Executability executable);
+
   void ReleasePage(Page* page);
+
   // Adds the page to this space and returns the number of bytes added to the
   // free list of the space.
   size_t AddPage(Page* page);
@@ -2234,9 +2216,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
-  Page* FirstPage() { return anchor_.next_page(); }
-  Page* LastPage() { return anchor_.prev_page(); }
-
   bool CanExpand(size_t size);
 
   // Returns the number of total pages in this space.
@@ -2262,8 +2241,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline void UnlinkFreeListCategories(Page* page);
   inline size_t RelinkFreeListCategories(Page* page);
 
-  iterator begin() { return iterator(anchor_.next_page()); }
-  iterator end() { return iterator(&anchor_); }
+  Page* first_page() { return reinterpret_cast<Page*>(Space::first_page()); }
+
+  iterator begin() { return iterator(first_page()); }
+  iterator end() { return iterator(nullptr); }
 
   // Shrink immortal immovable pages of the space to be exactly the size needed
   // using the high water mark.
@@ -2294,7 +2275,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   // smaller, initial pages.
   virtual bool snapshotable() { return true; }
 
-  bool HasPages() { return anchor_.next_page() != &anchor_; }
+  bool HasPages() { return first_page() != nullptr; }
 
   // Cleans up the space, frees all pages in this space except those belonging
   // to the initial chunk, uncommits addresses in the initial chunk.
@@ -2346,9 +2327,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Accounting information for this space.
   AllocationStats accounting_stats_;
 
-  // The dummy page that anchors the double linked list of pages.
-  Page anchor_;
-
   // The space's free list.
   FreeList free_list_;
 
@@ -2384,7 +2362,6 @@ class SemiSpace : public Space {
         age_mark_(kNullAddress),
         committed_(false),
         id_(semispace),
-        anchor_(this),
         current_page_(nullptr),
         pages_used_(0) {}
 
@@ -2413,16 +2390,15 @@ class SemiSpace : public Space {
 
   // Returns the start address of the first page of the space.
   Address space_start() {
-    DCHECK_NE(anchor_.next_page(), anchor());
-    return anchor_.next_page()->area_start();
+    DCHECK_NE(memory_chunk_list_.front(), nullptr);
+    return memory_chunk_list_.front()->area_start();
   }
 
-  Page* first_page() { return anchor_.next_page(); }
   Page* current_page() { return current_page_; }
   int pages_used() { return pages_used_; }
 
   // Returns one past the end address of the space.
-  Address space_end() { return anchor_.prev_page()->area_end(); }
+  Address space_end() { return memory_chunk_list_.back()->area_end(); }
 
   // Returns the start address of the current page of the space.
   Address page_low() { return current_page_->area_start(); }
@@ -2436,7 +2412,7 @@ class SemiSpace : public Space {
     // that we need to account for the next page already for this check as we
     // could potentially fill the whole page after advancing.
     const bool reached_max_pages = (pages_used_ + 1) == max_pages();
-    if (next_page == anchor() || reached_max_pages) {
+    if (next_page == nullptr || reached_max_pages) {
       return false;
     }
     current_page_ = next_page;
@@ -2449,6 +2425,7 @@ class SemiSpace : public Space {
 
   void RemovePage(Page* page);
   void PrependPage(Page* page);
+
   Page* InitializePage(MemoryChunk* chunk, Executability executable);
 
   // Age mark accessors.
@@ -2482,8 +2459,10 @@ class SemiSpace : public Space {
     UNREACHABLE();
   }
 
-  iterator begin() { return iterator(anchor_.next_page()); }
-  iterator end() { return iterator(anchor()); }
+  Page* first_page() { return reinterpret_cast<Page*>(Space::first_page()); }
+
+  iterator begin() { return iterator(first_page()); }
+  iterator end() { return iterator(nullptr); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
@@ -2503,9 +2482,8 @@ class SemiSpace : public Space {
 #endif
 
  private:
-  void RewindPages(Page* start, int num_pages);
+  void RewindPages(int num_pages);
 
-  inline Page* anchor() { return &anchor_; }
   inline int max_pages() {
     return static_cast<int>(current_capacity_ / Page::kPageSize);
   }
@@ -2529,8 +2507,8 @@ class SemiSpace : public Space {
   bool committed_;
   SemiSpaceId id_;
 
-  Page anchor_;
   Page* current_page_;
+
   int pages_used_;
 
   friend class NewSpace;

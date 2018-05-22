@@ -1365,7 +1365,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
         page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
         break;
       case NEW_TO_OLD: {
-        page->Unlink();
+        page->heap()->new_space()->from_space().RemovePage(page);
         Page* new_page = Page::ConvertNewToOld(page);
         DCHECK(!new_page->InNewSpace());
         new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
@@ -3160,7 +3160,7 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
     } else {
       DCHECK(p->IsEvacuationCandidate());
       DCHECK(p->SweepingDone());
-      p->Unlink();
+      p->owner()->memory_chunk_list().Remove(p);
     }
   }
   DCHECK_EQ(aborted_pages_verified, aborted_pages);
@@ -3221,6 +3221,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
                        static_cast<void*>(p));
         }
         ArrayBufferTracker::FreeAll(p);
+        space->memory_chunk_list().Remove(p);
         space->ReleasePage(p);
         continue;
       }

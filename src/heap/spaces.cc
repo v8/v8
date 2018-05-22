@@ -34,7 +34,7 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space)
     : cur_addr_(kNullAddress),
       cur_end_(kNullAddress),
       space_(space),
-      page_range_(space->anchor()->next_page(), space->anchor()),
+      page_range_(space->first_page(), nullptr),
       current_page_(page_range_.begin()) {}
 
 HeapObjectIterator::HeapObjectIterator(Page* page)
@@ -531,14 +531,6 @@ Address MemoryAllocator::AllocateAlignedMemory(
   return base;
 }
 
-void Page::InitializeAsAnchor(Space* space) {
-  set_owner(space);
-  set_next_chunk(this);
-  set_prev_chunk(this);
-  SetFlags(0, static_cast<uintptr_t>(~0));
-  SetFlag(ANCHOR);
-}
-
 Heap* MemoryChunk::synchronized_heap() {
   return reinterpret_cast<Heap*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&heap_)));
@@ -632,8 +624,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->allocated_bytes_ = chunk->area_size();
   chunk->wasted_memory_ = 0;
   chunk->young_generation_bitmap_ = nullptr;
-  chunk->set_next_chunk(nullptr);
-  chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
 
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
@@ -681,6 +671,7 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   heap()->incremental_marking()->SetOldSpacePageFlags(page);
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
+  page->list_node().Initialize();
   page->InitializationMemoryFence();
   return page;
 }
@@ -695,6 +686,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   Page* page = static_cast<Page*>(chunk);
   heap()->incremental_marking()->SetNewSpacePageFlags(page);
   page->AllocateLocalTracker();
+  page->list_node().Initialize();
 #ifdef ENABLE_MINOR_MC
   if (FLAG_minor_mc) {
     page->AllocateYoungGenerationBitmap();
@@ -753,7 +745,7 @@ void Page::ReleaseFreeListCategories() {
 }
 
 Page* Page::ConvertNewToOld(Page* old_page) {
-  DCHECK(!old_page->is_anchor());
+  DCHECK(old_page);
   DCHECK(old_page->InNewSpace());
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
@@ -771,25 +763,6 @@ size_t MemoryChunk::CommittedPhysicalMemory() {
 
 bool MemoryChunk::IsPagedSpace() const {
   return owner()->identity() != LO_SPACE;
-}
-
-void MemoryChunk::InsertAfter(MemoryChunk* other) {
-  MemoryChunk* other_next = other->next_chunk();
-
-  set_next_chunk(other_next);
-  set_prev_chunk(other);
-  other_next->set_prev_chunk(this);
-  other->set_next_chunk(this);
-}
-
-
-void MemoryChunk::Unlink() {
-  MemoryChunk* next_element = next_chunk();
-  MemoryChunk* prev_element = prev_chunk();
-  next_element->set_prev_chunk(prev_element);
-  prev_element->set_next_chunk(next_element);
-  set_prev_chunk(nullptr);
-  set_next_chunk(nullptr);
 }
 
 MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
@@ -1464,7 +1437,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : SpaceWithLinearArea(heap, space), executable_(executable), anchor_(this) {
+    : SpaceWithLinearArea(heap, space), executable_(executable) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 }
@@ -1477,12 +1450,11 @@ bool PagedSpace::HasBeenSetUp() { return true; }
 
 
 void PagedSpace::TearDown() {
-  for (auto it = begin(); it != end();) {
-    Page* page = *(it++);  // Will be erased.
-    heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
+  while (!memory_chunk_list_.Empty()) {
+    MemoryChunk* chunk = memory_chunk_list_.front();
+    memory_chunk_list_.Remove(chunk);
+    heap()->memory_allocator()->Free<MemoryAllocator::kFull>(chunk);
   }
-  anchor_.set_next_page(&anchor_);
-  anchor_.set_prev_page(&anchor_);
   accounting_stats_.Clear();
 }
 
@@ -1526,7 +1498,6 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   DCHECK(identity() == other->identity());
   // Unmerged fields:
   //   area_size_
-  //   anchor_
 
   other->FreeLinearAllocationArea();
 
@@ -1610,7 +1581,7 @@ Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
 size_t PagedSpace::AddPage(Page* page) {
   CHECK(page->SweepingDone());
   page->set_owner(this);
-  page->InsertAfter(anchor()->prev_page());
+  memory_chunk_list_.PushBack(page);
   AccountCommitted(page->size());
   IncreaseCapacity(page->area_size());
   IncreaseAllocatedBytes(page->allocated_bytes(), page);
@@ -1619,7 +1590,7 @@ size_t PagedSpace::AddPage(Page* page) {
 
 void PagedSpace::RemovePage(Page* page) {
   CHECK(page->SweepingDone());
-  page->Unlink();
+  memory_chunk_list_.Remove(page);
   UnlinkFreeListCategories(page);
   DecreaseAllocatedBytes(page->allocated_bytes(), page);
   DecreaseCapacity(page->area_size());
@@ -1815,11 +1786,6 @@ void PagedSpace::ReleasePage(Page* page) {
     allocation_info_.Reset(kNullAddress, kNullAddress);
   }
 
-  // If page is still in a list, unlink it from that list.
-  if (page->next_chunk() != nullptr) {
-    DCHECK_NOT_NULL(page->prev_chunk());
-    page->Unlink();
-  }
   AccountUncommitted(page->size());
   accounting_stats_.DecreaseCapacity(page->area_size());
   heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
@@ -2101,23 +2067,29 @@ bool SemiSpace::EnsureCurrentCapacity() {
   if (is_committed()) {
     const int expected_pages =
         static_cast<int>(current_capacity_ / Page::kPageSize);
+    MemoryChunk* current_page = first_page();
     int actual_pages = 0;
-    Page* current_page = anchor()->next_page();
-    while (current_page != anchor()) {
+
+    // First iterate through the pages list until expected pages if so many
+    // pages exist.
+    while (current_page != nullptr && actual_pages < expected_pages) {
       actual_pages++;
-      current_page = current_page->next_page();
-      if (actual_pages > expected_pages) {
-        Page* to_remove = current_page->prev_page();
-        // Make sure we don't overtake the actual top pointer.
-        CHECK_NE(to_remove, current_page_);
-        to_remove->Unlink();
-        // Clear new space flags to avoid this page being treated as a new
-        // space page that is potentially being swept.
-        to_remove->SetFlags(0, Page::kIsInNewSpaceMask);
-        heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
-            to_remove);
-      }
+      current_page = current_page->list_node().next();
     }
+
+    // Free all overallocated pages which are behind current_page.
+    while (current_page) {
+      MemoryChunk* next_current = current_page->list_node().next();
+      memory_chunk_list_.Remove(current_page);
+      // Clear new space flags to avoid this page being treated as a new
+      // space page that is potentially being swept.
+      current_page->SetFlags(0, Page::kIsInNewSpaceMask);
+      heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
+          current_page);
+      current_page = next_current;
+    }
+
+    // Add more pages if we have less than expected_pages.
     IncrementalMarking::NonAtomicMarkingState* marking_state =
         heap()->incremental_marking()->non_atomic_marking_state();
     while (actual_pages < expected_pages) {
@@ -2127,9 +2099,9 @@ bool SemiSpace::EnsureCurrentCapacity() {
               Page::kAllocatableMemory, this, NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
-      current_page->InsertAfter(anchor());
+      memory_chunk_list_.PushBack(current_page);
       marking_state->ClearLiveness(current_page);
-      current_page->SetFlags(anchor()->prev_page()->GetFlags(),
+      current_page->SetFlags(first_page()->GetFlags(),
                              static_cast<uintptr_t>(Page::kCopyAllFlags));
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()),
@@ -2398,8 +2370,6 @@ void NewSpace::Verify() {
     } else {
       // At end of page, switch to next page.
       Page* page = Page::FromAllocationAreaAddress(current)->next_page();
-      // Next page should be valid.
-      CHECK(!page->is_anchor());
       current = page->area_start();
     }
   }
@@ -2435,18 +2405,16 @@ void SemiSpace::TearDown() {
 
 bool SemiSpace::Commit() {
   DCHECK(!is_committed());
-  Page* current = anchor();
   const int num_pages = static_cast<int>(current_capacity_ / Page::kPageSize);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
             Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
-      RewindPages(current, pages_added);
+      RewindPages(pages_added);
       return false;
     }
-    new_page->InsertAfter(current);
-    current = new_page;
+    memory_chunk_list_.PushBack(new_page);
   }
   Reset();
   AccountCommitted(current_capacity_);
@@ -2460,12 +2428,12 @@ bool SemiSpace::Commit() {
 
 bool SemiSpace::Uncommit() {
   DCHECK(is_committed());
-  for (auto it = begin(); it != end();) {
-    Page* p = *(it++);
-    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(p);
+  while (!memory_chunk_list_.Empty()) {
+    MemoryChunk* chunk = memory_chunk_list_.front();
+    memory_chunk_list_.Remove(chunk);
+    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(chunk);
   }
-  anchor()->set_next_page(anchor());
-  anchor()->set_prev_page(anchor());
+  current_page_ = nullptr;
   AccountUncommitted(current_capacity_);
   committed_ = false;
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
@@ -2492,8 +2460,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   const size_t delta = new_capacity - current_capacity_;
   DCHECK(IsAligned(delta, AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
-  Page* last_page = anchor()->prev_page();
-  DCHECK_NE(last_page, anchor());
+  DCHECK(last_page());
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
@@ -2501,29 +2468,26 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
             Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
-      RewindPages(last_page, pages_added);
+      RewindPages(pages_added);
       return false;
     }
-    new_page->InsertAfter(last_page);
+    memory_chunk_list_.PushBack(new_page);
     marking_state->ClearLiveness(new_page);
     // Duplicate the flags that was set on the old page.
-    new_page->SetFlags(last_page->GetFlags(), Page::kCopyOnFlipFlagsMask);
-    last_page = new_page;
+    new_page->SetFlags(last_page()->GetFlags(), Page::kCopyOnFlipFlagsMask);
   }
   AccountCommitted(delta);
   current_capacity_ = new_capacity;
   return true;
 }
 
-void SemiSpace::RewindPages(Page* start, int num_pages) {
-  Page* new_last_page = nullptr;
-  Page* last_page = start;
+void SemiSpace::RewindPages(int num_pages) {
+  DCHECK_GT(num_pages, 0);
+  DCHECK(last_page());
   while (num_pages > 0) {
-    DCHECK_NE(last_page, anchor());
-    new_last_page = last_page->prev_page();
-    last_page->prev_page()->set_next_page(last_page->next_page());
-    last_page->next_page()->set_prev_page(last_page->prev_page());
-    last_page = new_last_page;
+    MemoryChunk* last = last_page();
+    memory_chunk_list_.Remove(last);
+    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(last);
     num_pages--;
   }
 }
@@ -2534,19 +2498,9 @@ bool SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_LT(new_capacity, current_capacity_);
   if (is_committed()) {
     const size_t delta = current_capacity_ - new_capacity;
-    DCHECK(IsAligned(delta, AllocatePageSize()));
+    DCHECK(IsAligned(delta, Page::kPageSize));
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
-    Page* new_last_page;
-    Page* last_page;
-    while (delta_pages > 0) {
-      last_page = anchor()->prev_page();
-      new_last_page = last_page->prev_page();
-      new_last_page->set_next_page(anchor());
-      anchor()->set_prev_page(new_last_page);
-      heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
-          last_page);
-      delta_pages--;
-    }
+    RewindPages(delta_pages);
     AccountUncommitted(delta);
     heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   }
@@ -2555,10 +2509,6 @@ bool SemiSpace::ShrinkTo(size_t new_capacity) {
 }
 
 void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
-  anchor_.set_owner(this);
-  anchor_.prev_page()->set_next_page(&anchor_);
-  anchor_.next_page()->set_prev_page(&anchor_);
-
   for (Page* page : *this) {
     page->set_owner(this);
     page->SetFlags(flags, mask);
@@ -2579,30 +2529,33 @@ void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
 
 
 void SemiSpace::Reset() {
-  DCHECK_NE(anchor_.next_page(), &anchor_);
-  current_page_ = anchor_.next_page();
+  DCHECK(first_page());
+  DCHECK(last_page());
+  current_page_ = first_page();
   pages_used_ = 0;
 }
 
 void SemiSpace::RemovePage(Page* page) {
   if (current_page_ == page) {
-    current_page_ = page->prev_page();
+    if (page->prev_page()) {
+      current_page_ = page->prev_page();
+    }
   }
-  page->Unlink();
+  memory_chunk_list_.Remove(page);
 }
 
 void SemiSpace::PrependPage(Page* page) {
   page->SetFlags(current_page()->GetFlags(),
                  static_cast<uintptr_t>(Page::kCopyAllFlags));
   page->set_owner(this);
-  page->InsertAfter(anchor());
+  memory_chunk_list_.PushFront(page);
   pages_used_++;
 }
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   // We won't be swapping semispaces without data in them.
-  DCHECK_NE(from->anchor_.next_page(), &from->anchor_);
-  DCHECK_NE(to->anchor_.next_page(), &to->anchor_);
+  DCHECK(from->first_page());
+  DCHECK(to->first_page());
 
   intptr_t saved_to_space_flags = to->current_page()->GetFlags();
 
@@ -2612,7 +2565,7 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->minimum_capacity_, to->minimum_capacity_);
   std::swap(from->age_mark_, to->age_mark_);
   std::swap(from->committed_, to->committed_);
-  std::swap(from->anchor_, to->anchor_);
+  std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
@@ -2640,9 +2593,7 @@ void SemiSpace::Print() {}
 #ifdef VERIFY_HEAP
 void SemiSpace::Verify() {
   bool is_from_space = (id_ == kFromSpace);
-  Page* page = anchor_.next_page();
-  CHECK(anchor_.owner() == this);
-  while (page != &anchor_) {
+  for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
     CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::IN_FROM_SPACE
@@ -2660,8 +2611,8 @@ void SemiSpace::Verify() {
             !page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       }
     }
-    CHECK_EQ(page->prev_page()->next_page(), page);
-    page = page->next_page();
+    CHECK_IMPLIES(page->list_node().prev(),
+                  page->list_node().prev()->list_node().next() == page);
   }
 }
 #endif
@@ -2681,8 +2632,8 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
   } else {
     while (page != end_page) {
       page = page->next_page();
-      DCHECK_NE(page, space->anchor());
     }
+    DCHECK(page);
   }
 }
 #endif

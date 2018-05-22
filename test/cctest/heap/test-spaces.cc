@@ -209,15 +209,17 @@ TEST(MemoryAllocator) {
   {
     int total_pages = 0;
     OldSpace faked_space(heap);
+    CHECK(!faked_space.first_page());
+    CHECK(!faked_space.last_page());
     Page* first_page = memory_allocator->AllocatePage(
         faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
         NOT_EXECUTABLE);
 
-    first_page->InsertAfter(faked_space.anchor()->prev_page());
-    CHECK(first_page->next_page() == faked_space.anchor());
+    faked_space.memory_chunk_list().PushBack(first_page);
+    CHECK(first_page->next_page() == nullptr);
     total_pages++;
 
-    for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
+    for (Page* p = first_page; p != nullptr; p = p->next_page()) {
       CHECK(p->owner() == &faked_space);
     }
 
@@ -226,9 +228,9 @@ TEST(MemoryAllocator) {
         faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
         NOT_EXECUTABLE);
     total_pages++;
-    other->InsertAfter(first_page);
+    faked_space.memory_chunk_list().PushBack(other);
     int page_count = 0;
-    for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
+    for (Page* p = first_page; p != nullptr; p = p->next_page()) {
       CHECK(p->owner() == &faked_space);
       page_count++;
     }

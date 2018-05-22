@@ -163,7 +163,7 @@ TEST(Regress2060a) {
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
-  Page* first_page = heap->old_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->first_page();
   heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
@@ -202,7 +202,7 @@ TEST(Regress2060b) {
       factory->NewFunctionForTest(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  Page* first_page = heap->old_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->first_page();
   heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.

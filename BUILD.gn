@@ -2814,6 +2814,7 @@ v8_component("v8_libbase") {
     "src/base/ieee754.h",
     "src/base/iterator.h",
     "src/base/lazy-instance.h",
+    "src/base/list.h",
     "src/base/logging.cc",
     "src/base/logging.h",
     "src/base/macros.h",
