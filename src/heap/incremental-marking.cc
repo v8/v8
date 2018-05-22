@@ -653,9 +653,10 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 }
 
 void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
+  Heap* heap = heap_;
   weak_objects_->weak_references.Update(
-      [](std::pair<HeapObject*, HeapObjectReference**> slot_in,
-         std::pair<HeapObject*, HeapObjectReference**>* slot_out) -> bool {
+      [heap](std::pair<HeapObject*, HeapObjectReference**> slot_in,
+             std::pair<HeapObject*, HeapObjectReference**>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
         MapWord map_word = heap_obj->map_word();
         if (map_word.IsForwardingAddress()) {
@@ -669,7 +670,7 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
           slot_out->second = reinterpret_cast<HeapObjectReference**>(new_slot);
           return true;
         }
-        if (heap_obj->GetHeap()->InNewSpace(heap_obj)) {
+        if (heap->InNewSpace(heap_obj)) {
           // The new space object containing the weak reference died.
           return false;
         }
@@ -677,16 +678,21 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return true;
       });
   weak_objects_->weak_objects_in_code.Update(
-      [](std::pair<HeapObject*, Code*> slot_in,
-         std::pair<HeapObject*, Code*>* slot_out) -> bool {
+      [heap](std::pair<HeapObject*, Code*> slot_in,
+             std::pair<HeapObject*, Code*>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
         MapWord map_word = heap_obj->map_word();
         if (map_word.IsForwardingAddress()) {
           slot_out->first = map_word.ToForwardingAddress();
           slot_out->second = slot_in.second;
-        } else {
-          *slot_out = slot_in;
+          return true;
         }
+        if (heap->InNewSpace(heap_obj)) {
+          // The new space object which is referred weakly is dead (i.e., didn't
+          // get scavenged). Drop references to it.
+          return false;
+        }
+        *slot_out = slot_in;
         return true;
       });
 }

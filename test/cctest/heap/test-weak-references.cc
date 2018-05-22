@@ -7,6 +7,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
@@ -519,6 +520,49 @@ TEST(WeakArrayListBasic) {
 
   CHECK(array->Get(6)->IsClearedWeakHeapObject());
   CHECK_EQ(Smi::ToInt(array->Get(7)->ToSmi()), 7);
+}
+
+TEST(Regress7768) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_turbo_inlining = false;
+  if (!FLAG_incremental_marking) {
+    return;
+  }
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+  // Create an optimized code which will contain a weak reference to another
+  // function ("f"). The weak reference is the only reference to the function.
+  CompileRun(
+      "function myfunc(f) { f(); } "
+      "(function wrapper() { "
+      "   function f() {}; myfunc(f); myfunc(f); "
+      "   %OptimizeFunctionOnNextCall(myfunc); myfunc(f); "
+      "   %ClearFunctionFeedback(wrapper);"
+      "})(); "
+      "%ClearFunctionFeedback(myfunc);");
+
+  // Do marking steps; this will store the objects pointed by myfunc for later
+  // processing.
+  SimulateIncrementalMarking(heap, true);
+
+  // Deoptimize the code; now the pointers inside it will be replaced with
+  // undefined, and the weak_objects_in_code is the only place pointing to the
+  // function f.
+  CompileRun("%DeoptimizeFunction(myfunc);");
+
+  // The object pointed to by the weak reference won't be scavenged.
+  CcTest::CollectGarbage(NEW_SPACE);
+
+  // Make sure the memory where it's stored is invalidated, so that we'll crash
+  // if we try to access it.
+  HeapTester::UncommitFromSpace(heap);
+
+  // This used to crash when processing the dead weak reference.
+  CcTest::CollectAllGarbage();
 }
 
 }  // namespace heap

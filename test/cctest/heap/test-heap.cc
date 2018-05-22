@@ -6137,6 +6137,11 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
   reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
 }
 
+void HeapTester::UncommitFromSpace(Heap* heap) {
+  heap->UncommitFromSpace();
+  heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
