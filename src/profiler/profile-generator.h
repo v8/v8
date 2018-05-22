@@ -32,7 +32,17 @@ class SourcePositionTable : public Malloced {
   int GetSourceLineNumber(int pc_offset) const;
 
  private:
-  std::map<int, int> pc_offset_to_line_map_;
+  struct PCOffsetAndLineNumber {
+    bool operator<(const PCOffsetAndLineNumber& other) const {
+      return pc_offset < other.pc_offset;
+    }
+    int pc_offset;
+    int line_number;
+  };
+  // This is logically a map, but we store it as a vector of pairs, sorted by
+  // the pc offset, so that we can save space and look up items using binary
+  // search.
+  std::vector<PCOffsetAndLineNumber> pc_offsets_to_lines_;
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 

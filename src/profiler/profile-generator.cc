@@ -21,23 +21,25 @@ namespace internal {
 void SourcePositionTable::SetPosition(int pc_offset, int line) {
   DCHECK_GE(pc_offset, 0);
   DCHECK_GT(line, 0);  // The 1-based number of the source line.
-  if (GetSourceLineNumber(pc_offset) != line) {
-    auto result = pc_offset_to_line_map_.emplace(pc_offset, line);
-    // Check that a new element was inserted.
-    USE(result);
-    DCHECK(result.second);
+  // Check that we are inserting in ascending order, so that the vector remains
+  // sorted.
+  DCHECK(pc_offsets_to_lines_.empty() ||
+         pc_offsets_to_lines_.back().pc_offset < pc_offset);
+  if (pc_offsets_to_lines_.empty() ||
+      pc_offsets_to_lines_.back().line_number != line) {
+    pc_offsets_to_lines_.push_back({pc_offset, line});
   }
 }
 
 int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
-  if (pc_offset_to_line_map_.empty()) {
+  if (pc_offsets_to_lines_.empty()) {
     return v8::CpuProfileNode::kNoLineNumberInfo;
   }
-  auto it = pc_offset_to_line_map_.upper_bound(pc_offset);
-  if (it != pc_offset_to_line_map_.begin()) {
-    return (--it)->second;
-  }
-  return it->second;
+  auto it =
+      std::upper_bound(pc_offsets_to_lines_.begin(), pc_offsets_to_lines_.end(),
+                       PCOffsetAndLineNumber{pc_offset, 0});
+  if (it != pc_offsets_to_lines_.begin()) --it;
+  return it->line_number;
 }
 
 const char* const CodeEntry::kEmptyResourceName = "";
