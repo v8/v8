@@ -583,8 +583,14 @@ antlrcpp::Any AstGenerator::visitLocationExpression(
         Pos(context), location,
         context->IDENTIFIER()->getSymbol()->getText()}));
   }
+  std::vector<TypeExpression*> templateArguments;
+  if (context->genericSpecializationTypeList()) {
+    templateArguments =
+        GetTypeVector(context->genericSpecializationTypeList()->typeList());
+  }
   return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText()}));
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+      std::move(templateArguments)}));
 }
 
 antlrcpp::Any AstGenerator::visitUnaryExpression(

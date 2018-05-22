@@ -500,6 +500,25 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
   return VisitResult(type, code);
 }
 
+VisitResult ImplementationVisitor::Visit(IdentifierExpression* expr) {
+  std::string name = expr->name;
+  if (expr->generic_arguments.size() != 0) {
+    Generic* generic = declarations()->LookupGeneric(expr->name);
+    TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
+    name = GetGeneratedCallableName(name, specialization_types);
+    CallableNode* callable = generic->declaration()->callable;
+    QueueGenericSpecialization({generic, specialization_types}, callable,
+                               callable->signature.get(),
+                               generic->declaration()->body);
+  }
+
+  if (Builtin* builtin = Builtin::DynamicCast(declarations()->Lookup(name))) {
+    return GetBuiltinCode(builtin);
+  }
+
+  return GenerateFetchFromLocation(expr, GetLocationReference(expr));
+}
+
 VisitResult ImplementationVisitor::Visit(CastExpression* expr) {
   Arguments args;
   args.parameters = {Visit(expr->value)};
@@ -1447,10 +1466,11 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   Arguments arguments;
   std::string name = expr->callee.name;
-  bool has_template_arguments = expr->generic_arguments.size() != 0;
+  bool has_template_arguments = expr->callee.generic_arguments.size() != 0;
   if (has_template_arguments) {
     Generic* generic = declarations()->LookupGeneric(expr->callee.name);
-    TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
+    TypeVector specialization_types =
+        GetTypeVector(expr->callee.generic_arguments);
     name = GetGeneratedCallableName(name, specialization_types);
     CallableNode* callable = generic->declaration()->callable;
     QueueGenericSpecialization({generic, specialization_types}, callable,

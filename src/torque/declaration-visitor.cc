@@ -302,9 +302,9 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
   }
 }
 
-void DeclarationVisitor::Visit(CallExpression* expr) {
+void DeclarationVisitor::Visit(IdentifierExpression* expr) {
   if (expr->generic_arguments.size() != 0) {
-    Generic* generic = declarations()->LookupGeneric(expr->callee.name);
+    Generic* generic = declarations()->LookupGeneric(expr->name);
     TypeVector specialization_types;
     for (auto t : expr->generic_arguments) {
       specialization_types.push_back(declarations()->GetType(t));
@@ -314,7 +314,10 @@ void DeclarationVisitor::Visit(CallExpression* expr) {
                                callable->signature.get(),
                                generic->declaration()->body);
   }
+}
 
+void DeclarationVisitor::Visit(CallExpression* expr) {
+  Visit(&expr->callee);
   for (Expression* arg : expr->arguments) Visit(arg);
 }
 

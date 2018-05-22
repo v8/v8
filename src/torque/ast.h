@@ -235,9 +235,13 @@ class Ast {
 
 struct IdentifierExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IdentifierExpression)
-  IdentifierExpression(SourcePosition p, std::string n)
-      : LocationExpression(kKind, p), name(std::move(n)) {}
+  IdentifierExpression(SourcePosition p, std::string n,
+                       std::vector<TypeExpression*> args)
+      : LocationExpression(kKind, p),
+        name(std::move(n)),
+        generic_arguments(std::move(args)) {}
   std::string name;
+  std::vector<TypeExpression*> generic_arguments;
 };
 
 struct CallExpression : Expression {
@@ -246,14 +250,12 @@ struct CallExpression : Expression {
                  std::vector<TypeExpression*> ga, std::vector<Expression*> a,
                  std::vector<std::string> l)
       : Expression(kKind, p),
-        callee(p, std::move(c)),
+        callee(p, std::move(c), std::move(ga)),
         is_operator(o),
-        generic_arguments(ga),
         arguments(std::move(a)),
         labels(l) {}
   IdentifierExpression callee;
   bool is_operator;
-  std::vector<TypeExpression*> generic_arguments;
   std::vector<Expression*> arguments;
   std::vector<std::string> labels;
 };

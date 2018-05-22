@@ -655,6 +655,7 @@ class TorqueParser : public antlr4::Parser {
                               size_t invokingState);
     size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode* IDENTIFIER();
+    GenericSpecializationTypeListContext* genericSpecializationTypeList();
     LocationExpressionContext* locationExpression();
     ExpressionContext* expression();
 
@@ -913,6 +914,7 @@ class TorqueParser : public antlr4::Parser {
         antlr4::ParserRuleContext* parent, size_t invokingState);
     size_t getRuleIndex() const override;
     VariableDeclarationContext* variableDeclaration();
+    antlr4::tree::TerminalNode* ASSIGNMENT();
     ExpressionContext* expression();
 
     void enterRule(antlr4::tree::ParseTreeListener* listener) override;

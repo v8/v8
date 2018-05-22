@@ -179,4 +179,14 @@ module test {
     let var2 : Number = 42 == 0 ? 1 : 0;
     return True;
   }
+
+  macro TestFunctionPointerToGeneric(c: Context) {
+    let fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
+    let fptr2: builtin(Context, Object) => Object = GenericBuiltinTest<Object>;
+
+    assert(fptr1(c, 0) == Null);
+    assert(fptr1(c, 1) == Null);
+    assert(fptr2(c, Undefined) == Undefined);
+    assert(fptr2(c, Undefined) == Undefined);
+  }
 }

@@ -50,7 +50,7 @@ class DeclarationVisitor : public FileVisitor {
     Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
 
-  void Visit(IdentifierExpression* expr) {}
+  void Visit(IdentifierExpression* expr);
   void Visit(NumberLiteralExpression* expr) {}
   void Visit(StringLiteralExpression* expr) {}
   void Visit(CallExpression* expr);

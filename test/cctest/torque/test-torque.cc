@@ -41,6 +41,7 @@ TEST(TestConstexpr1) {
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
 }
 
 TEST(TestConstexprIf) {
@@ -52,6 +53,7 @@ TEST(TestConstexprIf) {
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
 }
 
 TEST(TestConstexprReturn) {
@@ -63,6 +65,7 @@ TEST(TestConstexprReturn) {
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
 }
 
 TEST(TestGotoLabel) {
@@ -111,6 +114,7 @@ TEST(TestBuiltinSpecialization) {
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
 }
 
 TEST(TestMacroSpecialization) {
@@ -122,6 +126,7 @@ TEST(TestMacroSpecialization) {
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
 }
 
 TEST(TestFunctionPointers) {
@@ -136,6 +141,19 @@ TEST(TestFunctionPointers) {
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
   ft.CheckCall(ft.true_value());
+}
+
+TEST(TestFunctionPointerToGeneric) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    Node* temp = m.SmiConstant(0);
+    m.TestFunctionPointerToGeneric(m.UncheckedCast<Context>(temp));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
 }
 
 }  // namespace compiler

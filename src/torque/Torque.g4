@@ -188,7 +188,7 @@ unaryExpression
         | op=(PLUS | MINUS | BIT_NOT | NOT) unaryExpression;
 
 locationExpression
-        : IDENTIFIER
+        : IDENTIFIER genericSpecializationTypeList?
         | locationExpression '.' IDENTIFIER
         | locationExpression '[' expression ']';
 
@@ -229,7 +229,7 @@ helperCall: (MIN | MAX | IDENTIFIER) genericSpecializationTypeList? argumentList
 
 labelReference: IDENTIFIER;
 variableDeclaration: LET IDENTIFIER ':' type;
-variableDeclarationWithInitialization: variableDeclaration ('=' expression)?;
+variableDeclarationWithInitialization: variableDeclaration (ASSIGNMENT expression)?;
 helperCallStatement: (TAIL)? helperCall;
 expressionStatement: assignment;
 ifStatement: IF CONSTEXPR? '(' expression ')' statementBlock ('else' statementBlock)?;
