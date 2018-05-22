@@ -15,8 +15,8 @@ class GraphView extends View {
     return pane;
   }
 
-  constructor(d3, id, broker, showPhaseByName) {
-    super(id, broker);
+  constructor(id, broker, showPhaseByName) {
+    super(id);
     var graph = this;
     this.showPhaseByName = showPhaseByName
 

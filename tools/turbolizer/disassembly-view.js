@@ -18,7 +18,7 @@ class DisassemblyView extends TextView {
   }
 
   constructor(parentId, broker) {
-    super(parentId, broker, null, false);
+    super(parentId, broker, null);
     let view = this;
     let ADDRESS_STYLE = {
       css: 'tag',

@@ -18,7 +18,7 @@ class ScheduleView extends TextView {
   }
 
   constructor(parentId, broker) {
-    super(parentId, broker, null, false);
+    super(parentId, broker, null);
   }
 
   attachSelection(s) {

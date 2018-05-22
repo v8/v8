@@ -170,9 +170,7 @@ class Resizer {
 document.onload = (function (d3) {
   "use strict";
   var svg = null;
-  var graph = null;
-  var schedule = null;
-  var currentPhaseView = null;
+  var multiview = null;
   var disassemblyView = null;
   var sourceViews = [];
   var selectionBroker = null;
@@ -180,32 +178,7 @@ document.onload = (function (d3) {
   let resizer = new Resizer(panesUpdatedCallback, 100);
 
   function panesUpdatedCallback() {
-    if (graph) graph.fitGraphViewToWindow();
-  }
-
-  function hideCurrentPhase() {
-    var rememberedSelection = null;
-    if (currentPhaseView != null) {
-      rememberedSelection = currentPhaseView.detachSelection();
-      currentPhaseView.hide();
-      currentPhaseView = null;
-    }
-    return rememberedSelection;
-  }
-
-  function displayPhaseView(view, data) {
-    var rememberedSelection = hideCurrentPhase();
-    view.show(data, rememberedSelection);
-    d3.select("#middle").classed("scrollable", view.isScrollable());
-    currentPhaseView = view;
-  }
-
-  function displayPhase(phase) {
-    if (phase.type == 'graph') {
-      displayPhaseView(graph, phase.data);
-    } else if (phase.type == 'schedule') {
-      displayPhaseView(schedule, phase);
-    }
+    if (multiview) multiview.onresize();
   }
 
   function loadFile(txtRes) {
@@ -216,8 +189,8 @@ document.onload = (function (d3) {
     }
     try {
       sourceViews.forEach((sv) => sv.hide());
-      hideCurrentPhase();
-      graph = null;
+      if (multiview) multiview.hide();
+      multiview = null;
       if (disassemblyView) disassemblyView.hide();
       sourceViews = [];
       sourceResolver = new SourceResolver();
@@ -259,33 +232,8 @@ document.onload = (function (d3) {
         disassemblyView.show(sourceResolver.disassemblyPhase.data, null);
       }
 
-      var selectMenu = document.getElementById('display-selector');
-      selectMenu.innerHTML = '';
-      sourceResolver.forEachPhase((phase) => {
-        var optionElement = document.createElement("option");
-        optionElement.text = phase.name;
-        selectMenu.add(optionElement, null);
-      });
-      selectMenu.onchange = function (item) {
-        window.sessionStorage.setItem("lastSelectedPhase", selectMenu.selectedIndex);
-        displayPhase(sourceResolver.getPhase(selectMenu.selectedIndex));
-      }
-
-      const initialPhaseIndex = sourceResolver.repairPhaseId(+window.sessionStorage.getItem("lastSelectedPhase"));
-      selectMenu.selectedIndex = initialPhaseIndex;
-
-      function displayPhaseByName(phaseName) {
-        const phaseId = sourceResolver.getPhaseIdByName(phaseName);
-        selectMenu.selectedIndex = phaseId - 1;
-        displayPhase(sourceResolver.getPhase(phaseId));
-      }
-
-      graph = new GraphView(d3, INTERMEDIATE_PANE_ID, selectionBroker, displayPhaseByName);
-      schedule = new ScheduleView(INTERMEDIATE_PANE_ID, selectionBroker);
-
-      displayPhase(sourceResolver.getPhase(initialPhaseIndex));
-
-      d3.select("#search-input").attr("value", window.sessionStorage.getItem("lastSearch") || "");
+      multiview = new GraphMultiView(INTERMEDIATE_PANE_ID, selectionBroker, sourceResolver);
+      multiview.show(jsonObj);
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +
            "error: " + err.message + "\nDo you want to clear session storage?")) {
@@ -319,13 +267,6 @@ document.onload = (function (d3) {
 
   initializeUploadHandlers();
 
-  function handleSearch(e) {
-    if (currentPhaseView) {
-      currentPhaseView.searchInputAction(currentPhaseView, this)
-    }
-  }
-
-  d3.select("#search-input").on("keyup", handleSearch);
 
   resizer.snapper.setSourceExpanded(resizer.snapper.getLastExpandedState("source", true));
   resizer.snapper.setDisassemblyExpanded(resizer.snapper.getLastExpandedState("disassembly", false));

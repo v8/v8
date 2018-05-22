@@ -19,7 +19,7 @@ class CodeView extends View {
   }
 
   constructor(parentId, broker, sourceResolver, sourceFunction, codeMode) {
-    super(parentId, broker, null, false);
+    super(parentId);
     let view = this;
     view.mouseDown = false;
     view.broker = broker;

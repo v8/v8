@@ -5,7 +5,7 @@
 "use strict";
 
 class View {
-  constructor(id, broker) {
+  constructor(id) {
     this.container = document.getElementById(id);
     this.divNode = this.createViewElement();
     this.divElement = d3.select(this.divNode);
@@ -18,11 +18,9 @@ class View {
   show(data, rememberedSelection) {
     this.container.appendChild(this.divElement.node());
     this.initializeContent(data, rememberedSelection);
-    this.divElement.attr(VISIBILITY, 'visible');
   }
 
   hide() {
-    this.divElement.attr(VISIBILITY, 'hidden');
     this.deleteContent();
     this.container.removeChild(this.divNode);
   }

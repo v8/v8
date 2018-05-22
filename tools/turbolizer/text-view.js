@@ -10,7 +10,7 @@ function anyToString(x) {
 
 class TextView extends View {
   constructor(id, broker, patterns) {
-    super(id, broker);
+    super(id);
     let view = this;
     view.textListNode = view.divNode.getElementsByTagName('ul')[0];
     view.patterns = patterns;
