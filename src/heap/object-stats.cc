@@ -593,6 +593,8 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
     calculated_size += header_size;
 
     // Iterate over the feedback slots and log each one.
+    if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
+
     FeedbackMetadataIterator it(vector->metadata());
     while (it.HasNext()) {
       FeedbackSlot slot = it.Next();
