@@ -333,6 +333,7 @@ class TurboAssembler : public Assembler {
   void Sub32(Register dst, const MemOperand& opnd);
   void SubP(Register dst, const MemOperand& opnd);
   void SubP_ExtendSrc(Register dst, const MemOperand& opnd);
+  void LoadAndSub32(Register dst, Register src, const MemOperand& opnd);
 
   // Subtract Logical (Register - Mem)
   void SubLogical(Register dst, const MemOperand& opnd);

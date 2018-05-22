@@ -1019,26 +1019,16 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ CmpAndSwap(output, new_val, MemOperand(addr));                    \
   } while (false)
 
-// TODO(vasili.skurydzin): use immediate operand for value and
-// SI-formatted instructions (i.e. ASI/AGSI for add) to update
-// memory atomically
-#define ASSEMBLE_ATOMIC_BINOP_WORD(bin_inst, load_and_ext)                \
+#define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op)                           \
   do {                                                                    \
     Register value = i.InputRegister(2);                                  \
     Register result = i.OutputRegister(0);                                \
     Register addr = r1;                                                   \
-    Register prev = r0;                                                   \
-    Register next = kScratchReg;                                          \
     AddressingMode mode = kMode_None;                                     \
     MemOperand op = i.MemoryOperand(&mode);                               \
-    Label do_cs;                                                          \
     __ lay(addr, op);                                                     \
-    __ l(prev, MemOperand(addr));                                         \
-    __ bind(&do_cs);                                                      \
-    __ bin_inst(next, prev, value);                                       \
-    __ CmpAndSwap(prev, next, MemOperand(addr));                          \
-    __ bne(&do_cs, Label::kNear);                                         \
-    __ load_and_ext(result, prev);                                        \
+    __ load_and_op(result, value, MemOperand(addr));                      \
+    __ LoadlW(result, result);                                            \
   } while (false)
 
 #define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end)         \
@@ -2724,9 +2714,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ risbg(result, prev, Operand(48), Operand(63),              \
                    Operand(static_cast<intptr_t>(rotate_left)), true);  \
         });                                                             \
-    break;                                                              \
-  case kWord32Atomic##op##Word32:                                       \
-    ASSEMBLE_ATOMIC_BINOP_WORD(inst, LoadlW);                           \
     break;
       ATOMIC_BINOP_CASE(Add, Add32)
       ATOMIC_BINOP_CASE(Sub, Sub32)
@@ -2734,7 +2721,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
-
+    case kWord32AtomicAddWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(laa);
+      break;
+    case kWord32AtomicSubWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
+      break;
+    case kWord32AtomicAndWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(lan);
+      break;
+    case kWord32AtomicOrWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(lao);
+      break;
+    case kWord32AtomicXorWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(lax);
+      break;
     default:
       UNREACHABLE();
       break;

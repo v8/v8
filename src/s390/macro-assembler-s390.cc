@@ -2869,6 +2869,13 @@ void TurboAssembler::SubP_ExtendSrc(Register dst, const MemOperand& opnd) {
 #endif
 }
 
+// Load And Subtract 32-bit (similar to laa/lan/lao/lax)
+void TurboAssembler::LoadAndSub32(Register dst, Register src,
+                                  const MemOperand& opnd) {
+  lcr(dst, src);
+  laa(dst, dst, opnd);
+}
+
 //----------------------------------------------------------------------------
 //  Subtract Logical Instructions
 //----------------------------------------------------------------------------

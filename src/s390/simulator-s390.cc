@@ -9194,28 +9194,38 @@ EVALUATE(STOC) {
   return 0;
 }
 
+#define ATOMIC_LOAD_AND_UPDATE_WORD32(op)                       \
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);                     \
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);            \
+  intptr_t addr = static_cast<intptr_t>(b2_val) + d2;           \
+  int32_t r3_val = get_low_register<int32_t>(r3);               \
+  DCHECK_EQ(target_addr & 0x3, 0);                              \
+  int32_t r1_val = op(reinterpret_cast<int32_t*>(addr),         \
+                      r3_val, __ATOMIC_SEQ_CST);                \
+  set_low_register(r1, r1_val);
+
 EVALUATE(LAN) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAN);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_and);
+  return length;
 }
 
 EVALUATE(LAO) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAO);
+    ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_or);
+  return length;
 }
 
 EVALUATE(LAX) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAX);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_xor);
+  return length;
 }
 
 EVALUATE(LAA) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAA);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_add);
+  return length;
 }
 
 EVALUATE(LAAL) {
@@ -9223,6 +9233,8 @@ EVALUATE(LAAL) {
   USE(instr);
   return 0;
 }
+
+#undef ATOMIC_LOAD_AND_UPDATE_WORD32
 
 EVALUATE(BRXHG) {
   UNIMPLEMENTED();
