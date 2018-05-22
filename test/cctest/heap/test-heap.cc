@@ -2183,6 +2183,33 @@ HEAP_TEST(GCFlags) {
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 }
 
+HEAP_TEST(Regress845060) {
+  // Regression test for crbug.com/845060, where a raw pointer to a string's
+  // data was kept across an allocation. If the allocation causes GC and
+  // moves the string, such raw pointers become invalid.
+  FLAG_allow_natives_syntax = true;
+  FLAG_stress_incremental_marking = false;
+  FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+
+  // Preparation: create a string in new space.
+  Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
+  CHECK(heap->InNewSpace(*v8::Utils::OpenHandle(*str)));
+
+  // Idle incremental marking sets the "kReduceMemoryFootprint" flag, which
+  // causes from_space to be unmapped after scavenging.
+  heap->StartIdleIncrementalMarking(GarbageCollectionReason::kTesting);
+  CHECK(heap->ShouldReduceMemory());
+
+  // Run the test (which allocates results) until the original string was
+  // promoted to old space. Unmapping of from_space causes accesses to any
+  // stale raw pointers to crash.
+  CompileRun("while (%InNewSpace(str)) { str.split(''); }");
+  CHECK(!heap->InNewSpace(*v8::Utils::OpenHandle(*str)));
+}
 
 TEST(IdleNotificationFinishMarking) {
   if (!FLAG_incremental_marking) return;
