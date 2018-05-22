@@ -281,6 +281,11 @@ class TorqueBaseListener : public TorqueListener {
   void exitTypeDeclaration(
       TorqueParser::TypeDeclarationContext* /*ctx*/) override {}
 
+  void enterTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* /*ctx*/) override {}
+  void exitTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* /*ctx*/) override {}
+
   void enterExternalBuiltin(
       TorqueParser::ExternalBuiltinContext* /*ctx*/) override {}
   void exitExternalBuiltin(

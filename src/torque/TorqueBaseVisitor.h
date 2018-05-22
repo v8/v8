@@ -300,6 +300,11 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
+  antlrcpp::Any visitTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
   antlrcpp::Any visitExternalBuiltin(
       TorqueParser::ExternalBuiltinContext* ctx) override {
     return visitChildren(ctx);

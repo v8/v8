@@ -195,6 +195,9 @@ class TorqueVisitor : public antlr4::tree::AbstractParseTreeVisitor {
   virtual antlrcpp::Any visitTypeDeclaration(
       TorqueParser::TypeDeclarationContext* context) = 0;
 
+  virtual antlrcpp::Any visitTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* context) = 0;
+
   virtual antlrcpp::Any visitExternalBuiltin(
       TorqueParser::ExternalBuiltinContext* context) = 0;
 

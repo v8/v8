@@ -65,6 +65,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 #define AST_DECLARATION_NODE_KIND_LIST(V) \
   V(TypeDeclaration)                      \
+  V(TypeAliasDeclaration)                 \
   V(StandardDeclaration)                  \
   V(GenericDeclaration)                   \
   V(SpecializationDeclaration)            \
@@ -551,6 +552,14 @@ struct TypeDeclaration : Declaration {
   base::Optional<std::string> extends;
   base::Optional<std::string> generates;
   base::Optional<std::string> constexpr_generates;
+};
+
+struct TypeAliasDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeAliasDeclaration)
+  TypeAliasDeclaration(SourcePosition p, std::string n, TypeExpression* t)
+      : Declaration(kKind, p), name(std::move(n)), type(t) {}
+  std::string name;
+  TypeExpression* type;
 };
 
 struct LabelAndTypes {

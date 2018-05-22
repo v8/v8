@@ -84,6 +84,11 @@ class DeclarationVisitor : public FileVisitor {
     }
   }
 
+  void Visit(TypeAliasDeclaration* decl) {
+    declarations()->DeclareType(decl->name,
+                                declarations()->GetType(decl->type));
+  }
+
   Builtin* BuiltinDeclarationCommon(BuiltinDeclaration* decl, bool external,
                                     const Signature& signature);
 

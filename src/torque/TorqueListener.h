@@ -266,6 +266,11 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void exitTypeDeclaration(
       TorqueParser::TypeDeclarationContext* ctx) = 0;
 
+  virtual void enterTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* ctx) = 0;
+  virtual void exitTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* ctx) = 0;
+
   virtual void enterExternalBuiltin(
       TorqueParser::ExternalBuiltinContext* ctx) = 0;
   virtual void exitExternalBuiltin(

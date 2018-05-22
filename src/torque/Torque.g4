@@ -270,6 +270,7 @@ extendsDeclaration: 'extends' IDENTIFIER;
 generatesDeclaration: 'generates' STRING_LITERAL;
 constexprDeclaration: 'constexpr' STRING_LITERAL;
 typeDeclaration : 'type' IDENTIFIER extendsDeclaration? generatesDeclaration? constexprDeclaration?';';
+typeAliasDeclaration : 'type' IDENTIFIER '=' type ';';
 
 externalBuiltin : EXTERN JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList '(' typeList ')' optionalType ';';
 externalMacro : EXTERN (IMPLICIT? 'operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList typeListMaybeVarArgs optionalType optionalLabelList ';';
@@ -281,6 +282,7 @@ constDeclaration : 'const' IDENTIFIER ':' type '=' STRING_LITERAL ';';
 
 declaration
         : typeDeclaration
+        | typeAliasDeclaration
         | builtinDeclaration
         | genericSpecialization
         | macroDeclaration

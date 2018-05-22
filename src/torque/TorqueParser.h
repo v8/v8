@@ -158,16 +158,17 @@ class TorqueParser : public antlr4::Parser {
     RuleGeneratesDeclaration = 56,
     RuleConstexprDeclaration = 57,
     RuleTypeDeclaration = 58,
-    RuleExternalBuiltin = 59,
-    RuleExternalMacro = 60,
-    RuleExternalRuntime = 61,
-    RuleBuiltinDeclaration = 62,
-    RuleGenericSpecialization = 63,
-    RuleMacroDeclaration = 64,
-    RuleConstDeclaration = 65,
-    RuleDeclaration = 66,
-    RuleModuleDeclaration = 67,
-    RuleFile = 68
+    RuleTypeAliasDeclaration = 59,
+    RuleExternalBuiltin = 60,
+    RuleExternalMacro = 61,
+    RuleExternalRuntime = 62,
+    RuleBuiltinDeclaration = 63,
+    RuleGenericSpecialization = 64,
+    RuleMacroDeclaration = 65,
+    RuleConstDeclaration = 66,
+    RuleDeclaration = 67,
+    RuleModuleDeclaration = 68,
+    RuleFile = 69
   };
 
   explicit TorqueParser(antlr4::TokenStream* input);
@@ -240,6 +241,7 @@ class TorqueParser : public antlr4::Parser {
   class GeneratesDeclarationContext;
   class ConstexprDeclarationContext;
   class TypeDeclarationContext;
+  class TypeAliasDeclarationContext;
   class ExternalBuiltinContext;
   class ExternalMacroContext;
   class ExternalRuntimeContext;
@@ -1260,6 +1262,22 @@ class TorqueParser : public antlr4::Parser {
 
   TypeDeclarationContext* typeDeclaration();
 
+  class TypeAliasDeclarationContext : public antlr4::ParserRuleContext {
+   public:
+    TypeAliasDeclarationContext(antlr4::ParserRuleContext* parent,
+                                size_t invokingState);
+    size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* IDENTIFIER();
+    TypeContext* type();
+
+    void enterRule(antlr4::tree::ParseTreeListener* listener) override;
+    void exitRule(antlr4::tree::ParseTreeListener* listener) override;
+
+    antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor* visitor) override;
+  };
+
+  TypeAliasDeclarationContext* typeAliasDeclaration();
+
   class ExternalBuiltinContext : public antlr4::ParserRuleContext {
    public:
     ExternalBuiltinContext(antlr4::ParserRuleContext* parent,
@@ -1407,6 +1425,7 @@ class TorqueParser : public antlr4::Parser {
     DeclarationContext(antlr4::ParserRuleContext* parent, size_t invokingState);
     size_t getRuleIndex() const override;
     TypeDeclarationContext* typeDeclaration();
+    TypeAliasDeclarationContext* typeAliasDeclaration();
     BuiltinDeclarationContext* builtinDeclaration();
     GenericSpecializationContext* genericSpecialization();
     MacroDeclarationContext* macroDeclaration();

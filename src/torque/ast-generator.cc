@@ -308,6 +308,14 @@ antlrcpp::Any AstGenerator::visitTypeDeclaration(
   return implicit_cast<Declaration*>(result);
 }
 
+antlrcpp::Any AstGenerator::visitTypeAliasDeclaration(
+    TorqueParser::TypeAliasDeclarationContext* context) {
+  TypeAliasDeclaration* result = RegisterNode(new TypeAliasDeclaration{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+      GetType(context->type())});
+  return implicit_cast<Declaration*>(result);
+}
+
 antlrcpp::Any AstGenerator::visitVariableDeclaration(
     TorqueParser::VariableDeclarationContext* context) {
   return RegisterNode(

@@ -94,6 +94,7 @@ class ImplementationVisitor : public FileVisitor {
     Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
   void Visit(TypeDeclaration* decl) {}
+  void Visit(TypeAliasDeclaration* decl) {}
   void Visit(ConstDeclaration* decl) {}
   void Visit(StandardDeclaration* decl);
   void Visit(GenericDeclaration* decl) {}
