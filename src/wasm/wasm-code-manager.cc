@@ -10,7 +10,6 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/disassembler.h"
 #include "src/globals.h"
@@ -624,6 +623,10 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
 
 Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
   DCHECK(Heap::IsImmovable(*code));
+
+  // Limit calls of {Code} objects on the GC heap to builtins (i.e. disallow
+  // calls to {CodeStub} or dynamic code). The serializer depends on this.
+  DCHECK(code->is_builtin());
 
   Address index = code->raw_instruction_start();
   auto trampoline_iter = trampolines_.find(index);

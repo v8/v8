@@ -11,7 +11,6 @@
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/identity-map.h"

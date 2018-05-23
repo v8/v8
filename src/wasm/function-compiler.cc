@@ -5,7 +5,6 @@
 #include "src/wasm/function-compiler.h"
 
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
