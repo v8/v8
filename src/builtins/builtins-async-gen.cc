@@ -6,6 +6,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/js-promise.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {

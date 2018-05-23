@@ -25,8 +25,6 @@ BOOL_ACCESSORS(Symbol, flags, is_well_known_symbol, kWellKnownSymbolBit)
 BOOL_ACCESSORS(Symbol, flags, is_public, kPublicBit)
 BOOL_ACCESSORS(Symbol, flags, is_interesting_symbol, kInterestingSymbolBit)
 
-TYPE_CHECKER(Symbol, SYMBOL_TYPE)
-
 bool Symbol::is_private_field() const {
   bool value = BooleanBit::get(flags(), kPrivateFieldBit);
   DCHECK_IMPLIES(value, is_private());

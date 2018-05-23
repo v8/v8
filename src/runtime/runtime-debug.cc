@@ -21,6 +21,8 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/js-promise-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"

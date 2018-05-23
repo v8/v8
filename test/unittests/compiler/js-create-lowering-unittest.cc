@@ -13,6 +13,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/feedback-vector.h"
 #include "src/isolate-inl.h"
+#include "src/objects/arguments.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"

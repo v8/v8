@@ -14,6 +14,7 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/module-inl.h"
 
 namespace v8 {
 namespace internal {

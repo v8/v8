@@ -15,6 +15,8 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/transitions.h"

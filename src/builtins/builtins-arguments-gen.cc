@@ -12,6 +12,7 @@
 #include "src/frame-constants.h"
 #include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
+#include "src/objects/arguments.h"
 
 namespace v8 {
 namespace internal {

@@ -35,7 +35,6 @@ ModuleInfo* Module::info() const {
              : GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
-TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
 CAST_ACCESSOR(JSModuleNamespace)
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
@@ -49,10 +48,6 @@ SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
 SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
 CAST_ACCESSOR(ModuleInfo)
-
-bool HeapObject::IsModuleInfo() const {
-  return map() == GetHeap()->module_info_map();
-}
 
 }  // namespace internal
 }  // namespace v8

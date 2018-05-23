@@ -11,6 +11,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {

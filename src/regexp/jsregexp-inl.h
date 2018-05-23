@@ -8,6 +8,7 @@
 
 #include "src/allocation.h"
 #include "src/objects.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {

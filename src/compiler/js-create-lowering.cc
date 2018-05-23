@@ -20,7 +20,10 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/objects-inl.h"
+#include "src/objects/arguments.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/js-regexp-inl.h"
 
 namespace v8 {
 namespace internal {

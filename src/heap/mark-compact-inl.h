@@ -9,6 +9,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/remembered-set.h"
+#include "src/objects/js-collection-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -19,10 +19,6 @@
 namespace v8 {
 namespace internal {
 
-TYPE_CHECKER(BytecodeArray, BYTECODE_ARRAY_TYPE)
-TYPE_CHECKER(Code, CODE_TYPE)
-TYPE_CHECKER(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)
-
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Code)

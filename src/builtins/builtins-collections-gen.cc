@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-collection.h"
 
 namespace v8 {
 namespace internal {

@@ -20,11 +20,13 @@
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/arguments.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/natives.h"

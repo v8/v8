@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-array-gen.h"
+
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-typed-array-gen.h"
@@ -10,8 +12,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/frame-constants.h"
 #include "src/heap/factory-inl.h"
-
-#include "src/builtins/builtins-array-gen.h"
+#include "src/objects/arguments-inl.h"
 
 namespace v8 {
 namespace internal {

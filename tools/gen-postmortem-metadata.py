@@ -306,6 +306,8 @@ header = '''
 #include "src/frames.h"
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
+#include "src/objects.h"
+#include "src/objects/js-regexp-string-iterator.h"
 
 using namespace v8::internal;
 

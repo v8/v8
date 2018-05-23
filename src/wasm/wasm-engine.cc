@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-engine.h"
 
 #include "src/objects-inl.h"
+#include "src/objects/js-promise.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"

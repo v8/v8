@@ -12,6 +12,8 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 

@@ -20,6 +20,7 @@
 #include "src/feedback-vector-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
+#include "src/objects/arguments-inl.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {

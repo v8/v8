@@ -54,6 +54,7 @@
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/compilation-cache-inl.h"
@@ -63,9 +64,12 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/map.h"
 #include "src/objects/microtask-inl.h"
+#include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/property-descriptor.h"

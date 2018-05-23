@@ -10,6 +10,9 @@
 #include "src/handles-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
+#include "src/objects/arguments.h"
+#include "src/objects/js-collection.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {

@@ -9,6 +9,7 @@
 #include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/js-collection.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 

@@ -7,6 +7,8 @@
 #include "src/arguments.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {

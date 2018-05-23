@@ -70,8 +70,6 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
                     Map::ConstructionCounterBits)
 
-TYPE_CHECKER(Map, MAP_TYPE)
-
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo* info = GetFunctionTemplateInfo();
