@@ -1288,6 +1288,24 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   const FunctionPointerType* type =
       FunctionPointerType::cast(callee_result.type());
 
+  if (type->parameter_types().size() != parameter_types.size()) {
+    std::stringstream stream;
+    stream << "parameter count mismatch calling function pointer with Type: "
+           << type << " - expected "
+           << std::to_string(type->parameter_types().size()) << ", found "
+           << std::to_string(parameter_types.size());
+    ReportError(stream.str());
+  }
+
+  ParameterTypes types{type->parameter_types(), false};
+  if (!GetTypeOracle().IsCompatibleSignature(types, parameter_types)) {
+    std::stringstream stream;
+    stream << "parameters do not match function pointer signature. Expected: ("
+           << type->parameter_types() << ") but got: (" << parameter_types
+           << ")";
+    ReportError(stream.str());
+  }
+
   std::vector<std::string> variables;
   for (size_t current = 0; current < arguments.parameters.size(); ++current) {
     const Type* to_type = type->parameter_types()[current];
