@@ -3273,15 +3273,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  Handle<Object> feedback(nexus.GetFeedback(), isolate());
-  if (feedback->IsWeakCell()) {
+  HeapObject* heap_object;
+  if (nexus.GetFeedback()->ToWeakHeapObject(&heap_object)) {
+    Handle<HeapObject> feedback(heap_object, isolate());
     // Check if we want to use CallIC feedback here.
     if (!ShouldUseCallICFeedback(target)) return NoChange();
 
-    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-    if (cell->value()->IsCallable()) {
-      Node* target_function =
-          jsgraph()->Constant(handle(cell->value(), isolate()));
+    if (feedback->IsCallable()) {
+      Node* target_function = jsgraph()->Constant(feedback);
 
       // Check that the {target} is still the {target_function}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -3650,13 +3649,15 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       return NoChange();
     }
 
-    Handle<Object> feedback(nexus.GetFeedback(), isolate());
-    if (feedback->IsAllocationSite()) {
+    HeapObject* feedback_object;
+    if (nexus.GetFeedback()->ToStrongHeapObject(&feedback_object) &&
+        feedback_object->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
       // for the resulting arrays.  This has to be kept in sync with the
       // implementation in Ignition.
-      Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
+      Handle<AllocationSite> site(AllocationSite::cast(feedback_object),
+                                  isolate());
 
       // Retrieve the Array function from the {node}.
       Node* array_function = jsgraph()->HeapConstant(
@@ -3678,12 +3679,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       NodeProperties::ReplaceValueInput(node, array_function, 1);
       NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
       return Changed(node);
-    } else if (feedback->IsWeakCell() &&
+    } else if (nexus.GetFeedback()->ToWeakHeapObject(&feedback_object) &&
                !HeapObjectMatcher(new_target).HasValue()) {
-      Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-      if (cell->value()->IsConstructor()) {
-        Node* new_target_feedback =
-            jsgraph()->Constant(handle(cell->value(), isolate()));
+      Handle<HeapObject> object(feedback_object, isolate());
+      if (object->IsConstructor()) {
+        Node* new_target_feedback = jsgraph()->Constant(object);
 
         // Check that the {new_target} is still the {new_target_feedback}.
         Node* check = graph()->NewNode(simplified()->ReferenceEqual(),

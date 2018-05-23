@@ -133,7 +133,7 @@ class AccessorAssembler : public CodeStubAssembler {
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
   void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
-                         Node* feedback, Variable* var_handler,
+                         TNode<HeapObject> feedback, Variable* var_handler,
                          Label* if_handler, Label* miss, ExitPoint* exit_point);
 
   Node* LoadDescriptorValue(Node* map, Node* descriptor);
@@ -153,9 +153,10 @@ class AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  Node* TryMonomorphicCase(Node* slot, Node* vector, Node* receiver_map,
-                           Label* if_handler,
-                           TVariable<MaybeObject>* var_handler, Label* if_miss);
+  TNode<MaybeObject> TryMonomorphicCase(Node* slot, Node* vector,
+                                        Node* receiver_map, Label* if_handler,
+                                        TVariable<MaybeObject>* var_handler,
+                                        Label* if_miss);
   void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
                              Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
