@@ -858,8 +858,6 @@ class LargePage : public MemoryChunk {
     return static_cast<LargePage*>(list_node_.next());
   }
 
-  inline void set_next_page(LargePage* page) { list_node_.set_next(page); }
-
   // Uncommit memory that is not in use anymore by the object. If the object
   // cannot be shrunk 0 is returned.
   Address GetAddressToShrink(Address object_address, size_t object_size);
@@ -3004,14 +3002,16 @@ class LargeObjectSpace : public Space {
   bool ContainsSlow(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
   // Checks whether the space is empty.
-  bool IsEmpty() { return first_page_ == nullptr; }
+  bool IsEmpty() { return first_page() == nullptr; }
 
-  LargePage* first_page() { return first_page_; }
+  LargePage* first_page() {
+    return reinterpret_cast<LargePage*>(Space::first_page());
+  }
 
   // Collect code statistics.
   void CollectCodeStatistics();
 
-  iterator begin() { return iterator(first_page_); }
+  iterator begin() { return iterator(first_page()); }
   iterator end() { return iterator(nullptr); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
@@ -3027,8 +3027,6 @@ class LargeObjectSpace : public Space {
 #endif
 
  private:
-  // The head of the linked list of large object chunks.
-  LargePage* first_page_;
   size_t size_;          // allocated bytes
   int page_count_;       // number of chunks
   size_t objects_size_;  // size of objects

@@ -9,13 +9,6 @@
 
 #include "src/base/logging.h"
 
-// TODO(hpayer): Remove as soon LargePage was ported to use List.
-namespace v8 {
-namespace internal {
-class LargePage;
-}
-}  // namespace v8
-
 namespace v8 {
 namespace base {
 
@@ -136,8 +129,6 @@ class ListNode {
   T* prev_;
 
   friend class List<T>;
-  // TODO(hpayer): Remove as soon LargePage was ported to use List.
-  friend class v8::internal::LargePage;
 };
 }  // namespace base
 }  // namespace v8

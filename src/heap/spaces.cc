@@ -718,6 +718,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
     Memory::Address_at(addr) = 0;
   }
   LargePage* page = static_cast<LargePage*>(chunk);
+  page->list_node().Initialize();
   page->InitializationMemoryFence();
   return page;
 }
@@ -3220,7 +3221,7 @@ void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
 // LargeObjectIterator
 
 LargeObjectIterator::LargeObjectIterator(LargeObjectSpace* space) {
-  current_ = space->first_page_;
+  current_ = space->first_page();
 }
 
 
@@ -3238,7 +3239,6 @@ HeapObject* LargeObjectIterator::Next() {
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
     : Space(heap, id),  // Managed on a per-allocation basis
-      first_page_(nullptr),
       size_(0),
       page_count_(0),
       objects_size_(0),
@@ -3251,12 +3251,12 @@ bool LargeObjectSpace::SetUp() {
 }
 
 void LargeObjectSpace::TearDown() {
-  while (first_page_ != nullptr) {
-    LargePage* page = first_page_;
-    first_page_ = first_page_->next_page();
+  while (!memory_chunk_list_.Empty()) {
+    LargePage* page = first_page();
     LOG(heap()->isolate(),
         DeleteEvent("LargeObjectChunk",
                     reinterpret_cast<void*>(page->address())));
+    memory_chunk_list_.Remove(page);
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
   SetUp();
@@ -3281,8 +3281,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   AccountCommitted(page->size());
   objects_size_ += object_size;
   page_count_++;
-  page->set_next_page(first_page_);
-  first_page_ = page;
+  memory_chunk_list_.PushBack(page);
 
   InsertChunkMapEntries(page);
 
@@ -3388,12 +3387,12 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
 }
 
 void LargeObjectSpace::FreeUnmarkedObjects() {
-  LargePage* previous = nullptr;
-  LargePage* current = first_page_;
+  LargePage* current = first_page();
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
   objects_size_ = 0;
-  while (current != nullptr) {
+  while (current) {
+    LargePage* next_current = current->next_page();
     HeapObject* object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
     if (marking_state->IsBlack(object)) {
@@ -3413,26 +3412,19 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
         size_ -= bytes_to_free;
         AccountUncommitted(bytes_to_free);
       }
-      previous = current;
-      current = current->next_page();
     } else {
-      LargePage* page = current;
-      // Cut the chunk out from the chunk list.
-      current = current->next_page();
-      if (previous == nullptr) {
-        first_page_ = current;
-      } else {
-        previous->set_next_page(current);
-      }
+      memory_chunk_list_.Remove(current);
 
       // Free the chunk.
-      size_ -= static_cast<int>(page->size());
-      AccountUncommitted(page->size());
+      size_ -= static_cast<int>(current->size());
+      AccountUncommitted(current->size());
       page_count_--;
 
-      RemoveChunkMapEntries(page);
-      heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
+      RemoveChunkMapEntries(current);
+      heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
+          current);
     }
+    current = next_current;
   }
 }
 
@@ -3456,7 +3448,7 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator() {
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify() {
-  for (LargePage* chunk = first_page_; chunk != nullptr;
+  for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
     // Each chunk contains an object that starts at the large object page's
     // object area start.
