@@ -905,7 +905,7 @@ action("run_torque") {
   }
 }
 
-v8_source_set("torque_generated_core") {
+v8_header_set("torque_generated_core") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
