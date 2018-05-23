@@ -491,14 +491,14 @@ struct BaseWithIndexAndDisplacementMatcher {
     bool power_of_two_plus_one = false;
     DisplacementMode displacement_mode = kPositiveDisplacement;
     int scale = 0;
-    if (m.HasIndexInput() && left->OwnedByAddressingOperand()) {
+    if (m.HasIndexInput() && OwnedByAddressingOperand(left)) {
       index = m.IndexInput();
       scale = m.scale();
       scale_expression = left;
       power_of_two_plus_one = m.power_of_two_plus_one();
       bool match_found = false;
       if (right->opcode() == AddMatcher::kSubOpcode &&
-          right->OwnedByAddressingOperand()) {
+          OwnedByAddressingOperand(right)) {
         AddMatcher right_matcher(right);
         if (right_matcher.right().HasValue()) {
           // (S + (B - D))
@@ -510,7 +510,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       }
       if (!match_found) {
         if (right->opcode() == AddMatcher::kAddOpcode &&
-            right->OwnedByAddressingOperand()) {
+            OwnedByAddressingOperand(right)) {
           AddMatcher right_matcher(right);
           if (right_matcher.right().HasValue()) {
             // (S + (B + D))
@@ -531,7 +531,7 @@ struct BaseWithIndexAndDisplacementMatcher {
     } else {
       bool match_found = false;
       if (left->opcode() == AddMatcher::kSubOpcode &&
-          left->OwnedByAddressingOperand()) {
+          OwnedByAddressingOperand(left)) {
         AddMatcher left_matcher(left);
         Node* left_left = left_matcher.left().node();
         Node* left_right = left_matcher.right().node();
@@ -557,7 +557,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       }
       if (!match_found) {
         if (left->opcode() == AddMatcher::kAddOpcode &&
-            left->OwnedByAddressingOperand()) {
+            OwnedByAddressingOperand(left)) {
           AddMatcher left_matcher(left);
           Node* left_left = left_matcher.left().node();
           Node* left_right = left_matcher.right().node();
@@ -666,6 +666,29 @@ struct BaseWithIndexAndDisplacementMatcher {
     index_ = index;
     scale_ = scale;
     matches_ = true;
+  }
+
+  static bool OwnedByAddressingOperand(Node* node) {
+    for (auto use : node->use_edges()) {
+      Node* from = use.from();
+      switch (from->opcode()) {
+        case IrOpcode::kLoad:
+        case IrOpcode::kPoisonedLoad:
+        case IrOpcode::kInt32Add:
+        case IrOpcode::kInt64Add:
+          // Skip addressing uses.
+          break;
+        case IrOpcode::kStore:
+          // If the stored value is this node, it is not an addressing use.
+          if (from->InputAt(2) == node) return false;
+          // Otherwise it is used as an address and skipped.
+          break;
+        default:
+          // Non-addressing use found.
+          return false;
+      }
+    }
+    return true;
   }
 };
 
