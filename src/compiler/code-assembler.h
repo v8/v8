@@ -35,6 +35,7 @@ class JSRegExpStringIterator;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;
+class MaybeObject;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;
 class PromiseReaction;
@@ -361,6 +362,16 @@ struct types_have_common_values<UnionT<T1, T2>, UnionT<U1, U2>> {
                             types_have_common_values<T2, U2>::value;
 };
 
+template <class T>
+struct types_have_common_values<T, MaybeObject> {
+  static const bool value = types_have_common_values<T, Object>::value;
+};
+
+template <class T>
+struct types_have_common_values<MaybeObject, T> {
+  static const bool value = types_have_common_values<Object, T>::value;
+};
+
 // TNode<T> is an SSA value with the static type tag T, which is one of the
 // following:
 //   - a subclass of internal::Object represents a tagged type
@@ -592,6 +603,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
     template <class A>
     operator TNode<A>() {
+      static_assert(
+          !std::is_same<A, MaybeObject>::value,
+          "Can't cast to MaybeObject, use explicit conversion functions. ");
+
       static_assert(types_have_common_values<A, PreviousType>::value,
                     "Incompatible types: this cast can never succeed.");
       static_assert(std::is_convertible<TNode<A>, TNode<Object>>::value,
@@ -603,6 +618,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
           "Unnecessary CAST: types are convertible.");
 #ifdef DEBUG
       if (FLAG_debug_code) {
+        if (std::is_same<PreviousType, MaybeObject>::value) {
+          code_assembler_->GenerateCheckMaybeObjectIsObject(node_, location_);
+        }
         Node* function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
         code_assembler_->CallCFunction3(
@@ -666,6 +684,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
 #else
 #define CAST(x) Cast(x, "")
+#endif
+
+#ifdef DEBUG
+  void GenerateCheckMaybeObjectIsObject(Node* node, const char* location);
 #endif
 
 #ifdef V8_EMBEDDED_BUILTINS

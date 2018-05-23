@@ -1720,11 +1720,11 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
   Goto(if_weak);
 
   BIND(&inner_if_smi);
-  *extracted = ToObject(maybe_object);
+  *extracted = CAST(maybe_object);
   Goto(if_smi);
 
   BIND(&inner_if_strong);
-  *extracted = ToObject(maybe_object);
+  *extracted = CAST(maybe_object);
   Goto(if_strong);
 }
 
@@ -1735,15 +1735,9 @@ TNode<BoolT> CodeStubAssembler::IsStrongHeapObject(TNode<MaybeObject> value) {
 }
 
 TNode<HeapObject> CodeStubAssembler::ToStrongHeapObject(
-    TNode<MaybeObject> value) {
-  CSA_ASSERT(this, IsStrongHeapObject(value));
-  return ReinterpretCast<HeapObject>(value);
-}
-
-TNode<HeapObject> CodeStubAssembler::ToStrongHeapObject(
     TNode<MaybeObject> value, Label* if_not_strong) {
   GotoIfNot(IsStrongHeapObject(value), if_not_strong);
-  return ToStrongHeapObject(value);
+  return CAST(value);
 }
 
 TNode<BoolT> CodeStubAssembler::IsWeakOrClearedHeapObject(
@@ -1791,19 +1785,6 @@ TNode<BoolT> CodeStubAssembler::IsNotWeakReferenceTo(TNode<MaybeObject> object,
   return WordNotEqual(WordAnd(BitcastMaybeObjectToWord(object),
                               IntPtrConstant(~kWeakHeapObjectMask)),
                       BitcastTaggedToWord(value));
-}
-
-TNode<BoolT> CodeStubAssembler::IsObject(TNode<MaybeObject> value) {
-  return WordNotEqual(WordAnd(BitcastMaybeObjectToWord(value),
-                              IntPtrConstant(kHeapObjectTagMask)),
-                      IntPtrConstant(kWeakHeapObjectTag));
-}
-
-TNode<Object> CodeStubAssembler::ToObject(TNode<MaybeObject> value) {
-  // TODO(marja): Make CAST work (with the appropriate check); replace this with
-  // CAST.
-  CSA_ASSERT(this, IsObject(value));
-  return ReinterpretCast<Object>(value);
 }
 
 TNode<MaybeObject> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
@@ -1858,8 +1839,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
                        additional_offset, parameter_mode, needs_poisoning);
-  CSA_ASSERT(this, IsObject(element));
-  return ToObject(element);
+  return CAST(element);
 }
 
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
@@ -1869,9 +1849,9 @@ TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe;
   STATIC_ASSERT(PropertyArray::kHeaderSize == FixedArray::kHeaderSize);
 
-  return ToObject(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
-                                   additional_offset, parameter_mode,
-                                   needs_poisoning));
+  return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
+                               additional_offset, parameter_mode,
+                               needs_poisoning));
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
@@ -7293,9 +7273,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
                 [=](SloppyTNode<IntPtrT> name_index) {
                   TNode<MaybeObject> element =
                       LoadArrayElement(array, Array::kHeaderSize, name_index);
-                  CSA_ASSERT(this, IsStrongHeapObject(element));
-                  TNode<Name> candidate_name =
-                      CAST(ToStrongHeapObject(element));
+                  TNode<Name> candidate_name = CAST(element);
                   *var_name_index = name_index;
                   GotoIf(WordEqual(candidate_name, unique_name), if_found);
                 },
@@ -7367,8 +7345,7 @@ TNode<Name> CodeStubAssembler::GetKey(TNode<Array> array,
   TNode<MaybeObject> element =
       LoadArrayElement(array, Array::kHeaderSize,
                        EntryIndexToIndex<Array>(entry_index), key_offset);
-  CSA_ASSERT(this, IsStrongHeapObject(element));
-  return CAST(ToStrongHeapObject(element));
+  return CAST(element);
 }
 
 template TNode<Name> CodeStubAssembler::GetKey<DescriptorArray>(
@@ -8432,8 +8409,7 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
   // our new feedback in place.
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  CSA_ASSERT(this, IsObject(feedback_element));
-  TNode<Smi> previous_feedback = CAST(ToObject(feedback_element));
+  TNode<Smi> previous_feedback = CAST(feedback_element);
   TNode<Smi> combined_feedback = SmiOr(previous_feedback, CAST(feedback));
   Label end(this);
 

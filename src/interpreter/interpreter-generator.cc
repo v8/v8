@@ -2442,8 +2442,8 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   Node* feedback_vector = LoadFeedbackVector();
   Node* slot = BytecodeOperandIdx(1);
-  TNode<Object> cached_value = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TNode<Object> cached_value =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
 
   Label call_runtime(this, Label::kDeferred);
   GotoIf(WordEqual(cached_value, SmiConstant(0)), &call_runtime);
@@ -2474,7 +2474,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   Node* slot = BytecodeOperandIdx(1);
   Node* feedback_vector = LoadFeedbackVector();
   TNode<Object> feedback_cell =
-      ToObject(LoadFeedbackVectorSlot(feedback_vector, slot));
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
 
   Label if_fast(this), if_slow(this, Label::kDeferred);
   Branch(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags), &if_fast,

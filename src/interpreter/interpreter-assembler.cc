@@ -703,8 +703,8 @@ void InterpreterAssembler::CallEpilogue() {
 void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                               Node* slot_id) {
   Comment("increment call count");
-  TNode<Smi> call_count = CAST(
-      ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize)));
+  TNode<Smi> call_count =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize));
   // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
   // count are used as flags. To increment the call count by 1 we hence
   // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
@@ -957,8 +957,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
     {
       // Check if it is an AllocationSite.
       Comment("check if allocation site");
-      CSA_ASSERT(this, IsStrongHeapObject(feedback));
-      TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback);
+      TNode<HeapObject> strong_feedback = CAST(feedback);
       GotoIfNot(IsAllocationSiteMap(LoadMap(strong_feedback)),
                 &check_initialized);
 

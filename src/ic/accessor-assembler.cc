@@ -172,7 +172,6 @@ void AccessorAssembler::HandleLoadICHandlerCase(
     ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
     ElementSupport support_elements) {
   Comment("have_handler");
-  CSA_ASSERT(this, IsObject(handler));
 
   VARIABLE(var_holder, MachineRepresentation::kTagged, p->holder);
   VARIABLE(var_smi_handler, MachineRepresentation::kTagged, handler);
@@ -800,8 +799,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&if_smi_handler);
   {
     Node* holder = p->receiver;
-    CSA_ASSERT(this, IsObject(handler));
-    Node* handler_word = SmiUntag(CAST(ToObject(handler)));
+    Node* handler_word = SmiUntag(CAST(handler));
 
     Label if_fast_smi(this), if_proxy(this);
 
@@ -867,8 +865,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&if_nonsmi_handler);
   {
     GotoIf(IsWeakOrClearedHeapObject(handler), &store_transition_or_global);
-    CSA_ASSERT(this, IsStrongHeapObject(handler));
-    TNode<HeapObject> strong_handler = ToStrongHeapObject(handler);
+    TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
 
@@ -2349,9 +2346,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
                            &var_handler, &try_polymorphic);
 
     BIND(&if_handler);
-    CSA_ASSERT(this, IsObject(var_handler.value()));
-    HandleLoadICHandlerCase(p, ToObject(var_handler.value()), &miss,
-                            exit_point);
+    HandleLoadICHandlerCase(p, CAST(var_handler.value()), &miss, exit_point);
 
     BIND(&try_polymorphic);
     {
@@ -2400,9 +2395,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
       TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
                          &var_handler, &try_polymorphic);
   BIND(&if_handler);
-  CSA_ASSERT(this, IsObject(var_handler.value()));
-  HandleLoadICHandlerCase(p, ToObject(var_handler.value()), &miss,
-                          &direct_exit);
+  HandleLoadICHandlerCase(p, CAST(var_handler.value()), &miss, &direct_exit);
 
   BIND(&try_polymorphic);
   TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
@@ -2559,8 +2552,7 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
   BIND(&if_lexical_var);
   {
     Comment("Load lexical variable");
-    CSA_ASSERT(this, IsObject(maybe_weak_ref));
-    TNode<IntPtrT> lexical_handler = SmiUntag(CAST(ToObject(maybe_weak_ref)));
+    TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_ref));
     TNode<IntPtrT> context_index =
         Signed(DecodeWord<FeedbackNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
@@ -2583,8 +2575,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
 
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(vector, slot, kPointerSize, slot_mode);
-  CSA_ASSERT(this, IsObject(feedback_element));
-  TNode<Object> handler = ToObject(feedback_element);
+  TNode<Object> handler = CAST(feedback_element);
   GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
          miss);
 
@@ -2623,9 +2614,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
                          &var_handler, &try_polymorphic);
   BIND(&if_handler);
   {
-    CSA_ASSERT(this, IsObject(var_handler.value()));
-    HandleLoadICHandlerCase(p, ToObject(var_handler.value()), &miss,
-                            &direct_exit, ICMode::kNonGlobalIC,
+    HandleLoadICHandlerCase(p, CAST(var_handler.value()), &miss, &direct_exit,
+                            ICMode::kNonGlobalIC,
                             OnNonExistent::kReturnUndefined, kSupportElements);
   }
 
@@ -2784,25 +2774,21 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p) {
   // LoadIC handler logic below.
   CSA_ASSERT(this, IsName(name));
   CSA_ASSERT(this, Word32BinaryNot(IsDeprecatedMap(receiver_map)));
-  CSA_ASSERT(this, IsStrongHeapObject(LoadFeedbackVectorSlot(vector, slot, 0,
-                                                             SMI_PARAMETERS)));
-  CSA_ASSERT(this, WordEqual(name, ToStrongHeapObject(LoadFeedbackVectorSlot(
+  CSA_ASSERT(this, WordEqual(name, CAST(LoadFeedbackVectorSlot(
                                        vector, slot, 0, SMI_PARAMETERS))));
 
   // Check if we have a matching handler for the {receiver_map}.
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(vector, slot, kPointerSize, SMI_PARAMETERS);
-  CSA_ASSERT(this, IsObject(feedback_element));
-  TNode<WeakFixedArray> array = CAST(ToObject(feedback_element));
+  TNode<WeakFixedArray> array = CAST(feedback_element);
   HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
                         1);
 
   BIND(&if_handler);
   {
     ExitPoint direct_exit(this);
-    CSA_ASSERT(this, IsObject(var_handler.value()));
-    HandleLoadICHandlerCase(p, ToObject(var_handler.value()), &miss,
-                            &direct_exit, ICMode::kNonGlobalIC,
+    HandleLoadICHandlerCase(p, CAST(var_handler.value()), &miss, &direct_exit,
+                            ICMode::kNonGlobalIC,
                             OnNonExistent::kReturnUndefined, kOnlyProperties);
   }
 
@@ -2866,8 +2852,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     Comment("StoreIC_if_handler_from_stub_cache");
     GotoIf(TaggedIsSmi(var_handler.value()), &if_handler);
 
-    CSA_ASSERT(this, IsStrongHeapObject(var_handler.value()));
-    TNode<HeapObject> handler = ToStrongHeapObject(var_handler.value());
+    TNode<HeapObject> handler = CAST(var_handler.value());
     GotoIfNot(IsWeakCell(handler), &if_handler);
 
     TNode<HeapObject> value = CAST(LoadWeakCellValue(CAST(handler), &miss));
@@ -2939,8 +2924,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
   BIND(&if_lexical_var);
   {
     Comment("Store lexical variable");
-    CSA_ASSERT(this, IsObject(maybe_weak_ref));
-    TNode<IntPtrT> lexical_handler = SmiUntag(CAST(ToObject(maybe_weak_ref)));
+    TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_ref));
     TNode<IntPtrT> context_index =
         Signed(DecodeWord<FeedbackNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
@@ -3071,8 +3055,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
       // with at least one map/handler pair.
       TNode<MaybeObject> feedback_element = LoadFeedbackVectorSlot(
           p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
-      CSA_ASSERT(this, IsObject(feedback_element));
-      TNode<WeakFixedArray> array = CAST(ToObject(feedback_element));
+      TNode<WeakFixedArray> array = CAST(feedback_element);
       HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
                             &miss, 1);
     }
@@ -3105,8 +3088,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       Comment("StoreInArrayLiteralIC_if_handler");
       // This is a stripped-down version of HandleStoreICHandlerCase.
 
-      CSA_ASSERT(this, IsStrongHeapObject(var_handler.value()));
-      TNode<HeapObject> handler = ToStrongHeapObject(var_handler.value());
+      TNode<HeapObject> handler = CAST(var_handler.value());
       Label if_transitioning_element_store(this);
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
       StoreWithVectorDescriptor descriptor(isolate());
@@ -3194,8 +3176,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   Node* receiver_map = LoadReceiverMap(receiver);
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(vector, slot, 0, SMI_PARAMETERS);
-  CSA_ASSERT(this, IsStrongHeapObject(feedback_element));
-  TNode<HeapObject> feedback = ToStrongHeapObject(feedback_element);
+  TNode<HeapObject> feedback = CAST(feedback_element);
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC_Noninlined(&p, receiver_map, feedback, &var_handler, &if_handler,

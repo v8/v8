@@ -244,6 +244,21 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
+#ifdef DEBUG
+void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
+                                                     const char* location) {
+  Label ok(this);
+  GotoIf(WordNotEqual(WordAnd(BitcastMaybeObjectToWord(node),
+                              IntPtrConstant(kHeapObjectTagMask)),
+                      IntPtrConstant(kWeakHeapObjectTag)),
+         &ok);
+  Node* message_node = StringConstant(location);
+  DebugAbort(message_node);
+  Unreachable();
+  Bind(&ok);
+}
+#endif
+
 #ifdef V8_EMBEDDED_BUILTINS
 TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
   DCHECK(isolate()->ShouldLoadConstantsFromRootList());

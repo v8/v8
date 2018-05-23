@@ -308,8 +308,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   Label call_runtime(this, Label::kDeferred), end(this);
 
   VARIABLE(result, MachineRepresentation::kTagged);
-  TNode<Object> literal_site = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TNode<Object> literal_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
     Node* boilerplate = literal_site;
@@ -353,8 +353,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
       return_result(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  TNode<Object> allocation_site = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TNode<Object> allocation_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
@@ -393,8 +393,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
   TVARIABLE(Object, allocation_site,
-            ToObject(LoadFeedbackVectorSlot(feedback_vector, slot, 0,
-                                            INTPTR_PARAMETERS)));
+            CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0,
+                                        INTPTR_PARAMETERS)));
 
   Label create_empty_array(this),
       initialize_allocation_site(this, Label::kDeferred), done(this);
@@ -440,8 +440,8 @@ TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     Node* feedback_vector, Node* slot, Label* call_runtime) {
-  TNode<Object> allocation_site = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TNode<Object> allocation_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);

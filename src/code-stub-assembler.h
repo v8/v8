@@ -678,7 +678,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsStrongHeapObject(TNode<Object> value) {
     return IsStrongHeapObject(ReinterpretCast<MaybeObject>(value));
   }
-  TNode<HeapObject> ToStrongHeapObject(TNode<MaybeObject> value);
   TNode<HeapObject> ToStrongHeapObject(TNode<MaybeObject> value,
                                        Label* if_not_strong);
 
@@ -696,14 +695,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  TNode<Object> value);
   TNode<BoolT> IsNotWeakReferenceTo(TNode<MaybeObject> object,
                                     TNode<Object> value);
-
-  // IsObject == true when the MaybeObject is a strong HeapObject or a smi.
-  TNode<BoolT> IsObject(TNode<MaybeObject> value);
-  // This variant is for overzealous checking.
-  TNode<BoolT> IsObject(TNode<Object> value) {
-    return IsObject(ReinterpretCast<MaybeObject>(value));
-  }
-  TNode<Object> ToObject(TNode<MaybeObject> value);
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
