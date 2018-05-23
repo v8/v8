@@ -1,0 +1,289 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module data_view {
+
+  // Context, receiver, byteOffset, littleEndian
+  extern runtime DataViewGetInt8(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetUint8(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetInt16(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetUint16(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetInt32(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetUint32(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetFloat32(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetFloat64(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetBigInt64(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Object;
+
+
+  javascript builtin DataViewPrototypeGetInt8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      return DataViewGetInt8(context, receiver, offset, Undefined);
+    }
+
+  javascript builtin DataViewPrototypeGetUint8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      return DataViewGetUint8(context, receiver, offset, Undefined);
+    }
+
+  javascript builtin DataViewPrototypeGetInt16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetInt16(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetUint16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetUint16(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetInt32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetInt32(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetUint32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetUint32(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetFloat32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetFloat32(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetFloat64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetFloat64(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetBigInt64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetBigInt64(context, receiver, offset, is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeGetBigUint64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGetBigUint64(context, receiver, offset, is_little_endian);
+    }
+
+
+  // Context, receiver, byteOffset, value, littleEndian
+  extern runtime
+  DataViewSetInt8(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetUint8(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetInt16(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetUint16(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetInt32(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetUint32(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetFloat32(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetFloat64(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetBigInt64(Context, Object, Object, Object, Object): Object;
+  extern runtime
+      DataViewSetBigUint64(Context, Object, Object, Object, Object): Object;
+
+  javascript builtin DataViewPrototypeSetInt8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewSetInt8(context, receiver, offset, value, Undefined);
+    }
+
+  javascript builtin DataViewPrototypeSetUint8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewSetUint8(context, receiver, offset, value, Undefined);
+    }
+
+  javascript builtin DataViewPrototypeSetInt16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetInt16(context, receiver, offset, value,
+                              is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetUint16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetUint16(context, receiver, offset, value,
+                               is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetInt32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetInt32(context, receiver, offset, value,
+                              is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetUint32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetUint32(context, receiver, offset, value,
+                               is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetFloat32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetFloat32(context, receiver, offset, value,
+                                is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetFloat64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetFloat64(context, receiver, offset, value,
+                                is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetBigInt64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetBigInt64(context, receiver, offset, value,
+                                 is_little_endian);
+    }
+
+  javascript builtin DataViewPrototypeSetBigUint64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSetBigUint64(context, receiver, offset, value,
+                                  is_little_endian);
+    }
+
+}

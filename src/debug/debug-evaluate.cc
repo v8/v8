@@ -354,6 +354,17 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(PrepareElementsForSort)              \
   V(TrySliceSimpleNonFastElements)       \
   V(TypedArrayGetBuffer)                 \
+  /* DataView */                         \
+  V(DataViewGetInt8)                     \
+  V(DataViewGetUint8)                    \
+  V(DataViewGetInt16)                    \
+  V(DataViewGetUint16)                   \
+  V(DataViewGetInt32)                    \
+  V(DataViewGetUint32)                   \
+  V(DataViewGetFloat32)                  \
+  V(DataViewGetFloat64)                  \
+  V(DataViewGetBigInt64)                 \
+  V(DataViewGetBigUint64)                \
   /* Errors */                           \
   V(NewTypeError)                        \
   V(ReThrow)                             \
