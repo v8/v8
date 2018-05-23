@@ -189,15 +189,24 @@ class CodeEntry {
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
 
+struct CodeEntryAndLineNumber {
+  CodeEntry* code_entry;
+  int line_number;
+};
+
+typedef std::vector<CodeEntryAndLineNumber> ProfileStackTrace;
 
 class ProfileTree;
 
 class ProfileNode {
  public:
-  inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent);
+  inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent,
+                     int line_number = 0);
 
-  ProfileNode* FindChild(CodeEntry* entry);
-  ProfileNode* FindOrAddChild(CodeEntry* entry);
+  ProfileNode* FindChild(
+      CodeEntry* entry,
+      int line_number = v8::CpuProfileNode::kNoLineNumberInfo);
+  ProfileNode* FindOrAddChild(CodeEntry* entry, int line_number = 0);
   void IncrementSelfTicks() { ++self_ticks_; }
   void IncreaseSelfTicks(unsigned amount) { self_ticks_ += amount; }
   void IncrementLineTicks(int src_line);
@@ -208,6 +217,10 @@ class ProfileNode {
   unsigned id() const { return id_; }
   unsigned function_id() const;
   ProfileNode* parent() const { return parent_; }
+  int line_number() const {
+    return line_number_ != 0 ? line_number_ : entry_->line_number();
+  }
+
   unsigned int GetHitLineCount() const {
     return static_cast<unsigned int>(line_ticks_.size());
   }
@@ -222,20 +235,25 @@ class ProfileNode {
   void Print(int indent);
 
  private:
-  struct CodeEntryEqual {
-    bool operator()(CodeEntry* entry1, CodeEntry* entry2) const {
-      return entry1 == entry2 || entry1->IsSameFunctionAs(entry2);
+  struct Equals {
+    bool operator()(CodeEntryAndLineNumber lhs,
+                    CodeEntryAndLineNumber rhs) const {
+      return lhs.code_entry->IsSameFunctionAs(rhs.code_entry) &&
+             lhs.line_number == rhs.line_number;
     }
   };
-  struct CodeEntryHash {
-    std::size_t operator()(CodeEntry* entry) const { return entry->GetHash(); }
+  struct Hasher {
+    std::size_t operator()(CodeEntryAndLineNumber pair) const {
+      return pair.code_entry->GetHash() ^ ComputeIntegerHash(pair.line_number);
+    }
   };
 
   ProfileTree* tree_;
   CodeEntry* entry_;
   unsigned self_ticks_;
-  std::unordered_map<CodeEntry*, ProfileNode*, CodeEntryHash, CodeEntryEqual>
+  std::unordered_map<CodeEntryAndLineNumber, ProfileNode*, Hasher, Equals>
       children_;
+  int line_number_;
   std::vector<ProfileNode*> children_list_;
   ProfileNode* parent_;
   unsigned id_;
@@ -253,10 +271,17 @@ class ProfileTree {
   explicit ProfileTree(Isolate* isolate);
   ~ProfileTree();
 
+  typedef v8::CpuProfilingMode ProfilingMode;
+
   ProfileNode* AddPathFromEnd(
       const std::vector<CodeEntry*>& path,
       int src_line = v8::CpuProfileNode::kNoLineNumberInfo,
       bool update_stats = true);
+  ProfileNode* AddPathFromEnd(
+      const ProfileStackTrace& path,
+      int src_line = v8::CpuProfileNode::kNoLineNumberInfo,
+      bool update_stats = true,
+      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
   unsigned GetFunctionId(const ProfileNode* node);
@@ -293,10 +318,13 @@ class ProfileTree {
 
 class CpuProfile {
  public:
-  CpuProfile(CpuProfiler* profiler, const char* title, bool record_samples);
+  typedef v8::CpuProfilingMode ProfilingMode;
+
+  CpuProfile(CpuProfiler* profiler, const char* title, bool record_samples,
+             ProfilingMode mode);
 
   // Add pc -> ... -> main() call path to the profile.
-  void AddPath(base::TimeTicks timestamp, const std::vector<CodeEntry*>& path,
+  void AddPath(base::TimeTicks timestamp, const ProfileStackTrace& path,
                int src_line, bool update_stats);
   void FinishProfile();
 
@@ -322,6 +350,7 @@ class CpuProfile {
 
   const char* title_;
   bool record_samples_;
+  ProfilingMode mode_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::vector<ProfileNode*> samples_;
@@ -361,8 +390,11 @@ class CpuProfilesCollection {
  public:
   explicit CpuProfilesCollection(Isolate* isolate);
 
+  typedef v8::CpuProfilingMode ProfilingMode;
+
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  bool StartProfiling(const char* title, bool record_samples);
+  bool StartProfiling(const char* title, bool record_samples,
+                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {
     return &finished_profiles_;
@@ -373,8 +405,8 @@ class CpuProfilesCollection {
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(base::TimeTicks timestamp,
-                                const std::vector<CodeEntry*>& path,
-                                int src_line, bool update_stats);
+                                const ProfileStackTrace& path, int src_line,
+                                bool update_stats);
 
   // Limits the number of profiles that can be simultaneously collected.
   static const int kMaxSimultaneousProfiles = 100;

@@ -345,19 +345,19 @@ void CpuProfiler::CollectSample() {
   }
 }
 
-void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
-  if (profiles_->StartProfiling(title, record_samples)) {
+void CpuProfiler::StartProfiling(const char* title, bool record_samples,
+                                 ProfilingMode mode) {
+  if (profiles_->StartProfiling(title, record_samples, mode)) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     StartProcessorIfNotStarted();
   }
 }
 
-
-void CpuProfiler::StartProfiling(String* title, bool record_samples) {
-  StartProfiling(profiles_->GetName(title), record_samples);
+void CpuProfiler::StartProfiling(String* title, bool record_samples,
+                                 ProfilingMode mode) {
+  StartProfiling(profiles_->GetName(title), record_samples, mode);
   isolate_->debug()->feature_tracker()->Track(DebugFeatureTracker::kProfiler);
 }
-
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_) {

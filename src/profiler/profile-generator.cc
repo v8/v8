@@ -180,18 +180,16 @@ void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
   entry->clear_deopt_info();
 }
 
-
-ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
-  auto map_entry = children_.find(entry);
+ProfileNode* ProfileNode::FindChild(CodeEntry* entry, int line_number) {
+  auto map_entry = children_.find({entry, line_number});
   return map_entry != children_.end() ? map_entry->second : nullptr;
 }
 
-
-ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
-  auto map_entry = children_.find(entry);
+ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry, int line_number) {
+  auto map_entry = children_.find({entry, line_number});
   if (map_entry == children_.end()) {
-    ProfileNode* node = new ProfileNode(tree_, entry, this);
-    children_[entry] = node;
+    ProfileNode* node = new ProfileNode(tree_, entry, this, line_number);
+    children_[{entry, line_number}] = node;
     children_list_.push_back(node);
     return node;
   } else {
@@ -234,8 +232,9 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
 
 void ProfileNode::Print(int indent) {
-  base::OS::Print("%5u %*s %s %d #%d", self_ticks_, indent, "", entry_->name(),
-                  entry_->script_id(), id());
+  int line_number = line_number_ != 0 ? line_number_ : entry_->line_number();
+  base::OS::Print("%5u %*s %s:%d %d #%d", self_ticks_, indent, "",
+                  entry_->name(), line_number, entry_->script_id(), id());
   if (entry_->resource_name()[0] != '\0')
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
@@ -304,7 +303,33 @@ ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
   for (auto it = path.rbegin(); it != path.rend(); ++it) {
     if (*it == nullptr) continue;
     last_entry = *it;
-    node = node->FindOrAddChild(*it);
+    node = node->FindOrAddChild(*it, v8::CpuProfileNode::kNoLineNumberInfo);
+  }
+  if (last_entry && last_entry->has_deopt_info()) {
+    node->CollectDeoptInfo(last_entry);
+  }
+  if (update_stats) {
+    node->IncrementSelfTicks();
+    if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
+      node->IncrementLineTicks(src_line);
+    }
+  }
+  return node;
+}
+
+ProfileNode* ProfileTree::AddPathFromEnd(const ProfileStackTrace& path,
+                                         int src_line, bool update_stats,
+                                         ProfilingMode mode) {
+  ProfileNode* node = root_;
+  CodeEntry* last_entry = nullptr;
+  int parent_line_number = v8::CpuProfileNode::kNoLineNumberInfo;
+  for (auto it = path.rbegin(); it != path.rend(); ++it) {
+    if ((*it).code_entry == nullptr) continue;
+    last_entry = (*it).code_entry;
+    node = node->FindOrAddChild((*it).code_entry, parent_line_number);
+    parent_line_number = mode == ProfilingMode::kCallerLineNumbers
+                             ? (*it).line_number
+                             : v8::CpuProfileNode::kNoLineNumberInfo;
   }
   if (last_entry && last_entry->has_deopt_info()) {
     node->CollectDeoptInfo(last_entry);
@@ -363,9 +388,10 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 using v8::tracing::TracedValue;
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
-                       bool record_samples)
+                       bool record_samples, ProfilingMode mode)
     : title_(title),
       record_samples_(record_samples),
+      mode_(mode),
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
@@ -378,14 +404,16 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
 }
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
-                         const std::vector<CodeEntry*>& path, int src_line,
+                         const ProfileStackTrace& path, int src_line,
                          bool update_stats) {
   ProfileNode* top_frame_node =
-      top_down_.AddPathFromEnd(path, src_line, update_stats);
+      top_down_.AddPathFromEnd(path, src_line, update_stats, mode_);
+
   if (record_samples_ && !timestamp.IsNull()) {
     timestamps_.push_back(timestamp);
     samples_.push_back(top_frame_node);
   }
+
   const int kSamplesFlushCount = 100;
   const int kNodesFlushCount = 10;
   if (samples_.size() - streaming_next_sample_ >= kSamplesFlushCount ||
@@ -542,7 +570,8 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
       current_profiles_semaphore_(1) {}
 
 bool CpuProfilesCollection::StartProfiling(const char* title,
-                                           bool record_samples) {
+                                           bool record_samples,
+                                           ProfilingMode mode) {
   current_profiles_semaphore_.Wait();
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
@@ -557,7 +586,7 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
     }
   }
   current_profiles_.emplace_back(
-      new CpuProfile(profiler_, title, record_samples));
+      new CpuProfile(profiler_, title, record_samples, mode));
   current_profiles_semaphore_.Signal();
   return true;
 }
@@ -608,8 +637,8 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
 }
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
-    base::TimeTicks timestamp, const std::vector<CodeEntry*>& path,
-    int src_line, bool update_stats) {
+    base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
+    bool update_stats) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
@@ -624,17 +653,18 @@ ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
     : profiles_(profiles) {}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
-  std::vector<CodeEntry*> entries;
+  ProfileStackTrace stack_trace;
   // Conservatively reserve space for stack frames + pc + function + vm-state.
   // There could in fact be more of them because of inlined entries.
-  entries.reserve(sample.frames_count + 3);
+  stack_trace.reserve(sample.frames_count + 3);
 
   // The ProfileNode knows nothing about all versions of generated code for
   // the same JS function. The line number information associated with
   // the latest version of generated code is used to find a source line number
   // for a JS function. Then, the detected source line is passed to
   // ProfileNode to increase the tick count for this source line.
-  int src_line = v8::CpuProfileNode::kNoLineNumberInfo;
+  const int no_line_info = v8::CpuProfileNode::kNoLineNumberInfo;
+  int src_line = no_line_info;
   bool src_line_not_found = true;
 
   if (sample.pc != nullptr) {
@@ -642,8 +672,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      entries.push_back(
-          FindEntry(reinterpret_cast<Address>(sample.external_callback_entry)));
+      stack_trace.push_back(
+          {FindEntry(reinterpret_cast<Address>(sample.external_callback_entry)),
+           no_line_info});
     } else {
       CodeEntry* pc_entry = FindEntry(reinterpret_cast<Address>(sample.pc));
       // If there is no pc_entry we're likely in native code.
@@ -664,7 +695,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
           src_line = pc_entry->line_number();
         }
         src_line_not_found = false;
-        entries.push_back(pc_entry);
+        stack_trace.push_back({pc_entry, src_line});
 
         if (pc_entry->builtin_id() == Builtins::kFunctionPrototypeApply ||
             pc_entry->builtin_id() == Builtins::kFunctionPrototypeCall) {
@@ -675,7 +706,8 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
           // former case we don't so we simply replace the frame with
           // 'unresolved' entry.
           if (!sample.has_external_callback) {
-            entries.push_back(CodeEntry::unresolved_entry());
+            stack_trace.push_back(
+                {CodeEntry::unresolved_entry(), no_line_info});
           }
         }
       }
@@ -684,6 +716,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     for (unsigned i = 0; i < sample.frames_count; ++i) {
       Address stack_pos = reinterpret_cast<Address>(sample.stack[i]);
       CodeEntry* entry = FindEntry(stack_pos);
+      int line_number = no_line_info;
       if (entry) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
@@ -693,8 +726,10 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         if (inline_stack) {
           std::transform(
               inline_stack->rbegin(), inline_stack->rend(),
-              std::back_inserter(entries),
-              [](const std::unique_ptr<CodeEntry>& ptr) { return ptr.get(); });
+              std::back_inserter(stack_trace),
+              [=](const std::unique_ptr<CodeEntry>& ptr) {
+                return CodeEntryAndLineNumber{ptr.get(), no_line_info};
+              });
         }
         // Skip unresolved frames (e.g. internal frame) and get source line of
         // the first JS caller.
@@ -705,26 +740,27 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
           }
           src_line_not_found = false;
         }
+        line_number = entry->GetSourceLine(pc_offset);
       }
-      entries.push_back(entry);
+      stack_trace.push_back({entry, line_number});
     }
   }
 
   if (FLAG_prof_browser_mode) {
     bool no_symbolized_entries = true;
-    for (auto e : entries) {
-      if (e != nullptr) {
+    for (auto e : stack_trace) {
+      if (e.code_entry != nullptr) {
         no_symbolized_entries = false;
         break;
       }
     }
     // If no frames were symbolized, put the VM state entry in.
     if (no_symbolized_entries) {
-      entries.push_back(EntryForVMState(sample.state));
+      stack_trace.push_back({EntryForVMState(sample.state), no_line_info});
     }
   }
 
-  profiles_->AddPathToCurrentProfiles(sample.timestamp, entries, src_line,
+  profiles_->AddPathToCurrentProfiles(sample.timestamp, stack_trace, src_line,
                                       sample.update_stats);
 }
 
