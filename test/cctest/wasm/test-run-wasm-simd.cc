@@ -95,11 +95,6 @@ T Mul(T a, T b) {
 }
 
 template <typename T>
-T Div(T a, T b) {
-  return a / b;
-}
-
-template <typename T>
 T Minimum(T a, T b) {
   return a <= b ? a : b;
 }
@@ -561,19 +556,19 @@ void RunF32x4BinOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Add) {
+WASM_SIMD_TEST(F32x4Add) {
   RunF32x4BinOpTest(execution_mode, lower_simd, kExprF32x4Add, Add);
 }
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Sub) {
+WASM_SIMD_TEST(F32x4Sub) {
   RunF32x4BinOpTest(execution_mode, lower_simd, kExprF32x4Sub, Sub);
 }
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Mul) {
+WASM_SIMD_TEST(F32x4Mul) {
   RunF32x4BinOpTest(execution_mode, lower_simd, kExprF32x4Mul, Mul);
 }
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4_Min) {
+WASM_SIMD_TEST(F32x4_Min) {
   RunF32x4BinOpTest(execution_mode, lower_simd, kExprF32x4Min, JSMin);
 }
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4_Max) {
+WASM_SIMD_TEST(F32x4_Max) {
   RunF32x4BinOpTest(execution_mode, lower_simd, kExprF32x4Max, JSMax);
 }
 
@@ -957,45 +952,45 @@ void RunI32x4BinOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Add) {
+WASM_SIMD_TEST(I32x4Add) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4Add, Add);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Sub) {
+WASM_SIMD_TEST(I32x4Sub) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4Sub, Sub);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Mul) {
+WASM_SIMD_TEST(I32x4Mul) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4Mul, Mul);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4MinS) {
+WASM_SIMD_TEST(I32x4MinS) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4MinS, Minimum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4MaxS) {
+WASM_SIMD_TEST(I32x4MaxS) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4MaxS, Maximum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4MinU) {
+WASM_SIMD_TEST(I32x4MinU) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4MinU,
                     UnsignedMinimum);
 }
-
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4MaxU) {
+WASM_SIMD_TEST(I32x4MaxU) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprI32x4MaxU,
+
                     UnsignedMaximum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S128And) {
+WASM_SIMD_TEST(S128And) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprS128And, And);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S128Or) {
+WASM_SIMD_TEST(S128Or) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprS128Or, Or);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S128Xor) {
+WASM_SIMD_TEST(S128Xor) {
   RunI32x4BinOpTest(execution_mode, lower_simd, kExprS128Xor, Xor);
 }
 
@@ -1190,52 +1185,52 @@ void RunI16x8BinOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Add) {
+WASM_SIMD_TEST(I16x8Add) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8Add, Add);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8AddSaturateS) {
+WASM_SIMD_TEST(I16x8AddSaturateS) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8AddSaturateS,
                     AddSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Sub) {
+WASM_SIMD_TEST(I16x8Sub) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8Sub, Sub);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8SubSaturateS) {
+WASM_SIMD_TEST(I16x8SubSaturateS) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8SubSaturateS,
                     SubSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Mul) {
+WASM_SIMD_TEST(I16x8Mul) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8Mul, Mul);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8MinS) {
+WASM_SIMD_TEST(I16x8MinS) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8MinS, Minimum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8MaxS) {
+WASM_SIMD_TEST(I16x8MaxS) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8MaxS, Maximum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8AddSaturateU) {
+WASM_SIMD_TEST(I16x8AddSaturateU) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8AddSaturateU,
                     UnsignedAddSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8SubSaturateU) {
+WASM_SIMD_TEST(I16x8SubSaturateU) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8SubSaturateU,
                     UnsignedSubSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8MinU) {
+WASM_SIMD_TEST(I16x8MinU) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8MinU,
                     UnsignedMinimum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8MaxU) {
+WASM_SIMD_TEST(I16x8MaxU) {
   RunI16x8BinOpTest(execution_mode, lower_simd, kExprI16x8MaxU,
                     UnsignedMaximum);
 }
@@ -1403,48 +1398,48 @@ void RunI8x16BinOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Add) {
+WASM_SIMD_TEST(I8x16Add) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16Add, Add);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16AddSaturateS) {
+WASM_SIMD_TEST(I8x16AddSaturateS) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16AddSaturateS,
                     AddSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Sub) {
+WASM_SIMD_TEST(I8x16Sub) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16Sub, Sub);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16SubSaturateS) {
+WASM_SIMD_TEST(I8x16SubSaturateS) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16SubSaturateS,
                     SubSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16MinS) {
+WASM_SIMD_TEST(I8x16MinS) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16MinS, Minimum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16MaxS) {
+WASM_SIMD_TEST(I8x16MaxS) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16MaxS, Maximum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16AddSaturateU) {
+WASM_SIMD_TEST(I8x16AddSaturateU) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16AddSaturateU,
                     UnsignedAddSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16SubSaturateU) {
+WASM_SIMD_TEST(I8x16SubSaturateU) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16SubSaturateU,
                     UnsignedSubSaturate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16MinU) {
+WASM_SIMD_TEST(I8x16MinU) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16MinU,
                     UnsignedMinimum);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16MaxU) {
+WASM_SIMD_TEST(I8x16MaxU) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16MaxU,
                     UnsignedMaximum);
 }
@@ -2060,7 +2055,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4ExtractWithI32x4) {
   CHECK_EQ(1, r.Call());
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4AddWithI32x4) {
+WASM_SIMD_TEST(SimdF32x4AddWithI32x4) {
   // Choose two floating point values whose sum is normal and exactly
   // representable as a float.
   const int kOne = 0x3F800000;
@@ -2079,7 +2074,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4AddWithI32x4) {
   CHECK_EQ(1, r.Call());
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4AddWithF32x4) {
+WASM_SIMD_TEST(SimdI32x4AddWithF32x4) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   BUILD(r,
         WASM_IF_ELSE_I(
