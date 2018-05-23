@@ -164,6 +164,7 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
+  'wasm/asm-wasm-f32': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
@@ -781,6 +782,7 @@
   # Slow tests: https://crbug.com/v8/7783
   'array-sort': [SKIP],
   'compiler/alloc-number': [SKIP],
+  'compiler/osr-nested': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'regress/regress-2185': [SKIP],
