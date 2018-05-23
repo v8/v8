@@ -23889,8 +23889,7 @@ THREADED_TEST(FunctionNew) {
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result2).FromJust());
 }
 
-
-TEST(EscapeableHandleScope) {
+TEST(EscapableHandleScope) {
   HandleScope outer_scope(CcTest::isolate());
   LocalContext context;
   const int runs = 10;
@@ -23899,7 +23898,12 @@ TEST(EscapeableHandleScope) {
     v8::EscapableHandleScope inner_scope(CcTest::isolate());
     Local<String> value;
     if (i != 0) value = v8_str("escape value");
-    values[i] = inner_scope.Escape(value);
+    if (i < runs / 2) {
+      values[i] = inner_scope.Escape(value);
+    } else {
+      values[i] = inner_scope.EscapeMaybe(v8::MaybeLocal<String>(value))
+                      .ToLocalChecked();
+    }
   }
   for (int i = 0; i < runs; i++) {
     Local<String> expected;
