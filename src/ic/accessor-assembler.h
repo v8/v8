@@ -49,7 +49,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreInArrayLiteralIC();
 
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
-                         Label* if_handler, Variable* var_handler,
+                         Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss);
 
   Node* StubCachePrimaryOffsetForTesting(Node* name, Node* map) {
@@ -133,8 +133,9 @@ class AccessorAssembler : public CodeStubAssembler {
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
   void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
-                         TNode<HeapObject> feedback, Variable* var_handler,
-                         Label* if_handler, Label* miss, ExitPoint* exit_point);
+                         TNode<HeapObject> feedback,
+                         TVariable<MaybeObject>* var_handler, Label* if_handler,
+                         Label* miss, ExitPoint* exit_point);
 
   Node* LoadDescriptorValue(Node* map, Node* descriptor);
 
@@ -286,7 +287,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               Node* entry_offset, Node* name, Node* map,
-                              Label* if_handler, Variable* var_handler,
+                              Label* if_handler,
+                              TVariable<MaybeObject>* var_handler,
                               Label* if_miss);
 };
 

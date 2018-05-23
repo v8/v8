@@ -59,8 +59,7 @@ class IC {
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
-  static inline bool IsHandler(MaybeObject* object,
-                               bool from_stub_cache = false);
+  static inline bool IsHandler(MaybeObject* object);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,

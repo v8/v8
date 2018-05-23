@@ -2088,7 +2088,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   if (use_stub_cache == kUseStubCache) {
     BIND(&stub_cache);
     Comment("stub cache probe for fast property load");
-    VARIABLE(var_handler, MachineRepresentation::kTagged);
+    TVARIABLE(MaybeObject, var_handler);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
     TryProbeStubCache(isolate()->load_stub_cache(), receiver, p->name,
                       &found_handler, &var_handler, &stub_cache_miss);
@@ -2237,12 +2237,10 @@ Node* AccessorAssembler::StubCacheSecondaryOffset(Node* name, Node* seed) {
   return ChangeUint32ToWord(Word32And(hash, Int32Constant(mask)));
 }
 
-void AccessorAssembler::TryProbeStubCacheTable(StubCache* stub_cache,
-                                               StubCacheTable table_id,
-                                               Node* entry_offset, Node* name,
-                                               Node* map, Label* if_handler,
-                                               Variable* var_handler,
-                                               Label* if_miss) {
+void AccessorAssembler::TryProbeStubCacheTable(
+    StubCache* stub_cache, StubCacheTable table_id, Node* entry_offset,
+    Node* name, Node* map, Label* if_handler,
+    TVariable<MaybeObject>* var_handler, Label* if_miss) {
   StubCache::Table table = static_cast<StubCache::Table>(table_id);
 #ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
@@ -2274,17 +2272,18 @@ void AccessorAssembler::TryProbeStubCacheTable(StubCache* stub_cache,
 
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
-  Node* handler = Load(MachineType::TaggedPointer(), key_base,
-                       IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize)));
+  TNode<MaybeObject> handler = ReinterpretCast<MaybeObject>(
+      Load(MachineType::TaggedPointer(), key_base,
+           IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize))));
 
   // We found the handler.
-  var_handler->Bind(handler);
+  *var_handler = handler;
   Goto(if_handler);
 }
 
 void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache, Node* receiver,
                                           Node* name, Label* if_handler,
-                                          Variable* var_handler,
+                                          TVariable<MaybeObject>* var_handler,
                                           Label* if_miss) {
   Label try_secondary(this), miss(this);
 
@@ -2421,7 +2420,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
 void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
                                           Node* receiver_map,
                                           TNode<HeapObject> feedback,
-                                          Variable* var_handler,
+                                          TVariable<MaybeObject>* var_handler,
                                           Label* if_handler, Label* miss,
                                           ExitPoint* exit_point) {
   Label try_uninitialized(this, Label::kDeferred);
@@ -2842,26 +2841,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
               &try_uninitialized);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver, p->name,
-                      &if_handler_from_stub_cache, &var_handler, &miss);
-  }
-  BIND(&if_handler_from_stub_cache);
-  {
-    // If the stub cache contains a WeakCell pointing to a Map, convert it to an
-    // in-place weak reference. TODO(marja): This well get simplified once more
-    // WeakCells are converted into in-place weak references.
-    Comment("StoreIC_if_handler_from_stub_cache");
-    GotoIf(TaggedIsSmi(var_handler.value()), &if_handler);
-
-    TNode<HeapObject> handler = CAST(var_handler.value());
-    GotoIfNot(IsWeakCell(handler), &if_handler);
-
-    TNode<HeapObject> value = CAST(LoadWeakCellValue(CAST(handler), &miss));
-    TNode<Map> value_map = LoadMap(value);
-    GotoIfNot(Word32Or(IsMetaMap(value_map), IsPropertyCellMap(value_map)),
-              &if_handler);
-
-    TNode<MaybeObject> weak_handler = MakeWeak(value);
-    HandleStoreICHandlerCase(p, weak_handler, &miss, ICMode::kNonGlobalIC);
+                      &if_handler, &var_handler, &miss);
   }
   BIND(&try_uninitialized);
   {
@@ -3170,7 +3150,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   Node* context = Parameter(Descriptor::kContext);
 
   ExitPoint direct_exit(this);
-  VARIABLE(var_handler, MachineRepresentation::kTagged);
+  TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(receiver);

@@ -720,21 +720,7 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
-  HeapObject* heap_object;
-  if (handler->ToWeakHeapObject(&heap_object)) {
-    // TODO(marja): remove this conversion once megamorphic stub cache supports
-    // weak handlers.
-    Handle<Object> weak_cell;
-    if (heap_object->IsMap()) {
-      weak_cell = Map::WeakCellForMap(handle(Map::cast(heap_object)));
-    } else {
-      weak_cell = isolate_->factory()->NewWeakCell(
-          handle(PropertyCell::cast(heap_object)));
-    }
-    stub_cache()->Set(*name, *map, *weak_cell);
-  } else {
-    stub_cache()->Set(*name, *map, handler->ToObject());
-  }
+  stub_cache()->Set(*name, *map, *handler);
 }
 
 void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
