@@ -360,8 +360,8 @@ namespace internal {
   TFS(FlattenIntoArray, kTarget, kSource, kSourceLength, kStart, kDepth)       \
   TFS(FlatMapIntoArray, kTarget, kSource, kSourceLength, kStart, kDepth,       \
       kMapperFunction, kThisArg)                                               \
-  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatten */   \
-  TFJ(ArrayPrototypeFlatten, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
+  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat */      \
+  TFJ(ArrayPrototypeFlat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
   /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap */   \
   TFJ(ArrayPrototypeFlatMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
                                                                                \

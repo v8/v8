@@ -49,14 +49,18 @@ FEATURE_FLAGS = {
   'class-fields-public': '--harmony-public-fields',
   'optional-catch-binding': '--harmony-optional-catch-binding',
   'class-fields-private': '--harmony-private-fields',
-  'Array.prototype.flatten': '--harmony-array-flatten',
-  'Array.prototype.flatMap': '--harmony-array-flatten',
+  'Array.prototype.flat': '--harmony-array-flat',
+  'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
 }
 
-SKIPPED_FEATURES = set([])
+SKIPPED_FEATURES = set([
+  # `flatten` has been renamed to `flat`. TODO(mths): Remove this once
+  # https://github.com/tc39/test262/pull/1569 is rolled in.
+  'Array.prototype.flatten',
+])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 

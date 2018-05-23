@@ -3921,8 +3921,8 @@ TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
                           mapper_function, this_arg));
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatten
-TF_BUILTIN(ArrayPrototypeFlatten, CodeStubAssembler) {
+// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
+TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
   Node* const argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
