@@ -1710,6 +1710,27 @@ class ThreadImpl {
       BINOP_CASE(I8x16SubSaturateU, ui8x16, uint16, 16,
                  SaturateSub<uint8_t>(a, b))
 #undef BINOP_CASE
+#define UNOP_CASE(op, name, stype, count, expr) \
+  case kExpr##op: {                             \
+    WasmValue v = Pop();                        \
+    stype s = v.to_s128().to_##name();          \
+    stype res;                                  \
+    for (size_t i = 0; i < count; ++i) {        \
+      auto a = s.val[i];                        \
+      res.val[i] = expr;                        \
+    }                                           \
+    Push(WasmValue(Simd128(res)));              \
+    return true;                                \
+  }
+      UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
+      UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
+      UNOP_CASE(I32x4Neg, i32x4, int4, 4, -a)
+      UNOP_CASE(I16x8Neg, i16x8, int8, 8, -a)
+      UNOP_CASE(I8x16Neg, i8x16, int16, 16, -a)
+      UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, 1.0f / a)
+      UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, 1.0f / std::sqrt(a))
+      UNOP_CASE(S128Not, i32x4, int4, 4, ~a)
+#undef UNOP_CASE
       default:
         return false;
     }

@@ -512,21 +512,21 @@ void RunF32x4UnOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Abs) {
+WASM_SIMD_TEST(F32x4Abs) {
   RunF32x4UnOpTest(execution_mode, lower_simd, kExprF32x4Abs, std::abs);
 }
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Neg) {
+WASM_SIMD_TEST(F32x4Neg) {
   RunF32x4UnOpTest(execution_mode, lower_simd, kExprF32x4Neg, Negate);
 }
 
 static const float kApproxError = 0.01f;
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4RecipApprox) {
+WASM_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(execution_mode, lower_simd, kExprF32x4RecipApprox, Recip,
                    kApproxError);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4RecipSqrtApprox) {
+WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(execution_mode, lower_simd, kExprF32x4RecipSqrtApprox,
                    RecipSqrt, kApproxError);
 }
@@ -925,11 +925,11 @@ void RunI32x4UnOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i))); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Neg) {
+WASM_SIMD_TEST(I32x4Neg) {
   RunI32x4UnOpTest(execution_mode, lower_simd, kExprI32x4Neg, Negate);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S128Not) {
+WASM_SIMD_TEST(S128Not) {
   RunI32x4UnOpTest(execution_mode, lower_simd, kExprS128Not, Not);
 }
 
@@ -1130,7 +1130,7 @@ void RunI16x8UnOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i))); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Neg) {
+WASM_SIMD_TEST(I16x8Neg) {
   RunI16x8UnOpTest(execution_mode, lower_simd, kExprI16x8Neg, Negate);
 }
 
@@ -1343,7 +1343,7 @@ void RunI8x16UnOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i))); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Neg) {
+WASM_SIMD_TEST(I8x16Neg) {
   RunI8x16UnOpTest(execution_mode, lower_simd, kExprI8x16Neg, Negate);
 }
 
