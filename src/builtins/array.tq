@@ -186,7 +186,7 @@ module array {
     }
 
     // 12. Perform ? Set(A, "length", actualDeleteCount, true).
-    SetProperty(context, a, 'length', actualDeleteCount, strict);
+    SetProperty(context, a, 'length', actualDeleteCount, kStrict);
 
     // 13. Let items be a List whose elements are, in left-to-right order,
     //     the portion of the actual argument list starting with the third
@@ -217,12 +217,12 @@ module array {
           let fromValue: Object = GetProperty(context, o, from);
 
           // 2. Perform ? Set(O, to, fromValue, true).
-          SetProperty(context, o, to, fromValue, strict);
+          SetProperty(context, o, to, fromValue, kStrict);
 
           // v. Else fromPresent is false,
         } else {
           // 1. Perform ? DeletePropertyOrThrow(O, to).
-          DeleteProperty(context, o, to, strict);
+          DeleteProperty(context, o, to, kStrict);
         }
         // vi. Increase k by 1.
         k = k + 1;
@@ -233,7 +233,7 @@ module array {
       // d. Repeat, while k > (len - actualDeleteCount + itemCount)
       while (k > (len - actualDeleteCount + itemCount)) {
         // i. Perform ? DeletePropertyOrThrow(O, ! ToString(k - 1)).
-        DeleteProperty(context, o, ToString_Inline(context, k - 1), strict);
+        DeleteProperty(context, o, ToString_Inline(context, k - 1), kStrict);
 
         // ii. Decrease k by 1.
         k = k - 1;
@@ -261,12 +261,12 @@ module array {
           let fromValue: Object = GetProperty(context, o, from);
 
           // 2. Perform ? Set(O, to, fromValue, true).
-          SetProperty(context, o, to, fromValue, strict);
+          SetProperty(context, o, to, fromValue, kStrict);
 
           // v. Else fromPresent is false,
         } else {
           // 1. Perform ? DeletePropertyOrThrow(O, to).
-          DeleteProperty(context, o, to, strict);
+          DeleteProperty(context, o, to, kStrict);
         }
 
         // vi. Decrease k by 1.
@@ -283,7 +283,7 @@ module array {
     if (arguments.length > 2) {
       for (let e: Object of arguments [2: ]) {
         // b. Perform ? Set(O, ! ToString(k), E, true).
-        SetProperty(context, o, ToString_Inline(context, k), e, strict);
+        SetProperty(context, o, ToString_Inline(context, k), e, kStrict);
 
         // c. Increase k by 1.
         k = k + 1;
@@ -293,7 +293,7 @@ module array {
     // 19. Perform ? Set(O, "length", len - actualDeleteCount + itemCount,
     // true).
     SetProperty(
-        context, o, 'length', len - actualDeleteCount + itemCount, strict);
+        context, o, 'length', len - actualDeleteCount + itemCount, kStrict);
 
     return a;
   }

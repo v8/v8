@@ -116,8 +116,8 @@ const False: Boolean = 'FalseConstant()';
 const true: constexpr bool = 'true';
 const false: constexpr bool = 'false';
 
-const strict: constexpr LanguageMode = 'LanguageMode::kStrict';
-const sloppy: constexpr LanguageMode = 'LanguageMode::kSloppy';
+const kStrict: constexpr LanguageMode = 'LanguageMode::kStrict';
+const kSloppy: constexpr LanguageMode = 'LanguageMode::kSloppy';
 
 extern macro Print(Object);
 extern macro DebugBreak();
