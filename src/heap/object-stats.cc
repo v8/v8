@@ -534,6 +534,8 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     MaybeObject* maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
+  if (maybe_obj->IsClearedWeakHeapObject())
+    return ObjectStats::FEEDBACK_VECTOR_SLOT_OTHER_TYPE;
   Object* obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
     case FeedbackSlotKind::kCall:
