@@ -549,11 +549,11 @@ void ScopeIterator::MaterializeStackLocals(Handle<JSObject> local_scope,
     }
 
     Handle<Object> value(parameters_and_registers->get(i), isolate_);
+    DCHECK(!value.is_identical_to(isolate_->factory()->stale_register()));
 
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
     if (value->IsTheHole(isolate_) || value->IsOptimizedOut(isolate_)) {
-      DCHECK(!value.is_identical_to(isolate_->factory()->stale_register()));
       value = isolate_->factory()->undefined_value();
     }
 
@@ -567,11 +567,11 @@ void ScopeIterator::MaterializeStackLocals(Handle<JSObject> local_scope,
     Handle<Object> value(parameters_and_registers->get(
                              parameter_count + scope_info->StackLocalIndex(i)),
                          isolate_);
+    DCHECK(!value.is_identical_to(isolate_->factory()->stale_register()));
 
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
     if (value->IsTheHole(isolate_) || value->IsOptimizedOut(isolate_)) {
-      DCHECK(!value.is_identical_to(isolate_->factory()->stale_register()));
       value = isolate_->factory()->undefined_value();
     }
     JSObject::SetOwnPropertyIgnoreAttributes(local_scope, name, value, NONE)
