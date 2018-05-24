@@ -446,9 +446,6 @@ namespace internal {
   /* DataView */                                                               \
   /* ES #sec-dataview-constructor */                                           \
   CPP(DataViewConstructor)                                                     \
-  CPP(DataViewPrototypeGetBuffer)                                              \
-  CPP(DataViewPrototypeGetByteLength)                                          \
-  CPP(DataViewPrototypeGetByteOffset)                                          \
                                                                                \
   /* Date */                                                                   \
   /* ES #sec-date-constructor */                                               \

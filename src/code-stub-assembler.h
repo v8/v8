@@ -175,6 +175,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<JSArray>(heap_object);
   }
 
+  TNode<JSDataView> TaggedToJSDataView(TNode<Object> value, Label* fail) {
+    GotoIf(TaggedIsSmi(value), fail);
+    TNode<HeapObject> heap_object = CAST(value);
+    GotoIfNot(IsJSDataView(heap_object), fail);
+    return UncheckedCast<JSDataView>(heap_object);
+  }
+
   TNode<JSReceiver> TaggedToCallable(TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsSmi(value), fail);
     TNode<HeapObject> result = UncheckedCast<HeapObject>(value);
@@ -1404,6 +1411,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSDataView(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSArrayMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSArray(SloppyTNode<HeapObject> object);
@@ -2283,6 +2291,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // TypedArray/ArrayBuffer helpers
   Node* IsDetachedBuffer(Node* buffer);
+  TNode<JSArrayBuffer> LoadArrayBufferViewBuffer(
+      TNode<JSArrayBufferView> array_buffer_view);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

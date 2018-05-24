@@ -14,6 +14,14 @@ class DataViewBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
+
+  TNode<Smi> LoadDataViewByteOffset(TNode<JSDataView> data_view) {
+    return LoadObjectField<Smi>(data_view, JSDataView::kByteOffsetOffset);
+  }
+
+  TNode<Smi> LoadDataViewByteLength(TNode<JSDataView> data_view) {
+    return LoadObjectField<Smi>(data_view, JSDataView::kByteLengthOffset);
+  }
 };
 
 }  // namespace internal

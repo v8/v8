@@ -5261,6 +5261,10 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBuffer(
   return HasInstanceType(object, JS_ARRAY_BUFFER_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSDataView(TNode<HeapObject> object) {
+  return HasInstanceType(object, JS_DATA_VIEW_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsFixedTypedArray(
     SloppyTNode<HeapObject> object) {
   TNode<Int32T> instance_type = LoadInstanceType(object);
@@ -11296,6 +11300,12 @@ Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   Node* buffer_bit_field = LoadObjectField(
       buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32());
   return IsSetWord32<JSArrayBuffer::WasNeutered>(buffer_bit_field);
+}
+
+TNode<JSArrayBuffer> CodeStubAssembler::LoadArrayBufferViewBuffer(
+    TNode<JSArrayBufferView> array_buffer_view) {
+  return LoadObjectField<JSArrayBuffer>(array_buffer_view,
+                                        JSArrayBufferView::kBufferOffset);
 }
 
 CodeStubArguments::CodeStubArguments(

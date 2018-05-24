@@ -41,6 +41,7 @@ type FixedTypedArray extends FixedTypedArrayBase generates
 type JSArrayBuffer extends Object generates 'TNode<JSArrayBuffer>';
 type JSArrayBufferView extends Object generates 'TNode<JSArrayBufferView>';
 type JSTypedArray extends JSArrayBufferView generates 'TNode<JSTypedArray>';
+type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
 type InstanceType extends int32 generates 'TNode<Int32T>';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
@@ -107,6 +108,8 @@ const kDetachedOperation: MessageTemplate =
     'MessageTemplate::kDetachedOperation';
 const kBadSortComparisonFunction: MessageTemplate =
     'MessageTemplate::kBadSortComparisonFunction';
+const kIncompatibleMethodReceiver: MessageTemplate =
+    'MessageTemplate::kIncompatibleMethodReceiver';
 
 const Hole: Oddball = 'TheHoleConstant()';
 const Null: Oddball = 'NullConstant()';
@@ -215,6 +218,8 @@ extern operator '[]' macro GetArgumentValueSmiIndex(Arguments, Smi): Object;
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
 
+extern operator 'cast<>' macro TaggedToJSDataView(
+    Object): JSDataView labels CastError;
 extern operator
 'cast<>' macro TaggedToHeapObject(Object): HeapObject labels CastError;
 extern operator 'cast<>' macro TaggedToSmi(Object): Smi labels CastError;

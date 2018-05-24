@@ -4,6 +4,61 @@
 
 module data_view {
 
+  extern operator '.buffer' macro LoadArrayBufferViewBuffer(
+      JSArrayBufferView): JSArrayBuffer;
+  extern operator '.byte_length' macro LoadDataViewByteLength(JSDataView): Smi;
+  extern operator '.byte_offset' macro LoadDataViewByteOffset(JSDataView): Smi;
+
+  macro WasNeutered(view: JSArrayBufferView): bool {
+    return IsDetachedBuffer(view.buffer);
+  }
+
+  macro ValidateDataView(context: Context,
+        o: Object, method: String): JSDataView {
+    try {
+      return cast<JSDataView>(o) otherwise CastError;
+    }
+    label CastError {
+      ThrowTypeError(context, kIncompatibleMethodReceiver, method);
+    }
+  }
+
+  // ES6 section 24.2.4.1 get DataView.prototype.buffer
+  javascript builtin DataViewPrototypeGetBuffer(
+    context: Context, receiver: Object, ...arguments): JSArrayBuffer {
+      let data_view: JSDataView = ValidateDataView(
+          context, receiver, 'get DataView.prototype.buffer');
+      return data_view.buffer;
+  }
+
+  // ES6 section 24.2.4.2 get DataView.prototype.byteLength
+  javascript builtin DataViewPrototypeGetByteLength(
+    context: Context, receiver: Object, ...arguments): Smi {
+      let data_view: JSDataView = ValidateDataView(
+          context, receiver, 'get DataView.prototype.byte_length');
+      if (WasNeutered(data_view)) {
+        // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
+        // here if the JSArrayBuffer of the {data_view} was neutered.
+        let zero: Smi = 0;
+        return zero;
+      }
+      return data_view.byte_length;
+  }
+
+  // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
+  javascript builtin DataViewPrototypeGetByteOffset(
+    context: Context, receiver: Object, ...arguments): Smi {
+      let data_view: JSDataView = ValidateDataView(
+          context, receiver, 'get DataView.prototype.byte_offset');
+      if (WasNeutered(data_view)) {
+        // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
+        // here if the JSArrayBuffer of the {data_view} was neutered.
+        let zero: Smi = 0;
+        return zero;
+      }
+      return data_view.byte_offset;
+  }
+
   // Context, receiver, byteOffset, littleEndian
   extern runtime DataViewGetInt8(Context, Object, Object, Object): Object;
   extern runtime DataViewGetUint8(Context, Object, Object, Object): Object;
@@ -15,7 +70,6 @@ module data_view {
   extern runtime DataViewGetFloat64(Context, Object, Object, Object): Object;
   extern runtime DataViewGetBigInt64(Context, Object, Object, Object): Object;
   extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Object;
-
 
   javascript builtin DataViewPrototypeGetInt8(
     context: Context, receiver: Object, ...arguments): Object {

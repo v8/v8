@@ -104,29 +104,5 @@ BUILTIN(DataViewConstructor) {
   }
 }
 
-// ES6 section 24.2.4.1 get DataView.prototype.buffer
-BUILTIN(DataViewPrototypeGetBuffer) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDataView, data_view, "get DataView.prototype.buffer");
-  return data_view->buffer();
-}
-
-// ES6 section 24.2.4.2 get DataView.prototype.byteLength
-BUILTIN(DataViewPrototypeGetByteLength) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDataView, data_view, "get DataView.prototype.byteLength");
-  // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-  // here if the JSArrayBuffer of the {data_view} was neutered.
-  return data_view->byte_length();
-}
-
-// ES6 section 24.2.4.3 get DataView.prototype.byteOffset
-BUILTIN(DataViewPrototypeGetByteOffset) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDataView, data_view, "get DataView.prototype.byteOffset");
-  // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-  // here if the JSArrayBuffer of the {data_view} was neutered.
-  return data_view->byte_offset();
-}
 }  // namespace internal
 }  // namespace v8
