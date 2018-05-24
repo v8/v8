@@ -5111,7 +5111,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
                      wasm_unit_->func_index_),
         compilation_zone_.get(), Code::WASM_FUNCTION));
 
-    NodeOriginTable* node_origins = info_->trace_turbo_graph_enabled()
+    NodeOriginTable* node_origins = info_->trace_turbo_json_enabled()
                                         ? new (&graph_zone)
                                               NodeOriginTable(mcgraph_->graph())
                                         : nullptr;
@@ -5119,6 +5119,8 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
     job_.reset(Pipeline::NewWasmCompilationJob(
         info_.get(), wasm_unit_->isolate_, mcgraph_, call_descriptor,
         source_positions, node_origins, &wasm_compilation_data_,
+        wasm_unit_->func_body_,
+        const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
         wasm_unit_->env_->module->origin()));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.

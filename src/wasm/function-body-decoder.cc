@@ -901,6 +901,12 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module,
                       PrintLocals print_locals) {
   OFStream os(stdout);
+  return PrintRawWasmCode(allocator, body, module, print_locals, os);
+}
+
+bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                      const wasm::WasmModule* module, PrintLocals print_locals,
+                      std::ostream& os) {
   Zone zone(allocator, ZONE_NAME);
   WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
                                             body.end);

@@ -58,6 +58,11 @@ V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module, PrintLocals print_locals);
 
+V8_EXPORT_PRIVATE
+bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                      const wasm::WasmModule* module, PrintLocals print_locals,
+                      std::ostream& out);
+
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintRawWasmCode(const byte* start, const byte* end);
 

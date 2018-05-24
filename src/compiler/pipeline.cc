@@ -77,6 +77,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
 #include "src/utils.h"
+#include "src/wasm/function-body-decoder.h"
 
 namespace v8 {
 namespace internal {
@@ -739,6 +740,35 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   return pipeline_statistics;
 }
 
+PipelineStatistics* CreatePipelineStatistics(wasm::FunctionBody function_body,
+                                             wasm::WasmModule* wasm_module,
+                                             OptimizedCompilationInfo* info,
+                                             Isolate* isolate,
+                                             ZoneStats* zone_stats) {
+  PipelineStatistics* pipeline_statistics = nullptr;
+
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
+    pipeline_statistics = new PipelineStatistics(info, isolate, zone_stats);
+    pipeline_statistics->BeginPhaseKind("initializing");
+  }
+
+  if (info->trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(info, std::ios_base::trunc);
+    std::unique_ptr<char[]> function_name = info->GetDebugName();
+    json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";
+    AccountingAllocator allocator;
+    std::ostringstream disassembly;
+    wasm::PrintRawWasmCode(&allocator, function_body, wasm_module,
+                           wasm::kPrintLocals, disassembly);
+    for (const auto& c : disassembly.str()) {
+      json_of << AsEscapedUC16ForJSON(c);
+    }
+    json_of << "\",\n\"phases\":[";
+  }
+
+  return pipeline_statistics;
+}
+
 }  // namespace
 
 class PipelineCompilationJob final : public OptimizedCompilationJob {
@@ -897,12 +927,13 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
       OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+      wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       bool asmjs_origin)
       : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), info,
                                 "TurboFan", State::kReadyToExecute),
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
-            Handle<Script>::null(), info, isolate, &zone_stats_)),
+            function_body, wasm_module, info, isolate, &zone_stats_)),
         data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
               source_positions, node_origins, wasm_compilation_data),
         pipeline_(&data_),
@@ -939,13 +970,7 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::PrepareJobImpl(
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::ExecuteJobImpl() {
-  if (compilation_info()->trace_turbo_json_enabled()) {
-    TurboJsonFile json_of(compilation_info(), std::ios_base::trunc);
-    json_of << "{\"function\":\"" << compilation_info()->GetDebugName().get()
-            << "\", \"source\":\"\",\n\"phases\":[";
-  }
-
-  pipeline_.RunPrintAndVerify("machine", true);
+  pipeline_.RunPrintAndVerify("Machine", true);
   if (FLAG_wasm_opt || asmjs_origin_) {
     PipelineData* data = &data_;
     PipelineRunScope scope(data, "wasm optimization");
@@ -990,6 +1015,13 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
       code_generator->frame()->GetTotalFrameSlotCount();
   wasm_code_desc->source_positions_table =
       code_generator->GetSourcePositionTable();
+
+  if (data_.info()->trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(data_.info(), std::ios_base::app);
+    json_of << "{}\n]";
+    json_of << "\n}";
+  }
+
   return SUCCEEDED;
 }
 
@@ -2116,10 +2148,11 @@ OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
     OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+    wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
     wasm::ModuleOrigin asmjs_origin) {
-  return new PipelineWasmCompilationJob(info, isolate, mcgraph, call_descriptor,
-                                        source_positions, node_origins,
-                                        wasm_compilation_data, asmjs_origin);
+  return new PipelineWasmCompilationJob(
+      info, isolate, mcgraph, call_descriptor, source_positions, node_origins,
+      wasm_compilation_data, function_body, wasm_module, asmjs_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

@@ -22,6 +22,8 @@ class JumpOptimizationInfo;
 
 namespace wasm {
 enum ModuleOrigin : uint8_t;
+struct FunctionBody;
+struct WasmModule;
 }  // namespace wasm
 
 namespace compiler {
@@ -46,6 +48,7 @@ class Pipeline : public AllStatic {
       OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+      wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
