@@ -21,6 +21,20 @@ namespace wasm {
 class ErrorThrower;
 struct ModuleWireBytes;
 
+class V8_EXPORT_PRIVATE CompilationResultResolver {
+ public:
+  virtual void OnCompilationSucceeded(Handle<WasmModuleObject> result) = 0;
+  virtual void OnCompilationFailed(Handle<Object> error_reason) = 0;
+  virtual ~CompilationResultResolver() {}
+};
+
+class V8_EXPORT_PRIVATE InstantiationResultResolver {
+ public:
+  virtual void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) = 0;
+  virtual void OnInstantiationFailed(Handle<Object> error_reason) = 0;
+  virtual ~InstantiationResultResolver() {}
+};
+
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing WASM code.
 class V8_EXPORT_PRIVATE WasmEngine {
@@ -54,20 +68,22 @@ class V8_EXPORT_PRIVATE WasmEngine {
       MaybeHandle<JSArrayBuffer> memory);
 
   // Begin an asynchronous compilation of the given bytes that represent an
-  // encoded WASM module, placing the result in the supplied {promise}.
+  // encoded WASM module.
   // The {is_shared} flag indicates if the bytes backing the module could
   // be shared across threads, i.e. could be concurrently modified.
-  void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
+  void AsyncCompile(Isolate* isolate,
+                    std::unique_ptr<CompilationResultResolver> resolver,
                     const ModuleWireBytes& bytes, bool is_shared);
 
-  // Begin an asynchronous instantiation of the given WASM module, placing the
-  // result in the supplied {promise}.
-  void AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
+  // Begin an asynchronous instantiation of the given WASM module.
+  void AsyncInstantiate(Isolate* isolate,
+                        std::unique_ptr<InstantiationResultResolver> resolver,
                         Handle<WasmModuleObject> module_object,
                         MaybeHandle<JSReceiver> imports);
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
-      Isolate* isolate, Handle<Context> context, Handle<JSPromise> promise);
+      Isolate* isolate, Handle<Context> context,
+      std::unique_ptr<CompilationResultResolver> resolver);
 
   WasmCodeManager* code_manager() const { return code_manager_.get(); }
 
@@ -94,10 +110,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void TearDown();
 
  private:
-  AsyncCompileJob* CreateAsyncCompileJob(Isolate* isolate,
-                                         std::unique_ptr<byte[]> bytes_copy,
-                                         size_t length, Handle<Context> context,
-                                         Handle<JSPromise> promise);
+  AsyncCompileJob* CreateAsyncCompileJob(
+      Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
+      Handle<Context> context,
+      std::unique_ptr<CompilationResultResolver> resolver);
 
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.

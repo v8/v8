@@ -7516,6 +7516,38 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
 
+// Resolves the result of streaming compilation.
+// TODO(ahaas): Refactor the streaming compilation API so that this class can
+// move to wasm-js.cc.
+class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
+ public:
+  AsyncCompilationResolver(Isolate* isolate, Handle<Promise> promise)
+      : promise_(
+            reinterpret_cast<i::Isolate*>(isolate)->global_handles()->Create(
+                *Utils::OpenHandle(*promise))) {}
+
+  ~AsyncCompilationResolver() {
+    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+  }
+
+  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Resolve(promise_, result);
+    CHECK_EQ(promise_result.is_null(),
+             promise_->GetIsolate()->has_pending_exception());
+  }
+
+  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Reject(promise_, error_reason);
+    CHECK_EQ(promise_result.is_null(),
+             promise_->GetIsolate()->has_pending_exception());
+  }
+
+ private:
+  i::Handle<i::JSPromise> promise_;
+};
+
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
     Isolate* isolate)
     : isolate_(isolate) {
@@ -7524,10 +7556,10 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
   Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
   promise_.Reset(isolate, resolver->GetPromise());
 
-  i::Handle<i::JSPromise> promise = Utils::OpenHandle(*GetPromise());
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
-      i_isolate, handle(i_isolate->context()), promise);
+      i_isolate, handle(i_isolate->context()),
+      base::make_unique<AsyncCompilationResolver>(isolate, GetPromise()));
 }
 
 Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {

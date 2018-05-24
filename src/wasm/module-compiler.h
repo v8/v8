@@ -27,6 +27,7 @@ class Vector;
 
 namespace wasm {
 
+class CompilationResultResolver;
 class CompilationState;
 class ErrorThrower;
 class ModuleCompiler;
@@ -85,7 +86,7 @@ class AsyncCompileJob {
  public:
   explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
                            size_t length, Handle<Context> context,
-                           Handle<JSPromise> promise);
+                           std::unique_ptr<CompilationResultResolver> resolver);
 
   void Start();
 
@@ -118,7 +119,7 @@ class AsyncCompileJob {
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 
-  void AsyncCompileSucceeded(Handle<Object> result);
+  void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
   void StartForegroundTask();
 
@@ -148,7 +149,7 @@ class AsyncCompileJob {
   std::unique_ptr<byte[]> bytes_copy_;
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
-  Handle<JSPromise> module_promise_;
+  std::unique_ptr<CompilationResultResolver> resolver_;
   std::unique_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;

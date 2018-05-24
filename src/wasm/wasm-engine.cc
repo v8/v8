@@ -60,24 +60,23 @@ MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
                                      memory);
 }
 
-void WasmEngine::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
-                                  Handle<WasmModuleObject> module_object,
-                                  MaybeHandle<JSReceiver> imports) {
+void WasmEngine::AsyncInstantiate(
+    Isolate* isolate, std::unique_ptr<InstantiationResultResolver> resolver,
+    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports) {
   ErrorThrower thrower(isolate, nullptr);
   MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
       isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
   if (thrower.error()) {
-    MaybeHandle<Object> result = JSPromise::Reject(promise, thrower.Reify());
-    CHECK_EQ(result.is_null(), isolate->has_pending_exception());
+    resolver->OnInstantiationFailed(thrower.Reify());
     return;
   }
   Handle<WasmInstanceObject> instance = instance_object.ToHandleChecked();
-  MaybeHandle<Object> result = JSPromise::Resolve(promise, instance);
-  CHECK_EQ(result.is_null(), isolate->has_pending_exception());
+  resolver->OnInstantiationSucceeded(instance);
 }
 
-void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                              const ModuleWireBytes& bytes, bool is_shared) {
+void WasmEngine::AsyncCompile(
+    Isolate* isolate, std::unique_ptr<CompilationResultResolver> resolver,
+    const ModuleWireBytes& bytes, bool is_shared) {
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
     ErrorThrower thrower(isolate, "WasmCompile");
@@ -94,21 +93,18 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
       module_object = SyncCompile(isolate, &thrower, bytes);
     }
     if (thrower.error()) {
-      MaybeHandle<Object> result = JSPromise::Reject(promise, thrower.Reify());
-      CHECK_EQ(result.is_null(), isolate->has_pending_exception());
+      resolver->OnCompilationFailed(thrower.Reify());
       return;
     }
     Handle<WasmModuleObject> module = module_object.ToHandleChecked();
-    MaybeHandle<Object> result = JSPromise::Resolve(promise, module);
-    CHECK_EQ(result.is_null(), isolate->has_pending_exception());
+    resolver->OnCompilationSucceeded(module);
     return;
   }
 
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        isolate->wasm_engine()
-            ->StartStreamingCompilation(isolate, handle(isolate->context()),
-                                        promise);
+        isolate->wasm_engine()->StartStreamingCompilation(
+            isolate, handle(isolate->context()), std::move(resolver));
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -120,14 +116,16 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
 
   AsyncCompileJob* job =
       CreateAsyncCompileJob(isolate, std::move(copy), bytes.length(),
-                            handle(isolate->context()), promise);
+                            handle(isolate->context()), std::move(resolver));
   job->Start();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
-    Isolate* isolate, Handle<Context> context, Handle<JSPromise> promise) {
-  AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, std::unique_ptr<byte[]>(nullptr), 0, context, promise);
+    Isolate* isolate, Handle<Context> context,
+    std::unique_ptr<CompilationResultResolver> resolver) {
+  AsyncCompileJob* job =
+      CreateAsyncCompileJob(isolate, std::unique_ptr<byte[]>(nullptr), 0,
+                            context, std::move(resolver));
   return job->CreateStreamingDecoder();
 }
 
@@ -141,9 +139,10 @@ void WasmEngine::Unregister(CancelableTaskManager* task_manager) {
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
-    Handle<Context> context, Handle<JSPromise> promise) {
-  AsyncCompileJob* job = new AsyncCompileJob(isolate, std::move(bytes_copy),
-                                             length, context, promise);
+    Handle<Context> context,
+    std::unique_ptr<CompilationResultResolver> resolver) {
+  AsyncCompileJob* job = new AsyncCompileJob(
+      isolate, std::move(bytes_copy), length, context, std::move(resolver));
   // Pass ownership to the unique_ptr in {jobs_}.
   jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
   return job;

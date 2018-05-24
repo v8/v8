@@ -2717,21 +2717,21 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   }
 }
 
-AsyncCompileJob::AsyncCompileJob(Isolate* isolate,
-                                 std::unique_ptr<byte[]> bytes_copy,
-                                 size_t length, Handle<Context> context,
-                                 Handle<JSPromise> promise)
+AsyncCompileJob::AsyncCompileJob(
+    Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
+    Handle<Context> context,
+    std::unique_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
       async_counters_(isolate->async_counters()),
       bytes_copy_(std::move(bytes_copy)),
-      wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length) {
+      wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
+      resolver_(std::move(resolver)) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
   // The handles for the context and promise must be deferred.
   DeferredHandleScope deferred(isolate);
   context_ = Handle<Context>(*context);
-  module_promise_ = Handle<JSPromise>(*promise);
   deferred_handles_.push_back(deferred.Detach());
 }
 
@@ -2861,15 +2861,11 @@ void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->RemoveCompileJob(this);
-  MaybeHandle<Object> promise_result =
-      JSPromise::Reject(module_promise_, error_reason);
-  CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
+  resolver_->OnCompilationFailed(error_reason);
 }
 
-void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
-  MaybeHandle<Object> promise_result =
-      JSPromise::Resolve(module_promise_, result);
-  CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
+void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
+  resolver_->OnCompilationSucceeded(result);
 }
 
 // A closure to run a compilation step (either as foreground or background
