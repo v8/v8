@@ -692,46 +692,50 @@ const Type* ImplementationVisitor::Visit(DebugStatement* stmt) {
 }
 
 const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
+  bool do_check = !stmt->debug_only;
 #if defined(DEBUG)
-  // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
-  // Torque allows and handles two types of expressions in the if protocol
-  // automagically, ones that return TNode<BoolT> and those that use the
-  // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
-  // handle this is embedded in the expression handling and to it's not possible
-  // to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH isn't trivial
-  // up-front. Secondly, on failure, the assert text should be the corresponding
-  // Torque code, not the -gen.cc code, which would be the case when using
-  // CSA_ASSERT_XXX.
-  Label* true_label = nullptr;
-  Label* false_label = nullptr;
-  Declarations::NodeScopeActivator scope(declarations(), stmt->expression);
-  true_label = declarations()->LookupLabel(kTrueLabelName);
-  GenerateLabelDefinition(true_label);
-  false_label = declarations()->LookupLabel(kFalseLabelName);
-  GenerateLabelDefinition(false_label);
-
-  VisitResult expression_result = Visit(stmt->expression);
-  if (expression_result.type() == GetTypeOracle().GetBoolType()) {
-    GenerateBranch(expression_result, true_label, false_label);
-  } else {
-    if (expression_result.type() != GetTypeOracle().GetNeverType()) {
-      std::stringstream s;
-      s << "unexpected return type " << expression_result.type()
-        << " for branch expression";
-      ReportError(s.str());
-    }
-  }
-
-  GenerateLabelBind(false_label);
-  GenerateIndent();
-  source_out() << "Print(\""
-               << "assert '" << stmt->source << "' failed at "
-               << PositionAsString(stmt->pos) << "\");" << std::endl;
-  GenerateIndent();
-  source_out() << "Unreachable();" << std::endl;
-
-  GenerateLabelBind(true_label);
+  do_check = true;
 #endif
+  if (do_check) {
+    // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
+    // Torque allows and handles two types of expressions in the if protocol
+    // automagically, ones that return TNode<BoolT> and those that use the
+    // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
+    // handle this is embedded in the expression handling and to it's not
+    // possible to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH
+    // isn't trivial up-front. Secondly, on failure, the assert text should be
+    // the corresponding Torque code, not the -gen.cc code, which would be the
+    // case when using CSA_ASSERT_XXX.
+    Label* true_label = nullptr;
+    Label* false_label = nullptr;
+    Declarations::NodeScopeActivator scope(declarations(), stmt->expression);
+    true_label = declarations()->LookupLabel(kTrueLabelName);
+    GenerateLabelDefinition(true_label);
+    false_label = declarations()->LookupLabel(kFalseLabelName);
+    GenerateLabelDefinition(false_label);
+
+    VisitResult expression_result = Visit(stmt->expression);
+    if (expression_result.type() == GetTypeOracle().GetBoolType()) {
+      GenerateBranch(expression_result, true_label, false_label);
+    } else {
+      if (expression_result.type() != GetTypeOracle().GetNeverType()) {
+        std::stringstream s;
+        s << "unexpected return type " << expression_result.type()
+          << " for branch expression";
+        ReportError(s.str());
+      }
+    }
+
+    GenerateLabelBind(false_label);
+    GenerateIndent();
+    source_out() << "Print(\""
+                 << "assert '" << stmt->source << "' failed at "
+                 << PositionAsString(stmt->pos) << "\");" << std::endl;
+    GenerateIndent();
+    source_out() << "Unreachable();" << std::endl;
+
+    GenerateLabelBind(true_label);
+  }
   return GetTypeOracle().GetVoidType();
 }
 

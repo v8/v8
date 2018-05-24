@@ -748,14 +748,14 @@ antlrcpp::Any AstGenerator::visitConditionalExpression(
 
 antlrcpp::Any AstGenerator::visitDiagnosticStatement(
     TorqueParser::DiagnosticStatementContext* context) {
-  if (context->ASSERT()) {
+  if (context->ASSERT_TOKEN() || context->CHECK_TOKEN()) {
     size_t a = context->expression()->start->getStartIndex();
     size_t b = context->expression()->stop->getStopIndex();
     antlr4::misc::Interval interval(a, b);
     std::string source = source_file_context_->stream->getText(interval);
     return implicit_cast<Statement*>(RegisterNode(new AssertStatement{
-        Pos(context), context->expression()->accept(this).as<Expression*>(),
-        source}));
+        Pos(context), context->ASSERT_TOKEN() != nullptr,
+        context->expression()->accept(this).as<Expression*>(), source}));
   } else if (context->UNREACHABLE_TOKEN()) {
     return implicit_cast<Statement*>(
         RegisterNode(new DebugStatement{Pos(context), "unreachable", true}));

@@ -36,20 +36,20 @@ module test {
   }
 
   macro TestConstexpr1() {
-    assert(convert<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+    check(convert<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
   }
 
   macro TestConstexprIf() {
-    assert(ElementsKindTestHelper1(UINT8_ELEMENTS));
-    assert(ElementsKindTestHelper1(UINT16_ELEMENTS));
-    assert(!ElementsKindTestHelper1(UINT32_ELEMENTS));
+    check(ElementsKindTestHelper1(UINT8_ELEMENTS));
+    check(ElementsKindTestHelper1(UINT16_ELEMENTS));
+    check(!ElementsKindTestHelper1(UINT32_ELEMENTS));
   }
 
   macro TestConstexprReturn() {
-    assert(convert<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
-    assert(convert<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
-    assert(!convert<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
-    assert(convert<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(convert<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
+    check(convert<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
+    check(!convert<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(convert<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
   }
 
   macro TestGotoLabel(): Boolean {
@@ -66,7 +66,7 @@ module test {
       LabelTestHelper2() otherwise Label2;
     }
     label Label2(smi: Smi) {
-      assert(smi == 42);
+      check(smi == 42);
       return True;
     }
   }
@@ -76,8 +76,8 @@ module test {
       LabelTestHelper3() otherwise Label3;
     }
     label Label3(str: String, smi: Smi) {
-      assert(str == 'foo');
-      assert(smi == 7);
+      check(str == 'foo');
+      check(smi == 7);
       return True;
     }
   }
@@ -91,10 +91,10 @@ module test {
   }
 
   macro TestBuiltinSpecialization(c: Context) {
-    assert(GenericBuiltinTest<Smi>(c, 0) == Null);
-    assert(GenericBuiltinTest<Smi>(c, 1) == Null);
-    assert(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
-    assert(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<Smi>(c, 0) == Null);
+    check(GenericBuiltinTest<Smi>(c, 1) == Null);
+    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
@@ -143,16 +143,15 @@ module test {
 
   macro TestMacroSpecialization() {
     try {
-      if (True == False) goto Fail;  // Silence warnings in release build
-      assert(GenericMacroTest<Smi>(0) == Undefined);
-      assert(GenericMacroTest<Smi>(1) == Undefined);
-      assert(GenericMacroTest<Object>(Null) == Null);
-      assert(GenericMacroTest<Object>(False) == False);
-      assert(GenericMacroTest<Object>(True) == True);
-      assert(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      assert(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      assert(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
-      assert(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
+      check(GenericMacroTest<Smi>(0) == Undefined);
+      check(GenericMacroTest<Smi>(1) == Undefined);
+      check(GenericMacroTest<Object>(Null) == Null);
+      check(GenericMacroTest<Object>(False) == False);
+      check(GenericMacroTest<Object>(True) == True);
+      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
+      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
+      check(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
+      check(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
     }
     label Fail {
       unreachable;
@@ -168,9 +167,9 @@ module test {
 
   macro TestFunctionPointers(context : Context) : Boolean {
     let fptr : builtin(Context, Smi) => Smi = TestHelperPlus1;
-    assert(fptr(context, 42) == 43);
+    check(fptr(context, 42) == 43);
     fptr = TestHelperPlus2;
-    assert(fptr(context, 42) == 44);
+    check(fptr(context, 42) == 44);
     return True;
   }
 
@@ -184,10 +183,10 @@ module test {
     let fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
     let fptr2: builtin(Context, Object) => Object = GenericBuiltinTest<Object>;
 
-    assert(fptr1(c, 0) == Null);
-    assert(fptr1(c, 1) == Null);
-    assert(fptr2(c, Undefined) == Undefined);
-    assert(fptr2(c, Undefined) == Undefined);
+    check(fptr1(c, 0) == Null);
+    check(fptr1(c, 1) == Null);
+    check(fptr2(c, Undefined) == Undefined);
+    check(fptr2(c, Undefined) == Undefined);
   }
 
   type SmiToSmi = builtin(Smi) => Smi;
