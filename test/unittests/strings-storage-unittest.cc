@@ -80,28 +80,6 @@ TEST_F(StringsStorageWithIsolate, GetNameFromInt) {
   CHECK(StringEq(str_negative_int, stored_str));
 }
 
-TEST_F(StringsStorageWithIsolate, GetFunctionNameFromString) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
-
-  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
-  const char* stored_str = storage.GetFunctionName(*str);
-  CHECK(StringEq("xy", stored_str));
-
-  // Check that GetName and GetFunctionName use the same storage.
-  const char* stored_str_twice = storage.GetName(*str);
-  CHECK_EQ(stored_str, stored_str_twice);
-}
-
-TEST_F(StringsStorageWithIsolate, GetFunctionNameFromCString) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
-
-  const char* xy = "xy";
-  const char* stored_str = storage.GetFunctionName("xy");
-  CHECK(StringEq("xy", stored_str));
-  // Check that the string is copied.
-  CHECK_NE(xy, stored_str);
-}
-
 TEST_F(StringsStorageWithIsolate, Format) {
   StringsStorage storage(isolate()->heap()->HashSeed());
 

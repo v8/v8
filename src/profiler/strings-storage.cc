@@ -107,14 +107,6 @@ const char* StringsStorage::GetConsName(const char* prefix, Name* name) {
   return "";
 }
 
-const char* StringsStorage::GetFunctionName(Name* name) {
-  return GetName(name);
-}
-
-const char* StringsStorage::GetFunctionName(const char* name) {
-  return GetCopy(name);
-}
-
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
   uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);

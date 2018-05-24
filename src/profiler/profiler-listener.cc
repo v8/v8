@@ -37,10 +37,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = NewCodeEntry(
-      tag, GetFunctionName(name), CodeEntry::kEmptyResourceName,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->InstructionStart());
+  rec->entry = NewCodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
+                            CpuProfileNode::kNoLineNumberInfo,
+                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                            code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -51,10 +51,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = NewCodeEntry(
-      tag, GetFunctionName(name), CodeEntry::kEmptyResourceName,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->InstructionStart());
+  rec->entry = NewCodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
+                            CpuProfileNode::kNoLineNumberInfo,
+                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                            code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -67,7 +67,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = NewCodeEntry(tag, GetFunctionName(shared->DebugName()),
+  rec->entry = NewCodeEntry(tag, GetName(shared->DebugName()),
                             GetName(InferScriptName(script_name, shared)),
                             CpuProfileNode::kNoLineNumberInfo,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
@@ -102,7 +102,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     }
   }
   rec->entry =
-      NewCodeEntry(tag, GetFunctionName(shared->DebugName()),
+      NewCodeEntry(tag, GetName(shared->DebugName()),
                    GetName(InferScriptName(script_name, shared)), line, column,
                    std::move(line_table), abstract_code->InstructionStart());
   RecordInliningInfo(rec->entry, abstract_code);
@@ -119,7 +119,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->instruction_start();
   rec->entry = NewCodeEntry(
-      tag, GetFunctionName(name.start()), CodeEntry::kWasmResourceNamePrefix,
+      tag, GetName(name.start()), CodeEntry::kWasmResourceNamePrefix,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       nullptr, code->instruction_start());
   rec->size = code->instructions().length();
@@ -237,7 +237,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
               : CodeEntry::kEmptyResourceName;
 
       CodeEntry* inline_entry =
-          new CodeEntry(entry->tag(), GetFunctionName(shared_info->DebugName()),
+          new CodeEntry(entry->tag(), GetName(shared_info->DebugName()),
                         resource_name, CpuProfileNode::kNoLineNumberInfo,
                         CpuProfileNode::kNoColumnNumberInfo, nullptr,
                         code->InstructionStart());
