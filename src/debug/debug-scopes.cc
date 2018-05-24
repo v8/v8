@@ -528,12 +528,45 @@ void ScopeIterator::MaterializeStackLocals(Handle<JSObject> local_scope,
 
   DCHECK(!generator_.is_null());
   // Fill all stack locals.
-  Handle<FixedArray> register_file(generator_->register_file());
+  Handle<FixedArray> parameters_and_registers(
+      generator_->parameters_and_registers());
+  int parameter_count = scope_info->ParameterCount();
+  for (int i = 0; i < parameter_count; ++i) {
+    // Do not materialize the parameter if it is shadowed by a context local.
+    // TODO(yangguo): check whether this is necessary, now that we materialize
+    //                context locals as well.
+    Handle<String> name(scope_info->ParameterName(i));
+    if (ScopeInfo::VariableIsSynthetic(*name)) continue;
+
+    // Skip the parameter if it is context-allocated.
+    VariableMode mode;
+    InitializationFlag init_flag;
+    MaybeAssignedFlag maybe_assigned_flag;
+    if (ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag,
+                                    &maybe_assigned_flag) != -1) {
+      continue;
+    }
+
+    Handle<Object> value(parameters_and_registers->get(i), isolate_);
+
+    // TODO(yangguo): We convert optimized out values to {undefined} when they
+    // are passed to the debugger. Eventually we should handle them somehow.
+    if (value->IsTheHole(isolate_) || value->IsOptimizedOut(isolate_)) {
+      DCHECK(!value.is_identical_to(isolate_->factory()->stale_register()));
+      value = isolate_->factory()->undefined_value();
+    }
+
+    JSObject::SetOwnPropertyIgnoreAttributes(local_scope, name, value, NONE)
+        .Check();
+  }
+
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
     Handle<String> name = handle(scope_info->StackLocalName(i));
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
-    Handle<Object> value(register_file->get(scope_info->StackLocalIndex(i)),
+    Handle<Object> value(parameters_and_registers->get(
+                             parameter_count + scope_info->StackLocalIndex(i)),
                          isolate_);
+
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
     if (value->IsTheHole(isolate_) || value->IsOptimizedOut(isolate_)) {
@@ -683,9 +716,12 @@ bool ScopeIterator::SetStackVariableValue(Handle<ScopeInfo> scope_info,
       } else {
         // Set the variable in the suspended generator.
         DCHECK(!generator_.is_null());
-        Handle<FixedArray> register_file(generator_->register_file());
-        DCHECK_LT(stack_local_index, register_file->length());
-        register_file->set(stack_local_index, *new_value);
+        Handle<FixedArray> parameters_and_registers(
+            generator_->parameters_and_registers());
+        int index_in_parameters_and_registers =
+            scope_info->ParameterCount() + stack_local_index;
+        parameters_and_registers->set(index_in_parameters_and_registers,
+                                      *new_value);
       }
       return true;
     }

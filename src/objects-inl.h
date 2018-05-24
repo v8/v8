@@ -2623,7 +2623,8 @@ ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 ACCESSORS(JSGeneratorObject, input_or_debug_pos, Object, kInputOrDebugPosOffset)
 SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
-ACCESSORS(JSGeneratorObject, register_file, FixedArray, kRegisterFileOffset)
+ACCESSORS(JSGeneratorObject, parameters_and_registers, FixedArray,
+          kParametersAndRegistersOffset)
 
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);

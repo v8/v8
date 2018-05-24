@@ -259,9 +259,9 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
 
 
 // static
-FieldAccess AccessBuilder::ForJSGeneratorObjectRegisterFile() {
+FieldAccess AccessBuilder::ForJSGeneratorObjectParametersAndRegisters() {
   FieldAccess access = {
-      kTaggedBase,         JSGeneratorObject::kRegisterFileOffset,
+      kTaggedBase,         JSGeneratorObject::kParametersAndRegistersOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
       Type::Internal(),    MachineType::AnyTagged(),
       kPointerWriteBarrier};

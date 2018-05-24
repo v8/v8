@@ -643,7 +643,7 @@ BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
 
-int GeneratorStoreRegisterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 Handle<ScopeInfo> ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -789,7 +789,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreMessage();
 
   // Used to implement Ignition's SuspendGenerator bytecode.
-  const Operator* GeneratorStore(int register_count);
+  const Operator* GeneratorStore(int value_count);
 
   // Used to implement Ignition's SwitchOnGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();

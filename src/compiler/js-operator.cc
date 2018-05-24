@@ -950,7 +950,7 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
       register_count);                                  // parameter
 }
 
-int GeneratorStoreRegisterCountOf(const Operator* op) {
+int GeneratorStoreValueCountOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSGeneratorStore, op->opcode());
   return OpParameter<int>(op);
 }

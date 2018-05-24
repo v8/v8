@@ -499,14 +499,19 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     // Allocate a register file.
     DCHECK(js_function->shared()->HasBytecodeArray());
-    int size = js_function->shared()->GetBytecodeArray()->register_count();
+    Handle<BytecodeArray> bytecode_array(
+        js_function->shared()->GetBytecodeArray());
+    int parameter_count_no_receiver = bytecode_array->parameter_count() - 1;
+    DCHECK_EQ(parameter_count_no_receiver,
+              js_function->shared()->internal_formal_parameter_count());
+    int size = parameter_count_no_receiver + bytecode_array->register_count();
     AllocationBuilder ab(jsgraph(), effect, control);
     ab.AllocateArray(size, factory()->fixed_array_map());
     for (int i = 0; i < size; ++i) {
       ab.Store(AccessBuilder::ForFixedArraySlot(i),
                jsgraph()->UndefinedConstant());
     }
-    Node* register_file = effect = ab.Finish();
+    Node* parameters_and_registers = effect = ab.Finish();
 
     // Emit code to allocate the JS[Async]GeneratorObject instance.
     AllocationBuilder a(jsgraph(), effect, control);
@@ -524,7 +529,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
             jsgraph()->Constant(JSGeneratorObject::kNext));
     a.Store(AccessBuilder::ForJSGeneratorObjectContinuation(),
             jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
-    a.Store(AccessBuilder::ForJSGeneratorObjectRegisterFile(), register_file);
+    a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
+            parameters_and_registers);
 
     if (initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
       a.Store(AccessBuilder::ForJSAsyncGeneratorObjectQueue(), undefined);

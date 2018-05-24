@@ -3273,8 +3273,8 @@ class JSGeneratorObject: public JSObject {
   // is suspended.
   int source_position() const;
 
-  // [register_file]: Saved interpreter register file.
-  DECL_ACCESSORS(register_file, FixedArray)
+  // [parameters_and_registers]: Saved interpreter register file.
+  DECL_ACCESSORS(parameters_and_registers, FixedArray)
 
   DECL_CAST(JSGeneratorObject)
 
@@ -3293,8 +3293,9 @@ class JSGeneratorObject: public JSObject {
   static const int kInputOrDebugPosOffset = kReceiverOffset + kPointerSize;
   static const int kResumeModeOffset = kInputOrDebugPosOffset + kPointerSize;
   static const int kContinuationOffset = kResumeModeOffset + kPointerSize;
-  static const int kRegisterFileOffset = kContinuationOffset + kPointerSize;
-  static const int kSize = kRegisterFileOffset + kPointerSize;
+  static const int kParametersAndRegistersOffset =
+      kContinuationOffset + kPointerSize;
+  static const int kSize = kParametersAndRegistersOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);

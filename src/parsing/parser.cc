@@ -2441,10 +2441,6 @@ void Parser::DeclareArrowFunctionFormalParameters(
 }
 
 void Parser::PrepareGeneratorVariables() {
-  // The code produced for generators relies on forced context allocation of
-  // parameters (it does not restore the frame's parameters upon resume).
-  function_state_->scope()->ForceContextAllocationForParameters();
-
   // Calling a generator returns a generator object.  That object is stored
   // in a temporary variable, a definition that is used by "yield"
   // expressions.

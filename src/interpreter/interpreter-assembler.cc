@@ -1580,62 +1580,103 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #endif
 }
 
-void InterpreterAssembler::AbortIfRegisterCountInvalid(Node* register_file,
-                                                       Node* register_count) {
-  Node* array_size = LoadAndUntagFixedArrayBaseLength(register_file);
+void InterpreterAssembler::AbortIfRegisterCountInvalid(
+    Node* parameters_and_registers, Node* formal_parameter_count,
+    Node* register_count) {
+  Node* array_size = LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
 
   Label ok(this), abort(this, Label::kDeferred);
-  Branch(UintPtrLessThanOrEqual(register_count, array_size), &ok, &abort);
+  Branch(UintPtrLessThanOrEqual(
+             IntPtrAdd(formal_parameter_count, register_count), array_size),
+         &ok, &abort);
 
   BIND(&abort);
-  Abort(AbortReason::kInvalidRegisterFileInGenerator);
+  Abort(AbortReason::kInvalidParametersAndRegistersInGenerator);
   Goto(&ok);
 
   BIND(&ok);
 }
 
-Node* InterpreterAssembler::ExportRegisterFile(
-    Node* array, const RegListNodePair& registers) {
+Node* InterpreterAssembler::ExportParametersAndRegisterFile(
+    Node* array, const RegListNodePair& registers,
+    Node* formal_parameter_count) {
+  // Store the formal parameters (without receiver) followed by the
+  // registers into the generator's internal parameters_and_registers field.
+  formal_parameter_count = ChangeInt32ToIntPtr(formal_parameter_count);
   Node* register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, register_count);
+    AbortIfRegisterCountInvalid(array, formal_parameter_count, register_count);
   }
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  var_index.Bind(IntPtrConstant(0));
-
-  // Iterate over register file and write values into array.
-  // The mapping of register to array index must match that used in
-  // BytecodeGraphBuilder::VisitResumeGenerator.
-  Label loop(this, &var_index), done_loop(this);
-  Goto(&loop);
-  BIND(&loop);
   {
-    Node* index = var_index.value();
-    GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
+    Variable var_index(this, MachineType::PointerRepresentation());
+    var_index.Bind(IntPtrConstant(0));
 
-    Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
-    Node* value = LoadRegister(reg_index);
+    // Iterate over parameters and write them into the array.
+    Label loop(this, &var_index), done_loop(this);
 
-    StoreFixedArrayElement(array, index, value);
+    Node* reg_base = IntPtrAdd(
+        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
+        formal_parameter_count);
 
-    var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);
+    BIND(&loop);
+    {
+      Node* index = var_index.value();
+      GotoIfNot(UintPtrLessThan(index, formal_parameter_count), &done_loop);
+
+      Node* reg_index = IntPtrSub(reg_base, index);
+      Node* value = LoadRegister(reg_index);
+
+      StoreFixedArrayElement(array, index, value);
+
+      var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+      Goto(&loop);
+    }
+    BIND(&done_loop);
   }
-  BIND(&done_loop);
+
+  {
+    // Iterate over register file and write values into array.
+    // The mapping of register to array index must match that used in
+    // BytecodeGraphBuilder::VisitResumeGenerator.
+    Variable var_index(this, MachineType::PointerRepresentation());
+    var_index.Bind(IntPtrConstant(0));
+
+    Label loop(this, &var_index), done_loop(this);
+    Goto(&loop);
+    BIND(&loop);
+    {
+      Node* index = var_index.value();
+      GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
+
+      Node* reg_index =
+          IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
+      Node* value = LoadRegister(reg_index);
+
+      Node* array_index = IntPtrAdd(formal_parameter_count, index);
+      StoreFixedArrayElement(array, array_index, value);
+
+      var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+      Goto(&loop);
+    }
+    BIND(&done_loop);
+  }
 
   return array;
 }
 
-Node* InterpreterAssembler::ImportRegisterFile(
-    Node* array, const RegListNodePair& registers) {
+Node* InterpreterAssembler::ImportRegisterFile(Node* array,
+                                               const RegListNodePair& registers,
+                                               Node* formal_parameter_count) {
+  formal_parameter_count = ChangeInt32ToIntPtr(formal_parameter_count);
   Node* register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, register_count);
+    AbortIfRegisterCountInvalid(array, formal_parameter_count, register_count);
   }
 
   Variable var_index(this, MachineType::PointerRepresentation());
@@ -1650,12 +1691,13 @@ Node* InterpreterAssembler::ImportRegisterFile(
     Node* index = var_index.value();
     GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
-    Node* value = LoadFixedArrayElement(array, index);
+    Node* array_index = IntPtrAdd(formal_parameter_count, index);
+    Node* value = LoadFixedArrayElement(array, array_index);
 
     Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
-    StoreFixedArrayElement(array, index,
+    StoreFixedArrayElement(array, array_index,
                            LoadRoot(Heap::kStaleRegisterRootIndex));
 
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));

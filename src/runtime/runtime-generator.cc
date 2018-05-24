@@ -26,15 +26,17 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 
   // Underlying function needs to have bytecode available.
   DCHECK(function->shared()->HasBytecodeArray());
-  int size = function->shared()->GetBytecodeArray()->register_count();
-  Handle<FixedArray> register_file = isolate->factory()->NewFixedArray(size);
+  int size = function->shared()->internal_formal_parameter_count() +
+             function->shared()->GetBytecodeArray()->register_count();
+  Handle<FixedArray> parameters_and_registers =
+      isolate->factory()->NewFixedArray(size);
 
   Handle<JSGeneratorObject> generator =
       isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
   generator->set_context(isolate->context());
   generator->set_receiver(*receiver);
-  generator->set_register_file(*register_file);
+  generator->set_parameters_and_registers(*parameters_and_registers);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
   if (generator->IsJSAsyncGeneratorObject()) {
     Handle<JSAsyncGeneratorObject>::cast(generator)->set_is_awaiting(0);

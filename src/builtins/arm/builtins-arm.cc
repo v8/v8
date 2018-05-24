@@ -494,20 +494,25 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- sp[0] : generator receiver
   // -----------------------------------
 
-  // Push holes for arguments to generator function. Since the parser forced
-  // context allocation for any variables in generators, the actual argument
-  // values have already been copied into the context and these dummy values
-  // will never be used.
+  // Copy the function arguments from the generator object's register file.
   __ ldr(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r3,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ ldr(r2,
+         FieldMemOperand(r1, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label done_loop, loop;
+    __ mov(r6, Operand(0));
+
     __ bind(&loop);
-    __ sub(r3, r3, Operand(1), SetCC);
-    __ b(mi, &done_loop);
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ cmp(r6, r3);
+    __ b(ge, &done_loop);
+    __ add(scratch, r2, Operand(r6, LSL, kPointerSizeLog2));
+    __ ldr(scratch, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+    __ Push(scratch);
+    __ add(r6, r6, Operand(1));
     __ b(&loop);
+
     __ bind(&done_loop);
   }
 

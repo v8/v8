@@ -489,12 +489,18 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
   __ Lw(a3,
         FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Ld(t1,
+        FieldMemOperand(a1, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label done_loop, loop;
+    __ Move(t2, zero_reg);
     __ bind(&loop);
     __ Dsubu(a3, a3, Operand(1));
     __ Branch(&done_loop, lt, a3, Operand(zero_reg));
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ Dlsa(kScratchReg, t1, t2, kPointerSizeLog2);
+    __ Ld(kScratchReg, FieldMemOperand(kScratchReg, FixedArray::kHeaderSize));
+    __ Push(kScratchReg);
+    __ Daddu(t2, t2, Operand(1));
     __ Branch(&loop);
     __ bind(&done_loop);
   }

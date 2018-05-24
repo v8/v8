@@ -1366,12 +1366,17 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
   Node* bytecode_array = LoadSharedFunctionInfoBytecodeArray(shared);
 
+  Node* formal_parameter_count = ChangeInt32ToIntPtr(
+      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
+                      MachineType::Int32()));
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
-  Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
-  Node* register_file = AllocateFixedArray(HOLEY_ELEMENTS, size);
-  FillFixedArrayWithValue(HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
-                          size, Heap::kUndefinedValueRootIndex);
+  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kPointerSizeLog2)),
+                         formal_parameter_count);
+  Node* parameters_and_registers = AllocateFixedArray(HOLEY_ELEMENTS, size);
+  FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
+                          IntPtrConstant(0), size,
+                          Heap::kUndefinedValueRootIndex);
   // TODO(cbruni): support start_offset to avoid double initialization.
   Node* result = AllocateJSObjectFromMap(maybe_map, nullptr, nullptr, kNone,
                                          kWithSlackTracking);
@@ -1381,8 +1386,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                                  context);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kReceiverOffset,
                                  receiver);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kRegisterFileOffset,
-                                 register_file);
+  StoreObjectFieldNoWriteBarrier(
+      result, JSGeneratorObject::kParametersAndRegistersOffset,
+      parameters_and_registers);
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);

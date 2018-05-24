@@ -2792,6 +2792,9 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   CHECK_EQ(0, first_reg.index());
   int register_count =
       static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
+  int parameter_count_without_receiver =
+      bytecode_array()->parameter_count() - 1;
+
   Node* suspend_id = jsgraph()->SmiConstant(
       bytecode_iterator().GetUnsignedImmediateOperand(3));
 
@@ -2808,7 +2811,7 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   // are live.
   // TODO(leszeks): We could get this count from liveness rather than the
   // register list.
-  int value_input_count = 3 + register_count;
+  int value_input_count = 3 + parameter_count_without_receiver + register_count;
 
   Node** value_inputs = local_zone()->NewArray<Node*>(value_input_count);
   value_inputs[0] = generator;
@@ -2816,14 +2819,24 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   value_inputs[2] = offset;
 
   int count_written = 0;
+  // Store the parameters.
+  for (int i = 0; i < parameter_count_without_receiver; i++) {
+    value_inputs[3 + count_written++] =
+        environment()->LookupRegister(interpreter::Register::FromParameterIndex(
+            i, parameter_count_without_receiver));
+  }
+
+  // Store the registers.
   for (int i = 0; i < register_count; ++i) {
     if (liveness == nullptr || liveness->RegisterIsLive(i)) {
-      while (count_written < i) {
+      int index_in_parameters_and_registers =
+          parameter_count_without_receiver + i;
+      while (count_written < index_in_parameters_and_registers) {
         value_inputs[3 + count_written++] = jsgraph()->OptimizedOutConstant();
       }
       value_inputs[3 + count_written++] =
           environment()->LookupRegister(interpreter::Register(i));
-      DCHECK_EQ(count_written, i + 1);
+      DCHECK_EQ(count_written, index_in_parameters_and_registers + 1);
     }
   }
 
@@ -2921,12 +2934,16 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
       bytecode_analysis()->GetOutLivenessFor(
           bytecode_iterator().current_offset());
 
-  // Bijection between registers and array indices must match that used in
-  // InterpreterAssembler::ExportRegisterFile.
+  int parameter_count_without_receiver =
+      bytecode_array()->parameter_count() - 1;
+
+  // Mapping between registers and array indices must match that used in
+  // InterpreterAssembler::ExportParametersAndRegisterFile.
   for (int i = 0; i < environment()->register_count(); ++i) {
     if (liveness == nullptr || liveness->RegisterIsLive(i)) {
-      Node* value =
-          NewNode(javascript()->GeneratorRestoreRegister(i), generator);
+      Node* value = NewNode(javascript()->GeneratorRestoreRegister(
+                                parameter_count_without_receiver + i),
+                            generator);
       environment()->BindRegister(interpreter::Register(i), value);
     }
   }

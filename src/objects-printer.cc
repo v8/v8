@@ -659,7 +659,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
       os << ")";
     }
   }
-  os << "\n - register file: " << Brief(register_file());
+  os << "\n - register file: " << Brief(parameters_and_registers());
   os << "\n";
 }
 
