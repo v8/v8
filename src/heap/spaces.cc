@@ -2363,7 +2363,7 @@ void NewSpace::Verify() {
       object->ObjectVerify();
 
       // All the interior pointers should be contained in the heap.
-      VerifyPointersVisitor visitor;
+      VerifyPointersVisitor visitor(heap());
       int size = object->Size();
       object->IterateBody(map, size, &visitor);
 
@@ -3481,7 +3481,7 @@ void LargeObjectSpace::Verify() {
 
     // Byte arrays and strings don't have interior pointers.
     if (object->IsAbstractCode()) {
-      VerifyPointersVisitor code_visitor;
+      VerifyPointersVisitor code_visitor(heap());
       object->IterateBody(map, object->Size(), &code_visitor);
     } else if (object->IsFixedArray()) {
       FixedArray* array = FixedArray::cast(object);

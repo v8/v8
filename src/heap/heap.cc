@@ -3660,19 +3660,22 @@ bool Heap::RootIsImmortalImmovable(int root_index) {
 
 #ifdef VERIFY_HEAP
 class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
+ public:
+  explicit VerifyReadOnlyPointersVisitor(Heap* heap)
+      : VerifyPointersVisitor(heap) {}
+
  protected:
   void VerifyPointers(HeapObject* host, MaybeObject** start,
                       MaybeObject** end) override {
-    Heap* heap = host->GetIsolate()->heap();
     if (host != nullptr) {
-      CHECK(heap->InReadOnlySpace(host->map()));
+      CHECK(heap_->InReadOnlySpace(host->map()));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
       if ((*current)->ToStrongOrWeakHeapObject(&object)) {
-        CHECK(heap->InReadOnlySpace(object));
+        CHECK(heap_->InReadOnlySpace(object));
       }
     }
   }
@@ -3685,7 +3688,7 @@ void Heap::Verify() {
   // We have to wait here for the sweeper threads to have an iterable heap.
   mark_compact_collector()->EnsureSweepingCompleted();
 
-  VerifyPointersVisitor visitor;
+  VerifyPointersVisitor visitor(this);
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
   VerifySmisVisitor smis_visitor;
@@ -3696,12 +3699,12 @@ void Heap::Verify() {
   old_space_->Verify(&visitor);
   map_space_->Verify(&visitor);
 
-  VerifyPointersVisitor no_dirty_regions_visitor;
+  VerifyPointersVisitor no_dirty_regions_visitor(this);
   code_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
 
-  VerifyReadOnlyPointersVisitor read_only_visitor;
+  VerifyReadOnlyPointersVisitor read_only_visitor(this);
   read_only_space_->Verify(&read_only_visitor);
 }
 
@@ -5682,7 +5685,7 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
   for (MaybeObject** current = start; current < end; current++) {
     HeapObject* object;
     if ((*current)->ToStrongOrWeakHeapObject(&object)) {
-      CHECK(object->GetIsolate()->heap()->Contains(object));
+      CHECK(heap_->Contains(object));
       CHECK(object->map()->IsMap());
     } else {
       CHECK((*current)->IsSmi() || (*current)->IsClearedWeakHeapObject());

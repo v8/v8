@@ -2624,6 +2624,7 @@ class CodePageMemoryModificationScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
+  explicit VerifyPointersVisitor(Heap* heap) : heap_(heap) {}
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
   void VisitPointers(HeapObject* host, MaybeObject** start,
                      MaybeObject** end) override;
@@ -2633,6 +2634,8 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  protected:
   virtual void VerifyPointers(HeapObject* host, MaybeObject** start,
                               MaybeObject** end);
+
+  Heap* heap_;
 };
 
 
