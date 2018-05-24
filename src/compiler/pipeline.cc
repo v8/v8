@@ -70,6 +70,7 @@
 #include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-stats.h"
+#include "src/disassembler.h"
 #include "src/isolate-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/optimized-compilation-info.h"
@@ -1018,7 +1019,18 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
 
   if (data_.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data_.info(), std::ios_base::app);
-    json_of << "{}\n]";
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+#ifdef ENABLE_DISASSEMBLER
+    std::stringstream disassembler_stream;
+    CodeDesc& code_desc = wasm_code_desc->code_desc;
+    Disassembler::Decode(
+        isolate, &disassembler_stream, code_desc.buffer,
+        code_desc.buffer + wasm_code_desc->safepoint_table_offset);
+    for (auto const c : disassembler_stream.str()) {
+      json_of << AsEscapedUC16ForJSON(c);
+    }
+#endif  // ENABLE_DISASSEMBLER
+    json_of << "\"}\n]";
     json_of << "\n}";
   }
 
@@ -2311,11 +2323,11 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   if (code.is_null()) return code;
 
   if (data->profiler_data()) {
-#if ENABLE_DISASSEMBLER
+#ifdef ENABLE_DISASSEMBLER
     std::ostringstream os;
     code->Disassemble(nullptr, os);
     data->profiler_data()->SetCode(&os);
-#endif
+#endif  // ENABLE_DISASSEMBLER
   }
 
   info()->SetCode(code);
@@ -2324,7 +2336,7 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   if (info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(info(), std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
-#if ENABLE_DISASSEMBLER
+#ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembly_stream;
     code->Disassemble(nullptr, disassembly_stream);
     std::string disassembly_string(disassembly_stream.str());
