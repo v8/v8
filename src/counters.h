@@ -406,8 +406,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   explicit HistogramTimerScope(HistogramTimer* timer,
                                bool allow_nesting = false)
 #ifdef DEBUG
-      : timer_(timer),
-        skipped_timer_start_(false) {
+      : timer_(timer), skipped_timer_start_(false) {
     if (timer_->timer()->IsStarted() && allow_nesting) {
       skipped_timer_start_ = true;
     } else {
@@ -434,6 +433,27 @@ class HistogramTimerScope BASE_EMBEDDED {
 #ifdef DEBUG
   bool skipped_timer_start_;
 #endif
+};
+
+enum class OptionalHistogramTimerScopeMode { TAKE_TIME, DONT_TAKE_TIME };
+
+// Helper class for scoping a HistogramTimer.
+// It will not take time if take_time is set to false.
+class OptionalHistogramTimerScope BASE_EMBEDDED {
+ public:
+  OptionalHistogramTimerScope(HistogramTimer* timer,
+                              OptionalHistogramTimerScopeMode mode)
+      : timer_(timer), mode_(mode) {
+    if (mode == OptionalHistogramTimerScopeMode::TAKE_TIME) timer_->Start();
+  }
+
+  ~OptionalHistogramTimerScope() {
+    if (mode_ == OptionalHistogramTimerScopeMode::TAKE_TIME) timer_->Stop();
+  }
+
+ private:
+  HistogramTimer* timer_;
+  OptionalHistogramTimerScopeMode mode_;
 };
 
 // A histogram timer that can aggregate events within a larger scope.

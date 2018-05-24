@@ -2524,6 +2524,7 @@ Isolate::Isolate()
       initialized_from_snapshot_(false),
       is_tail_call_elimination_enabled_(true),
       is_isolate_in_background_(false),
+      memory_savings_mode_active_(false),
       cpu_profiler_(nullptr),
       heap_profiler_(nullptr),
       code_event_dispatcher_(new CodeEventDispatcher()),

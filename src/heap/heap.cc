@@ -1384,8 +1384,12 @@ bool Heap::CollectGarbage(AllocationSpace space,
       TRACE_EVENT0("v8", gc_type_timer->name());
 
       HistogramTimer* gc_type_priority_timer = GCTypePriorityTimer(collector);
-      HistogramTimerScope histogram_timer_priority_scope(
-          gc_type_priority_timer);
+      OptionalHistogramTimerScopeMode mode =
+          isolate_->IsMemorySavingsModeActive()
+              ? OptionalHistogramTimerScopeMode::DONT_TAKE_TIME
+              : OptionalHistogramTimerScopeMode::TAKE_TIME;
+      OptionalHistogramTimerScope histogram_timer_priority_scope(
+          gc_type_priority_timer, mode);
 
       next_gc_likely_to_collect_more =
           PerformGarbageCollection(collector, gc_callback_flags);
@@ -3044,7 +3048,8 @@ bool Heap::HasHighFragmentation(size_t used, size_t committed) {
 bool Heap::ShouldOptimizeForMemoryUsage() {
   const size_t kOldGenerationSlack = max_old_generation_size_ / 8;
   return FLAG_optimize_for_size || isolate()->IsIsolateInBackground() ||
-         HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
+         isolate()->IsMemorySavingsModeActive() || HighMemoryPressure() ||
+         !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
 void Heap::ActivateMemoryReducerIfNeeded() {

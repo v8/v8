@@ -8725,6 +8725,16 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
                                                              on_isolate_thread);
 }
 
+void Isolate::EnableMemorySavingsMode() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->EnableMemorySavingsMode();
+}
+
+void Isolate::DisableMemorySavingsMode() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->DisableMemorySavingsMode();
+}
+
 void Isolate::SetRAILMode(RAILMode rail_mode) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->SetRAILMode(rail_mode);

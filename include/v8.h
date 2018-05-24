@@ -7861,6 +7861,18 @@ class V8_EXPORT Isolate {
   void IsolateInBackgroundNotification();
 
   /**
+   * Optional notification which will enable the memory savings mode.
+   * V8 uses this notification to guide heuristics which may result in a
+   * smaller memory footprint at the cost of reduced runtime performance.
+   */
+  void EnableMemorySavingsMode();
+
+  /**
+   * Optional notification which will disable the memory savings mode.
+   */
+  void DisableMemorySavingsMode();
+
+  /**
    * Optional notification to tell V8 the current performance requirements
    * of the embedder based on RAIL.
    * V8 uses these notifications to guide heuristics.
