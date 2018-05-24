@@ -255,6 +255,39 @@ void WasmCode::LogCode(Isolate* isolate) const {
   }
 }
 
+void WasmCode::Validate() const {
+#ifdef DEBUG
+  // We expect certain relocation info modes to never appear in {WasmCode}
+  // objects or to be restricted to a small set of valid values. Hence the
+  // iteration below does not use a mask, but visits all relocation data.
+  for (RelocIterator it(instructions(), reloc_info(), constant_pool());
+       !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    switch (mode) {
+      case RelocInfo::CODE_TARGET:
+      // TODO(mstarzinger): Validate that we go through a trampoline.
+      case RelocInfo::WASM_CODE_TABLE_ENTRY:
+      case RelocInfo::WASM_GLOBAL_HANDLE:
+      case RelocInfo::WASM_CALL:
+      case RelocInfo::JS_TO_WASM_CALL:
+      case RelocInfo::EXTERNAL_REFERENCE:
+      case RelocInfo::COMMENT:
+      case RelocInfo::CONST_POOL:
+      case RelocInfo::VENEER_POOL:
+        // These are OK to appear.
+        break;
+      case RelocInfo::EMBEDDED_OBJECT: {
+        HeapObject* o = it.rinfo()->target_object();
+        DCHECK(o->IsUndefined(o->GetIsolate()) || o->IsNull(o->GetIsolate()));
+        break;
+      }
+      default:
+        FATAL("Unexpected mode: %d", mode);
+    }
+  }
+#endif
+}
+
 void WasmCode::Print(Isolate* isolate) const {
   OFStream os(stdout);
   Disassemble(nullptr, isolate, os);
@@ -550,7 +583,6 @@ WasmCode* NativeModule::AddCode(
   // TODO(mtrofin): this is a copy and paste from Code::CopyFrom.
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
 
@@ -570,10 +602,6 @@ WasmCode* NativeModule::AddCode(
       Code* code = Code::cast(*p);
       it.rinfo()->set_target_address(GetLocalAddressFor(handle(code)),
                                      SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-    } else if (RelocInfo::IsRuntimeEntry(mode)) {
-      Address p = it.rinfo()->target_runtime_entry(origin);
-      it.rinfo()->set_target_runtime_entry(p, SKIP_WRITE_BARRIER,
-                                           SKIP_ICACHE_FLUSH);
     } else {
       intptr_t delta = ret->instructions().start() - desc.buffer;
       it.rinfo()->apply(delta);
@@ -583,6 +611,7 @@ WasmCode* NativeModule::AddCode(
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
+  ret->Validate();
   return ret;
 }
 

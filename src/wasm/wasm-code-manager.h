@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // trap_handler_index.
   void RegisterTrapHandlerData();
 
+  void Validate() const;
   void Print(Isolate* isolate) const;
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os,
                    Address current_pc = kNullAddress) const;
