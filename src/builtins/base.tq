@@ -33,6 +33,10 @@ type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
 type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
 type FixedDoubleArray extends FixedArrayBase generates
 'TNode<FixedDoubleArray>';
+type FixedTypedArrayBase extends FixedArrayBase generates
+'TNode<FixedTypedArrayBase>';
+type FixedTypedArray extends FixedTypedArrayBase generates
+'TNode<FixedTypedArray>';
 
 type JSArrayBuffer extends Object generates 'TNode<JSArrayBuffer>';
 type JSArrayBufferView extends Object generates 'TNode<JSArrayBufferView>';
@@ -46,6 +50,8 @@ type ExtractFixedArrayFlags generates
 
 type MessageTemplate;
 type HasPropertyFlag generates 'HasPropertyLookupMode';
+
+const NO_ELEMENTS: constexpr ElementsKind = 'NO_ELEMENTS';
 
 const PACKED_SMI_ELEMENTS: constexpr ElementsKind = 'PACKED_SMI_ELEMENTS';
 const HOLEY_SMI_ELEMENTS: constexpr ElementsKind = 'HOLEY_SMI_ELEMENTS';
@@ -65,6 +71,18 @@ const FLOAT64_ELEMENTS: constexpr ElementsKind = 'FLOAT64_ELEMENTS';
 const UINT8_CLAMPED_ELEMENTS: constexpr ElementsKind = 'UINT8_CLAMPED_ELEMENTS';
 const BIGUINT64_ELEMENTS: constexpr ElementsKind = 'BIGUINT64_ELEMENTS';
 const BIGINT64_ELEMENTS: constexpr ElementsKind = 'BIGINT64_ELEMENTS';
+
+type FixedUint8Array extends FixedTypedArray;
+type FixedInt8Array extends FixedTypedArray;
+type FixedUint16Array extends FixedTypedArray;
+type FixedInt16Array extends FixedTypedArray;
+type FixedUint32Array extends FixedTypedArray;
+type FixedInt32Array extends FixedTypedArray;
+type FixedFloat32Array extends FixedTypedArray;
+type FixedFloat64Array extends FixedTypedArray;
+type FixedUint8ClampedArray extends FixedTypedArray;
+type FixedBigUint64Array extends FixedTypedArray;
+type FixedBigInt64Array extends FixedTypedArray;
 
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags =
     'ExtractFixedArrayFlag::kAllFixedArrays';
@@ -223,7 +241,8 @@ extern implicit operator
 extern implicit operator 'convert<>' macro BoolConstant(constexpr bool): bool;
 extern implicit operator 'convert<>' macro LanguageModeConstant(
     constexpr LanguageMode): LanguageMode;
-
+extern operator
+'convert<>' macro Int32Constant(constexpr ElementsKind): ElementsKind;
 extern implicit operator 'convert<>' macro SmiFromInt32(ElementsKind): Smi;
 
 extern operator 'convert<>' macro ChangeInt32ToTagged(int32): Number;

@@ -141,6 +141,12 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns true iff number is NaN.
   // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
   TNode<BoolT> NumberIsNaN(TNode<Number> number);
+
+  // TODO(szuend): Remove when UncheckedCasts are supported in Torque.
+  TNode<FixedTypedArrayBase> UncheckedCastFixedArrayBaseToFixedTypedArrayBase(
+      TNode<FixedArrayBase> array) {
+    return CAST(array);
+  }
 };
 
 }  // namespace internal
