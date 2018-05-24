@@ -500,27 +500,36 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- sp[0] : generator receiver
   // -----------------------------------
 
-  // Push holes for arguments to generator function. Since the parser forced
-  // context allocation for any variables in generators, the actual argument
-  // values have already been copied into the context and these dummy values
-  // will never be used.
+  // Copy the function arguments from the generator object's register file.
   __ LoadP(r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
   __ LoadW(
-      r2, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
+      r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ LoadP(r4, FieldMemOperand(
+                   r3, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label loop, done_loop;
-    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-#if V8_TARGET_ARCH_S390X
-    __ CmpP(r2, Operand::Zero());
-    __ beq(&done_loop);
-#else
-    __ LoadAndTestP(r2, r2);
-    __ beq(&done_loop);
-#endif
-    __ LoadRR(r1, r2);
+    __ ShiftLeftP(r5, r5, Operand(kPointerSizeLog2));
+    __ SubP(sp, r5);
+
+    // r1 = stack offset
+    // r5 = parameter array offset
+    __ LoadImmP(r1, Operand::Zero());
+    __ SubP(r5, Operand(kPointerSize));
+    __ blt(&done_loop);
+
     __ bind(&loop);
-    __ push(ip);
-    __ BranchOnCount(r1, &loop);
+
+    // parameter copy loop
+    __ LoadP(r0, FieldMemOperand(r4, r5, FixedArray::kHeaderSize));
+    __ StoreP(r0, MemOperand(sp, r1));
+
+    // update offsets
+    __ lay(r1, MemOperand(r1, kPointerSize));
+    // TODO(john-yan): combine SubP/bge with brxh/brxhg
+    __ SubP(r5, Operand(kPointerSize));
+
+    __ bge(&loop);
+
     __ bind(&done_loop);
   }
 
