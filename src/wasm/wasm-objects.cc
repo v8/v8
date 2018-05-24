@@ -474,14 +474,12 @@ MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   // Blink's array buffers. The connection between the two is lost, which can
   // lead to Blink not knowing about the other reference to the buffer and
   // freeing it too early.
-  if (!old_buffer->is_external() && old_size != 0 &&
+  if (!old_buffer->is_external() &&
       ((new_size < old_buffer->allocation_length()) || old_size == new_size)) {
-    DCHECK_NOT_NULL(old_buffer->backing_store());
     if (old_size != new_size) {
+      DCHECK_NOT_NULL(old_buffer->backing_store());
       // If adjusting permissions fails, propagate error back to return
       // failure to grow.
-      DCHECK(!isolate->wasm_engine()->memory_tracker()->IsEmptyBackingStore(
-          old_mem_start));
       if (!i::SetPermissions(old_mem_start, new_size,
                              PageAllocator::kReadWrite)) {
         return {};

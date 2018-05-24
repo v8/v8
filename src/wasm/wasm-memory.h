@@ -73,14 +73,6 @@ class WasmMemoryTracker {
   // buffer is not tracked.
   const AllocationData* FindAllocationData(const void* buffer_start);
 
-  // Empty WebAssembly memories are all backed by a shared inaccessible
-  // reservation. This method creates this store or returns the existing one if
-  // already created.
-  void* GetEmptyBackingStore(void** allocation_base, size_t* allocation_length,
-                             Heap* heap);
-
-  bool IsEmptyBackingStore(const void* buffer_start) const;
-
   // Checks if a buffer points to a Wasm memory and if so does any necessary
   // work to reclaim the buffer. If this function returns false, the caller must
   // free the buffer manually.
@@ -132,11 +124,6 @@ class WasmMemoryTracker {
   // Track Wasm memory allocation information. This is keyed by the start of the
   // buffer, rather than by the start of the allocation.
   std::unordered_map<const void*, AllocationData> allocations_;
-
-  // Empty backing stores still need to be backed by mapped pages when using
-  // trap handlers. Because this could eat up address space quickly, we keep a
-  // shared backing store here.
-  AllocationData empty_backing_store_;
 
   // Keep pointers to
   Histogram* allocation_result_;

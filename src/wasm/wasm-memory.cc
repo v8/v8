@@ -91,12 +91,6 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 }  // namespace
 
 WasmMemoryTracker::~WasmMemoryTracker() {
-  if (empty_backing_store_.allocation_base != nullptr) {
-    CHECK(FreePages(empty_backing_store_.allocation_base,
-                    empty_backing_store_.allocation_length));
-    InternalReleaseAllocation(empty_backing_store_.buffer_start);
-  }
-
   // All reserved address space should be released before the allocation tracker
   // is destroyed.
   DCHECK_EQ(reserved_address_space_, 0u);
@@ -144,9 +138,6 @@ void WasmMemoryTracker::RegisterAllocation(void* allocation_base,
 
 WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
     const void* buffer_start) {
-  if (IsEmptyBackingStore(buffer_start)) {
-    return AllocationData();
-  }
   return InternalReleaseAllocation(buffer_start);
 }
 
@@ -187,39 +178,7 @@ bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
   return allocations_.find(buffer_start) != allocations_.end();
 }
 
-void* WasmMemoryTracker::GetEmptyBackingStore(void** allocation_base,
-                                              size_t* allocation_length,
-                                              Heap* heap) {
-  if (empty_backing_store_.allocation_base == nullptr) {
-    constexpr size_t buffer_length = 0;
-    const bool require_full_guard_regions =
-        trap_handler::IsTrapHandlerEnabled();
-    void* local_allocation_base;
-    size_t local_allocation_length;
-    void* buffer_start = TryAllocateBackingStore(
-        this, heap, buffer_length, require_full_guard_regions,
-        &local_allocation_base, &local_allocation_length);
-
-    empty_backing_store_ =
-        AllocationData(local_allocation_base, local_allocation_length,
-                       buffer_start, buffer_length);
-  }
-  *allocation_base = empty_backing_store_.allocation_base;
-  *allocation_length = empty_backing_store_.allocation_length;
-  return empty_backing_store_.buffer_start;
-}
-
-bool WasmMemoryTracker::IsEmptyBackingStore(const void* buffer_start) const {
-  return buffer_start == empty_backing_store_.buffer_start;
-}
-
 bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(const void* buffer_start) {
-  if (IsEmptyBackingStore(buffer_start)) {
-    // We don't need to do anything for the empty backing store, because this
-    // will be freed when WasmMemoryTracker shuts down. Return true so callers
-    // will not try to free the buffer on their own.
-    return true;
-  }
   if (IsWasmMemory(buffer_start)) {
     const AllocationData allocation = ReleaseAllocation(buffer_start);
     CHECK(FreePages(allocation.allocation_base, allocation.allocation_length));
@@ -274,27 +233,21 @@ MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
   void* allocation_base = nullptr;
   size_t allocation_length = 0;
 
-  void* memory;
-  if (size == 0) {
-    memory = memory_tracker->GetEmptyBackingStore(
-        &allocation_base, &allocation_length, isolate->heap());
-  } else {
 #if V8_TARGET_ARCH_64_BIT
-    bool require_full_guard_regions = true;
+  bool require_full_guard_regions = true;
 #else
-    bool require_full_guard_regions = false;
+  bool require_full_guard_regions = false;
 #endif
+  void* memory = TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
+                                         require_full_guard_regions,
+                                         &allocation_base, &allocation_length);
+  if (memory == nullptr && !trap_handler::IsTrapHandlerEnabled()) {
+    // If we failed to allocate with full guard regions, fall back on
+    // mini-guards.
+    require_full_guard_regions = false;
     memory = TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
                                      require_full_guard_regions,
                                      &allocation_base, &allocation_length);
-    if (memory == nullptr && !trap_handler::IsTrapHandlerEnabled()) {
-      // If we failed to allocate with full guard regions, fall back on
-      // mini-guards.
-      require_full_guard_regions = false;
-      memory = TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
-                                       require_full_guard_regions,
-                                       &allocation_base, &allocation_length);
-    }
   }
   if (memory == nullptr) {
     return {};
