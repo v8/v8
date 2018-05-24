@@ -74,12 +74,9 @@ class CodeEntry {
     return rare_data_ ? rare_data_->bailout_reason_ : kEmptyBailoutReason;
   }
 
-  void set_deopt_info(const char* deopt_reason, int deopt_id) {
-    DCHECK(!has_deopt_info());
-    RareData* rare_data = EnsureRareData();
-    rare_data->deopt_reason_ = deopt_reason;
-    rare_data->deopt_id_ = deopt_id;
-  }
+  void set_deopt_info(const char* deopt_reason, int deopt_id,
+                      std::vector<CpuProfileDeoptFrame> inlined_frames);
+
   CpuProfileDeoptInfo GetDeoptInfo();
   bool has_deopt_info() const {
     return rare_data_ && rare_data_->deopt_id_ != kNoDeoptimizationId;
@@ -109,9 +106,6 @@ class CodeEntry {
                       std::vector<std::unique_ptr<CodeEntry>> inline_stack);
   const std::vector<std::unique_ptr<CodeEntry>>* GetInlineStack(
       int pc_offset) const;
-
-  void AddDeoptInlinedFrames(int deopt_id, std::vector<CpuProfileDeoptFrame>);
-  bool HasDeoptInlinedFramesFor(int deopt_id) const;
 
   Address instruction_start() const { return instruction_start_; }
   CodeEventListener::LogEventsAndTags tag() const {
@@ -146,8 +140,7 @@ class CodeEntry {
     int deopt_id_ = kNoDeoptimizationId;
     std::unordered_map<int, std::vector<std::unique_ptr<CodeEntry>>>
         inline_locations_;
-    std::unordered_map<int, std::vector<CpuProfileDeoptFrame>>
-        deopt_inlined_frames_;
+    std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 
   RareData* EnsureRareData();

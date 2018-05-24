@@ -86,6 +86,8 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   int deopt_id;
   Address pc;
   int fp_to_sp_delta;
+  CpuProfileDeoptFrame* deopt_frames;
+  int deopt_frame_count;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };

@@ -132,15 +132,14 @@ const std::vector<std::unique_ptr<CodeEntry>>* CodeEntry::GetInlineStack(
   return it != rare_data_->inline_locations_.end() ? &it->second : nullptr;
 }
 
-void CodeEntry::AddDeoptInlinedFrames(
-    int deopt_id, std::vector<CpuProfileDeoptFrame> inlined_frames) {
-  EnsureRareData()->deopt_inlined_frames_.insert(
-      std::make_pair(deopt_id, std::move(inlined_frames)));
-}
-
-bool CodeEntry::HasDeoptInlinedFramesFor(int deopt_id) const {
-  return rare_data_ && rare_data_->deopt_inlined_frames_.find(deopt_id) !=
-                           rare_data_->deopt_inlined_frames_.end();
+void CodeEntry::set_deopt_info(
+    const char* deopt_reason, int deopt_id,
+    std::vector<CpuProfileDeoptFrame> inlined_frames) {
+  DCHECK(!has_deopt_info());
+  RareData* rare_data = EnsureRareData();
+  rare_data->deopt_reason_ = deopt_reason;
+  rare_data->deopt_id_ = deopt_id;
+  rare_data->deopt_inlined_frames_ = std::move(inlined_frames);
 }
 
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
@@ -159,12 +158,11 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
   CpuProfileDeoptInfo info;
   info.deopt_reason = rare_data_->deopt_reason_;
   DCHECK_NE(kNoDeoptimizationId, rare_data_->deopt_id_);
-  if (rare_data_->deopt_inlined_frames_.find(rare_data_->deopt_id_) ==
-      rare_data_->deopt_inlined_frames_.end()) {
+  if (rare_data_->deopt_inlined_frames_.empty()) {
     info.stack.push_back(CpuProfileDeoptFrame(
         {script_id_, static_cast<size_t>(std::max(0, position()))}));
   } else {
-    info.stack = rare_data_->deopt_inlined_frames_[rare_data_->deopt_id_];
+    info.stack = rare_data_->deopt_inlined_frames_;
   }
   return info;
 }

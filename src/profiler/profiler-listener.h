@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class CodeEventsContainer;
+class CodeDeoptEventRecord;
 
 class CodeEventObserver {
  public:
@@ -76,7 +77,7 @@ class ProfilerListener : public CodeEventListener {
 
  private:
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
-  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
+  void AttachDeoptInlinedFrames(Code* code, CodeDeoptEventRecord* rec);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
     observer_->CodeEventHandler(evt_rec);
