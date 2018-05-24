@@ -93,6 +93,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 int SourceIdAssigner::GetIdFor(Handle<SharedFunctionInfo> shared) {
   for (unsigned i = 0; i < printed_.size(); i++) {
     if (printed_.at(i).is_identical_to(shared)) {
+      source_ids_.push_back(i);
       return i;
     }
   }
