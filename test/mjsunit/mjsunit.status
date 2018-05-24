@@ -790,7 +790,6 @@
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'compiler/alloc-number': [SKIP],
   'compiler/osr-nested': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
