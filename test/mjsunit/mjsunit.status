@@ -265,6 +265,7 @@
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
+  'lexicographic-compare': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
@@ -357,6 +358,7 @@
   'compiler/osr-with-args': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
+  'lexicographic-compare': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
@@ -384,6 +386,7 @@
 
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, SLOW],
+  'lexicographic-compare': [PASS, SLOW],
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'math-floor-of-div': [PASS, SLOW],
@@ -498,6 +501,7 @@
   # Slow tests.
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
+  'lexicographic-compare': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
@@ -786,11 +790,11 @@
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'array-sort': [SKIP],
   'compiler/alloc-number': [SKIP],
   'compiler/osr-nested': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
+  'lexicographic-compare': [SKIP],
   'regress/regress-2185': [SKIP],
   'regress/regress-deep-proto': [SKIP],
   'wasm/grow-memory': [SKIP],
