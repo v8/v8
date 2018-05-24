@@ -774,9 +774,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   // Load an array element from a FixedDoubleArray.
-  Node* LoadFixedDoubleArrayElement(
-      Node* object, Node* index, MachineType machine_type,
-      int additional_offset = 0,
+  TNode<Float64T> LoadFixedDoubleArrayElement(
+      SloppyTNode<FixedDoubleArray> object, Node* index,
+      MachineType machine_type, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       Label* if_hole = nullptr);
 
@@ -793,8 +793,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
-  Node* LoadDoubleWithHoleCheck(
-      Node* base, Node* offset, Label* if_hole,
+  TNode<Float64T> LoadDoubleWithHoleCheck(
+      SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
   TNode<RawPtrT> LoadFixedTypedArrayBackingStore(
       TNode<FixedTypedArrayBase> typed_array);

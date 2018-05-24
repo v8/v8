@@ -879,8 +879,8 @@ void CodeStubAssembler::Bind(Label* label) { CodeAssembler::Bind(label); }
 
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
     TNode<FixedDoubleArray> array, TNode<Smi> index, Label* if_hole) {
-  return TNode<Float64T>::UncheckedCast(LoadFixedDoubleArrayElement(
-      array, index, MachineType::Float64(), 0, SMI_PARAMETERS, if_hole));
+  return LoadFixedDoubleArrayElement(array, index, MachineType::Float64(), 0,
+                                     SMI_PARAMETERS, if_hole);
 }
 
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
@@ -2164,16 +2164,17 @@ TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
                           additional_offset, parameter_mode, needs_poisoning);
 }
 
-Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
-    Node* object, Node* index_node, MachineType machine_type,
-    int additional_offset, ParameterMode parameter_mode, Label* if_hole) {
+TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
+    SloppyTNode<FixedDoubleArray> object, Node* index_node,
+    MachineType machine_type, int additional_offset,
+    ParameterMode parameter_mode, Label* if_hole) {
   CSA_ASSERT(this, IsFixedDoubleArray(object));
   DCHECK_EQ(additional_offset % kPointerSize, 0);
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   int32_t header_size =
       FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(index_node, HOLEY_DOUBLE_ELEMENTS,
-                                        parameter_mode, header_size);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(
+      index_node, HOLEY_DOUBLE_ELEMENTS, parameter_mode, header_size);
   CSA_SLOW_ASSERT(
       this,
       IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
@@ -2181,9 +2182,9 @@ Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
 
-Node* CodeStubAssembler::LoadDoubleWithHoleCheck(Node* base, Node* offset,
-                                                 Label* if_hole,
-                                                 MachineType machine_type) {
+TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
+    SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
+    MachineType machine_type) {
   if (if_hole) {
     // TODO(ishell): Compare only the upper part for the hole once the
     // compiler is able to fold addition of already complex |offset| with
@@ -2201,9 +2202,9 @@ Node* CodeStubAssembler::LoadDoubleWithHoleCheck(Node* base, Node* offset,
   }
   if (machine_type.IsNone()) {
     // This means the actual value is not needed.
-    return nullptr;
+    return TNode<Float64T>();
   }
-  return Load(machine_type, base, offset);
+  return UncheckedCast<Float64T>(Load(machine_type, base, offset));
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(
