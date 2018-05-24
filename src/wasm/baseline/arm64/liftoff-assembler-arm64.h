@@ -622,8 +622,139 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
-  BAILOUT("emit_type_conversion");
-  return true;
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      Mov(dst.gp().W(), src.gp().W());
+      return true;
+    case kExprI32SConvertF32:
+      Fcvtzs(dst.gp().W(), src.fp().S());  // f32 -> i32 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), static_cast<float>(INT32_MIN));
+      // Check overflow.
+      Ccmp(dst.gp().W(), -1, VFlag, ge);
+      B(trap, vs);
+      return true;
+    case kExprI32UConvertF32:
+      Fcvtzu(dst.gp().W(), src.fp().S());  // f32 -> i32 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), -1.0);
+      // Check overflow.
+      Ccmp(dst.gp().W(), -1, ZFlag, gt);
+      B(trap, eq);
+      return true;
+    case kExprI32SConvertF64: {
+      // INT32_MIN and INT32_MAX are valid results, we cannot test the result
+      // to detect the overflows. We could have done two immediate floating
+      // point comparisons but it would have generated two conditional branches.
+      UseScratchRegisterScope temps(this);
+      VRegister fp_ref = temps.AcquireD();
+      VRegister fp_cmp = temps.AcquireD();
+      Fcvtzs(dst.gp().W(), src.fp().D());  // f64 -> i32 round to zero.
+      Frintz(fp_ref, src.fp().D());        // f64 -> f64 round to zero.
+      Scvtf(fp_cmp, dst.gp().W());         // i32 -> f64.
+      // If comparison fails, we have an overflow or a NaN.
+      Fcmp(fp_cmp, fp_ref);
+      B(trap, ne);
+      return true;
+    }
+    case kExprI32UConvertF64: {
+      // INT32_MAX is a valid result, we cannot test the result to detect the
+      // overflows. We could have done two immediate floating point comparisons
+      // but it would have generated two conditional branches.
+      UseScratchRegisterScope temps(this);
+      VRegister fp_ref = temps.AcquireD();
+      VRegister fp_cmp = temps.AcquireD();
+      Fcvtzu(dst.gp().W(), src.fp().D());  // f64 -> i32 round to zero.
+      Frintz(fp_ref, src.fp().D());        // f64 -> f64 round to zero.
+      Ucvtf(fp_cmp, dst.gp().W());         // i32 -> f64.
+      // If comparison fails, we have an overflow or a NaN.
+      Fcmp(fp_cmp, fp_ref);
+      B(trap, ne);
+      return true;
+    }
+    case kExprI32ReinterpretF32:
+      Fmov(dst.gp().W(), src.fp().S());
+      return true;
+    case kExprI64SConvertI32:
+      Sxtw(dst.gp().X(), src.gp().W());
+      return true;
+    case kExprI64SConvertF32:
+      Fcvtzs(dst.gp().X(), src.fp().S());  // f32 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), static_cast<float>(INT64_MIN));
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, VFlag, ge);
+      B(trap, vs);
+      return true;
+    case kExprI64UConvertF32:
+      Fcvtzu(dst.gp().X(), src.fp().S());  // f32 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), -1.0);
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, ZFlag, gt);
+      B(trap, eq);
+      return true;
+    case kExprI64SConvertF64:
+      Fcvtzs(dst.gp().X(), src.fp().D());  // f64 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().D(), static_cast<float>(INT64_MIN));
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, VFlag, ge);
+      B(trap, vs);
+      return true;
+    case kExprI64UConvertF64:
+      Fcvtzu(dst.gp().X(), src.fp().D());  // f64 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().D(), -1.0);
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, ZFlag, gt);
+      B(trap, eq);
+      return true;
+    case kExprI64UConvertI32:
+      Mov(dst.gp().W(), src.gp().W());
+      return true;
+    case kExprI64ReinterpretF64:
+      Fmov(dst.gp().X(), src.fp().D());
+      return true;
+    case kExprF32SConvertI32:
+      Scvtf(dst.fp().S(), src.gp().W());
+      return true;
+    case kExprF32UConvertI32:
+      Ucvtf(dst.fp().S(), src.gp().W());
+      return true;
+    case kExprF32SConvertI64:
+      Scvtf(dst.fp().S(), src.gp().X());
+      return true;
+    case kExprF32UConvertI64:
+      Ucvtf(dst.fp().S(), src.gp().X());
+      return true;
+    case kExprF32ConvertF64:
+      Fcvt(dst.fp().S(), src.fp().D());
+      return true;
+    case kExprF32ReinterpretI32:
+      Fmov(dst.fp().S(), src.gp().W());
+      return true;
+    case kExprF64SConvertI32:
+      Scvtf(dst.fp().D(), src.gp().W());
+      return true;
+    case kExprF64UConvertI32:
+      Ucvtf(dst.fp().D(), src.gp().W());
+      return true;
+    case kExprF64SConvertI64:
+      Scvtf(dst.fp().D(), src.gp().X());
+      return true;
+    case kExprF64UConvertI64:
+      Ucvtf(dst.fp().D(), src.gp().X());
+      return true;
+    case kExprF64ConvertF32:
+      Fcvt(dst.fp().D(), src.fp().S());
+      return true;
+    case kExprF64ReinterpretI64:
+      Fmov(dst.fp().D(), src.gp().X());
+      return true;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { B(label); }
