@@ -54,7 +54,6 @@ BenchmarkResult.prototype.valueOf = function() {
   return this.time;
 }
 
-
 // Suites of benchmarks consist of a name and the set of benchmarks in
 // addition to the reference timing that the final score will be based
 // on. This way, all scores are relative to a reference run and higher
@@ -66,6 +65,16 @@ function BenchmarkSuite(name, reference, benchmarks) {
   BenchmarkSuite.suites.push(this);
 }
 
+function createSuite(name, count, test, testSetup, tearDown) {
+  return new BenchmarkSuite(name, [count], [
+        new Benchmark(name, false, false, 0, test, testSetup, tearDown]);
+}
+
+function createSuiteWithWarmup(name, count, testSetup, tearDown) {
+  new BenchmarkSuite(name, [count], [
+    new Benchmark(name, true, false, 0, fn),
+  ]);
+}
 
 // Keep track of all declared benchmark suites.
 BenchmarkSuite.suites = [];

@@ -15,5 +15,5 @@ function SetupPreSortedReversed() {
   array_to_sort.reverse();
 }
 
-benchy('PackedSmiPreSorted', Sort, SetupPreSorted);
-benchy('PackedSmiPreSortedReversed', Sort, SetupPreSortedReversed);
+createSuite('PackedSmiPreSorted', 1000, Sort, SetupPreSorted);
+createSuite('PackedSmiPreSortedReversed', 1000, Sort, SetupPreSortedReversed);

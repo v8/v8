@@ -23,17 +23,22 @@ let cmp_packed_smi_to_double = CreateCompareFn(() => array_to_sort.push(0.1));
 let cmp_holey_smi_to_double = CreateCompareFn(() => array_to_sort.push(0.1));
 let cmp_double_to_double = CreateCompareFn(() => array_to_sort.length *= 2);
 
-benchy('PackedSmiToPackedDouble', CreateSortFn([cmp_packed_smi_to_double]),
-       CreatePackedSmiArray, AssertPackedDoubleElements);
-benchy('HoleySmiToHoleyDouble', CreateSortFn([cmp_holey_smi_to_double]),
-       CreateHoleySmiArray, AssertHoleyDoubleElements);
-benchy('PackedDoubleToHoleyDouble', CreateSortFn([cmp_double_to_double]),
-       CreatePackedDoubleArray, AssertHoleyDoubleElements);
+createSuite(
+    'PackedSmiToPackedDouble', 1000, CreateSortFn([cmp_packed_smi_to_double]),
+    CreatePackedSmiArray, AssertPackedDoubleElements);
+createSuite(
+    'HoleySmiToHoleyDouble', 1000, CreateSortFn([cmp_holey_smi_to_double]),
+    CreateHoleySmiArray, AssertHoleyDoubleElements);
+createSuite(
+    'PackedDoubleToHoleyDouble', 1000, CreateSortFn([cmp_double_to_double]),
+    CreatePackedDoubleArray, AssertHoleyDoubleElements);
 
 let cmp_packed_to_dict = CreateCompareFn(() => array_to_sort[%MaxSmi()] = 42);
 let cmp_holey_to_dict = CreateCompareFn(() => array_to_sort[%MaxSmi()] = 42);
 
-benchy('PackedElementToDictionary', CreateSortFn([cmp_packed_to_dict]),
-       CreatePackedObjectArray, AssertDictionaryElements);
-benchy('HoleyElementToDictionary', CreateSortFn([cmp_holey_to_dict]),
-       CreateHoleyObjectArray, AssertDictionaryElements);
+createSuite(
+    'PackedElementToDictionary', 1000, CreateSortFn([cmp_packed_to_dict]),
+    CreatePackedObjectArray, AssertDictionaryElements);
+createSuite(
+    'HoleyElementToDictionary', 1000, CreateSortFn([cmp_holey_to_dict]),
+    CreateHoleyObjectArray, AssertDictionaryElements);

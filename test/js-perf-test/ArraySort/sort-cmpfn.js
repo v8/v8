@@ -7,15 +7,14 @@ load('sort-base.js');
 // Each benchmark calls sort with multiple different comparison functions
 // to create polyomorphic call sites. Most/all of the
 // other sort benchmarks have monomorphic call sites.
-
 let sortfn = CreateSortFn([cmp_smaller, cmp_greater]);
 
-benchy('PackedSmi', sortfn, CreatePackedSmiArray);
-benchy('PackedDouble', sortfn, CreatePackedDoubleArray);
-benchy('PackedElement', sortfn, CreatePackedObjectArray);
+createSuite('PackedSmi', 1000, sortfn, CreatePackedSmiArray);
+createSuite('PackedDouble', 1000, sortfn, CreatePackedDoubleArray);
+createSuite('PackedElement', 1000, sortfn, CreatePackedObjectArray);
 
-benchy('HoleySmi', sortfn, CreateHoleySmiArray);
-benchy('HoleyDouble', sortfn, CreateHoleyDoubleArray);
-benchy('HoleyElement', sortfn, CreateHoleyObjectArray);
+createSuite('HoleySmi', 1000, sortfn, CreateHoleySmiArray);
+createSuite('HoleyDouble', 1000, sortfn, CreateHoleyDoubleArray);
+createSuite('HoleyElement', 1000, sortfn, CreateHoleyObjectArray);
 
-benchy('Dictionary', sortfn, CreateDictionaryArray);
+createSuite('Dictionary', 1000, sortfn, CreateDictionaryArray);
