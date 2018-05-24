@@ -2586,6 +2586,11 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
   PretenureFlag const pretenure = PretenureFlagOf(node->op());
   Node* length = node->InputAt(0);
 
+  auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
+  Node* zero_length = __ Word32Equal(length, __ Int32Constant(0));
+  __ GotoIf(zero_length, &done,
+            jsgraph()->HeapConstant(factory()->empty_fixed_array()));
+
   // Compute the effective size of the backing store.
   Node* size =
       __ Int32Add(__ Word32Shl(length, __ Int32Constant(kDoubleSizeLog2)),
@@ -2604,14 +2609,13 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
   Node* the_hole =
       __ LoadField(AccessBuilder::ForHeapNumberValue(), __ TheHoleConstant());
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
-  auto done_loop = __ MakeLabel();
   __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);
   {
     // Check if we've initialized everything.
     Node* index = loop.PhiAt(0);
     Node* check = __ UintLessThan(index, limit);
-    __ GotoIfNot(check, &done_loop);
+    __ GotoIfNot(check, &done, result);
 
     // Storing "the_hole" doesn't need a write barrier.
     StoreRepresentation rep(MachineRepresentation::kFloat64, kNoWriteBarrier);
@@ -2625,13 +2629,18 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
     __ Goto(&loop, index);
   }
 
-  __ Bind(&done_loop);
-  return result;
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
   PretenureFlag const pretenure = PretenureFlagOf(node->op());
   Node* length = node->InputAt(0);
+
+  auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
+  Node* zero_length = __ Word32Equal(length, __ Int32Constant(0));
+  __ GotoIf(zero_length, &done,
+            jsgraph()->HeapConstant(factory()->empty_fixed_array()));
 
   // Compute the effective size of the backing store.
   Node* size =
@@ -2648,14 +2657,13 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
   Node* limit = ChangeUint32ToUintPtr(length);
   Node* the_hole = __ TheHoleConstant();
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
-  auto done_loop = __ MakeLabel();
   __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);
   {
     // Check if we've initialized everything.
     Node* index = loop.PhiAt(0);
     Node* check = __ UintLessThan(index, limit);
-    __ GotoIfNot(check, &done_loop);
+    __ GotoIfNot(check, &done, result);
 
     // Storing "the_hole" doesn't need a write barrier.
     StoreRepresentation rep(MachineRepresentation::kTagged, kNoWriteBarrier);
@@ -2669,8 +2677,8 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
     __ Goto(&loop, index);
   }
 
-  __ Bind(&done_loop);
-  return result;
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {

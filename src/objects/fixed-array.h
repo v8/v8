@@ -135,8 +135,12 @@ class FixedArray : public FixedArrayBase {
 
   inline void FillWithHoles(int from, int to);
 
-  // Shrink length and insert filler objects.
-  void Shrink(int length);
+  // Shrink the array and insert filler objects. {new_length} must be > 0.
+  void Shrink(int new_length);
+  // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
+  // like above.
+  static Handle<FixedArray> ShrinkOrEmpty(Handle<FixedArray> array,
+                                          int new_length);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len) const;

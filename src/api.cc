@@ -6399,10 +6399,12 @@ i::Object** GetSerializedDataFromFixedArray(i::Isolate* isolate,
     i::Object* object = list->get(int_index);
     if (!object->IsTheHole(isolate)) {
       list->set_the_hole(isolate, int_index);
-      // Shrink the list so that the last element is not the hole.
+      // Shrink the list so that the last element is not the hole (unless it's
+      // the first element, because we don't want to end up with a non-canonical
+      // empty FixedArray).
       int last = list->length() - 1;
       while (last >= 0 && list->is_the_hole(isolate, last)) last--;
-      list->Shrink(last + 1);
+      if (last != -1) list->Shrink(last + 1);
       return i::Handle<i::Object>(object, isolate).location();
     }
   }
@@ -6413,7 +6415,7 @@ i::Object** GetSerializedDataFromFixedArray(i::Isolate* isolate,
 i::Object** Context::GetDataFromSnapshotOnce(size_t index) {
   auto context = Utils::OpenHandle(this);
   i::Isolate* i_isolate = context->GetIsolate();
-  i::FixedArray* list = i::FixedArray::cast(context->serialized_objects());
+  i::FixedArray* list = context->serialized_objects();
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 

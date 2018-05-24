@@ -384,10 +384,8 @@ class ObjectDescriptor {
     if (HasDictionaryProperties()) {
       properties_dictionary_template_->SetNextEnumerationIndex(
           next_enumeration_index_);
-
-      isolate->heap()->RightTrimFixedArray(
-          *computed_properties_,
-          computed_properties_->length() - current_computed_index_);
+      computed_properties_ = FixedArray::ShrinkOrEmpty(computed_properties_,
+                                                       current_computed_index_);
     } else {
       DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
     }

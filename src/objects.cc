@@ -8819,8 +8819,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     count++;
   }
 
-  if (count < values_or_entries->length()) values_or_entries->Shrink(count);
-  *result = values_or_entries;
+  DCHECK_LE(count, values_or_entries->length());
+  *result = FixedArray::ShrinkOrEmpty(values_or_entries, count);
   return Just(true);
 }
 
@@ -8878,8 +8878,8 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
     values_or_entries->set(length, *value);
     length++;
   }
-  if (length < values_or_entries->length()) values_or_entries->Shrink(length);
-  return values_or_entries;
+  DCHECK_LE(length, values_or_entries->length());
+  return FixedArray::ShrinkOrEmpty(values_or_entries, length);
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Handle<JSReceiver> object,
@@ -10118,8 +10118,18 @@ bool FixedArray::ContainsSortedNumbers() {
   return true;
 }
 
+Handle<FixedArray> FixedArray::ShrinkOrEmpty(Handle<FixedArray> array,
+                                             int new_length) {
+  if (new_length == 0) {
+    return array->GetIsolate()->factory()->empty_fixed_array();
+  } else {
+    array->Shrink(new_length);
+    return array;
+  }
+}
+
 void FixedArray::Shrink(int new_length) {
-  DCHECK(0 <= new_length && new_length <= length());
+  DCHECK(0 < new_length && new_length <= length());
   if (new_length < length()) {
     GetHeap()->RightTrimFixedArray(this, length() - new_length);
   }
@@ -17984,8 +17994,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
             array->GetFirstElementAddress());
     std::sort(start, start + array_size, cmp);
   }
-  array->Shrink(array_size);
-  return array;
+  return FixedArray::ShrinkOrEmpty(array, array_size);
 }
 
 template <typename Derived, typename Shape>

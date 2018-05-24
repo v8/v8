@@ -1265,7 +1265,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       // Shrink combined_keys to the final size.
       int final_size = nof_indices + nof_property_keys;
       DCHECK_LE(final_size, combined_keys->length());
-      combined_keys->Shrink(final_size);
+      return FixedArray::ShrinkOrEmpty(combined_keys, final_size);
     }
 
     return combined_keys;

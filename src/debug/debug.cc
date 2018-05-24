@@ -1680,8 +1680,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
       if (script->HasValidSource()) results->set(length++, script);
     }
   }
-  results->Shrink(length);
-  return results;
+  return FixedArray::ShrinkOrEmpty(results, length);
 }
 
 

@@ -1094,6 +1094,9 @@ void JSArray::JSArrayVerify() {
   if (!ElementsAreSafeToExamine()) return;
   if (elements()->IsUndefined(isolate)) return;
   CHECK(elements()->IsFixedArray() || elements()->IsFixedDoubleArray());
+  if (elements()->length() == 0) {
+    CHECK_EQ(elements(), isolate->heap()->empty_fixed_array());
+  }
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
   if (length()->IsSmi() && HasFastElements()) {

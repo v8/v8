@@ -866,8 +866,7 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
       frames_seen++;
     }
   }
-  stack_trace_elems->Shrink(frames_seen);
-  return stack_trace_elems;
+  return FixedArray::ShrinkOrEmpty(stack_trace_elems, frames_seen);
 }
 
 

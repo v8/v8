@@ -135,9 +135,7 @@ MaybeHandle<FixedArray> FilterProxyKeys(KeyAccumulator* accumulator,
     }
     store_position++;
   }
-  if (store_position == 0) return isolate->factory()->empty_fixed_array();
-  keys->Shrink(store_position);
-  return keys;
+  return FixedArray::ShrinkOrEmpty(keys, store_position);
 }
 
 // Returns "nothing" in case of exception, "true" on success.
