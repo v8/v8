@@ -153,8 +153,6 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
-  'compiler/osr-one': [PASS, SLOW],
-  'compiler/osr-two': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
@@ -790,9 +788,6 @@
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'compiler/osr-nested': [SKIP],
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
   'lexicographic-compare': [SKIP],
   'regress/regress-2185': [SKIP],
   'regress/regress-deep-proto': [SKIP],
