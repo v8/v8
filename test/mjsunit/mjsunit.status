@@ -790,7 +790,6 @@
   # Slow tests: https://crbug.com/v8/7783
   'lexicographic-compare': [SKIP],
   'regress/regress-2185': [SKIP],
-  'regress/regress-deep-proto': [SKIP],
   'wasm/grow-memory': [SKIP],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
