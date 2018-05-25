@@ -693,6 +693,7 @@ class IteratingArrayBuiltinDescriptor : public BuiltinDescriptor {
   DECLARE_BUILTIN_DESCRIPTOR(IteratingArrayBuiltinDescriptor)
 };
 
+// TODO(jgruber): Replace with generic TFS descriptor.
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite)

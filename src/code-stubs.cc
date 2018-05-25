@@ -592,9 +592,6 @@ TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
                       stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
 }
 
-ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate) {}
-
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
 

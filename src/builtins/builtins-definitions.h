@@ -236,6 +236,7 @@ namespace internal {
                                                                                \
   /* Array */                                                                  \
   ASM(ArrayConstructor)                                                        \
+  ASM(ArrayConstructorImpl)                                                    \
   ASM(ArrayNArgumentsConstructor)                                              \
   ASM(InternalArrayConstructor)                                                \
   CPP(ArrayConcat)                                                             \

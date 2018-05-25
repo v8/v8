@@ -118,7 +118,7 @@ DEFINE_GETTER(AllocateInOldSpaceStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldSpace)))
 
 DEFINE_GETTER(ArrayConstructorStubConstant,
-              HeapConstant(ArrayConstructorStub(isolate()).GetCode()))
+              HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))
 
 DEFINE_GETTER(ToNumberBuiltinConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ToNumber)))

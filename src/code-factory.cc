@@ -334,12 +334,6 @@ Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::ArrayConstructor(Isolate* isolate) {
-  ArrayConstructorStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::ArrayPop(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ArrayPop), BuiltinDescriptor(isolate));
 }

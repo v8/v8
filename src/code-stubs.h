@@ -28,7 +28,6 @@ class Node;
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
   /* --- PlatformCodeStubs --- */           \
-  V(ArrayConstructor)                       \
   V(CallApiCallback)                        \
   V(CallApiGetter)                          \
   V(InternalArrayConstructor)               \
@@ -483,19 +482,6 @@ enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,
   DISABLE_ALLOCATION_SITES,
   LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class ArrayConstructorStub: public PlatformCodeStub {
- public:
-  explicit ArrayConstructorStub(Isolate* isolate);
-
- private:
-  void GenerateDispatchToArrayStub(MacroAssembler* masm,
-                                   AllocationSiteOverrideMode mode);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
-  DEFINE_PLATFORM_CODE_STUB(ArrayConstructor, PlatformCodeStub);
 };
 
 // TODO(jgruber): Convert this stub into a builtin.
