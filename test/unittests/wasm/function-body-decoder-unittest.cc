@@ -205,7 +205,7 @@ constexpr size_t kMaxByteSizedLeb128 = 127;
 class TestModuleBuilder {
  public:
   explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) {
-    mod.set_origin(origin);
+    mod.origin = origin;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back(

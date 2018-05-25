@@ -866,7 +866,7 @@ Address CompileLazy(Isolate* isolate,
 namespace {
 bool compile_lazy(const WasmModule* module) {
   return FLAG_wasm_lazy_compilation ||
-         (FLAG_asm_wasm_lazy_compilation && module->is_asm_js());
+         (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin);
 }
 
 void FlushICache(const wasm::NativeModule* native_module) {
@@ -1278,7 +1278,7 @@ void ValidateSequentially(Isolate* isolate, const ModuleWireBytes& wire_bytes,
     FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
                       base + func.code.end_offset()};
     DecodeResult result = VerifyWasmCodeWithStats(
-        isolate->allocator(), module, body, module->is_wasm(),
+        isolate->allocator(), module, body, module->origin,
         isolate->async_counters().get());
     if (result.failed()) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
@@ -1297,9 +1297,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   WasmModule* wasm_module = module.get();
   Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
   TimedHistogramScope wasm_compile_module_time_scope(
-      wasm_module->is_wasm()
-          ? isolate->async_counters()->wasm_compile_wasm_module_time()
-          : isolate->async_counters()->wasm_compile_asm_module_time());
+      SELECT_WASM_COUNTER(isolate->async_counters(), wasm_module->origin,
+                          wasm_compile, module_time));
   // TODO(6792): No longer needed once WebAssembly code is off heap. Use
   // base::Optional to be able to close the scope before notifying the debugger.
   base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
@@ -1366,7 +1365,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, compiled_module, export_wrappers, shared);
   if (lazy_compile) {
-    if (wasm_module->is_wasm()) {
+    if (wasm_module->origin == kWasmOrigin) {
       // Validate wasm modules for lazy compilation. Don't validate asm.js
       // modules, they are valid by construction (otherwise a CHECK will fail
       // during lazy compilation).
@@ -1568,9 +1567,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // From here on, we expect the build pipeline to run without exiting to JS.
   DisallowJavascriptExecution no_js(isolate_);
   // Record build time into correct bucket, then build instance.
-  TimedHistogramScope wasm_instantiate_module_time_scope(
-      module_->is_wasm() ? counters()->wasm_instantiate_wasm_module_time()
-                         : counters()->wasm_instantiate_asm_module_time());
+  TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
+      counters(), module_->origin, wasm_instantiate, module_time));
   Factory* factory = isolate_->factory();
 
   //--------------------------------------------------------------------------
@@ -1617,10 +1615,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Set up the globals for the new instance.
   //--------------------------------------------------------------------------
   MaybeHandle<JSArrayBuffer> old_globals;
-  uint32_t globals_size = module_->globals_size;
-  if (globals_size > 0) {
+  uint32_t globals_buffer_size = module_->globals_buffer_size;
+  if (globals_buffer_size > 0) {
     void* backing_store =
-        isolate_->array_buffer_allocator()->Allocate(globals_size);
+        isolate_->array_buffer_allocator()->Allocate(globals_buffer_size);
     if (backing_store == nullptr) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
@@ -1630,7 +1628,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     constexpr bool is_external = false;
     constexpr bool is_wasm_memory = false;
     JSArrayBuffer::Setup(globals_, isolate_, is_external, backing_store,
-                         globals_size, SharedFlag::kNotShared, is_wasm_memory);
+                         globals_buffer_size, SharedFlag::kNotShared,
+                         is_wasm_memory);
     if (globals_.is_null()) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
@@ -1684,9 +1683,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Allocate the memory array buffer.
   //--------------------------------------------------------------------------
   uint32_t initial_pages = module_->initial_pages;
-  (module_->is_wasm() ? counters()->wasm_wasm_min_mem_pages_count()
-                      : counters()->wasm_asm_min_mem_pages_count())
-      ->AddSample(initial_pages);
+  auto initial_pages_counter = SELECT_WASM_COUNTER(counters(), module_->origin,
+                                                   wasm, min_mem_pages_count);
+  initial_pages_counter->AddSample(initial_pages);
 
   if (!memory_.is_null()) {
     // Set externally passed ArrayBuffer non neuterable.
@@ -1694,7 +1693,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     memory->set_is_neuterable(false);
 
     DCHECK_IMPLIES(use_trap_handler(),
-                   module_->is_asm_js() || memory->is_wasm_memory() ||
+                   module_->origin == kAsmJsOrigin ||
+                       memory->is_wasm_memory() ||
                        memory->backing_store() == nullptr ||
                        // TODO(836800) Remove once is_wasm_memory transfers over
                        // post-message.
@@ -1816,7 +1816,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   WasmSharedModuleData::SetBreakpointsOnNewInstance(
       handle(module_object_->shared(), isolate_), instance);
 
-  if (FLAG_wasm_interpret_all && module_->is_wasm()) {
+  if (FLAG_wasm_interpret_all && module_->origin == kWasmOrigin) {
     Handle<WasmDebugInfo> debug_info =
         WasmInstanceObject::GetOrCreateDebugInfo(instance);
     std::vector<int> func_indexes;
@@ -2061,7 +2061,7 @@ void InstanceBuilder::SanitizeImports() {
 
     int int_index = static_cast<int>(index);
     MaybeHandle<Object> result =
-        module_->is_asm_js()
+        module_->origin == kAsmJsOrigin
             ? LookupImportAsm(int_index, import_name)
             : LookupImport(int_index, module_name, import_name);
     if (thrower_->error()) {
@@ -2127,8 +2127,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           // The imported function is a callable.
           Handle<JSReceiver> js_receiver(JSReceiver::cast(*value), isolate_);
           Handle<Code> wrapper_code = compiler::CompileWasmToJSWrapper(
-              isolate_, js_receiver, expected_sig, func_index,
-              module_->origin(), use_trap_handler());
+              isolate_, js_receiver, expected_sig, func_index, module_->origin,
+              use_trap_handler());
           RecordStats(*wrapper_code, counters());
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
@@ -2280,7 +2280,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                           module_name, import_name);
           return -1;
         }
-        if (module_->is_asm_js()) {
+        if (module_->origin == kAsmJsOrigin) {
           // Accepting {JSFunction} on top of just primitive values here is a
           // workaround to support legacy asm.js code with broken binding. Note
           // that using {NaN} (or Smi::kZero) here is what using the observable
@@ -2466,15 +2466,22 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
 
   Handle<JSObject> exports_object;
-  if (module_->is_wasm()) {
-    // Create the "exports" object.
-    exports_object = isolate_->factory()->NewJSObjectWithNullProto();
-  } else if (module_->is_asm_js()) {
-    Handle<JSFunction> object_function = Handle<JSFunction>(
-        isolate_->native_context()->object_function(), isolate_);
-    exports_object = isolate_->factory()->NewJSObject(object_function);
-  } else {
-    UNREACHABLE();
+  bool is_asm_js = false;
+  switch (module_->origin) {
+    case kWasmOrigin: {
+      // Create the "exports" object.
+      exports_object = isolate_->factory()->NewJSObjectWithNullProto();
+      break;
+    }
+    case kAsmJsOrigin: {
+      Handle<JSFunction> object_function = Handle<JSFunction>(
+          isolate_->native_context()->object_function(), isolate_);
+      exports_object = isolate_->factory()->NewJSObject(object_function);
+      is_asm_js = true;
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
   instance->set_exports_object(*exports_object);
 
@@ -2482,9 +2489,9 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
 
   PropertyDescriptor desc;
-  desc.set_writable(module_->is_asm_js());
+  desc.set_writable(is_asm_js);
   desc.set_enumerable(true);
-  desc.set_configurable(module_->is_asm_js());
+  desc.set_configurable(is_asm_js);
 
   // Process each export in the export table.
   int export_index = 0;  // Index into {export_wrappers}.
@@ -2494,7 +2501,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
             isolate_, handle(module_object_->shared(), isolate_), exp.name)
             .ToHandleChecked();
     Handle<JSObject> export_to;
-    if (module_->is_asm_js() && exp.kind == kExternalFunction &&
+    if (is_asm_js && exp.kind == kExternalFunction &&
         String::Equals(name, single_function_name)) {
       export_to = instance;
     } else {
@@ -2511,7 +2518,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           Handle<Code> export_code =
               export_wrappers->GetValueChecked<Code>(isolate_, export_index);
           MaybeHandle<String> func_name;
-          if (module_->is_asm_js()) {
+          if (is_asm_js) {
             // For modules arising from asm.js, honor the names section.
             WireBytesRef func_name_ref = module_->LookupName(
                 module_object_->shared()->module_bytes(), function.func_index);
@@ -2605,7 +2612,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
   DCHECK_EQ(export_index, export_wrappers->length());
 
-  if (module_->is_wasm()) {
+  if (module_->origin == kWasmOrigin) {
     v8::Maybe<bool> success =
         JSReceiver::SetIntegrityLevel(exports_object, FROZEN, kDontThrow);
     DCHECK(success.FromMaybe(false));
@@ -2674,7 +2681,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
                     isolate_, module_, is_import ? kNullAddress : call_target,
                     func_index, use_trap_handler());
             MaybeHandle<String> func_name;
-            if (module_->is_asm_js()) {
+            if (module_->origin == kAsmJsOrigin) {
               // For modules arising from asm.js, honor the names section.
               WireBytesRef func_name_ref = module_->LookupName(
                   module_object_->shared()->module_bytes(), func_index);
@@ -3400,7 +3407,8 @@ CompilationState::CompilationState(internal::Isolate* isolate, ModuleEnv& env)
       module_env_(env),
       max_memory_(GetMaxUsableMemorySize(isolate) / 2),
       // TODO(clemensh): Fix fuzzers such that {env.module} is always non-null.
-      compile_mode_(FLAG_wasm_tier_up && (!env.module || env.module->is_wasm())
+      compile_mode_(FLAG_wasm_tier_up &&
+                            (!env.module || env.module->origin == kWasmOrigin)
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       wire_bytes_(ModuleWireBytes(nullptr, nullptr)),

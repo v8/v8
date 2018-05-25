@@ -24,7 +24,7 @@ TestingModuleBuilder::TestingModuleBuilder(
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
   WasmJs::Install(isolate_, true);
-  test_module_->globals_size = kMaxGlobalsSize;
+  test_module_->globals_buffer_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
 
   uint32_t maybe_import_index = 0;
@@ -45,7 +45,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     Handle<Code> code = compiler::CompileWasmToJSWrapper(
         isolate_, maybe_import->js_function, maybe_import->sig,
-        maybe_import_index, test_module_->origin(),
+        maybe_import_index, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
     native_module_->ResizeCodeTableForTesting(maybe_import_index + 1,
@@ -67,7 +67,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
   DCHECK(!instance_object_->has_memory_object());
-  DCHECK_IMPLIES(test_module_->origin() == kWasmOrigin,
+  DCHECK_IMPLIES(test_module_->origin == kWasmOrigin,
                  size % kWasmPageSize == 0);
   test_module_->has_memory = true;
   uint32_t alloc_size = RoundUp(size, kWasmPageSize);

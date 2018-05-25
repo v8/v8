@@ -128,6 +128,10 @@ struct WasmExport {
 
 enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };
 
+#define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)           \
+  ((origin) == wasm::kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
+                                 : (counters)->prefix##_asm_##suffix())
+
 struct ModuleWireBytes;
 
 // Static representation of a module.
@@ -146,14 +150,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmGlobal> globals;
   // Size of the buffer required for all globals that are not imported and
   // mutable.
-  // TODO(wasm): Rename for clarity?
-  uint32_t globals_size = 0;
+  uint32_t globals_buffer_size = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_declared_functions = 0;
   uint32_t num_exported_functions = 0;
   WireBytesRef name = {0, 0};
-  // TODO(wasm): Add url here, for spec'ed location information.
   std::vector<FunctionSig*> signatures;  // by signature index
   std::vector<uint32_t> signature_ids;   // by signature index
   std::vector<WasmFunction> functions;
@@ -165,24 +167,17 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmTableInit> table_inits;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
+  ModuleOrigin origin = kWasmOrigin;  // origin of the module
+  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
+
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);
-
-  ModuleOrigin origin() const { return origin_; }
-  void set_origin(ModuleOrigin new_value) { origin_ = new_value; }
-  bool is_wasm() const { return origin_ == kWasmOrigin; }
-  bool is_asm_js() const { return origin_ == kAsmJsOrigin; }
 
   WireBytesRef LookupName(const ModuleWireBytes* wire_bytes,
                           uint32_t function_index) const;
   WireBytesRef LookupName(SeqOneByteString* wire_bytes,
                           uint32_t function_index) const;
   void AddNameForTesting(int function_index, WireBytesRef name);
-
- private:
-  // TODO(kschimpf) - Encapsulate more fields.
-  ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
-  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
 };
 
 // Interface to the storage (wire bytes) of a wasm module.

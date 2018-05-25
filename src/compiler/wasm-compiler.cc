@@ -2945,7 +2945,7 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
 
 Node* WasmGraphBuilder::CurrentMemoryPages() {
   // CurrentMemoryPages can not be called from asm.js.
-  DCHECK_EQ(wasm::kWasmOrigin, env_->module->origin());
+  DCHECK_EQ(wasm::kWasmOrigin, env_->module->origin);
   DCHECK_NOT_NULL(instance_cache_);
   Node* mem_size = instance_cache_->mem_size;
   DCHECK_NOT_NULL(mem_size);
@@ -5112,7 +5112,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
         source_positions, node_origins, &wasm_compilation_data_,
         wasm_unit_->func_body_,
         const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
-        wasm_unit_->env_->module->origin()));
+        wasm_unit_->env_->module->origin));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     wasm_unit_->counters_->wasm_compile_function_peak_memory_bytes()->AddSample(

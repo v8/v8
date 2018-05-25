@@ -94,7 +94,7 @@ class TestingModuleBuilder {
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, WasmExecutionMode,
                        RuntimeExceptionSupport, LowerSimd);
 
-  void ChangeOriginToAsmjs() { test_module_->set_origin(kAsmJsOrigin); }
+  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
 
   byte* AddMemory(uint32_t size);
 

@@ -38,13 +38,13 @@ struct WasmException;
   }())
 
 #define RET_ON_PROTOTYPE_OPCODE(flag)                                          \
-  DCHECK(!this->module_ || !this->module_->is_asm_js());                       \
+  DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
   if (!FLAG_experimental_wasm_##flag) {                                        \
     this->error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
   }
 
 #define CHECK_PROTOTYPE_OPCODE(flag)                                           \
-  DCHECK(!this->module_ || !this->module_->is_asm_js());                       \
+  DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
   if (!FLAG_experimental_wasm_##flag) {                                        \
     this->error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
     break;                                                                     \
@@ -1830,7 +1830,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             MemoryIndexImmediate<validate> imm(this, this->pc_);
             len = 1 + imm.length;
             DCHECK_NOT_NULL(this->module_);
-            if (!VALIDATE(this->module_->is_wasm())) {
+            if (!VALIDATE(this->module_->origin == kWasmOrigin)) {
               this->error("grow_memory is not supported for asmjs modules");
               break;
             }
@@ -1910,7 +1910,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           default: {
             // Deal with special asmjs opcodes.
-            if (this->module_ != nullptr && this->module_->is_asm_js()) {
+            if (this->module_ != nullptr &&
+                this->module_->origin == kAsmJsOrigin) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);

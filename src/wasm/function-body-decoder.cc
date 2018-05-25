@@ -846,11 +846,12 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 
 DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
                                      const wasm::WasmModule* module,
-                                     FunctionBody& body, bool is_wasm,
+                                     FunctionBody& body, ModuleOrigin origin,
                                      Counters* counters) {
   CHECK_LE(0, body.end - body.start);
-  auto time_counter = is_wasm ? counters->wasm_decode_wasm_function_time()
-                              : counters->wasm_decode_asm_function_time();
+  auto time_counter = origin == kWasmOrigin
+                          ? counters->wasm_decode_wasm_function_time()
+                          : counters->wasm_decode_asm_function_time();
   TimedHistogramScope wasm_decode_function_time_scope(time_counter);
   return VerifyWasmCode(allocator, module, body);
 }
