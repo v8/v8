@@ -105,8 +105,8 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   // Run the native code for the InternalArray function called as a normal
   // function.
   __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
-  InternalArrayConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(BUILTIN_CODE(masm->isolate(), InternalArrayConstructorImpl),
+          RelocInfo::CODE_TARGET);
 }
 
 void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
@@ -3635,6 +3635,97 @@ void Builtins::Generate_ArrayConstructorImpl(MacroAssembler* masm) {
   __ Add(x0, x0, Operand(3));
   __ Push(new_target, allocation_site);
   __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
+}
+
+namespace {
+
+void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
+                                          ElementsKind kind) {
+  Label zero_case, n_case;
+  Register argc = x0;
+
+  __ Cbz(argc, &zero_case);
+  __ CompareAndBranch(argc, 1, ne, &n_case);
+
+  // One argument.
+  if (IsFastPackedElementsKind(kind)) {
+    Label packed_case;
+
+    // We might need to create a holey array; look at the first argument.
+    __ Peek(x10, 0);
+    __ Cbz(x10, &packed_case);
+
+    InternalArraySingleArgumentConstructorStub stub1_holey(
+        masm->isolate(), GetHoleyElementsKind(kind));
+    __ TailCallStub(&stub1_holey);
+
+    __ Bind(&packed_case);
+  }
+  InternalArraySingleArgumentConstructorStub stub1(masm->isolate(), kind);
+  __ TailCallStub(&stub1);
+
+  __ Bind(&zero_case);
+  // No arguments.
+  InternalArrayNoArgumentConstructorStub stub0(masm->isolate(), kind);
+  __ TailCallStub(&stub0);
+
+  __ Bind(&n_case);
+  // N arguments.
+  Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
+  __ Jump(code, RelocInfo::CODE_TARGET);
+}
+
+}  // namespace
+
+void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0 : argc
+  //  -- x1 : constructor
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
+  // -----------------------------------
+
+  Register constructor = x1;
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    Label unexpected_map, map_ok;
+    // Initial map for the builtin Array function should be a map.
+    __ Ldr(x10, FieldMemOperand(constructor,
+                                JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a nullptr and a Smi.
+    __ JumpIfSmi(x10, &unexpected_map);
+    __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
+    __ Bind(&unexpected_map);
+    __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
+    __ Bind(&map_ok);
+  }
+
+  Register kind = w3;
+  // Figure out the right elements kind
+  __ Ldr(x10, FieldMemOperand(constructor,
+                              JSFunction::kPrototypeOrInitialMapOffset));
+
+  // Retrieve elements_kind from map.
+  __ LoadElementsKindFromMap(kind, x10);
+
+  if (FLAG_debug_code) {
+    Label done;
+    __ Cmp(x3, PACKED_ELEMENTS);
+    __ Ccmp(x3, HOLEY_ELEMENTS, ZFlag, ne);
+    __ Assert(
+        eq,
+        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+  }
+
+  Label fast_elements_case;
+  __ CompareAndBranch(kind, PACKED_ELEMENTS, eq, &fast_elements_case);
+  GenerateInternalArrayConstructorCase(masm, HOLEY_ELEMENTS);
+
+  __ Bind(&fast_elements_case);
+  GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
 }
 
 void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {

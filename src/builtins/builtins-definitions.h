@@ -239,6 +239,7 @@ namespace internal {
   ASM(ArrayConstructorImpl)                                                    \
   ASM(ArrayNArgumentsConstructor)                                              \
   ASM(InternalArrayConstructor)                                                \
+  ASM(InternalArrayConstructorImpl)                                            \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kArg)                                                   \

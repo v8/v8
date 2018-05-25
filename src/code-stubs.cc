@@ -592,9 +592,6 @@ TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
                       stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
 }
 
-InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate) {}
-
 CommonArrayConstructorStub::CommonArrayConstructorStub(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode)

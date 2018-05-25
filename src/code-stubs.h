@@ -30,7 +30,6 @@ class Node;
   /* --- PlatformCodeStubs --- */           \
   V(CallApiCallback)                        \
   V(CallApiGetter)                          \
-  V(InternalArrayConstructor)               \
   V(JSEntry)                                \
   V(ProfileEntryHook)                       \
   /* --- TurboFanCodeStubs --- */           \
@@ -482,18 +481,6 @@ enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,
   DISABLE_ALLOCATION_SITES,
   LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class InternalArrayConstructorStub: public PlatformCodeStub {
- public:
-  explicit InternalArrayConstructorStub(Isolate* isolate);
-
- private:
-  void GenerateCase(MacroAssembler* masm, ElementsKind kind);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNArgumentsConstructor);
-  DEFINE_PLATFORM_CODE_STUB(InternalArrayConstructor, PlatformCodeStub);
 };
 
 // TODO(jgruber): Convert this stub into a builtin.
