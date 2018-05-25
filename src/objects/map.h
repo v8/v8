@@ -25,6 +25,7 @@ namespace internal {
   V(Code)                  \
   V(CodeDataContainer)     \
   V(ConsString)            \
+  V(DataHandler)           \
   V(DataObject)            \
   V(FeedbackCell)          \
   V(FeedbackVector)        \

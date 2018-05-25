@@ -18,6 +18,7 @@ namespace internal {
 
 class BigInt;
 class BytecodeArray;
+class DataHandler;
 class JSArrayBuffer;
 class JSRegExp;
 class JSWeakCollection;
@@ -31,6 +32,7 @@ class JSWeakCollection;
   V(Code)                        \
   V(CodeDataContainer)           \
   V(ConsString)                  \
+  V(DataHandler)                 \
   V(FeedbackCell)                \
   V(FeedbackVector)              \
   V(FixedArray)                  \

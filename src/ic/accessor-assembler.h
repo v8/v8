@@ -88,8 +88,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
-  TNode<Object> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
-                                     int data_index);
+  TNode<MaybeObject> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
+                                          int data_index);
 
  protected:
   struct StoreICParameters : public LoadICParameters {

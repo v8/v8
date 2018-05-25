@@ -3140,7 +3140,7 @@ VisitorId Map::GetVisitorId(Map* map) {
 
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
-      return kVisitStruct;
+      return kVisitDataHandler;
 
     default:
       UNREACHABLE();

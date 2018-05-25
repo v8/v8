@@ -1729,7 +1729,7 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
+    os << "\n - data1: " << MaybeObjectBrief(data1());
   }
   if (data_count >= 2) {
     os << "\n - data2: " << Brief(data2());
@@ -1747,7 +1747,7 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
+    os << "\n - data1: " << MaybeObjectBrief(data1());
   }
   if (data_count >= 2) {
     os << "\n - data2: " << Brief(data2());

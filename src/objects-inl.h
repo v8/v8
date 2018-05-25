@@ -969,6 +969,10 @@ void HeapObject::VerifyObjectField(int offset) {
   VerifyPointer(READ_FIELD(this, offset));
 }
 
+void HeapObject::VerifyMaybeObjectField(int offset) {
+  MaybeObject::VerifyMaybeObjectPointer(READ_WEAK_FIELD(this, offset));
+}
+
 void HeapObject::VerifySmiField(int offset) {
   CHECK(READ_FIELD(this, offset)->IsSmi());
 }

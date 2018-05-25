@@ -529,6 +529,31 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map* map, HeapObject* obj) { return Map::kSize; }
 };
 
+class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    static_assert(kSmiHandlerOffset < kData1Offset,
+                  "Field order must be in sync with this iteration code");
+    static_assert(kData1Offset < kSizeWithData1,
+                  "Field order must be in sync with this iteration code");
+    IteratePointers(obj, kSmiHandlerOffset, kData1Offset, v);
+    if (object_size >= kSizeWithData1) {
+      IterateMaybeWeakPointer(obj, kData1Offset, v);
+      IteratePointers(obj, kData1Offset + kPointerSize, object_size, v);
+    }
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return object->SizeFromMap(map);
+  }
+};
+
 template <typename Op, typename ReturnType, typename T1, typename T2,
           typename T3, typename T4>
 ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
@@ -701,9 +726,10 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }
     case CALL_HANDLER_INFO_TYPE:
+      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
-      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
+      return Op::template apply<DataHandler::BodyDescriptor>(p1, p2, p3, p4);
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();

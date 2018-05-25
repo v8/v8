@@ -26,7 +26,7 @@ using SloppyTNode = compiler::SloppyTNode<T>;
 //////////////////// Private helpers.
 
 // Loads dataX field from the DataHandler object.
-TNode<Object> AccessorAssembler::LoadHandlerDataField(
+TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
     SloppyTNode<DataHandler> handler, int data_index) {
 #ifdef DEBUG
   TNode<Map> handler_map = LoadMap(handler);
@@ -58,7 +58,7 @@ TNode<Object> AccessorAssembler::LoadHandlerDataField(
   CSA_ASSERT(this, UintPtrGreaterThanOrEqual(
                        LoadMapInstanceSizeInWords(handler_map),
                        IntPtrConstant(minimum_size / kPointerSize)));
-  return LoadObjectField(handler, offset);
+  return LoadMaybeWeakObjectField(handler, offset);
 }
 
 TNode<MaybeObject> AccessorAssembler::TryMonomorphicCase(
@@ -476,8 +476,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     // the access check is enabled for this handler or not.
     TNode<Object> context_cell = Select<Object>(
         IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
-        [=] { return LoadHandlerDataField(handler, 3); },
-        [=] { return LoadHandlerDataField(handler, 2); });
+        [=] { return CAST(LoadHandlerDataField(handler, 3)); },
+        [=] { return CAST(LoadHandlerDataField(handler, 2)); });
 
     Node* context = LoadWeakCellValueUnchecked(CAST(context_cell));
     Node* foreign =
@@ -661,7 +661,7 @@ Node* AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_do_access_check);
       {
-        Node* data2 = LoadHandlerDataField(handler, 2);
+        TNode<WeakCell> data2 = CAST(LoadHandlerDataField(handler, 2));
         Node* expected_native_context = LoadWeakCellValue(data2, miss);
         EmitAccessCheck(expected_native_context, p->context, p->receiver, &done,
                         miss);
@@ -722,7 +722,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       },
       miss, ic_mode);
 
-  Node* maybe_holder_cell = LoadHandlerDataField(handler, 1);
+  TNode<Object> maybe_holder_cell = CAST(LoadHandlerDataField(handler, 1));
 
   Label load_from_cached_holder(this), done(this);
 
@@ -733,7 +733,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
     // For regular holders, having passed the receiver map check and the
     // validity cell check implies that |holder| is alive. However, for
     // global object receivers, the |maybe_holder_cell| may be cleared.
-    Node* holder = LoadWeakCellValue(maybe_holder_cell, miss);
+    Node* holder = LoadWeakCellValue(CAST(maybe_holder_cell), miss);
 
     var_holder->Bind(holder);
     Goto(&done);
@@ -1220,9 +1220,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       BIND(&if_transitioning_element_store);
       {
-        Node* transition_map_cell = LoadHandlerDataField(handler, 1);
-        Node* transition_map = LoadWeakCellValue(transition_map_cell, miss);
-        CSA_ASSERT(this, IsMap(transition_map));
+        TNode<MaybeObject> maybe_transition_map =
+            LoadHandlerDataField(handler, 1);
+        TNode<Map> transition_map =
+            CAST(ToWeakHeapObject(maybe_transition_map, miss));
 
         GotoIf(IsDeprecatedMap(transition_map), miss);
 
@@ -1262,7 +1263,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)),
            &if_add_normal);
 
-    Node* holder_cell = LoadHandlerDataField(handler, 1);
+    TNode<WeakCell> holder_cell = CAST(LoadHandlerDataField(handler, 1));
     Node* holder = LoadWeakCellValue(holder_cell, miss);
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
@@ -1321,8 +1322,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // the access check is enabled for this handler or not.
       TNode<Object> context_cell = Select<Object>(
           IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
-          [=] { return LoadHandlerDataField(handler, 3); },
-          [=] { return LoadHandlerDataField(handler, 2); });
+          [=] { return CAST(LoadHandlerDataField(handler, 3)); },
+          [=] { return CAST(LoadHandlerDataField(handler, 2)); });
 
       Node* context = LoadWeakCellValueUnchecked(CAST(context_cell));
 
@@ -3078,9 +3079,10 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
 
       BIND(&if_transitioning_element_store);
       {
-        Node* transition_map_cell = LoadHandlerDataField(CAST(handler), 1);
-        Node* transition_map = LoadWeakCellValue(transition_map_cell, &miss);
-        CSA_ASSERT(this, IsMap(transition_map));
+        TNode<MaybeObject> maybe_transition_map =
+            LoadHandlerDataField(CAST(handler), 1);
+        TNode<Map> transition_map =
+            CAST(ToWeakHeapObject(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
         Node* code = LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
         CSA_ASSERT(this, IsCode(code));

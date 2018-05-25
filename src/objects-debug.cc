@@ -1629,7 +1629,7 @@ void DataHandler::DataHandlerVerify() {
   CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    VerifyObjectField(kData1Offset);
+    VerifyMaybeObjectField(kData1Offset);
   }
   if (data_count >= 2) {
     VerifyObjectField(kData2Offset);

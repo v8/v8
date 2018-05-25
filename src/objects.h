@@ -1869,6 +1869,7 @@ class HeapObject: public Object {
 #ifdef VERIFY_HEAP
   inline void VerifyObjectField(int offset);
   inline void VerifySmiField(int offset);
+  inline void VerifyMaybeObjectField(int offset);
 
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
