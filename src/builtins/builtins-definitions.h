@@ -1242,6 +1242,9 @@ namespace internal {
   TFS(StringAdd_ConvertRight_NotTenured, kLeft, kRight)                        \
                                                                                \
   /* Miscellaneous */                                                          \
+  ASM(CallApiCallback_Argc0)                                                   \
+  ASM(CallApiCallback_Argc1)                                                   \
+  ASM(CallApiGetter)                                                           \
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
   ASM(MathPowInternal)

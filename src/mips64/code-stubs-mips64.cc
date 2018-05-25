@@ -222,6 +222,19 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (masm->root_array_available() &&
+      isolate()->ShouldLoadConstantsFromRootList()) {
+    // This is basically an inlined version of Call(Handle<Code>) that loads the
+    // code object into kScratchReg instead of t9.
+    __ Move(t9, target);
+    __ LookupConstant(kScratchReg, GetCode());
+    __ Daddu(kScratchReg, kScratchReg,
+             Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ Call(kScratchReg);
+    return;
+  }
+#endif
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(t9, target);
@@ -620,7 +633,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
 
   // Additional parameter is the address of the actual callback.
-  __ li(t9, Operand(thunk_ref));
+  __ li(t9, thunk_ref);
   __ jmp(&end_profiler_check);
 
   __ bind(&profiler_disabled);
@@ -628,7 +641,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.
-  __ li(s5, Operand(next_address));
+  __ li(s5, next_address);
   __ Ld(s0, MemOperand(s5, kNextOffset));
   __ Ld(s1, MemOperand(s5, kLimitOffset));
   __ Lw(s2, MemOperand(s5, kLevelOffset));

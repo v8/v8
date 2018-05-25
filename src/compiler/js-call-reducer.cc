@@ -2887,8 +2887,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<CallHandlerInfo> call_handler_info(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
   Handle<Object> data(call_handler_info->data(), isolate());
-  CallApiCallbackStub stub(isolate(), argc);
-  CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
+  Callable call_api_callback = CodeFactory::CallApiCallback(isolate(), argc);
+  CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), cid,
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
@@ -2901,7 +2901,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   ExternalReference function_reference = ExternalReference::Create(
       &api_function, ExternalReference::DIRECT_API_CALL);
   node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(stub.GetCode()));
+                    jsgraph()->HeapConstant(call_api_callback.code()));
   node->ReplaceInput(1, context);
   node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(data));
   node->InsertInput(graph()->zone(), 3, holder);

@@ -894,8 +894,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   __ Ldr(data, FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
-  __ Mov(isolate_address,
-         Operand(ExternalReference::isolate_address(isolate())));
+  __ Mov(isolate_address, ExternalReference::isolate_address(isolate()));
   __ Ldr(name, FieldMemOperand(callback, AccessorInfo::kNameOffset));
 
   // PropertyCallbackArguments:

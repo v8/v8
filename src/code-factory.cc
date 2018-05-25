@@ -70,14 +70,25 @@ Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
 
 // static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
-  CallApiGetterStub stub(isolate);
-  return make_callable(stub);
+  return Callable(BUILTIN_CODE(isolate, CallApiGetter),
+                  ApiGetterDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::CallApiCallback(Isolate* isolate, int argc) {
-  CallApiCallbackStub stub(isolate, argc);
-  return make_callable(stub);
+  switch (argc) {
+    case 0:
+      return Callable(BUILTIN_CODE(isolate, CallApiCallback_Argc0),
+                      ApiCallbackDescriptor(isolate));
+    case 1:
+      return Callable(BUILTIN_CODE(isolate, CallApiCallback_Argc1),
+                      ApiCallbackDescriptor(isolate));
+    default: {
+      CallApiCallbackStub stub(isolate, argc);
+      return make_callable(stub);
+    }
+  }
+  UNREACHABLE();
 }
 
 // static

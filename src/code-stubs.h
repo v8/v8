@@ -545,7 +545,7 @@ class CallApiCallbackStub : public PlatformCodeStub {
 
   CallApiCallbackStub(Isolate* isolate, int argc)
       : PlatformCodeStub(isolate) {
-    CHECK_LE(0, argc);
+    CHECK_LE(0, argc);  // The argc in {0, 1} cases are covered by builtins.
     CHECK_LE(argc, kArgMax);
     minor_key_ = ArgumentBits::encode(argc);
   }
@@ -555,14 +555,20 @@ class CallApiCallbackStub : public PlatformCodeStub {
 
   class ArgumentBits : public BitField<int, 0, kArgBits> {};
 
+  friend class Builtins;  // For generating the related builtin.
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiCallback);
   DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
 };
 
-// TODO(jgruber): Convert this stub into a builtin.
+// TODO(jgruber): This stub only exists to avoid code duplication between
+// code-stubs-<arch>.cc and builtins-<arch>.cc. If CallApiCallbackStub is ever
+// completely removed, CallApiGetterStub can also be deleted.
 class CallApiGetterStub : public PlatformCodeStub {
- public:
+ private:
+  // For generating the related builtin.
   explicit CallApiGetterStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+  friend class Builtins;
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiGetter);
   DEFINE_PLATFORM_CODE_STUB(CallApiGetter, PlatformCodeStub);

@@ -1736,9 +1736,9 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
-  CallApiCallbackStub stub(isolate(), argc);
+  Callable call_api_callback = CodeFactory::CallApiCallback(isolate(), argc);
   CallInterfaceDescriptor call_interface_descriptor =
-      stub.GetCallInterfaceDescriptor();
+      call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), call_interface_descriptor,
       call_interface_descriptor.GetStackParameterCount() + argc +
@@ -1751,7 +1751,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* function_reference =
       graph()->NewNode(common()->ExternalConstant(ExternalReference::Create(
           &function, ExternalReference::DIRECT_API_CALL)));
-  Node* code = jsgraph()->HeapConstant(stub.GetCode());
+  Node* code = jsgraph()->HeapConstant(call_api_callback.code());
 
   // Add CallApiCallbackStub's register argument as well.
   Node* context = jsgraph()->Constant(native_context());

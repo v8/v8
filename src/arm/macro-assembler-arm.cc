@@ -155,14 +155,14 @@ void TurboAssembler::LookupConstant(Register destination,
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
       Heap::kBuiltinsConstantsTableRootIndex));
 
-  // The ldr call below could end up clobbering the destination register when
-  // the offset does not fit into 12 bits (and thus needs to be loaded from the
-  // constant pool). In that case, we need to be extra-careful and temporarily
-  // use another register as the target.
+  // The ldr call below could end up clobbering ip when the offset does not fit
+  // into 12 bits (and thus needs to be loaded from the constant pool). In that
+  // case, we need to be extra-careful and temporarily use another register as
+  // the target.
 
   const uint32_t offset =
       FixedArray::kHeaderSize + index * kPointerSize - kHeapObjectTag;
-  const bool could_clobber_ip = !is_uint12(offset) && destination == ip;
+  const bool could_clobber_ip = !is_uint12(offset);
 
   Register reg = destination;
   if (could_clobber_ip) {
