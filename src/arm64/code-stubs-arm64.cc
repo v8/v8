@@ -29,13 +29,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  // It is important that the following stubs are generated in this order
-  // because pregenerated stubs can only call other pregenerated stubs.
-  CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
-  StoreFastElementStub::GenerateAheadOfTime(isolate);
-}
-
 // This is the entry point from C++. 5 arguments are provided in x0-x4.
 // See use of the JSEntryFunction for example in src/execution.cc.
 // Input:
@@ -314,36 +307,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   // Branch to the stub.
   __ Mov(x10, target);
   __ Call(GetCode(), RelocInfo::CODE_TARGET);
-}
-
-template<class T>
-static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  int to_index =
-      GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= to_index; ++i) {
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    T stub(isolate, kind);
-    stub.GetCode();
-    if (AllocationSite::ShouldTrack(kind)) {
-      T stub1(isolate, kind, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode();
-    }
-  }
-}
-
-void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
-      isolate);
-  ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
-      isolate);
-  ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
-  for (int i = 0; i < 2; i++) {
-    // For internal arrays we only need a few things
-    InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
-    stubh1.GetCode();
-    InternalArraySingleArgumentConstructorStub stubh2(isolate, kinds[i]);
-    stubh2.GetCode();
-  }
 }
 
 // The number of register that CallApiFunctionAndReturn will need to save on

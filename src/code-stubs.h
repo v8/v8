@@ -5,24 +5,16 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
-#include "src/allocation.h"
-#include "src/assembler.h"
-#include "src/globals.h"
-#include "src/heap/factory.h"
 #include "src/interface-descriptors.h"
-#include "src/macro-assembler.h"
-#include "src/ostreams.h"
 #include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CodeStubAssembler;
+class Isolate;
 namespace compiler {
-class CodeAssemblerLabel;
 class CodeAssemblerState;
-class Node;
 }
 
 // List of code stubs used on all platforms.

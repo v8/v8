@@ -30,11 +30,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
-  StoreFastElementStub::GenerateAheadOfTime(isolate);
-}
-
 void JSEntryStub::Generate(MacroAssembler* masm) {
   // r0: code entry
   // r1: function
@@ -316,36 +311,6 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Also pop pc to get Ret(0).
   __ ldm(ia_w, sp, kSavedRegs | pc.bit());
-}
-
-template<class T>
-static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  int to_index =
-      GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= to_index; ++i) {
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    T stub(isolate, kind);
-    stub.GetCode();
-    if (AllocationSite::ShouldTrack(kind)) {
-      T stub1(isolate, kind, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode();
-    }
-  }
-}
-
-void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
-      isolate);
-  ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
-      isolate);
-  ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
-  for (int i = 0; i < 2; i++) {
-    // For internal arrays we only need a few things
-    InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
-    stubh1.GetCode();
-    InternalArraySingleArgumentConstructorStub stubh2(isolate, kinds[i]);
-    stubh2.GetCode();
-  }
 }
 
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
