@@ -344,7 +344,7 @@ class Code : public HeapObject {
 #endif  // DEBUG
 
 #ifdef V8_EMBEDDED_BUILTINS
-  bool IsProcessIndependent();
+  bool IsProcessIndependent(Isolate* isolate);
 #endif
 
   inline bool CanContainWeakObjects();

@@ -60,6 +60,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class EmbeddedData;
 class InstructionStream;
 class Isolate;
 class SCTableReference;
@@ -679,6 +680,10 @@ class RelocIterator: public Malloced {
   // Relocation information with mode k is included in the
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(Code* code, int mode_mask = -1);
+#ifdef V8_EMBEDDED_BUILTINS
+  explicit RelocIterator(EmbeddedData* embedded_data, Code* code,
+                         int mode_mask);
+#endif  // V8_EMBEDDED_BUILTINS
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
   explicit RelocIterator(const CodeReference code_reference,
                          int mode_mask = -1);

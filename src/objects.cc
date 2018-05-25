@@ -14250,7 +14250,7 @@ const char* AbstractCode::Kind2String(Kind kind) {
 }
 
 #ifdef V8_EMBEDDED_BUILTINS
-bool Code::IsProcessIndependent() {
+bool Code::IsProcessIndependent(Isolate* isolate) {
   constexpr int all_real_modes_mask =
       (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
   constexpr int mode_mask =
@@ -14273,8 +14273,22 @@ bool Code::IsProcessIndependent() {
        RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
        RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
 
-  RelocIterator it(this, mode_mask);
-  return it.done();
+  bool is_process_independent = true;
+  for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
+    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+      // Off-heap code targets are later rewritten as pc-relative jumps to the
+      // off-heap instruction stream and are thus process-independent.
+      Address target_address = it.rinfo()->target_address();
+      if (InstructionStream::PcIsOffHeap(isolate, target_address)) continue;
+
+      Code* target = Code::GetCodeFromTargetAddress(target_address);
+      CHECK(target->IsCode());
+      if (Builtins::IsEmbeddedBuiltin(target)) continue;
+    }
+    is_process_independent = false;
+  }
+
+  return is_process_independent;
 }
 #endif
 

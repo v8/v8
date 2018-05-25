@@ -691,7 +691,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
 #ifdef V8_EMBEDDED_BUILTINS
-  TNode<HeapObject> LookupConstant(Handle<HeapObject> object);
   TNode<ExternalReference> LookupExternalReference(ExternalReference reference);
 #endif
 

@@ -33,6 +33,10 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
+  // Must be on the main thread.
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+
+  // Must be serializing.
   DCHECK(isolate_->serializer_enabled());
 #endif
 

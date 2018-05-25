@@ -2599,7 +2599,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {
-        __ Mov(dst, src_object);
+        __ Move(dst, src_object);
       }
     } else {
       __ Mov(dst, g.ToImmediate(source));

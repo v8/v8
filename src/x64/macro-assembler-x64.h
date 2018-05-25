@@ -391,6 +391,12 @@ class TurboAssembler : public Assembler {
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
 
+  void Jump(Address destination, RelocInfo::Mode rmode);
+  void Jump(ExternalReference ext);
+  void Jump(Operand op);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+            Condition cc = always);
+
   void RetpolineJump(Register reg);
 
   void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
@@ -760,14 +766,6 @@ class MacroAssembler : public TurboAssembler {
   void Negps(XMMRegister dst);
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
-
-  // Control Flow
-  void Jump(Address destination, RelocInfo::Mode rmode);
-  void Jump(ExternalReference ext);
-  void Jump(Operand op);
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
-            Condition cc = always);
-
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
 
