@@ -386,7 +386,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
            IsOrrImmed(Memory::int32_at(pc + 2 * kInstrSize)) &&
            IsOrrImmed(Memory::int32_at(pc + 3 * kInstrSize)));
     uint32_t* instr_ptr = reinterpret_cast<uint32_t*>(pc);
-    uint32_t immediate = reinterpret_cast<uint32_t>(target);
+    uint32_t immediate = static_cast<uint32_t>(target);
     instr_ptr[0] = PatchShiftImm(instr_ptr[0], immediate & kImm8Mask);
     instr_ptr[1] = PatchShiftImm(instr_ptr[1], immediate & (kImm8Mask << 8));
     instr_ptr[2] = PatchShiftImm(instr_ptr[2], immediate & (kImm8Mask << 16));
