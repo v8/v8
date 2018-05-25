@@ -857,11 +857,18 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
 }
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
-                          FunctionBody& body) {
+                          FunctionBody& body,
+                          compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(
       &zone, builder->module(), body, builder);
+  if (node_origins) {
+    builder->AddBytecodePositionDecorator(node_origins, &decoder);
+  }
   decoder.Decode();
+  if (node_origins) {
+    builder->RemoveBytecodePositionDecorator();
+  }
   return decoder.toResult(nullptr);
 }
 
@@ -907,15 +914,17 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module, PrintLocals print_locals,
-                      std::ostream& os) {
+                      std::ostream& os, std::vector<int>* line_numbers) {
   Zone zone(allocator, ZONE_NAME);
   WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
                                             body.end);
   int line_nr = 0;
+  constexpr int kNoByteCode = -1;
 
   // Print the function signature.
   if (body.sig) {
     os << "// signature: " << *body.sig << std::endl;
+    if (line_numbers) line_numbers->push_back(kNoByteCode);
     ++line_nr;
   }
 
@@ -938,16 +947,19 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       }
     }
     os << std::endl;
+    if (line_numbers) line_numbers->push_back(kNoByteCode);
     ++line_nr;
 
     for (const byte* locals = body.start; locals < i.pc(); locals++) {
       os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";
     }
     os << std::endl;
+    if (line_numbers) line_numbers->push_back(kNoByteCode);
     ++line_nr;
   }
 
   os << "// body: " << std::endl;
+  if (line_numbers) line_numbers->push_back(kNoByteCode);
   ++line_nr;
   unsigned control_depth = 0;
   for (; i.has_next(); i.next()) {
@@ -955,6 +967,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, i.pc());
 
     WasmOpcode opcode = i.current();
+    if (line_numbers) line_numbers->push_back(i.position());
     if (opcode == kExprElse) control_depth--;
 
     int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
@@ -1051,6 +1064,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     os << std::endl;
     ++line_nr;
   }
+  DCHECK(!line_numbers || line_numbers->size() == static_cast<size_t>(line_nr));
 
   return decoder.ok();
 }

@@ -759,12 +759,22 @@ PipelineStatistics* CreatePipelineStatistics(wasm::FunctionBody function_body,
     json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";
     AccountingAllocator allocator;
     std::ostringstream disassembly;
+    std::vector<int> source_positions;
     wasm::PrintRawWasmCode(&allocator, function_body, wasm_module,
-                           wasm::kPrintLocals, disassembly);
+                           wasm::kPrintLocals, disassembly, &source_positions);
     for (const auto& c : disassembly.str()) {
       json_of << AsEscapedUC16ForJSON(c);
     }
-    json_of << "\",\n\"phases\":[";
+    json_of << "\",\n\"sourceLineToBytecodePosition\" : [";
+    bool insert_comma = false;
+    for (auto val : source_positions) {
+      if (insert_comma) {
+        json_of << ", ";
+      }
+      json_of << val;
+      insert_comma = true;
+    }
+    json_of << "],\n\"phases\":[";
   }
 
   return pipeline_statistics;
@@ -986,6 +996,10 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
     pipeline_.RunPrintAndVerify("wasm optimization", true);
+  }
+
+  if (data_.node_origins()) {
+    data_.node_origins()->RemoveDecorator();
   }
 
   pipeline_.ComputeScheduledGraph();

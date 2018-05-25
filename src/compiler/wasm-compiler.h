@@ -29,8 +29,10 @@ class CallDescriptor;
 class Graph;
 class MachineGraph;
 class Node;
+class NodeOriginTable;
 class Operator;
 class SourcePositionTable;
+class WasmDecorator;
 }  // namespace compiler
 
 namespace wasm {
@@ -78,7 +80,8 @@ class TurbofanWasmCompilationUnit {
   explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
   ~TurbofanWasmCompilationUnit();
 
-  SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
+  SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms,
+                                                 NodeOriginTable* node_origins);
 
   void ExecuteCompilation();
 
@@ -331,6 +334,11 @@ class WasmGraphBuilder {
   MachineGraph* mcgraph() { return mcgraph_; }
   Graph* graph();
 
+  void AddBytecodePositionDecorator(NodeOriginTable* node_origins,
+                                    wasm::Decoder* decoder);
+
+  void RemoveBytecodePositionDecorator();
+
  protected:
   static const int kDefaultBufferSize = 16;
 
@@ -360,6 +368,8 @@ class WasmGraphBuilder {
   const bool untrusted_code_mitigations_ = true;
 
   wasm::FunctionSig* const sig_;
+
+  compiler::WasmDecorator* decorator_ = nullptr;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 

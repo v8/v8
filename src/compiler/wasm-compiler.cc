@@ -3946,6 +3946,35 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #undef ATOMIC_LOAD_LIST
 #undef ATOMIC_STORE_LIST
 
+class WasmDecorator final : public GraphDecorator {
+ public:
+  explicit WasmDecorator(NodeOriginTable* origins, wasm::Decoder* decoder)
+      : origins_(origins), decoder_(decoder) {}
+
+  void Decorate(Node* node) final {
+    origins_->SetNodeOrigin(
+        node, NodeOrigin("wasm graph creation", "n/a",
+                         NodeOrigin::kWasmBytecode, decoder_->position()));
+  }
+
+ private:
+  compiler::NodeOriginTable* origins_;
+  wasm::Decoder* decoder_;
+};
+
+void WasmGraphBuilder::AddBytecodePositionDecorator(
+    NodeOriginTable* node_origins, wasm::Decoder* decoder) {
+  DCHECK_NULL(decorator_);
+  decorator_ = new (graph()->zone()) WasmDecorator(node_origins, decoder);
+  graph()->AddDecorator(decorator_);
+}
+
+void WasmGraphBuilder::RemoveBytecodePositionDecorator() {
+  DCHECK_NOT_NULL(decorator_);
+  graph()->RemoveDecorator(decorator_);
+  decorator_ = nullptr;
+}
+
 namespace {
 bool must_record_function_compilation(Isolate* isolate) {
   return isolate->logger()->is_listening_to_code_events() ||
@@ -4992,7 +5021,7 @@ TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 
 SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
-    double* decode_ms) {
+    double* decode_ms, NodeOriginTable* node_origins) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
@@ -5004,8 +5033,9 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   WasmGraphBuilder builder(wasm_unit_->isolate_, wasm_unit_->env_,
                            mcgraph_->zone(), mcgraph_, wasm_unit_->centry_stub_,
                            wasm_unit_->func_body_.sig, source_position_table);
-  graph_construction_result_ = wasm::BuildTFGraph(
-      wasm_unit_->isolate_->allocator(), &builder, wasm_unit_->func_body_);
+  graph_construction_result_ =
+      wasm::BuildTFGraph(wasm_unit_->isolate_->allocator(), &builder,
+                         wasm_unit_->func_body_, node_origins);
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
       OFStream os(stdout);
@@ -5072,30 +5102,10 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
                          &graph_zone, MachineType::PointerRepresentation(),
                          InstructionSelector::SupportedMachineOperatorFlags(),
                          InstructionSelector::AlignmentRequirements()));
-    SourcePositionTable* source_positions =
-        BuildGraphForWasmFunction(&decode_ms);
-
-    if (graph_construction_result_.failed()) {
-      ok_ = false;
-      return;
-    }
-
-    base::ElapsedTimer pipeline_timer;
-    if (FLAG_trace_wasm_decode_time) {
-      node_count = mcgraph_->graph()->NodeCount();
-      pipeline_timer.Start();
-    }
 
     compilation_zone_.reset(
         new Zone(wasm_unit_->isolate_->allocator(), ZONE_NAME));
 
-    // Run the compiler pipeline to generate machine code.
-    auto call_descriptor = GetWasmCallDescriptor(compilation_zone_.get(),
-                                                 wasm_unit_->func_body_.sig);
-    if (mcgraph_->machine()->Is32()) {
-      call_descriptor =
-          GetI32WasmCallDescriptor(compilation_zone_.get(), call_descriptor);
-    }
     info_.reset(new OptimizedCompilationInfo(
         GetDebugName(compilation_zone_.get(), wasm_unit_->func_name_,
                      wasm_unit_->func_index_),
@@ -5105,6 +5115,31 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
                                         ? new (&graph_zone)
                                               NodeOriginTable(mcgraph_->graph())
                                         : nullptr;
+    SourcePositionTable* source_positions =
+        BuildGraphForWasmFunction(&decode_ms, node_origins);
+
+    if (graph_construction_result_.failed()) {
+      ok_ = false;
+      return;
+    }
+
+    if (node_origins) {
+      node_origins->AddDecorator();
+    }
+
+    base::ElapsedTimer pipeline_timer;
+    if (FLAG_trace_wasm_decode_time) {
+      node_count = mcgraph_->graph()->NodeCount();
+      pipeline_timer.Start();
+    }
+
+    // Run the compiler pipeline to generate machine code.
+    auto call_descriptor = GetWasmCallDescriptor(compilation_zone_.get(),
+                                                 wasm_unit_->func_body_.sig);
+    if (mcgraph_->machine()->Is32()) {
+      call_descriptor =
+          GetI32WasmCallDescriptor(compilation_zone_.get(), call_descriptor);
+    }
 
     job_.reset(Pipeline::NewWasmCompilationJob(
         info_.get(), wasm_unit_->isolate_, mcgraph_, call_descriptor,

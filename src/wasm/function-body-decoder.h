@@ -20,6 +20,7 @@ class BitVector;  // forward declaration
 class Counters;
 
 namespace compiler {  // external declarations from compiler.
+class NodeOriginTable;
 class WasmGraphBuilder;
 }
 
@@ -53,7 +54,8 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
                                      Counters* counters);
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
-                          FunctionBody& body);
+                          FunctionBody& body,
+                          compiler::NodeOriginTable* node_origins);
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
@@ -62,7 +64,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module, PrintLocals print_locals,
-                      std::ostream& out);
+                      std::ostream& out,
+                      std::vector<int>* line_numbers = nullptr);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintRawWasmCode(const byte* start, const byte* end);
@@ -78,7 +81,7 @@ inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                                  TFBuilder* builder, FunctionSig* sig,
                                  const byte* start, const byte* end) {
   FunctionBody body(sig, 0, start, end);
-  return BuildTFGraph(allocator, builder, body);
+  return BuildTFGraph(allocator, builder, body, nullptr);
 }
 
 struct BodyLocalDecls {
