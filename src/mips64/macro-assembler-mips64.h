@@ -131,18 +131,6 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
-inline MemOperand UntagSmiMemOperand(Register rm, int offset) {
-  // Assumes that Smis are shifted by 32 bits.
-  STATIC_ASSERT(kSmiShift == 32);
-  return MemOperand(rm, SmiWordOffset(offset));
-}
-
-
-inline MemOperand UntagSmiFieldMemOperand(Register rm, int offset) {
-  return UntagSmiMemOperand(rm, offset - kHeapObjectTag);
-}
-
-
 // Generate a MemOperand for storing arguments 5..N on the stack
 // when calling CallCFunction().
 // TODO(plind): Currently ONLY used for O32. Should be fixed for
@@ -508,6 +496,7 @@ class TurboAssembler : public Assembler {
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
 
+  void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
       STATIC_ASSERT(kSmiShift == 32);
@@ -1198,9 +1187,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
       sll(dst, src, scale - kSmiTagSize);
     }
   }
-
-  // Combine load with untagging or scaling.
-  void SmiLoadUntag(Register dst, MemOperand src);
 
   // Test if the register contains a smi.
   inline void SmiTst(Register value, Register scratch) {

@@ -266,8 +266,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // Restore smi-tagged arguments count from the frame. Use fp relative
     // addressing to avoid the circular dependency between padding existence and
     // argc parity.
-    __ Ldrsw(x1,
-             UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
 
@@ -351,8 +350,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Restore constructor function and argument count.
     __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-    __ Ldrsw(x12,
-             UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(x12, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
 
     // Copy arguments to the expression stack. The called function pops the
     // receiver along with its arguments, so we need an extra receiver on the
@@ -451,8 +449,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     __ Bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
-    __ Ldrsw(x1,
-             UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
   // Remove caller arguments from the stack and return.
@@ -1124,7 +1121,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ JumpIfRoot(x10, Heap::kUndefinedValueRootIndex, &bytecode_array_loaded);
 
   __ Mov(kInterpreterBytecodeArrayRegister, x10);
-  __ Ldr(x10, UntagSmiFieldMemOperand(x11, DebugInfo::kFlagsOffset));
+  __ SmiUntag(x10, FieldMemOperand(x11, DebugInfo::kFlagsOffset));
   __ And(x10, x10, Immediate(DebugInfo::kDebugExecutionMode));
 
   STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
@@ -1659,7 +1656,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ JumpIfSmi(x0, &failed);
 
     // Peek the argument count from the stack, untagging at the same time.
-    __ Ldr(w4, UntagSmiMemOperand(sp, 3 * kPointerSize));
+    __ SmiUntag(x4, MemOperand(sp, 3 * kPointerSize));
     __ Drop(4);
     scope.GenerateLeaveFrame();
 
@@ -1803,9 +1800,9 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ Ldrsw(w1, UntagSmiFieldMemOperand(
-                   x1, FixedArray::OffsetOfElementAt(
-                           DeoptimizationData::kOsrPcOffsetIndex)));
+  __ SmiUntag(x1,
+              FieldMemOperand(x1, FixedArray::OffsetOfElementAt(
+                                      DeoptimizationData::kOsrPcOffsetIndex)));
 
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
@@ -2340,9 +2337,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ Bind(&arguments_adaptor);
     {
       // Just load the length from ArgumentsAdaptorFrame.
-      __ Ldrsw(len,
-               UntagSmiMemOperand(
-                   args_fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+      __ SmiUntag(
+          len,
+          MemOperand(args_fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
     }
     __ Bind(&arguments_done);
   }
@@ -2489,8 +2486,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ Ldr(bound_argv,
          FieldMemOperand(x1, JSBoundFunction::kBoundArgumentsOffset));
-  __ Ldrsw(bound_argc,
-           UntagSmiFieldMemOperand(bound_argv, FixedArray::kLengthOffset));
+  __ SmiUntag(bound_argc,
+              FieldMemOperand(bound_argv, FixedArray::kLengthOffset));
   __ Cbz(bound_argc, &no_bound_arguments);
   {
     // ----------- S t a t e -------------
@@ -3620,9 +3617,9 @@ void Builtins::Generate_ArrayConstructorImpl(MacroAssembler* masm) {
   // Get the elements kind and case on that.
   __ JumpIfRoot(allocation_site, Heap::kUndefinedValueRootIndex, &no_info);
 
-  __ Ldrsw(kind, UntagSmiFieldMemOperand(
-                     allocation_site,
-                     AllocationSite::kTransitionInfoOrBoilerplateOffset));
+  __ SmiUntag(kind, FieldMemOperand(
+                        allocation_site,
+                        AllocationSite::kTransitionInfoOrBoilerplateOffset));
   __ And(kind, kind, AllocationSite::ElementsKindBits::kMask);
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 

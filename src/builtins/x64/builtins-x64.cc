@@ -65,10 +65,10 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
   // Unconditionally insert argc, target and new target as extra arguments. They
   // will be used by stack frame iterators when constructing the stack trace.
   __ PopReturnAddressTo(kScratchRegister);
-  __ Integer32ToSmi(rax, rax);
+  __ SmiTag(rax, rax);
   __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
   __ Push(rax);
-  __ SmiToInteger32(rax, rax);
+  __ SmiUntag(rax, rax);
   __ Push(rdi);
   __ Push(rdx);
   __ PushReturnAddressFrom(kScratchRegister);
@@ -100,7 +100,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push the number of arguments to the callee.
-    __ Integer32ToSmi(rax, rax);
+    __ SmiTag(rax, rax);
     __ Push(rax);
     // Push a copy of the target function and the new target.
     __ Push(rdi);
@@ -115,7 +115,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ Pop(rdx);
     __ Pop(rdi);
     __ Pop(rax);
-    __ SmiToInteger32(rax, rax);
+    __ SmiUntag(rax, rax);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
@@ -137,7 +137,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-    __ Integer32ToSmi(rcx, rax);
+    __ SmiTag(rcx, rax);
     __ Push(rsi);
     __ Push(rcx);
 
@@ -208,7 +208,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     Label post_instantiation_deopt_entry, not_create_implicit_receiver;
 
     // Preserve the incoming parameters on the stack.
-    __ Integer32ToSmi(rcx, rax);
+    __ SmiTag(rcx, rax);
     __ Push(rsi);
     __ Push(rcx);
     __ Push(rdi);
@@ -271,8 +271,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Restore constructor function and argument count.
     __ movp(rdi, Operand(rbp, ConstructFrameConstants::kConstructorOffset));
-    __ SmiToInteger32(rax,
-                      Operand(rbp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(rax, Operand(rbp, ConstructFrameConstants::kLengthOffset));
 
     // Set up pointer to last argument.
     __ leap(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
@@ -952,7 +951,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Push bytecode array and Smi tagged bytecode offset.
   __ Push(kInterpreterBytecodeArrayRegister);
-  __ Integer32ToSmi(rcx, kInterpreterBytecodeOffsetRegister);
+  __ SmiTag(rcx, kInterpreterBytecodeOffsetRegister);
   __ Push(rcx);
 
   // Allocate the local and temporary register file on the stack.
@@ -1022,8 +1021,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiToInteger32(kInterpreterBytecodeOffsetRegister,
-                    kInterpreterBytecodeOffsetRegister);
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
+              kInterpreterBytecodeOffsetRegister);
 
   // Either return, or advance to the next bytecode and dispatch.
   Label do_return;
@@ -1051,7 +1050,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                 &bytecode_array_loaded);
 
   __ movp(kInterpreterBytecodeArrayRegister, kScratchRegister);
-  __ SmiToInteger32(rax, FieldOperand(rcx, DebugInfo::kFlagsOffset));
+  __ SmiUntag(rax, FieldOperand(rcx, DebugInfo::kFlagsOffset));
   __ andb(rax, Immediate(DebugInfo::kDebugExecutionMode));
   STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
                 static_cast<int>(DebugInfo::kSideEffects));
@@ -1265,8 +1264,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Get the target bytecode offset from the frame.
   __ movp(kInterpreterBytecodeOffsetRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiToInteger32(kInterpreterBytecodeOffsetRegister,
-                    kInterpreterBytecodeOffsetRegister);
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
+              kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
   __ movzxbp(r11, Operand(kInterpreterBytecodeArrayRegister,
@@ -1283,8 +1282,8 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiToInteger32(kInterpreterBytecodeOffsetRegister,
-                    kInterpreterBytecodeOffsetRegister);
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
+              kInterpreterBytecodeOffsetRegister);
 
   // Load the current bytecode.
   __ movzxbp(rbx, Operand(kInterpreterBytecodeArrayRegister,
@@ -1297,7 +1296,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
                                 &if_return);
 
   // Convert new bytecode offset to a Smi and save in the stackframe.
-  __ Integer32ToSmi(rbx, kInterpreterBytecodeOffsetRegister);
+  __ SmiTag(rbx, kInterpreterBytecodeOffsetRegister);
   __ movp(Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp), rbx);
 
   Generate_InterpreterEnterBytecode(masm);
@@ -1479,7 +1478,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
   {
     // Load the code object at builtins_table[builtin_id] into scratch1.
 
-    __ SmiToInteger32(scratch1, scratch1);
+    __ SmiUntag(scratch1, scratch1);
     __ Move(scratch0, ExternalReference::builtins_address(masm->isolate()));
     __ movp(scratch1, Operand(scratch0, scratch1, times_pointer_size, 0));
 
@@ -1524,7 +1523,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     // Preserve argument count for later compare.
     __ movp(rcx, rax);
     // Push the number of arguments to the callee.
-    __ Integer32ToSmi(rax, rax);
+    __ SmiTag(rax, rax);
     __ Push(rax);
     // Push a copy of the target function and the new target.
     __ Push(rdi);
@@ -1561,7 +1560,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     __ Drop(2);
     __ Pop(rcx);
-    __ SmiToInteger32(rcx, rcx);
+    __ SmiUntag(rcx, rcx);
     scope.GenerateLeaveFrame();
 
     __ PopReturnAddressTo(rbx);
@@ -1575,7 +1574,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ Pop(rdx);
     __ Pop(rdi);
     __ Pop(rax);
-    __ SmiToInteger32(rax, rax);
+    __ SmiUntag(rax, rax);
   }
   // On failure, tail call back to regular js by re-calling the function
   // which has be reset to the compile lazy builtin.
@@ -1602,7 +1601,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     int code = config->GetAllocatableGeneralCode(i);
     __ popq(Register::from_code(code));
     if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
-      __ SmiToInteger32(Register::from_code(code), Register::from_code(code));
+      __ SmiUntag(Register::from_code(code), Register::from_code(code));
     }
   }
   __ movq(
@@ -1948,7 +1947,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Preserve the number of arguments on the stack. Must preserve rax,
   // rbx and rcx because these registers are used when copying the
   // arguments and the receiver.
-  __ Integer32ToSmi(r8, rax);
+  __ SmiTag(r8, rax);
   __ Push(r8);
 
   __ Push(Immediate(0));  // Padding.
@@ -1975,7 +1974,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   //  -- rdx    : requested object size (untagged)
   //  -- rsp[0] : return address
   // -----------------------------------
-  __ Integer32ToSmi(rdx, rdx);
+  __ SmiTag(rdx, rdx);
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);
   __ PushReturnAddressFrom(rcx);
@@ -1989,7 +1988,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   //  -- rdx    : requested object size (untagged)
   //  -- rsp[0] : return address
   // -----------------------------------
-  __ Integer32ToSmi(rdx, rdx);
+  __ SmiTag(rdx, rdx);
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);
   __ Push(Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
@@ -2221,8 +2220,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ jmp(&arguments_done, Label::kNear);
   __ bind(&arguments_adaptor);
   {
-    __ SmiToInteger32(
-        r8, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiUntag(r8,
+                Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ bind(&arguments_done);
 
@@ -2328,7 +2327,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         // TODO(bmeurer): Inline the allocation here to avoid building the frame
         // in the fast case? (fall back to AllocateInNewSpace?)
         FrameScope scope(masm, StackFrame::INTERNAL);
-        __ Integer32ToSmi(rax, rax);
+        __ SmiTag(rax, rax);
         __ Push(rax);
         __ Push(rdi);
         __ movp(rax, rcx);
@@ -2339,7 +2338,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ movp(rcx, rax);
         __ Pop(rdi);
         __ Pop(rax);
-        __ SmiToInteger32(rax, rax);
+        __ SmiUntag(rax, rax);
       }
       __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
       __ bind(&convert_receiver);
@@ -2383,7 +2382,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   // Load [[BoundArguments]] into rcx and length of that into rbx.
   Label no_bound_arguments;
   __ movp(rcx, FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiToInteger32(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ SmiUntag(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
   __ testl(rbx, rbx);
   __ j(zero, &no_bound_arguments);
   {
@@ -2435,7 +2434,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ movp(rcx, FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-      __ SmiToInteger32(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+      __ SmiUntag(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
       __ bind(&loop);
       __ decl(rbx);
       __ movp(kScratchRegister, FieldOperand(rcx, rbx, times_pointer_size,
@@ -2666,10 +2665,9 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
   __ movp(rbx, Operand(rax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
-  __ SmiToInteger32(rbx,
-                    Operand(rbx, FixedArray::OffsetOfElementAt(
-                                     DeoptimizationData::kOsrPcOffsetIndex) -
-                                     kHeapObjectTag));
+  __ SmiUntag(rbx, Operand(rbx, FixedArray::OffsetOfElementAt(
+                                    DeoptimizationData::kOsrPcOffsetIndex) -
+                                    kHeapObjectTag));
 
   // Compute the target address = code_obj + header_size + osr_offset
   __ leap(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
@@ -3252,7 +3250,7 @@ void Builtins::Generate_ArrayConstructorImpl(MacroAssembler* masm) {
   // Only look at the lower 16 bits of the transition info.
   __ movp(rdx, FieldOperand(
                    rbx, AllocationSite::kTransitionInfoOrBoilerplateOffset));
-  __ SmiToInteger32(rdx, rdx);
+  __ SmiUntag(rdx, rdx);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ andp(rdx, Immediate(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);

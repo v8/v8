@@ -357,10 +357,9 @@ class TurboAssembler : public Assembler {
     movp(dst, ptr, rmode);
   }
 
-  // Convert smi to 32-bit integer. I.e., not sign extended into
-  // high 32 bits of destination.
-  void SmiToInteger32(Register dst, Register src);
-  void SmiToInteger32(Register dst, Operand src);
+  // Convert smi to word-size sign-extended value.
+  void SmiUntag(Register dst, Register src);
+  void SmiUntag(Register dst, Operand src);
 
   // Loads the address of the external reference into the destination
   // register.
@@ -681,13 +680,8 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
-  // Tag an integer value. The result must be known to be a valid smi value.
-  // Only uses the low 32 bits of the src register. Sets the N and Z flags
-  // based on the value of the resulting smi.
-  void Integer32ToSmi(Register dst, Register src);
-
-  // Convert smi to 64-bit integer (sign extended if necessary).
-  void SmiToInteger64(Register dst, Register src);
+  // Tag an word-size value. The result must be known to be a valid smi value.
+  void SmiTag(Register dst, Register src);
 
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.

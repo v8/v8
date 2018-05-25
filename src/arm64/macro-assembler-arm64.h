@@ -97,11 +97,6 @@ namespace internal {
 
 // Generate a MemOperand for loading a field from an object.
 inline MemOperand FieldMemOperand(Register object, int offset);
-inline MemOperand UntagSmiFieldMemOperand(Register object, int offset);
-
-// Generate a MemOperand for loading a SMI from memory.
-inline MemOperand UntagSmiMemOperand(Register object, int offset);
-
 
 // ----------------------------------------------------------------------------
 // MacroAssembler
@@ -587,6 +582,7 @@ class TurboAssembler : public Assembler {
                           Register scratch1);
 
   inline void SmiUntag(Register dst, Register src);
+  inline void SmiUntag(Register dst, const MemOperand& src);
   inline void SmiUntag(Register smi);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
@@ -1716,8 +1712,6 @@ class MacroAssembler : public TurboAssembler {
 
   inline void SmiTag(Register dst, Register src);
   inline void SmiTag(Register smi);
-  inline void SmiUntagToDouble(VRegister dst, Register src);
-  inline void SmiUntagToFloat(VRegister dst, Register src);
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
   inline void JumpIfBothSmi(Register value1, Register value2,

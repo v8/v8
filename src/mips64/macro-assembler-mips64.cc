@@ -5346,9 +5346,9 @@ void MacroAssembler::AssertStackIsAligned() {
     }
 }
 
-void MacroAssembler::SmiLoadUntag(Register dst, MemOperand src) {
+void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   if (SmiValuesAre32Bits()) {
-    Lw(dst, UntagSmiMemOperand(src.rm(), src.offset()));
+    Lw(dst, MemOperand(src.rm(), SmiWordOffset(src.offset())));
   } else {
     Lw(dst, src);
     SmiUntag(dst);

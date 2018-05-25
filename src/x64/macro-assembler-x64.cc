@@ -1098,48 +1098,31 @@ void TurboAssembler::Move(Register dst, ExternalReference ext) {
   movp(dst, ext.address(), RelocInfo::EXTERNAL_REFERENCE);
 }
 
-void MacroAssembler::Integer32ToSmi(Register dst, Register src) {
-  STATIC_ASSERT(kSmiTag == 0);
-  if (dst != src) {
-    movl(dst, src);
-  }
-  shlp(dst, Immediate(kSmiShift));
-}
-
-void TurboAssembler::SmiToInteger32(Register dst, Register src) {
+void MacroAssembler::SmiTag(Register dst, Register src) {
   STATIC_ASSERT(kSmiTag == 0);
   if (dst != src) {
     movp(dst, src);
   }
-
-  if (SmiValuesAre32Bits()) {
-    shrp(dst, Immediate(kSmiShift));
-  } else {
-    DCHECK(SmiValuesAre31Bits());
-    sarl(dst, Immediate(kSmiShift));
-  }
+  shlp(dst, Immediate(kSmiShift));
 }
 
-void TurboAssembler::SmiToInteger32(Register dst, Operand src) {
-  if (SmiValuesAre32Bits()) {
-    movl(dst, Operand(src, kSmiShift / kBitsPerByte));
-  } else {
-    DCHECK(SmiValuesAre31Bits());
-    movl(dst, src);
-    sarl(dst, Immediate(kSmiShift));
-  }
-}
-
-
-void MacroAssembler::SmiToInteger64(Register dst, Register src) {
+void TurboAssembler::SmiUntag(Register dst, Register src) {
   STATIC_ASSERT(kSmiTag == 0);
   if (dst != src) {
     movp(dst, src);
   }
   sarp(dst, Immediate(kSmiShift));
-  if (kPointerSize == kInt32Size) {
+}
+
+void TurboAssembler::SmiUntag(Register dst, Operand src) {
+  if (SmiValuesAre32Bits()) {
+    movl(dst, Operand(src, kSmiShift / kBitsPerByte));
     // Sign extend to 64-bit.
     movsxlq(dst, dst);
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    movp(dst, src);
+    sarp(dst, Immediate(kSmiShift));
   }
 }
 
@@ -2385,13 +2368,13 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     if (expected.is_reg()) {
-      Integer32ToSmi(expected.reg(), expected.reg());
+      SmiTag(expected.reg(), expected.reg());
       Push(expected.reg());
     }
     if (actual.is_reg()) {
-      Integer32ToSmi(actual.reg(), actual.reg());
+      SmiTag(actual.reg(), actual.reg());
       Push(actual.reg());
-      SmiToInteger64(actual.reg(), actual.reg());
+      SmiUntag(actual.reg(), actual.reg());
     }
     if (new_target.is_valid()) {
       Push(new_target);
@@ -2406,11 +2389,11 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     }
     if (actual.is_reg()) {
       Pop(actual.reg());
-      SmiToInteger64(actual.reg(), actual.reg());
+      SmiUntag(actual.reg(), actual.reg());
     }
     if (expected.is_reg()) {
       Pop(expected.reg());
-      SmiToInteger64(expected.reg(), expected.reg());
+      SmiUntag(expected.reg(), expected.reg());
     }
   }
   bind(&skip_hook);

@@ -1230,9 +1230,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   }
 
   // Get the target bytecode offset from the frame.
-  __ Lw(
-      kInterpreterBytecodeOffsetRegister,
-      UntagSmiMemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
+              MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   // Dispatch to the target bytecode.
   __ Daddu(a1, kInterpreterBytecodeArrayRegister,
@@ -1305,9 +1304,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
   // IsSmi: Is builtin
   __ JumpIfNotSmi(sfi_data, &check_is_bytecode_array);
   __ li(scratch1, ExternalReference::builtins_address(masm->isolate()));
-  // Avoid untagging the Smi by merging the shift
-  STATIC_ASSERT(kPointerSizeLog2 < kSmiShift);
-  __ dsrl(sfi_data, sfi_data, kSmiShift - kPointerSizeLog2);
+  __ SmiScale(sfi_data, sfi_data, kPointerSizeLog2);
   __ Daddu(scratch1, scratch1, sfi_data);
   __ Ld(sfi_data, MemOperand(scratch1));
   __ Branch(&done);
@@ -1638,9 +1635,9 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ Lw(a1, UntagSmiMemOperand(a1, FixedArray::OffsetOfElementAt(
-                                       DeoptimizationData::kOsrPcOffsetIndex) -
-                                       kHeapObjectTag));
+  __ SmiUntag(a1, MemOperand(a1, FixedArray::OffsetOfElementAt(
+                                     DeoptimizationData::kOsrPcOffsetIndex) -
+                                     kHeapObjectTag));
 
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
@@ -1887,8 +1884,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 }
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  // __ sll(a0, a0, kSmiTagSize);
-  __ dsll32(a0, a0, 0);
+  __ SmiTag(a0);
   __ li(a4, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ MultiPush(a0.bit() | a1.bit() | a4.bit() | fp.bit() | ra.bit());
   __ Push(Smi::kZero);  // Padding.
@@ -2015,8 +2011,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ bind(&arguments_adaptor);
   {
     // Just get the length from the ArgumentsAdaptorFrame.
-    __ Lw(a7, UntagSmiMemOperand(
-                  a6, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiUntag(a7,
+                MemOperand(a6, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ bind(&arguments_done);
 
@@ -2174,7 +2170,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
   __ Ld(a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ Lw(a4, UntagSmiFieldMemOperand(a2, FixedArray::kLengthOffset));
+  __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
 
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
@@ -2221,7 +2217,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Copy [[BoundArguments]] to the stack (below the arguments).
   {
     Label loop, done_loop;
-    __ Lw(a4, UntagSmiFieldMemOperand(a2, FixedArray::kLengthOffset));
+    __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
     __ Daddu(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
     __ bind(&loop);
     __ Dsubu(a4, a4, Operand(1));
@@ -2327,7 +2323,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
   __ Ld(a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ Lw(a4, UntagSmiFieldMemOperand(a2, FixedArray::kLengthOffset));
+  __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
 
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
@@ -2375,7 +2371,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Copy [[BoundArguments]] to the stack (below the arguments).
   {
     Label loop, done_loop;
-    __ Lw(a4, UntagSmiFieldMemOperand(a2, FixedArray::kLengthOffset));
+    __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
     __ Daddu(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
     __ bind(&loop);
     __ Dsubu(a4, a4, Operand(1));
