@@ -91,8 +91,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ExtractFastJSArray(Isolate* isolate);
   static Callable CloneFastJSArray(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
-  static Callable TransitionElementsKind(Isolate* isolate, ElementsKind from,
-                                         ElementsKind to, bool is_jsarray);
 };
 
 }  // namespace internal

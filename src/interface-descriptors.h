@@ -49,7 +49,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructWithSpread)              \
   V(ConstructWithArrayLike)           \
   V(ConstructTrampoline)              \
-  V(TransitionElementsKind)           \
   V(AbortJS)                          \
   V(AllocateHeapNumber)               \
   V(Builtin)                          \
@@ -656,12 +655,6 @@ class ConstructTrampolineDescriptor : public CallInterfaceDescriptor {
 class CallFunctionDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
-};
-
-class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kObject, kMap)
-  DECLARE_DESCRIPTOR(TransitionElementsKindDescriptor, CallInterfaceDescriptor)
 };
 
 class AbortJSDescriptor : public CallInterfaceDescriptor {

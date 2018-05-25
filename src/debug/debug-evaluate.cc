@@ -421,6 +421,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowRangeError)                     \
   V(ThrowTypeError)                      \
   V(ToName)                              \
+  V(TransitionElementsKind)              \
   /* Misc. */                            \
   V(Call)                                \
   V(CompleteInobjectSlackTrackingForMap) \

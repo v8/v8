@@ -297,9 +297,18 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       Node* const native_context = LoadNativeContext(context());
       Node* const double_map = LoadContextElement(
           native_context, Context::JS_ARRAY_HOLEY_DOUBLE_ELEMENTS_MAP_INDEX);
-      CallStub(CodeFactory::TransitionElementsKind(
-                   isolate(), HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS, true),
-               context(), a(), double_map);
+
+      const ElementsKind kFromKind = HOLEY_SMI_ELEMENTS;
+      const ElementsKind kToKind = HOLEY_DOUBLE_ELEMENTS;
+      const bool kIsJSArray = true;
+
+      Label transition_in_runtime(this, Label::kDeferred);
+      TransitionElementsKind(a(), double_map, kFromKind, kToKind, kIsJSArray,
+                             &transition_in_runtime);
+      Goto(&array_double);
+
+      BIND(&transition_in_runtime);
+      CallRuntime(Runtime::kTransitionElementsKind, context(), a(), double_map);
       Goto(&array_double);
     }
 
