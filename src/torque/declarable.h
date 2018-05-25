@@ -316,28 +316,10 @@ class TypeAlias : public Declarable {
   const Type* type_;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  os << "callable " << m.name() << "(" << m.signature().parameter_types
-     << "): " << m.signature().return_type;
-  return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Variable& v) {
-  os << "variable " << v.name() << ": " << v.type();
-  return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Builtin& b) {
-  os << "builtin " << b.signature().return_type << " " << b.name()
-     << b.signature().parameter_types;
-  return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
-  os << "runtime function " << b.signature().return_type << " " << b.name()
-     << b.signature().parameter_types;
-  return os;
-}
+std::ostream& operator<<(std::ostream& os, const Callable& m);
+std::ostream& operator<<(std::ostream& os, const Variable& v);
+std::ostream& operator<<(std::ostream& os, const Builtin& b);
+std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
 
 #undef DECLARE_DECLARABLE_BOILERPLATE
 

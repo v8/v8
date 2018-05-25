@@ -11,57 +11,27 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-bool Type::IsSubtypeOf(const Type* supertype) const {
-  const Type* subtype = this;
-  while (subtype != nullptr) {
-    if (subtype == supertype) return true;
-    subtype = subtype->parent();
-  }
-  return false;
+std::ostream& operator<<(std::ostream& os, const Callable& m) {
+  os << "callable " << m.name() << "(" << m.signature().parameter_types
+     << "): " << m.signature().return_type;
+  return os;
 }
 
-bool Type::IsAbstractName(const std::string& name) const {
-  if (!IsAbstractType()) return false;
-  return AbstractType::cast(this)->name() == name;
+std::ostream& operator<<(std::ostream& os, const Variable& v) {
+  os << "variable " << v.name() << ": " << v.type();
+  return os;
 }
 
-std::string AbstractType::GetGeneratedTNodeTypeName() const {
-  std::string result = GetGeneratedTypeName();
-  DCHECK_EQ(result.substr(0, 6), "TNode<");
-  result = result.substr(6, result.length() - 7);
-  return result;
+std::ostream& operator<<(std::ostream& os, const Builtin& b) {
+  os << "builtin " << b.signature().return_type << " " << b.name()
+     << b.signature().parameter_types;
+  return os;
 }
 
-std::string FunctionPointerType::ToString() const {
-  std::stringstream result;
-  result << "builtin (";
-  bool first = true;
-  for (const Type* t : parameter_types_) {
-    if (!first) {
-      result << ", ";
-      first = false;
-    }
-    result << t;
-  }
-  result << ") => " << return_type_;
-  return result.str();
-}
-
-std::string FunctionPointerType::MangledName() const {
-  std::stringstream result;
-  result << "FT";
-  bool first = true;
-  for (const Type* t : parameter_types_) {
-    if (!first) {
-      result << ", ";
-      first = false;
-    }
-    std::string arg_type_string = t->MangledName();
-    result << arg_type_string.size() << arg_type_string;
-  }
-  std::string return_type_string = return_type_->MangledName();
-  result << return_type_string.size() << return_type_string;
-  return result.str();
+std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
+  os << "runtime function " << b.signature().return_type << " " << b.name()
+     << b.signature().parameter_types;
+  return os;
 }
 
 }  // namespace torque
