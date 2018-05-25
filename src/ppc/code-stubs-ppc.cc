@@ -202,6 +202,19 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (masm->root_array_available() &&
+      isolate()->ShouldLoadConstantsFromRootList()) {
+    // This is basically an inlined version of Call(Handle<Code>) that loads the
+    // code object into lr instead of ip.
+    DCHECK_NE(ip, target);
+    __ LookupConstant(ip, GetCode());
+    __ addi(r0, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ Move(ip, target);
+    __ Call(r0);
+    return;
+  }
+#endif
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // AIX/PPC64BE Linux use a function descriptor.
     __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(target, kPointerSize));
@@ -627,18 +640,18 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   DCHECK(function_address == r4 || function_address == r5);
   Register scratch = r6;
 
-  __ mov(scratch, Operand(ExternalReference::is_profiling_address(isolate)));
+  __ Move(scratch, ExternalReference::is_profiling_address(isolate));
   __ lbz(scratch, MemOperand(scratch, 0));
   __ cmpi(scratch, Operand::Zero());
 
   if (CpuFeatures::IsSupported(ISELECT)) {
-    __ mov(scratch, Operand(thunk_ref));
+    __ Move(scratch, thunk_ref);
     __ isel(eq, scratch, function_address, scratch);
   } else {
     Label profiler_disabled;
     Label end_profiler_check;
     __ beq(&profiler_disabled);
-    __ mov(scratch, Operand(thunk_ref));
+    __ Move(scratch, thunk_ref);
     __ b(&end_profiler_check);
     __ bind(&profiler_disabled);
     __ mr(scratch, function_address);
@@ -650,7 +663,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // r14 - next_address->kNextOffset
   // r15 - next_address->kLimitOffset
   // r16 - next_address->kLevelOffset
-  __ mov(r17, Operand(next_address));
+  __ Move(r17, next_address);
   __ LoadP(r14, MemOperand(r17, kNextOffset));
   __ LoadP(r15, MemOperand(r17, kLimitOffset));
   __ lwz(r16, MemOperand(r17, kLevelOffset));
@@ -661,7 +674,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, r3);
-    __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
+    __ Move(r3, ExternalReference::isolate_address(isolate));
     __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -676,7 +689,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, r3);
-    __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
+    __ Move(r3, ExternalReference::isolate_address(isolate));
     __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -715,7 +728,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // Check if the function scheduled an exception.
   __ LoadRoot(r14, Heap::kTheHoleValueRootIndex);
-  __ mov(r15, Operand(ExternalReference::scheduled_exception_address(isolate)));
+  __ Move(r15, ExternalReference::scheduled_exception_address(isolate));
   __ LoadP(r15, MemOperand(r15));
   __ cmp(r14, r15);
   __ bne(&promote_scheduled_exception);
@@ -731,7 +744,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ StoreP(r15, MemOperand(r17, kLimitOffset));
   __ mr(r14, r3);
   __ PrepareCallCFunction(1, r15);
-  __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
+  __ Move(r3, ExternalReference::isolate_address(isolate));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
   __ mr(r3, r14);
   __ b(&leave_exit_frame);
@@ -777,7 +790,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // return value default
   __ push(scratch);
   // isolate
-  __ mov(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ push(scratch);
   // holder
   __ push(holder);
@@ -854,7 +867,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ push(scratch);
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   __ Push(scratch, scratch);
-  __ mov(scratch, Operand(ExternalReference::isolate_address(isolate())));
+  __ Move(scratch, ExternalReference::isolate_address(isolate()));
   __ Push(scratch, holder);
   __ Push(Smi::kZero);  // should_throw_on_error -> false
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));

@@ -154,7 +154,7 @@ void TurboAssembler::LookupConstant(Register destination,
   CHECK(is_uint19(offset));
   DCHECK_NE(destination, r0);
   LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
-  LoadP(destination, MemOperand(destination, offset));
+  LoadP(destination, MemOperand(destination, offset), r1);
 }
 
 void TurboAssembler::LookupExternalReference(Register destination,
