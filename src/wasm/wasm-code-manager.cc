@@ -67,7 +67,7 @@ constexpr bool kModuleCanAllocateMoreMemory = false;
 void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.AcquireX();
-  __ Mov(scratch, reinterpret_cast<uint64_t>(target));
+  __ Mov(scratch, static_cast<uint64_t>(target));
   __ Br(scratch);
 }
 #undef __
