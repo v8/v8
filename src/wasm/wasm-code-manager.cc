@@ -279,7 +279,7 @@ void WasmCode::Validate() const {
         break;
       case RelocInfo::EMBEDDED_OBJECT: {
         HeapObject* o = it.rinfo()->target_object();
-        DCHECK(o->IsUndefined(o->GetIsolate()));
+        DCHECK(o->IsUndefined(o->GetIsolate()) || o->IsCode());
         break;
       }
       default:
@@ -449,6 +449,7 @@ WasmCode* NativeModule::AddOwnedCode(
     Assembler::FlushICache(ret->instructions().start(),
                            ret->instructions().size());
   }
+  ret->Validate();
   return ret;
 }
 
@@ -612,7 +613,6 @@ WasmCode* NativeModule::AddCode(
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  ret->Validate();
   return ret;
 }
 
