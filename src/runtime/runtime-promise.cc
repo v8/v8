@@ -146,7 +146,8 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
   CONVERT_ARG_HANDLE_CHECKED(Oddball, debug_event, 2);
-  return *JSPromise::Reject(promise, reason, debug_event->BooleanValue());
+  return *JSPromise::Reject(promise, reason,
+                            debug_event->BooleanValue(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {

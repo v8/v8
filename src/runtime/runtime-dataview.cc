@@ -241,19 +241,19 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
   }                                                                         \
   Handle<JSDataView> data_view = Handle<JSDataView>::cast(receiver);
 
-#define DATA_VIEW_PROTOTYPE_GET(Type, type)                  \
-  RUNTIME_FUNCTION(Runtime_DataViewGet##Type) {              \
-    HandleScope scope(isolate);                              \
-    CHECK_RECEIVER("DataView.prototype.get" #Type);          \
-    Handle<Object> byte_offset = args.at<Object>(1);         \
-    Handle<Object> is_little_endian = args.at<Object>(2);    \
-    Handle<Object> result;                                   \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                      \
-        isolate, result,                                     \
-        GetViewValue<type>(isolate, data_view, byte_offset,  \
-                           is_little_endian->BooleanValue(), \
-                           "DataView.prototype.get" #Type)); \
-    return *result;                                          \
+#define DATA_VIEW_PROTOTYPE_GET(Type, type)                         \
+  RUNTIME_FUNCTION(Runtime_DataViewGet##Type) {                     \
+    HandleScope scope(isolate);                                     \
+    CHECK_RECEIVER("DataView.prototype.get" #Type);                 \
+    Handle<Object> byte_offset = args.at<Object>(1);                \
+    Handle<Object> is_little_endian = args.at<Object>(2);           \
+    Handle<Object> result;                                          \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                             \
+        isolate, result,                                            \
+        GetViewValue<type>(isolate, data_view, byte_offset,         \
+                           is_little_endian->BooleanValue(isolate), \
+                           "DataView.prototype.get" #Type));        \
+    return *result;                                                 \
   }
 
 DATA_VIEW_PROTOTYPE_GET(Int8, int8_t)
@@ -268,20 +268,20 @@ DATA_VIEW_PROTOTYPE_GET(BigInt64, int64_t)
 DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
 #undef DATA_VIEW_PROTOTYPE_GET
 
-#define DATA_VIEW_PROTOTYPE_SET(Type, type)                         \
-  RUNTIME_FUNCTION(Runtime_DataViewSet##Type) {                     \
-    HandleScope scope(isolate);                                     \
-    CHECK_RECEIVER("DataView.prototype.set" #Type);                 \
-    Handle<Object> byte_offset = args.at<Object>(1);                \
-    Handle<Object> value = args.at<Object>(2);                      \
-    Handle<Object> is_little_endian = args.at<Object>(3);           \
-    Handle<Object> result;                                          \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                             \
-        isolate, result,                                            \
-        SetViewValue<type>(isolate, data_view, byte_offset,         \
-                           is_little_endian->BooleanValue(), value, \
-                           "DataView.prototype.set" #Type));        \
-    return *result;                                                 \
+#define DATA_VIEW_PROTOTYPE_SET(Type, type)                                \
+  RUNTIME_FUNCTION(Runtime_DataViewSet##Type) {                            \
+    HandleScope scope(isolate);                                            \
+    CHECK_RECEIVER("DataView.prototype.set" #Type);                        \
+    Handle<Object> byte_offset = args.at<Object>(1);                       \
+    Handle<Object> value = args.at<Object>(2);                             \
+    Handle<Object> is_little_endian = args.at<Object>(3);                  \
+    Handle<Object> result;                                                 \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
+        isolate, result,                                                   \
+        SetViewValue<type>(isolate, data_view, byte_offset,                \
+                           is_little_endian->BooleanValue(isolate), value, \
+                           "DataView.prototype.set" #Type));               \
+    return *result;                                                        \
   }
 
 DATA_VIEW_PROTOTYPE_SET(Int8, int8_t)

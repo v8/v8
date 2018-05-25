@@ -770,7 +770,7 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
       Object);
   DCHECK(static_cast<JSIteratorResult*>(JSObject::cast(*result))
              ->done()
-             ->BooleanValue());
+             ->BooleanValue(isolate));
 
   CHECK(MaybeTransitionComponent(module, stack, kEvaluated));
   return handle(

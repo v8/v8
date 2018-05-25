@@ -493,10 +493,9 @@ MaybeHandle<Object> Object::ConvertToIndex(
   return js_len;
 }
 
-bool Object::BooleanValue() {
+bool Object::BooleanValue(Isolate* isolate) {
   if (IsSmi()) return Smi::ToInt(this) != 0;
   DCHECK(IsHeapObject());
-  Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (IsBoolean()) return IsTrue(isolate);
   if (IsNullOrUndefined(isolate)) return false;
   if (IsUndetectable()) return false;  // Undetectable object is false.
@@ -806,7 +805,7 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
         isolate, result,
         Execution::Call(isolate, inst_of_handler, callable, 1, &object),
         Object);
-    return isolate->factory()->ToBoolean(result->BooleanValue());
+    return isolate->factory()->ToBoolean(result->BooleanValue(isolate));
   }
 
   // The {callable} must have a [[Call]] internal method.
@@ -1637,8 +1636,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     // (signalling an exception) or a boolean Oddball.
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     if (result.is_null()) return Just(true);
-    DCHECK(result->BooleanValue() || should_throw == kDontThrow);
-    return Just(result->BooleanValue());
+    DCHECK(result->BooleanValue(isolate) || should_throw == kDontThrow);
+    return Just(result->BooleanValue(isolate));
   }
 
   // Regular accessor.
@@ -5605,7 +5604,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
       isolate, trap_result_obj,
       Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
-  bool boolean_trap_result = trap_result_obj->BooleanValue();
+  bool boolean_trap_result = trap_result_obj->BooleanValue(isolate);
   // 9. If booleanTrapResult is false, then:
   if (!boolean_trap_result) {
     MAYBE_RETURN(JSProxy::CheckHasTrap(isolate, name, target), Nothing<bool>());
@@ -5678,7 +5677,7 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
-  if (!trap_result->BooleanValue()) {
+  if (!trap_result->BooleanValue(isolate)) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
                                 trap_name, name));
@@ -5726,7 +5725,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
-  if (!trap_result->BooleanValue()) {
+  if (!trap_result->BooleanValue(isolate)) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
                                 trap_name, name));
@@ -7556,7 +7555,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
       Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   // 10. If booleanTrapResult is false, return false.
-  if (!trap_result_obj->BooleanValue()) {
+  if (!trap_result_obj->BooleanValue(isolate)) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
                                 trap_name, property_name));
@@ -8267,7 +8266,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
-  if (!trap_result->BooleanValue()) {
+  if (!trap_result->BooleanValue(isolate)) {
     RETURN_FAILURE(
         isolate, should_throw,
         NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
@@ -8379,7 +8378,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   // Enforce the invariant.
   Maybe<bool> target_result = JSReceiver::IsExtensible(target);
   MAYBE_RETURN(target_result, Nothing<bool>());
-  if (target_result.FromJust() != trap_result->BooleanValue()) {
+  if (target_result.FromJust() != trap_result->BooleanValue(isolate)) {
     isolate->Throw(
         *factory->NewTypeError(MessageTemplate::kProxyIsExtensibleInconsistent,
                                factory->ToBoolean(target_result.FromJust())));
@@ -15186,7 +15185,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, arraysize(argv), argv),
       Nothing<bool>());
-  bool bool_trap_result = trap_result->BooleanValue();
+  bool bool_trap_result = trap_result->BooleanValue(isolate);
   // 9. If booleanTrapResult is false, return false.
   if (!bool_trap_result) {
     RETURN_FAILURE(

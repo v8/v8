@@ -1309,7 +1309,8 @@ class Object {
   // implementation of a JSObject's elements.
   inline bool HasValidElements();
 
-  bool BooleanValue();                                      // ECMA-262 9.2.
+  // ECMA-262 9.2.
+  bool BooleanValue(Isolate* isolate);
 
   // ES6 section 7.2.11 Abstract Relational Comparison
   V8_WARN_UNUSED_RESULT static Maybe<ComparisonResult> Compare(

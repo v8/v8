@@ -1186,7 +1186,8 @@ RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, done, 1);
-  return *isolate->factory()->NewJSIteratorResult(value, done->BooleanValue());
+  return *isolate->factory()->NewJSIteratorResult(value,
+                                                  done->BooleanValue(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateDataProperty) {

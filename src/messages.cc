@@ -194,7 +194,7 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 
   Handle<SharedFunctionInfo> shared(script->eval_from_shared());
   // Find the name of the function calling eval.
-  if (shared->Name()->BooleanValue()) {
+  if (shared->Name()->BooleanValue(isolate)) {
     return shared->Name();
   }
 
@@ -223,7 +223,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
 
   Handle<Object> eval_from_function_name =
       handle(EvalFromFunctionName(isolate, script), isolate);
-  if (eval_from_function_name->BooleanValue()) {
+  if (eval_from_function_name->BooleanValue(isolate)) {
     Handle<String> str;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, str, Object::ToString(isolate, eval_from_function_name),

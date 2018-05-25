@@ -3704,7 +3704,7 @@ MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsBoolean()) return ToApiHandle<Boolean>(obj);
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  auto val = isolate->factory()->ToBoolean(obj->BooleanValue());
+  auto val = isolate->factory()->ToBoolean(obj->BooleanValue(isolate));
   return ToApiHandle<Boolean>(val);
 }
 
@@ -4018,12 +4018,17 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 
 Maybe<bool> Value::BooleanValue(Local<Context> context) const {
-  return Just(Utils::OpenHandle(this)->BooleanValue());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  return Just(Utils::OpenHandle(this)->BooleanValue(isolate));
 }
 
 
 bool Value::BooleanValue() const {
-  return Utils::OpenHandle(this)->BooleanValue();
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) return *obj != i::Smi::kZero;
+  DCHECK(obj->IsHeapObject());
+  i::Isolate* isolate = i::Handle<i::HeapObject>::cast(obj)->GetIsolate();
+  return obj->BooleanValue(isolate);
 }
 
 

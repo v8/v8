@@ -83,7 +83,7 @@ bool ExtractBooleanSetting(Isolate* isolate, Handle<JSObject> options,
   Handle<Object> object =
       JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsBoolean()) {
-    *value = object->BooleanValue();
+    *value = object->BooleanValue(isolate);
     return true;
   }
   return false;

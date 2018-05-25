@@ -1756,7 +1756,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, global_obj,
       JSReceiver::GetProperty(recv, factory->global_string()));
-  const bool global = global_obj->BooleanValue();
+  const bool global = global_obj->BooleanValue(isolate);
 
   bool unicode = false;
   if (global) {
@@ -1764,7 +1764,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, unicode_obj,
         JSReceiver::GetProperty(recv, factory->unicode_string()));
-    unicode = unicode_obj->BooleanValue();
+    unicode = unicode_obj->BooleanValue(isolate);
 
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));

@@ -859,7 +859,7 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
     MaybeHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, obj, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!value->IsUndefined(isolate)) return Just(value->BooleanValue());
+    if (!value->IsUndefined(isolate)) return Just(value->BooleanValue(isolate));
   }
   return Object::IsArray(obj);
 }

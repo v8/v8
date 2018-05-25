@@ -1810,7 +1810,7 @@ TEST(InterpreterSmiComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
-        CHECK_EQ(return_value->BooleanValue(),
+        CHECK_EQ(return_value->BooleanValue(isolate),
                  CompareC(comparison, inputs[i], inputs[j]));
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
@@ -1859,7 +1859,7 @@ TEST(InterpreterHeapNumberComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
-        CHECK_EQ(return_value->BooleanValue(),
+        CHECK_EQ(return_value->BooleanValue(isolate),
                  CompareC(comparison, inputs[i], inputs[j]));
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
@@ -1948,7 +1948,7 @@ TEST(InterpreterStringComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
-        CHECK_EQ(return_value->BooleanValue(),
+        CHECK_EQ(return_value->BooleanValue(isolate),
                  CompareC(comparison, inputs[i], inputs[j]));
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
@@ -2063,7 +2063,7 @@ TEST(InterpreterMixedComparisons) {
             auto callable = tester.GetCallable<>();
             Handle<Object> return_value = callable().ToHandleChecked();
             CHECK(return_value->IsBoolean());
-            CHECK_EQ(return_value->BooleanValue(),
+            CHECK_EQ(return_value->BooleanValue(isolate),
                      CompareC(comparison, lhs, rhs, true));
             MaybeObject* feedback = callable.vector()->Get(slot);
             CHECK(feedback->IsSmi());
@@ -2104,7 +2104,7 @@ TEST(InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(return_value->IsBoolean());
-      CHECK_EQ(return_value->BooleanValue(),
+      CHECK_EQ(return_value->BooleanValue(isolate),
                CompareC(Token::Value::NE_STRICT, lhs, rhs, true));
     }
   }
@@ -2121,7 +2121,7 @@ TEST(InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(return_value->IsBoolean());
-      CHECK_EQ(return_value->BooleanValue(),
+      CHECK_EQ(return_value->BooleanValue(isolate),
                CompareC(Token::Value::NE_STRICT, inputs_str[i], inputs_str[j]));
     }
   }
@@ -2142,7 +2142,7 @@ TEST(InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(return_value->IsBoolean());
-      CHECK_EQ(return_value->BooleanValue(),
+      CHECK_EQ(return_value->BooleanValue(isolate),
                CompareC(Token::Value::NE_STRICT, inputs_number[i],
                         inputs_number[j]));
     }
@@ -2196,7 +2196,8 @@ TEST(InterpreterCompareTypeOf) {
     for (size_t i = 0; i < arraysize(inputs); i++) {
       Handle<Object> return_value = callable(inputs[i].first).ToHandleChecked();
       CHECK(return_value->IsBoolean());
-      CHECK_EQ(return_value->BooleanValue(), inputs[i].second == literal_flag);
+      CHECK_EQ(return_value->BooleanValue(isolate),
+               inputs[i].second == literal_flag);
     }
   }
 }
@@ -2236,7 +2237,7 @@ TEST(InterpreterInstanceOf) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
-    CHECK_EQ(return_value->BooleanValue(), expected_value);
+    CHECK_EQ(return_value->BooleanValue(isolate), expected_value);
   }
 }
 
@@ -2272,7 +2273,7 @@ TEST(InterpreterTestIn) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
-    CHECK_EQ(return_value->BooleanValue(), expected_value);
+    CHECK_EQ(return_value->BooleanValue(isolate), expected_value);
   }
 }
 
@@ -2295,7 +2296,7 @@ TEST(InterpreterUnaryNot) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
-    CHECK_EQ(return_value->BooleanValue(), expected_value);
+    CHECK_EQ(return_value->BooleanValue(isolate), expected_value);
   }
 }
 
@@ -2330,7 +2331,7 @@ TEST(InterpreterUnaryNotNonBoolean) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
-    CHECK_EQ(return_value->BooleanValue(), object_type_tuples[i].second);
+    CHECK_EQ(return_value->BooleanValue(isolate), object_type_tuples[i].second);
   }
 }
 
@@ -2402,7 +2403,7 @@ TEST(InterpreterInvokeIntrinsic) {
 
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val->IsBoolean());
-  CHECK_EQ(return_val->BooleanValue(), false);
+  CHECK_EQ(return_val->BooleanValue(isolate), false);
 }
 
 TEST(InterpreterFunctionLiteral) {

@@ -645,7 +645,7 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
     }
     return false;
   }
-  return result->BooleanValue();
+  return result->BooleanValue(isolate_);
 }
 
 bool Debug::SetBreakPoint(Handle<JSFunction> function,
