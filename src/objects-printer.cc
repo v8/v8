@@ -1675,21 +1675,38 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - module_object: " << Brief(module_object());
   os << "\n - exports_object: " << Brief(exports_object());
   os << "\n - native_context: " << Brief(native_context());
-  os << "\n - memory_object: " << Brief(memory_object());
-  os << "\n - globals_buffer: " << Brief(globals_buffer());
-  os << "\n - imported_mutable_globals_buffers: "
-     << Brief(imported_mutable_globals_buffers());
-  os << "\n - debug_info: " << Brief(debug_info());
-  os << "\n - table_object: " << Brief(table_object());
+  if (has_memory_object()) {
+    os << "\n - memory_object: " << Brief(memory_object());
+  }
+  if (has_globals_buffer()) {
+    os << "\n - globals_buffer: " << Brief(globals_buffer());
+  }
+  if (has_imported_mutable_globals_buffers()) {
+    os << "\n - imported_mutable_globals_buffers: "
+       << Brief(imported_mutable_globals_buffers());
+  }
+  if (has_debug_info()) {
+    os << "\n - debug_info: " << Brief(debug_info());
+  }
+  if (has_table_object()) {
+    os << "\n - table_object: " << Brief(table_object());
+  }
   os << "\n - imported_function_instances: "
      << Brief(imported_function_instances());
   os << "\n - imported_function_callables: "
      << Brief(imported_function_callables());
-  os << "\n - indirect_function_table_instances: "
-     << Brief(indirect_function_table_instances());
-  os << "\n - managed_native_allocations: "
-     << Brief(managed_native_allocations());
-  os << "\n - managed_indirect_patcher: " << Brief(managed_indirect_patcher());
+  if (has_indirect_function_table_instances()) {
+    os << "\n - indirect_function_table_instances: "
+       << Brief(indirect_function_table_instances());
+  }
+  if (has_managed_native_allocations()) {
+    os << "\n - managed_native_allocations: "
+       << Brief(managed_native_allocations());
+  }
+  if (has_managed_indirect_patcher()) {
+    os << "\n - managed_indirect_patcher: "
+       << Brief(managed_indirect_patcher());
+  }
   os << "\n - memory_start: " << static_cast<void*>(memory_start());
   os << "\n - memory_size: " << memory_size();
   os << "\n - memory_mask: " << AsHex(memory_mask());
