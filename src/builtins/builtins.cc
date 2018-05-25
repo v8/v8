@@ -199,6 +199,17 @@ bool Builtins::IsBuiltin(const Code* code) {
   return Builtins::IsBuiltinId(code->builtin_index());
 }
 
+bool Builtins::IsBuiltinHandle(Handle<Code> code, int* index) const {
+  Object** const handle_location = bit_cast<Object**>(code.address());
+  Object* const* start = &builtins_[0];
+  Object* const* end = &builtins_[Builtins::builtin_count];
+  if (handle_location >= end) return false;
+  if (handle_location < start) return false;
+  *index = static_cast<int>(handle_location - start);
+  DCHECK(Builtins::IsBuiltinId(*index));
+  return true;
+}
+
 // static
 bool Builtins::IsEmbeddedBuiltin(const Code* code) {
 #ifdef V8_EMBEDDED_BUILTINS

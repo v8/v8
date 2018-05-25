@@ -22,6 +22,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -3790,6 +3791,18 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     LookupConstant(t9, code);
     Jump(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Jump(t9, 0, cond, rs, rt, bd);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
@@ -3948,6 +3961,18 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     LookupConstant(t9, code);
     Call(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Call(t9, 0, cond, rs, rt, bd);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   Label start;

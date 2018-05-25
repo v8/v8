@@ -113,6 +113,10 @@ class Builtins {
   // necessarily mean that its kind is Code::BUILTIN.
   static bool IsBuiltin(const Code* code);
 
+  // As above, but safe to access off the main thread since the check is done
+  // by handle location. Similar to Heap::IsRootHandle.
+  bool IsBuiltinHandle(Handle<Code> code, int* index) const;
+
   // True, iff the given code object is a builtin with off-heap embedded code.
   static bool IsEmbeddedBuiltin(const Code* code);
 

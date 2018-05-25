@@ -21,6 +21,7 @@
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot.h"
 #include "src/x64/assembler-x64.h"
 
 #include "src/x64/macro-assembler-x64.h"  // Cannot be the first include.
@@ -1567,6 +1568,18 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
     jmp(kScratchRegister);
     bind(&skip);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
+      jmp(kScratchRegister);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   j(cc, code_object, rmode);
@@ -1623,6 +1636,18 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
     leap(kScratchRegister, FieldOperand(kScratchRegister, Code::kHeaderSize));
     call(kScratchRegister);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
+      call(kScratchRegister);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
 #ifdef DEBUG

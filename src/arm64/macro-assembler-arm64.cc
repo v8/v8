@@ -21,6 +21,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot.h"
 
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/arm64/macro-assembler-arm64.h"  // Cannot be the first include
@@ -1994,6 +1995,20 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
     Jump(scratch, cond);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.AcquireX();
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Jump(scratch, cond);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   if (CanUseNearCallOrJump(rmode)) {
@@ -2053,6 +2068,20 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
     Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
     Call(scratch);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.AcquireX();
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Call(scratch);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   if (CanUseNearCallOrJump(rmode)) {
