@@ -112,15 +112,13 @@ bool ContainsInt64(wasm::FunctionSig* sig) {
 
 WasmGraphBuilder::WasmGraphBuilder(
     Isolate* isolate, wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
-    Handle<Code> centry_stub, Handle<Oddball> anyref_null,
-    wasm::FunctionSig* sig,
+    Handle<Code> centry_stub, wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
     : isolate_(isolate),
       zone_(zone),
       mcgraph_(mcgraph),
       env_(env),
       centry_stub_(centry_stub),
-      anyref_null_(anyref_null),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
       has_simd_(ContainsSimd(sig)),
@@ -214,11 +212,9 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects,
 }
 
 Node* WasmGraphBuilder::RefNull() {
-  if (!anyref_null_node_.is_set()) {
-    anyref_null_node_.set(
-        graph()->NewNode(mcgraph()->common()->HeapConstant(anyref_null_)));
-  }
-  return anyref_null_node_.get();
+  Node* null = LOAD_INSTANCE_FIELD(NullValue, MachineType::TaggedPointer());
+  *effect_ = null;
+  return null;
 }
 
 Node* WasmGraphBuilder::CEntryStub() {
@@ -3978,8 +3974,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                           wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt)
       : WasmGraphBuilder(jsgraph->isolate(), env, zone, jsgraph,
-                         CodeFactory::CEntry(jsgraph->isolate()),
-                         jsgraph->isolate()->factory()->null_value(), sig, spt),
+                         CodeFactory::CEntry(jsgraph->isolate()), sig, spt),
         jsgraph_(jsgraph) {}
 
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
@@ -5007,12 +5002,8 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   // Create a TF graph during decoding.
   SourcePositionTable* source_position_table =
       new (mcgraph_->zone()) SourcePositionTable(mcgraph_->graph());
-  // We get the handle for {null_value()} directly from the isolate although we
-  // are on a background task because the handle is stored in the isolate
-  // anyways, and it is immortal and immovable.
   WasmGraphBuilder builder(wasm_unit_->isolate_, wasm_unit_->env_,
                            mcgraph_->zone(), mcgraph_, wasm_unit_->centry_stub_,
-                           wasm_unit_->isolate_->factory()->null_value(),
                            wasm_unit_->func_body_.sig, source_position_table);
   graph_construction_result_ = wasm::BuildTFGraph(
       wasm_unit_->isolate_->allocator(), &builder, wasm_unit_->func_body_);

@@ -155,6 +155,7 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_indirect_patcher, Foreign,
                    kManagedIndirectPatcherOffset)
+ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 
 inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;

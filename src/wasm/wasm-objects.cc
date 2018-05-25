@@ -805,6 +805,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_compiled_module(*compiled_module);
   instance->set_native_context(*isolate->native_context());
   instance->set_module_object(*module_object);
+  instance->set_null_value(isolate->heap()->null_value());
 
   return instance;
 }
