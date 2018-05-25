@@ -21,6 +21,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot.h"
 
 #include "src/ppc/macro-assembler-ppc.h"
 
@@ -226,6 +227,22 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     Jump(scratch);
     bind(&skip);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      // Use ip directly instead of using UseScratchRegisterScope, as we do not
+      // preserve scratch registers across calls.
+      mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Label skip;
+      if (cond != al) b(NegateCondition(cond), &skip, cr);
+      Jump(ip);
+      bind(&skip);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, cr);
@@ -308,6 +325,23 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     Call(ip);
     bind(&skip);
     return;
+  } else if (!isolate()->serializer_enabled()) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index)) {
+      // Inline the trampoline.
+      DCHECK(Builtins::IsBuiltinId(builtin_index));
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      // Use ip directly instead of using UseScratchRegisterScope, as we do not
+      // preserve scratch registers across calls.
+      mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Label skip;
+      if (cond != al) b(NegateCondition(cond), &skip);
+      Call(ip);
+      bind(&skip);
+      return;
+    }
   }
 #endif  // V8_EMBEDDED_BUILTINS
   Call(code.address(), rmode, cond);
