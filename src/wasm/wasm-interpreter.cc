@@ -1751,6 +1751,82 @@ class ThreadImpl {
       UNOP_CASE(I16x8Neg, i16x8, int8, 8, -a)
       UNOP_CASE(I8x16Neg, i8x16, int16, 16, -a)
 #undef UNOP_CASE
+#define CMPOP_CASE(op, name, stype, out_stype, count, expr) \
+  case kExpr##op: {                                         \
+    WasmValue v2 = Pop();                                   \
+    WasmValue v1 = Pop();                                   \
+    stype s1 = v1.to_s128().to_##name();                    \
+    stype s2 = v2.to_s128().to_##name();                    \
+    out_stype res;                                          \
+    for (size_t i = 0; i < count; ++i) {                    \
+      auto a = s1.val[i];                                   \
+      auto b = s2.val[i];                                   \
+      res.val[i] = expr ? -1 : 0;                           \
+    }                                                       \
+    Push(WasmValue(Simd128(res)));                          \
+    return true;                                            \
+  }
+      CMPOP_CASE(F32x4Eq, f32x4, float4, int4, 4, a == b)
+      CMPOP_CASE(F32x4Ne, f32x4, float4, int4, 4, a != b)
+      CMPOP_CASE(F32x4Gt, f32x4, float4, int4, 4, a > b)
+      CMPOP_CASE(F32x4Ge, f32x4, float4, int4, 4, a >= b)
+      CMPOP_CASE(F32x4Lt, f32x4, float4, int4, 4, a < b)
+      CMPOP_CASE(F32x4Le, f32x4, float4, int4, 4, a <= b)
+      CMPOP_CASE(I32x4Eq, i32x4, int4, int4, 4, a == b)
+      CMPOP_CASE(I32x4Ne, i32x4, int4, int4, 4, a != b)
+      CMPOP_CASE(I32x4GtS, i32x4, int4, int4, 4, a > b)
+      CMPOP_CASE(I32x4GeS, i32x4, int4, int4, 4, a >= b)
+      CMPOP_CASE(I32x4LtS, i32x4, int4, int4, 4, a < b)
+      CMPOP_CASE(I32x4LeS, i32x4, int4, int4, 4, a <= b)
+      CMPOP_CASE(
+          I32x4GtU, i32x4, int4, int4, 4,
+          *reinterpret_cast<uint32_t*>(&a) > *reinterpret_cast<uint32_t*>(&b))
+      CMPOP_CASE(
+          I32x4GeU, i32x4, int4, int4, 4,
+          *reinterpret_cast<uint32_t*>(&a) >= *reinterpret_cast<uint32_t*>(&b))
+      CMPOP_CASE(
+          I32x4LtU, i32x4, int4, int4, 4,
+          *reinterpret_cast<uint32_t*>(&a) < *reinterpret_cast<uint32_t*>(&b))
+      CMPOP_CASE(
+          I32x4LeU, i32x4, int4, int4, 4,
+          *reinterpret_cast<uint32_t*>(&a) <= *reinterpret_cast<uint32_t*>(&b))
+      CMPOP_CASE(I16x8Eq, i16x8, int8, int8, 8, a == b)
+      CMPOP_CASE(I16x8Ne, i16x8, int8, int8, 8, a != b)
+      CMPOP_CASE(I16x8GtS, i16x8, int8, int8, 8, a > b)
+      CMPOP_CASE(I16x8GeS, i16x8, int8, int8, 8, a >= b)
+      CMPOP_CASE(I16x8LtS, i16x8, int8, int8, 8, a < b)
+      CMPOP_CASE(I16x8LeS, i16x8, int8, int8, 8, a <= b)
+      CMPOP_CASE(
+          I16x8GtU, i16x8, int8, int8, 8,
+          *reinterpret_cast<uint16_t*>(&a) > *reinterpret_cast<uint16_t*>(&b))
+      CMPOP_CASE(
+          I16x8GeU, i16x8, int8, int8, 8,
+          *reinterpret_cast<uint16_t*>(&a) >= *reinterpret_cast<uint16_t*>(&b))
+      CMPOP_CASE(
+          I16x8LtU, i16x8, int8, int8, 8,
+          *reinterpret_cast<uint16_t*>(&a) < *reinterpret_cast<uint16_t*>(&b))
+      CMPOP_CASE(
+          I16x8LeU, i16x8, int8, int8, 8,
+          *reinterpret_cast<uint16_t*>(&a) <= *reinterpret_cast<uint16_t*>(&b))
+      CMPOP_CASE(I8x16Eq, i8x16, int16, int16, 16, a == b)
+      CMPOP_CASE(I8x16Ne, i8x16, int16, int16, 16, a != b)
+      CMPOP_CASE(I8x16GtS, i8x16, int16, int16, 16, a > b)
+      CMPOP_CASE(I8x16GeS, i8x16, int16, int16, 16, a >= b)
+      CMPOP_CASE(I8x16LtS, i8x16, int16, int16, 16, a < b)
+      CMPOP_CASE(I8x16LeS, i8x16, int16, int16, 16, a <= b)
+      CMPOP_CASE(
+          I8x16GtU, i8x16, int16, int16, 16,
+          *reinterpret_cast<uint8_t*>(&a) > *reinterpret_cast<uint8_t*>(&b))
+      CMPOP_CASE(
+          I8x16GeU, i8x16, int16, int16, 16,
+          *reinterpret_cast<uint8_t*>(&a) >= *reinterpret_cast<uint8_t*>(&b))
+      CMPOP_CASE(
+          I8x16LtU, i8x16, int16, int16, 16,
+          *reinterpret_cast<uint8_t*>(&a) < *reinterpret_cast<uint8_t*>(&b))
+      CMPOP_CASE(
+          I8x16LeU, i8x16, int16, int16, 16,
+          *reinterpret_cast<uint8_t*>(&a) <= *reinterpret_cast<uint8_t*>(&b))
+#undef CMPOP_CASE
       default:
         return false;
     }

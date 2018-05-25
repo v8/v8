@@ -598,27 +598,27 @@ void RunF32x4CompareOpTest(WasmExecutionMode execution_mode,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Eq) {
+WASM_SIMD_TEST(F32x4Eq) {
   RunF32x4CompareOpTest(execution_mode, lower_simd, kExprF32x4Eq, Equal);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Ne) {
+WASM_SIMD_TEST(F32x4Ne) {
   RunF32x4CompareOpTest(execution_mode, lower_simd, kExprF32x4Ne, NotEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Gt) {
+WASM_SIMD_TEST(F32x4Gt) {
   RunF32x4CompareOpTest(execution_mode, lower_simd, kExprF32x4Gt, Greater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Ge) {
+WASM_SIMD_TEST(F32x4Ge) {
   RunF32x4CompareOpTest(execution_mode, lower_simd, kExprF32x4Ge, GreaterEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Lt) {
+WASM_SIMD_TEST(F32x4Lt) {
   RunF32x4CompareOpTest(execution_mode, lower_simd, kExprF32x4Lt, Less);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4Le) {
+WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_mode, lower_simd, kExprF32x4Le, LessEqual);
 }
 
@@ -1014,47 +1014,47 @@ void RunI32x4CompareOpTest(WasmExecutionMode execution_mode,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Eq) {
+WASM_SIMD_TEST(I32x4Eq) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4Eq, Equal);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Ne) {
+WASM_SIMD_TEST(I32x4Ne) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4Ne, NotEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4LtS) {
+WASM_SIMD_TEST(I32x4LtS) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4LtS, Less);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4LeS) {
+WASM_SIMD_TEST(I32x4LeS) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4LeS, LessEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4GtS) {
+WASM_SIMD_TEST(I32x4GtS) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4GtS, Greater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4GeS) {
+WASM_SIMD_TEST(I32x4GeS) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4GeS,
                         GreaterEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4LtU) {
+WASM_SIMD_TEST(I32x4LtU) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4LtU,
                         UnsignedLess);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4LeU) {
+WASM_SIMD_TEST(I32x4LeU) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4LeU,
                         UnsignedLessEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4GtU) {
+WASM_SIMD_TEST(I32x4GtU) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4GtU,
                         UnsignedGreater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4GeU) {
+WASM_SIMD_TEST(I32x4GeU) {
   RunI32x4CompareOpTest(execution_mode, lower_simd, kExprI32x4GeU,
                         UnsignedGreaterEqual);
 }
@@ -1255,47 +1255,47 @@ void RunI16x8CompareOpTest(WasmExecutionMode execution_mode,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Eq) {
+WASM_SIMD_TEST(I16x8Eq) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8Eq, Equal);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Ne) {
+WASM_SIMD_TEST(I16x8Ne) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8Ne, NotEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8LtS) {
+WASM_SIMD_TEST(I16x8LtS) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8LtS, Less);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8LeS) {
+WASM_SIMD_TEST(I16x8LeS) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8LeS, LessEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8GtS) {
+WASM_SIMD_TEST(I16x8GtS) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8GtS, Greater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8GeS) {
+WASM_SIMD_TEST(I16x8GeS) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8GeS,
                         GreaterEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8GtU) {
+WASM_SIMD_TEST(I16x8GtU) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8GtU,
                         UnsignedGreater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8GeU) {
+WASM_SIMD_TEST(I16x8GeU) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8GeU,
                         UnsignedGreaterEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8LtU) {
+WASM_SIMD_TEST(I16x8LtU) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8LtU,
                         UnsignedLess);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8LeU) {
+WASM_SIMD_TEST(I16x8LeU) {
   RunI16x8CompareOpTest(execution_mode, lower_simd, kExprI16x8LeU,
                         UnsignedLessEqual);
 }
@@ -1464,54 +1464,54 @@ void RunI8x16CompareOpTest(WasmExecutionMode execution_mode,
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Eq) {
+WASM_SIMD_TEST(I8x16Eq) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16Eq, Equal);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Ne) {
+WASM_SIMD_TEST(I8x16Ne) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16Ne, NotEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16GtS) {
+WASM_SIMD_TEST(I8x16GtS) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16GtS, Greater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16GeS) {
+WASM_SIMD_TEST(I8x16GeS) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16GeS,
                         GreaterEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16LtS) {
+WASM_SIMD_TEST(I8x16LtS) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16LtS, Less);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16LeS) {
+WASM_SIMD_TEST(I8x16LeS) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16LeS, LessEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16GtU) {
+WASM_SIMD_TEST(I8x16GtU) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16GtU,
                         UnsignedGreater);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16GeU) {
+WASM_SIMD_TEST(I8x16GeU) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16GeU,
                         UnsignedGreaterEqual);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16LtU) {
+WASM_SIMD_TEST(I8x16LtU) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16LtU,
                         UnsignedLess);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16LeU) {
+WASM_SIMD_TEST(I8x16LeU) {
   RunI8x16CompareOpTest(execution_mode, lower_simd, kExprI8x16LeU,
                         UnsignedLessEqual);
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Mul) {
+WASM_SIMD_TEST(I8x16Mul) {
   RunI8x16BinOpTest(execution_mode, lower_simd, kExprI8x16Mul, Mul);
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
