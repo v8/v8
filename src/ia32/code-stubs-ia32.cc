@@ -25,16 +25,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
-  __ pop(ecx);
-  __ mov(MemOperand(esp, eax, times_4, 0), edi);
-  __ push(edi);
-  __ push(ebx);
-  __ push(ecx);
-  __ add(eax, Immediate(3));
-  __ TailCallRuntime(Runtime::kNewArray);
-}
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
@@ -292,8 +282,6 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
       isolate);
   ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
       isolate);
-  ArrayNArgumentsConstructorStub stub(isolate);
-  stub.GetCode();
 
   ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
   for (int i = 0; i < 2; i++) {
@@ -318,8 +306,8 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
   CreateArrayDispatchOneArgument(masm, mode);
 
   __ bind(&not_one_case);
-  ArrayNArgumentsConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET);
 }
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
@@ -415,8 +403,8 @@ void InternalArrayConstructorStub::GenerateCase(
   __ TailCallStub(&stub1);
 
   __ bind(&not_one_case);
-  ArrayNArgumentsConstructorStub stubN(isolate());
-  __ TailCallStub(&stubN);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET);
 }
 
 

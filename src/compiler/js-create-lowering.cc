@@ -751,11 +751,12 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     DCHECK_GT(arity, 1);
-    ArrayNArgumentsConstructorStub stub(isolate());
+    Handle<Code> code = BUILTIN_CODE(isolate(), ArrayNArgumentsConstructor);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
-        arity + 1, CallDescriptor::kNeedsFrameState);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+        isolate(), graph()->zone(),
+        ArrayNArgumentsConstructorDescriptor(isolate()), arity + 1,
+        CallDescriptor::kNeedsFrameState);
+    node->ReplaceInput(0, jsgraph()->HeapConstant(code));
     node->InsertInput(graph()->zone(), 2, type_info);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());

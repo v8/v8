@@ -30,15 +30,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
-  __ lsl(r5, r0, Operand(kPointerSizeLog2));
-  __ str(r1, MemOperand(sp, r5));
-  __ Push(r1);
-  __ Push(r2);
-  __ add(r0, r0, Operand(3));
-  __ TailCallRuntime(Runtime::kNewArray);
-}
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
@@ -438,8 +429,6 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
       isolate);
   ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
       isolate);
-  ArrayNArgumentsConstructorStub stub(isolate);
-  stub.GetCode();
   ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
@@ -465,8 +454,8 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
   CreateArrayDispatchOneArgument(masm, mode);
 
   __ bind(&not_one_case);
-  ArrayNArgumentsConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -533,8 +522,8 @@ void InternalArrayConstructorStub::GenerateCase(
   InternalArrayNoArgumentConstructorStub stub0(isolate(), kind);
   __ TailCallStub(&stub0, lo);
 
-  ArrayNArgumentsConstructorStub stubN(isolate());
-  __ TailCallStub(&stubN, hi);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET, hi);
 
   if (IsFastPackedElementsKind(kind)) {
     // We might need to create a holey array

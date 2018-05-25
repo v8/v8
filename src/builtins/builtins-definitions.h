@@ -236,6 +236,7 @@ namespace internal {
                                                                                \
   /* Array */                                                                  \
   ASM(ArrayConstructor)                                                        \
+  ASM(ArrayNArgumentsConstructor)                                              \
   ASM(InternalArrayConstructor)                                                \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \

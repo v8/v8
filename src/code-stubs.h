@@ -39,7 +39,6 @@ class Node;
   V(StoreInArrayLiteralSlow)                \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
-  V(ArrayNArgumentsConstructor)             \
   V(InternalArrayNoArgumentConstructor)     \
   V(InternalArraySingleArgumentConstructor) \
   V(ElementsTransitionAndStore)             \
@@ -758,20 +757,6 @@ class InternalArraySingleArgumentConstructorStub
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ArraySingleArgumentConstructor);
   DEFINE_TURBOFAN_CODE_STUB(InternalArraySingleArgumentConstructor,
                             CommonArrayConstructorStub);
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class ArrayNArgumentsConstructorStub : public PlatformCodeStub {
- public:
-  explicit ArrayNArgumentsConstructorStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return ArrayNArgumentsConstructorDescriptor(isolate());
-  }
-
- private:
-  DEFINE_PLATFORM_CODE_STUB(ArrayNArgumentsConstructor, PlatformCodeStub);
 };
 
 class StoreSlowElementStub : public TurboFanCodeStub {

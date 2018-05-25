@@ -2913,6 +2913,15 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {
+  __ lsl(r5, r0, Operand(kPointerSizeLog2));
+  __ str(r1, MemOperand(sp, r5));
+  __ Push(r1);
+  __ Push(r2);
+  __ add(r0, r0, Operand(3));
+  __ TailCallRuntime(Runtime::kNewArray);
+}
+
 #undef __
 
 }  // namespace internal

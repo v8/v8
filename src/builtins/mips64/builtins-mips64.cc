@@ -3059,6 +3059,16 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {
+  __ dsll(t9, a0, kPointerSizeLog2);
+  __ Daddu(t9, sp, t9);
+  __ Sd(a1, MemOperand(t9, 0));
+  __ Push(a1);
+  __ Push(a2);
+  __ Daddu(a0, a0, 3);
+  __ TailCallRuntime(Runtime::kNewArray);
+}
+
 #undef __
 
 }  // namespace internal

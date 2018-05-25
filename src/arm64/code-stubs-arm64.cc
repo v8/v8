@@ -29,14 +29,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
-  __ Mov(x5, Operand(x0, LSL, kPointerSizeLog2));
-  __ Poke(x1, Operand(x5));
-  __ Push(x1, x2);
-  __ Add(x0, x0, Operand(3));
-  __ TailCallRuntime(Runtime::kNewArray);
-}
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the following stubs are generated in this order
   // because pregenerated stubs can only call other pregenerated stubs.
@@ -453,8 +445,6 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
       isolate);
   ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
       isolate);
-  ArrayNArgumentsConstructorStub stub(isolate);
-  stub.GetCode();
   ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
@@ -484,8 +474,8 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 
   __ Bind(&n_case);
   // N arguments.
-  ArrayNArgumentsConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -584,8 +574,8 @@ void InternalArrayConstructorStub::GenerateCase(
 
   __ Bind(&n_case);
   // N arguments.
-  ArrayNArgumentsConstructorStub stubN(isolate());
-  __ TailCallStub(&stubN);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET);
 }
 
 
