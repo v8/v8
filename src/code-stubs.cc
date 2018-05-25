@@ -465,17 +465,18 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 namespace {
 
-template <class T>
 void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   int to_index =
       GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    T stub(isolate, kind);
-    stub.GetCode();
+    CodeFactory::ArrayNoArgumentConstructor(isolate, kind, DONT_OVERRIDE);
+    CodeFactory::ArraySingleArgumentConstructor(isolate, kind, DONT_OVERRIDE);
     if (AllocationSite::ShouldTrack(kind)) {
-      T stub1(isolate, kind, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode();
+      CodeFactory::ArrayNoArgumentConstructor(isolate, kind,
+                                              DISABLE_ALLOCATION_SITES);
+      CodeFactory::ArraySingleArgumentConstructor(isolate, kind,
+                                                  DISABLE_ALLOCATION_SITES);
     }
   }
 }
@@ -483,18 +484,12 @@ void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
 }  // namespace
 
 void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
-      isolate);
-  ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
-      isolate);
+  ArrayConstructorStubAheadOfTimeHelper(isolate);
 
   ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
   for (int i = 0; i < 2; i++) {
-    // For internal arrays we only need a few things
-    InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
-    stubh1.GetCode();
-    InternalArraySingleArgumentConstructorStub stubh2(isolate, kinds[i]);
-    stubh2.GetCode();
+    CodeFactory::InternalArrayNoArgumentConstructor(isolate, kinds[i]);
+    CodeFactory::InternalArraySingleArgumentConstructor(isolate, kinds[i]);
   }
 }
 

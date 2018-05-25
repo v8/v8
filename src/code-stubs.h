@@ -626,13 +626,14 @@ class CommonArrayConstructorStub : public TurboFanCodeStub {
 };
 
 class ArrayNoArgumentConstructorStub : public CommonArrayConstructorStub {
- public:
+ private:
   ArrayNoArgumentConstructorStub(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
       : CommonArrayConstructorStub(isolate, kind, override_mode) {}
 
- private:
+  friend class CodeFactory;
+
   void PrintName(std::ostream& os) const override {  // NOLINT
     os << "ArrayNoArgumentConstructorStub";
   }
@@ -644,11 +645,12 @@ class ArrayNoArgumentConstructorStub : public CommonArrayConstructorStub {
 
 class InternalArrayNoArgumentConstructorStub
     : public CommonArrayConstructorStub {
- public:
+ private:
   InternalArrayNoArgumentConstructorStub(Isolate* isolate, ElementsKind kind)
       : CommonArrayConstructorStub(isolate, kind, DONT_OVERRIDE) {}
 
- private:
+  friend class CodeFactory;
+
   void PrintName(std::ostream& os) const override {  // NOLINT
     os << "InternalArrayNoArgumentConstructorStub";
   }
@@ -659,13 +661,14 @@ class InternalArrayNoArgumentConstructorStub
 };
 
 class ArraySingleArgumentConstructorStub : public CommonArrayConstructorStub {
- public:
+ private:
   ArraySingleArgumentConstructorStub(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
       : CommonArrayConstructorStub(isolate, kind, override_mode) {}
 
- private:
+  friend class CodeFactory;
+
   void PrintName(std::ostream& os) const override {  // NOLINT
     os << "ArraySingleArgumentConstructorStub";
   }
@@ -677,12 +680,13 @@ class ArraySingleArgumentConstructorStub : public CommonArrayConstructorStub {
 
 class InternalArraySingleArgumentConstructorStub
     : public CommonArrayConstructorStub {
- public:
+ private:
   InternalArraySingleArgumentConstructorStub(Isolate* isolate,
                                              ElementsKind kind)
       : CommonArrayConstructorStub(isolate, kind, DONT_OVERRIDE) {}
 
- private:
+  friend class CodeFactory;
+
   void PrintName(std::ostream& os) const override {  // NOLINT
     os << "InternalArraySingleArgumentConstructorStub";
   }

@@ -3095,12 +3095,13 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
 
 namespace {
 
-template <class T>
-void CreateArrayDispatch(MacroAssembler* masm,
-                         AllocationSiteOverrideMode mode) {
+void CreateArrayDispatchNoArgument(MacroAssembler* masm,
+                                   AllocationSiteOverrideMode mode) {
   if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(masm->isolate(), GetInitialFastElementsKind(), mode);
-    __ TailCallStub(&stub);
+    __ Jump(CodeFactory::ArrayNoArgumentConstructor(
+                masm->isolate(), GetInitialFastElementsKind(), mode)
+                .code(),
+            RelocInfo::CODE_TARGET);
   } else if (mode == DONT_OVERRIDE) {
     int last_index =
         GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
@@ -3109,8 +3110,10 @@ void CreateArrayDispatch(MacroAssembler* masm,
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
       __ cmpl(rdx, Immediate(kind));
       __ j(not_equal, &next);
-      T stub(masm->isolate(), kind);
-      __ TailCallStub(&stub);
+      __ Jump(
+          CodeFactory::ArrayNoArgumentConstructor(masm->isolate(), kind, mode)
+              .code(),
+          RelocInfo::CODE_TARGET);
       __ bind(&next);
     }
 
@@ -3141,9 +3144,10 @@ void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind initial = GetInitialFastElementsKind();
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-    ArraySingleArgumentConstructorStub stub_holey(
-        masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES);
-    __ TailCallStub(&stub_holey);
+    __ Jump(CodeFactory::ArraySingleArgumentConstructor(
+                masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES)
+                .code(),
+            RelocInfo::CODE_TARGET);
   } else if (mode == DONT_OVERRIDE) {
     // is the low bit set? If so, we are holey and that is good.
     Label normal_sequence;
@@ -3177,8 +3181,10 @@ void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
       __ cmpl(rdx, Immediate(kind));
       __ j(not_equal, &next);
-      ArraySingleArgumentConstructorStub stub(masm->isolate(), kind);
-      __ TailCallStub(&stub);
+      __ Jump(CodeFactory::ArraySingleArgumentConstructor(masm->isolate(), kind,
+                                                          DONT_OVERRIDE)
+                  .code(),
+              RelocInfo::CODE_TARGET);
       __ bind(&next);
     }
 
@@ -3194,7 +3200,7 @@ void GenerateDispatchToArrayStub(MacroAssembler* masm,
   Label not_zero_case, not_one_case;
   __ testp(rax, rax);
   __ j(not_zero, &not_zero_case);
-  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  CreateArrayDispatchNoArgument(masm, mode);
 
   __ bind(&not_zero_case);
   __ cmpl(rax, Immediate(1));
@@ -3279,8 +3285,9 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
 
   __ testp(rax, rax);
   __ j(not_zero, &not_zero_case);
-  InternalArrayNoArgumentConstructorStub stub0(masm->isolate(), kind);
-  __ TailCallStub(&stub0);
+  __ Jump(CodeFactory::InternalArrayNoArgumentConstructor(masm->isolate(), kind)
+              .code(),
+          RelocInfo::CODE_TARGET);
 
   __ bind(&not_zero_case);
   __ cmpl(rax, Immediate(1));
@@ -3294,14 +3301,17 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
     __ testp(rcx, rcx);
     __ j(zero, &normal_sequence);
 
-    InternalArraySingleArgumentConstructorStub stub1_holey(
-        masm->isolate(), GetHoleyElementsKind(kind));
-    __ TailCallStub(&stub1_holey);
+    __ Jump(CodeFactory::InternalArraySingleArgumentConstructor(
+                masm->isolate(), GetHoleyElementsKind(kind))
+                .code(),
+            RelocInfo::CODE_TARGET);
   }
 
   __ bind(&normal_sequence);
-  InternalArraySingleArgumentConstructorStub stub1(masm->isolate(), kind);
-  __ TailCallStub(&stub1);
+  __ Jump(
+      CodeFactory::InternalArraySingleArgumentConstructor(masm->isolate(), kind)
+          .code(),
+      RelocInfo::CODE_TARGET);
 
   __ bind(&not_one_case);
   Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);

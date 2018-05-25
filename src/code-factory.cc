@@ -334,6 +334,36 @@ Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ArrayNoArgumentConstructor(
+    Isolate* isolate, ElementsKind kind,
+    AllocationSiteOverrideMode override_mode) {
+  ArrayNoArgumentConstructorStub stub(isolate, kind, override_mode);
+  return make_callable(stub);
+}
+
+// static
+Callable CodeFactory::ArraySingleArgumentConstructor(
+    Isolate* isolate, ElementsKind kind,
+    AllocationSiteOverrideMode override_mode) {
+  ArraySingleArgumentConstructorStub stub(isolate, kind, override_mode);
+  return make_callable(stub);
+}
+
+// static
+Callable CodeFactory::InternalArrayNoArgumentConstructor(Isolate* isolate,
+                                                         ElementsKind kind) {
+  InternalArrayNoArgumentConstructorStub stub(isolate, kind);
+  return make_callable(stub);
+}
+
+// static
+Callable CodeFactory::InternalArraySingleArgumentConstructor(
+    Isolate* isolate, ElementsKind kind) {
+  InternalArraySingleArgumentConstructorStub stub(isolate, kind);
+  return make_callable(stub);
+}
+
+// static
 Callable CodeFactory::ArrayPop(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ArrayPop), BuiltinDescriptor(isolate));
 }

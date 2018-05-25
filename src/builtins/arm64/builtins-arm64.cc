@@ -3443,8 +3443,39 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
 
 namespace {
 
-// TODO(jbramley): If this needs to be a special case, make it a proper template
-// specialization, and not a separate function.
+void CreateArrayDispatchNoArgument(MacroAssembler* masm,
+                                   AllocationSiteOverrideMode mode) {
+  ASM_LOCATION("CreateArrayDispatch");
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    __ Jump(CodeFactory::ArrayNoArgumentConstructor(
+                masm->isolate(), GetInitialFastElementsKind(), mode)
+                .code(),
+            RelocInfo::CODE_TARGET);
+  } else if (mode == DONT_OVERRIDE) {
+    Register kind = x3;
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
+      // TODO(jbramley): Is this the best way to handle this? Can we make the
+      // tail calls conditional, rather than hopping over each one?
+      __ CompareAndBranch(kind, candidate_kind, ne, &next);
+      __ Jump(CodeFactory::ArrayNoArgumentConstructor(masm->isolate(),
+                                                      candidate_kind, mode)
+                  .code(),
+              RelocInfo::CODE_TARGET);
+      __ Bind(&next);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
+
+  } else {
+    UNREACHABLE();
+  }
+}
+
 void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                     AllocationSiteOverrideMode mode) {
   ASM_LOCATION("CreateArrayDispatchOneArgument");
@@ -3468,9 +3499,10 @@ void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind initial = GetInitialFastElementsKind();
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-    ArraySingleArgumentConstructorStub stub_holey(
-        masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES);
-    __ TailCallStub(&stub_holey);
+    __ Jump(CodeFactory::ArraySingleArgumentConstructor(
+                masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES)
+                .code(),
+            RelocInfo::CODE_TARGET);
   } else if (mode == DONT_OVERRIDE) {
     // Is the low bit set? If so, the array is holey.
     Label normal_sequence;
@@ -3506,44 +3538,15 @@ void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       Label next;
       ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
       __ CompareAndBranch(kind, candidate_kind, ne, &next);
-      ArraySingleArgumentConstructorStub stub(masm->isolate(), candidate_kind);
-      __ TailCallStub(&stub);
+      __ Jump(CodeFactory::ArraySingleArgumentConstructor(
+                  masm->isolate(), candidate_kind, DONT_OVERRIDE)
+                  .code(),
+              RelocInfo::CODE_TARGET);
       __ Bind(&next);
     }
 
     // If we reached this point there is a problem.
     __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
-  } else {
-    UNREACHABLE();
-  }
-}
-
-template <class T>
-void CreateArrayDispatch(MacroAssembler* masm,
-                         AllocationSiteOverrideMode mode) {
-  ASM_LOCATION("CreateArrayDispatch");
-  if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(masm->isolate(), GetInitialFastElementsKind(), mode);
-    __ TailCallStub(&stub);
-
-  } else if (mode == DONT_OVERRIDE) {
-    Register kind = x3;
-    int last_index =
-        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
-    for (int i = 0; i <= last_index; ++i) {
-      Label next;
-      ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
-      // TODO(jbramley): Is this the best way to handle this? Can we make the
-      // tail calls conditional, rather than hopping over each one?
-      __ CompareAndBranch(kind, candidate_kind, ne, &next);
-      T stub(masm->isolate(), candidate_kind);
-      __ TailCallStub(&stub);
-      __ Bind(&next);
-    }
-
-    // If we reached this point there is a problem.
-    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
-
   } else {
     UNREACHABLE();
   }
@@ -3562,7 +3565,7 @@ void GenerateDispatchToArrayStub(MacroAssembler* masm,
 
   __ Bind(&zero_case);
   // No arguments.
-  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  CreateArrayDispatchNoArgument(masm, mode);
 
   __ Bind(&n_case);
   // N arguments.
@@ -3652,19 +3655,24 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
     __ Peek(x10, 0);
     __ Cbz(x10, &packed_case);
 
-    InternalArraySingleArgumentConstructorStub stub1_holey(
-        masm->isolate(), GetHoleyElementsKind(kind));
-    __ TailCallStub(&stub1_holey);
+    __ Jump(CodeFactory::InternalArraySingleArgumentConstructor(
+                masm->isolate(), GetHoleyElementsKind(kind))
+                .code(),
+            RelocInfo::CODE_TARGET);
 
     __ Bind(&packed_case);
   }
-  InternalArraySingleArgumentConstructorStub stub1(masm->isolate(), kind);
-  __ TailCallStub(&stub1);
+
+  __ Jump(
+      CodeFactory::InternalArraySingleArgumentConstructor(masm->isolate(), kind)
+          .code(),
+      RelocInfo::CODE_TARGET);
 
   __ Bind(&zero_case);
   // No arguments.
-  InternalArrayNoArgumentConstructorStub stub0(masm->isolate(), kind);
-  __ TailCallStub(&stub0);
+  __ Jump(CodeFactory::InternalArrayNoArgumentConstructor(masm->isolate(), kind)
+              .code(),
+          RelocInfo::CODE_TARGET);
 
   __ Bind(&n_case);
   // N arguments.

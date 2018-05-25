@@ -85,6 +85,18 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 
+  static Callable ArrayNoArgumentConstructor(
+      Isolate* isolate, ElementsKind kind,
+      AllocationSiteOverrideMode override_mode);
+  static Callable ArraySingleArgumentConstructor(
+      Isolate* isolate, ElementsKind kind,
+      AllocationSiteOverrideMode override_mode);
+
+  static Callable InternalArrayNoArgumentConstructor(Isolate* isolate,
+                                                     ElementsKind kind);
+  static Callable InternalArraySingleArgumentConstructor(Isolate* isolate,
+                                                         ElementsKind kind);
+
   static Callable ArrayPop(Isolate* isolate);
   static Callable ArrayPush(Isolate* isolate);
   static Callable ArrayShift(Isolate* isolate);
