@@ -1669,45 +1669,65 @@ class ThreadImpl {
     return true;                                 \
   }
       BINOP_CASE(F32x4Add, f32x4, float4, 4, a + b)
-      BINOP_CASE(I32x4Add, i32x4, int4, 4, a + b)
-      BINOP_CASE(I16x8Add, i16x8, int8, 8, a + b)
-      BINOP_CASE(I8x16Add, i8x16, int16, 16, a + b)
       BINOP_CASE(F32x4Sub, f32x4, float4, 4, a - b)
-      BINOP_CASE(I32x4Sub, i32x4, int4, 4, a - b)
-      BINOP_CASE(I16x8Sub, i16x8, int8, 8, a - b)
-      BINOP_CASE(I8x16Sub, i8x16, int16, 16, a - b)
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)
-      BINOP_CASE(I32x4Mul, i32x4, int4, 4, a * b)
-      BINOP_CASE(I16x8Mul, i16x8, int8, 8, a * b)
-      BINOP_CASE(I8x16Mul, i8x16, int16, 16, a * b)
       BINOP_CASE(F32x4Min, f32x4, float4, 4, a < b ? a : b)
-      BINOP_CASE(I32x4MinS, i32x4, int4, 4, a < b ? a : b)
-      BINOP_CASE(I32x4MinU, ui32x4, uint4, 4, a < b ? a : b)
-      BINOP_CASE(I16x8MinS, i16x8, int8, 8, a < b ? a : b)
-      BINOP_CASE(I16x8MinU, ui16x8, uint8, 8, a < b ? a : b)
-      BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
-      BINOP_CASE(I8x16MinU, ui8x16, uint16, 16, a < b ? a : b)
       BINOP_CASE(F32x4Max, f32x4, float4, 4, a > b ? a : b)
+      BINOP_CASE(I32x4Add, i32x4, int4, 4, a + b)
+      BINOP_CASE(I32x4Sub, i32x4, int4, 4, a - b)
+      BINOP_CASE(I32x4Mul, i32x4, int4, 4, a * b)
+      BINOP_CASE(I32x4MinS, i32x4, int4, 4, a < b ? a : b)
+      BINOP_CASE(
+          I32x4MinU, i32x4, int4, 4,
+          *reinterpret_cast<uint32_t*>(&a) < *reinterpret_cast<uint32_t*>(&b)
+              ? a
+              : b)
       BINOP_CASE(I32x4MaxS, i32x4, int4, 4, a > b ? a : b)
-      BINOP_CASE(I32x4MaxU, ui32x4, uint4, 4, a > b ? a : b)
-      BINOP_CASE(I16x8MaxS, i16x8, int8, 8, a > b ? a : b)
-      BINOP_CASE(I16x8MaxU, ui16x8, uint8, 8, a > b ? a : b)
-      BINOP_CASE(I8x16MaxS, i8x16, int16, 16, a > b ? a : b)
-      BINOP_CASE(I8x16MaxU, ui8x16, uint16, 16, a > b ? a : b)
+      BINOP_CASE(
+          I32x4MaxU, i32x4, int4, 4,
+          *reinterpret_cast<uint32_t*>(&a) > *reinterpret_cast<uint32_t*>(&b)
+              ? a
+              : b)
       BINOP_CASE(S128And, i32x4, int4, 4, a & b)
       BINOP_CASE(S128Or, i32x4, int4, 4, a | b)
       BINOP_CASE(S128Xor, i32x4, int4, 4, a ^ b)
+      BINOP_CASE(I16x8Add, i16x8, int8, 8, a + b)
+      BINOP_CASE(I16x8Sub, i16x8, int8, 8, a - b)
+      BINOP_CASE(I16x8Mul, i16x8, int8, 8, a * b)
+      BINOP_CASE(I16x8MinS, i16x8, int8, 8, a < b ? a : b)
+      BINOP_CASE(
+          I16x8MinU, i16x8, int8, 8,
+          *reinterpret_cast<uint16_t*>(&a) < *reinterpret_cast<uint16_t*>(&b)
+              ? a
+              : b)
+      BINOP_CASE(I16x8MaxS, i16x8, int8, 8, a > b ? a : b)
+      BINOP_CASE(
+          I16x8MaxU, i16x8, int8, 8,
+          *reinterpret_cast<uint16_t*>(&a) > *reinterpret_cast<uint16_t*>(&b)
+              ? a
+              : b)
       BINOP_CASE(I16x8AddSaturateS, i16x8, int8, 8, SaturateAdd<int16_t>(a, b))
-      BINOP_CASE(I16x8AddSaturateU, ui16x8, uint8, 8,
-                 SaturateAdd<uint16_t>(a, b))
+      BINOP_CASE(I16x8AddSaturateU, i16x8, int8, 8, SaturateAdd<uint16_t>(a, b))
       BINOP_CASE(I16x8SubSaturateS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
-      BINOP_CASE(I16x8SubSaturateU, ui16x8, uint8, 8,
-                 SaturateSub<uint16_t>(a, b))
+      BINOP_CASE(I16x8SubSaturateU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
+      BINOP_CASE(I8x16Add, i8x16, int16, 16, a + b)
+      BINOP_CASE(I8x16Sub, i8x16, int16, 16, a - b)
+      BINOP_CASE(I8x16Mul, i8x16, int16, 16, a * b)
+      BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
+      BINOP_CASE(
+          I8x16MinU, i8x16, int16, 16,
+          *reinterpret_cast<uint8_t*>(&a) < *reinterpret_cast<uint8_t*>(&b) ? a
+                                                                            : b)
+      BINOP_CASE(I8x16MaxS, i8x16, int16, 16, a > b ? a : b)
+      BINOP_CASE(
+          I8x16MaxU, i8x16, int16, 16,
+          *reinterpret_cast<uint8_t*>(&a) > *reinterpret_cast<uint8_t*>(&b) ? a
+                                                                            : b)
       BINOP_CASE(I8x16AddSaturateS, i8x16, int16, 16, SaturateAdd<int8_t>(a, b))
-      BINOP_CASE(I8x16AddSaturateU, ui8x16, uint16, 16,
+      BINOP_CASE(I8x16AddSaturateU, i8x16, int16, 16,
                  SaturateAdd<uint8_t>(a, b))
       BINOP_CASE(I8x16SubSaturateS, i8x16, int16, 16, SaturateSub<int8_t>(a, b))
-      BINOP_CASE(I8x16SubSaturateU, ui8x16, uint16, 16,
+      BINOP_CASE(I8x16SubSaturateU, i8x16, int16, 16,
                  SaturateSub<uint8_t>(a, b))
 #undef BINOP_CASE
 #define UNOP_CASE(op, name, stype, count, expr) \
@@ -1724,12 +1744,12 @@ class ThreadImpl {
   }
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
-      UNOP_CASE(I32x4Neg, i32x4, int4, 4, -a)
-      UNOP_CASE(I16x8Neg, i16x8, int8, 8, -a)
-      UNOP_CASE(I8x16Neg, i8x16, int16, 16, -a)
       UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, 1.0f / a)
       UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, 1.0f / std::sqrt(a))
+      UNOP_CASE(I32x4Neg, i32x4, int4, 4, -a)
       UNOP_CASE(S128Not, i32x4, int4, 4, ~a)
+      UNOP_CASE(I16x8Neg, i16x8, int8, 8, -a)
+      UNOP_CASE(I8x16Neg, i8x16, int16, 16, -a)
 #undef UNOP_CASE
       default:
         return false;
