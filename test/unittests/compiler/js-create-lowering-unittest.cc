@@ -70,7 +70,8 @@ class JSCreateLoweringTest : public TypedGraphTest {
 
 TEST_F(JSCreateLoweringTest, JSCreate) {
   Handle<JSFunction> function = isolate()->object_function();
-  Node* const target = Parameter(Type::HeapConstant(function, graph()->zone()));
+  Node* const target =
+      Parameter(Type::HeapConstant(isolate(), function, graph()->zone()));
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();

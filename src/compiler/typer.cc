@@ -2181,7 +2181,7 @@ Type Typer::Visitor::TypeConstant(Handle<Object> value) {
   if (Type::IsInteger(*value)) {
     return Type::Range(value->Number(), value->Number(), zone());
   }
-  return Type::NewConstant(value, zone());
+  return Type::NewConstant(isolate(), value, zone());
 }
 
 }  // namespace compiler

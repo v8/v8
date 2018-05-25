@@ -60,7 +60,7 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type type = Type::NewConstant(value, zone());
+  Type type = Type::NewConstant(isolate(), value, zone());
   NodeProperties::SetType(node, type);
   return node;
 }

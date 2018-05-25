@@ -405,12 +405,11 @@ class JSBinopReduction final {
 // - immediately put in type bounds for all new nodes
 // - relax effects from generic but not-side-effecting operations
 
-JSTypedLowering::JSTypedLowering(Editor* editor,
-                                 JSGraph* jsgraph, Zone* zone)
+JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      empty_string_type_(
-          Type::HeapConstant(factory()->empty_string(), graph()->zone())),
+      empty_string_type_(Type::HeapConstant(
+          isolate(), factory()->empty_string(), graph()->zone())),
       pointer_comparable_type_(
           Type::Union(Type::Oddball(),
                       Type::Union(Type::SymbolOrReceiver(), empty_string_type_,

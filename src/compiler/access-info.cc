@@ -397,7 +397,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               dependencies()->AssumeFieldOwner(field_owner_map);
 
               // Remember the field map, and try to infer a useful type.
-              field_type = Type::For(descriptors_field_type->AsClass());
+              field_type =
+                  Type::For(isolate(), descriptors_field_type->AsClass());
               field_map = descriptors_field_type->AsClass();
             }
           }
@@ -701,7 +702,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       dependencies()->AssumeFieldOwner(field_owner_map);
 
       // Remember the field map, and try to infer a useful type.
-      field_type = Type::For(descriptors_field_type->AsClass());
+      field_type = Type::For(isolate(), descriptors_field_type->AsClass());
       field_map = descriptors_field_type->AsClass();
     }
   }

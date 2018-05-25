@@ -31,9 +31,11 @@ Reduction TypeNarrowingReducer::Reduce(Node* node) {
           right_type.Is(Type::PlainNumber())) {
         Factory* const factory = jsgraph()->isolate()->factory();
         if (left_type.Max() < right_type.Min()) {
-          new_type = Type::HeapConstant(factory->true_value(), zone());
+          new_type = Type::HeapConstant(jsgraph()->isolate(),
+                                        factory->true_value(), zone());
         } else if (left_type.Min() >= right_type.Max()) {
-          new_type = Type::HeapConstant(factory->false_value(), zone());
+          new_type = Type::HeapConstant(jsgraph()->isolate(),
+                                        factory->false_value(), zone());
         }
       }
       break;

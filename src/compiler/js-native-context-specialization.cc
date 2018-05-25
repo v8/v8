@@ -624,7 +624,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             Handle<Map> property_cell_value_map(
                 Handle<HeapObject>::cast(property_cell_value)->map(),
                 isolate());
-            property_cell_value_type = Type::For(property_cell_value_map);
+            property_cell_value_type =
+                Type::For(isolate(), property_cell_value_map);
             representation = MachineRepresentation::kTaggedPointer;
 
             // We can only use the property cell value map for map check

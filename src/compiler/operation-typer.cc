@@ -19,17 +19,22 @@ namespace compiler {
 OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = isolate->factory();
-  infinity_ = Type::NewConstant(factory->infinity_value(), zone);
-  minus_infinity_ = Type::NewConstant(factory->minus_infinity_value(), zone);
+  infinity_ = Type::NewConstant(isolate, factory->infinity_value(), zone);
+  minus_infinity_ =
+      Type::NewConstant(isolate, factory->minus_infinity_value(), zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
-  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
-  singleton_NaN_string_ = Type::HeapConstant(factory->NaN_string(), zone);
-  singleton_zero_string_ = Type::HeapConstant(factory->zero_string(), zone);
-  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
+  singleton_empty_string_ =
+      Type::HeapConstant(isolate, factory->empty_string(), zone);
+  singleton_NaN_string_ =
+      Type::HeapConstant(isolate, factory->NaN_string(), zone);
+  singleton_zero_string_ =
+      Type::HeapConstant(isolate, factory->zero_string(), zone);
+  singleton_false_ = Type::HeapConstant(isolate, factory->false_value(), zone);
+  singleton_true_ = Type::HeapConstant(isolate, factory->true_value(), zone);
+  singleton_the_hole_ =
+      Type::HeapConstant(isolate, factory->the_hole_value(), zone);
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 

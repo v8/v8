@@ -174,7 +174,8 @@ class TyperTest : public TypedGraphTest {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
               Type result_type = Type::NewConstant(
-                  isolate()->factory()->NewNumber(result_value), zone());
+                  isolate(), isolate()->factory()->NewNumber(result_value),
+                  zone());
               EXPECT_TRUE(result_type.Is(expected_type));
             }
           }
@@ -195,19 +196,21 @@ class TyperTest : public TypedGraphTest {
         double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
-            isolate()->factory()->NewNumber(result_value), zone());
+            isolate(), isolate()->factory()->NewNumber(result_value), zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
     // Test extreme cases.
     double x1 = +1e-308;
     double x2 = -1e-308;
-    Type r1 = Type::NewConstant(isolate()->factory()->NewNumber(x1), zone());
-    Type r2 = Type::NewConstant(isolate()->factory()->NewNumber(x2), zone());
+    Type r1 = Type::NewConstant(isolate(), isolate()->factory()->NewNumber(x1),
+                                zone());
+    Type r2 = Type::NewConstant(isolate(), isolate()->factory()->NewNumber(x2),
+                                zone());
     Type expected_type = TypeBinaryOp(op, r1, r2);
     double result_value = opfun(x1, x2);
     Type result_type = Type::NewConstant(
-        isolate()->factory()->NewNumber(result_value), zone());
+        isolate(), isolate()->factory()->NewNumber(result_value), zone());
     EXPECT_TRUE(result_type.Is(expected_type));
   }
 
@@ -222,6 +225,7 @@ class TyperTest : public TypedGraphTest {
         double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
+            isolate(),
             result_value ? isolate()->factory()->true_value()
                          : isolate()->factory()->false_value(),
             zone());
@@ -241,7 +245,7 @@ class TyperTest : public TypedGraphTest {
         int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
-            isolate()->factory()->NewNumber(result_value), zone());
+            isolate(), isolate()->factory()->NewNumber(result_value), zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }

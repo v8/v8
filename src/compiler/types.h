@@ -250,8 +250,8 @@ class V8_EXPORT_PRIVATE BitsetType {
   static double Max(bitset);
 
   static bitset Glb(double min, double max);
-  static bitset Lub(i::Map* map);
-  static bitset Lub(i::Object* value);
+  static bitset Lub(Isolate* isolate, i::Map* map);
+  static bitset Lub(Isolate* isolate, i::Object* value);
   static bitset Lub(double value);
   static bitset Lub(double min, double max);
   static bitset ExpandInternals(bitset bits);
@@ -361,14 +361,16 @@ class V8_EXPORT_PRIVATE Type {
   static Type UnsignedSmall() { return NewBitset(BitsetType::UnsignedSmall()); }
 
   static Type OtherNumberConstant(double value, Zone* zone);
-  static Type HeapConstant(i::Handle<i::HeapObject> value, Zone* zone);
+  static Type HeapConstant(Isolate* isolate, i::Handle<i::HeapObject> value,
+                           Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
   static Type Union(int length, Zone* zone);
 
   // NewConstant is a factory that returns Constant, Range or Number.
-  static Type NewConstant(i::Handle<i::Object> value, Zone* zone);
+  static Type NewConstant(Isolate* isolate, i::Handle<i::Object> value,
+                          Zone* zone);
   static Type NewConstant(double value, Zone* zone);
 
   static Type Union(Type type1, Type type2, Zone* zone);
@@ -377,17 +379,21 @@ class V8_EXPORT_PRIVATE Type {
   static Type Of(double value, Zone* zone) {
     return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
   }
-  static Type Of(i::Object* value, Zone* zone) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
+  static Type Of(Isolate* isolate, i::Object* value, Zone* zone) {
+    return NewBitset(
+        BitsetType::ExpandInternals(BitsetType::Lub(isolate, value)));
   }
-  static Type Of(i::Handle<i::Object> value, Zone* zone) {
-    return Of(*value, zone);
+  static Type Of(Isolate* isolate, i::Handle<i::Object> value, Zone* zone) {
+    return Of(isolate, *value, zone);
   }
 
-  static Type For(i::Map* map) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(map)));
+  static Type For(Isolate* isolate, i::Map* map) {
+    return NewBitset(
+        BitsetType::ExpandInternals(BitsetType::Lub(isolate, map)));
   }
-  static Type For(i::Handle<i::Map> map) { return For(*map); }
+  static Type For(Isolate* isolate, i::Handle<i::Map> map) {
+    return For(isolate, *map);
+  }
 
   // Predicates.
   bool IsNone() const { return payload_ == None().payload_; }
@@ -555,8 +561,9 @@ class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
   friend class Type;
   friend class BitsetType;
 
-  static HeapConstantType* New(i::Handle<i::HeapObject> value, Zone* zone) {
-    BitsetType::bitset bitset = BitsetType::Lub(*value);
+  static HeapConstantType* New(Isolate* isolate, i::Handle<i::HeapObject> value,
+                               Zone* zone) {
+    BitsetType::bitset bitset = BitsetType::Lub(isolate, *value);
     return new (zone->New(sizeof(HeapConstantType)))
         HeapConstantType(bitset, value);
   }

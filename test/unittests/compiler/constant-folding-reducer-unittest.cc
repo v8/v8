@@ -86,8 +86,8 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
 
 TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   {
-    Reduction r = Reduce(
-        Parameter(Type::NewConstant(factory()->minus_zero_value(), zone())));
+    Reduction r = Reduce(Parameter(
+        Type::NewConstant(isolate(), factory()->minus_zero_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(-0.0));
   }
@@ -98,7 +98,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   }
   {
     Reduction r = Reduce(Parameter(Type::Union(
-        Type::MinusZero(), Type::NewConstant(factory()->NewNumber(0), zone()),
+        Type::MinusZero(),
+        Type::NewConstant(isolate(), factory()->NewNumber(0), zone()),
         zone())));
     EXPECT_FALSE(r.Changed());
   }
@@ -107,7 +108,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
 TEST_F(ConstantFoldingReducerTest, ParameterWithNull) {
   Handle<HeapObject> null = factory()->null_value();
   {
-    Reduction r = Reduce(Parameter(Type::NewConstant(null, zone())));
+    Reduction r = Reduce(Parameter(Type::NewConstant(isolate(), null, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(null));
   }
@@ -124,13 +125,14 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
                           std::numeric_limits<double>::signaling_NaN()};
   TRACED_FOREACH(double, nan, kNaNs) {
     Handle<Object> constant = factory()->NewNumber(nan);
-    Reduction r = Reduce(Parameter(Type::NewConstant(constant, zone())));
+    Reduction r =
+        Reduce(Parameter(Type::NewConstant(isolate(), constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
   {
-    Reduction r =
-        Reduce(Parameter(Type::NewConstant(factory()->nan_value(), zone())));
+    Reduction r = Reduce(Parameter(
+        Type::NewConstant(isolate(), factory()->nan_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
@@ -144,7 +146,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
 TEST_F(ConstantFoldingReducerTest, ParameterWithPlainNumber) {
   TRACED_FOREACH(double, value, kFloat64Values) {
     Handle<Object> constant = factory()->NewNumber(value);
-    Reduction r = Reduce(Parameter(Type::NewConstant(constant, zone())));
+    Reduction r =
+        Reduce(Parameter(Type::NewConstant(isolate(), constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(value));
   }
@@ -163,7 +166,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithUndefined) {
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
   {
-    Reduction r = Reduce(Parameter(Type::NewConstant(undefined, zone())));
+    Reduction r =
+        Reduce(Parameter(Type::NewConstant(isolate(), undefined, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
@@ -184,9 +188,10 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
                       Type::Undefined(),
                       Type::Union(
                           Type::Undetectable(),
-                          Type::Union(Type::NewConstant(
-                                          factory()->false_value(), zone()),
-                                      Type::Range(0.0, 0.0, zone()), zone()),
+                          Type::Union(
+                              Type::NewConstant(
+                                  isolate(), factory()->false_value(), zone()),
+                              Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
                       zone()),
                   zone()),
@@ -201,7 +206,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
 TEST_F(ConstantFoldingReducerTest, ToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
-          Type::NewConstant(factory()->true_value(), zone()),
+          Type::NewConstant(isolate(), factory()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);

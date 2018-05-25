@@ -774,9 +774,10 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   Handle<JSFunction> constructor(native_context()->array_function(), isolate());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Type new_target_type = (target == new_target)
-                             ? Type::HeapConstant(constructor, zone())
-                             : NodeProperties::GetType(new_target);
+  Type new_target_type =
+      (target == new_target)
+          ? Type::HeapConstant(isolate(), constructor, zone())
+          : NodeProperties::GetType(new_target);
 
   // Extract original constructor function.
   if (new_target_type.IsHeapConstant() &&
@@ -1788,7 +1789,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(boilerplate_map->instance_size(), pretenure,
-                   Type::For(boilerplate_map));
+                   Type::For(isolate(), boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
@@ -1894,7 +1895,7 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
       JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
 
   AllocationBuilder builder(jsgraph(), effect, control);
-  builder.Allocate(size, pretenure, Type::For(boilerplate_map));
+  builder.Allocate(size, pretenure, Type::For(isolate(), boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
                 handle(boilerplate->raw_properties_or_hash(), isolate()));

@@ -22,9 +22,10 @@ TypedOptimization::TypedOptimization(Editor* editor,
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       jsgraph_(jsgraph),
-      true_type_(Type::HeapConstant(factory()->true_value(), graph()->zone())),
-      false_type_(
-          Type::HeapConstant(factory()->false_value(), graph()->zone())),
+      true_type_(Type::HeapConstant(jsgraph->isolate(), factory()->true_value(),
+                                    graph()->zone())),
+      false_type_(Type::HeapConstant(
+          jsgraph->isolate(), factory()->false_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
 TypedOptimization::~TypedOptimization() {}

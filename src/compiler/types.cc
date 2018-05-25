@@ -146,8 +146,9 @@ Type::bitset Type::BitsetLub() const {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(i::Map* map) {
+Type::bitset BitsetType::Lub(Isolate* isolate, i::Map* map) {
   DisallowHeapAllocation no_allocation;
+  Heap* heap = isolate->heap();
   switch (map->instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
@@ -178,7 +179,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case BIGINT_TYPE:
       return kBigInt;
     case ODDBALL_TYPE: {
-      Heap* heap = map->GetHeap();
       if (map == heap->undefined_map()) return kUndefined;
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
@@ -343,12 +343,12 @@ Type::bitset BitsetType::Lub(i::Map* map) {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(i::Object* value) {
+Type::bitset BitsetType::Lub(Isolate* isolate, i::Object* value) {
   DisallowHeapAllocation no_allocation;
   if (value->IsNumber()) {
     return Lub(value->Number());
   }
-  return Lub(i::HeapObject::cast(value)->map());
+  return Lub(isolate, i::HeapObject::cast(value)->map());
 }
 
 Type::bitset BitsetType::Lub(double value) {
@@ -831,7 +831,8 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
+Type Type::NewConstant(Isolate* isolate, i::Handle<i::Object> value,
+                       Zone* zone) {
   if (IsInteger(*value)) {
     double v = value->Number();
     return Range(v, v, zone);
@@ -840,7 +841,7 @@ Type Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
   } else if (value->IsString() && !value->IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
+  return HeapConstant(isolate, i::Handle<i::HeapObject>::cast(value), zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1066,8 +1067,9 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
-  return FromTypeBase(HeapConstantType::New(value, zone));
+Type Type::HeapConstant(Isolate* isolate, i::Handle<i::HeapObject> value,
+                        Zone* zone) {
+  return FromTypeBase(HeapConstantType::New(isolate, value, zone));
 }
 
 // static

@@ -40,7 +40,7 @@ namespace compiler {
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone), rng_(rng) {
+      : zone_(zone), isolate_(isolate), rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = Type::name();            \
   types.push_back(name);
@@ -65,13 +65,13 @@ class Types {
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
     uninitialized = isolate->factory()->uninitialized_value();
-    SmiConstant = Type::NewConstant(smi, zone);
-    Signed32Constant = Type::NewConstant(signed32, zone);
+    SmiConstant = Type::NewConstant(isolate, smi, zone);
+    Signed32Constant = Type::NewConstant(isolate, signed32, zone);
 
-    ObjectConstant1 = Type::HeapConstant(object1, zone);
-    ObjectConstant2 = Type::HeapConstant(object2, zone);
-    ArrayConstant = Type::HeapConstant(array, zone);
-    UninitializedConstant = Type::HeapConstant(uninitialized, zone);
+    ObjectConstant1 = Type::HeapConstant(isolate, object1, zone);
+    ObjectConstant2 = Type::HeapConstant(isolate, object2, zone);
+    ArrayConstant = Type::HeapConstant(isolate, array, zone);
+    UninitializedConstant = Type::HeapConstant(isolate, uninitialized, zone);
 
     values.push_back(smi);
     values.push_back(boxed_smi);
@@ -84,7 +84,7 @@ class Types {
     values.push_back(float2);
     values.push_back(float3);
     for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
-      types.push_back(Type::NewConstant(*it, zone));
+      types.push_back(Type::NewConstant(isolate, *it, zone));
     }
 
     integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
@@ -141,14 +141,14 @@ class Types {
   ValueVector values;
   ValueVector integers;  // "Integer" values used for range limits.
 
-  Type Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
+  Type Of(Handle<i::Object> value) { return Type::Of(isolate_, value, zone_); }
 
   Type NewConstant(Handle<i::Object> value) {
-    return Type::NewConstant(value, zone_);
+    return Type::NewConstant(isolate_, value, zone_);
   }
 
   Type HeapConstant(Handle<i::HeapObject> value) {
-    return Type::HeapConstant(value, zone_);
+    return Type::HeapConstant(isolate_, value, zone_);
   }
 
   Type Range(double min, double max) { return Type::Range(min, max, zone_); }
@@ -186,7 +186,7 @@ class Types {
       }
       case 1: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
-        return Type::NewConstant(values[i], zone_);
+        return Type::NewConstant(isolate_, values[i], zone_);
       }
       case 2: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
@@ -213,6 +213,7 @@ class Types {
 
  private:
   Zone* zone_;
+  Isolate* isolate_;
   v8::base::RandomNumberGenerator* rng_;
 };
 
