@@ -12,17 +12,17 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1e1a86d021a74a3e5927221ea7f0f9501c80a46a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f86e77c5a3d9c6ada2399d6d79284748df5706ea',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ebdd0db493b20f0abeab8960e6ea0ceb7c6b379a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4d2e8bfffdbd5ed055c5cd1e30bf511fb2662fb9',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'f61e46dbee9d539a32551493e3bcc1dea92f83ec',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '94288c26d2ffe3aec9848c147839afee597acefd',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '893eb86b02b2571894e328f05551112b96df1cce',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -34,7 +34,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1986f5a957da5e610ede36e73263e361b672e7a9',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '0e97383613e52bace60c3a430ef69f83785f72c2',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -52,7 +52,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '833f5ebf894be1e3e6d13678d5de8479bf12ff28',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '34f5f28603ebda484debc188fb9004db95a41451',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
