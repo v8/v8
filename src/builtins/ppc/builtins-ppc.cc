@@ -135,11 +135,11 @@ void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
   __ cmp(r6, r5);
   __ bne(&call);
   __ mr(r6, r4);
+  __ bind(&call);
 
   // Run the native code for the Array function called as a normal function.
-  __ bind(&call);
-  ArrayConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
@@ -1192,8 +1192,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
     // Tail call to the array construct stub (still in the caller
     // context at this point).
-    ArrayConstructorStub array_constructor_stub(masm->isolate());
-    __ Jump(array_constructor_stub.GetCode(), RelocInfo::CODE_TARGET);
+    Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
+    __ Jump(code, RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor with r3, r4, and r6 unmodified.
     __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithSpread),
@@ -3067,6 +3067,173 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
 
   __ bind(&done);
   __ Ret();
+}
+
+namespace {
+
+template <class T>
+static void CreateArrayDispatch(MacroAssembler* masm,
+                                AllocationSiteOverrideMode mode) {
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    T stub(masm->isolate(), GetInitialFastElementsKind(), mode);
+    __ TailCallStub(&stub);
+  } else if (mode == DONT_OVERRIDE) {
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      __ Cmpi(r6, Operand(kind), r0);
+      T stub(masm->isolate(), kind);
+      __ TailCallStub(&stub, eq);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
+                                           AllocationSiteOverrideMode mode) {
+  // r5 - allocation site (if mode != DISABLE_ALLOCATION_SITES)
+  // r6 - kind (if mode != DISABLE_ALLOCATION_SITES)
+  // r3 - number of arguments
+  // r4 - constructor?
+  // sp[0] - last argument
+  STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(PACKED_ELEMENTS == 2);
+  STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+  STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
+  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
+
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    ElementsKind initial = GetInitialFastElementsKind();
+    ElementsKind holey_initial = GetHoleyElementsKind(initial);
+
+    ArraySingleArgumentConstructorStub stub_holey(
+        masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES);
+    __ TailCallStub(&stub_holey);
+  } else if (mode == DONT_OVERRIDE) {
+    // is the low bit set? If so, we are holey and that is good.
+    Label normal_sequence;
+    __ andi(r0, r6, Operand(1));
+    __ bne(&normal_sequence, cr0);
+
+    // We are going to create a holey array, but our kind is non-holey.
+    // Fix kind and retry (only if we have an allocation site in the slot).
+    __ addi(r6, r6, Operand(1));
+
+    if (FLAG_debug_code) {
+      __ LoadP(r8, FieldMemOperand(r5, 0));
+      __ CompareRoot(r8, Heap::kAllocationSiteMapRootIndex);
+      __ Assert(eq, AbortReason::kExpectedAllocationSite);
+    }
+
+    // Save the resulting elements kind in type info. We can't just store r6
+    // in the AllocationSite::transition_info field because elements kind is
+    // restricted to a portion of the field...upper bits need to be left alone.
+    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+    __ LoadP(r7, FieldMemOperand(
+                     r5, AllocationSite::kTransitionInfoOrBoilerplateOffset));
+    __ AddSmiLiteral(r7, r7, Smi::FromInt(kFastElementsKindPackedToHoley), r0);
+    __ StoreP(
+        r7,
+        FieldMemOperand(r5, AllocationSite::kTransitionInfoOrBoilerplateOffset),
+        r0);
+
+    __ bind(&normal_sequence);
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      __ mov(r0, Operand(kind));
+      __ cmp(r6, r0);
+      ArraySingleArgumentConstructorStub stub(masm->isolate(), kind);
+      __ TailCallStub(&stub, eq);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void GenerateDispatchToArrayStub(
+    MacroAssembler* masm, AllocationSiteOverrideMode mode) {
+  Label not_zero_case, not_one_case;
+  __ cmpi(r3, Operand::Zero());
+  __ bne(&not_zero_case);
+  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+
+  __ bind(&not_zero_case);
+  __ cmpi(r3, Operand(1));
+  __ bgt(&not_one_case);
+  CreateArrayDispatchOneArgument(masm, mode);
+
+  __ bind(&not_one_case);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET);
+}
+
+}  // namespace
+
+void Builtins::Generate_ArrayConstructorImpl(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : argc (only if argument_count() == ANY)
+  //  -- r4 : constructor
+  //  -- r5 : AllocationSite or undefined
+  //  -- r6 : new target
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
+  // -----------------------------------
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ LoadP(r7, FieldMemOperand(r4, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a nullptr and a Smi.
+    __ TestIfSmi(r7, r0);
+    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, cr0);
+    __ CompareObjectType(r7, r7, r8, MAP_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction);
+
+    // We should either have undefined in r5 or a valid AllocationSite
+    __ AssertUndefinedOrAllocationSite(r5, r7);
+  }
+
+  // Enter the context of the Array function.
+  __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
+
+  Label subclassing;
+  __ cmp(r6, r4);
+  __ bne(&subclassing);
+
+  Label no_info;
+  // Get the elements kind and case on that.
+  __ CompareRoot(r5, Heap::kUndefinedValueRootIndex);
+  __ beq(&no_info);
+
+  __ LoadP(r6, FieldMemOperand(
+                   r5, AllocationSite::kTransitionInfoOrBoilerplateOffset));
+  __ SmiUntag(r6);
+  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+  __ And(r6, r6, Operand(AllocationSite::ElementsKindBits::kMask));
+  GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
+
+  __ bind(&no_info);
+  GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
+
+  __ bind(&subclassing);
+  __ ShiftLeftImm(r0, r3, Operand(kPointerSizeLog2));
+  __ StorePX(r4, MemOperand(sp, r0));
+  __ addi(r3, r3, Operand(3));
+  __ Push(r6, r5);
+  __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
 }
 
 void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {
