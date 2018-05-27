@@ -105,8 +105,8 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   // function.
   // tail call a stub
   __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
-  InternalArrayConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(BUILTIN_CODE(masm->isolate(), InternalArrayConstructorImpl),
+          RelocInfo::CODE_TARGET);
 }
 
 void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
@@ -3234,6 +3234,83 @@ void Builtins::Generate_ArrayConstructorImpl(MacroAssembler* masm) {
   __ addi(r3, r3, Operand(3));
   __ Push(r6, r5);
   __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
+}
+
+namespace {
+
+void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
+                                          ElementsKind kind) {
+  __ cmpli(r3, Operand(1));
+
+  InternalArrayNoArgumentConstructorStub stub0(masm->isolate(), kind);
+  __ TailCallStub(&stub0, lt);
+
+  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
+          RelocInfo::CODE_TARGET, gt);
+
+  if (IsFastPackedElementsKind(kind)) {
+    // We might need to create a holey array
+    // look at the first argument
+    __ LoadP(r6, MemOperand(sp, 0));
+    __ cmpi(r6, Operand::Zero());
+
+    InternalArraySingleArgumentConstructorStub stub1_holey(
+        masm->isolate(), GetHoleyElementsKind(kind));
+    __ TailCallStub(&stub1_holey, ne);
+  }
+
+  InternalArraySingleArgumentConstructorStub stub1(masm->isolate(), kind);
+  __ TailCallStub(&stub1);
+}
+
+}  // namespace
+
+void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : argc
+  //  -- r4 : constructor
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
+  // -----------------------------------
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ LoadP(r6, FieldMemOperand(r4, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a nullptr and a Smi.
+    __ TestIfSmi(r6, r0);
+    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, cr0);
+    __ CompareObjectType(r6, r6, r7, MAP_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction);
+  }
+
+  // Figure out the right elements kind
+  __ LoadP(r6, FieldMemOperand(r4, JSFunction::kPrototypeOrInitialMapOffset));
+  // Load the map's "bit field 2" into |result|.
+  __ lbz(r6, FieldMemOperand(r6, Map::kBitField2Offset));
+  // Retrieve elements_kind from bit field 2.
+  __ DecodeField<Map::ElementsKindBits>(r6);
+
+  if (FLAG_debug_code) {
+    Label done;
+    __ cmpi(r6, Operand(PACKED_ELEMENTS));
+    __ beq(&done);
+    __ cmpi(r6, Operand(HOLEY_ELEMENTS));
+    __ Assert(
+        eq,
+        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+    __ bind(&done);
+  }
+
+  Label fast_elements_case;
+  __ cmpi(r6, Operand(PACKED_ELEMENTS));
+  __ beq(&fast_elements_case);
+  GenerateInternalArrayConstructorCase(masm, HOLEY_ELEMENTS);
+
+  __ bind(&fast_elements_case);
+  GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
 }
 
 void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {
