@@ -3582,6 +3582,9 @@ void CompilationState::RestartBackgroundTasks(size_t max) {
   size_t num_restart;
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
+    // No need to restart tasks if compilation already failed.
+    if (failed_) return;
+
     bool should_increase_workload = allocated_memory_ <= max_memory_ / 2;
     if (!should_increase_workload) return;
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
