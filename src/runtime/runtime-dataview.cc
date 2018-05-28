@@ -230,7 +230,7 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
 
 }  // namespace
 
-#define CHECK_RECEIVER(method)                                              \
+#define CHECK_RECEIVER_OBJECT(method)                                       \
   Handle<Object> receiver = args.at<Object>(0);                             \
   if (!receiver->IsJSDataView()) {                                          \
     THROW_NEW_ERROR_RETURN_FAILURE(                                         \
@@ -244,7 +244,7 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
 #define DATA_VIEW_PROTOTYPE_GET(Type, type)                         \
   RUNTIME_FUNCTION(Runtime_DataViewGet##Type) {                     \
     HandleScope scope(isolate);                                     \
-    CHECK_RECEIVER("DataView.prototype.get" #Type);                 \
+    CHECK_RECEIVER_OBJECT("DataView.prototype.get" #Type);          \
     Handle<Object> byte_offset = args.at<Object>(1);                \
     Handle<Object> is_little_endian = args.at<Object>(2);           \
     Handle<Object> result;                                          \
@@ -271,7 +271,7 @@ DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
 #define DATA_VIEW_PROTOTYPE_SET(Type, type)                                \
   RUNTIME_FUNCTION(Runtime_DataViewSet##Type) {                            \
     HandleScope scope(isolate);                                            \
-    CHECK_RECEIVER("DataView.prototype.set" #Type);                        \
+    CHECK_RECEIVER_OBJECT("DataView.prototype.set" #Type);                 \
     Handle<Object> byte_offset = args.at<Object>(1);                       \
     Handle<Object> value = args.at<Object>(2);                             \
     Handle<Object> is_little_endian = args.at<Object>(3);                  \
@@ -296,6 +296,6 @@ DATA_VIEW_PROTOTYPE_SET(BigInt64, int64_t)
 DATA_VIEW_PROTOTYPE_SET(BigUint64, uint64_t)
 #undef DATA_VIEW_PROTOTYPE_SET
 
-#undef CHECK_RECEIVER
+#undef CHECK_RECEIVER_OBJECT
 }  // namespace internal
 }  // namespace v8
