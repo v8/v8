@@ -1979,7 +1979,7 @@ void Heap::EvacuateYoungGeneration() {
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
 
   // Move pages from new->old generation.
-  PageRange range(new_space()->bottom(), new_space()->top());
+  PageRange range(new_space()->first_allocatable_address(), new_space()->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* p = (*++it)->prev_page();
     new_space()->from_space().RemovePage(p);
@@ -2202,8 +2202,7 @@ void Heap::Scavenge() {
   if (FLAG_concurrent_marking) {
     // Ensure that concurrent marker does not track pages that are
     // going to be unmapped.
-    for (Page* p : PageRange(new_space()->FromSpaceStart(),
-                             new_space()->FromSpaceEnd())) {
+    for (Page* p : PageRange(new_space()->from_space().first_page(), nullptr)) {
       concurrent_marking()->ClearLiveness(p);
     }
   }
@@ -3848,8 +3847,7 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
 
 void Heap::ZapFromSpace() {
   if (!new_space_->IsFromSpaceCommitted()) return;
-  for (Page* page :
-       PageRange(new_space_->FromSpaceStart(), new_space_->FromSpaceEnd())) {
+  for (Page* page : PageRange(new_space_->from_space().first_page(), nullptr)) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
       Memory::Address_at(cursor) = static_cast<Address>(kFromSpaceZapValue);

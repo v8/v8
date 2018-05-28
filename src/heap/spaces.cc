@@ -2644,7 +2644,7 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // SemiSpaceIterator implementation.
 
 SemiSpaceIterator::SemiSpaceIterator(NewSpace* space) {
-  Initialize(space->bottom(), space->top());
+  Initialize(space->first_allocatable_address(), space->top());
 }
 
 
