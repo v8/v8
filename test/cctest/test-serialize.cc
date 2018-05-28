@@ -2401,26 +2401,6 @@ static void AccessorForSerialization(
   info.GetReturnValue().Set(v8_num(2017));
 }
 
-class SerializedExtension : public v8::Extension {
- public:
-  SerializedExtension()
-      : v8::Extension("serialized extension",
-                      "native function g();"
-                      "function h() { return 13; };"
-                      "function i() { return 14; };"
-                      "var o = { p: 7 };") {}
-
-  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate, v8::Local<v8::String> name) {
-    CHECK(name->Equals(isolate->GetCurrentContext(), v8_str("g")).FromJust());
-    return v8::FunctionTemplate::New(isolate, FunctionCallback);
-  }
-
-  static void FunctionCallback(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    args.GetReturnValue().Set(v8_num(12));
-  }
-};
 
 static SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
 static SerializerTwoByteResource serializable_two_byte_resource("two_byte", 8);
@@ -2430,7 +2410,6 @@ intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(&serialized_static_field),
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
-    reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
     reinterpret_cast<intptr_t>(&serialized_static_field),  // duplicate entry
     reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
     reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
@@ -2441,7 +2420,6 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&serialized_static_field),
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
-    reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
     reinterpret_cast<intptr_t>(&serialized_static_field),
     reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
     reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
@@ -3105,9 +3083,6 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
   {
     v8::SnapshotCreator creator(original_external_references);
     v8::Isolate* isolate = creator.GetIsolate();
-    v8::RegisterExtension(new SerializedExtension);
-    const char* extension_names[] = {"serialized extension"};
-    v8::ExtensionConfiguration extensions(1, extension_names);
     {
       // Set default context. This context implicitly does *not* serialize
       // the global proxy, and upon deserialization one has to be created
@@ -3122,10 +3097,13 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, &extensions, global_template);
+          v8::Context::New(isolate, nullptr, global_template);
       v8::Context::Scope context_scope(context);
+      CompileRun(
+          "function h() { return 13; };"
+          "function i() { return 14; };"
+          "var o = { p: 7 };");
       ExpectInt32("f()", 42);
-      ExpectInt32("g()", 12);
       ExpectInt32("h()", 13);
       ExpectInt32("o.p", 7);
       ExpectInt32("x", 2016);
@@ -3153,7 +3131,7 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
           v8::FunctionTemplate::NewWithCache(isolate, SerializedCallback, priv,
                                              v8::Local<v8::Value>()));
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, &extensions, global_template);
+          v8::Context::New(isolate, nullptr, global_template);
       v8::Context::Scope context_scope(context);
 
       CHECK(context->Global()
@@ -3166,9 +3144,6 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
                 .FromJust());
 
       ExpectInt32("f()", 42);
-      ExpectInt32("g()", 12);
-      ExpectInt32("h()", 13);
-      ExpectInt32("o.p", 7);
       ExpectInt32("x", 2016);
       ExpectInt32("y", 2017);
       CHECK(v8_str("hidden string")
@@ -3195,12 +3170,14 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
     v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
-      // We can introduce new extensions, which could override the already
-      // snapshotted extension.
+      // We can introduce new extensions, which could override functions already
+      // in the snapshot.
       v8::Extension* extension = new v8::Extension("new extension",
                                                    "function i() { return 24; }"
                                                    "function j() { return 25; }"
-                                                   "if (o.p == 7) o.p++;");
+                                                   "try {"
+                                                   "  if (o.p == 7) o.p++;"
+                                                   "} catch {}");
       extension->set_auto_enable(true);
       v8::RegisterExtension(extension);
       {
@@ -3211,7 +3188,6 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
         ExpectInt32("f()", 42);
-        ExpectInt32("g()", 12);
         ExpectInt32("h()", 13);
         ExpectInt32("i()", 24);
         ExpectInt32("j()", 25);
@@ -3234,11 +3210,8 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
         {
           v8::Context::Scope context_scope(context);
           ExpectInt32("f()", 42);
-          ExpectInt32("g()", 12);
-          ExpectInt32("h()", 13);
           ExpectInt32("i()", 24);
           ExpectInt32("j()", 25);
-          ExpectInt32("o.p", 8);
           ExpectInt32("x", 2016);
           v8::Local<v8::Private> hidden =
               v8::Private::ForApi(isolate, v8_str("hidden"));
@@ -3266,11 +3239,8 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
         {
           v8::Context::Scope context_scope(context2);
           ExpectInt32("f()", 42);
-          ExpectInt32("g()", 12);
-          ExpectInt32("h()", 13);
           ExpectInt32("i()", 24);
           ExpectInt32("j()", 25);
-          ExpectInt32("o.p", 8);
           ExpectInt32("x", 2016);
           v8::Local<v8::Private> hidden =
               v8::Private::ForApi(isolate, v8_str("hidden"));
