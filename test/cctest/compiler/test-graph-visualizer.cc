@@ -131,6 +131,19 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   os << AsJSON(graph, &table, &table2);
 }
 
+TEST(TestSourceIdAssigner) {
+  Handle<SharedFunctionInfo> shared1;
+  Handle<SharedFunctionInfo> shared2;
+
+  SourceIdAssigner assigner(2);
+  const int source_id1 = assigner.GetIdFor(shared1);
+  const int source_id2 = assigner.GetIdFor(shared2);
+
+  CHECK_EQ(source_id1, source_id2);
+  CHECK_EQ(source_id1, assigner.GetIdAt(0));
+  CHECK_EQ(source_id2, assigner.GetIdAt(1));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
