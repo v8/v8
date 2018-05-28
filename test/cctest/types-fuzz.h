@@ -141,8 +141,6 @@ class Types {
   ValueVector values;
   ValueVector integers;  // "Integer" values used for range limits.
 
-  Type Of(Handle<i::Object> value) { return Type::Of(isolate_, value, zone_); }
-
   Type NewConstant(Handle<i::Object> value) {
     return Type::NewConstant(isolate_, value, zone_);
   }

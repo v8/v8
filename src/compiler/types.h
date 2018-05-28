@@ -376,17 +376,6 @@ class V8_EXPORT_PRIVATE Type {
   static Type Union(Type type1, Type type2, Zone* zone);
   static Type Intersect(Type type1, Type type2, Zone* zone);
 
-  static Type Of(double value, Zone* zone) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
-  }
-  static Type Of(Isolate* isolate, i::Object* value, Zone* zone) {
-    return NewBitset(
-        BitsetType::ExpandInternals(BitsetType::Lub(isolate, value)));
-  }
-  static Type Of(Isolate* isolate, i::Handle<i::Object> value, Zone* zone) {
-    return Of(isolate, *value, zone);
-  }
-
   static Type For(Isolate* isolate, i::Map* map) {
     return NewBitset(
         BitsetType::ExpandInternals(BitsetType::Lub(isolate, map)));
