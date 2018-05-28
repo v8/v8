@@ -367,7 +367,6 @@ class RelocInfo {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,
     EMBEDDED_OBJECT,
-    WASM_GLOBAL_HANDLE,
     WASM_CALL,
     JS_TO_WASM_CALL,
 
@@ -470,8 +469,7 @@ class RelocInfo {
     return IsWasmPtrReference(mode);
   }
   static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_GLOBAL_HANDLE || mode == WASM_CALL ||
-           mode == JS_TO_WASM_CALL;
+    return mode == WASM_CALL || mode == JS_TO_WASM_CALL;
   }
 
   static constexpr int ModeMask(Mode mode) { return 1 << mode; }
@@ -505,7 +503,6 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  Address global_handle() const;
   Address js_to_wasm_address() const;
   Address wasm_call_address() const;
 
@@ -514,8 +511,6 @@ class RelocInfo {
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  void set_global_handle(Address address, ICacheFlushMode icache_flush_mode =
-                                              FLUSH_ICACHE_IF_NEEDED);
   void set_wasm_call_address(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_js_to_wasm_address(

@@ -14266,7 +14266,6 @@ bool Code::IsProcessIndependent(Isolate* isolate) {
       mode_mask ==
       (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
        RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-       RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
        RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
        RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
        RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |

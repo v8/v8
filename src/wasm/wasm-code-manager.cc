@@ -267,7 +267,6 @@ void WasmCode::Validate() const {
       case RelocInfo::CODE_TARGET:
       // TODO(mstarzinger): Validate that we go through a trampoline.
       case RelocInfo::WASM_CODE_TABLE_ENTRY:
-      case RelocInfo::WASM_GLOBAL_HANDLE:
       case RelocInfo::WASM_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
