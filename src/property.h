@@ -43,8 +43,9 @@ class Descriptor final BASE_EMBEDDED {
 
   static Descriptor DataConstant(Handle<Name> key, Handle<Object> value,
                                  PropertyAttributes attributes) {
-    return Descriptor(key, value, kData, attributes, kDescriptor, kConst,
-                      value->OptimalRepresentation(), 0);
+    return Descriptor(key, value, kData, attributes, kDescriptor,
+                      PropertyConstness::kConst, value->OptimalRepresentation(),
+                      0);
   }
 
   static Descriptor DataConstant(Handle<Name> key, int field_index,
@@ -53,8 +54,8 @@ class Descriptor final BASE_EMBEDDED {
 
   static Descriptor AccessorConstant(Handle<Name> key, Handle<Object> foreign,
                                      PropertyAttributes attributes) {
-    return Descriptor(key, foreign, kAccessor, attributes, kDescriptor, kConst,
-                      Representation::Tagged(), 0);
+    return Descriptor(key, foreign, kAccessor, attributes, kDescriptor,
+                      PropertyConstness::kConst, Representation::Tagged(), 0);
   }
 
  private:

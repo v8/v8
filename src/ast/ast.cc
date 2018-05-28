@@ -824,9 +824,10 @@ Call::CallType Call::GetCallType() const {
     if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
-      // Calls going through 'with' always use DYNAMIC rather than DYNAMIC_LOCAL
-      // or DYNAMIC_GLOBAL.
-      return proxy->var()->mode() == DYNAMIC ? WITH_CALL : OTHER_CALL;
+      // Calls going through 'with' always use VariableMode::kDynamic rather
+      // than VariableMode::kDynamicLocal or VariableMode::kDynamicGlobal.
+      return proxy->var()->mode() == VariableMode::kDynamic ? WITH_CALL
+                                                            : OTHER_CALL;
     }
   }
 

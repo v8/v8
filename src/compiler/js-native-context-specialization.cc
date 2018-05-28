@@ -2892,7 +2892,7 @@ bool JSNativeContextSpecialization::LookupInScriptContextTable(
   Handle<Context> script_context = ScriptContextTable::GetContext(
       script_context_table, lookup_result.context_index);
   result->context = script_context;
-  result->immutable = lookup_result.mode == CONST;
+  result->immutable = lookup_result.mode == VariableMode::kConst;
   result->index = lookup_result.slot_index;
   return true;
 }

@@ -935,26 +935,26 @@ constexpr uint64_t kHoleNanInt64 =
 constexpr double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 
 // The order of this enum has to be kept in sync with the predicates below.
-enum VariableMode : uint8_t {
+enum class VariableMode : uint8_t {
   // User declared variables:
-  LET,  // declared via 'let' declarations (first lexical)
+  kLet,  // declared via 'let' declarations (first lexical)
 
-  CONST,  // declared via 'const' declarations (last lexical)
+  kConst,  // declared via 'const' declarations (last lexical)
 
-  VAR,  // declared via 'var', and 'function' declarations
+  kVar,  // declared via 'var', and 'function' declarations
 
   // Variables introduced by the compiler:
-  TEMPORARY,  // temporary variables (not user-visible), stack-allocated
-              // unless the scope as a whole has forced context allocation
+  kTemporary,  // temporary variables (not user-visible), stack-allocated
+               // unless the scope as a whole has forced context allocation
 
-  DYNAMIC,  // always require dynamic lookup (we don't know
-            // the declaration)
+  kDynamic,  // always require dynamic lookup (we don't know
+             // the declaration)
 
-  DYNAMIC_GLOBAL,  // requires dynamic lookup, but we know that the
+  kDynamicGlobal,  // requires dynamic lookup, but we know that the
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL  // requires dynamic lookup, but we know that the
+  kDynamicLocal  // requires dynamic lookup, but we know that the
                  // variable is local and where it is unless it
                  // has been shadowed by an eval-introduced
                  // variable
@@ -964,19 +964,19 @@ enum VariableMode : uint8_t {
 #ifdef DEBUG
 inline const char* VariableMode2String(VariableMode mode) {
   switch (mode) {
-    case VAR:
+    case VariableMode::kVar:
       return "VAR";
-    case LET:
+    case VariableMode::kLet:
       return "LET";
-    case CONST:
+    case VariableMode::kConst:
       return "CONST";
-    case DYNAMIC:
+    case VariableMode::kDynamic:
       return "DYNAMIC";
-    case DYNAMIC_GLOBAL:
+    case VariableMode::kDynamicGlobal:
       return "DYNAMIC_GLOBAL";
-    case DYNAMIC_LOCAL:
+    case VariableMode::kDynamicLocal:
       return "DYNAMIC_LOCAL";
-    case TEMPORARY:
+    case VariableMode::kTemporary:
       return "TEMPORARY";
   }
   UNREACHABLE();
@@ -991,19 +991,19 @@ enum VariableKind : uint8_t {
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
-  return mode >= DYNAMIC && mode <= DYNAMIC_LOCAL;
+  return mode >= VariableMode::kDynamic && mode <= VariableMode::kDynamicLocal;
 }
-
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  STATIC_ASSERT(LET == 0);  // Implies that mode >= LET.
-  return mode <= VAR;
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  return mode <= VariableMode::kVar;
 }
 
-
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  STATIC_ASSERT(LET == 0);  // Implies that mode >= LET.
-  return mode <= CONST;
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  return mode <= VariableMode::kConst;
 }
 
 enum VariableLocation : uint8_t {

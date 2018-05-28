@@ -33,13 +33,13 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   Handle<Map> map0 = Map::Create(isolate, 0);
   Handle<Map> map1 =
       Map::CopyWithField(map0, name1, handle(FieldType::Any(), isolate),
-                         attributes, kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
   Handle<Map> map2 =
       Map::CopyWithField(map0, name2, handle(FieldType::Any(), isolate),
-                         attributes, kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
   CHECK(map0->raw_transitions()->IsSmi());
@@ -90,13 +90,13 @@ TEST(TransitionArray_FullFieldTransitions) {
   Handle<Map> map0 = Map::Create(isolate, 0);
   Handle<Map> map1 =
       Map::CopyWithField(map0, name1, handle(FieldType::Any(), isolate),
-                         attributes, kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
   Handle<Map> map2 =
       Map::CopyWithField(map0, name2, handle(FieldType::Any(), isolate),
-                         attributes, kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
   CHECK(map0->raw_transitions()->IsSmi());
@@ -154,8 +154,8 @@ TEST(TransitionArray_DifferentFieldNames) {
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
     Handle<Map> map =
         Map::CopyWithField(map0, name, handle(FieldType::Any(), isolate),
-                           attributes, kMutable, Representation::Tagged(),
-                           OMIT_TRANSITION)
+                           attributes, PropertyConstness::kMutable,
+                           Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
     names[i] = name;
     maps[i] = map;
@@ -203,7 +203,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
 
     Handle<Map> map =
         Map::CopyWithField(map0, name, FieldType::Any(isolate), attributes,
-                           kMutable, Representation::Tagged(), OMIT_TRANSITION)
+                           PropertyConstness::kMutable,
+                           Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
     attr_maps[i] = map;
 
@@ -245,7 +246,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
     Handle<Map> map =
         Map::CopyWithField(map0, name, handle(FieldType::Any(), isolate), NONE,
-                           kMutable, Representation::Tagged(), OMIT_TRANSITION)
+                           PropertyConstness::kMutable,
+                           Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
     names[i] = name;
     maps[i] = map;
@@ -264,8 +266,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
 
     Handle<Map> map =
         Map::CopyWithField(map0, name, handle(FieldType::Any(), isolate),
-                           attributes, kMutable, Representation::Tagged(),
-                           OMIT_TRANSITION)
+                           attributes, PropertyConstness::kMutable,
+                           Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
     attr_maps[i] = map;
 

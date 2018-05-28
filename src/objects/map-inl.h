@@ -86,8 +86,9 @@ bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
                                       Representation representation,
                                       FieldType* field_type) {
   if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-      (constness == kConst)) {
-    // kConst -> kMutable field generalization may happen in-place.
+      (constness == PropertyConstness::kConst)) {
+    // VariableMode::kConst -> PropertyConstness::kMutable field generalization
+    // may happen in-place.
     return true;
   }
   if (representation.IsHeapObject() && !field_type->IsAny()) {
@@ -117,9 +118,9 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     // do not have fields that can be generalized in-place (without creation
     // of a new map).
     if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
-      // The constness is either already kMutable or should become kMutable if
-      // it was kConst.
-      *constness = kMutable;
+      // The constness is either already PropertyConstness::kMutable or should
+      // become PropertyConstness::kMutable if it was VariableMode::kConst.
+      *constness = PropertyConstness::kMutable;
     }
     if (representation->IsHeapObject()) {
       // The field type is either already Any or should become Any if it was

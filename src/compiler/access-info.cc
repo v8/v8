@@ -89,7 +89,8 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     FieldIndex field_index, MachineRepresentation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
-  Kind kind = constness == kConst ? kDataConstantField : kDataField;
+  Kind kind =
+      constness == PropertyConstness::kConst ? kDataConstantField : kDataField;
   return PropertyAccessInfo(kind, holder, transition_map, field_index,
                             field_representation, field_type, field_map,
                             receiver_maps);
@@ -647,9 +648,9 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
       }
     }
     // Special fields are always mutable.
-    *access_info =
-        PropertyAccessInfo::DataField(kMutable, MapHandles{map}, field_index,
-                                      field_representation, field_type);
+    *access_info = PropertyAccessInfo::DataField(
+        PropertyConstness::kMutable, MapHandles{map}, field_index,
+        field_representation, field_type);
     return true;
   }
   return false;
@@ -709,8 +710,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
   dependencies()->AssumeMapNotDeprecated(transition_map);
   // Transitioning stores are never stores to constant fields.
   *access_info = PropertyAccessInfo::DataField(
-      kMutable, MapHandles{map}, field_index, field_representation, field_type,
-      field_map, holder, transition_map);
+      PropertyConstness::kMutable, MapHandles{map}, field_index,
+      field_representation, field_type, field_map, holder, transition_map);
   return true;
 }
 

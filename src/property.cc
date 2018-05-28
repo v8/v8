@@ -25,8 +25,8 @@ std::ostream& operator<<(std::ostream& os,
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyAttributes attributes,
                                  Representation representation) {
-  return DataField(key, field_index, attributes, kMutable, representation,
-                   FieldType::Any(key->GetIsolate()));
+  return DataField(key, field_index, attributes, PropertyConstness::kMutable,
+                   representation, FieldType::Any(key->GetIsolate()));
 }
 
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
@@ -45,19 +45,20 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
                                     PropertyAttributes attributes) {
   if (FLAG_track_constant_fields) {
     Handle<Object> any_type(FieldType::Any(), key->GetIsolate());
-    return DataField(key, field_index, attributes, kConst,
+    return DataField(key, field_index, attributes, PropertyConstness::kConst,
                      Representation::Tagged(), any_type);
 
   } else {
-    return Descriptor(key, value, kData, attributes, kDescriptor, kConst,
-                      value->OptimalRepresentation(), field_index);
+    return Descriptor(key, value, kData, attributes, kDescriptor,
+                      PropertyConstness::kConst, value->OptimalRepresentation(),
+                      field_index);
   }
 }
 
 // Outputs PropertyDetails as a dictionary details.
 void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
   os << "(";
-  if (constness() == kConst) os << "const ";
+  if (constness() == PropertyConstness::kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
   os << ", dict_index: " << dictionary_index();
   os << ", attrs: " << attributes() << ")";
@@ -66,7 +67,7 @@ void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
 // Outputs PropertyDetails as a descriptor array details.
 void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   os << "(";
-  if (constness() == kConst) os << "const ";
+  if (constness() == PropertyConstness::kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
   if (location() == kField) {
     os << " field";

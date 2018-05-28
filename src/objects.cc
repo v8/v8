@@ -3773,7 +3773,7 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
   int index = map->NextFreePropertyIndex();
 
   if (map->instance_type() == JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
-    constness = kMutable;
+    constness = PropertyConstness::kMutable;
     representation = Representation::Tagged();
     type = FieldType::Any(isolate);
   } else {
@@ -3783,7 +3783,8 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
 
   Handle<Object> wrapped_type(WrapFieldType(type));
 
-  DCHECK_IMPLIES(!FLAG_track_constant_fields, constness == kMutable);
+  DCHECK_IMPLIES(!FLAG_track_constant_fields,
+                 constness == PropertyConstness::kMutable);
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
   Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
@@ -3806,8 +3807,8 @@ MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
     Isolate* isolate = map->GetIsolate();
     Representation representation = constant->OptimalRepresentation();
     Handle<FieldType> type = constant->OptimalType(isolate, representation);
-    return CopyWithField(map, name, type, attributes, kConst, representation,
-                         flag);
+    return CopyWithField(map, name, type, attributes, PropertyConstness::kConst,
+                         representation, flag);
   } else {
     // Allocate new instance descriptors with (name, constant) added.
     Descriptor d = Descriptor::DataConstant(name, 0, constant, attributes);
@@ -4368,7 +4369,7 @@ void DescriptorArray::GeneralizeAllFields() {
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == kField) {
       DCHECK_EQ(kData, details.kind());
-      details = details.CopyWithConstness(kMutable);
+      details = details.CopyWithConstness(PropertyConstness::kMutable);
       SetValue(i, FieldType::Any());
     }
     set(ToDetailsIndex(i), details.AsSmi());
@@ -4396,8 +4397,8 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
   // Unless the instance is being migrated, ensure that modify_index is a field.
   if (modify_index >= 0) {
     PropertyDetails details = descriptors->GetDetails(modify_index);
-    if (details.constness() != kMutable || details.location() != kField ||
-        details.attributes() != attributes) {
+    if (details.constness() != PropertyConstness::kMutable ||
+        details.location() != kField || details.attributes() != attributes) {
       int field_index = details.location() == kField
                             ? details.field_index()
                             : new_map->NumberOfFields();
@@ -4546,7 +4547,8 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
     // Skip if already updated the shared descriptor.
     if ((FLAG_modify_map_inplace && new_constness != details.constness()) ||
         descriptors->GetValue(descriptor) != *new_wrapped_type) {
-      DCHECK_IMPLIES(!FLAG_track_constant_fields, new_constness == kMutable);
+      DCHECK_IMPLIES(!FLAG_track_constant_fields,
+                     new_constness == PropertyConstness::kMutable);
       Descriptor d = Descriptor::DataField(
           name, descriptors->GetFieldIndex(descriptor), details.attributes(),
           new_constness, new_representation, new_wrapped_type);
@@ -4648,7 +4650,8 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
                                      Handle<FieldType> new_field_type) {
   DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
   MapUpdater mu(map->GetIsolate(), map);
-  return mu.ReconfigureToDataField(modify_index, new_attributes, kConst,
+  return mu.ReconfigureToDataField(modify_index, new_attributes,
+                                   PropertyConstness::kConst,
                                    new_representation, new_field_type);
 }
 
@@ -4671,7 +4674,8 @@ Handle<Map> Map::GeneralizeAllFields(Handle<Map> map) {
     if (details.location() == kField) {
       DCHECK_EQ(kData, details.kind());
       MapUpdater mu(isolate, map);
-      map = mu.ReconfigureToDataField(i, details.attributes(), kMutable,
+      map = mu.ReconfigureToDataField(i, details.attributes(),
+                                      PropertyConstness::kMutable,
                                       Representation::Tagged(), any_type);
     }
   }
@@ -6363,7 +6367,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     PropertyDetails details = dictionary->DetailsAt(index);
     DCHECK_EQ(kField, details.location());
-    DCHECK_EQ(kMutable, details.constness());
+    DCHECK_EQ(PropertyConstness::kMutable, details.constness());
 
     Descriptor d;
     if (details.kind() == kData) {
@@ -6375,8 +6379,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
         // transitionable.
         PropertyConstness constness =
             FLAG_track_constant_fields && !is_transitionable_elements_kind
-                ? kConst
-                : kMutable;
+                ? PropertyConstness::kConst
+                : PropertyConstness::kMutable;
         d = Descriptor::DataField(
             key, current_offset, details.attributes(), constness,
             // TODO(verwaest): value->OptimalRepresentation();
@@ -9684,7 +9688,7 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor,
 
   } else {
     DCHECK_EQ(kDescriptor, details.location());
-    DCHECK_EQ(kConst, details.constness());
+    DCHECK_EQ(PropertyConstness::kConst, details.constness());
     if (details.kind() == kData) {
       DCHECK(!FLAG_track_constant_fields);
       DCHECK(descriptors->GetValue(descriptor) != value ||

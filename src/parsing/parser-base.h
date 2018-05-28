@@ -3871,18 +3871,18 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
   switch (peek()) {
     case Token::VAR:
-      parsing_result->descriptor.mode = VAR;
+      parsing_result->descriptor.mode = VariableMode::kVar;
       Consume(Token::VAR);
       break;
     case Token::CONST:
       Consume(Token::CONST);
       DCHECK_NE(var_context, kStatement);
-      parsing_result->descriptor.mode = CONST;
+      parsing_result->descriptor.mode = VariableMode::kConst;
       break;
     case Token::LET:
       Consume(Token::LET);
       DCHECK_NE(var_context, kStatement);
-      parsing_result->descriptor.mode = LET;
+      parsing_result->descriptor.mode = VariableMode::kLet;
       break;
     default:
       UNREACHABLE();  // by current callers
@@ -3947,7 +3947,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     } else {
       if (var_context != kForStatement || !PeekInOrOf()) {
         // ES6 'const' and binding patterns require initializers.
-        if (parsing_result->descriptor.mode == CONST ||
+        if (parsing_result->descriptor.mode == VariableMode::kConst ||
             !impl()->IsIdentifier(pattern)) {
           impl()->ReportMessageAt(
               Scanner::Location(decl_pos, scanner()->location().end_pos),
@@ -3957,7 +3957,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
           return impl()->NullStatement();
         }
         // 'let x' initializes 'x' to undefined.
-        if (parsing_result->descriptor.mode == LET) {
+        if (parsing_result->descriptor.mode == VariableMode::kLet) {
           value = factory()->NewUndefinedLiteral(position());
         }
       }
@@ -4073,8 +4073,9 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
-      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
-                                                                       : VAR;
+      (!scope()->is_declaration_scope() || scope()->is_module_scope())
+          ? VariableMode::kLet
+          : VariableMode::kVar;
   // Async functions don't undergo sloppy mode block scoped hoisting, and don't
   // allow duplicates in a block. Both are represented by the
   // sloppy_block_function_map. Don't add them to the map for async functions.
@@ -5744,7 +5745,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   if (peek() == Token::VAR) {
     ParseVariableDeclarations(kForStatement, &for_info.parsing_result, nullptr,
                               CHECK_OK);
-    DCHECK_EQ(for_info.parsing_result.descriptor.mode, VAR);
+    DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kVar);
     for_info.position = scanner()->location().beg_pos;
 
     if (CheckInOrOf(&for_info.mode)) {

@@ -118,7 +118,7 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
     // We don't know if this is a first property kind reconfiguration
     // and we don't know which value was in this property previously
     // therefore we can't treat such a property as constant.
-    new_constness_ = kMutable;
+    new_constness_ = PropertyConstness::kMutable;
     new_representation_ = representation;
     new_field_type_ = field_type;
   }
@@ -477,10 +477,11 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
             : kDescriptor;
 
     if (!FLAG_track_constant_fields && next_location == kField) {
-      next_constness = kMutable;
+      next_constness = PropertyConstness::kMutable;
     }
     // Ensure that mutable values are stored in fields.
-    DCHECK_IMPLIES(next_constness == kMutable, next_location == kField);
+    DCHECK_IMPLIES(next_constness == PropertyConstness::kMutable,
+                   next_location == kField);
 
     Representation next_representation =
         old_details.representation().generalize(
@@ -516,7 +517,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_EQ(kDescriptor, next_location);
-      DCHECK_EQ(kConst, next_constness);
+      DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
       Descriptor d;
@@ -558,7 +559,8 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
-        DCHECK_IMPLIES(!FLAG_track_constant_fields, next_constness == kMutable);
+        DCHECK_IMPLIES(!FLAG_track_constant_fields,
+                       next_constness == PropertyConstness::kMutable);
         d = Descriptor::DataField(key, current_offset, next_attributes,
                                   next_constness, next_representation,
                                   wrapped_type);
@@ -570,7 +572,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_EQ(kDescriptor, next_location);
-      DCHECK_EQ(kConst, next_constness);
+      DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
       if (next_kind == kData) {

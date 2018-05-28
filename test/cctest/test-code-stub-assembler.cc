@@ -839,7 +839,8 @@ TEST(TransitionLookup) {
     // 1) there is a "base" attributes transition
     // 2) there are other non-base attributes transitions
     if ((i & 1) == 0) {
-      CHECK(!Map::CopyWithField(root_map, name, any, base_attributes, kMutable,
+      CHECK(!Map::CopyWithField(root_map, name, any, base_attributes,
+                                PropertyConstness::kMutable,
                                 Representation::Tagged(), INSERT_TRANSITION)
                  .is_null());
     }
@@ -850,7 +851,8 @@ TEST(TransitionLookup) {
         if (attributes == base_attributes) continue;
         // Don't add private symbols with enumerable attributes.
         if (is_private && ((attributes & DONT_ENUM) == 0)) continue;
-        CHECK(!Map::CopyWithField(root_map, name, any, attributes, kMutable,
+        CHECK(!Map::CopyWithField(root_map, name, any, attributes,
+                                  PropertyConstness::kMutable,
                                   Representation::Tagged(), INSERT_TRANSITION)
                    .is_null());
       }

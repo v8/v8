@@ -1212,7 +1212,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       }
       break;
     case VariableLocation::LOOKUP: {
-      DCHECK_EQ(VAR, variable->mode());
+      DCHECK_EQ(VariableMode::kVar, variable->mode());
       DCHECK(!variable->binding_needs_init());
 
       Register name = register_allocator()->NewRegister();
@@ -1235,7 +1235,8 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
-  DCHECK(variable->mode() == LET || variable->mode() == VAR);
+  DCHECK(variable->mode() == VariableMode::kLet ||
+         variable->mode() == VariableMode::kVar);
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackSlot slot =
@@ -1270,7 +1271,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       break;
     }
     case VariableLocation::MODULE:
-      DCHECK_EQ(variable->mode(), LET);
+      DCHECK_EQ(variable->mode(), VariableMode::kLet);
       DCHECK(variable->IsExport());
       VisitForAccumulatorValue(decl->fun());
       BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
@@ -2532,7 +2533,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
     }
     case VariableLocation::LOOKUP: {
       switch (variable->mode()) {
-        case DYNAMIC_LOCAL: {
+        case VariableMode::kDynamicLocal: {
           Variable* local_variable = variable->local_if_not_shadowed();
           int depth =
               execution_context()->ContextChainDepth(local_variable->scope());
@@ -2543,7 +2544,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
           }
           break;
         }
-        case DYNAMIC_GLOBAL: {
+        case VariableMode::kDynamicGlobal: {
           int depth =
               current_scope()->ContextChainLengthUntilOutermostSloppyEval();
           FeedbackSlot slot = GetCachedLoadGlobalICSlot(typeof_mode, variable);
@@ -2622,7 +2623,7 @@ void BytecodeGenerator::BuildReThrow() { builder()->ReThrow(); }
 
 void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
   if (variable->is_this()) {
-    DCHECK(variable->mode() == CONST);
+    DCHECK(variable->mode() == VariableMode::kConst);
     builder()->ThrowSuperNotCalledIfHole();
   } else {
     builder()->ThrowReferenceErrorIfHole(variable->raw_name());
@@ -2631,7 +2632,8 @@ void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
 
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
-  if (variable->is_this() && variable->mode() == CONST && op == Token::INIT) {
+  if (variable->is_this() && variable->mode() == VariableMode::kConst &&
+      op == Token::INIT) {
     // Perform an initialization check for 'this'. 'this' variable is the
     // only variable able to trigger bind operations outside the TDZ
     // via 'super' calls.
@@ -2675,7 +2677,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if (mode != CONST || op == Token::INIT) {
+      if (mode != VariableMode::kConst || op == Token::INIT) {
         builder()->StoreAccumulatorInRegister(destination);
       } else if (variable->throw_on_const_assignment(language_mode())) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError);
@@ -2711,7 +2713,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if (mode != CONST || op == Token::INIT) {
+      if (mode != VariableMode::kConst || op == Token::INIT) {
         builder()->StoreContextSlot(context_reg, variable->index(), depth);
       } else if (variable->throw_on_const_assignment(language_mode())) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError);
@@ -2726,7 +2728,7 @@ void BytecodeGenerator::BuildVariableAssignment(
     case VariableLocation::MODULE: {
       DCHECK(IsDeclaredVariableMode(mode));
 
-      if (mode == CONST && op != Token::INIT) {
+      if (mode == VariableMode::kConst && op != Token::INIT) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError);
         break;
       }

@@ -109,7 +109,7 @@ LookupIterator LookupIterator::ForTransitionHandler(
   if (!transition_map->is_dictionary_map()) {
     int descriptor_number = transition_map->LastAdded();
     Handle<Map> new_map = Map::PrepareForDataProperty(
-        transition_map, descriptor_number, kConst, value);
+        transition_map, descriptor_number, PropertyConstness::kConst, value);
     // Reload information; this is no-op if nothing changed.
     it.property_details_ =
         new_map->instance_descriptors()->GetDetails(descriptor_number);
@@ -412,16 +412,17 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   }
   if (!holder_obj->HasFastProperties()) return;
 
-  PropertyConstness new_constness = kConst;
+  PropertyConstness new_constness = PropertyConstness::kConst;
   if (FLAG_track_constant_fields) {
-    if (constness() == kConst) {
+    if (constness() == PropertyConstness::kConst) {
       DCHECK_EQ(kData, property_details_.kind());
       // Check that current value matches new value otherwise we should make
       // the property mutable.
-      if (!IsConstFieldValueEqualTo(*value)) new_constness = kMutable;
+      if (!IsConstFieldValueEqualTo(*value))
+        new_constness = PropertyConstness::kMutable;
     }
   } else {
-    new_constness = kMutable;
+    new_constness = PropertyConstness::kMutable;
   }
 
   Handle<Map> old_map(holder_obj->map(), isolate_);
@@ -470,7 +471,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
     new_map = Map::PrepareForDataProperty(new_map, descriptor_number(),
-                                          kMutable, value);
+                                          PropertyConstness::kMutable, value);
     JSObject::MigrateToMap(holder_obj, new_map);
     ReloadPropertyInformation<false>();
   }
@@ -842,7 +843,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object* value) const {
   DCHECK(!IsElement());
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
-  DCHECK_EQ(kConst, property_details_.constness());
+  DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
   Handle<JSObject> holder = GetHolder<JSObject>();
   FieldIndex field_index = FieldIndex::ForDescriptor(holder->map(), number_);
   if (property_details_.representation().IsDouble()) {
@@ -955,16 +956,16 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     accessor->Set(object, number_, *value);
   } else if (holder->HasFastProperties()) {
     if (property_details_.location() == kField) {
-      // Check that in case of kConst field the existing value is equal to
-      // |value|.
-      DCHECK_IMPLIES(
-          !initializing_store && property_details_.constness() == kConst,
-          IsConstFieldValueEqualTo(*value));
+      // Check that in case of VariableMode::kConst field the existing value is
+      // equal to |value|.
+      DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
+                                                PropertyConstness::kConst,
+                     IsConstFieldValueEqualTo(*value));
       JSObject::cast(*holder)->WriteToField(descriptor_number(),
                                             property_details_, *value);
     } else {
       DCHECK_EQ(kDescriptor, property_details_.location());
-      DCHECK_EQ(kConst, property_details_.constness());
+      DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
     }
   } else if (holder->IsJSGlobalObject()) {
     GlobalDictionary* dictionary =

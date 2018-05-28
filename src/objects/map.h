@@ -486,8 +486,8 @@ class Map : public HeapObject {
   // optimized code to more general elements kind.
   // This generalization is necessary in order to ensure that elements kind
   // transitions performed by stubs / optimized code don't silently transition
-  // kMutable fields back to kConst state or fields with HeapObject
-  // representation and "Any" type back to "Class" type.
+  // PropertyConstness::kMutable fields back to VariableMode::kConst state or
+  // fields with HeapObject representation and "Any" type back to "Class" type.
   static inline void GeneralizeIfCanHaveTransitionableFastElementsKind(
       Isolate* isolate, InstanceType instance_type,
       PropertyConstness* constness, Representation* representation,

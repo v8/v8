@@ -169,7 +169,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
   DCHECK(IsDeclaredVariableMode(mode));
-  return mode == CONST ? READ_ONLY : NONE;
+  return mode == VariableMode::kConst ? READ_ONLY : NONE;
 }
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
@@ -185,7 +185,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
   *index = kNotFound;
   *attributes = ABSENT;
   *init_flag = kCreatedInitialized;
-  *variable_mode = VAR;
+  *variable_mode = VariableMode::kVar;
   if (is_sloppy_function_name != nullptr) {
     *is_sloppy_function_name = false;
   }
@@ -247,9 +247,9 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       } else if (context->IsWithContext()) {
         // A with context will never bind "this", but debug-eval may look into
         // a with context when resolving "this". Other synthetic variables such
-        // as new.target may be resolved as DYNAMIC_LOCAL due to bug v8:5405 ,
-        // skipping them here serves as a workaround until a more thorough
-        // fix can be applied.
+        // as new.target may be resolved as VariableMode::kDynamicLocal due to
+        // bug v8:5405 , skipping them here serves as a workaround until a more
+        // thorough fix can be applied.
         // TODO(v8:5405): Replace this check with a DCHECK when resolution of
         // of synthetic variables does not go through this code path.
         if (ScopeInfo::VariableIsSynthetic(*name)) {
@@ -298,7 +298,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
-          PrintF("=> found local in context slot %d (mode = %d)\n",
+          PrintF("=> found local in context slot %d (mode = %hhu)\n",
                  slot_index, mode);
         }
         *index = slot_index;
@@ -322,7 +322,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           *index = function_index;
           *attributes = READ_ONLY;
           *init_flag = kCreatedInitialized;
-          *variable_mode = CONST;
+          *variable_mode = VariableMode::kConst;
           if (is_sloppy_function_name != nullptr &&
               is_sloppy(scope_info->language_mode())) {
             *is_sloppy_function_name = true;

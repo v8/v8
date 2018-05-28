@@ -1040,8 +1040,9 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
     if (FLAG_track_constant_fields && !do_transitioning_store) {
       // TODO(ishell): Taking the slow path is not necessary if new and old
       // values are identical.
-      GotoIf(Word32Equal(DecodeWord32<PropertyDetails::ConstnessField>(details),
-                         Int32Constant(kConst)),
+      GotoIf(Word32Equal(
+                 DecodeWord32<PropertyDetails::ConstnessField>(details),
+                 Int32Constant(static_cast<int32_t>(VariableMode::kConst))),
              slow);
     }
 
