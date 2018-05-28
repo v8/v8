@@ -294,7 +294,7 @@ void MemoryAllocator::TearDown() {
   unmapper()->TearDown();
 
   // Check that spaces were torn down before MemoryAllocator.
-  DCHECK_EQ(size_.Value(), 0u);
+  DCHECK_EQ(size_, 0u);
   // TODO(gc) this will be true again when we fix FreeMemory.
   // DCHECK_EQ(0, size_executable_);
   capacity_ = 0;
@@ -319,7 +319,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
     TRACE_BACKGROUND_GC(tracer_,
                         GCTracer::BackgroundScope::BACKGROUND_UNMAPPER);
     unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
-    unmapper_->active_unmapping_tasks_.Decrement(1);
+    unmapper_->active_unmapping_tasks_--;
     unmapper_->pending_unmapping_tasks_semaphore_.Signal();
     if (FLAG_trace_unmapper) {
       PrintIsolate(unmapper_->heap_->isolate(),
@@ -350,9 +350,9 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
                    task->id());
     }
     DCHECK_LT(pending_unmapping_tasks_, kMaxUnmapperTasks);
-    DCHECK_LE(active_unmapping_tasks_.Value(), pending_unmapping_tasks_);
-    DCHECK_GE(active_unmapping_tasks_.Value(), 0);
-    active_unmapping_tasks_.Increment(1);
+    DCHECK_LE(active_unmapping_tasks_, pending_unmapping_tasks_);
+    DCHECK_GE(active_unmapping_tasks_, 0);
+    active_unmapping_tasks_++;
     task_ids_[pending_unmapping_tasks_++] = task->id();
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
@@ -368,7 +368,7 @@ void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
     }
   }
   pending_unmapping_tasks_ = 0;
-  active_unmapping_tasks_.SetValue(0);
+  active_unmapping_tasks_ = 0;
 
   if (FLAG_trace_unmapper) {
     PrintIsolate(
@@ -391,7 +391,7 @@ void MemoryAllocator::Unmapper::EnsureUnmappingCompleted() {
 bool MemoryAllocator::Unmapper::MakeRoomForNewTasks() {
   DCHECK_LE(pending_unmapping_tasks_, kMaxUnmapperTasks);
 
-  if (active_unmapping_tasks_.Value() == 0 && pending_unmapping_tasks_ > 0) {
+  if (active_unmapping_tasks_ == 0 && pending_unmapping_tasks_ > 0) {
     // All previous unmapping tasks have been run to completion.
     // Finalize those tasks to make room for new ones.
     CancelAndWaitForPendingTasks();
@@ -491,7 +491,7 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
   }
 
   Address result = reservation.address();
-  size_.Increment(reservation.size());
+  size_ += reservation.size();
   controller->TakeControl(&reservation);
   return result;
 }
@@ -523,7 +523,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     // Failed to commit the body. Free the mapping and any partially committed
     // regions inside it.
     reservation.Free();
-    size_.Decrement(reserve_size);
+    size_ -= reserve_size;
     return kNullAddress;
   }
 
@@ -831,16 +831,16 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
           code_range()->AllocateRawMemory(chunk_size, commit_size, &chunk_size);
       DCHECK(IsAligned(base, MemoryChunk::kAlignment));
       if (base == kNullAddress) return nullptr;
-      size_.Increment(chunk_size);
+      size_ += chunk_size;
       // Update executable memory size.
-      size_executable_.Increment(chunk_size);
+      size_executable_ += chunk_size;
     } else {
       base = AllocateAlignedMemory(chunk_size, commit_size,
                                    MemoryChunk::kAlignment, executable,
                                    address_hint, &reservation);
       if (base == kNullAddress) return nullptr;
       // Update executable memory size.
-      size_executable_.Increment(reservation.size());
+      size_executable_ += reservation.size();
     }
 
     if (Heap::ShouldZapGarbage()) {
@@ -885,9 +885,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     CHECK(!last_chunk_.IsReserved());
     last_chunk_.TakeControl(&reservation);
     UncommitBlock(last_chunk_.address(), last_chunk_.size());
-    size_.Decrement(chunk_size);
+    size_ -= chunk_size;
     if (executable == EXECUTABLE) {
-      size_executable_.Decrement(chunk_size);
+      size_executable_ -= chunk_size;
     }
     CHECK(last_chunk_.IsReserved());
     return AllocateChunk(reserve_area_size, commit_area_size, executable,
@@ -1016,8 +1016,8 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
   // partially starting at |start_free| will also release the potentially
   // unused part behind the current page.
   const size_t released_bytes = reservation->Release(start_free);
-  DCHECK_GE(size_.Value(), released_bytes);
-  size_.Decrement(released_bytes);
+  DCHECK_GE(size_, released_bytes);
+  size_ -= released_bytes;
   isolate_->counters()->memory_allocated()->Decrement(
       static_cast<int>(released_bytes));
 }
@@ -1032,12 +1032,12 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
-  DCHECK_GE(size_.Value(), static_cast<size_t>(size));
-  size_.Decrement(size);
+  DCHECK_GE(size_, static_cast<size_t>(size));
+  size_ -= size;
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   if (chunk->executable() == EXECUTABLE) {
-    DCHECK_GE(size_executable_.Value(), size);
-    size_executable_.Decrement(size);
+    DCHECK_GE(size_executable_, size);
+    size_executable_ -= size;
   }
 
   chunk->SetFlag(MemoryChunk::PRE_FREED);
@@ -1146,7 +1146,7 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   VirtualMemory reservation(start, size);
   MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
                           NOT_EXECUTABLE, owner, &reservation);
-  size_.Increment(size);
+  size_ += size;
   return chunk;
 }
 
@@ -2775,7 +2775,7 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   // Blocks have to be a minimum size to hold free list items.
   if (size_in_bytes < kMinBlockSize) {
     page->add_wasted_memory(size_in_bytes);
-    wasted_bytes_.Increment(size_in_bytes);
+    wasted_bytes_ += size_in_bytes;
     return size_in_bytes;
   }
 

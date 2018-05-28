@@ -1262,7 +1262,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     CancelableTaskManager::Id task_ids_[kMaxUnmapperTasks];
     base::Semaphore pending_unmapping_tasks_semaphore_;
     intptr_t pending_unmapping_tasks_;
-    base::AtomicNumber<intptr_t> active_unmapping_tasks_;
+    std::atomic<intptr_t> active_unmapping_tasks_;
 
     friend class MemoryAllocator;
   };
@@ -1321,10 +1321,10 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   void Free(MemoryChunk* chunk);
 
   // Returns allocated spaces in bytes.
-  size_t Size() { return size_.Value(); }
+  size_t Size() { return size_; }
 
   // Returns allocated executable spaces in bytes.
-  size_t SizeExecutable() { return size_executable_.Value(); }
+  size_t SizeExecutable() { return size_executable_; }
 
   // Returns the maximum available bytes of heaps.
   size_t Available() {
@@ -1450,9 +1450,9 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   size_t capacity_;
 
   // Allocated space size in bytes.
-  base::AtomicNumber<size_t> size_;
+  std::atomic<size_t> size_;
   // Allocated executable space size in bytes.
-  base::AtomicNumber<size_t> size_executable_;
+  std::atomic<size_t> size_executable_;
 
   // We keep the lowest and highest addresses allocated as a quick way
   // of determining that pointers are outside the heap. The estimate is
@@ -1650,7 +1650,7 @@ class AllocationStats BASE_EMBEDDED {
   }
 
   // Accessors for the allocation statistics.
-  size_t Capacity() { return capacity_.Value(); }
+  size_t Capacity() { return capacity_; }
   size_t MaxCapacity() { return max_capacity_; }
   size_t Size() { return size_; }
 #ifdef DEBUG
@@ -1675,19 +1675,16 @@ class AllocationStats BASE_EMBEDDED {
   }
 
   void DecreaseCapacity(size_t bytes) {
-    size_t capacity = capacity_.Value();
-    DCHECK_GE(capacity, bytes);
-    DCHECK_GE(capacity - bytes, size_);
-    USE(capacity);
-    capacity_.Decrement(bytes);
+    DCHECK_GE(capacity_, bytes);
+    DCHECK_GE(capacity_ - bytes, size_);
+    capacity_ -= bytes;
   }
 
   void IncreaseCapacity(size_t bytes) {
-    size_t capacity = capacity_.Value();
-    DCHECK_GE(capacity + bytes, capacity);
-    capacity_.Increment(bytes);
-    if (capacity > max_capacity_) {
-      max_capacity_ = capacity;
+    DCHECK_GE(capacity_ + bytes, capacity_);
+    capacity_ += bytes;
+    if (capacity_ > max_capacity_) {
+      max_capacity_ = capacity_;
     }
   }
 
@@ -1696,7 +1693,7 @@ class AllocationStats BASE_EMBEDDED {
   // bookkeeping structures) currently in the space.
   // During evacuation capacity of the main spaces is accessed from multiple
   // threads to check the old generation hard limit.
-  base::AtomicNumber<size_t> capacity_;
+  std::atomic<size_t> capacity_;
 
   // |max_capacity_|: The maximum capacity ever observed.
   size_t max_capacity_;
@@ -1787,7 +1784,7 @@ class V8_EXPORT_PRIVATE FreeList {
   void Reset();
 
   void ResetStats() {
-    wasted_bytes_.SetValue(0);
+    wasted_bytes_ = 0;
     ForAllFreeListCategories(
         [](FreeListCategory* category) { category->ResetStats(); });
   }
@@ -1815,7 +1812,7 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t EvictFreeListItems(Page* page);
   bool ContainsPageFreeListItems(Page* page);
 
-  size_t wasted_bytes() { return wasted_bytes_.Value(); }
+  size_t wasted_bytes() { return wasted_bytes_; }
 
   template <typename Callback>
   void ForAllFreeListCategories(FreeListCategoryType type, Callback callback) {
@@ -1911,7 +1908,7 @@ class V8_EXPORT_PRIVATE FreeList {
     return categories_[type];
   }
 
-  base::AtomicNumber<size_t> wasted_bytes_;
+  std::atomic<size_t> wasted_bytes_;
   FreeListCategory* categories_[kNumberOfCategories];
 
   friend class FreeListCategory;
