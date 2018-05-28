@@ -1403,7 +1403,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #define TRACE_PART(...)
 #endif
 
-      FunctionSig* sig = WasmOpcodes::Signature(opcode);
+      FunctionSig* sig = const_cast<FunctionSig*>(kSimpleOpcodeSigs[opcode]);
       if (sig) {
         BuildSimpleOperator(opcode, sig);
       } else {

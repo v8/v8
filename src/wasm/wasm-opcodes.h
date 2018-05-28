@@ -571,6 +571,8 @@ enum TrapReason {
 #undef DECLARE_ENUM
 };
 
+extern const std::array<const FunctionSig*, 256> kSimpleOpcodeSigs;
+
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:

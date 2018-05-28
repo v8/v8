@@ -415,6 +415,14 @@ struct GetOpcodeSigIndex {
   }
 };
 
+struct GetSimpleOpcodeSig {
+  constexpr const FunctionSig* operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == opc ? &kSig_##sig:
+    return FOREACH_SIMPLE_OPCODE(CASE) nullptr;
+#undef CASE
+  }
+};
+
 struct GetAsmJsOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
 #define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
@@ -459,6 +467,9 @@ constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
     base::make_array<256>(GetNumericOpcodeSigIndex{});
 
 }  // namespace
+
+const std::array<const FunctionSig*, 256> kSimpleOpcodeSigs =
+    base::make_array<256>(GetSimpleOpcodeSig{});
 
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   switch (opcode >> 8) {
