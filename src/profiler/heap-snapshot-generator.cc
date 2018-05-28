@@ -1416,6 +1416,9 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size, int entry,
     if (object->ToWeakHeapObject(&heap_object)) {
       SetWeakReference(array, entry, i, heap_object,
                        header_size + i * kPointerSize);
+    } else if (object->ToStrongHeapObject(&heap_object)) {
+      SetInternalReference(array, entry, i, heap_object,
+                           header_size + i * kPointerSize);
     }
   }
 }
