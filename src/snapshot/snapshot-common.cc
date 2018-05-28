@@ -115,7 +115,8 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
            Builtins::name(builtin_id), bytes, ms);
   }
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+  if (isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling()) {
     isolate->logger()->LogCodeObject(code);
   }
 
@@ -196,7 +197,8 @@ Code* Snapshot::DeserializeHandler(Isolate* isolate,
            bytes, ms);
   }
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+  if (isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling()) {
     isolate->logger()->LogBytecodeHandler(bytecode, operand_scale, code);
   }
 
