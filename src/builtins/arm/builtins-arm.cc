@@ -2552,12 +2552,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf<r0, r1, r2>();
+    constexpr RegList gp_regs = Register::ListOf<r0, r1, r2, r3>();
     constexpr DwVfpRegister lowest_fp_reg = d0;
     constexpr DwVfpRegister highest_fp_reg = d7;
 
@@ -2570,10 +2570,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // set the current context on the isolate.
     __ Move(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
-    // The entrypoint address is the first return value.
+    // The entrypoint address is the return value.
     __ mov(r8, kReturnRegister0);
-    // The WASM instance is the second return value.
-    __ mov(kWasmInstanceRegister, kReturnRegister1);
 
     // Restore registers.
     __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);

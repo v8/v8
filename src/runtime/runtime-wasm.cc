@@ -289,19 +289,25 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_WasmCompileLazy) {
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance_on_stack, 0);
-  // TODO(titzer): The location on the stack is not visited by the
-  // roots visitor because the type of the frame is a special
-  // WASM builtin. Reopen the handle in a handle scope as a workaround.
+RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   HandleScope scope(isolate);
-  Handle<WasmInstanceObject> instance(*instance_on_stack, isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
 
   ClearThreadInWasmScope wasm_flag(true);
 
+#ifdef DEBUG
+  StackFrameIterator it(isolate, isolate->thread_local_top());
+  // On top: C entry stub.
+  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
+  it.Advance();
+  // Next: the wasm lazy compile frame.
+  DCHECK_EQ(StackFrame::WASM_COMPILE_LAZY, it.frame()->type());
+  DCHECK_EQ(*instance, WasmCompileLazyFrame::cast(it.frame())->wasm_instance());
+#endif
+
   Address entrypoint = wasm::CompileLazy(isolate, instance);
-  return MakePair(reinterpret_cast<Object*>(entrypoint), *instance);
+  return reinterpret_cast<Object*>(entrypoint);
 }
 
 }  // namespace internal

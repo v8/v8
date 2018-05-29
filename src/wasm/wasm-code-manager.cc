@@ -279,7 +279,7 @@ void WasmCode::Validate() const {
         break;
       case RelocInfo::EMBEDDED_OBJECT: {
         HeapObject* o = it.rinfo()->target_object();
-        DCHECK(o->IsUndefined(o->GetIsolate()) || o->IsCode());
+        DCHECK(o->IsUndefined(o->GetIsolate()));
         break;
       }
       default:

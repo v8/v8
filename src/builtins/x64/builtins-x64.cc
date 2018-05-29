@@ -2689,20 +2689,25 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
+                      arraysize(wasm::kGpParamRegisters),
+                  "frame size mismatch");
     for (Register reg : wasm::kGpParamRegisters) {
-      if (reg == kWasmInstanceRegister) continue;
       __ Push(reg);
     }
-    __ subp(rsp, Immediate(16 * arraysize(wasm::kFpParamRegisters)));
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      arraysize(wasm::kFpParamRegisters),
+                  "frame size mismatch");
+    __ subp(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
     int offset = 0;
     for (DoubleRegister reg : wasm::kFpParamRegisters) {
       __ movdqu(Operand(rsp, offset), reg);
-      offset += 16;
+      offset += kSimd128Size;
     }
 
     // Pass the WASM instance as an explicit argument to WasmCompileLazy.
@@ -2711,20 +2716,17 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
-    // The entrypoint address is the first return value.
+    // The entrypoint address is the return value.
     __ movq(r11, kReturnRegister0);
-    // The WASM instance is the second return value.
-    __ movq(kWasmInstanceRegister, kReturnRegister1);
 
     // Restore registers.
     for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
-      offset -= 16;
+      offset -= kSimd128Size;
       __ movdqu(reg, Operand(rsp, offset));
     }
     DCHECK_EQ(0, offset);
-    __ addp(rsp, Immediate(16 * arraysize(wasm::kFpParamRegisters)));
+    __ addp(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
     for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
-      if (reg == kWasmInstanceRegister) continue;
       __ Pop(reg);
     }
   }

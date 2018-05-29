@@ -40,6 +40,19 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kConstantPoolOffset = 0;  // Not used
 };
 
+class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kNumberOfSavedGpParamRegs = 6;
+  static constexpr int kNumberOfSavedFpParamRegs = 6;
+
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kSimd128Size;
+};
+
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.

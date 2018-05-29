@@ -96,6 +96,7 @@ class StackHandler BASE_EMBEDDED {
   V(JS_TO_WASM, JsToWasmFrame)                                            \
   V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
   V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
+  V(WASM_COMPILE_LAZY, WasmCompileLazyFrame)                              \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(STUB, StubFrame)                                                      \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
@@ -201,6 +202,7 @@ class StackFrame BASE_EMBEDDED {
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
+  bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
   bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
   bool is_wasm_interpreter_entry() const {
@@ -786,10 +788,6 @@ class JavaScriptFrame : public StandardFrame {
 
   virtual int GetNumberOfIncomingArguments() const;
 
-  // Garbage collection support. Iterates over incoming arguments,
-  // receiver, and any callee-saved registers.
-  void IterateArguments(RootVisitor* v) const;
-
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
  private:
@@ -1072,6 +1070,31 @@ class CWasmEntryFrame : public StubFrame {
 
  protected:
   inline explicit CWasmEntryFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmCompileLazyFrame : public StandardFrame {
+ public:
+  Type type() const override { return WASM_COMPILE_LAZY; }
+
+  Code* unchecked_code() const override { return nullptr; }
+  WasmInstanceObject* wasm_instance() const;
+  Object** wasm_instance_slot() const;
+
+  // Garbage collection support.
+  void Iterate(RootVisitor* v) const override;
+
+  static WasmCompileLazyFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_compile_lazy());
+    return static_cast<WasmCompileLazyFrame*>(frame);
+  }
+
+ protected:
+  inline explicit WasmCompileLazyFrame(StackFrameIteratorBase* iterator);
+
+  Address GetCallerStackPointer() const override;
 
  private:
   friend class StackFrameIteratorBase;

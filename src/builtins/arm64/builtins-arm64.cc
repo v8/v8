@@ -3008,17 +3008,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf<x0, x1, x2, x3, x4, x5>();
+    constexpr RegList gp_regs =
+        Register::ListOf<x0, x1, x2, x3, x4, x5, x6, x7>();
     constexpr RegList fp_regs =
         Register::ListOf<d0, d1, d2, d3, d4, d5, d6, d7>();
     __ PushXRegList(gp_regs);
     __ PushDRegList(fp_regs);
-    __ Push(x5, x6);  // note: pushed twice because alignment required
 
     // Pass the WASM instance as an explicit argument to WasmCompileLazy.
     __ PushArgument(kWasmInstanceRegister);
@@ -3026,13 +3026,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // set the current context on the isolate.
     __ Move(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
-    // The entrypoint address is the first return value.
+    // The entrypoint address is the return value.
     __ mov(x8, kReturnRegister0);
-    // The WASM instance is the second return value.
-    __ mov(kWasmInstanceRegister, kReturnRegister1);
 
     // Restore registers.
-    __ Pop(x6, x5);  // note: pushed twice because alignment required
     __ PopDRegList(fp_regs);
     __ PopXRegList(gp_regs);
   }

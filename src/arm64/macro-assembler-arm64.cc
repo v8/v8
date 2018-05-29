@@ -2502,11 +2502,12 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp, type_reg, code_reg);
     Add(fp, sp, InternalFrameConstants::kFixedFrameSizeFromFp);
-    // sp[4] : lr
-    // sp[3] : fp
+    // sp[3] : lr
+    // sp[2] : fp
     // sp[1] : type
     // sp[0] : [code object]
-  } else if (type == StackFrame::WASM_COMPILED) {
+  } else if (type == StackFrame::WASM_COMPILED ||
+             type == StackFrame::WASM_COMPILE_LAZY) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
@@ -2536,15 +2537,10 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
-  if (type == StackFrame::WASM_COMPILED) {
-    Mov(sp, fp);
-    Pop(fp, lr);
-  } else {
-    // Drop the execution stack down to the frame pointer and restore
-    // the caller frame pointer and return address.
-    Mov(sp, fp);
-    Pop(fp, lr);
-  }
+  // Drop the execution stack down to the frame pointer and restore
+  // the caller frame pointer and return address.
+  Mov(sp, fp);
+  Pop(fp, lr);
 }
 
 
