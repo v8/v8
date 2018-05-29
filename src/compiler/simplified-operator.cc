@@ -581,11 +581,6 @@ AbortReason AbortReasonOf(const Operator* op) {
   return static_cast<AbortReason>(OpParameter<int>(op));
 }
 
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kCheckIf, op->opcode());
-  return OpParameter<DeoptimizeReason>(op);
-}
-
 const CheckTaggedInputParameters& CheckTaggedInputParametersOf(
     const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kCheckedTruncateTaggedToWord32 ||
@@ -834,11 +829,12 @@ struct SimplifiedOperatorGlobalCache final {
 #undef CHECKED_WITH_FEEDBACK
 
   template <DeoptimizeReason kDeoptimizeReason>
-  struct CheckIfOperator final : public Operator1<DeoptimizeReason> {
+  struct CheckIfOperator final : public Operator1<CheckIfParameters> {
     CheckIfOperator()
-        : Operator1<DeoptimizeReason>(
+        : Operator1<CheckIfParameters>(
               IrOpcode::kCheckIf, Operator::kFoldable | Operator::kNoThrow,
-              "CheckIf", 1, 1, 1, 0, 1, 0, kDeoptimizeReason) {}
+              "CheckIf", 1, 1, 1, 0, 1, 0,
+              CheckIfParameters(kDeoptimizeReason, VectorSlotPair())) {}
   };
 #define CHECK_IF(Name, message) \
   CheckIfOperator<DeoptimizeReason::k##Name> kCheckIf##Name;
@@ -1144,15 +1140,20 @@ const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
       static_cast<int>(reason));                // parameter
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckIf(DeoptimizeReason reason) {
-  switch (reason) {
+const Operator* SimplifiedOperatorBuilder::CheckIf(
+    DeoptimizeReason reason, const VectorSlotPair& feedback) {
+  if (!feedback.IsValid()) {
+    switch (reason) {
 #define CHECK_IF(Name, message)   \
   case DeoptimizeReason::k##Name: \
     return &cache_.kCheckIf##Name;
     DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
+    }
   }
-  UNREACHABLE();
+  return new (zone()) Operator1<CheckIfParameters>(
+      IrOpcode::kCheckIf, Operator::kFoldable | Operator::kNoThrow, "CheckIf",
+      1, 1, 1, 0, 1, 0, CheckIfParameters(reason, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
@@ -1410,6 +1411,23 @@ CheckParameters const& CheckParametersOf(Operator const* op) {
   CHECK((CHECKED_WITH_FEEDBACK_OP_LIST(MAKE_OR) false));
 #undef MAKE_OR
   return OpParameter<CheckParameters>(op);
+}
+
+bool operator==(CheckIfParameters const& lhs, CheckIfParameters const& rhs) {
+  return lhs.reason() == rhs.reason() && lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(CheckIfParameters const& p) {
+  return base::hash_combine(p.reason(), p.feedback());
+}
+
+std::ostream& operator<<(std::ostream& os, CheckIfParameters const& p) {
+  return os << p.reason() << p.feedback();
+}
+
+CheckIfParameters const& CheckIfParametersOf(Operator const* op) {
+  CHECK(op->opcode() == IrOpcode::kCheckIf);
+  return OpParameter<CheckIfParameters>(op);
 }
 
 const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
