@@ -2441,12 +2441,8 @@ TEST(CheckCodeNames) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const char* stub_path[] = {
-    "::(GC roots)",
-    "::(Strong roots)",
-    "code_stubs::",
-    "::(ArraySingleArgumentConstructorStub code)"
-  };
+  const char* stub_path[] = {"::(GC roots)", "::(Strong roots)",
+                             "code_stubs::", "::(StoreFastElementStub code)"};
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, stub_path, arraysize(stub_path));
   CHECK(node);

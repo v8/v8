@@ -27,10 +27,6 @@ class CodeAssemblerState;
   /* --- TurboFanCodeStubs --- */           \
   V(StoreSlowElement)                       \
   V(StoreInArrayLiteralSlow)                \
-  V(ArrayNoArgumentConstructor)             \
-  V(ArraySingleArgumentConstructor)         \
-  V(InternalArrayNoArgumentConstructor)     \
-  V(InternalArraySingleArgumentConstructor) \
   V(ElementsTransitionAndStore)             \
   V(KeyedLoadSloppyArguments)               \
   V(KeyedStoreSloppyArguments)              \
@@ -437,12 +433,6 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
 };
 
-enum AllocationSiteOverrideMode {
-  DONT_OVERRIDE,
-  DISABLE_ALLOCATION_SITES,
-  LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
-};
-
 // TODO(jgruber): Convert this stub into a builtin.
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
  public:
@@ -590,110 +580,6 @@ class StoreFastElementStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
-};
-
-
-class CommonArrayConstructorStub : public TurboFanCodeStub {
- protected:
-  CommonArrayConstructorStub(Isolate* isolate, ElementsKind kind,
-                             AllocationSiteOverrideMode override_mode);
-
-  void set_sub_minor_key(uint32_t key) { minor_key_ = key; }
-
-  uint32_t sub_minor_key() const { return minor_key_; }
-
-  CommonArrayConstructorStub(uint32_t key, Isolate* isolate)
-      : TurboFanCodeStub(key, isolate) {}
-
- public:
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
-  }
-
-  AllocationSiteOverrideMode override_mode() const {
-    return AllocationSiteOverrideModeBits::decode(sub_minor_key());
-  }
-
-  static void GenerateStubsAheadOfTime(Isolate* isolate);
-
- private:
-  // Ensure data fits within available bits.
-  STATIC_ASSERT(LAST_ALLOCATION_SITE_OVERRIDE_MODE == 1);
-
-  class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
-  class AllocationSiteOverrideModeBits
-      : public BitField<AllocationSiteOverrideMode, 8, 1> {};  // NOLINT
-};
-
-class ArrayNoArgumentConstructorStub : public CommonArrayConstructorStub {
- private:
-  ArrayNoArgumentConstructorStub(
-      Isolate* isolate, ElementsKind kind,
-      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : CommonArrayConstructorStub(isolate, kind, override_mode) {}
-
-  friend class CodeFactory;
-
-  void PrintName(std::ostream& os) const override {  // NOLINT
-    os << "ArrayNoArgumentConstructorStub";
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNoArgumentConstructor);
-  DEFINE_TURBOFAN_CODE_STUB(ArrayNoArgumentConstructor,
-                            CommonArrayConstructorStub);
-};
-
-class InternalArrayNoArgumentConstructorStub
-    : public CommonArrayConstructorStub {
- private:
-  InternalArrayNoArgumentConstructorStub(Isolate* isolate, ElementsKind kind)
-      : CommonArrayConstructorStub(isolate, kind, DONT_OVERRIDE) {}
-
-  friend class CodeFactory;
-
-  void PrintName(std::ostream& os) const override {  // NOLINT
-    os << "InternalArrayNoArgumentConstructorStub";
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNoArgumentConstructor);
-  DEFINE_TURBOFAN_CODE_STUB(InternalArrayNoArgumentConstructor,
-                            CommonArrayConstructorStub);
-};
-
-class ArraySingleArgumentConstructorStub : public CommonArrayConstructorStub {
- private:
-  ArraySingleArgumentConstructorStub(
-      Isolate* isolate, ElementsKind kind,
-      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : CommonArrayConstructorStub(isolate, kind, override_mode) {}
-
-  friend class CodeFactory;
-
-  void PrintName(std::ostream& os) const override {  // NOLINT
-    os << "ArraySingleArgumentConstructorStub";
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArraySingleArgumentConstructor);
-  DEFINE_TURBOFAN_CODE_STUB(ArraySingleArgumentConstructor,
-                            CommonArrayConstructorStub);
-};
-
-class InternalArraySingleArgumentConstructorStub
-    : public CommonArrayConstructorStub {
- private:
-  InternalArraySingleArgumentConstructorStub(Isolate* isolate,
-                                             ElementsKind kind)
-      : CommonArrayConstructorStub(isolate, kind, DONT_OVERRIDE) {}
-
-  friend class CodeFactory;
-
-  void PrintName(std::ostream& os) const override {  // NOLINT
-    os << "InternalArraySingleArgumentConstructorStub";
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArraySingleArgumentConstructor);
-  DEFINE_TURBOFAN_CODE_STUB(InternalArraySingleArgumentConstructor,
-                            CommonArrayConstructorStub);
 };
 
 class StoreSlowElementStub : public TurboFanCodeStub {

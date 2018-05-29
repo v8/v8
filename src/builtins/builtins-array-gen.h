@@ -106,6 +106,16 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
       MissingPropertyMode missing_property_mode,
       ForEachDirection direction = ForEachDirection::kForward);
 
+  void GenerateConstructor(Node* context, Node* array_function, Node* array_map,
+                           Node* array_size, Node* allocation_site,
+                           ElementsKind elements_kind, AllocationSiteMode mode);
+  void GenerateArrayNoArgumentConstructor(ElementsKind kind,
+                                          AllocationSiteOverrideMode mode);
+  void GenerateArraySingleArgumentConstructor(ElementsKind kind,
+                                              AllocationSiteOverrideMode mode);
+  void GenerateInternalArrayNoArgumentConstructor(ElementsKind kind);
+  void GenerateInternalArraySingleArgumentConstructor(ElementsKind kind);
+
  private:
   static ElementsKind ElementsKindForInstanceType(InstanceType type);
 

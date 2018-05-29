@@ -337,30 +337,105 @@ Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
 Callable CodeFactory::ArrayNoArgumentConstructor(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode) {
-  ArrayNoArgumentConstructorStub stub(isolate, kind, override_mode);
-  return make_callable(stub);
+#define CASE(kind_caps, kind_camel, mode_camel)                               \
+  case kind_caps:                                                             \
+    return Callable(                                                          \
+        BUILTIN_CODE(isolate,                                                 \
+                     ArrayNoArgumentConstructor_##kind_camel##_##mode_camel), \
+        ArrayNoArgumentConstructorDescriptor(isolate))
+  if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
+    DCHECK(IsSmiElementsKind(kind));
+    switch (kind) {
+      CASE(PACKED_SMI_ELEMENTS, PackedSmi, DontOverride);
+      CASE(HOLEY_SMI_ELEMENTS, HoleySmi, DontOverride);
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK(override_mode == DISABLE_ALLOCATION_SITES ||
+           !AllocationSite::ShouldTrack(kind));
+    switch (kind) {
+      CASE(PACKED_SMI_ELEMENTS, PackedSmi, DisableAllocationSites);
+      CASE(HOLEY_SMI_ELEMENTS, HoleySmi, DisableAllocationSites);
+      CASE(PACKED_ELEMENTS, Packed, DisableAllocationSites);
+      CASE(HOLEY_ELEMENTS, Holey, DisableAllocationSites);
+      CASE(PACKED_DOUBLE_ELEMENTS, PackedDouble, DisableAllocationSites);
+      CASE(HOLEY_DOUBLE_ELEMENTS, HoleyDouble, DisableAllocationSites);
+      default:
+        UNREACHABLE();
+    }
+  }
+#undef CASE
 }
 
 // static
 Callable CodeFactory::ArraySingleArgumentConstructor(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode) {
-  ArraySingleArgumentConstructorStub stub(isolate, kind, override_mode);
-  return make_callable(stub);
+#define CASE(kind_caps, kind_camel, mode_camel)                          \
+  case kind_caps:                                                        \
+    return Callable(                                                     \
+        BUILTIN_CODE(                                                    \
+            isolate,                                                     \
+            ArraySingleArgumentConstructor_##kind_camel##_##mode_camel), \
+        ArraySingleArgumentConstructorDescriptor(isolate))
+  if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
+    DCHECK(IsSmiElementsKind(kind));
+    switch (kind) {
+      CASE(PACKED_SMI_ELEMENTS, PackedSmi, DontOverride);
+      CASE(HOLEY_SMI_ELEMENTS, HoleySmi, DontOverride);
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK(override_mode == DISABLE_ALLOCATION_SITES ||
+           !AllocationSite::ShouldTrack(kind));
+    switch (kind) {
+      CASE(PACKED_SMI_ELEMENTS, PackedSmi, DisableAllocationSites);
+      CASE(HOLEY_SMI_ELEMENTS, HoleySmi, DisableAllocationSites);
+      CASE(PACKED_ELEMENTS, Packed, DisableAllocationSites);
+      CASE(HOLEY_ELEMENTS, Holey, DisableAllocationSites);
+      CASE(PACKED_DOUBLE_ELEMENTS, PackedDouble, DisableAllocationSites);
+      CASE(HOLEY_DOUBLE_ELEMENTS, HoleyDouble, DisableAllocationSites);
+      default:
+        UNREACHABLE();
+    }
+  }
+#undef CASE
 }
 
 // static
 Callable CodeFactory::InternalArrayNoArgumentConstructor(Isolate* isolate,
                                                          ElementsKind kind) {
-  InternalArrayNoArgumentConstructorStub stub(isolate, kind);
-  return make_callable(stub);
+  switch (kind) {
+    case PACKED_ELEMENTS:
+      return Callable(
+          BUILTIN_CODE(isolate, InternalArrayNoArgumentConstructor_Packed),
+          ArrayNoArgumentConstructorDescriptor(isolate));
+    case HOLEY_ELEMENTS:
+      return Callable(
+          BUILTIN_CODE(isolate, InternalArrayNoArgumentConstructor_Holey),
+          ArrayNoArgumentConstructorDescriptor(isolate));
+    default:
+      UNREACHABLE();
+  }
 }
 
 // static
 Callable CodeFactory::InternalArraySingleArgumentConstructor(
     Isolate* isolate, ElementsKind kind) {
-  InternalArraySingleArgumentConstructorStub stub(isolate, kind);
-  return make_callable(stub);
+  switch (kind) {
+    case PACKED_ELEMENTS:
+      return Callable(
+          BUILTIN_CODE(isolate, InternalArraySingleArgumentConstructor_Packed),
+          ArraySingleArgumentConstructorDescriptor(isolate));
+    case HOLEY_ELEMENTS:
+      return Callable(
+          BUILTIN_CODE(isolate, InternalArraySingleArgumentConstructor_Holey),
+          ArraySingleArgumentConstructorDescriptor(isolate));
+    default:
+      UNREACHABLE();
+  }
 }
 
 // static

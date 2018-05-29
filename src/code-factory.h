@@ -15,6 +15,12 @@
 namespace v8 {
 namespace internal {
 
+// For ArrayNoArgumentConstructor and ArraySingleArgumentConstructor.
+enum AllocationSiteOverrideMode {
+  DONT_OVERRIDE,
+  DISABLE_ALLOCATION_SITES,
+};
+
 class V8_EXPORT_PRIVATE CodeFactory final {
  public:
   // CEntry has var-args semantics (all the arguments are passed on the

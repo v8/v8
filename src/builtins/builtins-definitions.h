@@ -237,9 +237,48 @@ namespace internal {
   /* Array */                                                                  \
   ASM(ArrayConstructor)                                                        \
   ASM(ArrayConstructorImpl)                                                    \
+  TFC(ArrayNoArgumentConstructor_PackedSmi_DontOverride,                       \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_HoleySmi_DontOverride,                        \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_PackedSmi_DisableAllocationSites,             \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_HoleySmi_DisableAllocationSites,              \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_Packed_DisableAllocationSites,                \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_Holey_DisableAllocationSites,                 \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_PackedDouble_DisableAllocationSites,          \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArrayNoArgumentConstructor_HoleyDouble_DisableAllocationSites,           \
+      ArrayNoArgumentConstructor, 1)                                           \
+  TFC(ArraySingleArgumentConstructor_PackedSmi_DontOverride,                   \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_HoleySmi_DontOverride,                    \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_PackedSmi_DisableAllocationSites,         \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_HoleySmi_DisableAllocationSites,          \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_Packed_DisableAllocationSites,            \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_Holey_DisableAllocationSites,             \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_PackedDouble_DisableAllocationSites,      \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(ArraySingleArgumentConstructor_HoleyDouble_DisableAllocationSites,       \
+      ArraySingleArgumentConstructor, 1)                                       \
   ASM(ArrayNArgumentsConstructor)                                              \
   ASM(InternalArrayConstructor)                                                \
   ASM(InternalArrayConstructorImpl)                                            \
+  TFC(InternalArrayNoArgumentConstructor_Packed, ArrayNoArgumentConstructor,   \
+      1)                                                                       \
+  TFC(InternalArrayNoArgumentConstructor_Holey, ArrayNoArgumentConstructor, 1) \
+  TFC(InternalArraySingleArgumentConstructor_Packed,                           \
+      ArraySingleArgumentConstructor, 1)                                       \
+  TFC(InternalArraySingleArgumentConstructor_Holey,                            \
+      ArraySingleArgumentConstructor, 1)                                       \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kArg)                                                   \
