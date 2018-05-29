@@ -286,6 +286,7 @@ void TurboAssembler::Asr(const Register& rd, const Register& rn,
 }
 
 void TurboAssembler::B(Label* label) {
+  DCHECK(allow_macro_instructions());
   b(label);
   CheckVeneerPool(false, false);
 }
