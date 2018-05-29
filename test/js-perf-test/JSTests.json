@@ -771,8 +771,17 @@
         "--allow-natives-syntax"
       ],
       "tests": [
-        {"name": "PackedSmiPreSorted"},
-        {"name": "PackedSmiPreSortedReversed"}
+        {"name": "Up"},
+        {"name": "Down"},
+        {"name": "Saw1000"},
+        {"name": "Saw500"},
+        {"name": "Saw200"},
+        {"name": "Saw200Symmetric"},
+        {"name": "Saw200Down"},
+        {"name": "UpDown"},
+        {"name": "UpUp"},
+        {"name": "DownDown"},
+        {"name": "DownUp"}
       ]
     },
     {

@@ -67,7 +67,7 @@ function BenchmarkSuite(name, reference, benchmarks) {
 
 function createSuite(name, count, test, testSetup, tearDown) {
   return new BenchmarkSuite(name, [count], [
-        new Benchmark(name, false, false, 0, test, testSetup, tearDown]);
+        new Benchmark(name, false, false, 0, test, testSetup, tearDown)]);
 }
 
 function createSuiteWithWarmup(name, count, testSetup, tearDown) {
