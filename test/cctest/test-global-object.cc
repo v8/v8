@@ -59,9 +59,6 @@ TEST(KeysGlobalObject_Regress2764) {
   LocalContext env1;
   v8::HandleScope scope(env1->GetIsolate());
 
-  // Installing an extensions change the global object.
-  if (i::FLAG_gc_stats) return;
-
   // Create second environment.
   v8::Local<Context> env2 = Context::New(env1->GetIsolate());
 
