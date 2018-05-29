@@ -9135,13 +9135,14 @@ void debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   internal_isolate->debug()->set_live_edit_enabled(enable);
 }
 
-void debug::DebugBreak(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
+void debug::SetBreakOnNextFunctionCall(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->debug()->SetBreakOnNextFunctionCall();
 }
 
-void debug::CancelDebugBreak(Isolate* isolate) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->stack_guard()->ClearDebugBreak();
+void debug::ClearBreakOnNextFunctionCall(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)
+      ->debug()
+      ->ClearBreakOnNextFunctionCall();
 }
 
 MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
@@ -9167,11 +9168,6 @@ void debug::SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   isolate->debug()->set_break_points_active(is_active);
-}
-
-void debug::SetOutOfMemoryCallback(Isolate* isolate,
-                                   OutOfMemoryCallback callback, void* data) {
-  // No-op.
 }
 
 void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {

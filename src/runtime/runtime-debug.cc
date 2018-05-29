@@ -129,11 +129,12 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-
 RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  isolate->stack_guard()->RequestDebugBreak();
+  isolate->RequestInterrupt(
+      [](v8::Isolate* isolate, void*) { v8::debug::BreakRightNow(isolate); },
+      nullptr);
   return isolate->heap()->undefined_value();
 }
 
@@ -1680,7 +1681,8 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
     Deoptimizer::DeoptimizeFunction(*fun);
-    if (isolate->debug()->last_step_action() >= StepIn) {
+    if (isolate->debug()->last_step_action() >= StepIn ||
+        isolate->debug()->break_on_next_function_call()) {
       DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
       isolate->debug()->PrepareStepIn(fun);
     }

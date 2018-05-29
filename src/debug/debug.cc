@@ -351,6 +351,7 @@ void Debug::ThreadInit() {
   thread_local_.restart_fp_ = kNullAddress;
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
+  thread_local_.break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
 }
 
@@ -474,11 +475,13 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   // Find actual break points, if any, and trigger debug break event.
   MaybeHandle<FixedArray> break_points_hit =
       CheckBreakPoints(debug_info, &location);
-  if (!break_points_hit.is_null()) {
+  if (!break_points_hit.is_null() || break_on_next_function_call()) {
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
-    OnDebugBreak(break_points_hit.ToHandleChecked());
+    OnDebugBreak(!break_points_hit.is_null()
+                     ? break_points_hit.ToHandleChecked()
+                     : isolate_->factory()->empty_fixed_array());
     return;
   }
 
@@ -898,8 +901,24 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
   return break_points_hit;
 }
 
+void Debug::SetBreakOnNextFunctionCall() {
+  // This method forces V8 to break on next function call regardless current
+  // last_step_action_. If any break happens between SetBreakOnNextFunctionCall
+  // and ClearBreakOnNextFunctionCall, we will clear this flag and stepping. If
+  // break does not happen, e.g. all called functions are blackboxed or no
+  // function is called, then we will clear this flag and let stepping continue
+  // its normal business.
+  thread_local_.break_on_next_function_call_ = true;
+  UpdateHookOnFunctionCall();
+}
+
+void Debug::ClearBreakOnNextFunctionCall() {
+  thread_local_.break_on_next_function_call_ = false;
+  UpdateHookOnFunctionCall();
+}
+
 void Debug::PrepareStepIn(Handle<JSFunction> function) {
-  CHECK(last_step_action() >= StepIn);
+  CHECK(last_step_action() >= StepIn || break_on_next_function_call());
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
@@ -1159,6 +1178,7 @@ void Debug::ClearStepping() {
   thread_local_.fast_forward_to_return_ = false;
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
+  thread_local_.break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
 }
 
@@ -2157,7 +2177,8 @@ void Debug::UpdateHookOnFunctionCall() {
   STATIC_ASSERT(LastStepAction == StepIn);
   hook_on_function_call_ =
       thread_local_.last_step_action_ == StepIn ||
-      isolate_->debug_execution_mode() == DebugInfo::kSideEffects;
+      isolate_->debug_execution_mode() == DebugInfo::kSideEffects ||
+      thread_local_.break_on_next_function_call_;
 }
 
 MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
@@ -2204,19 +2225,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
       bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
-      if (ignore_break) {
-        // Inspector uses pause on next statement for asynchronous breakpoints.
-        // When breakpoint is fired we try to break on first not blackboxed
-        // statement. To achieve this goal we need to deoptimize current
-        // function and don't clear requested DebugBreak even if it's blackboxed
-        // to be able to break on not blackboxed function call.
-        // TODO(yangguo): introduce break_on_function_entry since current
-        // implementation is slow.
-        if (isolate_->stack_guard()->CheckDebugBreak()) {
-          Deoptimizer::DeoptimizeFunction(*function);
-        }
-        return;
-      }
+      if (ignore_break) return;
       JSGlobalObject* global = function->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;
@@ -2224,8 +2233,6 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
       if (IsMutedAtCurrentLocation(it.frame())) return;
     }
   }
-
-  isolate_->stack_guard()->ClearDebugBreak();
 
   // Clear stepping to avoid duplicate breaks.
   ClearStepping();

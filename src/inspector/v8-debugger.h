@@ -49,10 +49,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
   void breakProgram(int targetContextGroupId);
+  void interruptAndBreak(int targetContextGroupId);
   void continueProgram(int targetContextGroupId);
   void breakProgramOnAssert(int targetContextGroupId);
 
-  void setPauseOnNextStatement(bool, int targetContextGroupId);
+  void setPauseOnNextCall(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);

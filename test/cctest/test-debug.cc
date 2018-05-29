@@ -700,10 +700,13 @@ static void DebugEventBreak(
     CcTest::CollectGarbage(v8::internal::NEW_SPACE);
 
     // Set the break flag again to come back here as soon as possible.
-    v8::debug::DebugBreak(CcTest::isolate());
+    v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
   }
 }
 
+static void BreakRightNow(v8::Isolate* isolate, void*) {
+  v8::debug::BreakRightNow(isolate);
+}
 
 // Debug event handler which re-issues a debug break until a limit has been
 // reached.
@@ -724,7 +727,7 @@ static void DebugEventBreakMax(
       break_point_hit_count++;
 
       // Set the break flag again to come back here as soon as possible.
-      v8::debug::DebugBreak(v8_isolate);
+      v8_isolate->RequestInterrupt(BreakRightNow, nullptr);
 
     } else if (terminate_after_max_break_point_hit) {
       // Terminate execution after the last break if requested.
@@ -3905,7 +3908,7 @@ TEST(DebugBreak) {
   f3->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Call all functions with different argument count.
   break_point_hit_count = 0;
@@ -4004,7 +4007,7 @@ TEST(DebugBreakWithoutJS) {
   SetDebugEventListener(isolate, DebugEventBreak);
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   v8::Local<v8::String> json = v8_str("[1]");
   v8::Local<v8::Value> parsed = v8::JSON::Parse(context, json).ToLocalChecked();
@@ -4036,11 +4039,11 @@ TEST(DisableBreak) {
   v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
 
   // Set, test and cancel debug break.
-  v8::debug::DebugBreak(env->GetIsolate());
-  v8::debug::CancelDebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
+  v8::debug::ClearBreakOnNextFunctionCall(env->GetIsolate());
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Call all functions with different argument count.
   break_point_hit_count = 0;
@@ -4048,7 +4051,7 @@ TEST(DisableBreak) {
   CHECK_EQ(1, break_point_hit_count);
 
   {
-    v8::debug::DebugBreak(env->GetIsolate());
+    v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
     v8::internal::DisableBreak disable_break(isolate->debug());
     f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -4094,7 +4097,7 @@ TEST(NoBreakWhenBootstrapping) {
   SetDebugEventListener(isolate, DebugEventCounter);
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(isolate);
+  v8::debug::SetBreakOnNextFunctionCall(isolate);
   break_point_hit_count = 0;
   {
     // Create a context with an extension to make sure that some JavaScript
@@ -5148,7 +5151,7 @@ static void DebugBreakEventListener(const v8::Debug::EventDetails& details) {
   if (details.GetEvent() == v8::Break) {
     event_listener_break_hit_count++;
     if (event_listener_break_hit_count == 1) {
-      v8::debug::DebugBreak(details.GetIsolate());
+      details.GetIsolate()->RequestInterrupt(BreakRightNow, nullptr);
     }
   }
 }
@@ -5216,7 +5219,7 @@ static void DebugEventDebugBreak(
 
     // Keep forcing breaks.
     if (break_point_hit_count < 20) {
-      v8::debug::DebugBreak(CcTest::isolate());
+      v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
     }
   }
 }
@@ -5247,7 +5250,7 @@ TEST(RegExpDebugBreak) {
   CHECK_EQ(12, result->Int32Value(context).FromJust());
 
   SetDebugEventListener(env->GetIsolate(), DebugEventDebugBreak);
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   result = f->Call(context, env->Global(), argc, argv).ToLocalChecked();
 
   // Check that there was only one break event. Matching RegExp should not
@@ -5325,7 +5328,7 @@ TEST(AfterCompileEventWhenEventListenerIsReset) {
   SetDebugEventListener(env->GetIsolate(), nullptr);
 
   SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   v8::Script::Compile(context, v8_str(env->GetIsolate(), script))
       .ToLocalChecked()
       ->Run(context)
@@ -5416,7 +5419,7 @@ TEST(BreakEventWhenEventListenerIsReset) {
   SetDebugEventListener(env->GetIsolate(), nullptr);
 
   SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "f"))
@@ -5508,7 +5511,7 @@ TEST(NoDebugBreakInAfterCompileEventListener) {
   SetDebugEventListener(env->GetIsolate(), BreakEventListener);
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Create a function for testing stepping.
   const char* src = "function f() { eval('var x = 10;'); } ";
@@ -5518,7 +5521,7 @@ TEST(NoDebugBreakInAfterCompileEventListener) {
   CHECK_EQ(1, break_point_hit_count);
 
   // Set the debug break flag again.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   // There should be one more break event when the script is evaluated in 'f'.
   CHECK_EQ(2, break_point_hit_count);
@@ -5547,7 +5550,7 @@ TEST(DebugBreakFunctionApply) {
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakMax);
 
   // Set the debug break flag before calling the code using function.apply.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Limit the number of debug breaks. This is a regression test for issue 493
   // where this test would enter an infinite loop.
@@ -5705,7 +5708,7 @@ static void DebugEventBreakDeoptimize(
       }
     }
 
-    v8::debug::DebugBreak(CcTest::isolate());
+    v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
   }
 }
 
@@ -5736,7 +5739,7 @@ TEST(DeoptimizeDuringDebugBreak) {
       .ToLocalChecked();
 
   // Set debug break and call bar again.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   f->Call(context, v8::Undefined(env->GetIsolate()), 0, nullptr)
       .ToLocalChecked();
 
@@ -5810,7 +5813,7 @@ static void DebugEventBreakWithOptimizedStack(
 
 static void ScheduleBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
   SetDebugEventListener(args.GetIsolate(), DebugEventBreakWithOptimizedStack);
-  v8::debug::DebugBreak(args.GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(args.GetIsolate());
 }
 
 
@@ -5883,7 +5886,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
       CompileRun(buffer.start());
 
       // Set the debug break to enter the debugger as soon as possible.
-      v8::debug::DebugBreak(CcTest::isolate());
+      v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
 
       // Call function with infinite loop.
       CompileRun("f();");
@@ -6149,7 +6152,7 @@ static void DebugBreakStackTraceListener(
 
 
 static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::debug::DebugBreak(args.GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(args.GetIsolate());
 }
 
 
@@ -6215,7 +6218,7 @@ TEST(DebugBreakOffThreadTerminate) {
   TerminationThread terminator(isolate);
   terminator.Start();
   v8::TryCatch try_catch(env->GetIsolate());
-  v8::debug::DebugBreak(isolate);
+  env->GetIsolate()->RequestInterrupt(BreakRightNow, nullptr);
   CompileRun("while (true);");
   CHECK(try_catch.HasTerminated());
 }

@@ -514,15 +514,6 @@ Object* StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
-  if (CheckDebugBreak()) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("DEBUG_BREAK");
-      any_interrupt_handled = true;
-    }
-    isolate_->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
-  }
-
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
     if (FLAG_trace_interrupts) {
       if (any_interrupt_handled) PrintF(", ");

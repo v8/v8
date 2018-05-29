@@ -71,13 +71,13 @@ MaybeLocal<Value> Call(Local<Context> context, v8::Local<v8::Function> fun,
  */
 V8_EXPORT_PRIVATE void SetLiveEditEnabled(Isolate* isolate, bool enable);
 
-// Schedule a debugger break to happen when JavaScript code is run
-// in the given isolate.
-void DebugBreak(Isolate* isolate);
+// Schedule a debugger break to happen when function is called inside given
+// isolate.
+void SetBreakOnNextFunctionCall(Isolate* isolate);
 
 // Remove scheduled debugger break in given isolate if it has not
 // happened yet.
-void CancelDebugBreak(Isolate* isolate);
+void ClearBreakOnNextFunctionCall(Isolate* isolate);
 
 /**
  * Returns array of internal properties specific to the value type. Result has
@@ -115,19 +115,6 @@ void ClearStepping(Isolate* isolate);
 void BreakRightNow(Isolate* isolate);
 
 bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
-
-/**
- * Out-of-memory callback function.
- * The function is invoked when the heap size is close to the hard limit.
- *
- * \param data the parameter provided during callback installation.
- */
-typedef void (*OutOfMemoryCallback)(void* data);
-
-V8_DEPRECATED("Use v8::Isolate::AddNearHeapLimitCallback",
-              void SetOutOfMemoryCallback(Isolate* isolate,
-                                          OutOfMemoryCallback callback,
-                                          void* data));
 
 /**
  * Native wrapper around v8::internal::Script object.

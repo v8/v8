@@ -40,7 +40,6 @@ class JsonParser BASE_EMBEDDED {
  public:
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
-    PostponeInterruptsScope no_debug_breaks(isolate, StackGuard::DEBUGBREAK);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                JsonParser(isolate, source).ParseJson(), Object);

@@ -259,7 +259,7 @@ void V8Debugger::setPauseOnExceptionsState(
   m_pauseOnExceptionsState = pauseOnExceptionsState;
 }
 
-void V8Debugger::setPauseOnNextStatement(bool pause, int targetContextGroupId) {
+void V8Debugger::setPauseOnNextCall(bool pause, int targetContextGroupId) {
   if (isPaused()) return;
   DCHECK(targetContextGroupId);
   if (!pause && m_targetContextGroupId &&
@@ -269,9 +269,9 @@ void V8Debugger::setPauseOnNextStatement(bool pause, int targetContextGroupId) {
   m_targetContextGroupId = targetContextGroupId;
   m_breakRequested = pause;
   if (pause)
-    v8::debug::DebugBreak(m_isolate);
+    v8::debug::SetBreakOnNextFunctionCall(m_isolate);
   else
-    v8::debug::CancelDebugBreak(m_isolate);
+    v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
 }
 
 bool V8Debugger::canBreakProgram() {
@@ -285,6 +285,16 @@ void V8Debugger::breakProgram(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::BreakRightNow(m_isolate);
+}
+
+void V8Debugger::interruptAndBreak(int targetContextGroupId) {
+  // Don't allow nested breaks.
+  if (isPaused()) return;
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+  m_isolate->RequestInterrupt(
+      [](v8::Isolate* isolate, void*) { v8::debug::BreakRightNow(isolate); },
+      nullptr);
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId) {
@@ -522,8 +532,11 @@ size_t V8Debugger::nearHeapLimitCallback(void* data, size_t current_heap_limit,
   thisPtr->m_scheduledOOMBreak = true;
   v8::Local<v8::Context> context = thisPtr->m_isolate->GetEnteredContext();
   DCHECK(!context.IsEmpty());
-  thisPtr->setPauseOnNextStatement(
-      true, thisPtr->m_inspector->contextGroupId(context));
+  thisPtr->m_targetContextGroupId =
+      thisPtr->m_inspector->contextGroupId(context);
+  thisPtr->m_isolate->RequestInterrupt(
+      [](v8::Isolate* isolate, void*) { v8::debug::BreakRightNow(isolate); },
+      nullptr);
   return HeapLimitForDebugging(initial_heap_limit);
 }
 
@@ -851,7 +864,7 @@ void V8Debugger::externalAsyncTaskStarted(const V8StackTraceId& parent) {
       reinterpret_cast<uintptr_t>(m_taskWithScheduledBreak) == parent.id &&
       m_taskWithScheduledBreakDebuggerId ==
           debuggerIdToString(parent.debugger_id)) {
-    v8::debug::DebugBreak(m_isolate);
+    v8::debug::SetBreakOnNextFunctionCall(m_isolate);
   }
 }
 
@@ -871,7 +884,7 @@ void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
   m_taskWithScheduledBreak = nullptr;
   m_taskWithScheduledBreakDebuggerId = String16();
   if (m_breakRequested) return;
-  v8::debug::CancelDebugBreak(m_isolate);
+  v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
 }
 
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
@@ -980,7 +993,7 @@ void V8Debugger::asyncTaskStartedForStepping(void* task) {
   // blackboxing.
   if (m_taskWithScheduledBreakDebuggerId.isEmpty() &&
       task == m_taskWithScheduledBreak) {
-    v8::debug::DebugBreak(m_isolate);
+    v8::debug::SetBreakOnNextFunctionCall(m_isolate);
   }
 }
 
@@ -991,7 +1004,7 @@ void V8Debugger::asyncTaskFinishedForStepping(void* task) {
   }
   m_taskWithScheduledBreak = nullptr;
   if (m_breakRequested) return;
-  v8::debug::CancelDebugBreak(m_isolate);
+  v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
 }
 
 void V8Debugger::asyncTaskCanceledForStepping(void* task) {

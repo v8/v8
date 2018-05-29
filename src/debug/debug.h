@@ -266,6 +266,9 @@ class Debug {
   void ClearStepping();
   void ClearStepOut();
 
+  void SetBreakOnNextFunctionCall();
+  void ClearBreakOnNextFunctionCall();
+
   void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
   void PrepareFunctionForDebugExecution(Handle<SharedFunctionInfo> shared);
   void InstallDebugBreakTrampoline();
@@ -406,6 +409,9 @@ class Debug {
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
+  bool break_on_next_function_call() const {
+    return thread_local_.break_on_next_function_call_;
+  }
 
   DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
 
@@ -589,6 +595,10 @@ class Debug {
 
     // Last used inspector breakpoint id.
     int last_breakpoint_id_;
+
+    // This flag is true when SetBreakOnNextFunctionCall is called and it forces
+    // debugger to break on next function call.
+    bool break_on_next_function_call_;
   };
 
   // Storage location for registers when handling debug break calls

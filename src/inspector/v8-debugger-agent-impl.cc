@@ -477,7 +477,7 @@ Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
   m_debugger->setBreakpointsActive(active);
   if (!active && !m_breakReason.empty()) {
     clearBreakDetails();
-    m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(false, m_session->contextGroupId());
   }
   return Response::OK();
 }
@@ -1006,7 +1006,7 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
     std::unique_ptr<protocol::DictionaryValue> data) {
   if (isPaused() || !acceptsPause(false) || !m_breakpointsActive) return;
   if (m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
   }
   pushBreakDetails(breakReason, std::move(data));
 }
@@ -1014,7 +1014,7 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
 void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
   if (isPaused() || !acceptsPause(false) || !m_breakpointsActive) return;
   if (m_breakReason.size() == 1) {
-    m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(false, m_session->contextGroupId());
   }
   popBreakDetails();
 }
@@ -1022,10 +1022,14 @@ void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
 Response V8DebuggerAgentImpl::pause() {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   if (isPaused()) return Response::OK();
-  if (m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+  if (m_debugger->canBreakProgram()) {
+    m_debugger->interruptAndBreak(m_session->contextGroupId());
+  } else {
+    if (m_breakReason.empty()) {
+      m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
+    }
+    pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   }
-  pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   return Response::OK();
 }
 
@@ -1668,7 +1672,7 @@ void V8DebuggerAgentImpl::breakProgram(
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
   if (!m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
   }
 }
 
