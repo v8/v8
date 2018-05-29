@@ -187,7 +187,6 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     }
     DCHECK(insertion_index >= 0 && insertion_index <= number_of_transitions);
 
-    result->Shrink(TransitionArray::ToKeyIndex(new_nof));
     result->SetNumberOfTransitions(new_nof);
   }
 
@@ -481,7 +480,6 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
   if (nof == 1) {
     if (encoding() == kUninitialized) {
       // If allocation caused GC and cleared the target, trim the new array.
-      result->Shrink(TransitionArray::ToKeyIndex(0));
       result->SetNumberOfTransitions(0);
     } else {
       // Otherwise populate the new array.
