@@ -480,9 +480,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       WasmCode::kNoFlushICache);
   native_module_->code_table_[fn_index] = ret;
 
-  // now relocate the code
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+  // Relocate the code.
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
@@ -490,12 +489,6 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::EMBEDDED_OBJECT: {
-        // We only expect {undefined}. We check for that when we add code.
-        iter.rinfo()->set_target_object(isolate_->heap()->undefined_value(),
-                                        SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-        break;
-      }
       case RelocInfo::CODE_TARGET: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target = GetBuiltinTrampolineFromTag(tag);

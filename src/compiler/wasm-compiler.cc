@@ -4178,8 +4178,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* if_not_smi = graph()->NewNode(common->IfTrue(), branch);
 
     Node* vnot_smi;
-    Node* check_undefined = graph()->NewNode(machine->WordEqual(), value,
-                                             jsgraph()->UndefinedConstant());
+    Node* undefined_node =
+        LOAD_INSTANCE_FIELD(UndefinedValue, MachineType::TaggedPointer());
+    Node* check_undefined =
+        graph()->NewNode(machine->WordEqual(), value, undefined_node);
     Node* branch_undefined = graph()->NewNode(
         common->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
 
@@ -4222,8 +4224,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat64ToTagged(node);
       case wasm::kWasmAnyRef:
         return node;
-      case wasm::kWasmStmt:
-        return jsgraph()->UndefinedConstant();
       default:
         UNREACHABLE();
     }
@@ -4333,7 +4333,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // js_context independent.
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
                                     nullptr, 0);
-      Return(jsgraph()->UndefinedConstant());
+      Return(jsgraph()->SmiConstant(0));
       return;
     }
 
@@ -4389,7 +4389,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* callables_node = LOAD_INSTANCE_FIELD(ImportedFunctionCallables,
                                                MachineType::TaggedPointer());
     Node* callable_node = LOAD_FIXED_ARRAY_SLOT(callables_node, index);
-    Node* undefined_node = jsgraph()->UndefinedConstant();
+    Node* undefined_node =
+        LOAD_INSTANCE_FIELD(UndefinedValue, MachineType::TaggedPointer());
     Node* native_context =
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
 
@@ -4758,9 +4759,6 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
         // this would be either one of the stubs or builtins, because
         // we didn't link yet.
         target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-        break;
-      case RelocInfo::EMBEDDED_OBJECT:
-        target = it.rinfo()->target_object();
         break;
       default:
         UNREACHABLE();
