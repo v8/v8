@@ -610,6 +610,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(
       SloppyTNode<WeakFixedArray> array);
+  // Load the length of a JSTypedArray instance.
+  TNode<Smi> LoadTypedArrayLength(TNode<JSTypedArray> typed_array);
   // Load the bit field of a Map.
   TNode<Int32T> LoadMapBitField(SloppyTNode<Map> map);
   // Load bit field 2 of a map.

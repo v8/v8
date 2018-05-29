@@ -1461,6 +1461,11 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
   return LoadAndUntagObjectField(array, WeakFixedArray::kLengthOffset);
 }
 
+TNode<Smi> CodeStubAssembler::LoadTypedArrayLength(
+    TNode<JSTypedArray> typed_array) {
+  return CAST(LoadObjectField(typed_array, JSTypedArray::kLengthOffset));
+}
+
 TNode<Int32T> CodeStubAssembler::LoadMapBitField(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return UncheckedCast<Int32T>(
@@ -8063,8 +8068,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), if_absent);
 
-    Node* length = TryToIntptr(
-        LoadObjectField(object, JSTypedArray::kLengthOffset), if_bailout);
+    Node* length = SmiUntag(LoadTypedArrayLength(CAST(object)));
     Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
   }
   BIND(&if_oob);
@@ -8885,9 +8889,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     Label done(this);
     // Bounds check.
-    Node* length = TaggedToParameter(
-        CAST(LoadObjectField(object, JSTypedArray::kLengthOffset)),
-        parameter_mode);
+    Node* length =
+        TaggedToParameter(LoadTypedArrayLength(CAST(object)), parameter_mode);
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       // Skip the store if we write beyond the length or

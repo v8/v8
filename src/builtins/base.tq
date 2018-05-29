@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-type Arguments generates 'CodeStubArguments*';
+type Arguments constexpr 'CodeStubArguments*';
 type void generates 'void';
 type never generates 'void';
 
@@ -25,7 +25,8 @@ type String extends HeapObject generates 'TNode<String>';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Boolean extends Oddball generates 'TNode<Oddball>';
-type JSArray extends HeapObject generates 'TNode<JSArray>';
+type JSObject extends JSReceiver generates 'TNode<JSObject>';
+type JSArray extends JSObject generates 'TNode<JSArray>';
 type Callable extends JSReceiver generates 'TNode<JSReceiver>';
 type JSFunction extends Callable generates 'TNode<JSFunction>';
 type Map extends HeapObject generates 'TNode<Map>';
@@ -38,19 +39,19 @@ type FixedTypedArrayBase extends FixedArrayBase generates
 type FixedTypedArray extends FixedTypedArrayBase generates
 'TNode<FixedTypedArray>';
 
-type JSArrayBuffer extends Object generates 'TNode<JSArrayBuffer>';
-type JSArrayBufferView extends Object generates 'TNode<JSArrayBufferView>';
+type JSArrayBuffer extends JSObject generates 'TNode<JSArrayBuffer>';
+type JSArrayBufferView extends JSObject generates 'TNode<JSArrayBufferView>';
 type JSTypedArray extends JSArrayBufferView generates 'TNode<JSTypedArray>';
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
-type InstanceType extends int32 generates 'TNode<Int32T>';
+type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
 type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags generates
 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
 
-type MessageTemplate;
-type HasPropertyFlag generates 'HasPropertyLookupMode';
+type MessageTemplate constexpr 'MessageTemplate';
+type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
 
 const NO_ELEMENTS: constexpr ElementsKind = 'NO_ELEMENTS';
 
@@ -92,23 +93,24 @@ const kCOWMap: Map = 'LoadRoot(Heap::kFixedCOWArrayMapRootIndex)';
 const kEmptyFixedArray: FixedArrayBase =
     'UncheckedCast<FixedArrayBase>(LoadRoot(Heap::kEmptyFixedArrayRootIndex))';
 
-const kInvalidArrayLengthMessage: MessageTemplate =
+const kInvalidArrayLength: constexpr MessageTemplate =
     'MessageTemplate::kInvalidArrayLength';
-const kCalledNonCallable: MessageTemplate =
+const kCalledNonCallable: constexpr MessageTemplate =
     'MessageTemplate::kCalledNonCallable';
-const kCalledOnNullOrUndefined: MessageTemplate =
+const kCalledOnNullOrUndefined: constexpr MessageTemplate =
     'MessageTemplate::kCalledOnNullOrUndefined';
 
-const kHasProperty: HasPropertyFlag = 'kHasProperty';
+const kHasProperty: constexpr HasPropertyLookupMode = 'kHasProperty';
 
 const kMaxSafeInteger: constexpr float64 = 'kMaxSafeInteger';
 
-const kNotTypedArray: MessageTemplate = 'MessageTemplate::kNotTypedArray';
-const kDetachedOperation: MessageTemplate =
+const kNotTypedArray: constexpr MessageTemplate =
+    'MessageTemplate::kNotTypedArray';
+const kDetachedOperation: constexpr MessageTemplate =
     'MessageTemplate::kDetachedOperation';
-const kBadSortComparisonFunction: MessageTemplate =
+const kBadSortComparisonFunction: constexpr MessageTemplate =
     'MessageTemplate::kBadSortComparisonFunction';
-const kIncompatibleMethodReceiver: MessageTemplate =
+const kIncompatibleMethodReceiver: constexpr MessageTemplate =
     'MessageTemplate::kIncompatibleMethodReceiver';
 
 const Hole: Oddball = 'TheHoleConstant()';
@@ -129,10 +131,11 @@ extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
 extern macro GetProperty(Context, Object, Object): Object;
-extern macro HasProperty(HeapObject, Object, Context, HasPropertyFlag): Oddball;
-extern macro ThrowRangeError(Context, MessageTemplate): never;
-extern macro ThrowTypeError(Context, MessageTemplate): never;
-extern macro ThrowTypeError(Context, MessageTemplate, Object): never;
+extern macro HasProperty(
+    HeapObject, Object, Context, constexpr HasPropertyLookupMode): Oddball;
+extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
+extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
+extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): Object;
 extern macro EnsureArrayPushable(Map): ElementsKind labels Bailout;
 
@@ -207,13 +210,16 @@ extern operator '!' macro Word32BinaryNot(bool): bool;
 
 extern operator '.map' macro LoadMap(HeapObject): Map;
 extern operator '.map=' macro StoreMap(HeapObject, Map);
-extern operator '.instanceType' macro LoadInstanceType(Object): InstanceType;
+extern operator
+    '.instanceType' macro LoadInstanceType(HeapObject): InstanceType;
 
 extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
 
-extern operator '.length' macro GetArgumentsLength(Arguments): intptr;
-extern operator '[]' macro GetArgumentValue(Arguments, intptr): Object;
-extern operator '[]' macro GetArgumentValueSmiIndex(Arguments, Smi): Object;
+extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
+extern operator
+    '[]' macro GetArgumentValue(constexpr Arguments, intptr): Object;
+extern operator
+    '[]' macro GetArgumentValueSmiIndex(constexpr Arguments, Smi): Object;
 
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
@@ -237,7 +243,7 @@ extern operator 'cast<>' macro TaggedToNumber(
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 
 extern implicit operator
-'convert<>' macro AllocateHeapNumberWithValue(constexpr float64): Number;
+'convert<>' macro NumberConstant(constexpr float64): Number;
 extern implicit operator
 'convert<>' macro IntPtrConstant(constexpr int31): intptr;
 extern implicit operator
@@ -277,8 +283,8 @@ extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator
 '.elements_kind' macro LoadElementsKind(JSTypedArray): ElementsKind;
 
-extern operator '.elements' macro LoadElements(Object): FixedArrayBase;
-extern operator '.elements=' macro StoreElements(Object, FixedArrayBase);
+extern operator '.elements' macro LoadElements(JSObject): FixedArrayBase;
+extern operator '.elements=' macro StoreElements(JSObject, FixedArrayBase);
 
 extern operator '.length' macro LoadTypedArrayLength(JSTypedArray): Smi;
 extern operator '.length' macro LoadJSArrayLength(JSArray): Number;
@@ -354,7 +360,7 @@ labels IfHole {
 }
 
 macro HasPropertyObject(
-    o: Object, p: Object, c: Context, f: HasPropertyFlag): Oddball {
+    o: Object, p: Object, c: Context, f: constexpr HasPropertyLookupMode): Oddball {
   try {
     return HasProperty(cast<HeapObject>(o) otherwise CastError, p, c, f);
   }

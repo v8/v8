@@ -4,7 +4,7 @@
 
 module array {
   macro FastArraySplice(
-      context: Context, args: Arguments, o: Object,
+      context: Context, args: constexpr Arguments, o: Object,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
   labels Bailout {
@@ -145,7 +145,7 @@ module array {
     // 8. If len + insertCount - actualDeleteCount > 2^53-1, throw a
     //    Bailout exception.
     if (len + insertCount - actualDeleteCount > kMaxSafeInteger) {
-      ThrowRangeError(context, kInvalidArrayLengthMessage);
+      ThrowRangeError(context, kInvalidArrayLength);
     }
 
     try {

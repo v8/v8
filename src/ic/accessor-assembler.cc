@@ -1810,8 +1810,7 @@ void AccessorAssembler::EmitElementLoad(
     GotoIf(IsDetachedBuffer(buffer), miss);
 
     // Bounds check.
-    Node* length =
-        SmiUntag(CAST(LoadObjectField(object, JSTypedArray::kLengthOffset)));
+    Node* length = SmiUntag(LoadTypedArrayLength(CAST(object)));
     GotoIfNot(UintPtrLessThan(intptr_index, length), out_of_bounds);
 
     Node* backing_store = LoadFixedTypedArrayBackingStore(CAST(elements));

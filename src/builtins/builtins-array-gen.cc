@@ -212,10 +212,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         context(), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
-    CSA_ASSERT(
-        this,
-        SmiLessThanOrEqual(
-            CAST(len_), CAST(LoadObjectField(a, JSTypedArray::kLengthOffset))));
+    CSA_ASSERT(this, SmiLessThanOrEqual(CAST(len_), LoadTypedArrayLength(a)));
     fast_typed_array_target_ =
         Word32Equal(LoadInstanceType(LoadElements(original_array)),
                     LoadInstanceType(LoadElements(a)));
@@ -511,7 +508,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         LoadObjectField(typed_array, JSTypedArray::kBufferOffset);
     GotoIf(IsDetachedBuffer(array_buffer), &throw_detached);
 
-    len_ = LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
+    len_ = LoadTypedArrayLength(typed_array);
 
     Label throw_not_callable(this, Label::kDeferred);
     Label distinguish_types(this);
@@ -3637,8 +3634,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Node* buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
-    TNode<Smi> length =
-        CAST(LoadObjectField(array, JSTypedArray::kLengthOffset));
+    TNode<Smi> length = LoadTypedArrayLength(CAST(array));
 
     GotoIfNot(SmiBelow(CAST(index), length), &set_done);
 

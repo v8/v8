@@ -73,10 +73,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns the byte size of an element for a TypedArray elements kind.
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
 
-  TNode<Smi> LoadTypedArrayLength(TNode<JSTypedArray> typed_array) {
-    return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
-  }
-
   TNode<JSArrayBuffer> LoadTypedArrayBuffer(TNode<JSTypedArray> typed_array) {
     return LoadObjectField<JSArrayBuffer>(typed_array,
                                           JSTypedArray::kBufferOffset);

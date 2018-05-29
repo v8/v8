@@ -502,8 +502,7 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
   Goto(&check_for_sab);
 
   BIND(&if_notdetached);
-  source_length =
-      CAST(LoadObjectField(typed_array, JSTypedArray::kLengthOffset));
+  source_length = LoadTypedArrayLength(typed_array);
   Goto(&check_for_sab);
 
   // The spec requires that constructing a typed array using a SAB-backed typed
@@ -950,8 +949,7 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::CreateByLength(
   // If newTypedArray.[[ArrayLength]] < argumentList[0], throw a TypeError
   // exception.
   Label if_length_is_not_short(this);
-  TNode<Smi> new_length =
-      LoadObjectField<Smi>(new_typed_array, JSTypedArray::kLengthOffset);
+  TNode<Smi> new_length = LoadTypedArrayLength(new_typed_array);
   GotoIfNot(SmiLessThan(new_length, len), &if_length_is_not_short);
   ThrowTypeError(context, MessageTemplate::kTypedArrayTooShort);
 
@@ -1013,10 +1011,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Check for possible range errors.
 
-  TNode<IntPtrT> source_length =
-      LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);
-  TNode<IntPtrT> target_length =
-      LoadAndUntagObjectField(target, JSTypedArray::kLengthOffset);
+  TNode<IntPtrT> source_length = SmiUntag(LoadTypedArrayLength(source));
+  TNode<IntPtrT> target_length = SmiUntag(LoadTypedArrayLength(target));
   TNode<IntPtrT> required_target_length = IntPtrAdd(source_length, offset);
 
   GotoIf(IntPtrGreaterThan(required_target_length, target_length),
@@ -1066,8 +1062,7 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
                           IsBigInt64ElementsKind(target_el_kind)),
            &exception);
 
-    TNode<IntPtrT> source_length =
-        LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);
+    TNode<IntPtrT> source_length = SmiUntag(LoadTypedArrayLength(source));
     CallCCopyTypedArrayElementsToTypedArray(source, target, source_length,
                                             offset);
     Goto(&out);
@@ -1088,8 +1083,7 @@ void TypedArrayBuiltinsAssembler::SetJSArraySource(
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
 
   TNode<IntPtrT> source_length = SmiUntag(LoadFastJSArrayLength(source));
-  TNode<IntPtrT> target_length =
-      LoadAndUntagObjectField(target, JSTypedArray::kLengthOffset);
+  TNode<IntPtrT> target_length = SmiUntag(LoadTypedArrayLength(target));
 
   // Maybe out of bounds?
   GotoIf(IntPtrGreaterThan(IntPtrAdd(source_length, offset), target_length),
@@ -1331,8 +1325,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   TNode<JSTypedArray> source =
       ValidateTypedArray(context, receiver, method_name);
 
-  TNode<Smi> source_length =
-      LoadObjectField<Smi>(source, JSTypedArray::kLengthOffset);
+  TNode<Smi> source_length = LoadTypedArrayLength(source);
 
   // Convert start offset argument to integer, and calculate relative offset.
   TNode<Object> start = args.GetOptionalArgumentValue(0, SmiConstant(0));
@@ -1454,8 +1447,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   // 5. Let buffer be O.[[ViewedArrayBuffer]].
   TNode<JSArrayBuffer> buffer = GetBuffer(context, source);
   // 6. Let srcLength be O.[[ArrayLength]].
-  TNode<Smi> source_length =
-      LoadObjectField<Smi>(source, JSTypedArray::kLengthOffset);
+  TNode<Smi> source_length = LoadTypedArrayLength(source);
 
   // 7. Let relativeBegin be ? ToInteger(begin).
   // 8. If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin),
@@ -1934,7 +1926,7 @@ TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
       ValidateTypedArray(context, receiver, method_name);
 
   // 3. Let len be O.[[ArrayLength]].
-  TNode<Smi> length = LoadObjectField<Smi>(source, JSTypedArray::kLengthOffset);
+  TNode<Smi> length = LoadTypedArrayLength(source);
 
   // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
   TNode<Object> callbackfn = args.GetOptionalArgumentValue(0);
