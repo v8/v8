@@ -500,10 +500,10 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
 }
 
 namespace {
-inline bool MatchesRegisterAndType(const LinkageLocation& loc, Register reg,
-                                   MachineType machine_type) {
+inline bool IsTaggedReg(const LinkageLocation& loc, Register reg) {
   return loc.IsRegister() && loc.AsRegister() == reg.code() &&
-         loc.GetType() == machine_type;
+         loc.GetType().representation() ==
+             MachineRepresentation::kTaggedPointer;
 }
 }  // namespace
 
@@ -511,15 +511,12 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
   // TODO(titzer): this should be configurable, not call-type specific.
   if (incoming_->IsJSFunctionCall()) {
     LinkageLocation loc = GetParameterLocation(index);
-    return MatchesRegisterAndType(loc, kJSFunctionRegister,
-                                  MachineType::AnyTagged()) ||
-           MatchesRegisterAndType(loc, kContextRegister,
-                                  MachineType::AnyTagged());
+    return IsTaggedReg(loc, kJSFunctionRegister) ||
+           IsTaggedReg(loc, kContextRegister);
   }
   if (incoming_->IsWasmFunctionCall()) {
     LinkageLocation loc = GetParameterLocation(index);
-    return MatchesRegisterAndType(loc, kWasmInstanceRegister,
-                                  MachineType::AnyTagged());
+    return IsTaggedReg(loc, kWasmInstanceRegister);
   }
   return false;
 }
@@ -535,20 +532,17 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
 
   // TODO(titzer): this should be configurable, not call-type specific.
   if (incoming_->IsJSFunctionCall()) {
-    if (MatchesRegisterAndType(loc, kJSFunctionRegister,
-                               MachineType::AnyTagged())) {
+    if (IsTaggedReg(loc, kJSFunctionRegister)) {
       return LinkageLocation::ForCalleeFrameSlot(kJSFunctionSlot,
                                                  MachineType::AnyTagged());
     } else {
-      DCHECK(MatchesRegisterAndType(loc, kContextRegister,
-                                    MachineType::AnyTagged()));
+      DCHECK(IsTaggedReg(loc, kContextRegister));
       return LinkageLocation::ForCalleeFrameSlot(kJSContextSlot,
                                                  MachineType::AnyTagged());
     }
   }
   if (incoming_->IsWasmFunctionCall()) {
-    DCHECK(MatchesRegisterAndType(loc, kWasmInstanceRegister,
-                                  MachineType::AnyTagged()));
+    DCHECK(IsTaggedReg(loc, kWasmInstanceRegister));
     return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceSlot,
                                                MachineType::AnyTagged());
   }
