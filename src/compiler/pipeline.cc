@@ -949,12 +949,6 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
  private:
   size_t AllocatedMemory() const override;
 
-  // Temporary regression check while we get the wasm code off the GC heap, and
-  // until we decontextualize wasm code.
-  // We expect the only embedded objects to be: CEntry, undefined, and
-  // the various builtins for throwing exceptions like OOB.
-  void ValidateImmovableEmbeddedObjects() const;
-
   ZoneStats zone_stats_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -1037,43 +1031,6 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
   }
 
   return SUCCEEDED;
-}
-
-void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
-#if DEBUG
-  // We expect the only embedded objects to be those originating from
-  // a snapshot, which are immovable.
-  DisallowHeapAllocation no_gc;
-  Handle<Code> result = pipeline_.data_->code();
-  if (result.is_null()) return;
-  // TODO(aseemgarg): remove this restriction when
-  // wasm-to-js is also internally immovable to include WASM_TO_JS
-  if (result->kind() != Code::WASM_FUNCTION) return;
-  static const int kAllGCRefs = (1 << (RelocInfo::LAST_GCED_ENUM + 1)) - 1;
-  for (RelocIterator it(*result, kAllGCRefs); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    Object* target = nullptr;
-    switch (mode) {
-      case RelocInfo::CODE_TARGET:
-        // this would be either one of the stubs or builtins, because
-        // we didn't link yet.
-        target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-        break;
-      case RelocInfo::EMBEDDED_OBJECT:
-        target = it.rinfo()->target_object();
-        break;
-      default:
-        UNREACHABLE();
-    }
-    CHECK_NOT_NULL(target);
-    bool is_immovable =
-        target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
-    bool is_wasm = target->IsCode() &&
-                   (Code::cast(target)->kind() == Code::WASM_FUNCTION ||
-                    Code::cast(target)->kind() == Code::WASM_TO_JS_FUNCTION);
-    CHECK(is_immovable || is_wasm);
-  }
-#endif
 }
 
 template <typename Phase>
