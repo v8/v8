@@ -1908,6 +1908,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len += DecodeAtomicOpcode(opcode);
             break;
           }
+// Note that prototype opcodes are not handled in the fastpath
+// above this switch, to avoid checking a feature flag.
+#define SIMPLE_PROTOTYPE_CASE(name, opc, sig) \
+  case kExpr##name: /* fallthrough */
+            FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
+#undef SIMPLE_PROTOTYPE_CASE
+            BuildSimplePrototypeOperator(opcode);
+            break;
           default: {
             // Deal with special asmjs opcodes.
             if (this->module_ != nullptr &&
@@ -2423,14 +2431,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CALL_INTERFACE(OnFirstError);
   }
 
-  inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
+  void BuildSimplePrototypeOperator(WasmOpcode opcode) {
     if (WasmOpcodes::IsSignExtensionOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(se);
     }
     if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(anyref);
     }
+    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    BuildSimpleOperator(opcode, sig);
+  }
 
+  inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
     switch (sig->parameter_count()) {
       case 1: {
         auto val = Pop(0, sig->GetParam(0));

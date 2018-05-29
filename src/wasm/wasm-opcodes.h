@@ -218,13 +218,15 @@ using WasmName = Vector<const char>;
   V(I32ReinterpretF32, 0xbc, i_f) \
   V(I64ReinterpretF64, 0xbd, l_d) \
   V(F32ReinterpretI32, 0xbe, f_i) \
-  V(F64ReinterpretI64, 0xbf, d_l) \
-  V(I32SExtendI8, 0xc0, i_i)      \
-  V(I32SExtendI16, 0xc1, i_i)     \
-  V(I64SExtendI8, 0xc2, l_l)      \
-  V(I64SExtendI16, 0xc3, l_l)     \
-  V(I64SExtendI32, 0xc4, l_l)     \
-  V(RefIsNull, 0xd1, i_r)         \
+  V(F64ReinterpretI64, 0xbf, d_l)
+
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
+  V(I32SExtendI8, 0xc0, i_i)               \
+  V(I32SExtendI16, 0xc1, i_i)              \
+  V(I64SExtendI8, 0xc2, l_l)               \
+  V(I64SExtendI16, 0xc3, l_l)              \
+  V(I64SExtendI32, 0xc4, l_l)              \
+  V(RefIsNull, 0xd1, i_r)                  \
   V(RefEq, 0xd2, i_rr)
 
 // For compatibility with Asm.js.
@@ -479,6 +481,7 @@ using WasmName = Vector<const char>;
   FOREACH_CONTROL_OPCODE(V)           \
   FOREACH_MISC_OPCODE(V)              \
   FOREACH_SIMPLE_OPCODE(V)            \
+  FOREACH_SIMPLE_PROTOTYPE_OPCODE(V)  \
   FOREACH_STORE_MEM_OPCODE(V)         \
   FOREACH_LOAD_MEM_OPCODE(V)          \
   FOREACH_MISC_MEM_OPCODE(V)          \

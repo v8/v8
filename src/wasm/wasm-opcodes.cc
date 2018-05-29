@@ -360,6 +360,7 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
       return false;
   }
 }
+
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (auto ret : sig.returns()) {
@@ -398,7 +399,7 @@ FOREACH_SIGNATURE(DECLARE_SIG)
 #undef DECLARE_SIG
 
 #define DECLARE_SIG_ENTRY(name, ...) &kSig_##name,
-constexpr const FunctionSig* kSimpleExprSigs[] = {
+constexpr const FunctionSig* kCachedSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
 #undef DECLARE_SIG_ENTRY
 
@@ -407,18 +408,11 @@ constexpr const FunctionSig* kSimpleExprSigs[] = {
 // encapsulate these constexpr functions in functors.
 // TODO(clemensh): Remove this once we require gcc >= 5.0.
 
-struct GetOpcodeSigIndex {
+struct GetShortOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
 #define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
-    return FOREACH_SIMPLE_OPCODE(CASE) kSigEnum_None;
-#undef CASE
-  }
-};
-
-struct GetSimpleOpcodeSig {
-  constexpr const FunctionSig* operator()(byte opcode) const {
-#define CASE(name, opc, sig) opcode == opc ? &kSig_##sig:
-    return FOREACH_SIMPLE_OPCODE(CASE) nullptr;
+    return FOREACH_SIMPLE_OPCODE(CASE) FOREACH_SIMPLE_PROTOTYPE_OPCODE(CASE)
+        kSigEnum_None;
 #undef CASE
   }
 };
@@ -455,8 +449,8 @@ struct GetNumericOpcodeSigIndex {
   }
 };
 
-constexpr std::array<WasmOpcodeSig, 256> kSimpleExprSigTable =
-    base::make_array<256>(GetOpcodeSigIndex{});
+constexpr std::array<WasmOpcodeSig, 256> kShortSigTable =
+    base::make_array<256>(GetShortOpcodeSigIndex{});
 constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
     base::make_array<256>(GetAsmJsOpcodeSigIndex{});
 constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
@@ -466,6 +460,15 @@ constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
 constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
     base::make_array<256>(GetNumericOpcodeSigIndex{});
 
+// Computes a direct pointer to a cached signature for a simple opcode.
+struct GetSimpleOpcodeSig {
+  constexpr const FunctionSig* operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == opc ? &kSig_##sig:
+    return FOREACH_SIMPLE_OPCODE(CASE) nullptr;
+#undef CASE
+  }
+};
+
 }  // namespace
 
 const std::array<const FunctionSig*, 256> kSimpleOpcodeSigs =
@@ -473,26 +476,27 @@ const std::array<const FunctionSig*, 256> kSimpleOpcodeSigs =
 
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   switch (opcode >> 8) {
+    case 0:
+      return const_cast<FunctionSig*>(kCachedSigs[kShortSigTable[opcode]]);
     case kSimdPrefix:
       return const_cast<FunctionSig*>(
-          kSimpleExprSigs[kSimdExprSigTable[opcode & 0xFF]]);
+          kCachedSigs[kSimdExprSigTable[opcode & 0xFF]]);
     case kAtomicPrefix:
       return const_cast<FunctionSig*>(
-          kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xFF]]);
+          kCachedSigs[kAtomicExprSigTable[opcode & 0xFF]]);
     case kNumericPrefix:
       return const_cast<FunctionSig*>(
-          kSimpleExprSigs[kNumericExprSigTable[opcode & 0xFF]]);
+          kCachedSigs[kNumericExprSigTable[opcode & 0xFF]]);
     default:
-      DCHECK_GT(kSimpleExprSigTable.size(), opcode);
-      return const_cast<FunctionSig*>(
-          kSimpleExprSigs[kSimpleExprSigTable[opcode]]);
+      UNREACHABLE();  // invalid prefix.
+      return nullptr;
   }
 }
 
 FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
   DCHECK_GT(kSimpleAsmjsExprSigTable.size(), opcode);
   return const_cast<FunctionSig*>(
-      kSimpleExprSigs[kSimpleAsmjsExprSigTable[opcode]]);
+      kCachedSigs[kSimpleAsmjsExprSigTable[opcode]]);
 }
 
 // Define constexpr arrays.
