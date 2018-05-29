@@ -299,7 +299,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %hhu)\n",
-                 slot_index, mode);
+                 slot_index, static_cast<uint8_t>(mode));
         }
         *index = slot_index;
         *variable_mode = mode;
