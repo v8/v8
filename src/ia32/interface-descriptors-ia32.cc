@@ -58,13 +58,6 @@ const Register StoreTransitionDescriptor::MapRegister() { return edi; }
 const Register ApiGetterDescriptor::HolderRegister() { return ecx; }
 const Register ApiGetterDescriptor::CallbackRegister() { return eax; }
 
-const Register MathPowTaggedDescriptor::exponent() { return eax; }
-
-const Register MathPowIntegerDescriptor::exponent() {
-  return MathPowTaggedDescriptor::exponent();
-}
-
-
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
 

@@ -3019,8 +3019,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
-  const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent == eax);
+  const Register exponent = eax;
   const Register scratch = ecx;
   const XMMRegister double_result = xmm3;
   const XMMRegister double_base = xmm2;

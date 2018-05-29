@@ -58,13 +58,6 @@ const Register StoreTransitionDescriptor::MapRegister() { return r11; }
 const Register ApiGetterDescriptor::HolderRegister() { return rcx; }
 const Register ApiGetterDescriptor::CallbackRegister() { return rbx; }
 
-const Register MathPowTaggedDescriptor::exponent() { return rdx; }
-
-const Register MathPowIntegerDescriptor::exponent() {
-  return MathPowTaggedDescriptor::exponent();
-}
-
-
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return rax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return rbx; }
 

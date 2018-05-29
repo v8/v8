@@ -267,18 +267,6 @@ void TypeConversionStackParameterDescriptor::InitializePlatformIndependent(
   data->InitializePlatformIndependent(data->register_param_count(), 1, nullptr);
 }
 
-void MathPowTaggedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {exponent()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void MathPowIntegerDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {exponent()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void LoadWithVectorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kName, kSlot, kVector

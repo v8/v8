@@ -62,8 +62,6 @@ class PlatformInterfaceDescriptor;
   V(ArgumentAdaptor)                  \
   V(ApiCallback)                      \
   V(ApiGetter)                        \
-  V(MathPowTagged)                    \
-  V(MathPowInteger)                   \
   V(GrowArrayElements)                \
   V(NewArgumentsElements)             \
   V(InterpreterDispatch)              \
@@ -728,22 +726,6 @@ class ApiGetterDescriptor : public CallInterfaceDescriptor {
   static const Register ReceiverRegister();
   static const Register HolderRegister();
   static const Register CallbackRegister();
-};
-
-class MathPowTaggedDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kExponent)
-  DECLARE_DESCRIPTOR(MathPowTaggedDescriptor, CallInterfaceDescriptor)
-
-  static const Register exponent();
-};
-
-class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kExponent)
-  DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
-
-  static const Register exponent();
 };
 
 // TODO(turbofan): We should probably rename this to GrowFastElementsDescriptor.

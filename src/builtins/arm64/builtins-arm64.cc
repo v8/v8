@@ -3326,16 +3326,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
-  // Stack on entry:
-  // sp[0]: Exponent (as a tagged value).
-  // sp[1]: Base (as a tagged value).
-  //
-  // The (tagged) result will be returned in x0, as a heap number.
-
-  Register exponent_tagged = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent_tagged.is(x11));
-  Register exponent_integer = MathPowIntegerDescriptor::exponent();
-  DCHECK(exponent_integer.is(x12));
+  Register exponent_integer = x12;
   Register saved_lr = x19;
   VRegister result_double = d0;
   VRegister base_double = d0;
@@ -3345,7 +3336,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   VRegister scratch0_double = d7;
 
   // A fast-path for integer exponents.
-  Label exponent_is_smi, exponent_is_integer;
+  Label exponent_is_integer;
   // Allocate a heap number for the result, and return it.
   Label done;
 
@@ -3365,24 +3356,12 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
     __ B(&done);
   }
 
-  // Handle SMI exponents.
-  __ Bind(&exponent_is_smi);
-  //  x10   base_tagged       The tagged base (input).
-  //  x11   exponent_tagged   The tagged exponent (input).
-  //  d1    base_double       The base as a double.
-  __ SmiUntag(exponent_integer, exponent_tagged);
-
   __ Bind(&exponent_is_integer);
-  //  x10   base_tagged       The tagged base (input).
-  //  x11   exponent_tagged   The tagged exponent (input).
-  //  x12   exponent_integer  The exponent as an integer.
-  //  d1    base_double       The base as a double.
 
   // Find abs(exponent). For negative exponents, we can find the inverse later.
   Register exponent_abs = x13;
   __ Cmp(exponent_integer, 0);
   __ Cneg(exponent_abs, exponent_integer, mi);
-  //  x13   exponent_abs      The value of abs(exponent_integer).
 
   // Repeatedly multiply to calculate the power.
   //  result = 1.0;
