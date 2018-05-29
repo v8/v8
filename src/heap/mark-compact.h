@@ -315,21 +315,15 @@ class MinorMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(
-        &chunk->young_generation_live_byte_count_)
-        ->Increment(by);
+    chunk->young_generation_live_byte_count_ += by;
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return reinterpret_cast<base::AtomicNumber<intptr_t>*>(
-               &chunk->young_generation_live_byte_count_)
-        ->Value();
+    return chunk->young_generation_live_byte_count_;
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(
-        &chunk->young_generation_live_byte_count_)
-        ->SetValue(value);
+    chunk->young_generation_live_byte_count_ = value;
   }
 };
 
@@ -384,19 +378,15 @@ class MajorAtomicMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
-        ->Increment(by);
+    chunk->live_byte_count_ += by;
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return reinterpret_cast<base::AtomicNumber<intptr_t>*>(
-               &chunk->live_byte_count_)
-        ->Value();
+    return chunk->live_byte_count_;
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    reinterpret_cast<base::AtomicNumber<intptr_t>*>(&chunk->live_byte_count_)
-        ->SetValue(value);
+    chunk->live_byte_count_ = value;
   }
 };
 

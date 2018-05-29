@@ -3962,10 +3962,9 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
 
 class PageMarkingItem : public MarkingItem {
  public:
-  explicit PageMarkingItem(MemoryChunk* chunk,
-                           base::AtomicNumber<intptr_t>* global_slots)
+  explicit PageMarkingItem(MemoryChunk* chunk, std::atomic<int>* global_slots)
       : chunk_(chunk), global_slots_(global_slots), slots_(0) {}
-  virtual ~PageMarkingItem() { global_slots_->Increment(slots_); }
+  virtual ~PageMarkingItem() { *global_slots_ = *global_slots_ + slots_; }
 
   void Process(YoungGenerationMarkingTask* task) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -4016,8 +4015,8 @@ class PageMarkingItem : public MarkingItem {
   }
 
   MemoryChunk* chunk_;
-  base::AtomicNumber<intptr_t>* global_slots_;
-  intptr_t slots_;
+  std::atomic<int>* global_slots_;
+  int slots_;
 };
 
 class GlobalHandlesMarkingItem : public MarkingItem {
@@ -4067,7 +4066,7 @@ class GlobalHandlesMarkingItem : public MarkingItem {
 
 void MinorMarkCompactCollector::MarkRootSetInParallel(
     RootMarkingVisitor* root_visitor) {
-  base::AtomicNumber<intptr_t> slots;
+  std::atomic<int> slots;
   {
     ItemParallelJob job(isolate()->cancelable_task_manager(),
                         &page_parallel_job_semaphore_);
@@ -4100,7 +4099,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       DCHECK(worklist()->IsGlobalEmpty());
     }
   }
-  old_to_new_slots_ = static_cast<int>(slots.Value());
+  old_to_new_slots_ = slots;
 }
 
 void MinorMarkCompactCollector::MarkLiveObjects() {

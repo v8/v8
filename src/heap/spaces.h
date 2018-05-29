@@ -357,7 +357,7 @@ class MemoryChunk {
       + kPointerSize      // Address owner_
       + kPointerSize      // Heap* heap_
       + kIntptrSize       // intptr_t progress_bar_
-      + kIntptrSize       // intptr_t live_byte_count_
+      + kIntptrSize       // std::atomic<intptr_t> live_byte_count_
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
       + kPointerSize      // InvalidatedSlots* invalidated_slots_
@@ -372,8 +372,8 @@ class MemoryChunk {
       + kPointerSize * 2  // base::ListNode
       + kPointerSize * kNumberOfCategories
       // FreeListCategory categories_[kNumberOfCategories]
-      + kPointerSize   // LocalArrayBufferTracker* local_tracker_
-      + kIntptrSize    // intptr_t young_generation_live_byte_count_
+      + kPointerSize  // LocalArrayBufferTracker* local_tracker_
+      + kIntptrSize   // std::atomic<intptr_t> young_generation_live_byte_count_
       + kPointerSize;  // Bitmap* young_generation_bitmap_
 
   // We add some more space to the computed header size to amount for missing
@@ -649,7 +649,7 @@ class MemoryChunk {
   intptr_t progress_bar_;
 
   // Count of bytes marked black on page.
-  intptr_t live_byte_count_;
+  std::atomic<intptr_t> live_byte_count_;
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
@@ -696,7 +696,7 @@ class MemoryChunk {
 
   LocalArrayBufferTracker* local_tracker_;
 
-  intptr_t young_generation_live_byte_count_;
+  std::atomic<intptr_t> young_generation_live_byte_count_;
   Bitmap* young_generation_bitmap_;
 
  private:
