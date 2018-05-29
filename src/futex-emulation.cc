@@ -81,8 +81,6 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   int32_t* p =
       reinterpret_cast<int32_t*>(static_cast<int8_t*>(backing_store) + addr);
 
-  base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
-
   if (*p != value) {
     return isolate->heap()->not_equal();
   }
@@ -116,72 +114,76 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   base::TimeTicks timeout_time = start_time + rel_timeout;
   base::TimeTicks current_time = start_time;
 
-  wait_list_.Pointer()->AddNode(node);
-
   Object* result;
 
-  while (true) {
-    bool interrupted = node->interrupted_;
-    node->interrupted_ = false;
+  {
+    base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
+    wait_list_.Pointer()->AddNode(node);
 
-    // Unlock the mutex here to prevent deadlock from lock ordering between
-    // mutex_ and mutexes locked by HandleInterrupts.
-    mutex_.Pointer()->Unlock();
+    while (true) {
+      bool interrupted = node->interrupted_;
+      node->interrupted_ = false;
 
-    // Because the mutex is unlocked, we have to be careful about not dropping
-    // an interrupt. The notification can happen in three different places:
-    // 1) Before Wait is called: the notification will be dropped, but
-    //    interrupted_ will be set to 1. This will be checked below.
-    // 2) After interrupted has been checked here, but before mutex_ is
-    //    acquired: interrupted is checked again below, with mutex_ locked.
-    //    Because the wakeup signal also acquires mutex_, we know it will not
-    //    be able to notify until mutex_ is released below, when waiting on the
-    //    condition variable.
-    // 3) After the mutex is released in the call to WaitFor(): this
-    // notification will wake up the condition variable. node->waiting() will
-    // be false, so we'll loop and then check interrupts.
-    if (interrupted) {
-      Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
-      if (interrupt_object->IsException(isolate)) {
-        result = interrupt_object;
-        mutex_.Pointer()->Lock();
-        break;
+      // Unlock the mutex here to prevent deadlock from lock ordering between
+      // mutex_ and mutexes locked by HandleInterrupts.
+      mutex_.Pointer()->Unlock();
+
+      // Because the mutex is unlocked, we have to be careful about not dropping
+      // an interrupt. The notification can happen in three different places:
+      // 1) Before Wait is called: the notification will be dropped, but
+      //    interrupted_ will be set to 1. This will be checked below.
+      // 2) After interrupted has been checked here, but before mutex_ is
+      //    acquired: interrupted is checked again below, with mutex_ locked.
+      //    Because the wakeup signal also acquires mutex_, we know it will not
+      //    be able to notify until mutex_ is released below, when waiting on
+      //    the condition variable.
+      // 3) After the mutex is released in the call to WaitFor(): this
+      // notification will wake up the condition variable. node->waiting() will
+      // be false, so we'll loop and then check interrupts.
+      if (interrupted) {
+        Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
+        if (interrupt_object->IsException(isolate)) {
+          result = interrupt_object;
+          mutex_.Pointer()->Lock();
+          break;
+        }
       }
-    }
 
-    mutex_.Pointer()->Lock();
+      mutex_.Pointer()->Lock();
 
-    if (node->interrupted_) {
-      // An interrupt occurred while the mutex_ was unlocked. Don't wait yet.
-      continue;
-    }
+      if (node->interrupted_) {
+        // An interrupt occurred while the mutex_ was unlocked. Don't wait yet.
+        continue;
+      }
 
-    if (!node->waiting_) {
-      result = isolate->heap()->ok();
-      break;
-    }
-
-    // No interrupts, now wait.
-    if (use_timeout) {
-      current_time = base::TimeTicks::Now();
-      if (current_time >= timeout_time) {
-        result = isolate->heap()->timed_out();
+      if (!node->waiting_) {
+        result = isolate->heap()->ok();
         break;
       }
 
-      base::TimeDelta time_until_timeout = timeout_time - current_time;
-      DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
-      bool wait_for_result =
-          node->cond_.WaitFor(mutex_.Pointer(), time_until_timeout);
-      USE(wait_for_result);
-    } else {
-      node->cond_.Wait(mutex_.Pointer());
+      // No interrupts, now wait.
+      if (use_timeout) {
+        current_time = base::TimeTicks::Now();
+        if (current_time >= timeout_time) {
+          result = isolate->heap()->timed_out();
+          break;
+        }
+
+        base::TimeDelta time_until_timeout = timeout_time - current_time;
+        DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
+        bool wait_for_result =
+            node->cond_.WaitFor(mutex_.Pointer(), time_until_timeout);
+        USE(wait_for_result);
+      } else {
+        node->cond_.Wait(mutex_.Pointer());
+      }
+
+      // Spurious wakeup, interrupt or timeout.
     }
 
-    // Spurious wakeup, interrupt or timeout.
+    wait_list_.Pointer()->RemoveNode(node);
   }
 
-  wait_list_.Pointer()->RemoveNode(node);
   node->waiting_ = false;
 
   return result;
