@@ -1024,10 +1024,6 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
     mov(ip, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(ip);
   }
-  if (type == StackFrame::INTERNAL) {
-    Move(ip, CodeObject());
-    push(ip);
-  }
 }
 
 int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
