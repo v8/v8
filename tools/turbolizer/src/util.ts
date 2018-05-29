@@ -18,7 +18,10 @@ function computeScrollTop(container, element) {
 }
 
 class ViewElements {
-  constructor(container) {
+  container: HTMLElement;
+  scrollTop: number;
+
+  constructor(container: HTMLElement) {
     this.container = container;
     this.scrollTop = undefined;
   }
@@ -81,12 +84,12 @@ function upperBound(a, value, compare, lookup) {
 }
 
 
-function sortUnique(arr, f, equal) {
+function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean) {
   if (arr.length == 0) return arr;
   arr = arr.sort(f);
   let ret = [arr[0]];
   for (var i = 1; i < arr.length; i++) {
-    if (!equal(arr[i-1], arr[i])) {
+    if (!equal(arr[i - 1], arr[i])) {
       ret.push(arr[i]);
     }
   }
@@ -94,15 +97,14 @@ function sortUnique(arr, f, equal) {
 }
 
 // Partial application without binding the receiver
-function partial(f) {
-  var arguments1 = Array.prototype.slice.call(arguments, 1);
-  return function() {
+function partial(f, ...arguments1) {
+  return function (...arguments2) {
     var arguments2 = Array.from(arguments);
-    f.apply(this, arguments1.concat(arguments2));
+    f.apply(this, [...arguments1, ...arguments2]);
   }
 }
 
-function isIterable(obj) {
+function isIterable(obj:any): obj is Iterable<any> {
   return obj != null && obj != undefined
     && typeof obj != 'string' && typeof obj[Symbol.iterator] === 'function';
 }

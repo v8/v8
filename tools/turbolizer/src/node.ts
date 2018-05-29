@@ -2,30 +2,49 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var TYPE_HEIGHT = 25;
-var DEFAULT_NODE_BUBBLE_RADIUS = 12;
-var NODE_INPUT_WIDTH = 50;
-var MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
-var MINIMUM_NODE_OUTPUT_APPROACH = 15;
+const TYPE_HEIGHT = 25;
+const DEFAULT_NODE_BUBBLE_RADIUS = 12;
+const NODE_INPUT_WIDTH = 50;
+const MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
+const MINIMUM_NODE_OUTPUT_APPROACH = 15;
 
 function isNodeInitiallyVisible(node) {
   return node.cfg;
 }
 
-var Node = {
-  isControl: function() {
+class GNode {
+  control: boolean;
+  opcode: string;
+  live: boolean;
+  inputs: Array<any>;
+  width: number;
+  properties: string;
+  title: string;
+  label: string;
+  origin: NodeOrigin;
+  outputs: Array<any>;
+  outputApproach: number;
+  type: string;
+  id: number;
+  x: number;
+  y: number;
+  visible: boolean;
+  rank: number;
+  opinfo: string;
+
+  isControl() {
     return this.control;
-  },
-  isInput: function() {
+  }
+  isInput() {
     return this.opcode == 'Parameter' || this.opcode.endsWith('Constant');
-  },
-  isLive: function() {
+  }
+  isLive() {
     return this.live !== false;
-  },
-  isJavaScript: function() {
+  }
+  isJavaScript() {
     return this.opcode.startsWith('JS');
-  },
-  isSimplified: function() {
+  }
+  isSimplified() {
     if (this.isJavaScript()) return false;
     return this.opcode.endsWith('Phi') ||
       this.opcode.startsWith('Boolean') ||
@@ -39,16 +58,16 @@ var Node = {
       (this.opcode == 'AnyToBoolean') ||
       (this.opcode.startsWith('Load') && this.opcode.length > 4) ||
       (this.opcode.startsWith('Store') && this.opcode.length > 5);
-  },
-  isMachine: function() {
+  }
+  isMachine() {
     return !(this.isControl() || this.isInput() ||
-             this.isJavaScript() || this.isSimplified());
-  },
-  getTotalNodeWidth: function() {
+      this.isJavaScript() || this.isSimplified());
+  }
+  getTotalNodeWidth() {
     var inputWidth = this.inputs.length * NODE_INPUT_WIDTH;
     return Math.max(inputWidth, this.width);
-  },
-  getTitle: function() {
+  }
+  getTitle() {
     var propsString;
     if (this.properties === undefined) {
       propsString = "";
@@ -62,29 +81,29 @@ var Node = {
       title += `\nOrigin: #${this.origin.nodeId} in phase ${this.origin.phase}/${this.origin.reducer}`;
     }
     return title;
-  },
-  getDisplayLabel: function() {
+  }
+  getDisplayLabel() {
     var result = this.id + ":" + this.label;
     if (result.length > 40) {
       return this.id + ":" + this.opcode;
-    } else  {
+    } else {
       return result;
     }
-  },
-  getType: function() {
+  }
+  getType() {
     return this.type;
-  },
-  getDisplayType: function() {
+  }
+  getDisplayType() {
     var type_string = this.type;
     if (type_string == undefined) return "";
     if (type_string.length > 24) {
       type_string = type_string.substr(0, 25) + "...";
     }
     return type_string;
-  },
-  deepestInputRank: function() {
+  }
+  deepestInputRank() {
     var deepestRank = 0;
-    this.inputs.forEach(function(e) {
+    this.inputs.forEach(function (e) {
       if (e.isVisible() && !e.isBackEdge()) {
         if (e.source.rank > deepestRank) {
           deepestRank = e.source.rank;
@@ -92,17 +111,17 @@ var Node = {
       }
     });
     return deepestRank;
-  },
-  areAnyOutputsVisible: function() {
+  }
+  areAnyOutputsVisible() {
     var visibleCount = 0;
-    this.outputs.forEach(function(e) { if (e.isVisible()) ++visibleCount; });
+    this.outputs.forEach(function (e) { if (e.isVisible())++visibleCount; });
     if (this.outputs.length == visibleCount) return 2;
     if (visibleCount != 0) return 1;
     return 0;
-  },
-  setOutputVisibility: function(v) {
+  }
+  setOutputVisibility(v) {
     var result = false;
-    this.outputs.forEach(function(e) {
+    this.outputs.forEach(function (e) {
       e.visible = v;
       if (v) {
         if (!e.target.visible) {
@@ -112,8 +131,8 @@ var Node = {
       }
     });
     return result;
-  },
-  setInputVisibility: function(i, v) {
+  }
+  setInputVisibility(i, v) {
     var edge = this.inputs[i];
     edge.visible = v;
     if (v) {
@@ -123,29 +142,26 @@ var Node = {
       }
     }
     return false;
-  },
-  getInputApproach: function(index) {
+  }
+  getInputApproach(index) {
     return this.y - MINIMUM_NODE_INPUT_APPROACH -
       (index % 4) * MINIMUM_EDGE_SEPARATION - DEFAULT_NODE_BUBBLE_RADIUS
-  },
-  getOutputApproach: function(graph, index) {
+  }
+  getOutputApproach(graph) {
     return this.y + this.outputApproach + graph.getNodeHeight(this) +
       + DEFAULT_NODE_BUBBLE_RADIUS;
-  },
-  getInputX: function(index) {
+  }
+  getInputX(index) {
     var result = this.getTotalNodeWidth() - (NODE_INPUT_WIDTH / 2) +
-        (index - this.inputs.length + 1) * NODE_INPUT_WIDTH;
+      (index - this.inputs.length + 1) * NODE_INPUT_WIDTH;
     return result;
-  },
-  getOutputX: function() {
+  }
+  getOutputX() {
     return this.getTotalNodeWidth() - (NODE_INPUT_WIDTH / 2);
-  },
-  getFunctionRelativeSourcePosition: function(graph) {
-    return this.pos - graph.sourcePosition;
-  },
-  hasBackEdges: function() {
+  }
+  hasBackEdges() {
     return (this.opcode == "Loop") ||
       ((this.opcode == "Phi" || this.opcode == "EffectPhi") &&
-       this.inputs[this.inputs.length - 1].source.opcode == "Loop");
+        this.inputs[this.inputs.length - 1].source.opcode == "Loop");
   }
 };

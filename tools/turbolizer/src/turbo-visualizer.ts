@@ -3,19 +3,24 @@
 // found in the LICENSE file.
 
 class Snapper {
+  resizer: Resizer;
+  sourceExpand: HTMLElement;
+  sourceCollapse: HTMLElement;
+  disassemblyExpand: HTMLElement;
+  disassemblyCollapse: HTMLElement;
 
-  constructor(resizer) {
-    let snapper = this;
+  constructor(resizer: Resizer) {
+    const snapper = this;
     snapper.resizer = resizer;
-    snapper.sourceExpand = d3.select("#" + SOURCE_EXPAND_ID);
-    snapper.sourceCollapse = d3.select("#" + SOURCE_COLLAPSE_ID);
-    snapper.disassemblyExpand = d3.select("#" + DISASSEMBLY_EXPAND_ID);
-    snapper.disassemblyCollapse = d3.select("#" + DISASSEMBLY_COLLAPSE_ID);
+    snapper.sourceExpand = document.getElementById(SOURCE_EXPAND_ID);
+    snapper.sourceCollapse = document.getElementById(SOURCE_COLLAPSE_ID);
+    snapper.disassemblyExpand = document.getElementById(DISASSEMBLY_EXPAND_ID);
+    snapper.disassemblyCollapse = document.getElementById(DISASSEMBLY_COLLAPSE_ID);
 
-    d3.select("#source-collapse").on("click", function () {
+    document.getElementById("source-collapse").addEventListener("click", function () {
       resizer.snapper.toggleSourceExpanded();
     });
-    d3.select("#disassembly-collapse").on("click", function () {
+    document.getElementById("disassembly-collapse").addEventListener("click", function () {
       resizer.snapper.toggleDisassemblyExpanded();
     });
   }
@@ -30,18 +35,18 @@ class Snapper {
     window.sessionStorage.setItem("expandedState-" + type, state);
   }
 
-  toggleSourceExpanded() {
-    this.setSourceExpanded(!this.sourceExpand.classed("invisible"));
+  toggleSourceExpanded(): void {
+    this.setSourceExpanded(!this.sourceExpand.classList.contains("invisible"));
   }
 
-  sourceExpandUpdate(newState) {
+  sourceExpandUpdate(newState: boolean) {
     this.setLastExpandedState("source", newState);
-    this.sourceExpand.classed("invisible", newState);
-    this.sourceCollapse.classed("invisible", !newState);
+    this.sourceExpand.classList.toggle("invisible", newState);
+    this.sourceCollapse.classList.toggle("invisible", !newState);
   }
 
   setSourceExpanded(newState) {
-    if (this.sourceExpand.classed("invisible") === newState) return;
+    if (this.sourceExpand.classList.contains("invisible") === newState) return;
     this.sourceExpandUpdate(newState);
     let resizer = this.resizer;
     if (newState) {
@@ -55,17 +60,17 @@ class Snapper {
   }
 
   toggleDisassemblyExpanded() {
-    this.setDisassemblyExpanded(!this.disassemblyExpand.classed("invisible"));
+    this.setDisassemblyExpanded(!this.disassemblyExpand.classList.contains("invisible"));
   }
 
   disassemblyExpandUpdate(newState) {
     this.setLastExpandedState("disassembly", newState);
-    this.disassemblyExpand.classed("invisible", newState);
-    this.disassemblyCollapse.classed("invisible", !newState);
+    this.disassemblyExpand.classList.toggle("invisible", newState);
+    this.disassemblyCollapse.classList.toggle("invisible", !newState);
   }
 
   setDisassemblyExpanded(newState) {
-    if (this.disassemblyExpand.classed("invisible") === newState) return;
+    if (this.disassemblyExpand.classList.contains("invisible") === newState) return;
     this.disassemblyExpandUpdate(newState);
     let resizer = this.resizer;
     if (newState) {
@@ -86,15 +91,30 @@ class Snapper {
 }
 
 class Resizer {
-  constructor(panes_updated_callback, dead_width) {
+  snapper: Snapper;
+  dead_width: number;
+  client_width: number;
+  left: HTMLElement;
+  right: HTMLElement;
+  middle: HTMLElement;
+  sep_left: number;
+  sep_right: number;
+  sep_left_snap: number;
+  sep_right_snap: number;
+  sep_width_offset: number;
+  panes_updated_callback: () => void;
+  resizer_right: d3.Selection<any>;
+  resizer_left: d3.Selection<any>;
+
+  constructor(panes_updated_callback: () => void, dead_width: number) {
     let resizer = this;
     resizer.snapper = new Snapper(resizer)
     resizer.panes_updated_callback = panes_updated_callback;
     resizer.dead_width = dead_width
-    resizer.client_width = d3.select("body").node().getBoundingClientRect().width;
-    resizer.left = d3.select("#" + SOURCE_PANE_ID);
-    resizer.middle = d3.select("#" + INTERMEDIATE_PANE_ID);
-    resizer.right = d3.select("#" + GENERATED_PANE_ID);
+    resizer.client_width = document.body.getBoundingClientRect().width;
+    resizer.left = document.getElementById(SOURCE_PANE_ID);
+    resizer.middle = document.getElementById(INTERMEDIATE_PANE_ID);
+    resizer.right = document.getElementById(GENERATED_PANE_ID);
     resizer.resizer_left = d3.select('.resizer-left');
     resizer.resizer_right = d3.select('.resizer-right');
     resizer.sep_left = resizer.client_width / 3;
@@ -150,9 +170,9 @@ class Resizer {
     let right_snapped = this.sep_right >= this.client_width - 1;
     this.resizer_left.classed("snapped", left_snapped);
     this.resizer_right.classed("snapped", right_snapped);
-    this.left.style('width', this.sep_left + 'px');
-    this.middle.style('width', (this.sep_right - this.sep_left) + 'px');
-    this.right.style('width', (this.client_width - this.sep_right) + 'px');
+    this.left.style.width = this.sep_left + 'px';
+    this.middle.style.width = (this.sep_right - this.sep_left) + 'px';
+    this.right.style.width = (this.client_width - this.sep_right) + 'px';
     this.resizer_left.style('left', this.sep_left + 'px');
     this.resizer_right.style('right', (this.client_width - this.sep_right - 1) + 'px');
 
@@ -161,13 +181,13 @@ class Resizer {
   }
 
   updateWidths() {
-    this.client_width = d3.select("body").node().getBoundingClientRect().width;
+    this.client_width = document.body.getBoundingClientRect().width;
     this.sep_right = Math.min(this.sep_right, this.client_width);
     this.sep_left = Math.min(Math.max(0, this.sep_left), this.sep_right);
   }
 }
 
-document.onload = (function (d3) {
+window.onload = function () {
   "use strict";
   var svg = null;
   var multiview = null;
@@ -215,12 +235,12 @@ document.onload = (function (d3) {
       sourceResolver.setNodePositionMap(jsonObj.nodePositions);
       sourceResolver.parsePhases(jsonObj.phases);
 
-      let sourceView = new CodeView(SOURCE_PANE_ID, selectionBroker, sourceResolver, fnc, CodeView.MAIN_SOURCE);
+      let sourceView = new CodeView(SOURCE_PANE_ID, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
       sourceView.show(null, null);
       sourceViews.push(sourceView);
 
       sourceResolver.forEachSource((source) => {
-        let sourceView = new CodeView(SOURCE_PANE_ID, selectionBroker, sourceResolver, source, CodeView.INLINED_SOURCE);
+        let sourceView = new CodeView(SOURCE_PANE_ID, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
         sourceView.show(null, null);
         sourceViews.push(sourceView);
       });
@@ -236,7 +256,7 @@ document.onload = (function (d3) {
       multiview.show(jsonObj);
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +
-           "error: " + err.message + "\nDo you want to clear session storage?")) {
+        "error: " + err.message + "\nDo you want to clear session storage?")) {
         window.sessionStorage.clear();
       }
       return;
@@ -250,18 +270,14 @@ document.onload = (function (d3) {
     d3.select("#upload").on("click",
       () => document.getElementById("upload-helper").click());
     d3.select("#upload-helper").on("change", function () {
-      if (window.File && window.FileReader && window.FileList) {
-        var uploadFile = this.files && this.files[0];
-        var filereader = new window.FileReader();
-        filereader.onload = function (e) {
-          var txtRes = e.target.result;
-          loadFile(txtRes);
-        };
-        if (uploadFile)
-          filereader.readAsText(uploadFile);
-      } else {
-        alert("Can't load graph");
-      }
+      var uploadFile = this.files && this.files[0];
+      var filereader = new FileReader();
+      filereader.onload = function (e) {
+        var txtRes = e.target.result;
+        loadFile(txtRes);
+      };
+      if (uploadFile)
+        filereader.readAsText(uploadFile);
     });
   }
 
@@ -273,4 +289,4 @@ document.onload = (function (d3) {
 
   resizer.updatePanes();
 
-})(window.d3);
+};

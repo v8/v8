@@ -5,6 +5,7 @@
 "use strict";
 
 class ScheduleView extends TextView {
+  schedule: Schedule;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -41,7 +42,7 @@ class ScheduleView extends TextView {
 
   elementForBlock(block) {
     const view = this;
-    function createElement(tag, cls, content) {
+    function createElement(tag:string, cls: string|Array<string>, content?:string) {
       const el = document.createElement(tag);
       if (isIterable(cls)) {
         for (const c of cls) el.classList.add(c);
@@ -106,7 +107,7 @@ class ScheduleView extends TextView {
     if (block.pred.length) schedule_block.appendChild(block_pred);
     const nodes = createElement("div", "nodes");
     for (const node of block.nodes) {
-      nodes.appendChild(createElementForNode(node, block.id));
+      nodes.appendChild(createElementForNode(node));
     }
     schedule_block.appendChild(nodes);
     const block_succ = createElement("div", ["successor-list", "block-list", "comma-sep-list"]);
@@ -144,8 +145,8 @@ class ScheduleView extends TextView {
     return `${node.id}: ${node.label}(${node.inputs.join(", ")})`
   }
 
-  searchInputAction(view, searchBar) {
-    d3.event.stopPropagation();
+  searchInputAction(view, searchBar, e) {
+    e.stopPropagation();
     this.selectionHandler.clear();
     const query = searchBar.value;
     if (query.length == 0) return;

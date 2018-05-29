@@ -100,3 +100,5 @@ turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
 /Default/
+node_modules
+tools/turbolizer/build

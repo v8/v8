@@ -4,28 +4,30 @@
 
 "use strict";
 
-class View {
+abstract class View {
+  container: HTMLElement;
+  divNode: HTMLElement;
+  abstract initializeContent(data: any, rememberedSelection: Selection): void;
+  abstract createViewElement(): HTMLElement;
+  abstract deleteContent(): void;
+  abstract detachSelection(): Set<string>;
+
   constructor(id) {
     this.container = document.getElementById(id);
     this.divNode = this.createViewElement();
-    this.divElement = d3.select(this.divNode);
   }
 
-  isScrollable() {
+  isScrollable(): boolean {
     return false;
   }
 
-  show(data, rememberedSelection) {
-    this.container.appendChild(this.divElement.node());
+  show(data, rememberedSelection): void {
+    this.container.appendChild(this.divNode);
     this.initializeContent(data, rememberedSelection);
   }
 
-  hide() {
+  hide(): void {
     this.deleteContent();
     this.container.removeChild(this.divNode);
-  }
-
-  detachSelection() {
-    return null;
   }
 }

@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-class Selection {
+class MySelection {
+  selection: any;
+  stringKey: (o:any) => string;
+
   constructor(stringKeyFnc) {
     this.selection = new Map();
     this.stringKey = stringKeyFnc;
   }
 
-  isEmpty() {
+  isEmpty() : boolean {
     return this.selection.size == 0;
   }
 
-  clear() {
+  clear() : void {
     this.selection = new Map();
   }
 
@@ -31,11 +34,11 @@ class Selection {
     }
   }
 
-  isSelected(i) {
+  isSelected(i): boolean {
     return this.selection.has(this.stringKey(i));
   }
 
-  isKeySelected(key) {
+  isKeySelected(key:string): boolean {
     return this.selection.has(key);
   }
 

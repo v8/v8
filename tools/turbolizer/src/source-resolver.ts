@@ -19,7 +19,43 @@ function sourcePositionToStringKey(sourcePosition) {
   return "" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
 }
 
+interface SourcePosition {
+  scriptOffset: number;
+  inliningId: number;
+}
+
+interface Source {
+  sourcePositions: Array<SourcePosition>;
+  sourceName: string;
+  functionName: string;
+  sourceText: string;
+  sourceId: number;
+  startPosition?: number;
+}
+interface Inlining {
+  inliningPosition: SourcePosition;
+  sourceId: number;
+}
+interface Phase {
+  type: string;
+  name: string;
+  data: any;
+}
+
+interface Schedule {}
+
+interface NodeOrigin {}
+
 class SourceResolver {
+  nodePositionMap: Array<SourcePosition>;
+  sources: Array<Source>;
+  inlinings: Array<Inlining>;
+  inliningsMap: Map<string, Inlining>;
+  positionToNodes: Map<string, Array<string>>;
+  phases: Array<Phase>;
+  phaseNames: Map<string, number>;
+  disassemblyPhase: Phase;
+
   constructor() {
     // Maps node ids to source positions.
     this.nodePositionMap = [];
@@ -55,27 +91,27 @@ class SourceResolver {
 
   setInlinings(inlinings) {
     if (inlinings) {
-      for (const [inliningId, inlining] of Object.entries(inlinings)) {
+      for (const [inliningId, inlining] of Object.entries<Inlining>(inlinings)) {
         this.inlinings[inliningId] = inlining;
         this.inliningsMap.set(sourcePositionToStringKey(inlining.inliningPosition), inlining);
       }
     }
     // This is a default entry for the script itself that helps
     // keep other code more uniform.
-    this.inlinings[-1] = { sourceId: -1 };
+    this.inlinings[-1] = { sourceId: -1, inliningPosition: null };
   }
 
   setNodePositionMap(map) {
     if (!map) return;
     if (typeof map[0] != 'object') {
       const alternativeMap = {};
-      for (const [nodeId, scriptOffset] of Object.entries(map)) {
+      for (const [nodeId, scriptOffset] of Object.entries<number>(map)) {
         alternativeMap[nodeId] = { scriptOffset: scriptOffset, inliningId: -1 };
       }
       map = alternativeMap;
     };
 
-    for (const [nodeId, sourcePosition] of Object.entries(map)) {
+    for (const [nodeId, sourcePosition] of Object.entries<SourcePosition>(map)) {
       if (sourcePosition == undefined) {
         console.log("Warning: undefined source position ", sourcePosition, " for nodeId ", nodeId);
       }
@@ -214,7 +250,7 @@ class SourceResolver {
   }
 
   parsePhases(phases) {
-    for (const [phaseId, phase] of Object.entries(phases)) {
+    for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
       if (phase.type == 'disassembly') {
         this.disassemblyPhase = phase;
       } else if (phase.type == 'schedule') {

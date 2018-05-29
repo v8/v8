@@ -4,13 +4,21 @@
 
 "use strict";
 
+enum CodeMode {
+  MAIN_SOURCE = "main function",
+  INLINED_SOURCE = "inlined function"
+};
+
 class CodeView extends View {
-  static get MAIN_SOURCE() {
-    return "main function";
-  }
-  static get INLINED_SOURCE() {
-    return "inlined function";
-  }
+  broker: SelectionBroker;
+  source: Source;
+  sourceResolver: SourceResolver;
+  codeMode: CodeMode;
+  lineToSourcePositions: Map<string, Array<SourcePosition>>;
+  sourcePositionToHtmlElement: Map<string, HTMLElement>;
+  showAdditionalInliningPosition: boolean;
+  selectionHandler: SelectionHandler;
+  selection: MySelection;
 
   createViewElement() {
     const sourceContainer = document.createElement("div");
@@ -18,10 +26,9 @@ class CodeView extends View {
     return sourceContainer;
   }
 
-  constructor(parentId, broker, sourceResolver, sourceFunction, codeMode) {
+  constructor(parentId, broker, sourceResolver, sourceFunction, codeMode: CodeMode) {
     super(parentId);
     let view = this;
-    view.mouseDown = false;
     view.broker = broker;
     view.source = null;
     view.sourceResolver = sourceResolver;
@@ -62,7 +69,7 @@ class CodeView extends View {
         view.updateSelection();
       },
     };
-    view.selection = new Selection(sourcePositionToStringKey);
+    view.selection = new MySelection(sourcePositionToStringKey);
     broker.addSourcePositionHandler(selectionHandler);
     this.selectionHandler = selectionHandler;
     this.initializeCode();
@@ -85,12 +92,12 @@ class CodeView extends View {
   }
 
   getHtmlElementForSourcePosition(sourcePosition) {
-    const key = sourcePositionToStringKey(lineNumber);
+    const key = sourcePositionToStringKey(sourcePosition);
     return this.sourcePositionToHtmlElement.get(key);
   }
 
-  updateSelection(scrollIntoView) {
-    const mkVisible = new ViewElements(this.divNode.parentNode);
+  updateSelection(scrollIntoView: boolean = false) : void {
+    const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
     for (const [sp, el] of this.sourcePositionToHtmlElement.entries()) {
       const isSelected = this.selection.isKeySelected(sp);
       mkVisible.consider(el, isSelected);
@@ -100,7 +107,6 @@ class CodeView extends View {
   }
 
   initializeContent(data, rememberedSelection) {
-    this.data = data;
   }
 
   getCodeHtmlElementName() {
@@ -111,9 +117,9 @@ class CodeView extends View {
     return `source-pre-${this.source.sourceId}-header`;
   }
 
-  getHtmlCodeLines() {
-    const lineListDiv = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`).childNodes;
-    return lineListDiv;
+  getHtmlCodeLines(): NodeListOf<HTMLElement> {
+    const ordereList = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`);
+    return ordereList.childNodes as NodeListOf<HTMLElement>;
   }
 
   onSelectLine(lineNumber, doClear) {
@@ -138,7 +144,7 @@ class CodeView extends View {
     const sourceText = source.sourceText;
     if (!sourceText) return;
     const sourceContainer = view.divNode;
-    if (this.codeMode == CodeView.MAIN_SOURCE) {
+    if (this.codeMode == CodeMode.MAIN_SOURCE) {
       sourceContainer.classList.add("main-source");
     } else {
       sourceContainer.classList.add("inlined-source");
@@ -154,8 +160,8 @@ class CodeView extends View {
     codeModeDiv.classList.add("code-mode");
     codeModeDiv.innerHTML = `${this.codeMode}`;
     codeHeader.appendChild(codeModeDiv);
-    var clearDiv = document.createElement("div");
-    clearDiv.style = "clear:both;"
+    const clearDiv = document.createElement("div");
+    clearDiv.style.clear = "both";
     codeHeader.appendChild(clearDiv);
     sourceContainer.appendChild(codeHeader);
     var codePre = document.createElement("pre");
@@ -184,7 +190,7 @@ class CodeView extends View {
         view.selectionHandler.clear();
       }
 
-      const base = source.startPosition;
+      const base:number = source.startPosition;
       let current = 0;
       const lineListDiv = this.getHtmlCodeLines();
       let newlineAdjust = 0;
@@ -193,7 +199,7 @@ class CodeView extends View {
         const lineNumber = i + 1;
         const currentLineElement = lineListDiv[i];
         currentLineElement.id = "li" + i;
-        currentLineElement.dataset.lineNumber = lineNumber;
+        currentLineElement.dataset.lineNumber = "" + lineNumber;
         const spans = currentLineElement.childNodes;
         for (let j = 0; j < spans.length; ++j) {
           const currentSpan = spans[j];
@@ -258,4 +264,5 @@ class CodeView extends View {
   }
 
   deleteContent() { }
+  detachSelection() { return null; }
 }

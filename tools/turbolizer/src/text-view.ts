@@ -4,11 +4,26 @@
 
 "use strict";
 
-function anyToString(x) {
+function anyToString(x:any): string {
   return "" + x;
 }
 
-class TextView extends View {
+abstract class TextView extends View {
+  selectionHandler: NodeSelectionHandler;
+  blockSelectionHandler: BlockSelectionHandler;
+  nodeSelectionHandler: NodeSelectionHandler;
+  sourcePositionSelectionHandler: SelectionHandler;
+  selection: MySelection;
+  blockSelection: MySelection;
+  sourcePositionSelection: MySelection;
+  textListNode: HTMLUListElement;
+  nodeIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
+  blockIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
+  sourcePositionToHtmlElementsMap: Map<string, Array<HTMLElement>>;
+  blockIdtoNodeIds: Map<string, Array<string>>;
+  nodeIdToBlockId: Array<string>;
+  patterns: any;
+
   constructor(id, broker, patterns) {
     super(id);
     let view = this;
@@ -19,9 +34,9 @@ class TextView extends View {
     view.sourcePositionToHtmlElementsMap = new Map();
     view.blockIdtoNodeIds = new Map();
     view.nodeIdToBlockId = [];
-    view.selection = new Selection(anyToString);
-    view.blockSelection = new Selection(anyToString);
-    view.sourcePositionSelection = new Selection(sourcePositionToStringKey);
+    view.selection = new MySelection(anyToString);
+    view.blockSelection = new MySelection(anyToString);
+    view.sourcePositionSelection = new MySelection(sourcePositionToStringKey);
     const selectionHandler = {
       clear: function () {
         view.selection.clear();
@@ -103,7 +118,7 @@ class TextView extends View {
     broker.addSourcePositionHandler(sourcePositionSelectionHandler);
   }
 
-  addHtmlElementForNodeId(anyNodeId, htmlElement) {
+  addHtmlElementForNodeId(anyNodeId:any, htmlElement: HTMLElement) {
     const nodeId = anyToString(anyNodeId);
     if (!this.nodeIdToHtmlElementsMap.has(nodeId)) {
       this.nodeIdToHtmlElementsMap.set(nodeId, []);
@@ -146,9 +161,9 @@ class TextView extends View {
     return blockIds;
   }
 
-  updateSelection(scrollIntoView) {
+  updateSelection(scrollIntoView: boolean = false) {
     if (this.divNode.parentNode == null) return;
-    const mkVisible = new ViewElements(this.divNode.parentNode);
+    const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
     const view = this;
     for (const [nodeId, elements] of this.nodeIdToHtmlElementsMap.entries()) {
       const isSelected = view.selection.isSelected(nodeId);

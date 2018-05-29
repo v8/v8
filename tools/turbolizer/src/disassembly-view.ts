@@ -5,6 +5,11 @@
 "use strict";
 
 class DisassemblyView extends TextView {
+  SOURCE_POSITION_HEADER_REGEX: any;
+  addr_event_counts: any;
+  total_event_counts: any;
+  max_event_counts: any;
+  pos_lines: Array<any>;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -50,15 +55,13 @@ class DisassemblyView extends TextView {
     };
     let POSITION_STYLE = {
       css: 'com',
-      location: function (text) {
-        view.pos_start = Number(text);
-      }
     };
     let OPCODE_STYLE = {
       css: 'kwd',
     };
     const BLOCK_HEADER_STYLE = {
       css: ['com', 'block'],
+      block_id: null,
       blockId: function (text) {
         let matches = /\d+/.exec(text);
         if (!matches) return undefined;
@@ -80,6 +83,7 @@ class DisassemblyView extends TextView {
     };
     const SOURCE_POSITION_HEADER_STYLE = {
       css: 'com',
+      currentSourcePosition: null,
       sourcePosition: function (text) {
         let matches = view.SOURCE_POSITION_HEADER_REGEX.exec(text);
         if (!matches) return undefined;
@@ -131,14 +135,8 @@ class DisassemblyView extends TextView {
     view.setPatterns(patterns);
   }
 
-  initializeContent(data, rememberedSelection) {
-    this.data = data;
-    super.initializeContent(data, rememberedSelection);
-  }
-
   initializeCode(sourceText, sourcePosition) {
     let view = this;
-    view.pos_start = -1;
     view.addr_event_counts = null;
     view.total_event_counts = null;
     view.max_event_counts = null;
@@ -242,4 +240,6 @@ class DisassemblyView extends TextView {
     }
     return fragments;
   }
+
+  detachSelection() { return null; }
 }

@@ -1,0 +1,21 @@
+{
+  "name": "turbolizer",
+  "version": "0.1.0",
+  "description": "Visualization tool for V8 TurboFan IR graphs",
+  "main": "index.html",
+  "scripts": {
+    "build": "tsc; echo Done. Note that typescript errors are currently ignored."
+  },
+  "author": "The V8 team",
+  "license": "MIT",
+  "dependencies": {
+    "@types/d3": "^3.5.40"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/v8/v8.git"
+  },
+  "devDependencies": {
+    "typescript": "^2.8.3"
+  }
+}

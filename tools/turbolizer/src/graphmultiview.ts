@@ -5,6 +5,13 @@
 "use strict";
 
 class GraphMultiView extends View {
+  sourceResolver: SourceResolver;
+  selectionBroker: SelectionBroker;
+  graph: GraphView;
+  schedule: ScheduleView;
+  selectMenu: HTMLSelectElement;
+  currentPhaseView: View;
+
   createViewElement() {
     const pane = document.createElement('div');
     pane.setAttribute('id', "multiview");
@@ -23,12 +30,13 @@ class GraphMultiView extends View {
 
     function handleSearch(e) {
       if (this.currentPhaseView) {
-        this.currentPhaseView.searchInputAction(this.currentPhaseView, this)
+        this.currentPhaseView.searchInputAction(this.currentPhaseView, this, e)
       }
     }
-    d3.select("#search-input").on("keyup", handleSearch);
-    d3.select("#search-input").attr("value", window.sessionStorage.getItem("lastSearch") || "");
-    this.selectMenu = document.getElementById('display-selector');
+    const searchInput = document.getElementById("search-input");
+    searchInput.addEventListener("keyup", handleSearch);
+    searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
+    this.selectMenu = (<HTMLSelectElement>document.getElementById('display-selector'));
   }
 
   initializeSelect() {
@@ -39,8 +47,8 @@ class GraphMultiView extends View {
       optionElement.text = phase.name;
       view.selectMenu.add(optionElement);
     });
-    view.selectMenu.onchange = function () {
-      window.sessionStorage.setItem("lastSelectedPhase", this.selectedIndex);
+    this.selectMenu.onchange = function (this:HTMLSelectElement) {
+      window.sessionStorage.setItem("lastSelectedPhase", this.selectedIndex.toString());
       view.displayPhase(view.sourceResolver.getPhase(this.selectedIndex));
     }
   }
@@ -67,7 +75,7 @@ class GraphMultiView extends View {
   displayPhaseView(view, data) {
     const rememberedSelection = this.hideCurrentPhase();
     view.show(data, rememberedSelection);
-    d3.select("#middle").classed("scrollable", view.isScrollable());
+    document.getElementById("middle").classList.toggle("scrollable", view.isScrollable());
     this.currentPhaseView = view;
   }
 
@@ -93,5 +101,9 @@ class GraphMultiView extends View {
 
   deleteContent() {
     this.hideCurrentPhase();
+  }
+
+  detachSelection() {
+    return null;
   }
 }

@@ -3,6 +3,11 @@
 // found in the LICENSE file.
 
 class SelectionBroker {
+  sourceResolver: SourceResolver;
+  sourcePositionHandlers: Array<SelectionHandler>;
+  nodeHandlers: Array<NodeSelectionHandler>;
+  blockHandlers: Array<BlockSelectionHandler>;
+
   constructor(sourceResolver) {
     this.sourcePositionHandlers = [];
     this.nodeHandlers = [];
@@ -32,22 +37,22 @@ class SelectionBroker {
       }
       return true;
     });
-    for (var b of this.sourcePositionHandlers) {
+    for (const b of this.sourcePositionHandlers) {
       if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
     }
     const nodes = this.sourceResolver.sourcePositionsToNodeIds(sourcePositions);
-    for (var b of this.nodeHandlers) {
+    for (const b of this.nodeHandlers) {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
   }
 
   broadcastNodeSelect(from, nodes, selected) {
     let broker = this;
-    for (var b of this.nodeHandlers) {
+    for (const b of this.nodeHandlers) {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
     const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
-    for (var b of this.sourcePositionHandlers) {
+    for (const b of this.sourcePositionHandlers) {
       if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
     }
   }

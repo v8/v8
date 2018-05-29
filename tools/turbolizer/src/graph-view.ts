@@ -8,22 +8,52 @@ function nodeToStringKey(n) {
   return "" + n.id;
 }
 
+interface GraphState {
+  showTypes: boolean;
+  selection: MySelection;
+  mouseDownNode: any;
+  justDragged: boolean,
+  justScaleTransGraph: boolean,
+  lastKeyDown: number,
+  hideDead: boolean
+}
+
 class GraphView extends View {
+  divElement: d3.Selection<any>;
+  svg: d3.Selection<any>;
+  showPhaseByName: (string) => void;
+  state: GraphState;
+  nodes: Array<GNode>;
+  edges: Array<any>;
+  selectionHandler: NodeSelectionHandler;
+  graphElement: d3.Selection<any>;
+  visibleNodes: d3.Selection<GNode>;
+  visibleEdges: d3.Selection<Edge>;
+  minGraphX: number;
+  maxGraphX: number;
+  minGraphY: number;
+  maxGraphY: number;
+  maxGraphNodeX: number;
+  drag: d3.behavior.Drag<{}>;
+  dragSvg: d3.behavior.Zoom<{}>;
+  nodeMap: Array<any>;
+  visibleBubbles: d3.Selection<any>;
+  transitionTimout: number;
+
   createViewElement() {
     const pane = document.createElement('div');
     pane.setAttribute('id', "graph");
     return pane;
   }
 
-  constructor(id, broker, showPhaseByName) {
+  constructor(id, broker, showPhaseByName: (string) => void) {
     super(id);
     var graph = this;
-    this.showPhaseByName = showPhaseByName
-
-    var svg = this.divElement.append("svg").attr('version', '1.1')
+    this.showPhaseByName = showPhaseByName;
+    this.divElement = d3.select(this.divNode);
+    const svg = this.divElement.append("svg").attr('version', '1.1')
       .attr("width", "100%")
       .attr("height", "100%");
-    svg.on("mousedown", function (d) { graph.svgMouseDown.call(graph, d); });
     svg.on("mouseup", function (d) { graph.svgMouseUp.call(graph, d); });
     graph.svg = svg;
 
@@ -86,9 +116,9 @@ class GraphView extends View {
     };
     broker.addNodeHandler(this.selectionHandler);
 
-    graph.state.selection = new Selection(nodeToStringKey);
+    graph.state.selection = new MySelection(nodeToStringKey);
 
-    var defs = svg.append('svg:defs');
+    const defs = svg.append('svg:defs');
     defs.append('svg:marker')
       .attr('id', 'end-arrow')
       .attr('viewBox', '0 -4 8 8')
@@ -103,7 +133,7 @@ class GraphView extends View {
     graph.visibleEdges = this.graphElement.append("g");
     graph.visibleNodes = this.graphElement.append("g");
 
-    graph.drag = d3.behavior.drag()
+    graph.drag = d3.behavior.drag<GNode>()
       .origin(function (d) {
         return { x: d.x, y: d.y };
       })
@@ -240,7 +270,7 @@ class GraphView extends View {
   };
 
   measureText(text) {
-    var textMeasure = document.getElementById('text-measure');
+    const textMeasure = document.getElementById('text-measure');
     textMeasure.textContent = text;
     return {
       width: textMeasure.getBBox().width,
@@ -250,10 +280,10 @@ class GraphView extends View {
 
   createGraph(data, rememberedSelection) {
     var g = this;
-    g.nodes = data.nodes;
+    g.nodes = [];
     g.nodeMap = [];
-    g.nodes.forEach(function (n, i) {
-      n.__proto__ = Node;
+    data.nodes.forEach(function (n, i) {
+      n.__proto__ = GNode.prototype;
       n.visible = false;
       n.x = 0;
       n.y = 0;
@@ -276,6 +306,7 @@ class GraphView extends View {
         NODE_INPUT_WIDTH);
       var innerheight = Math.max(n.labelbbox.height, n.typebbox.height);
       n.normalheight = innerheight + 20;
+      g.nodes.push(n);
     });
     g.edges = [];
     data.edges.forEach(function (e, i) {
@@ -408,7 +439,7 @@ class GraphView extends View {
     }
   }
 
-  selectAllNodes(inEdges, filter) {
+  selectAllNodes() {
     var graph = this;
     if (!d3.event.shiftKey) {
       graph.state.selection.clear();
@@ -480,8 +511,8 @@ class GraphView extends View {
     graph.toggleTypes();
   }
 
-  searchInputAction(graph, searchBar) {
-    if (d3.event.keyCode == 13) {
+  searchInputAction(graph, searchBar, e:KeyboardEvent) {
+    if (e.keyCode == 13) {
       graph.selectionHandler.clear();
       var query = searchBar.value;
       window.sessionStorage.setItem("lastSearch", query);
@@ -497,8 +528,8 @@ class GraphView extends View {
 
       const selection = graph.nodes.filter(
         function (n, i) {
-          if ((d3.event.ctrlKey || n.visible) && filterFunction(n)) {
-            if (d3.event.ctrlKey) n.visible = true;
+          if ((e.ctrlKey || n.visible) && filterFunction(n)) {
+            if (e.ctrlKey) n.visible = true;
             return true;
           }
           return false;
@@ -510,11 +541,7 @@ class GraphView extends View {
       searchBar.blur();
       graph.viewSelection();
     }
-    d3.event.stopPropagation();
-  }
-
-  svgMouseDown() {
-    this.state.graphMouseDown = true;
+    e.stopPropagation();
   }
 
   svgMouseUp() {
@@ -530,7 +557,6 @@ class GraphView extends View {
       }
     }
     state.mouseDownNode = null;
-    state.graphMouseDown = false;
   }
 
   svgKeyDown() {
@@ -715,7 +741,7 @@ class GraphView extends View {
     });
 
     // select existing nodes
-    var filteredNodes = graph.nodes.filter(function (n) {
+    const filteredNodes = graph.nodes.filter(function (n) {
       return n.visible;
     });
     let selNodes = graph.visibleNodes.selectAll("g").data(filteredNodes, function (d) {
@@ -897,7 +923,6 @@ class GraphView extends View {
       return edge.generatePath(graph);
     });
 
-    graph.svg.style.height = '100%';
     redetermineGraphBoundingBox(this);
   }
 
@@ -956,9 +981,9 @@ class GraphView extends View {
     return translate;
   }
 
-  translateClipped(translate, scale, transition) {
+  translateClipped(translate, scale, transition?: boolean): void{
     var graph = this;
-    var graphNode = this.graphElement.node();
+    var graphNode = this.graphElement.node() as SVGElement;
     var translate = this.getVisibleTranslation(translate, scale);
     if (transition) {
       graphNode.classList.add('visible-transition');
