@@ -30,6 +30,23 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kCallerSPDisplacement = 2 * kPointerSize;
 };
 
+class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kNumberOfSavedGpParamRegs = 5;
+#ifdef V8_TARGET_ARCH_S390X
+  static constexpr int kNumberOfSavedFpParamRegs = 4;
+#else
+  static constexpr int kNumberOfSavedFpParamRegs = 2;
+#endif
+
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kDoubleSize;
+};
+
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
