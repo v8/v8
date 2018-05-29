@@ -140,6 +140,8 @@ class JSArrayBuffer : public JSObject {
   // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
 
+  // For non-wasm, allocation_length and allocation_base are byte_length and
+  // backing_store, respectively.
   inline size_t allocation_length() const;
   inline void* allocation_base() const;
 
@@ -194,7 +196,7 @@ class JSArrayBuffer : public JSObject {
   // Sets whether the buffer is tracked by the WasmMemoryTracker.
   void set_is_wasm_memory(bool is_wasm_memory);
 
-  void FreeBackingStore();
+  void FreeBackingStoreFromMainThread();
   static void FreeBackingStore(Isolate* isolate, Allocation allocation);
 
   V8_EXPORT_PRIVATE static void Setup(
