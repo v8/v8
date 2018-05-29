@@ -397,6 +397,7 @@
   },
   'V8 Linux64 - debug': {
     'tests': [
+      {'name': 'v8testing', 'variant': 'gc_stats', 'shards': 1},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
     ],
