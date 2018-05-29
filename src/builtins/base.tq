@@ -231,6 +231,8 @@ extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedArray(
     FixedArrayBase): FixedArray labels CastError;
 extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedDoubleArray(
     FixedArrayBase): FixedDoubleArray labels CastError;
+extern operator 'cast<>' macro TaggedToNumber(
+      Object): Number labels CastError;
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 

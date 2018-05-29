@@ -1092,8 +1092,7 @@ VisitResult ImplementationVisitor::GenerateOperation(
           }
         }
 
-        if (!return_type || (GetTypeOracle().IsAssignableFrom(
-                                *return_type, handler.result_type))) {
+        if (!return_type || return_type == handler.result_type) {
           return GenerateCall(handler.macro_name, arguments, false);
         }
       }

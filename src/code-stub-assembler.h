@@ -163,6 +163,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<Smi>(value);
   }
 
+  TNode<Number> TaggedToNumber(TNode<Object> value, Label* fail) {
+    GotoIfNot(IsNumber(value), fail);
+    return UncheckedCast<Number>(value);
+  }
+
   TNode<HeapObject> TaggedToHeapObject(TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsSmi(value), fail);
     return UncheckedCast<HeapObject>(value);
