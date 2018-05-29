@@ -1094,7 +1094,9 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
     frameId = v8::debug::GetStackFrameId(v8Frame);
     it = m_framesCache.find(frameId);
   }
-  if (it != m_framesCache.end() && it->second.lock()) return it->second.lock();
+  if (it != m_framesCache.end() && !it->second.expired()) {
+    return std::shared_ptr<StackFrame>(it->second);
+  }
   std::shared_ptr<StackFrame> frame(new StackFrame(v8Frame));
   // TODO(clemensh): Figure out a way to do this translation only right before
   // sending the stack trace over wire.
