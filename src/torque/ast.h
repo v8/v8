@@ -44,7 +44,8 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
-  V(FunctionTypeExpression)
+  V(FunctionTypeExpression)                   \
+  V(UnionTypeExpression)
 
 #define AST_STATEMENT_NODE_KIND_LIST(V) \
   V(BlockStatement)                     \
@@ -378,6 +379,14 @@ struct FunctionTypeExpression : TypeExpression {
       : TypeExpression(kKind, p), parameters(pl), return_type(r) {}
   ParameterList parameters;
   TypeExpression* return_type;
+};
+
+struct UnionTypeExpression : TypeExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(UnionTypeExpression)
+  UnionTypeExpression(SourcePosition pos, TypeExpression* a, TypeExpression* b)
+      : TypeExpression(kKind, pos), a(a), b(b) {}
+  TypeExpression* a;
+  TypeExpression* b;
 };
 
 struct ExpressionStatement : Statement {

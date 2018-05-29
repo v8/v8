@@ -49,8 +49,10 @@ class Declarations {
 
   const AbstractType* GetAbstractType(const Type* parent, std::string name,
                                       std::string generated);
-  const Type* GetFunctionPointerType(TypeVector argument_types,
-                                     const Type* return_type);
+  const FunctionPointerType* GetFunctionPointerType(TypeVector argument_types,
+                                                    const Type* return_type);
+
+  const Type* GetUnionType(const Type* a, const Type* b);
 
   Builtin* FindSomeInternalBuiltinWithType(const FunctionPointerType* type);
 
@@ -136,6 +138,7 @@ class Declarations {
   Statement* next_body_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   Deduplicator<FunctionPointerType> function_pointer_types_;
+  Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::map<std::pair<const AstNode*, TypeVector>, Scope*> scopes_;
   std::map<Generic*, ScopeChain::Snapshot> generic_declaration_scopes_;

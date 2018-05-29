@@ -76,14 +76,20 @@ LabelAndTypesVector AstGenerator::GetOptionalLabelAndTypeList(
 TypeExpression* AstGenerator::GetType(TorqueParser::TypeContext* context) {
   if (context->BUILTIN()) {
     ParameterList parameters = context->typeList()->accept(this);
-    TypeExpression* return_type = GetType(context->type());
+    TypeExpression* return_type = GetType(context->type(0));
     return RegisterNode(
         new FunctionTypeExpression(Pos(context), parameters, return_type));
-  } else {
+  } else if (context->BIT_OR()) {
+    return RegisterNode(new UnionTypeExpression(
+        Pos(context), GetType(context->type(0)), GetType(context->type(1))));
+  } else if (context->IDENTIFIER()) {
     bool is_constexpr = context->CONSTEXPR() != nullptr;
     std::string name = context->IDENTIFIER()->getSymbol()->getText();
     return RegisterNode(
         new BasicTypeExpression(Pos(context), is_constexpr, std::move(name)));
+  } else {
+    DCHECK_EQ(1, context->type().size());
+    return GetType(context->type(0));
   }
 }
 

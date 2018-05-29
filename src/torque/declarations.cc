@@ -72,11 +72,22 @@ const AbstractType* Declarations::GetAbstractType(const Type* parent,
   return result;
 }
 
-const Type* Declarations::GetFunctionPointerType(TypeVector argument_types,
-                                                 const Type* return_type) {
+const FunctionPointerType* Declarations::GetFunctionPointerType(
+    TypeVector argument_types, const Type* return_type) {
   const Type* code_type = LookupGlobalType(CODE_TYPE_STRING);
   return function_pointer_types_.Add(
       FunctionPointerType(code_type, argument_types, return_type));
+}
+
+const Type* Declarations::GetUnionType(const Type* a, const Type* b) {
+  if (a->IsSubtypeOf(b)) return b;
+  if (b->IsSubtypeOf(a)) return a;
+  UnionType result = UnionType::FromType(a);
+  result.Extend(b);
+  if (base::Optional<const Type*> single = result.GetSingleMember()) {
+    return *single;
+  }
+  return union_types_.Add(std::move(result));
 }
 
 const Type* Declarations::GetType(TypeExpression* type_expression) {
@@ -84,6 +95,8 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
     std::string name =
         (basic->is_constexpr ? CONSTEXPR_TYPE_PREFIX : "") + basic->name;
     return LookupType(name);
+  } else if (auto* union_type = UnionTypeExpression::cast(type_expression)) {
+    return GetUnionType(GetType(union_type->a), GetType(union_type->b));
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;

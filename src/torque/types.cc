@@ -12,13 +12,59 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+std::string Type::ToString() const {
+  if (aliases_.size() == 0) return ToExplicitString();
+  if (aliases_.size() == 1) return *aliases_.begin();
+  std::stringstream result;
+  int i = 0;
+  for (const std::string& alias : aliases_) {
+    if (i == 0) {
+      result << alias << " (aka. ";
+    } else if (i == 1) {
+      result << alias;
+    } else {
+      result << ", " << alias;
+    }
+    ++i;
+  }
+  result << ")";
+  return result.str();
+}
+
 bool Type::IsSubtypeOf(const Type* supertype) const {
+  if (const UnionType* union_type = UnionType::DynamicCast(supertype)) {
+    return union_type->IsSupertypeOf(this);
+  }
   const Type* subtype = this;
   while (subtype != nullptr) {
     if (subtype == supertype) return true;
     subtype = subtype->parent();
   }
   return false;
+}
+
+// static
+const Type* Type::CommonSupertype(const Type* a, const Type* b) {
+  int diff = a->Depth() - b->Depth();
+  const Type* a_supertype = a;
+  const Type* b_supertype = b;
+  for (; diff > 0; --diff) a_supertype = a_supertype->parent();
+  for (; diff < 0; ++diff) b_supertype = b_supertype->parent();
+  while (a_supertype && b_supertype) {
+    if (a_supertype == b_supertype) return a_supertype;
+    a_supertype = a_supertype->parent();
+    b_supertype = b_supertype->parent();
+  }
+  ReportError("types " + a->ToString() + " and " + b->ToString() +
+              " have no common supertype");
+}
+
+int Type::Depth() const {
+  int result = 0;
+  for (const Type* current = parent_; current; current = current->parent_) {
+    ++result;
+  }
+  return result;
 }
 
 bool Type::IsAbstractName(const std::string& name) const {
@@ -33,7 +79,7 @@ std::string AbstractType::GetGeneratedTNodeTypeName() const {
   return result;
 }
 
-std::string FunctionPointerType::ToString() const {
+std::string FunctionPointerType::ToExplicitString() const {
   std::stringstream result;
   result << "builtin (";
   bool first = true;
@@ -51,18 +97,54 @@ std::string FunctionPointerType::ToString() const {
 std::string FunctionPointerType::MangledName() const {
   std::stringstream result;
   result << "FT";
-  bool first = true;
   for (const Type* t : parameter_types_) {
-    if (!first) {
-      result << ", ";
-      first = false;
-    }
     std::string arg_type_string = t->MangledName();
     result << arg_type_string.size() << arg_type_string;
   }
   std::string return_type_string = return_type_->MangledName();
   result << return_type_string.size() << return_type_string;
   return result.str();
+}
+
+std::string UnionType::ToExplicitString() const {
+  std::stringstream result;
+  result << "(";
+  bool first = true;
+  for (const Type* t : types_) {
+    if (!first) {
+      result << " | ";
+    }
+    first = false;
+    result << t;
+  }
+  result << ")";
+  return result.str();
+}
+
+std::string UnionType::MangledName() const {
+  std::stringstream result;
+  result << "UT";
+  for (const Type* t : types_) {
+    std::string arg_type_string = t->MangledName();
+    result << arg_type_string.size() << arg_type_string;
+  }
+  return result.str();
+}
+
+std::string UnionType::GetGeneratedTNodeTypeName() const {
+  if (types_.size() <= 3) {
+    std::set<std::string> members;
+    for (const Type* t : types_) {
+      members.insert(t->GetGeneratedTNodeTypeName());
+    }
+    if (members == std::set<std::string>{"Smi", "HeapNumber"}) {
+      return "Number";
+    }
+    if (members == std::set<std::string>{"Smi", "HeapNumber", "BigInt"}) {
+      return "Numeric";
+    }
+  }
+  return parent()->GetGeneratedTNodeTypeName();
 }
 
 std::ostream& operator<<(std::ostream& os, const Signature& sig) {

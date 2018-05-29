@@ -120,7 +120,10 @@ DECIMAL_LITERAL
 
 type : CONSTEXPR? IDENTIFIER
      | BUILTIN '(' typeList ')' '=>' type
+     | type BIT_OR type
+     | '(' type ')'
      ;
+
 typeList : (type (',' type)*)?;
 genericSpecializationTypeList: '<' typeList '>';
 

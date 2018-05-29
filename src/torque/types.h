@@ -5,9 +5,11 @@
 #ifndef V8_TORQUE_TYPES_H_
 #define V8_TORQUE_TYPES_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
+#include "src/base/optional.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -33,12 +35,13 @@ class Label;
 
 class TypeBase {
  public:
-  enum class Kind { kAbstractType, kFunctionPointerType };
+  enum class Kind { kAbstractType, kFunctionPointerType, kUnionType };
   virtual ~TypeBase() {}
   bool IsAbstractType() const { return kind() == Kind::kAbstractType; }
   bool IsFunctionPointerType() const {
     return kind() == Kind::kFunctionPointerType;
   }
+  bool IsUnionType() const { return kind() == Kind::kUnionType; }
 
  protected:
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -70,8 +73,9 @@ class TypeBase {
 
 class Type : public TypeBase {
  public:
-  bool IsSubtypeOf(const Type* supertype) const;
-  virtual std::string ToString() const = 0;
+  virtual bool IsSubtypeOf(const Type* supertype) const;
+
+  std::string ToString() const;
   virtual std::string MangledName() const = 0;
   bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }
   bool IsNever() const { return IsAbstractName(NEVER_TYPE_STRING); }
@@ -80,20 +84,26 @@ class Type : public TypeBase {
     return IsAbstractName(CONSTEXPR_BOOL_TYPE_STRING);
   }
   bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
-  virtual const std::string& GetGeneratedTypeName() const = 0;
+  virtual std::string GetGeneratedTypeName() const = 0;
   virtual std::string GetGeneratedTNodeTypeName() const = 0;
   virtual bool IsConstexpr() const = 0;
+  static const Type* CommonSupertype(const Type* a, const Type* b);
+  void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
 
  protected:
   Type(TypeBase::Kind kind, const Type* parent)
       : TypeBase(kind), parent_(parent) {}
   const Type* parent() const { return parent_; }
+  void set_parent(const Type* t) { parent_ = t; }
+  int Depth() const;
+  virtual std::string ToExplicitString() const = 0;
 
  private:
   bool IsAbstractName(const std::string& name) const;
 
   // If {parent_} is not nullptr, then this type is a subtype of {parent_}.
-  const Type* const parent_;
+  const Type* parent_;
+  mutable std::set<std::string> aliases_;
 };
 
 using TypeVector = std::vector<const Type*>;
@@ -102,11 +112,9 @@ class AbstractType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(AbstractType);
   const std::string& name() const { return name_; }
-  std::string ToString() const override { return name(); }
+  std::string ToExplicitString() const override { return name(); }
   std::string MangledName() const override { return "AT" + name(); }
-  const std::string& GetGeneratedTypeName() const override {
-    return generated_type_;
-  }
+  std::string GetGeneratedTypeName() const override { return generated_type_; }
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsConstexpr() const override {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -130,9 +138,9 @@ class AbstractType final : public Type {
 class FunctionPointerType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(FunctionPointerType);
-  std::string ToString() const override;
+  std::string ToExplicitString() const override;
   std::string MangledName() const override;
-  const std::string& GetGeneratedTypeName() const override {
+  std::string GetGeneratedTypeName() const override {
     return parent()->GetGeneratedTypeName();
   }
   std::string GetGeneratedTNodeTypeName() const override {
@@ -165,6 +173,91 @@ class FunctionPointerType final : public Type {
 
   const TypeVector parameter_types_;
   const Type* const return_type_;
+};
+
+class UnionType final : public Type {
+ public:
+  DECLARE_TYPE_BOILERPLATE(UnionType);
+  std::string ToExplicitString() const override;
+  std::string MangledName() const override;
+  std::string GetGeneratedTypeName() const override {
+    return "TNode<" + GetGeneratedTNodeTypeName() + ">";
+  }
+  std::string GetGeneratedTNodeTypeName() const override;
+
+  bool IsConstexpr() const override {
+    DCHECK_EQ(false, parent()->IsConstexpr());
+    return false;
+  }
+
+  friend size_t hash_value(const UnionType& p) {
+    size_t result = 0;
+    for (const Type* t : p.types_) {
+      result = base::hash_combine(result, t);
+    }
+    return result;
+  }
+  bool operator==(const UnionType& other) const {
+    return types_ == other.types_;
+  }
+
+  base::Optional<const Type*> GetSingleMember() const {
+    if (types_.size() == 1) {
+      DCHECK_EQ(*types_.begin(), parent());
+      return *types_.begin();
+    }
+    return base::nullopt;
+  }
+
+  const Type* Normalize() const {
+    if (types_.size() == 1) {
+      return parent();
+    }
+    return this;
+  }
+
+  bool IsSubtypeOf(const Type* other) const override {
+    for (const Type* member : types_) {
+      if (!member->IsSubtypeOf(other)) return false;
+    }
+    return true;
+  }
+
+  bool IsSupertypeOf(const Type* other) const {
+    for (const Type* member : types_) {
+      if (other->IsSubtypeOf(member)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void Extend(const Type* t) {
+    if (const UnionType* union_type = UnionType::DynamicCast(t)) {
+      for (const Type* member : union_type->types_) {
+        Extend(member);
+      }
+    } else {
+      if (t->IsSubtypeOf(this)) return;
+      set_parent(CommonSupertype(parent(), t));
+      for (const Type* member : types_) {
+        if (member->IsSubtypeOf(t)) {
+          types_.erase(member);
+        }
+      }
+      types_.insert(t);
+    }
+  }
+
+  static UnionType FromType(const Type* t) {
+    const UnionType* union_type = UnionType::DynamicCast(t);
+    return union_type ? UnionType(*union_type) : UnionType(t);
+  }
+
+ private:
+  explicit UnionType(const Type* t) : Type(Kind::kUnionType, t), types_({t}) {}
+
+  std::set<const Type*> types_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Type* t) {

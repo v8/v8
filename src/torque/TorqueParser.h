@@ -262,7 +262,9 @@ class TorqueParser : public antlr4::Parser {
     antlr4::tree::TerminalNode* CONSTEXPR();
     antlr4::tree::TerminalNode* BUILTIN();
     TypeListContext* typeList();
-    TypeContext* type();
+    std::vector<TypeContext*> type();
+    TypeContext* type(size_t i);
+    antlr4::tree::TerminalNode* BIT_OR();
 
     void enterRule(antlr4::tree::ParseTreeListener* listener) override;
     void exitRule(antlr4::tree::ParseTreeListener* listener) override;
@@ -271,7 +273,7 @@ class TorqueParser : public antlr4::Parser {
   };
 
   TypeContext* type();
-
+  TypeContext* type(int precedence);
   class TypeListContext : public antlr4::ParserRuleContext {
    public:
     TypeListContext(antlr4::ParserRuleContext* parent, size_t invokingState);
@@ -1481,6 +1483,7 @@ class TorqueParser : public antlr4::Parser {
 
   bool sempred(antlr4::RuleContext* _localctx, size_t ruleIndex,
                size_t predicateIndex) override;
+  bool typeSempred(TypeContext* _localctx, size_t predicateIndex);
   bool conditionalExpressionSempred(ConditionalExpressionContext* _localctx,
                                     size_t predicateIndex);
   bool logicalORExpressionSempred(LogicalORExpressionContext* _localctx,
