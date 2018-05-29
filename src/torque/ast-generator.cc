@@ -553,6 +553,10 @@ antlrcpp::Any AstGenerator::visitPrimaryExpression(
     return implicit_cast<Expression*>(RegisterNode(new ConvertExpression{
         Pos(context), GetType(context->type()),
         context->expression()->accept(this).as<Expression*>()}));
+  if (context->UNSAFE_CAST_KEYWORD())
+    return implicit_cast<Expression*>(RegisterNode(new UnsafeCastExpression{
+        Pos(context), GetType(context->type()),
+        context->expression()->accept(this).as<Expression*>()}));
   if (context->CAST_KEYWORD())
     return implicit_cast<Expression*>(RegisterNode(new CastExpression{
         Pos(context), GetType(context->type()),

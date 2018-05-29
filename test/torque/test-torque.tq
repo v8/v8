@@ -193,4 +193,14 @@ module test {
   macro TestTypeAlias(x : SmiToSmi) : Code {
     return x;
   }
+
+  macro TestUnsafeCast(c: Context, n: Number): Boolean {
+    if (TaggedIsSmi(n)) {
+      let m: Smi = unsafe_cast<Smi>(n);
+
+      check(TestHelperPlus1(c, m) == 11);
+      return True;
+    }
+    return False;
+  }
 }

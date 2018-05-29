@@ -526,6 +526,21 @@ VisitResult ImplementationVisitor::Visit(CastExpression* expr) {
   return GenerateOperation("cast<>", args, declarations()->GetType(expr->type));
 }
 
+VisitResult ImplementationVisitor::Visit(UnsafeCastExpression* expr) {
+  const Type* type = declarations()->GetType(expr->type);
+  if (type->IsConstexpr()) {
+    ReportError("unsafe_cast can only be used for non constexpr types.");
+  }
+
+  VisitResult result = Visit(expr->value);
+
+  std::string result_variable_name = GenerateNewTempVariable(type);
+  source_out() << "CAST(";
+  source_out() << result.variable();
+  source_out() << ");\n";
+  return VisitResult{type, result_variable_name};
+}
+
 VisitResult ImplementationVisitor::Visit(ConvertExpression* expr) {
   Arguments args;
   args.parameters = {Visit(expr->value)};

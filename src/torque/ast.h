@@ -40,6 +40,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(AssignmentExpression)                \
   V(IncrementDecrementExpression)        \
   V(CastExpression)                      \
+  V(UnsafeCastExpression)                \
   V(ConvertExpression)
 
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
@@ -315,6 +316,14 @@ struct CastExpression : Expression {
 struct ConvertExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ConvertExpression)
   ConvertExpression(SourcePosition p, TypeExpression* t, Expression* v)
+      : Expression(kKind, p), type(t), value(v) {}
+  TypeExpression* type;
+  Expression* value;
+};
+
+struct UnsafeCastExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(UnsafeCastExpression)
+  UnsafeCastExpression(SourcePosition p, TypeExpression* t, Expression* v)
       : Expression(kKind, p), type(t), value(v) {}
   TypeExpression* type;
   Expression* value;

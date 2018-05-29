@@ -84,6 +84,7 @@ class ImplementationVisitor : public FileVisitor {
   }
 
   VisitResult Visit(CastExpression* expr);
+  VisitResult Visit(UnsafeCastExpression* expr);
   VisitResult Visit(ConvertExpression* expr);
 
   void Visit(ModuleDeclaration* decl);

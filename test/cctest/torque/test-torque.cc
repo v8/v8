@@ -156,6 +156,20 @@ TEST(TestFunctionPointerToGeneric) {
   ft.Call();
 }
 
+TEST(TestUnsafeCast) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    Node* temp = m.SmiConstant(0);
+    Node* n = m.SmiConstant(10);
+    m.Return(m.TestUnsafeCast(m.UncheckedCast<Context>(temp),
+                              m.UncheckedCast<Number>(n)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.CheckCall(ft.true_value());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
