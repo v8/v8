@@ -5149,8 +5149,6 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   Sd(t9, MemOperand(sp, stack_offset));
   if (type == StackFrame::INTERNAL) {
     DCHECK_EQ(stack_offset, kPointerSize);
-    li(t9, CodeObject());
-    Sd(t9, MemOperand(sp, 0));
   } else {
     DCHECK_EQ(stack_offset, 0);
   }

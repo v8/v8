@@ -1748,13 +1748,7 @@ Address InternalFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-Code* InternalFrame::unchecked_code() const {
-  const int offset = InternalFrameConstants::kCodeOffset;
-  Object* code = Memory::Object_at(fp() + offset);
-  DCHECK_NOT_NULL(code);
-  return reinterpret_cast<Code*>(code);
-}
-
+Code* InternalFrame::unchecked_code() const { UNREACHABLE(); }
 
 void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                               int index) const {

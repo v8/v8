@@ -1252,10 +1252,6 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
   Register scratch = temps.Acquire();
   mov(scratch, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(scratch);
-  if (type == StackFrame::INTERNAL) {
-    Move(scratch, CodeObject());
-    push(scratch);
-  }
 }
 
 int TurboAssembler::LeaveFrame(StackFrame::Type type) {
