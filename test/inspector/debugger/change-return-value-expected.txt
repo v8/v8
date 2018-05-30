@@ -16,7 +16,6 @@ Update return value to 42..
 Dump actual return value
 {
     result : {
-        description : 42
         type : number
         value : 42
     }
@@ -28,7 +27,6 @@ Update return value to 239..
 Dump actual return value
 {
     result : {
-        description : 239
         type : number
         value : 239
     }

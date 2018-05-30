@@ -161,7 +161,6 @@ console.log(239)
                 isOwn : true
                 name : a1
                 value : {
-                    description : 1
                     type : number
                     value : 1
                 }
@@ -173,7 +172,6 @@ console.log(239)
                 isOwn : true
                 name : a2
                 value : {
-                    description : 2
                     type : number
                     value : 2
                 }

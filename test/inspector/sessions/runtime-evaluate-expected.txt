@@ -5,7 +5,6 @@ Evaluating in 2
     id : <messageId>
     result : {
         result : {
-            description : 42
             type : number
             value : 42
         }

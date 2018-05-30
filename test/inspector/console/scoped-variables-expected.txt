@@ -5,7 +5,6 @@ Evaluating 'let a = 42;'
 }
 Evaluating 'a'
 {
-    description : 42
     type : number
     value : 42
 }
@@ -35,7 +34,6 @@ Evaluating 'let a = 239;'
 }
 Evaluating 'a'
 {
-    description : 42
     type : number
     value : 42
 }

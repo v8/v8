@@ -6,7 +6,6 @@ Running test: consoleLogWithDefaultLocale
     params : {
         args : [
             [0] : {
-                description : 239
                 type : number
                 value : 239
             }
@@ -63,7 +62,6 @@ set locale to fr_CA.UTF-8 (has comma as separator)
     params : {
         args : [
             [0] : {
-                description : 239
                 type : number
                 value : 239
             }
@@ -92,7 +90,6 @@ set locale to fr_CA.UTF-8 (has comma as separator)
     params : {
         args : [
             [0] : {
-                description : 239
                 type : number
                 value : 239
             }

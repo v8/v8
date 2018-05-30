@@ -56,7 +56,6 @@ Running test: testInspect
         hints : {
         }
         object : {
-            description : 239
             type : number
             value : 239
         }
@@ -68,7 +67,6 @@ Running test: testInspect
         hints : {
         }
         object : {
-            description : -0
             type : number
             unserializableValue : -0
         }
@@ -172,7 +170,6 @@ Is p: true
             queryObjects : true
         }
         object : {
-            description : 1
             type : number
             value : 1
         }
@@ -192,7 +189,6 @@ Running test: testEvaluationResult
     id : <messageId>
     result : {
         result : {
-            description : 42
             type : number
             value : 42
         }
@@ -202,7 +198,6 @@ Running test: testEvaluationResult
     id : <messageId>
     result : {
         result : {
-            description : 42
             type : number
             value : 42
         }
@@ -212,7 +207,6 @@ Running test: testEvaluationResult
     id : <messageId>
     result : {
         result : {
-            description : -0
             type : number
             unserializableValue : -0
         }
@@ -444,7 +438,6 @@ Running test: testDir
     params : {
         args : [
             [0] : {
-                description : 42
                 type : number
                 value : 42
             }
@@ -551,7 +544,6 @@ Running test: testDirXML
     params : {
         args : [
             [0] : {
-                description : 42
                 type : number
                 value : 42
             }
@@ -624,7 +616,6 @@ Running test: testTable
     params : {
         args : [
             [0] : {
-                description : 42
                 type : number
                 value : 42
             }

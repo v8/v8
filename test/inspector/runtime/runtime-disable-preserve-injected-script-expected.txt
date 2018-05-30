@@ -5,7 +5,6 @@ Tests that Runtime.disable doesn't invalidate injected-script.
     isOwn : true
     name : a
     value : {
-        description : 1
         type : number
         value : 1
     }
@@ -18,7 +17,6 @@ Disabling agent..
     isOwn : true
     name : a
     value : {
-        description : 1
         type : number
         value : 1
     }

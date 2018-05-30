@@ -36,7 +36,6 @@ Checks that console.assert works and points to correct call frame.
     params : {
         args : [
             [0] : {
-                description : 1
                 type : number
                 value : 1
             }
@@ -69,12 +68,10 @@ Checks that console.assert works and points to correct call frame.
     params : {
         args : [
             [0] : {
-                description : 1
                 type : number
                 value : 1
             }
             [1] : {
-                description : 2
                 type : number
                 value : 2
             }

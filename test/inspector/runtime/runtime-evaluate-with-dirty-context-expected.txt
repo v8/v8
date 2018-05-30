@@ -4,7 +4,6 @@ Checks that Runtime.evaluate works with dirty context.
     params : {
         args : [
             [0] : {
-                description : 42
                 type : number
                 value : 42
             }

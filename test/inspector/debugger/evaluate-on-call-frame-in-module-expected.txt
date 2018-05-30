@@ -33,56 +33,48 @@ Array =
 }
 c1 = 
 {
-    description : 12
     type : number
     value : 12
 }
 Evaluating: ++c1
 updated c1 = 
 {
-    description : 13
     type : number
     value : 13
 }
 Evaluating: --c1
 g1 = 
 {
-    description : 2
     type : number
     value : 2
 }
 Evaluating: ++g1
 updated g1 = 
 {
-    description : 3
     type : number
     value : 3
 }
 Evaluating: --g1
 a1 = 
 {
-    description : 10
     type : number
     value : 10
 }
 Evaluating: ++a1
 updated a1 = 
 {
-    description : 11
     type : number
     value : 11
 }
 Evaluating: --a1
 b1 = 
 {
-    description : 11
     type : number
     value : 11
 }
 Evaluating: ++b1
 updated b1 = 
 {
-    description : 12
     type : number
     value : 12
 }
@@ -123,28 +115,24 @@ Array =
 }
 c2 = 
 {
-    description : 22
     type : number
     value : 22
 }
 Evaluating: ++c2
 updated c2 = 
 {
-    description : 23
     type : number
     value : 23
 }
 Evaluating: --c2
 a2 = 
 {
-    description : 20
     type : number
     value : 20
 }
 Evaluating: ++a2
 updated a2 = 
 {
-    description : 21
     type : number
     value : 21
 }
@@ -158,14 +146,12 @@ foo1 =
 }
 b2 = 
 {
-    description : 21
     type : number
     value : 21
 }
 Evaluating: ++b2
 updated b2 = 
 {
-    description : 22
     type : number
     value : 22
 }
@@ -207,14 +193,12 @@ foo2 =
 }
 b3 = 
 {
-    description : 31
     type : number
     value : 31
 }
 Evaluating: ++b3
 updated b3 = 
 {
-    description : 32
     type : number
     value : 32
 }
@@ -249,14 +233,12 @@ Array =
 }
 a = 
 {
-    description : 0
     type : number
     value : 0
 }
 Evaluating: ++a
 updated a = 
 {
-    description : 1
     type : number
     value : 1
 }
@@ -283,14 +265,12 @@ Array =
 }
 a = 
 {
-    description : 0
     type : number
     value : 0
 }
 Evaluating: ++a
 updated a = 
 {
-    description : 1
     type : number
     value : 1
 }
@@ -338,56 +318,48 @@ Array =
 }
 b2 = 
 {
-    description : 21
     type : number
     value : 21
 }
 Evaluating: ++b2
 updated b2 = 
 {
-    description : 21
     type : number
     value : 21
 }
 Evaluating: --b2
 a = 
 {
-    description : 0
     type : number
     value : 0
 }
 Evaluating: ++a
 updated a = 
 {
-    description : 0
     type : number
     value : 0
 }
 Evaluating: --a
 b = 
 {
-    description : 0
     type : number
     value : 0
 }
 Evaluating: ++b
 updated b = 
 {
-    description : 1
     type : number
     value : 1
 }
 Evaluating: --b
 c = 
 {
-    description : 0
     type : number
     value : 0
 }
 Evaluating: ++c
 updated c = 
 {
-    description : 1
     type : number
     value : 1
 }
@@ -422,28 +394,24 @@ Array =
 }
 y = 
 {
-    description : 5
     type : number
     value : 5
 }
 Evaluating: ++y
 updated y = 
 {
-    description : 6
     type : number
     value : 6
 }
 Evaluating: --y
 x = 
 {
-    description : 5
     type : number
     value : 5
 }
 Evaluating: ++x
 updated x = 
 {
-    description : 6
     type : number
     value : 6
 }
@@ -470,14 +438,12 @@ Array =
 }
 x = 
 {
-    description : 5
     type : number
     value : 5
 }
 Evaluating: ++x
 updated x = 
 {
-    description : 6
     type : number
     value : 6
 }

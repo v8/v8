@@ -9,7 +9,6 @@ Tests that variables introduced in eval scopes are accessible
                 isOwn : true
                 name : hest
                 value : {
-                    description : 420
                     type : number
                     value : 420
                 }

@@ -35,7 +35,6 @@ will reconnect..
     params : {
         args : [
             [0] : {
-                description : 42
                 type : number
                 value : 42
             }

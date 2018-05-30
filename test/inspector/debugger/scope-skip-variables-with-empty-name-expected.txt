@@ -9,7 +9,6 @@ Tests that scopes do not report variables with empty names
                 isOwn : true
                 name : a
                 value : {
-                    description : 2
                     type : number
                     value : 2
                 }

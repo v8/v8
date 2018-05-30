@@ -14,7 +14,6 @@ Terminate first evaluation (it forces injected-script-source compilation)
 }
 Checks that we reset termination after evaluation
 {
-    description : 42
     type : number
     value : 42
 }

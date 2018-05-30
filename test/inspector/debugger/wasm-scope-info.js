@@ -103,7 +103,7 @@ async function getValueString(value) {
     var msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printFailure(msg);
     let printProperty = elem => '"' + elem.name + '"' +
-        ': ' + elem.value.description + ' (' + elem.value.type + ')';
+        ': ' + elem.value.value + ' (' + elem.value.type + ')';
     return msg.result.result.map(printProperty).join(', ');
   }
   return JSON.stringify(value.value) + ' (' + value.type + ')';

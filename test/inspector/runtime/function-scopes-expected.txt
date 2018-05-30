@@ -6,7 +6,6 @@ Catch:
     isOwn : true
     name : a
     value : {
-        description : 1
         type : number
         value : 1
     }
@@ -19,7 +18,6 @@ With block:
     isOwn : true
     name : b
     value : {
-        description : 2
         type : number
         value : 2
     }
@@ -32,7 +30,6 @@ Closure (closure):
     isOwn : true
     name : c
     value : {
-        description : 3
         type : number
         value : 3
     }
@@ -45,7 +42,6 @@ Global:
     isOwn : true
     name : e
     value : {
-        description : 5
         type : number
         value : 5
     }

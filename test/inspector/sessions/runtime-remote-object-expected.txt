@@ -12,7 +12,6 @@ Retrieving properties in 2
                 isOwn : true
                 name : a
                 value : {
-                    description : 17
                     type : number
                     value : 17
                 }
@@ -45,7 +44,6 @@ Retrieving properties in 1
                 isOwn : true
                 name : a
                 value : {
-                    description : 42
                     type : number
                     value : 42
                 }
@@ -79,7 +77,6 @@ Retrieving properties in 1
                 isOwn : true
                 name : a
                 value : {
-                    description : 42
                     type : number
                     value : 42
                 }
