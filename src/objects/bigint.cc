@@ -2395,16 +2395,20 @@ BigInt::digit_t MutableBigInt::digit_div(digit_t high, digit_t low,
   static const digit_t kHalfDigitBase = 1ull << kHalfDigitBits;
   // Adapted from Warren, Hacker's Delight, p. 152.
   int s = base::bits::CountLeadingZeros(divisor);
+  DCHECK_NE(s, kDigitBits);  // {divisor} is not 0.
   divisor <<= s;
 
   digit_t vn1 = divisor >> kHalfDigitBits;
   digit_t vn0 = divisor & kHalfDigitMask;
-  // {s} can be 0. "low >> kDigitBits == low" on x86, so we "&" it with
+  // {s} can be 0. {low >> kDigitBits} would be undefined behavior, so
+  // we mask the shift amount with {kShiftMask}, and the result with
   // {s_zero_mask} which is 0 if s == 0 and all 1-bits otherwise.
   STATIC_ASSERT(sizeof(intptr_t) == sizeof(digit_t));
+  const int kShiftMask = kDigitBits - 1;
   digit_t s_zero_mask =
       static_cast<digit_t>(static_cast<intptr_t>(-s) >> (kDigitBits - 1));
-  digit_t un32 = (high << s) | ((low >> (kDigitBits - s)) & s_zero_mask);
+  digit_t un32 =
+      (high << s) | ((low >> ((kDigitBits - s) & kShiftMask)) & s_zero_mask);
   digit_t un10 = low << s;
   digit_t un1 = un10 >> kHalfDigitBits;
   digit_t un0 = un10 & kHalfDigitMask;
