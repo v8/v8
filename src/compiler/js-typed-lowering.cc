@@ -1706,6 +1706,21 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct CEntry call.
       ReduceBuiltin(isolate(), jsgraph(), node, shared->builtin_id(), arity,
                     flags);
+    } else if (shared->HasBuiltinId() &&
+               Builtins::KindOf(shared->builtin_id()) == Builtins::TFJ) {
+      // Patch {node} to a direct code object call.
+      Callable callable = Builtins::CallableFor(
+          isolate(), static_cast<Builtins::Name>(shared->builtin_id()));
+      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+
+      const CallInterfaceDescriptor& descriptor = callable.descriptor();
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), descriptor, 1 + arity, flags);
+      Node* stub_code = jsgraph()->HeapConstant(callable.code());
+      node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
+      node->InsertInput(graph()->zone(), 2, new_target);
+      node->InsertInput(graph()->zone(), 3, argument_count);
+      NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
