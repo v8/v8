@@ -65,15 +65,14 @@ function BenchmarkSuite(name, reference, benchmarks) {
   BenchmarkSuite.suites.push(this);
 }
 
-function createSuite(name, count, test, testSetup, tearDown) {
-  return new BenchmarkSuite(name, [count], [
-        new Benchmark(name, false, false, 0, test, testSetup, tearDown)]);
+function createSuite(name, reference, run, setup, tearDown) {
+  return new BenchmarkSuite(name, [reference], [
+      new Benchmark(name, false, false, 0, run, setup, tearDown)]);
 }
 
-function createSuiteWithWarmup(name, count, testSetup, tearDown) {
-  new BenchmarkSuite(name, [count], [
-    new Benchmark(name, true, false, 0, fn),
-  ]);
+function createSuiteWithWarmup(name, reference, run, setup, tearDown) {
+  return new BenchmarkSuite(name, [reference], [
+      new Benchmark(name, true, false, 0, run, setup, tearDown)]);
 }
 
 // Keep track of all declared benchmark suites.
