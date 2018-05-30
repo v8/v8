@@ -888,11 +888,13 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
-  // The descriptor's 'type'.
+  // The descriptor's type, called 'value'. It is called 'value' because this
+  // descriptor is planned to be re-used as the global's type for reflection,
+  // so calling it 'type' is redundant.
   i::wasm::ValueType type;
   {
     v8::MaybeLocal<v8::Value> maybe =
-        descriptor->Get(context, v8_str(isolate, "type"));
+        descriptor->Get(context, v8_str(isolate, "value"));
     v8::Local<v8::Value> value;
     if (!maybe.ToLocal(&value)) return;
     v8::Local<v8::String> string;
@@ -909,7 +911,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       type = i::wasm::kWasmF64;
     } else {
       thrower.TypeError(
-          "Descriptor property 'type' must be 'i32', 'f32', or 'f64'");
+          "Descriptor property 'value' must be 'i32', 'f32', or 'f64'");
       return;
     }
   }
