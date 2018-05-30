@@ -185,6 +185,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
                             const v8::debug::Location& end) override;
 
   int currentContextGroupId();
+  bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;

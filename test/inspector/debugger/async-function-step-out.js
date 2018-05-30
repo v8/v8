@@ -6,27 +6,163 @@ let {session, contextGroup, Protocol} =
     InspectorTest.start('stepOut async function');
 
 session.setupScriptMap();
-contextGroup.addInlineScript(`
-async function test() {
-  await Promise.resolve();
-  await foo();
-}
 
-async function foo() {
-  await Promise.resolve();
-  await bar();
-}
+Protocol.Runtime.enable();
 
-async function bar() {
-  await Promise.resolve();
-  debugger;
-}
-`, 'test.js');
+InspectorTest.runAsyncTestSuite([
+  async function testTrivial() {
+    InspectorTest.log('Check that we have proper async stack at return');
+    contextGroup.addInlineScript(`
+      async function test() {
+        await Promise.resolve();
+        await foo();
+      }
 
-(async function test() {
-  Protocol.Runtime.enable();
-  Protocol.Runtime.onConsoleAPICalled(
-      msg => InspectorTest.log(msg.params.args[0].value));
+      async function foo() {
+        await Promise.resolve();
+        await bar();
+      }
+
+      async function bar() {
+        await Promise.resolve();
+        debugger;
+    }`, 'testTrivial.js');
+    await runTestAndStepAction('stepOut');
+  },
+
+  async function testStepOutPrecision() {
+    InspectorTest.log('Check that stepOut go to resumed outer generator');
+    contextGroup.addInlineScript(`
+      function wait() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+      }
+      function floodWithTimeouts(a) {
+        if (!a.stop)
+          setTimeout(floodWithTimeouts.bind(this, a), 0);
+      }
+
+      async function test() {
+        let a = {};
+        floodWithTimeouts(a)
+        await wait();
+        await foo();
+        await wait();
+        a.stop = true;
+      }
+
+      async function foo() {
+        await Promise.resolve();
+        await bar();
+        await wait();
+      }
+
+      async function bar() {
+        await Promise.resolve();
+        debugger;
+        await wait();
+      }`, 'testStepOutPrecision.js');
+    await runTestAndStepAction('stepOut');
+  },
+
+  async function testStepIntoAtReturn() {
+    InspectorTest.log('Check that stepInto at return go to resumed outer generator');
+    contextGroup.addInlineScript(`
+      function wait() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+      }
+      function floodWithTimeouts(a) {
+        if (!a.stop)
+          setTimeout(floodWithTimeouts.bind(this, a), 0);
+      }
+
+      async function test() {
+        let a = {};
+        floodWithTimeouts(a)
+        await wait();
+        await foo();
+        a.stop = true;
+      }
+
+      async function foo() {
+        await Promise.resolve();
+        await bar();
+      }
+
+      async function bar() {
+        await Promise.resolve();
+        debugger;
+      }`, 'testStepIntoAtReturn.js');
+    await runTestAndStepAction('stepInto');
+  },
+
+  async function testStepOverAtReturn() {
+    InspectorTest.log('Check that stepOver at return go to resumed outer generator');
+    contextGroup.addInlineScript(`
+      function wait() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+      }
+      function floodWithTimeouts(a) {
+        if (!a.stop)
+          setTimeout(floodWithTimeouts.bind(this, a), 0);
+      }
+
+      async function test() {
+        let a = {};
+        floodWithTimeouts(a)
+        await wait();
+        await foo();
+        a.stop = true;
+      }
+
+      async function foo() {
+        await Promise.resolve();
+        await bar();
+      }
+
+      async function bar() {
+        await Promise.resolve();
+        debugger;
+      }`, 'testStepIntoAtReturn.js');
+    await runTestAndStepAction('stepOver');
+  },
+
+  async function testStepOutFromNotAwaitedCall() {
+    InspectorTest.log('Checks stepOut from not awaited call');
+    contextGroup.addInlineScript(`
+      function wait() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+      }
+      function floodWithTimeouts(a) {
+        if (!a.stop)
+          setTimeout(floodWithTimeouts.bind(this, a), 0);
+      }
+
+      async function test() {
+        let a = {};
+        floodWithTimeouts(a)
+        await wait();
+        await foo();
+        a.stop = true;
+      }
+
+      async function foo() {
+        let a = {};
+        floodWithTimeouts(a);
+        await Promise.resolve();
+        bar();
+        a.stop = true;
+      }
+
+      async function bar() {
+        await Promise.resolve();
+        debugger;
+      }`, 'testStepIntoAtReturn.js');
+    await runTestAndStepAction('stepOut');
+  }
+
+]);
+
+async function runTestAndStepAction(action) {
   Protocol.Debugger.enable();
   Protocol.Debugger.setAsyncCallStackDepth({maxDepth: 128});
   let finished =
@@ -35,16 +171,15 @@ async function bar() {
   while (true) {
     const r = await Promise.race([finished, waitPauseAndDumpStack()]);
     if (!r) break;
-    Protocol.Debugger.stepOut();
+    Protocol.Debugger[action]();
   }
-  InspectorTest.completeTest();
-})()
+  await Protocol.Debugger.disable();
+}
 
-    async function
-    waitPauseAndDumpStack() {
-      const {params} = await Protocol.Debugger.oncePaused();
-      session.logCallFrames(params.callFrames);
-      session.logAsyncStackTrace(params.asyncStackTrace);
-      InspectorTest.log('');
-      return true;
-    }
+async function waitPauseAndDumpStack() {
+  const {params} = await Protocol.Debugger.oncePaused();
+  session.logCallFrames(params.callFrames);
+  session.logAsyncStackTrace(params.asyncStackTrace);
+  InspectorTest.log('');
+  return true;
+}
