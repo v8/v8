@@ -275,9 +275,9 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     for (size_t i = 0; i < pcs.size(); i++) {
       // Put together the reloc info
       const CodeReference& host = converter.code();
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr);
-      relocinfo.set_constant_pool(host.is_null() ? kNullAddress
-                                                 : host.constant_pool());
+      Address constant_pool =
+          host.is_null() ? kNullAddress : host.constant_pool();
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr, constant_pool);
 
       bool first_reloc_info = (i == 0);
       PrintRelocInfo(&out, isolate, ref_encoder, os, &relocinfo,

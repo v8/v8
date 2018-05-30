@@ -414,8 +414,13 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host)
-      : pc_(pc), rmode_(rmode), data_(data), host_(host) {}
+  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host,
+            Address constant_pool = kNullAddress)
+      : pc_(pc),
+        rmode_(rmode),
+        data_(data),
+        host_(host),
+        constant_pool_(constant_pool) {}
 
   static inline bool IsRealRelocMode(Mode mode) {
     return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
@@ -480,9 +485,6 @@ class RelocInfo {
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
-  void set_constant_pool(Address constant_pool) {
-    constant_pool_ = constant_pool;
-  }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
