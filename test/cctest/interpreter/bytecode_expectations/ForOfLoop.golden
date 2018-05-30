@@ -926,7 +926,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 2
-bytecode array length: 357
+bytecode array length: 363
 bytecodes: [
   /*   16 E> */ B(StackCheck),
                 B(CallJSRuntime), U8(%async_function_promise_create), R(0), U8(0),
@@ -1074,7 +1074,10 @@ bytecodes: [
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Star), R(15),
-                B(CallJSRuntime), U8(%async_function_promise_release), R(12), U8(1),
+                B(LdaFalse),
+                B(Star), R(17),
+                B(Mov), R(12), R(16),
+                B(CallJSRuntime), U8(%async_function_promise_release), R(16), U8(2),
                 B(Ldar), R(15),
                 B(SetPendingMessage),
                 B(Ldar), R(13),
@@ -1116,7 +1119,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 2
-bytecode array length: 408
+bytecode array length: 414
 bytecodes: [
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(1),
                 B(Mov), R(closure), R(12),
@@ -1282,7 +1285,10 @@ bytecodes: [
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Star), R(14),
-                B(CallJSRuntime), U8(%async_function_promise_release), R(11), U8(1),
+                B(LdaTrue),
+                B(Star), R(16),
+                B(Mov), R(11), R(15),
+                B(CallJSRuntime), U8(%async_function_promise_release), R(15), U8(2),
                 B(Ldar), R(14),
                 B(SetPendingMessage),
                 B(Ldar), R(12),

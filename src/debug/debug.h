@@ -225,6 +225,9 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
+  void OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
+                                   debug::DebugAsyncActionType);
+
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                                  Handle<Object> data);
   Handle<Context> GetDebugContext();
@@ -279,7 +282,7 @@ class Debug {
   void RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
                       Handle<Object> parent);
 
-  int NextAsyncTaskId(Handle<JSObject> promise);
+  int NextAsyncTaskId(Handle<JSPromise> promise);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
 
@@ -459,7 +462,7 @@ class Debug {
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
-      v8::debug::PromiseDebugActionType type, int id);
+      v8::debug::DebugAsyncActionType type, int id);
 
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
   void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
@@ -623,8 +626,8 @@ class Debug {
 class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            bool is_blackboxed) override;
+  void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
+                          bool is_blackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,

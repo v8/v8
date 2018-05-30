@@ -1734,7 +1734,7 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
 }
 
 MaybeHandle<Object> Debug::MakeAsyncTaskEvent(
-    v8::debug::PromiseDebugActionType type, int id) {
+    v8::debug::DebugAsyncActionType type, int id) {
   // Create the async task event object.
   Handle<Object> argv[] = {Handle<Smi>(Smi::FromInt(type), isolate_),
                            Handle<Smi>(Smi::FromInt(id), isolate_)};
@@ -1769,6 +1769,15 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
           ->IsUndefined(isolate_)) {
     OnException(value, promise);
   }
+}
+
+void Debug::OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
+                                        debug::DebugAsyncActionType event) {
+  if (in_debug_scope() || ignore_events()) return;
+  if (!debug_delegate_) return;
+  PostponeInterruptsScope no_interrupts(isolate_);
+  int id = NextAsyncTaskId(promise);
+  debug_delegate_->AsyncEventOccurred(event, id, false);
 }
 
 namespace {
@@ -1909,39 +1918,6 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
 }
 
-namespace {
-// In an async function, reuse the existing stack related to the outer
-// Promise. Otherwise, e.g. in a direct call to then, save a new stack.
-// Promises with multiple reactions with one or more of them being async
-// functions will not get a good stack trace, as async functions require
-// different stacks from direct Promise use, but we save and restore a
-// stack once for all reactions.
-//
-// If this isn't a case of async function, we return false, otherwise
-// we set the correct id and return true.
-//
-// TODO(littledan): Improve this case.
-int GetReferenceAsyncTaskId(Isolate* isolate, Handle<JSPromise> promise) {
-  Handle<Symbol> handled_by_symbol =
-      isolate->factory()->promise_handled_by_symbol();
-  Handle<Object> handled_by_promise =
-      JSObject::GetDataProperty(promise, handled_by_symbol);
-  if (!handled_by_promise->IsJSPromise()) {
-    return isolate->debug()->NextAsyncTaskId(promise);
-  }
-  Handle<JSPromise> handled_by_promise_js =
-      Handle<JSPromise>::cast(handled_by_promise);
-  Handle<Symbol> async_stack_id_symbol =
-      isolate->factory()->promise_async_stack_id_symbol();
-  Handle<Object> async_task_id =
-      JSObject::GetDataProperty(handled_by_promise_js, async_stack_id_symbol);
-  if (!async_task_id->IsSmi()) {
-    return isolate->debug()->NextAsyncTaskId(promise);
-  }
-  return Handle<Smi>::cast(async_task_id)->value();
-}
-}  //  namespace
-
 void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
                            Handle<Object> parent) {
   if (hook_type == PromiseHookType::kResolve) return;
@@ -1949,14 +1925,17 @@ void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
   if (!debug_delegate_) return;
   PostponeInterruptsScope no_interrupts(isolate_);
 
-  int id = GetReferenceAsyncTaskId(isolate_, promise);
   if (hook_type == PromiseHookType::kBefore) {
-    debug_delegate_->PromiseEventOccurred(debug::kDebugWillHandle, id, false);
+    if (!promise->async_task_id()) return;
+    debug_delegate_->AsyncEventOccurred(debug::kDebugWillHandle,
+                                        promise->async_task_id(), false);
   } else if (hook_type == PromiseHookType::kAfter) {
-    debug_delegate_->PromiseEventOccurred(debug::kDebugDidHandle, id, false);
+    if (!promise->async_task_id()) return;
+    debug_delegate_->AsyncEventOccurred(debug::kDebugDidHandle,
+                                        promise->async_task_id(), false);
   } else {
     DCHECK(hook_type == PromiseHookType::kInit);
-    debug::PromiseDebugActionType type = debug::kDebugPromiseThen;
+    debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
     bool last_frame_was_promise_builtin = false;
     JavaScriptFrameIterator it(isolate_);
     while (!it.done()) {
@@ -1967,18 +1946,15 @@ void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
         if (info->IsUserJavaScript()) {
           // We should not report PromiseThen and PromiseCatch which is called
           // indirectly, e.g. Promise.all calls Promise.then internally.
-          if (type == debug::kDebugAsyncFunctionPromiseCreated ||
-              last_frame_was_promise_builtin) {
-            debug_delegate_->PromiseEventOccurred(type, id, IsBlackboxed(info));
+          if (last_frame_was_promise_builtin) {
+            int id = NextAsyncTaskId(promise);
+            debug_delegate_->AsyncEventOccurred(type, id, IsBlackboxed(info));
           }
           return;
         }
         last_frame_was_promise_builtin = false;
         if (info->HasBuiltinId()) {
-          if (info->builtin_id() == Builtins::kAsyncFunctionPromiseCreate) {
-            type = debug::kDebugAsyncFunctionPromiseCreated;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
+          if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
             type = debug::kDebugPromiseThen;
             last_frame_was_promise_builtin = true;
           } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
@@ -1995,19 +1971,11 @@ void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
   }
 }
 
-int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
-  LookupIterator it(promise, isolate_->factory()->promise_async_id_symbol());
-  Maybe<bool> maybe = JSReceiver::HasProperty(&it);
-  if (maybe.ToChecked()) {
-    MaybeHandle<Object> result = Object::GetProperty(&it);
-    return Handle<Smi>::cast(result.ToHandleChecked())->value();
+int Debug::NextAsyncTaskId(Handle<JSPromise> promise) {
+  if (!promise->async_task_id()) {
+    promise->set_async_task_id(++thread_local_.async_task_count_);
   }
-  Handle<Smi> async_id =
-      handle(Smi::FromInt(++thread_local_.async_task_count_), isolate_);
-  Object::SetProperty(&it, async_id, LanguageMode::kSloppy,
-                      Object::MAY_BE_STORE_FROM_KEYED)
-      .ToChecked();
-  return async_id->value();
+  return promise->async_task_id();
 }
 
 namespace {
@@ -2494,8 +2462,8 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   return false;
 }
 
-void LegacyDebugDelegate::PromiseEventOccurred(
-    v8::debug::PromiseDebugActionType type, int id, bool is_blackboxed) {
+void LegacyDebugDelegate::AsyncEventOccurred(
+    v8::debug::DebugAsyncActionType type, int id, bool is_blackboxed) {
   DebugScope debug_scope(isolate_->debug());
   if (debug_scope.failed()) return;
   HandleScope scope(isolate_);

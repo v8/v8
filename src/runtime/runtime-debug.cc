@@ -1718,21 +1718,6 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  isolate->PushPromise(promise);
-  int id = isolate->debug()->NextAsyncTaskId(promise);
-  Handle<Symbol> async_stack_id_symbol =
-      isolate->factory()->promise_async_stack_id_symbol();
-  JSObject::SetProperty(promise, async_stack_id_symbol,
-                        handle(Smi::FromInt(id), isolate),
-                        LanguageMode::kStrict)
-      .Assert();
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
@@ -1840,6 +1825,28 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
     coverage_info->IncrementBlockCount(coverage_array_slot_index);
   }
 
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->debug()->OnAsyncFunctionStateChanged(promise,
+                                                debug::kAsyncFunctionSuspended);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  CONVERT_BOOLEAN_ARG_CHECKED(has_suspend, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
+  isolate->PopPromise();
+  if (has_suspend) {
+    isolate->debug()->OnAsyncFunctionStateChanged(
+        promise, debug::kAsyncFunctionFinished);
+  }
   return isolate->heap()->undefined_value();
 }
 

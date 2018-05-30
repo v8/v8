@@ -407,6 +407,7 @@ class ParserBase {
 
     void AddSuspend() { suspend_count_++; }
     int suspend_count() const { return suspend_count_; }
+    bool CanSuspend() const { return suspend_count_ > 0; }
 
     FunctionKind kind() const { return scope()->function_kind(); }
 

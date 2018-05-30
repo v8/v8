@@ -1,0 +1,25 @@
+stepOut async function
+bar (test.js:22:2)
+-- async function --
+bar (test.js:21:16)
+foo (test.js:17:8)
+-- async function --
+foo (test.js:16:16)
+test (test.js:12:8)
+-- async function --
+test (test.js:11:16)
+(anonymous) (:0:0)
+
+foo (test.js:18:0)
+-- async function --
+foo (test.js:16:16)
+test (test.js:12:8)
+-- async function --
+test (test.js:11:16)
+(anonymous) (:0:0)
+
+test (test.js:13:0)
+-- async function --
+test (test.js:11:16)
+(anonymous) (:0:0)
+

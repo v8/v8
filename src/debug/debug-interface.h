@@ -171,8 +171,8 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() {}
-  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
-                                    bool is_blackboxed) {}
+  virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
+                                  bool is_blackboxed) {}
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with

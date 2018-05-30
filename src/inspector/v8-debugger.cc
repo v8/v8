@@ -604,15 +604,12 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
   return hasAgents && allBlackboxed;
 }
 
-void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
-                                      int id, bool isBlackboxed) {
+void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
+                                    int id, bool isBlackboxed) {
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers.
   void* task = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
-    case v8::debug::kDebugAsyncFunctionPromiseCreated:
-      asyncTaskScheduledForStack("async function", task, true);
-      break;
     case v8::debug::kDebugPromiseThen:
       asyncTaskScheduledForStack("Promise.then", task, false);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
@@ -632,6 +629,14 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
     case v8::debug::kDebugDidHandle:
       asyncTaskFinishedForStack(task);
       asyncTaskFinishedForStepping(task);
+      break;
+    case v8::debug::kAsyncFunctionSuspended:
+      if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) {
+        asyncTaskScheduledForStack("async function", task, true);
+      }
+      break;
+    case v8::debug::kAsyncFunctionFinished:
+      asyncTaskCanceledForStack(task);
       break;
   }
 }

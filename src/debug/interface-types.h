@@ -69,13 +69,14 @@ struct WasmDisassembly {
   OffsetTable offset_table;
 };
 
-enum PromiseDebugActionType {
-  kDebugAsyncFunctionPromiseCreated,
+enum DebugAsyncActionType {
   kDebugPromiseThen,
   kDebugPromiseCatch,
   kDebugPromiseFinally,
   kDebugWillHandle,
   kDebugDidHandle,
+  kAsyncFunctionSuspended,
+  kAsyncFunctionFinished
 };
 
 enum BreakLocationType {

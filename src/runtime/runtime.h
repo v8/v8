@@ -132,7 +132,6 @@ namespace internal {
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
   F(DebugApplyInstrumentation, 1, 1)            \
-  F(DebugAsyncFunctionPromiseCreated, 1, 1)     \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
   F(DebugConstructedBy, 2, 1)                   \
@@ -150,6 +149,8 @@ namespace internal {
   F(DebugPropertyAttributesFromDetails, 1, 1)   \
   F(DebugPropertyKindFromDetails, 1, 1)         \
   F(DebugPushPromise, 1, 1)                     \
+  F(DebugAsyncFunctionSuspended, 1, 1)          \
+  F(DebugAsyncFunctionFinished, 2, 1)           \
   F(DebugReferencedBy, 3, 1)                    \
   F(DebugSetScriptSource, 2, 1)                 \
   F(DebugToggleBlockCoverage, 1, 1)             \
@@ -426,6 +427,7 @@ namespace internal {
   F(PromiseHookAfter, 1, 1)            \
   F(PromiseHookBefore, 1, 1)           \
   F(PromiseHookInit, 2, 1)             \
+  F(AwaitPromisesInit, 3, 1)           \
   F(PromiseMarkAsHandled, 1, 1)        \
   F(PromiseRejectEventFromStack, 2, 1) \
   F(PromiseResult, 1, 1)               \

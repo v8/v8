@@ -170,8 +170,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void asyncTaskCanceledForStepping(void* task);
 
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            bool isBlackboxed) override;
+  void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
+                          bool isBlackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(

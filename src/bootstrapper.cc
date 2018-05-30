@@ -4110,7 +4110,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     {
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(),
-          Builtins::kAsyncFunctionPromiseRelease, 1, false);
+          Builtins::kAsyncFunctionPromiseRelease, 2, false);
       native_context->set_async_function_promise_release(*function);
     }
   }
