@@ -44,7 +44,6 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
 #include "src/regexp/regexp-stack.h"
@@ -2522,7 +2521,6 @@ Isolate::Isolate()
       is_tail_call_elimination_enabled_(true),
       is_isolate_in_background_(false),
       memory_savings_mode_active_(false),
-      cpu_profiler_(nullptr),
       heap_profiler_(nullptr),
       code_event_dispatcher_(new CodeEventDispatcher()),
       function_entry_hook_(nullptr),
@@ -2643,10 +2641,6 @@ void Isolate::Deinit() {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
   }
 
-  if (cpu_profiler_) {
-    cpu_profiler_->DeleteAllProfiles();
-  }
-
   // We must stop the logger before we tear down other components.
   sampler::Sampler* sampler = logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
@@ -2697,9 +2691,6 @@ void Isolate::Deinit() {
 
   delete ast_string_constants_;
   ast_string_constants_ = nullptr;
-
-  delete cpu_profiler_;
-  cpu_profiler_ = nullptr;
 
   code_event_dispatcher_.reset();
 
@@ -4063,13 +4054,6 @@ void Isolate::SetIdle(bool is_idle) {
   } else if (state == IDLE) {
     set_current_vm_state(EXTERNAL);
   }
-}
-
-CpuProfiler* Isolate::EnsureCpuProfiler() {
-  if (!cpu_profiler_) {
-    cpu_profiler_ = new CpuProfiler(this);
-  }
-  return cpu_profiler_;
 }
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {

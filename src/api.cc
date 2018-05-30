@@ -8064,13 +8064,6 @@ HeapProfiler* Isolate::GetHeapProfiler() {
   return reinterpret_cast<HeapProfiler*>(heap_profiler);
 }
 
-
-CpuProfiler* Isolate::GetCpuProfiler() {
-  i::CpuProfiler* cpu_profiler =
-      reinterpret_cast<i::Isolate*>(this)->EnsureCpuProfiler();
-  return reinterpret_cast<CpuProfiler*>(cpu_profiler);
-}
-
 void Isolate::SetIdle(bool is_idle) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->SetIdle(is_idle);

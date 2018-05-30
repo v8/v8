@@ -71,7 +71,6 @@ class BigIntObject;
 class Boolean;
 class BooleanObject;
 class Context;
-class CpuProfiler;
 class Data;
 class Date;
 class External;
@@ -7527,15 +7526,7 @@ class V8_EXPORT Isolate {
   HeapProfiler* GetHeapProfiler();
 
   /**
-   * Returns CPU profiler for this isolate. Will return NULL unless the isolate
-   * is initialized. It is the embedder's responsibility to stop all CPU
-   * profiling activities if it has started any.
-   */
-  V8_DEPRECATED("CpuProfiler should be created with CpuProfiler::New call.",
-                CpuProfiler* GetCpuProfiler());
-
-  /**
-   * Tells the CPU profiler whether the embedder is idle.
+   * Tells the VM whether the embedder is idle or not.
    */
   void SetIdle(bool is_idle);
 
