@@ -607,8 +607,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Copy the function arguments from the generator object's register file.
   __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movl(rcx,
-          FieldOperand(rcx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ movzxwq(
+      rcx, FieldOperand(rcx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   __ movp(rbx,
           FieldOperand(rdx, JSGeneratorObject::kParametersAndRegistersOffset));
@@ -640,7 +640,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     __ PushReturnAddressFrom(rax);
     __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movsxlq(rax, FieldOperand(
+    __ movzxwq(rax, FieldOperand(
                         rax, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
@@ -2023,10 +2023,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ IncrementCounter(counters->arguments_adaptors(), 1);
 
   Label enough, too_few;
-  __ cmpp(rax, rbx);
-  __ j(less, &too_few);
   __ cmpp(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ j(equal, &dont_adapt_arguments);
+  __ cmpp(rax, rbx);
+  __ j(less, &too_few);
 
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
@@ -2213,8 +2213,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   {
     __ movp(r8, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ movp(r8, FieldOperand(r8, JSFunction::kSharedFunctionInfoOffset));
-    __ movl(r8,
-            FieldOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ movzxwq(
+        r8, FieldOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
     __ movp(rbx, rbp);
   }
   __ jmp(&arguments_done, Label::kNear);
@@ -2354,7 +2354,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- rsi : the function context.
   // -----------------------------------
 
-  __ movsxlq(
+  __ movzxwq(
       rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(rax);
   ParameterCount expected(rbx);

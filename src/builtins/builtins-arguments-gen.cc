@@ -45,7 +45,7 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
   CSA_SLOW_ASSERT(this, HasInstanceType(shared, SHARED_FUNCTION_INFO_TYPE));
   Node* formal_parameter_count =
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Int32());
+                      MachineType::Uint16());
   formal_parameter_count = Int32ToParameter(formal_parameter_count, mode);
 
   argument_count.Bind(formal_parameter_count);

@@ -24,6 +24,10 @@
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
+#define DECL_UINT16_ACCESSORS(name) \
+  inline uint16_t name() const;     \
+  inline void set_##name(int value);
+
 #define DECL_ACCESSORS(name, type)    \
   inline type* name() const;          \
   inline void set_##name(type* value, \
@@ -51,6 +55,14 @@
   int32_t holder::name() const { return READ_INT32_FIELD(this, offset); } \
   void holder::set_##name(int32_t value) {                                \
     WRITE_INT32_FIELD(this, offset, value);                               \
+  }
+
+#define UINT16_ACCESSORS(holder, name, offset)                              \
+  uint16_t holder::name() const { return READ_UINT16_FIELD(this, offset); } \
+  void holder::set_##name(int value) {                                      \
+    DCHECK_GE(value, 0);                                                    \
+    DCHECK_LE(value, static_cast<uint16_t>(-1));                            \
+    WRITE_UINT16_FIELD(this, offset, value);                                \
   }
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \

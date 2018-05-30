@@ -93,7 +93,7 @@ class SharedFunctionInfo : public HeapObject {
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   static const int kNotFound = -1;
-  static const int kInvalidLength = -1;
+  static const uint16_t kInvalidLength = static_cast<uint16_t>(-1);
 
   // Helpers for assembly code that does a backwards walk of the optimized code
   // map.
@@ -129,16 +129,17 @@ class SharedFunctionInfo : public HeapObject {
   inline bool is_compiled() const;
 
   // [length]: The function length - usually the number of declared parameters.
-  // Use up to 2^30 parameters. The value is only reliable when the function has
-  // been compiled.
-  inline int GetLength() const;
+  // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
+  // kDontAdaptArgumentsSentinel). The value is only reliable when the function
+  // has been compiled.
+  inline uint16_t GetLength() const;
   inline bool HasLength() const;
   inline void set_length(int value);
 
   // [internal formal parameter count]: The declared number of parameters.
   // For subclass constructors, also includes new.target.
   // The size of function's frame is internal_formal_parameter_count + 1.
-  DECL_INT_ACCESSORS(internal_formal_parameter_count)
+  DECL_UINT16_ACCESSORS(internal_formal_parameter_count)
 
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.
@@ -465,7 +466,7 @@ class SharedFunctionInfo : public HeapObject {
   DECL_CAST(SharedFunctionInfo)
 
   // Constants.
-  static const int kDontAdaptArgumentsSentinel = -1;
+  static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
 
 #if V8_SFI_HAS_UNIQUE_ID
   static const int kUniqueIdFieldSize = kInt32Size;
@@ -488,8 +489,8 @@ class SharedFunctionInfo : public HeapObject {
   /* Raw data fields. */                                   \
   V(kFunctionLiteralIdOffset, kInt32Size)                  \
   V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
-  V(kLengthOffset, kInt32Size)                             \
-  V(kFormalParameterCountOffset, kInt32Size)               \
+  V(kLengthOffset, kUInt16Size)                            \
+  V(kFormalParameterCountOffset, kUInt16Size)              \
   V(kExpectedNofPropertiesOffset, kInt32Size)              \
   V(kStartPositionAndTypeOffset, kInt32Size)               \
   V(kEndPositionOffset, kInt32Size)                        \
@@ -587,7 +588,7 @@ class SharedFunctionInfo : public HeapObject {
   friend class V8HeapExplorer;
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
-  inline int length() const;
+  inline uint16_t length() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

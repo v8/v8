@@ -510,8 +510,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Get number of arguments for generator function.
   __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(w10,
-         FieldMemOperand(x10, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Ldrh(w10, FieldMemOperand(
+                   x10, SharedFunctionInfo::kFormalParameterCountOffset));
 
   // Claim slots for arguments and receiver (rounded up to a multiple of two).
   __ Add(x11, x10, 2);
@@ -571,8 +571,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Resume (Ignition/TurboFan) generator object.
   {
     __ Ldr(x0, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldr(w0, FieldMemOperand(
-                   x0, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ Ldrh(w0, FieldMemOperand(
+                    x0, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
@@ -2328,9 +2328,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
              MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
       __ Ldr(scratch,
              FieldMemOperand(scratch, JSFunction::kSharedFunctionInfoOffset));
-      __ Ldrsw(len,
-               FieldMemOperand(
-                   scratch, SharedFunctionInfo::kFormalParameterCountOffset));
+      __ Ldrh(len,
+              FieldMemOperand(scratch,
+                              SharedFunctionInfo::kFormalParameterCountOffset));
       __ Mov(args_fp, fp);
     }
     __ B(&arguments_done);
@@ -2455,8 +2455,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-  __ Ldrsw(
-      x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Ldrh(x2,
+          FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(x0);
   ParameterCount expected(x2);
   __ InvokeFunctionCode(x1, no_reg, expected, actual, JUMP_FUNCTION);

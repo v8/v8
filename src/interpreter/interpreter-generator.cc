@@ -3014,7 +3014,7 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
   Node* formal_parameter_count =
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Int32());
+                      MachineType::Uint16());
 
   ExportParametersAndRegisterFile(array, registers, formal_parameter_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
@@ -3088,7 +3088,7 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
   Node* formal_parameter_count =
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Int32());
+                      MachineType::Uint16());
 
   ImportRegisterFile(
       LoadObjectField(generator,

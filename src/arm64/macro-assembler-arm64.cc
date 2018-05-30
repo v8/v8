@@ -2414,9 +2414,9 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
   // extension to correctly handle it.
   Ldr(expected_reg, FieldMemOperand(function,
                                     JSFunction::kSharedFunctionInfoOffset));
-  Ldrsw(expected_reg,
-        FieldMemOperand(expected_reg,
-                        SharedFunctionInfo::kFormalParameterCountOffset));
+  Ldrh(expected_reg,
+       FieldMemOperand(expected_reg,
+                       SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount expected(expected_reg);
   InvokeFunctionCode(function, new_target, expected, actual, flag);

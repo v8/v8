@@ -47,9 +47,9 @@ INT_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if V8_SFI_HAS_UNIQUE_ID
 INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif
-INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-INT_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
-              kFormalParameterCountOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
+                 kFormalParameterCountOffset)
 INT_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
 INT_ACCESSORS(SharedFunctionInfo, raw_end_position, kEndPositionOffset)
@@ -392,14 +392,13 @@ bool SharedFunctionInfo::is_compiled() const {
          !data->IsPreParsedScopeData();
 }
 
-int SharedFunctionInfo::GetLength() const {
+uint16_t SharedFunctionInfo::GetLength() const {
   DCHECK(is_compiled());
   DCHECK(HasLength());
   return length();
 }
 
 bool SharedFunctionInfo::HasLength() const {
-  DCHECK_IMPLIES(length() < 0, length() == kInvalidLength);
   return length() != kInvalidLength;
 }
 

@@ -495,8 +495,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Copy the function arguments from the generator object's register file.
   __ ldr(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r3,
-         FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ ldrh(r3,
+          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ ldr(r2,
          FieldMemOperand(r1, JSGeneratorObject::kParametersAndRegistersOffset));
   {
@@ -527,8 +527,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Resume (Ignition/TurboFan) generator object.
   {
     __ ldr(r0, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r0, FieldMemOperand(
-                   r0, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ ldrh(r0, FieldMemOperand(
+                    r0, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
@@ -1981,8 +1981,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   {
     __ ldr(r5, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     __ ldr(r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r5, FieldMemOperand(
-                   r5, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ ldrh(r5, FieldMemOperand(
+                    r5, SharedFunctionInfo::kFormalParameterCountOffset));
     __ mov(r4, fp);
   }
   __ b(&arguments_done);
@@ -2112,8 +2112,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-  __ ldr(r2,
-         FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ ldrh(r2,
+          FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(r0);
   ParameterCount expected(r2);
   __ InvokeFunctionCode(r1, no_reg, expected, actual, JUMP_FUNCTION);
@@ -2429,10 +2429,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label invoke, dont_adapt_arguments, stack_overflow;
 
   Label enough, too_few;
-  __ cmp(r0, r2);
-  __ b(lt, &too_few);
   __ cmp(r2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ b(eq, &dont_adapt_arguments);
+  __ cmp(r0, r2);
+  __ b(lt, &too_few);
 
   Register scratch = r5;
 
