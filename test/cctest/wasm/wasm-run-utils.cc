@@ -210,8 +210,9 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
       isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
+  size_t module_size = 0;
   auto managed_module =
-      Managed<WasmModule>::FromSharedPtr(isolate_, test_module_);
+      Managed<WasmModule>::FromSharedPtr(isolate_, module_size, test_module_);
   DCHECK_EQ(test_module_ptr_, managed_module->raw());
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());

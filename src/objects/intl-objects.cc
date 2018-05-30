@@ -952,7 +952,7 @@ bool Collator::InitializeCollator(Isolate* isolate,
   }
 
   Handle<Managed<icu::Collator>> managed =
-      Managed<icu::Collator>::FromRawPtr(isolate, collator);
+      Managed<icu::Collator>::FromRawPtr(isolate, 0, collator);
   collator_holder->SetEmbedderField(0, *managed);
 
   return true;

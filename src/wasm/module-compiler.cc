@@ -849,7 +849,7 @@ Address CompileLazy(Isolate* isolate,
   if (indirectly_called) {
     DCHECK(!caller_instance.is_null());
     if (!caller_instance->has_managed_indirect_patcher()) {
-      auto patcher = Managed<IndirectPatcher>::Allocate(isolate);
+      auto patcher = Managed<IndirectPatcher>::Allocate(isolate, 0);
       caller_instance->set_managed_indirect_patcher(*patcher);
     }
     IndirectPatcher* patcher = Managed<IndirectPatcher>::cast(
@@ -1332,8 +1332,10 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
 
   // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
+  size_t module_size = 0;  // TODO(titzer): estimate size of decoded module.
   Handle<Managed<WasmModule>> managed_module =
-      Managed<WasmModule>::FromUniquePtr(isolate, std::move(module));
+      Managed<WasmModule>::FromUniquePtr(isolate, module_size,
+                                         std::move(module));
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -2830,8 +2832,10 @@ void AsyncCompileJob::FinishCompile() {
 
   // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
+  size_t module_size = 0;  // TODO(titzer): estimate size of decoded module.
   Handle<Managed<WasmModule>> managed_module =
-      Managed<WasmModule>::FromUniquePtr(isolate_, std::move(module_));
+      Managed<WasmModule>::FromUniquePtr(isolate_, module_size,
+                                         std::move(module_));
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should

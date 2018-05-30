@@ -782,8 +782,10 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       module_object->shared()->module()->num_imported_functions;
   auto num_imported_mutable_globals =
       module_object->shared()->module()->num_imported_mutable_globals;
+  size_t native_allocations_size = 0;  // TODO(titzer): estimate properly.
   auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
-      isolate, instance, num_imported_functions, num_imported_mutable_globals);
+      isolate, native_allocations_size, instance, num_imported_functions,
+      num_imported_mutable_globals);
   instance->set_managed_native_allocations(*native_allocations);
 
   Handle<FixedArray> imported_function_instances =
@@ -1357,8 +1359,10 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
   {
     auto native_module =
         isolate->wasm_engine()->code_manager()->NewNativeModule(*module, env);
+    size_t native_module_size =
+        0;  // TODO(titzer): estimate native module size.
     Handle<Foreign> native_module_wrapper =
-        Managed<wasm::NativeModule>::FromUniquePtr(isolate,
+        Managed<wasm::NativeModule>::FromUniquePtr(isolate, native_module_size,
                                                    std::move(native_module));
     compiled_module->set_native_module(*native_module_wrapper);
   }
@@ -1378,9 +1382,10 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
 
   // construct the wrapper in 2 steps, because its construction may trigger GC,
   // which would shift the this pointer in set_native_module.
+  size_t native_module_size = 0;
   Handle<Foreign> native_module_wrapper =
       Managed<wasm::NativeModule>::FromSharedPtr(
-          isolate,
+          isolate, native_module_size,
           Managed<wasm::NativeModule>::cast(module->native_module())->get());
   ret->set_native_module(*native_module_wrapper);
 

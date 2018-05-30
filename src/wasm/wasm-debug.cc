@@ -533,8 +533,9 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
   Handle<Object> handle(debug_info->interpreter_handle(), isolate);
   if (handle->IsUndefined(isolate)) {
-    handle = Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate,
-                                                        *debug_info);
+    size_t interpreter_size = 0;  // TODO(titzer): estimate size properly.
+    handle = Managed<wasm::InterpreterHandle>::Allocate(
+        isolate, interpreter_size, isolate, *debug_info);
     debug_info->set_interpreter_handle(*handle);
   }
 
@@ -633,8 +634,9 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
     Handle<WasmInstanceObject> instance_obj) {
   Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
   Isolate* isolate = instance_obj->GetIsolate();
-  auto interp_handle =
-      Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate, *debug_info);
+  size_t interpreter_size = 0;  // TODO(titzer): estimate size properly.
+  auto interp_handle = Managed<wasm::InterpreterHandle>::Allocate(
+      isolate, interpreter_size, isolate, *debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
   auto ret = interp_handle->raw()->interpreter();
   ret->SetCallIndirectTestMode();
@@ -753,7 +755,8 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
   if (!debug_info->has_c_wasm_entries()) {
     auto entries = isolate->factory()->NewFixedArray(4, TENURED);
     debug_info->set_c_wasm_entries(*entries);
-    auto managed_map = Managed<wasm::SignatureMap>::Allocate(isolate);
+    size_t map_size = 0;  // size estimate not so important here.
+    auto managed_map = Managed<wasm::SignatureMap>::Allocate(isolate, map_size);
     debug_info->set_c_wasm_entry_map(*managed_map);
   }
   Handle<FixedArray> entries(debug_info->c_wasm_entries(), isolate);
