@@ -1166,10 +1166,10 @@ TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
     Comment("Try loading the prototype info");
     Node* prototype_info =
         LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
-    Node* weak_cell =
-        LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
-    GotoIf(IsUndefined(weak_cell), &call_runtime);
-    map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
+    TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
+        prototype_info, PrototypeInfo::kObjectCreateMapOffset);
+    GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()), &call_runtime);
+    map.Bind(ToWeakHeapObject(maybe_map, &call_runtime));
     Goto(&instantiate_map);
   }
 
@@ -1261,10 +1261,11 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Node* prototype_info =
           LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
-      Node* weak_cell =
-          LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
-      GotoIf(IsUndefined(weak_cell), &call_runtime);
-      map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
+      TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
+          prototype_info, PrototypeInfo::kObjectCreateMapOffset);
+      GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()),
+             &call_runtime);
+      map.Bind(ToWeakHeapObject(maybe_map, &call_runtime));
       Goto(&instantiate_map);
     }
 

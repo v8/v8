@@ -3023,15 +3023,17 @@ class PrototypeInfo : public Struct {
   static const int kPrototypeUsersOffset = kWeakCellOffset + kPointerSize;
   static const int kRegistrySlotOffset = kPrototypeUsersOffset + kPointerSize;
   static const int kValidityCellOffset = kRegistrySlotOffset + kPointerSize;
-  static const int kObjectCreateMap = kValidityCellOffset + kPointerSize;
-  static const int kBitFieldOffset = kObjectCreateMap + kPointerSize;
+  static const int kObjectCreateMapOffset = kValidityCellOffset + kPointerSize;
+  static const int kBitFieldOffset = kObjectCreateMapOffset + kPointerSize;
   static const int kSize = kBitFieldOffset + kPointerSize;
 
   // Bit field usage.
   static const int kShouldBeFastBit = 0;
 
+  class BodyDescriptor;
+
  private:
-  DECL_ACCESSORS(object_create_map, Object)
+  DECL_ACCESSORS(object_create_map, MaybeObject)
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
 };

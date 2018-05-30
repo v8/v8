@@ -345,6 +345,25 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, HeapObject::kHeaderSize, kObjectCreateMapOffset, v);
+    IterateMaybeWeakPointer(obj, kObjectCreateMapOffset, v);
+    IteratePointers(obj, kObjectCreateMapOffset + kPointerSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return obj->SizeFromMap(map);
+  }
+};
+
 template <JSWeakCollection::BodyVisitingPolicy body_visiting_policy>
 class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
@@ -722,6 +741,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       if (type == ALLOCATION_SITE_TYPE) {
         return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3,
                                                                   p4);
+      } else if (type == PROTOTYPE_INFO_TYPE) {
+        return Op::template apply<PrototypeInfo::BodyDescriptor>(p1, p2, p3,
+                                                                 p4);
       } else {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }

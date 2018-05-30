@@ -1638,7 +1638,7 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - weak cell: " << Brief(weak_cell());
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
-  os << "\n - object create map: " << Brief(object_create_map());
+  os << "\n - object create map: " << MaybeObjectBrief(object_create_map());
   os << "\n - should_be_fast_map: " << should_be_fast_map();
   os << "\n";
 }

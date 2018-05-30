@@ -3134,6 +3134,8 @@ VisitorId Map::GetVisitorId(Map* map) {
 #undef MAKE_STRUCT_CASE
       if (instance_type == ALLOCATION_SITE_TYPE) {
         return kVisitAllocationSite;
+      } else if (instance_type == PROTOTYPE_INFO_TYPE) {
+        return kVisitPrototypeInfo;
       }
       return kVisitStruct;
 

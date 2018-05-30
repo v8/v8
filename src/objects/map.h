@@ -45,6 +45,7 @@ namespace internal {
   V(Oddball)               \
   V(PropertyArray)         \
   V(PropertyCell)          \
+  V(PrototypeInfo)         \
   V(SeqOneByteString)      \
   V(SeqTwoByteString)      \
   V(SharedFunctionInfo)    \

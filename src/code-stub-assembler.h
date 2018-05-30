@@ -710,6 +710,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  TNode<Object> value);
   TNode<BoolT> IsNotWeakReferenceTo(TNode<MaybeObject> object,
                                     TNode<Object> value);
+  TNode<BoolT> IsStrongReferenceTo(TNode<MaybeObject> object,
+                                   TNode<Object> value);
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
