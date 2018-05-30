@@ -1656,7 +1656,9 @@ class V8_EXPORT ScriptCompiler {
    * ECMAScript specification.
    */
   static V8_WARN_UNUSED_RESULT MaybeLocal<Module> CompileModule(
-      Isolate* isolate, Source* source);
+      Isolate* isolate, Source* source,
+      CompileOptions options = kNoCompileOptions,
+      NoCacheReason no_cache_reason = kNoCacheNoReason);
 
   /**
    * Compile a function for a given context. This is equivalent to running

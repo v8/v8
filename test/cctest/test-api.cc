@@ -25659,48 +25659,280 @@ v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
   CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
 }
 
+namespace {
+
+Local<Module> CompileAndInstantiateModule(v8::Isolate* isolate,
+                                          Local<Context> context,
+                                          const char* resource_name,
+                                          const char* source) {
+  Local<String> source_string = v8_str(source);
+  v8::ScriptOrigin script_origin(
+      v8_str(resource_name), Local<v8::Integer>(), Local<v8::Integer>(),
+      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
+      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source script_compiler_source(source_string,
+                                                    script_origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &script_compiler_source)
+          .ToLocalChecked();
+  module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+      .ToChecked();
+
+  return module;
+}
+
+Local<Module> CompileAndInstantiateModuleFromCache(
+    v8::Isolate* isolate, Local<Context> context, const char* resource_name,
+    const char* source, v8::ScriptCompiler::CachedData* cache) {
+  Local<String> source_string = v8_str(source);
+  v8::ScriptOrigin script_origin(
+      v8_str(resource_name), Local<v8::Integer>(), Local<v8::Integer>(),
+      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
+      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source script_compiler_source(source_string,
+                                                    script_origin, cache);
+
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &script_compiler_source,
+                                        v8::ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+      .ToChecked();
+
+  return module;
+}
+
+}  // namespace
+
 TEST(ModuleCodeCache) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
   const char* origin = "code cache test";
+  const char* source =
+      "export default 5; export const a = 10; function f() { return 42; } "
+      "(function() { return f(); })();";
+
   v8::ScriptCompiler::CachedData* cache;
-
-  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
-    v8::Isolate::Scope iscope(isolate1);
-    v8::HandleScope scope(isolate1);
-    v8::Local<v8::Context> context = v8::Context::New(isolate1);
-    v8::Context::Scope cscope(context);
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope cscope(context);
 
-    Local<String> source_text = v8_str(
-        "export default 5; export const a = 10; function f() { return 42; } "
-        "(function() { return f(); })();");
-    v8::ScriptOrigin script_origin(
-        v8_str(origin), Local<v8::Integer>(), Local<v8::Integer>(),
-        Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
-        Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate1));
-    v8::ScriptCompiler::Source source(source_text, script_origin);
-    Local<Module> module =
-        v8::ScriptCompiler::CompileModule(isolate1, &source).ToLocalChecked();
-    module->InstantiateModule(context, UnexpectedModuleResolveCallback)
-        .ToChecked();
+      Local<Module> module =
+          CompileAndInstantiateModule(isolate, context, origin, source);
 
-    // Fetch the shared function info before evaluation.
-    Local<v8::UnboundModuleScript> unbound_module_script =
-        module->GetUnboundModuleScript();
+      // Fetch the shared function info before evaluation.
+      Local<v8::UnboundModuleScript> unbound_module_script =
+          module->GetUnboundModuleScript();
 
-    // Evaluate for possible lazy compilation.
-    Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      // Evaluate for possible lazy compilation.
+      Local<Value> completion_value =
+          module->Evaluate(context).ToLocalChecked();
+      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
 
-    // Now create the cache.
-    cache = v8::ScriptCompiler::CreateCodeCache(unbound_module_script);
+      // Now create the cache. Note that it is freed, obscurely, when
+      // ScriptCompiler::Source goes out of scope below.
+      cache = v8::ScriptCompiler::CreateCodeCache(unbound_module_script);
+    }
+    isolate->Dispose();
   }
-  isolate1->Dispose();
 
-  // TODO(jgruber,v8:7685): Test module code cache consumption once implemented.
-  delete cache;
+  // Test that the cache is consumed and execution still works.
+  {
+    // Disable --always_opt, otherwise we try to optimize during module
+    // instantiation, violating the DisallowCompilation scope.
+    i::FLAG_always_opt = false;
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope cscope(context);
+
+      Local<Module> module;
+      {
+        i::DisallowCompilation no_compile(
+            reinterpret_cast<i::Isolate*>(isolate));
+        module = CompileAndInstantiateModuleFromCache(isolate, context, origin,
+                                                      source, cache);
+      }
+
+      Local<Value> completion_value =
+          module->Evaluate(context).ToLocalChecked();
+      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+    }
+    isolate->Dispose();
+  }
+}
+
+// Tests that the code cache does not confuse the same source code compiled as a
+// script and as a module.
+TEST(CodeCacheModuleScriptMismatch) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  const char* origin = "code cache test";
+  const char* source = "42";
+
+  v8::ScriptCompiler::CachedData* cache;
+  {
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope cscope(context);
+
+      Local<Module> module =
+          CompileAndInstantiateModule(isolate, context, origin, source);
+
+      // Fetch the shared function info before evaluation.
+      Local<v8::UnboundModuleScript> unbound_module_script =
+          module->GetUnboundModuleScript();
+
+      // Evaluate for possible lazy compilation.
+      Local<Value> completion_value =
+          module->Evaluate(context).ToLocalChecked();
+      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+
+      // Now create the cache. Note that it is freed, obscurely, when
+      // ScriptCompiler::Source goes out of scope below.
+      cache = v8::ScriptCompiler::CreateCodeCache(unbound_module_script);
+    }
+    isolate->Dispose();
+  }
+
+  // Test that the cache is not consumed when source is compiled as a script.
+  {
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope cscope(context);
+
+      v8::ScriptOrigin script_origin(v8_str(origin));
+      v8::ScriptCompiler::Source script_compiler_source(v8_str(source),
+                                                        script_origin, cache);
+
+      v8::Local<v8::Script> script =
+          v8::ScriptCompiler::Compile(context, &script_compiler_source,
+                                      v8::ScriptCompiler::kConsumeCodeCache)
+              .ToLocalChecked();
+
+      CHECK(cache->rejected);
+
+      CHECK_EQ(42, script->Run(context)
+                       .ToLocalChecked()
+                       ->ToInt32(context)
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust());
+    }
+    isolate->Dispose();
+  }
+}
+
+// Same as above but other way around.
+TEST(CodeCacheScriptModuleMismatch) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  const char* origin = "code cache test";
+  const char* source = "42";
+
+  v8::ScriptCompiler::CachedData* cache;
+  {
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope cscope(context);
+      v8::Local<v8::String> source_string = v8_str(source);
+      v8::ScriptOrigin script_origin(v8_str(origin));
+      v8::ScriptCompiler::Source source(source_string, script_origin);
+      v8::ScriptCompiler::CompileOptions option =
+          v8::ScriptCompiler::kNoCompileOptions;
+      v8::Local<v8::Script> script =
+          v8::ScriptCompiler::Compile(context, &source, option)
+              .ToLocalChecked();
+      cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
+    }
+    isolate->Dispose();
+  }
+
+  // Test that the cache is not consumed when source is compiled as a module.
+  {
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope cscope(context);
+
+      v8::ScriptOrigin script_origin(
+          v8_str(origin), Local<v8::Integer>(), Local<v8::Integer>(),
+          Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
+          Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+      v8::ScriptCompiler::Source script_compiler_source(v8_str(source),
+                                                        script_origin, cache);
+
+      Local<Module> module = v8::ScriptCompiler::CompileModule(
+                                 isolate, &script_compiler_source,
+                                 v8::ScriptCompiler::kConsumeCodeCache)
+                                 .ToLocalChecked();
+      module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+          .ToChecked();
+
+      CHECK(cache->rejected);
+
+      Local<Value> completion_value =
+          module->Evaluate(context).ToLocalChecked();
+      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+    }
+    isolate->Dispose();
+  }
+}
+
+// Tests that compilation can handle a garbled cache.
+TEST(InvalidCodeCacheDataInCompileModule) {
+  v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext local_context;
+
+  const char* garbage = "garbage garbage garbage garbage garbage garbage";
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(garbage);
+  Local<String> origin = v8_str("origin");
+  int length = 16;
+  v8::ScriptCompiler::CachedData* cached_data =
+      new v8::ScriptCompiler::CachedData(data, length);
+  CHECK(!cached_data->rejected);
+
+  v8::ScriptOrigin script_origin(
+      origin, Local<v8::Integer>(), Local<v8::Integer>(), Local<v8::Boolean>(),
+      Local<v8::Integer>(), Local<v8::Value>(), Local<v8::Boolean>(),
+      Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source source(v8_str("42"), script_origin, cached_data);
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source,
+                                        v8::ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+      .ToChecked();
+
+  CHECK(cached_data->rejected);
+  CHECK_EQ(42, module->Evaluate(context)
+                   .ToLocalChecked()
+                   ->Int32Value(context)
+                   .FromJust());
 }
 
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {

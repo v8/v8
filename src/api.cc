@@ -2475,15 +2475,18 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   return result->BindToCurrentContext();
 }
 
-MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
-                                                 Source* source) {
+MaybeLocal<Module> ScriptCompiler::CompileModule(
+    Isolate* isolate, Source* source, CompileOptions options,
+    NoCacheReason no_cache_reason) {
+  CHECK(options == kNoCompileOptions || options == kConsumeCodeCache);
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
-  auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions,
-                                      kNoCacheBecauseModule);
+  auto maybe =
+      CompileUnboundInternal(isolate, source, options, no_cache_reason);
   Local<UnboundScript> unbound;
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
