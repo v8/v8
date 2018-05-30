@@ -1821,9 +1821,8 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     ToDirectStringAssembler to_direct(state(), subject_string);
     to_direct.TryToDirect(&call_runtime);
-    TNode<FixedArray> elements =
-        AllocateFixedArray(PACKED_ELEMENTS, length_smi,
-                           AllocationFlag::kAllowLargeObjectAllocation);
+    TNode<FixedArray> elements = AllocateFixedArray(
+        PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation);
     // Don't allocate anything while {string_data} is live!
     TNode<RawPtrT> string_data = UncheckedCast<RawPtrT>(
         to_direct.PointerToData(&fill_thehole_and_call_runtime));

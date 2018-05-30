@@ -224,14 +224,12 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   Label if_holey_double(this), if_packed_double(this), if_done(this);
 
   const ElementsKind new_kind = PACKED_ELEMENTS;
-  const ParameterMode mode = INTPTR_PARAMETERS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  Node* intptr_length = ChangeInt32ToIntPtr(length);
+  TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
 
   // Allocate a new FixedArray of Objects.
-  Node* new_elements =
-      AllocateFixedArray(new_kind, intptr_length, mode,
-                         CodeStubAssembler::kAllowLargeObjectAllocation);
+  TNode<FixedArray> new_elements = AllocateFixedArray(
+      new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation);
   Branch(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          &if_holey_double, &if_packed_double);
 

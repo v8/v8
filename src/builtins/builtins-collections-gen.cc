@@ -2031,8 +2031,8 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   // See HashTable::NewInternal().
   TNode<IntPtrT> length = KeyIndexFromEntry(capacity);
-  TNode<FixedArray> table = AllocateFixedArray(
-      HOLEY_ELEMENTS, length, INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
+  TNode<FixedArray> table =
+      AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation);
 
   Heap::RootListIndex map_root_index =
       static_cast<Heap::RootListIndex>(ObjectHashTableShape::GetMapRootIndex());

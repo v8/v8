@@ -3089,11 +3089,11 @@ Node* CodeStubAssembler::AllocateOrderedHashTable() {
 
   // Allocate the table and add the proper map.
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
-  Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
-  Node* const fixed_array_map = LoadRoot(
-      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex()));
-  Node* const table =
-      AllocateFixedArray(elements_kind, length_intptr, INTPTR_PARAMETERS,
+  TNode<IntPtrT> length_intptr = IntPtrConstant(kFixedArrayLength);
+  TNode<Map> fixed_array_map = CAST(LoadRoot(
+      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex())));
+  TNode<FixedArray> table =
+      AllocateFixedArray(elements_kind, length_intptr,
                          kAllowLargeObjectAllocation, fixed_array_map);
 
   // Initialize the OrderedHashTable fields.
@@ -3106,7 +3106,7 @@ Node* CodeStubAssembler::AllocateOrderedHashTable() {
                          SmiConstant(kBucketCount), barrier_mode);
 
   // Fill the buckets with kNotFound.
-  Node* const not_found = SmiConstant(CollectionType::kNotFound);
+  TNode<Smi> not_found = SmiConstant(CollectionType::kNotFound);
   STATIC_ASSERT(CollectionType::kHashTableStartIndex ==
                 CollectionType::kNumberOfBucketsIndex + 1);
   STATIC_ASSERT((CollectionType::kHashTableStartIndex + kBucketCount) ==

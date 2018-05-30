@@ -115,6 +115,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
   enum ParameterMode { SMI_PARAMETERS, INTPTR_PARAMETERS };
+
   // On 32-bit platforms, there is a slight performance advantage to doing all
   // of the array offset/index arithmetic with SMIs, since it's possible
   // to save a few tag/untag operations without paying an extra expense when
@@ -1098,15 +1099,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       AllocationFlags flags = kNone,
       SloppyTNode<Map> fixed_array_map = nullptr);
 
-  TNode<FixedArray> AllocateFixedArray(ElementsKind kind, TNode<Smi> capacity,
-                                       AllocationFlags flags = kNone) {
-    return AllocateFixedArray(kind, capacity, SMI_PARAMETERS, flags);
-  }
-
-  TNode<FixedArray> AllocateFixedArray(ElementsKind kind, TNode<Smi> capacity,
-                                       TNode<Map> map,
-                                       AllocationFlags flags = kNone) {
-    return AllocateFixedArray(kind, capacity, SMI_PARAMETERS, flags, map);
+  TNode<FixedArray> AllocateFixedArray(
+      ElementsKind kind, TNode<IntPtrT> capacity, AllocationFlags flags,
+      SloppyTNode<Map> fixed_array_map = nullptr) {
+    return AllocateFixedArray(kind, capacity, INTPTR_PARAMETERS, flags,
+                              fixed_array_map);
   }
 
   Node* AllocatePropertyArray(Node* capacity,
