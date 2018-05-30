@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "src/torque/declarable.h"
+#include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 
 namespace v8 {
@@ -198,6 +199,25 @@ bool Signature::HasSameTypesAs(const Signature& other) const {
   for (auto l : labels) {
     if (l.types != other.labels[i++].types) {
       return false;
+    }
+  }
+  return true;
+}
+
+bool IsAssignableFrom(const Type* to, const Type* from) {
+  if (to == from) return true;
+  if (from->IsSubtypeOf(to) && !from->IsConstexpr()) return true;
+  return TypeOracle::IsImplicitlyConverableFrom(to, from);
+}
+
+bool IsCompatibleSignature(const ParameterTypes& to, const TypeVector& from) {
+  auto i = to.types.begin();
+  for (auto current : from) {
+    if (i == to.types.end()) {
+      if (!to.var_args) return false;
+      if (!IsAssignableFrom(TypeOracle::GetObjectType(), current)) return false;
+    } else {
+      if (!IsAssignableFrom(*i++, current)) return false;
     }
   }
   return true;

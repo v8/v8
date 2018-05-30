@@ -282,7 +282,7 @@ const Type* ImplementationVisitor::Visit(VarDeclarationStatement* stmt) {
     init_result = Visit(*stmt->initializer);
   }
   GenerateVariableDeclaration(stmt, stmt->name, {}, init_result);
-  return GetTypeOracle().GetVoidType();
+  return TypeOracle::GetVoidType();
 }
 
 const Type* ImplementationVisitor::Visit(TailCallStatement* stmt) {
@@ -430,7 +430,7 @@ VisitResult ImplementationVisitor::Visit(IncrementDecrementExpression* expr) {
   if (expr->postfix) {
     value_copy = GenerateCopy(current_value);
   }
-  VisitResult one = {GetTypeOracle().GetConstInt31Type(), "1"};
+  VisitResult one = {TypeOracle::GetConstInt31Type(), "1"};
   Arguments args;
   args.parameters = {current_value, one};
   VisitResult assignment_value = GenerateOperation(
@@ -478,11 +478,11 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(StringLiteralExpression* expr) {
-  std::string temp = GenerateNewTempVariable(GetTypeOracle().GetStringType());
+  std::string temp = GenerateNewTempVariable(TypeOracle::GetStringType());
   source_out() << "StringConstant(\""
                << expr->literal.substr(1, expr->literal.size() - 2) << "\");"
                << std::endl;
-  return VisitResult{GetTypeOracle().GetStringType(), temp};
+  return VisitResult{TypeOracle::GetStringType(), temp};
 }
 
 VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
@@ -568,7 +568,7 @@ const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
 
   GenerateLabelGoto(label);
   label->MarkUsed();
-  return GetTypeOracle().GetNeverType();
+  return TypeOracle::GetNeverType();
 }
 
 const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
@@ -579,14 +579,14 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
   if (stmt->is_constexpr) {
     VisitResult expression_result = Visit(stmt->condition);
 
-    if (!(expression_result.type() == GetTypeOracle().GetConstexprBoolType())) {
+    if (!(expression_result.type() == TypeOracle::GetConstexprBoolType())) {
       std::stringstream stream;
       stream << "expression should return type \"constexpr bool\" but doesn't";
       ReportError(stream.str());
     }
 
     const Type* left_result;
-    const Type* right_result = GetTypeOracle().GetVoidType();
+    const Type* right_result = TypeOracle::GetVoidType();
     {
       GenerateIndent();
       source_out() << "if ((" << expression_result.variable() << ")) ";
@@ -641,8 +641,7 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
     if (live) {
       GenerateLabelBind(done_label);
     }
-    return live ? GetTypeOracle().GetVoidType()
-                : GetTypeOracle().GetNeverType();
+    return live ? TypeOracle::GetVoidType() : TypeOracle::GetNeverType();
   }
 }
 
@@ -671,13 +670,13 @@ const Type* ImplementationVisitor::Visit(WhileStatement* stmt) {
                            {stmt->body}, header_label);
 
   GenerateLabelBind(exit_label);
-  return GetTypeOracle().GetVoidType();
+  return TypeOracle::GetVoidType();
 }
 
 const Type* ImplementationVisitor::Visit(BlockStatement* block) {
   Declarations::NodeScopeActivator scope(declarations(), block);
   ScopedIndent indent(this);
-  const Type* type = GetTypeOracle().GetVoidType();
+  const Type* type = TypeOracle::GetVoidType();
   for (Statement* s : block->statements) {
     if (type->IsNever()) {
       std::stringstream stream;
@@ -699,10 +698,10 @@ const Type* ImplementationVisitor::Visit(DebugStatement* stmt) {
   GenerateIndent();
   if (stmt->never_continues) {
     source_out() << "Unreachable();" << std::endl;
-    return GetTypeOracle().GetNeverType();
+    return TypeOracle::GetNeverType();
   } else {
     source_out() << "DebugBreak();" << std::endl;
-    return GetTypeOracle().GetVoidType();
+    return TypeOracle::GetVoidType();
   }
 }
 
@@ -730,10 +729,10 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
     GenerateLabelDefinition(false_label);
 
     VisitResult expression_result = Visit(stmt->expression);
-    if (expression_result.type() == GetTypeOracle().GetBoolType()) {
+    if (expression_result.type() == TypeOracle::GetBoolType()) {
       GenerateBranch(expression_result, true_label, false_label);
     } else {
-      if (expression_result.type() != GetTypeOracle().GetNeverType()) {
+      if (expression_result.type() != TypeOracle::GetNeverType()) {
         std::stringstream s;
         s << "unexpected return type " << expression_result.type()
           << " for branch expression";
@@ -751,12 +750,12 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
 
     GenerateLabelBind(true_label);
   }
-  return GetTypeOracle().GetVoidType();
+  return TypeOracle::GetVoidType();
 }
 
 const Type* ImplementationVisitor::Visit(ExpressionStatement* stmt) {
   const Type* type = Visit(stmt->expression).type();
-  return type->IsNever() ? type : GetTypeOracle().GetVoidType();
+  return type->IsNever() ? type : TypeOracle::GetVoidType();
 }
 
 const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
@@ -807,16 +806,16 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
     GenerateLabelGoto(end);
   }
   current_callable->IncrementReturns();
-  return GetTypeOracle().GetNeverType();
+  return TypeOracle::GetNeverType();
 }
 
 const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   Declarations::NodeScopeActivator scope(declarations(), stmt);
 
   VisitResult expression_result = Visit(stmt->iterable);
-  VisitResult begin =
-      stmt->begin ? Visit(*stmt->begin)
-                  : VisitResult(GetTypeOracle().GetConstInt31Type(), "0");
+  VisitResult begin = stmt->begin
+                          ? Visit(*stmt->begin)
+                          : VisitResult(TypeOracle::GetConstInt31Type(), "0");
 
   VisitResult end =
       stmt->end ? Visit(*stmt->end)
@@ -861,7 +860,7 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   GenerateLabelBind(increment_label);
   Arguments increment_args;
   increment_args.parameters = {index_for_read,
-                               {GetTypeOracle().GetConstInt31Type(), "1"}};
+                               {TypeOracle::GetConstInt31Type(), "1"}};
   VisitResult increment_result = GenerateOperation("+", increment_args);
 
   GenerateAssignToVariable(index_var, increment_result);
@@ -869,14 +868,14 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   GenerateLabelGoto(header_label);
 
   GenerateLabelBind(exit_label);
-  return GetTypeOracle().GetVoidType();
+  return TypeOracle::GetVoidType();
 }
 
 const Type* ImplementationVisitor::Visit(TryCatchStatement* stmt) {
   ScopedIndent indent(this);
   Label* try_done = declarations()->DeclarePrivateLabel("try_done");
   GenerateLabelDefinition(try_done);
-  const Type* try_result = GetTypeOracle().GetNeverType();
+  const Type* try_result = TypeOracle::GetNeverType();
   std::vector<Label*> labels;
 
   // Output labels for the goto handlers and for the merge after the try.
@@ -909,7 +908,7 @@ const Type* ImplementationVisitor::Visit(TryCatchStatement* stmt) {
     if (GenerateLabeledStatementBlocks({stmt->try_block},
                                        std::vector<Label*>({try_begin_label}),
                                        try_done)) {
-      try_result = GetTypeOracle().GetVoidType();
+      try_result = TypeOracle::GetVoidType();
     }
   }
 
@@ -933,7 +932,7 @@ const Type* ImplementationVisitor::Visit(TryCatchStatement* stmt) {
   std::vector<Statement*> bodies;
   for (LabelBlock* block : stmt->label_blocks) bodies.push_back(block->body);
   if (GenerateLabeledStatementBlocks(bodies, labels, try_done)) {
-    try_result = GetTypeOracle().GetVoidType();
+    try_result = TypeOracle::GetVoidType();
   }
 
   if (!try_result->IsNever()) {
@@ -948,7 +947,7 @@ const Type* ImplementationVisitor::Visit(BreakStatement* stmt) {
     ReportError("break used outside of loop");
   }
   GenerateLabelGoto(break_label);
-  return GetTypeOracle().GetNeverType();
+  return TypeOracle::GetNeverType();
 }
 
 const Type* ImplementationVisitor::Visit(ContinueStatement* stmt) {
@@ -957,7 +956,7 @@ const Type* ImplementationVisitor::Visit(ContinueStatement* stmt) {
     ReportError("continue used outside of loop");
   }
   GenerateLabelGoto(continue_label);
-  return GetTypeOracle().GetNeverType();
+  return TypeOracle::GetNeverType();
 }
 
 const Type* ImplementationVisitor::Visit(ForLoopStatement* stmt) {
@@ -996,7 +995,7 @@ const Type* ImplementationVisitor::Visit(ForLoopStatement* stmt) {
   }
 
   GenerateLabelBind(exit_label);
-  return GetTypeOracle().GetVoidType();
+  return TypeOracle::GetVoidType();
 }
 
 void ImplementationVisitor::GenerateImplementation(const std::string& dir,
@@ -1094,8 +1093,7 @@ VisitResult ImplementationVisitor::GenerateOperation(
   auto i = global_context_.op_handlers_.find(operation);
   if (i != global_context_.op_handlers_.end()) {
     for (auto handler : i->second) {
-      if (GetTypeOracle().IsCompatibleSignature(handler.parameter_types,
-                                                parameter_types)) {
+      if (IsCompatibleSignature(handler.parameter_types, parameter_types)) {
         // Operators used in a bit context can also be function calls that never
         // return but have a True and False label
         if (!return_type && handler.result_type->IsNever()) {
@@ -1117,7 +1115,7 @@ VisitResult ImplementationVisitor::GenerateOperation(
   s << "cannot find implementation of operation \"" << operation
     << "\" with types " << parameter_types;
   ReportError(s.str());
-  return VisitResult(GetTypeOracle().GetVoidType(), "");
+  return VisitResult(TypeOracle::GetVoidType(), "");
 }
 
 void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
@@ -1140,10 +1138,10 @@ void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
 
 const Type* ImplementationVisitor::GetCommonType(const Type* left,
                                                  const Type* right) {
-  const Type* common_type = GetTypeOracle().GetVoidType();
-  if (GetTypeOracle().IsAssignableFrom(left, right)) {
+  const Type* common_type = TypeOracle::GetVoidType();
+  if (IsAssignableFrom(left, right)) {
     common_type = left;
-  } else if (GetTypeOracle().IsAssignableFrom(right, left)) {
+  } else if (IsAssignableFrom(right, left)) {
     common_type = right;
   } else {
     std::stringstream s;
@@ -1316,7 +1314,7 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   }
 
   ParameterTypes types{type->parameter_types(), false};
-  if (!GetTypeOracle().IsCompatibleSignature(types, parameter_types)) {
+  if (!IsCompatibleSignature(types, parameter_types)) {
     std::stringstream stream;
     stream << "parameters do not match function pointer signature. Expected: ("
            << type->parameter_types() << ") but got: (" << parameter_types
@@ -1379,7 +1377,7 @@ VisitResult ImplementationVisitor::GenerateCall(
   std::vector<std::string> variables;
   for (size_t current = 0; current < arguments.parameters.size(); ++current) {
     const Type* to_type = (current >= callable->signature().types().size())
-                              ? GetTypeOracle().GetObjectType()
+                              ? TypeOracle::GetObjectType()
                               : callable->signature().types()[current];
     VisitResult result =
         GenerateImplicitConvert(to_type, arguments.parameters[current]);
@@ -1537,7 +1535,7 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     source_out() << "USE(" << result.variable() << ");" << std::endl;
   }
   if (is_tailcall) {
-    result = {GetTypeOracle().GetNeverType(), ""};
+    result = {TypeOracle::GetNeverType(), ""};
   }
   return result;
 }
@@ -1578,10 +1576,10 @@ bool ImplementationVisitor::GenerateExpressionBranch(
   Declarations::NodeScopeActivator scope(declarations(), expression);
 
   VisitResult expression_result = Visit(expression);
-  if (expression_result.type() == GetTypeOracle().GetBoolType()) {
+  if (expression_result.type() == TypeOracle::GetBoolType()) {
     GenerateBranch(expression_result, statement_labels[0], statement_labels[1]);
   } else {
-    if (expression_result.type() != GetTypeOracle().GetNeverType()) {
+    if (expression_result.type() != TypeOracle::GetNeverType()) {
       std::stringstream s;
       s << "unexpected return type " << expression_result.type()
         << " for branch expression";
@@ -1598,14 +1596,12 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
   if (destination_type == source.type()) {
     return source;
   }
-  if (GetTypeOracle().IsImplicitlyConverableFrom(destination_type,
-                                                 source.type())) {
+  if (TypeOracle::IsImplicitlyConverableFrom(destination_type, source.type())) {
     VisitResult result(source.type(), source.variable());
     Arguments args;
     args.parameters = {result};
     return GenerateOperation("convert<>", args, destination_type);
-  } else if (GetTypeOracle().IsAssignableFrom(destination_type,
-                                              source.type())) {
+  } else if (IsAssignableFrom(destination_type, source.type())) {
     return VisitResult(destination_type, source.variable());
   } else {
     std::stringstream s;
@@ -1613,7 +1609,7 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
       << " as a value of type " << destination_type;
     ReportError(s.str());
   }
-  return VisitResult(GetTypeOracle().GetVoidType(), "");
+  return VisitResult(TypeOracle::GetVoidType(), "");
 }
 
 std::string ImplementationVisitor::NewTempVariable() {

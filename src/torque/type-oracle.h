@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_TYPE_ORACLE_H_
 #define V8_TORQUE_TYPE_ORACLE_H_
 
+#include "src/torque/contextual.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/types.h"
@@ -14,65 +15,58 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-class TypeOracle {
+class TypeOracle : public ContextualClass<TypeOracle> {
  public:
   explicit TypeOracle(Declarations* declarations)
       : declarations_(declarations) {}
 
-  void RegisterImplicitConversion(const Type* to, const Type* from) {
-    implicit_conversions_.push_back(std::make_pair(to, from));
+  static void RegisterImplicitConversion(const Type* to, const Type* from) {
+    Get().implicit_conversions_.push_back(std::make_pair(to, from));
   }
 
-  const Type* GetArgumentsType() {
-    return GetBuiltinType(ARGUMENTS_TYPE_STRING);
+  static const Type* GetArgumentsType() {
+    return Get().GetBuiltinType(ARGUMENTS_TYPE_STRING);
   }
 
-  const Type* GetBoolType() { return GetBuiltinType(BOOL_TYPE_STRING); }
-
-  const Type* GetConstexprBoolType() {
-    return GetBuiltinType(CONSTEXPR_BOOL_TYPE_STRING);
+  static const Type* GetBoolType() {
+    return Get().GetBuiltinType(BOOL_TYPE_STRING);
   }
 
-  const Type* GetVoidType() { return GetBuiltinType(VOID_TYPE_STRING); }
-
-  const Type* GetObjectType() { return GetBuiltinType(OBJECT_TYPE_STRING); }
-
-  const Type* GetStringType() { return GetBuiltinType(STRING_TYPE_STRING); }
-
-  const Type* GetIntPtrType() { return GetBuiltinType(INTPTR_TYPE_STRING); }
-
-  const Type* GetNeverType() { return GetBuiltinType(NEVER_TYPE_STRING); }
-
-  const Type* GetConstInt31Type() {
-    return GetBuiltinType(CONST_INT31_TYPE_STRING);
+  static const Type* GetConstexprBoolType() {
+    return Get().GetBuiltinType(CONSTEXPR_BOOL_TYPE_STRING);
   }
 
-  bool IsAssignableFrom(const Type* to, const Type* from) {
-    if (to == from) return true;
-    if (from->IsSubtypeOf(to) && !from->IsConstexpr()) return true;
-    return IsImplicitlyConverableFrom(to, from);
+  static const Type* GetVoidType() {
+    return Get().GetBuiltinType(VOID_TYPE_STRING);
   }
 
-  bool IsImplicitlyConverableFrom(const Type* to, const Type* from) {
-    for (auto& conversion : implicit_conversions_) {
+  static const Type* GetObjectType() {
+    return Get().GetBuiltinType(OBJECT_TYPE_STRING);
+  }
+
+  static const Type* GetStringType() {
+    return Get().GetBuiltinType(STRING_TYPE_STRING);
+  }
+
+  static const Type* GetIntPtrType() {
+    return Get().GetBuiltinType(INTPTR_TYPE_STRING);
+  }
+
+  static const Type* GetNeverType() {
+    return Get().GetBuiltinType(NEVER_TYPE_STRING);
+  }
+
+  static const Type* GetConstInt31Type() {
+    return Get().GetBuiltinType(CONST_INT31_TYPE_STRING);
+  }
+
+  static bool IsImplicitlyConverableFrom(const Type* to, const Type* from) {
+    for (auto& conversion : Get().implicit_conversions_) {
       if (conversion.first == to && conversion.second == from) {
         return true;
       }
     }
     return false;
-  }
-
-  bool IsCompatibleSignature(const ParameterTypes& to, const TypeVector& from) {
-    auto i = to.types.begin();
-    for (auto current : from) {
-      if (i == to.types.end()) {
-        if (!to.var_args) return false;
-        if (!IsAssignableFrom(GetObjectType(), current)) return false;
-      } else {
-        if (!IsAssignableFrom(*i++, current)) return false;
-      }
-    }
-    return true;
   }
 
  private:

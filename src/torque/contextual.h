@@ -34,8 +34,9 @@ class ContextualVariable {
   // any older scope is destructed.
   class Scope {
    public:
-    explicit Scope(VarType x = VarType())
-        : current_(std::move(x)), previous_(top_) {
+    template <class... Args>
+    explicit Scope(Args&&... args)
+        : current_(std::forward<Args>(args)...), previous_(top_) {
       top_ = &current_;
     }
     ~Scope() {

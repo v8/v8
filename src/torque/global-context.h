@@ -56,7 +56,6 @@ class GlobalContext {
   explicit GlobalContext(Ast ast)
       : verbose_(false),
         next_label_number_(0),
-        type_oracle_(&declarations_),
         default_module_(GetModule("base")),
         ast_(std::move(ast)) {}
   Module* GetDefaultModule() { return default_module_; }
@@ -104,8 +103,6 @@ class GlobalContext {
   friend class CurrentCallableActivator;
   friend class BreakContinueActivator;
 
-  TypeOracle& GetTypeOracle() { return type_oracle_; }
-
   Callable* GetCurrentCallable() const { return current_callable_; }
   Label* GetCurrentBreak() const { return break_continue_stack_.back().first; }
   Label* GetCurrentContinue() const {
@@ -123,7 +120,6 @@ class GlobalContext {
   Declarations declarations_;
   Callable* current_callable_;
   std::vector<std::pair<Label*, Label*>> break_continue_stack_;
-  TypeOracle type_oracle_;
   std::map<std::string, std::unique_ptr<Module>> modules_;
   Module* default_module_;
   std::map<std::pair<const AstNode*, TypeVector>, std::set<const Variable*>>

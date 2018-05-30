@@ -46,8 +46,8 @@ Callable* FileVisitor::LookupCall(const std::string& name,
     result = RuntimeFunction::cast(declarable);
   } else if (declarable->IsMacroList()) {
     for (auto& m : MacroList::cast(declarable)->list()) {
-      if (GetTypeOracle().IsCompatibleSignature(m->signature().parameter_types,
-                                                parameter_types)) {
+      if (IsCompatibleSignature(m->signature().parameter_types,
+                                parameter_types)) {
         if (result != nullptr) {
           std::stringstream stream;
           stream << "multiple matching matching parameter list for macro "

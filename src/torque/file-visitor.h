@@ -62,7 +62,6 @@ class FileVisitor {
   Module* CurrentModule() const { return module_; }
 
   friend class ScopedModuleActivator;
-  TypeOracle& GetTypeOracle() { return global_context_.GetTypeOracle(); }
 
   std::string GetParameterVariableFromName(const std::string& name) {
     return std::string("p_") + name;

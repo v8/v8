@@ -101,6 +101,7 @@ int WrappedMain(int argc, const char** argv) {
 
   GlobalContext global_context(std::move(ast_generator).GetAst());
   if (verbose) global_context.SetVerbose();
+  TypeOracle::Scope type_oracle(global_context.declarations());
 
   if (output_directory.length() != 0) {
     {

@@ -151,8 +151,8 @@ void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
       ReportError(
           "implicit cast operators doesn't only have a single parameter");
     }
-    GetTypeOracle().RegisterImplicitConversion(signature.return_type,
-                                               parameter_types[0]);
+    TypeOracle::RegisterImplicitConversion(signature.return_type,
+                                           parameter_types[0]);
   }
 }
 
@@ -164,7 +164,7 @@ void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
   if (signature.parameter_types.var_args) {
     declarations()->DeclareConstant(
         decl->signature->parameters.arguments_variable,
-        GetTypeOracle().GetArgumentsType(), "arguments");
+        TypeOracle::GetArgumentsType(), "arguments");
   }
   torque_builtins_.push_back(builtin);
   Visit(body);
