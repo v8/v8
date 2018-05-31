@@ -533,9 +533,6 @@ void V8Debugger::handleProgramBreak(
       });
   {
     v8::Context::Scope scope(pausedContext);
-    v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
-    CHECK(!context.IsEmpty() &&
-          context != v8::debug::GetDebugContext(m_isolate));
     m_inspector->client()->runMessageLoopOnPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }

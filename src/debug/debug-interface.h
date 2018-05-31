@@ -34,37 +34,6 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
 /**
- * Debugger is running in its own context which is entered while debugger
- * messages are being dispatched. This is an explicit getter for this
- * debugger context. Note that the content of the debugger context is subject
- * to change. The Context exists only when the debugger is active, i.e. at
- * least one DebugEventListener or MessageHandler is set.
- */
-Local<Context> GetDebugContext(Isolate* isolate);
-
-/**
- * Run a JavaScript function in the debugger.
- * \param fun the function to call
- * \param data passed as second argument to the function
- * With this call the debugger is entered and the function specified is called
- * with the execution state as the first argument. This makes it possible to
- * get access to information otherwise not available during normal JavaScript
- * execution e.g. details on stack frames. Receiver of the function call will
- * be the debugger context global object, however this is a subject to change.
- * The following example shows a JavaScript function which when passed to
- * v8::Debug::Call will return the current line of JavaScript execution.
- *
- * \code
- *   function frame_source_line(exec_state) {
- *     return exec_state.frame(0).sourceLine();
- *   }
- * \endcode
- */
-// TODO(dcarney): data arg should be a MaybeLocal
-MaybeLocal<Value> Call(Local<Context> context, v8::Local<v8::Function> fun,
-                       Local<Value> data = Local<Value>());
-
-/**
  * Enable/disable LiveEdit functionality for the given Isolate
  * (default Isolate if not provided). V8 will abort if LiveEdit is
  * unexpectedly used. LiveEdit is enabled by default.

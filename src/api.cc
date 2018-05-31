@@ -9100,29 +9100,6 @@ v8_inspector::V8Inspector* debug::GetInspector(Isolate* isolate) {
   return reinterpret_cast<i::Isolate*>(isolate)->inspector();
 }
 
-Local<Context> debug::GetDebugContext(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
-}
-
-MaybeLocal<Value> debug::Call(Local<Context> context,
-                              v8::Local<v8::Function> fun,
-                              v8::Local<v8::Value> data) {
-  PREPARE_FOR_EXECUTION(context, Debug, Call, Value);
-  i::Handle<i::Object> data_obj;
-  if (data.IsEmpty()) {
-    data_obj = isolate->factory()->undefined_value();
-  } else {
-    data_obj = Utils::OpenHandle(*data);
-  }
-  Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
-      isolate->debug()->Call(Utils::OpenHandle(*fun), data_obj), &result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
-}
-
 void debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->set_live_edit_enabled(enable);

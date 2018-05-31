@@ -717,9 +717,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   std::vector<v8::debug::BreakLocation> v8Locations;
   {
     v8::HandleScope handleScope(m_isolate);
-    v8::Local<v8::Context> debuggerContext =
-        v8::debug::GetDebugContext(m_isolate);
-    v8::Context::Scope contextScope(debuggerContext);
+    int contextId = it->second->executionContextId();
+    InspectedContext* inspected = m_inspector->getContext(contextId);
+    if (!inspected) {
+      return Response::Error("Cannot retrive script context");
+    }
+    v8::Context::Scope contextScope(inspected->context());
     v8::MicrotasksScope microtasks(m_isolate,
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(m_isolate);
