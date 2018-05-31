@@ -10,6 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"
+#include "src/mips64/constants-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/optimized-compilation-info.h"
 
@@ -1786,7 +1787,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Ldc1(i.OutputDoubleRegister(), MemOperand(fp, offset));
         } else {
           DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
-          __ lwc1(i.OutputSingleRegister(0), MemOperand(fp, offset));
+          __ lwc1(
+              i.OutputSingleRegister(0),
+              MemOperand(fp, offset + kLessSignificantWordInDoublewordOffset));
         }
       } else {
         __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
@@ -3634,10 +3637,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
         if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
-          __ Sw(zero_reg, dst);
+          __ Sd(zero_reg, dst);
         } else {
           __ li(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
-          __ Sw(kScratchReg, dst);
+          __ Sd(kScratchReg, dst);
         }
       } else {
         DCHECK(destination->IsFPRegister());

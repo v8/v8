@@ -84,8 +84,10 @@ const uint32_t kMipsSdlOffset = 0;
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 const uint32_t kLeastSignificantByteInInt32Offset = 0;
+const uint32_t kLessSignificantWordInDoublewordOffset = 0;
 #elif defined(V8_TARGET_BIG_ENDIAN)
 const uint32_t kLeastSignificantByteInInt32Offset = 3;
+const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 #else
 #error Unknown endianness
 #endif
