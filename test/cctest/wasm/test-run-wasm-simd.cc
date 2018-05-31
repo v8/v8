@@ -1936,8 +1936,19 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Irregular) {
       {{0, 0, 0, 0, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7}});
 }
 
-// Test shuffles that concatenate the two vectors.
+// Test shuffles that blend the two vectors (elements remain in their lanes.)
+WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Blend) {
+  static const int kLanes = 16;
+  std::array<uint8_t, kLanes> expected;
+  for (int bias = 1; bias < kLanes; bias++) {
+    for (int i = 0; i < bias; i++) expected[i] = i;
+    for (int i = bias; i < kLanes; i++) expected[i] = i + kLanes;
+    RunBinaryLaneOpTest(execution_mode, lower_simd, kExprS8x16Shuffle,
+                        expected);
+  }
+}
 
+// Test shuffles that concatenate the two vectors.
 WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Concat) {
   static const int kLanes = 16;
   std::array<uint8_t, kLanes> expected;

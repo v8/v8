@@ -496,6 +496,8 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
 
+    __ pshufhw(xmm5, xmm1, 5);
+    __ pshufhw(xmm5, Operand(edx, 4), 5);
     __ pshuflw(xmm5, xmm1, 5);
     __ pshuflw(xmm5, Operand(edx, 4), 5);
     __ pshufd(xmm5, xmm1, 5);
@@ -547,6 +549,8 @@ TEST(DisasmIa320) {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      __ palignr(xmm5, xmm1, 5);
+      __ palignr(xmm5, Operand(edx, 4), 5);
     }
   }
 
@@ -672,12 +676,16 @@ TEST(DisasmIa320) {
       __ vpsraw(xmm0, xmm7, 21);
       __ vpsrad(xmm0, xmm7, 21);
 
+      __ vpshufhw(xmm5, xmm1, 5);
+      __ vpshufhw(xmm5, Operand(edx, 4), 5);
       __ vpshuflw(xmm5, xmm1, 5);
       __ vpshuflw(xmm5, Operand(edx, 4), 5);
       __ vpshufd(xmm5, xmm1, 5);
       __ vpshufd(xmm5, Operand(edx, 4), 5);
       __ vpblendw(xmm5, xmm1, xmm0, 5);
       __ vpblendw(xmm5, xmm1, Operand(edx, 4), 5);
+      __ vpalignr(xmm5, xmm1, xmm0, 5);
+      __ vpalignr(xmm5, xmm1, Operand(edx, 4), 5);
       __ vpextrb(eax, xmm0, 1);
       __ vpextrb(Operand(edx, 4), xmm0, 1);
       __ vpextrw(eax, xmm0, 1);

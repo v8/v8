@@ -1125,6 +1125,10 @@ class Assembler : public AssemblerBase {
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
 
+  void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshufhw(dst, Operand(src), shuffle);
+  }
+  void pshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     pshuflw(dst, Operand(src), shuffle);
   }
@@ -1138,6 +1142,11 @@ class Assembler : public AssemblerBase {
     pblendw(dst, Operand(src), mask);
   }
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
+
+  void palignr(XMMRegister dst, XMMRegister src, uint8_t mask) {
+    palignr(dst, Operand(src), mask);
+  }
+  void palignr(XMMRegister dst, Operand src, uint8_t mask);
 
   void pextrb(Register dst, XMMRegister src, int8_t offset) {
     pextrb(Operand(dst), src, offset);
@@ -1442,6 +1451,10 @@ class Assembler : public AssemblerBase {
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
+  void vpshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshufhw(dst, Operand(src), shuffle);
+  }
+  void vpshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     vpshuflw(dst, Operand(src), shuffle);
   }
@@ -1456,6 +1469,12 @@ class Assembler : public AssemblerBase {
     vpblendw(dst, src1, Operand(src2), mask);
   }
   void vpblendw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
+
+  void vpalignr(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                uint8_t mask) {
+    vpalignr(dst, src1, Operand(src2), mask);
+  }
+  void vpalignr(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
 
   void vpextrb(Register dst, XMMRegister src, int8_t offset) {
     vpextrb(Operand(dst), src, offset);

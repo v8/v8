@@ -621,21 +621,34 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     return true;
   }
 
-  // Tries to match 8x16 byte shuffle to an equivalent 32x4 word shuffle. If
-  // successful, it writes the 32x4 shuffle word indices.
+  // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
+  // successful, it writes the 32x4 shuffle word indices. E.g.
+  // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]
   static bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4);
 
-  // Tries to match a byte shuffle to a concatenate operation. If successful,
-  // it writes the byte offset.
+  // Tries to match an 8x16 byte shuffle to an equivalent 16x8 shuffle. If
+  // successful, it writes the 16x8 shuffle word indices. E.g.
+  // [0 1 8 9 2 3 10 11 4 5 12 13 6 7 14 15] == [0 4 1 5 2 6 3 7]
+  static bool TryMatch16x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x8);
+
+  // Tries to match a byte shuffle to a concatenate operation, formed by taking
+  // 16 bytes from the 32 byte concatenation of the inputs.  If successful, it
+  // writes the byte offset. E.g. [4 5 6 7 .. 16 17 18 19] concatenates both
+  // source vectors with offset 4.
   static bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask,
                              uint8_t* offset);
+
+  // Tries to match a byte shuffle to a blend operation, which is a shuffle
+  // where no lanes change position. E.g. [0 9 2 11 .. 14 31] interleaves the
+  // even lanes of the first source with the odd lanes of the second.
+  static bool TryMatchBlend(const uint8_t* shuffle);
 
   // Packs 4 bytes of shuffle into a 32 bit immediate, using a mask from
   // CanonicalizeShuffle to convert unary shuffles.
   static int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask);
 
   // Canonicalize shuffles to make pattern matching simpler. Returns a mask that
-  // will ignore the high bit of indices if shuffle is unary.
+  // will clear the high bit of indices if shuffle is unary (a swizzle).
   uint8_t CanonicalizeShuffle(Node* node);
 
   // ===========================================================================

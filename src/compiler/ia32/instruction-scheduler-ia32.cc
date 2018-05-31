@@ -284,6 +284,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS128Select:
     case kIA32S8x16Shuffle:
     case kIA32S32x4Swizzle:
+    case kIA32S32x4Shuffle:
+    case kSSES16x8Blend:
+    case kAVXS16x8Blend:
+    case kIA32S16x8ShuffleBlend:
+    case kSSES8x16Alignr:
+    case kAVXS8x16Alignr:
     case kIA32S1x4AnyTrue:
     case kIA32S1x4AllTrue:
     case kIA32S1x8AnyTrue:

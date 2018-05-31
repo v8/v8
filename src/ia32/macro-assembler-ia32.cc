@@ -1269,6 +1269,15 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
+void TurboAssembler::Pshufhw(XMMRegister dst, Operand src, uint8_t shuffle) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpshufhw(dst, src, shuffle);
+  } else {
+    pshufhw(dst, src, shuffle);
+  }
+}
+
 void TurboAssembler::Pshuflw(XMMRegister dst, Operand src, uint8_t shuffle) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -1352,6 +1361,20 @@ void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(SSSE3)) {
     CpuFeatureScope sse_scope(this, SSSE3);
     pshufb(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpblendw(dst, dst, src, imm8);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pblendw(dst, src, imm8);
     return;
   }
   UNREACHABLE();

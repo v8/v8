@@ -205,6 +205,10 @@ class TurboAssembler : public Assembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
+  void Pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    Pshufhw(dst, Operand(src), shuffle);
+  }
+  void Pshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void Pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshuflw(dst, Operand(src), shuffle);
   }
@@ -275,6 +279,10 @@ class TurboAssembler : public Assembler {
 
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
   void Pshufb(XMMRegister dst, Operand src);
+  void Pblendw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+    Pblendw(dst, Operand(src), imm8);
+  }
+  void Pblendw(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Psignb(XMMRegister dst, XMMRegister src) { Psignb(dst, Operand(src)); }
   void Psignb(XMMRegister dst, Operand src);

@@ -830,6 +830,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(current));
         current++;
         break;
+      case 0x0F:
+        AppendToBuffer("vpalignr %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(current));
+        current++;
+        break;
       case 0x14:
         AppendToBuffer("vpextrb ");
         current += PrintRightOperand(current);
@@ -974,6 +981,12 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
       case 0x6f:
         AppendToBuffer("vmovdqu %s,", NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
+        break;
+      case 0x70:
+        AppendToBuffer("vpshufhw %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        current++;
         break;
       case 0x7f:
         AppendToBuffer("vmovdqu ");
@@ -1979,6 +1992,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               data += PrintRightXMMOperand(data);
               AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(data));
               data++;
+            } else if (*data == 0x0F) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
+              data += PrintRightXMMOperand(data);
+              AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(data));
+              data++;
             } else if (*data == 0x14) {
               data++;
               int mod, regop, rm;
@@ -2397,6 +2418,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("movdqu %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
+          } else if (b2 == 0x70) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("pshufhw %s,", NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
+            AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+            data++;
           } else if (b2 == 0x7F) {
             AppendToBuffer("movdqu ");
             data += 3;
