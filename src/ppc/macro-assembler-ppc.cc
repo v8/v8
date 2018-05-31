@@ -1430,9 +1430,9 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
 
   LoadP(temp_reg, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
-  LoadWordArith(expected_reg,
-                FieldMemOperand(
-                    temp_reg, SharedFunctionInfo::kFormalParameterCountOffset));
+  LoadHalfWord(expected_reg,
+               FieldMemOperand(
+                   temp_reg, SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount expected(expected_reg);
   InvokeFunctionCode(fun, new_target, expected, actual, flag);
@@ -2731,6 +2731,7 @@ void MacroAssembler::LoadHalfWord(Register dst, const MemOperand& mem,
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
+    DCHECK_NE(scratch, no_reg);
     LoadIntLiteral(scratch, offset);
     lhzx(dst, MemOperand(base, scratch));
   } else {

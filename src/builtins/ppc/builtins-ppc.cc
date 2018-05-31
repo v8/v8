@@ -502,7 +502,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Copy the function arguments from the generator object's register file.
   __ LoadP(r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadWordArith(
+  __ LoadHalfWord(
       r6, FieldMemOperand(r6, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadP(r5, FieldMemOperand(
                    r4, JSGeneratorObject::kParametersAndRegistersOffset));
@@ -2047,7 +2047,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   {
     __ LoadP(r8, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     __ LoadP(r8, FieldMemOperand(r8, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadWordArith(
+    __ LoadHalfWord(
         r8,
         FieldMemOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
     __ mr(r7, fp);
@@ -2184,7 +2184,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-  __ LoadWordArith(
+  __ LoadHalfWord(
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(r3);
   ParameterCount expected(r5);
@@ -2512,10 +2512,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label invoke, dont_adapt_arguments, stack_overflow;
 
   Label enough, too_few;
+  __ cmpli(r5, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ beq(&dont_adapt_arguments);
   __ cmp(r3, r5);
   __ blt(&too_few);
-  __ cmpi(r5, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
-  __ beq(&dont_adapt_arguments);
 
   {  // Enough parameters: actual >= expected
     __ bind(&enough);

@@ -797,7 +797,8 @@ class MacroAssembler : public TurboAssembler {
   void LoadWord(Register dst, const MemOperand& mem, Register scratch);
   void StoreWord(Register src, const MemOperand& mem, Register scratch);
 
-  void LoadHalfWord(Register dst, const MemOperand& mem, Register scratch);
+  void LoadHalfWord(Register dst, const MemOperand& mem,
+                    Register scratch = no_reg);
   void LoadHalfWordArith(Register dst, const MemOperand& mem,
                          Register scratch = no_reg);
   void StoreHalfWord(Register src, const MemOperand& mem, Register scratch);

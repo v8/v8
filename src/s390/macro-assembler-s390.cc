@@ -1293,8 +1293,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // passed in registers.
 
   // ARM has some sanity checks as per below, considering add them for S390
-  //  DCHECK(actual.is_immediate() || actual.reg() == r2);
-  //  DCHECK(expected.is_immediate() || expected.reg() == r4);
+  DCHECK(actual.is_immediate() || actual.reg() == r2);
+  DCHECK(expected.is_immediate() || expected.reg() == r4);
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -1444,9 +1444,10 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   Register temp_reg = r6;
   LoadP(temp_reg, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
   LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
-  LoadW(expected_reg,
-        FieldMemOperand(temp_reg,
-                        SharedFunctionInfo::kFormalParameterCountOffset));
+  LoadLogicalHalfWordP(
+      expected_reg,
+      FieldMemOperand(temp_reg,
+                      SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount expected(expected_reg);
   InvokeFunctionCode(fun, new_target, expected, actual, flag);
