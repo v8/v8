@@ -4,6 +4,7 @@ Tests Runtime.evaluate with unserializable results.
     id : <messageId>
     result : {
         result : {
+            description : -0
             type : number
             unserializableValue : -0
         }
@@ -14,6 +15,7 @@ NaN
     id : <messageId>
     result : {
         result : {
+            description : NaN
             type : number
             unserializableValue : NaN
         }
@@ -24,6 +26,7 @@ Infinity
     id : <messageId>
     result : {
         result : {
+            description : Infinity
             type : number
             unserializableValue : Infinity
         }
@@ -34,6 +37,7 @@ Infinity
     id : <messageId>
     result : {
         result : {
+            description : -Infinity
             type : number
             unserializableValue : -Infinity
         }

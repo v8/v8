@@ -114,6 +114,7 @@ Running test: testFunctionReturnNotPromise
     id : <messageId>
     result : {
         result : {
+            description : 239
             type : number
             value : 239
         }
@@ -188,6 +189,7 @@ Running test: testEvaluateOnExecutionContext
     id : <messageId>
     result : {
         result : {
+            description : 70
             type : number
             value : 70
         }

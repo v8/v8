@@ -9,6 +9,7 @@ expression: (function* foo() { yield 1 })
             [0] : {
                 name : [[FunctionLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -48,6 +49,7 @@ expression: (function foo() {})
             [0] : {
                 name : [[FunctionLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -80,6 +82,7 @@ expression: new Number(239)
             [0] : {
                 name : [[PrimitiveValue]]
                 value : {
+                    description : 239
                     type : number
                     value : 239
                 }
@@ -166,6 +169,7 @@ expression: Promise.resolve(42)
             [1] : {
                 name : [[PromiseValue]]
                 value : {
+                    description : 42
                     type : number
                     value : 42
                 }
@@ -229,6 +233,7 @@ expression: gen1
             [3] : {
                 name : [[GeneratorLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -284,6 +289,7 @@ expression: gen1.next();gen1
             [3] : {
                 name : [[GeneratorLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -339,6 +345,7 @@ expression: gen1.next();gen1
             [3] : {
                 name : [[GeneratorLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -386,6 +393,7 @@ expression: gen2
             [3] : {
                 name : [[GeneratorLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -441,6 +449,7 @@ expression: gen2.next();gen2
             [3] : {
                 name : [[GeneratorLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -496,6 +505,7 @@ expression: gen2.next();gen2
             [3] : {
                 name : [[GeneratorLocation]]
                 value : {
+                    description : Object
                     subtype : internal#location
                     type : object
                     value : {
@@ -525,6 +535,7 @@ expression: (new Map([[1,2]])).entries()
             [1] : {
                 name : [[IteratorIndex]]
                 value : {
+                    description : 0
                     type : number
                     value : 0
                 }
@@ -564,6 +575,7 @@ expression: (new Set([[1,2]])).entries()
             [1] : {
                 name : [[IteratorIndex]]
                 value : {
+                    description : 0
                     type : number
                     value : 0
                 }

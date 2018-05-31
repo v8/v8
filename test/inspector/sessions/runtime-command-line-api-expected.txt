@@ -5,6 +5,7 @@ Evaluating $0 in 1
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -25,6 +26,7 @@ Evaluating $0 in 1
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -35,6 +37,7 @@ Evaluating $0 in 2
     id : <messageId>
     result : {
         result : {
+            description : 17
             type : number
             value : 17
         }
@@ -46,6 +49,7 @@ Evaluating $_ in 1
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -66,6 +70,7 @@ Evaluating $_ in 1
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -76,6 +81,7 @@ Evaluating $_ in 2
     id : <messageId>
     result : {
         result : {
+            description : 17
             type : number
             value : 17
         }
@@ -89,6 +95,7 @@ inspectRequested from 1
         hints : {
         }
         object : {
+            description : 42
             type : number
             value : 42
         }
@@ -102,6 +109,7 @@ inspectRequested from 1
         hints : {
         }
         object : {
+            description : 42
             type : number
             value : 42
         }
@@ -115,6 +123,7 @@ inspectRequested from 2
         hints : {
         }
         object : {
+            description : 17
             type : number
             value : 17
         }
@@ -128,6 +137,7 @@ inspectRequested from 2
         hints : {
         }
         object : {
+            description : 17
             type : number
             value : 17
         }
@@ -141,6 +151,7 @@ inspectRequested from 1
         hints : {
         }
         object : {
+            description : 42
             type : number
             value : 42
         }
@@ -152,6 +163,7 @@ Evaluating $0 in 2
     id : <messageId>
     result : {
         result : {
+            description : 17
             type : number
             value : 17
         }
@@ -162,6 +174,7 @@ Evaluating $_ in 2
     id : <messageId>
     result : {
         result : {
+            description : 17
             type : number
             value : 17
         }
@@ -175,6 +188,7 @@ inspectRequested from 2
         hints : {
         }
         object : {
+            description : 17
             type : number
             value : 17
         }
@@ -189,6 +203,7 @@ inspectRequested from 2
         hints : {
         }
         object : {
+            description : 17
             type : number
             value : 17
         }

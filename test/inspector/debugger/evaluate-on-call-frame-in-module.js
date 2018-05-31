@@ -133,7 +133,7 @@ async function checkFrame(frame, i) {
         objectId: scopeChain.object.objectId});
     result.forEach(v => variables.add(v.name));
     result = result.map(v => v.value  ?
-       (v.name + ' = ' + (v.value.description || v.value.value + '')) : (v.name));
+       (v.name + ' = ' + v.value.description) : (v.name));
     InspectorTest.logMessage(result);
   }
 

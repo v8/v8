@@ -4,6 +4,7 @@ Tests that microtasks run before the Runtime.evaluate response is sent
     params : {
         args : [
             [0] : {
+                description : 42
                 type : number
                 value : 42
             }

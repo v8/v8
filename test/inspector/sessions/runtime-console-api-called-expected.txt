@@ -6,6 +6,7 @@ From session 1
     params : {
         args : [
             [0] : {
+                description : 1
                 type : number
                 value : 1
             }
@@ -32,6 +33,7 @@ From session 2
     params : {
         args : [
             [0] : {
+                description : 1
                 type : number
                 value : 1
             }
@@ -59,6 +61,7 @@ From session 1
     params : {
         args : [
             [0] : {
+                description : 2
                 type : number
                 value : 2
             }
@@ -85,6 +88,7 @@ From session 2
     params : {
         args : [
             [0] : {
+                description : 2
                 type : number
                 value : 2
             }

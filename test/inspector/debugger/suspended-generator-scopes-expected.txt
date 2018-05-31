@@ -8,6 +8,7 @@ Running test: testScopesPaused
         isOwn : true
         name : a
         value : {
+            description : 420
             type : number
             value : 420
         }
@@ -19,6 +20,7 @@ Running test: testScopesPaused
         isOwn : true
         name : b
         value : {
+            description : 42
             type : number
             value : 42
         }
@@ -34,6 +36,7 @@ Running test: testScopesNonPaused
         isOwn : true
         name : a
         value : {
+            description : 430
             type : number
             value : 430
         }

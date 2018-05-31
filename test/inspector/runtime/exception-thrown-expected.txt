@@ -88,6 +88,7 @@ Check that exceptionThrown is supported by test runner.
         exceptionDetails : {
             columnNumber : 2
             exception : {
+                description : 239
                 type : number
                 value : 239
             }

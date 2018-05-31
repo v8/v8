@@ -25,6 +25,7 @@ Running test: testWithMemory
     id : <messageId>
     result : {
         result : {
+            description : 239
             type : number
             value : 239
         }
@@ -36,6 +37,7 @@ Running test: testSetterDoesntOverride
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }

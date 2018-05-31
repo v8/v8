@@ -4,6 +4,7 @@ Tests that CommandLineAPI is presented only while evaluation.
     id : <messageId>
     result : {
         result : {
+            description : 15
             type : number
             value : 15
         }
@@ -13,6 +14,7 @@ Tests that CommandLineAPI is presented only while evaluation.
     id : <messageId>
     result : {
         result : {
+            description : 0
             type : number
             value : 0
         }
@@ -23,6 +25,7 @@ setPropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 14
             type : number
             value : 14
         }
@@ -32,6 +35,7 @@ setPropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 0
             type : number
             value : 0
         }
@@ -41,6 +45,7 @@ setPropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -51,6 +56,7 @@ defineValuePropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 14
             type : number
             value : 14
         }
@@ -60,6 +66,7 @@ defineValuePropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 0
             type : number
             value : 0
         }
@@ -69,6 +76,7 @@ defineValuePropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -79,6 +87,7 @@ definePropertiesForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 14
             type : number
             value : 14
         }
@@ -88,6 +97,7 @@ definePropertiesForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 0
             type : number
             value : 0
         }
@@ -97,6 +107,7 @@ definePropertiesForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -107,6 +118,7 @@ defineAccessorPropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 14
             type : number
             value : 14
         }
@@ -116,6 +128,7 @@ defineAccessorPropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 0
             type : number
             value : 0
         }
@@ -125,6 +138,7 @@ defineAccessorPropertyForMethod()
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
@@ -135,6 +149,7 @@ redefineGetOwnPropertyDescriptors()
     id : <messageId>
     result : {
         result : {
+            description : 14
             type : number
             value : 14
         }
@@ -144,6 +159,7 @@ redefineGetOwnPropertyDescriptors()
     id : <messageId>
     result : {
         result : {
+            description : 0
             type : number
             value : 0
         }
@@ -153,6 +169,7 @@ redefineGetOwnPropertyDescriptors()
     id : <messageId>
     result : {
         result : {
+            description : 42
             type : number
             value : 42
         }
