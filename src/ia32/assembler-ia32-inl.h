@@ -97,7 +97,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return Handle<HeapObject>::cast(Memory::Object_Handle_at(pc_));
 }
 
-void RelocInfo::set_target_object(HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -106,9 +106,8 @@ void RelocInfo::set_target_object(HeapObject* target,
     Assembler::FlushICache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target);
+    heap->RecordWriteIntoCode(host(), this, target);
+    heap->incremental_marking()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

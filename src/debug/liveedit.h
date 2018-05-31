@@ -103,7 +103,8 @@ class LiveEdit : AllStatic {
 
   // In a code of a parent function replaces original function as embedded
   // object with a substitution one.
-  static void ReplaceRefToNestedFunction(Handle<JSValue> parent_function_shared,
+  static void ReplaceRefToNestedFunction(Heap* heap,
+                                         Handle<JSValue> parent_function_shared,
                                          Handle<JSValue> orig_function_shared,
                                          Handle<JSValue> subst_function_shared);
 

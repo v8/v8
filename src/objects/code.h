@@ -73,7 +73,7 @@ class Code : public HeapObject {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
-  void InvalidateEmbeddedObjects();
+  void InvalidateEmbeddedObjects(Heap* heap);
 
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
@@ -304,10 +304,10 @@ class Code : public HeapObject {
   void Relocate(intptr_t delta);
 
   // Migrate code described by desc.
-  void CopyFrom(const CodeDesc& desc);
+  void CopyFrom(Heap* heap, const CodeDesc& desc);
 
   // Migrate code from desc without flushing the instruction cache.
-  void CopyFromNoFlush(const CodeDesc& desc);
+  void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
 
   // Flushes the instruction cache for the executable instructions of this code
   // object.

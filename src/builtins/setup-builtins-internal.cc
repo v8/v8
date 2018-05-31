@@ -201,8 +201,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         if (!target->is_builtin()) continue;
         Code* new_target =
             Code::cast(builtins->builtins_[target->builtin_index()]);
-        rinfo->set_target_object(new_target, UPDATE_WRITE_BARRIER,
-                                 SKIP_ICACHE_FLUSH);
+        rinfo->set_target_object(isolate->heap(), new_target,
+                                 UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }

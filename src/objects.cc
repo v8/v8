@@ -14002,13 +14002,13 @@ void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
   }
 }
 
-void Code::InvalidateEmbeddedObjects() {
-  HeapObject* undefined = GetHeap()->undefined_value();
+void Code::InvalidateEmbeddedObjects(Heap* heap) {
+  HeapObject* undefined = heap->undefined_value();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
-      it.rinfo()->set_target_object(undefined, SKIP_WRITE_BARRIER);
+      it.rinfo()->set_target_object(heap, undefined, SKIP_WRITE_BARRIER);
     }
   }
 }
@@ -14025,12 +14025,12 @@ void Code::FlushICache() const {
   Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
-void Code::CopyFrom(const CodeDesc& desc) {
-  CopyFromNoFlush(desc);
+void Code::CopyFrom(Heap* heap, const CodeDesc& desc) {
+  CopyFromNoFlush(heap, desc);
   FlushICache();
 }
 
-void Code::CopyFromNoFlush(const CodeDesc& desc) {
+void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // copy code
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
@@ -14061,7 +14061,7 @@ void Code::CopyFromNoFlush(const CodeDesc& desc) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(*p, UPDATE_WRITE_BARRIER,
+      it.rinfo()->set_target_object(heap, *p, UPDATE_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles to direct pointers to the first instruction in the

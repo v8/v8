@@ -184,8 +184,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceRefToNestedFunction) {
   CHECK(orig_wrapper->value()->IsSharedFunctionInfo());
   CHECK(subst_wrapper->value()->IsSharedFunctionInfo());
 
-  LiveEdit::ReplaceRefToNestedFunction(parent_wrapper, orig_wrapper,
-                                       subst_wrapper);
+  LiveEdit::ReplaceRefToNestedFunction(isolate->heap(), parent_wrapper,
+                                       orig_wrapper, subst_wrapper);
   return isolate->heap()->undefined_value();
 }
 

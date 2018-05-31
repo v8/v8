@@ -1052,13 +1052,10 @@ Handle<Object> LiveEdit::ChangeScriptSource(Handle<Script> original_script,
   return old_script_object;
 }
 
-
-
 void LiveEdit::ReplaceRefToNestedFunction(
-    Handle<JSValue> parent_function_wrapper,
+    Heap* heap, Handle<JSValue> parent_function_wrapper,
     Handle<JSValue> orig_function_wrapper,
     Handle<JSValue> subst_function_wrapper) {
-
   Handle<SharedFunctionInfo> parent_shared =
       UnwrapSharedFunctionInfoFromJSValue(parent_function_wrapper);
   Handle<SharedFunctionInfo> orig_shared =
@@ -1069,7 +1066,7 @@ void LiveEdit::ReplaceRefToNestedFunction(
   for (RelocIterator it(parent_shared->GetCode()); !it.done(); it.next()) {
     if (it.rinfo()->rmode() == RelocInfo::EMBEDDED_OBJECT) {
       if (it.rinfo()->target_object() == *orig_shared) {
-        it.rinfo()->set_target_object(*subst_shared);
+        it.rinfo()->set_target_object(heap, *subst_shared);
       }
     }
   }

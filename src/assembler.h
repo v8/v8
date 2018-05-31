@@ -524,7 +524,7 @@ class RelocInfo {
   INLINE(HeapObject* target_object());
   INLINE(Handle<HeapObject> target_object_handle(Assembler* origin));
   INLINE(void set_target_object(
-      HeapObject* target,
+      Heap* heap, HeapObject* target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));

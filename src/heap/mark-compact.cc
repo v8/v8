@@ -1695,7 +1695,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
     if (!non_atomic_marking_state()->IsBlackOrGrey(object) &&
         !code->marked_for_deoptimization()) {
       code->SetMarkedForDeoptimization("weak objects");
-      code->InvalidateEmbeddedObjects();
+      code->InvalidateEmbeddedObjects(heap_);
       have_code_to_deoptimize_ = true;
     }
   }
@@ -2068,6 +2068,8 @@ static inline SlotCallbackResult UpdateStrongSlot(MaybeObject** maybe_slot) {
 // nevers visits code objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
+  explicit PointersUpdatingVisitor(Heap* heap) : heap_(heap) {}
+
   void VisitPointer(HeapObject* host, Object** p) override {
     UpdateStrongSlotInternal(p);
   }
@@ -2101,7 +2103,7 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateEmbeddedPointer(
-        rinfo, UpdateStrongMaybeObjectSlotInternal);
+        heap_, rinfo, UpdateStrongMaybeObjectSlotInternal);
   }
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
@@ -2126,6 +2128,8 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   static inline SlotCallbackResult UpdateSlotInternal(MaybeObject** slot) {
     return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
   }
+
+  Heap* heap_;
 };
 
 static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
@@ -2723,7 +2727,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   void ProcessVisitAll() {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "ToSpaceUpdatingItem::ProcessVisitAll");
-    PointersUpdatingVisitor visitor;
+    PointersUpdatingVisitor visitor(chunk_->heap());
     for (Address cur = start_; cur < end_;) {
       HeapObject* object = HeapObject::FromAddress(cur);
       Map* map = object->map();
@@ -2738,7 +2742,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
                  "ToSpaceUpdatingItem::ProcessVisitLive");
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
-    PointersUpdatingVisitor visitor;
+    PointersUpdatingVisitor visitor(chunk_->heap());
     for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              chunk_, marking_state_->bitmap(chunk_))) {
       object_and_size.first->IterateBodyFast(&visitor);
@@ -2861,7 +2865,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk_, [this](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                slot_type, slot, [this](MaybeObject** slot) {
+                heap_, slot_type, slot, [this](MaybeObject** slot) {
                   return CheckAndUpdateOldToNewSlot(
                       reinterpret_cast<Address>(slot));
                 });
@@ -2872,11 +2876,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
          nullptr)) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk_, [](SlotType slot_type, Address host_addr, Address slot) {
+          chunk_, [this](SlotType slot_type, Address host_addr, Address slot) {
             // Using UpdateStrongSlot is OK here, because there are no weak
             // typed slots.
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                slot_type, slot, UpdateStrongSlot<AccessMode::NON_ATOMIC>);
+                heap_, slot_type, slot,
+                UpdateStrongSlot<AccessMode::NON_ATOMIC>);
           });
     }
   }
@@ -2901,19 +2906,23 @@ UpdatingItem* MarkCompactCollector::CreateRememberedSetUpdatingItem(
 
 class GlobalHandlesUpdatingItem : public UpdatingItem {
  public:
-  GlobalHandlesUpdatingItem(GlobalHandles* global_handles, size_t start,
-                            size_t end)
-      : global_handles_(global_handles), start_(start), end_(end) {}
+  GlobalHandlesUpdatingItem(Heap* heap, GlobalHandles* global_handles,
+                            size_t start, size_t end)
+      : heap_(heap),
+        global_handles_(global_handles),
+        start_(start),
+        end_(end) {}
   virtual ~GlobalHandlesUpdatingItem() {}
 
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "GlobalHandlesUpdatingItem::Process");
-    PointersUpdatingVisitor updating_visitor;
+    PointersUpdatingVisitor updating_visitor(heap_);
     global_handles_->IterateNewSpaceRoots(&updating_visitor, start_, end_);
   }
 
  private:
+  Heap* heap_;
   GlobalHandles* global_handles_;
   size_t start_;
   size_t end_;
@@ -3038,7 +3047,7 @@ int MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor;
+  PointersUpdatingVisitor updating_visitor(heap());
 
   {
     TRACE_GC(heap()->tracer(),
@@ -3383,7 +3392,8 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 #endif  // VERIFY_HEAP
 
 template <class ParallelItem>
-void SeedGlobalHandles(GlobalHandles* global_handles, ItemParallelJob* job) {
+void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
+                       ItemParallelJob* job) {
   // Create batches of global handles.
   const size_t kGlobalHandlesBufferSize = 1000;
   const size_t new_space_nodes = global_handles->NumberOfNewSpaceNodes();
@@ -3391,7 +3401,7 @@ void SeedGlobalHandles(GlobalHandles* global_handles, ItemParallelJob* job) {
        start += kGlobalHandlesBufferSize) {
     size_t end = start + kGlobalHandlesBufferSize;
     if (end > new_space_nodes) end = new_space_nodes;
-    job->AddItem(new ParallelItem(global_handles, start, end));
+    job->AddItem(new ParallelItem(heap, global_handles, start, end));
   }
 }
 
@@ -3565,14 +3575,14 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor;
+  PointersUpdatingVisitor updating_visitor(heap());
   ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                &page_parallel_job_semaphore_);
 
   CollectNewSpaceArrayBufferTrackerItems(&updating_job);
   // Create batches of global handles.
-  SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
-                                               &updating_job);
+  SeedGlobalHandles<GlobalHandlesUpdatingItem>(
+      heap(), isolate()->global_handles(), &updating_job);
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
   int remembered_set_pages = 0;
   remembered_set_pages += CollectRememberedSetUpdatingItems(
@@ -3989,7 +3999,7 @@ class PageMarkingItem : public MarkingItem {
         chunk_,
         [this, task](SlotType slot_type, Address host_addr, Address slot) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              slot_type, slot, [this, task](MaybeObject** slot) {
+              heap(), slot_type, slot, [this, task](MaybeObject** slot) {
                 return CheckAndMarkObject(task,
                                           reinterpret_cast<Address>(slot));
               });
@@ -4021,8 +4031,8 @@ class PageMarkingItem : public MarkingItem {
 
 class GlobalHandlesMarkingItem : public MarkingItem {
  public:
-  GlobalHandlesMarkingItem(GlobalHandles* global_handles, size_t start,
-                           size_t end)
+  GlobalHandlesMarkingItem(Heap* heap, GlobalHandles* global_handles,
+                           size_t start, size_t end)
       : global_handles_(global_handles), start_(start), end_(end) {}
   virtual ~GlobalHandlesMarkingItem() {}
 
@@ -4076,8 +4086,8 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
       heap()->IterateRoots(root_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
       // Create batches of global handles.
-      SeedGlobalHandles<GlobalHandlesMarkingItem>(isolate()->global_handles(),
-                                                  &job);
+      SeedGlobalHandles<GlobalHandlesMarkingItem>(
+          heap(), isolate()->global_handles(), &job);
       // Create items for each page.
       RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
           heap(), [&job, &slots](MemoryChunk* chunk) {

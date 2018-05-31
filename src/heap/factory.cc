@@ -50,9 +50,9 @@ int ComputeCodeObjectSize(const CodeDesc& desc) {
   return object_size;
 }
 
-void InitializeCode(Handle<Code> code, int object_size, const CodeDesc& desc,
-                    Code::Kind kind, Handle<Object> self_ref,
-                    int32_t builtin_index,
+void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
+                    const CodeDesc& desc, Code::Kind kind,
+                    Handle<Object> self_ref, int32_t builtin_index,
                     Handle<ByteArray> source_position_table,
                     Handle<DeoptimizationData> deopt_data,
                     Handle<ByteArray> reloc_info,
@@ -97,7 +97,7 @@ void InitializeCode(Handle<Code> code, int object_size, const CodeDesc& desc,
   // that are dereferenced during the copy to point directly to the actual heap
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
-  code->CopyFromNoFlush(desc);
+  code->CopyFromNoFlush(heap, desc);
 
   code->clear_padding();
 
@@ -2494,7 +2494,7 @@ MaybeHandle<Code> Factory::TryNewCode(
     result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
     code = handle(Code::cast(result), isolate());
 
-    InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
+    InitializeCode(heap, code, object_size, desc, kind, self_ref, builtin_index,
                    source_position_table, deopt_data, reloc_info,
                    data_container, stub_key, is_turbofanned, stack_slots,
                    safepoint_table_offset, handler_table_offset);
@@ -2542,7 +2542,7 @@ Handle<Code> Factory::NewCode(
     result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
     code = handle(Code::cast(result), isolate());
 
-    InitializeCode(code, object_size, desc, kind, self_ref, builtin_index,
+    InitializeCode(heap, code, object_size, desc, kind, self_ref, builtin_index,
                    source_position_table, deopt_data, reloc_info,
                    data_container, stub_key, is_turbofanned, stack_slots,
                    safepoint_table_offset, handler_table_offset);
