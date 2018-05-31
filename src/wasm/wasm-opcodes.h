@@ -376,24 +376,30 @@ using WasmName = Vector<const char>;
   V(S1x16AnyTrue, 0xfd90, i_s)           \
   V(S1x16AllTrue, 0xfd91, i_s)
 
-#define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
-  V(F32x4ExtractLane, 0xfd01, _)         \
-  V(F32x4ReplaceLane, 0xfd02, _)         \
-  V(I32x4ExtractLane, 0xfd1c, _)         \
-  V(I32x4ReplaceLane, 0xfd1d, _)         \
-  V(I32x4Shl, 0xfd24, _)                 \
-  V(I32x4ShrS, 0xfd25, _)                \
-  V(I32x4ShrU, 0xfd32, _)                \
-  V(I16x8ExtractLane, 0xfd39, _)         \
-  V(I16x8ReplaceLane, 0xfd3a, _)         \
-  V(I16x8Shl, 0xfd43, _)                 \
-  V(I16x8ShrS, 0xfd44, _)                \
-  V(I16x8ShrU, 0xfd52, _)                \
-  V(I8x16ExtractLane, 0xfd58, _)         \
-  V(I8x16ReplaceLane, 0xfd59, _)         \
-  V(I8x16Shl, 0xfd62, _)                 \
-  V(I8x16ShrS, 0xfd63, _)                \
+#define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
+  V(F32x4ExtractLane, 0xfd01, _)                 \
+  V(I32x4ExtractLane, 0xfd1c, _)                 \
+  V(I32x4Shl, 0xfd24, _)                         \
+  V(I32x4ShrS, 0xfd25, _)                        \
+  V(I32x4ShrU, 0xfd32, _)                        \
+  V(I16x8ExtractLane, 0xfd39, _)                 \
+  V(I16x8Shl, 0xfd43, _)                         \
+  V(I16x8ShrS, 0xfd44, _)                        \
+  V(I16x8ShrU, 0xfd52, _)                        \
+  V(I8x16ExtractLane, 0xfd58, _)                 \
+  V(I8x16Shl, 0xfd62, _)                         \
+  V(I8x16ShrS, 0xfd63, _)                        \
   V(I8x16ShrU, 0xfd71, _)
+
+#define FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V) \
+  V(F32x4ReplaceLane, 0xfd02, _)                 \
+  V(I32x4ReplaceLane, 0xfd1d, _)                 \
+  V(I16x8ReplaceLane, 0xfd3a, _)                 \
+  V(I8x16ReplaceLane, 0xfd59, _)
+
+#define FOREACH_SIMD_1_OPERAND_OPCODE(V)   \
+  FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
+  FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd6b, s_ss)
 

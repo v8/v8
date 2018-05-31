@@ -436,7 +436,7 @@ WASM_SIMD_TEST(F32x4Splat) {
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4ReplaceLane) {
+WASM_SIMD_TEST(F32x4ReplaceLane) {
   WasmRunner<int32_t, float, float> r(execution_mode, lower_simd);
   byte old_val = 0;
   byte new_val = 1;
@@ -643,7 +643,7 @@ WASM_SIMD_TEST(I32x4Splat) {
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ReplaceLane) {
+WASM_SIMD_TEST(I32x4ReplaceLane) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
   byte old_val = 0;
   byte new_val = 1;
@@ -680,7 +680,7 @@ WASM_SIMD_TEST(I16x8Splat) {
   FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8ReplaceLane) {
+WASM_SIMD_TEST(I16x8ReplaceLane) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
   byte old_val = 0;
   byte new_val = 1;
@@ -740,7 +740,7 @@ WASM_SIMD_TEST(I8x16Splat) {
   FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16ReplaceLane) {
+WASM_SIMD_TEST(I8x16ReplaceLane) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
   byte old_val = 0;
   byte new_val = 1;
@@ -2044,7 +2044,7 @@ WASM_SIMD_BOOL_REDUCTION_TEST(32x4, 4)
 WASM_SIMD_BOOL_REDUCTION_TEST(16x8, 8)
 WASM_SIMD_BOOL_REDUCTION_TEST(8x16, 16)
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4ExtractWithF32x4) {
+WASM_SIMD_TEST(SimdI32x4ExtractWithF32x4) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   BUILD(r, WASM_IF_ELSE_I(
                WASM_I32_EQ(WASM_SIMD_I32x4_EXTRACT_LANE(
@@ -2056,7 +2056,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4ExtractWithF32x4) {
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4ExtractWithI32x4) {
+WASM_SIMD_TEST(SimdF32x4ExtractWithI32x4) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   BUILD(r,
         WASM_IF_ELSE_I(WASM_F32_EQ(WASM_SIMD_F32x4_EXTRACT_LANE(
@@ -2100,7 +2100,7 @@ WASM_SIMD_TEST(SimdI32x4AddWithF32x4) {
   CHECK_EQ(1, r.Call());
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4Local) {
+WASM_SIMD_TEST(SimdI32x4Local) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
@@ -2109,7 +2109,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4Local) {
   CHECK_EQ(31, r.Call());
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4SplatFromExtract) {
+WASM_SIMD_TEST(SimdI32x4SplatFromExtract) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmS128);
@@ -2120,7 +2120,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4SplatFromExtract) {
   CHECK_EQ(76, r.Call());
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4For) {
+WASM_SIMD_TEST(SimdI32x4For) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmS128);
@@ -2154,7 +2154,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4For) {
   CHECK_EQ(1, r.Call());
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4For) {
+WASM_SIMD_TEST(SimdF32x4For) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmS128);
@@ -2203,7 +2203,7 @@ const T& GetScalar(T* v, int lane) {
   return v[index];
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4GetGlobal) {
+WASM_SIMD_TEST(SimdI32x4GetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_mode, lower_simd);
   // Pad the globals with a few unused slots to get a non-zero offset.
   r.builder().AddGlobal<int32_t>(kWasmI32);  // purposefully unused
@@ -2231,7 +2231,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4GetGlobal) {
   CHECK_EQ(1, r.Call(0));
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4SetGlobal) {
+WASM_SIMD_TEST(SimdI32x4SetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_mode, lower_simd);
   // Pad the globals with a few unused slots to get a non-zero offset.
   r.builder().AddGlobal<int32_t>(kWasmI32);  // purposefully unused
@@ -2254,7 +2254,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdI32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 56);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4GetGlobal) {
+WASM_SIMD_TEST(SimdF32x4GetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_mode, lower_simd);
   float* global = r.builder().AddGlobal<float>(kWasmS128);
   SetVectorByLanes<float>(global, {{0.0, 1.5, 2.25, 3.5}});
@@ -2277,7 +2277,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4GetGlobal) {
   CHECK_EQ(1, r.Call(0));
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(SimdF32x4SetGlobal) {
+WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_mode, lower_simd);
   float* global = r.builder().AddGlobal<float>(kWasmS128);
   BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_F32(13.5))),

@@ -1827,6 +1827,22 @@ class ThreadImpl {
           I8x16LeU, i8x16, int16, int16, 16,
           *reinterpret_cast<uint8_t*>(&a) <= *reinterpret_cast<uint8_t*>(&b))
 #undef CMPOP_CASE
+#define REPLACE_LANE_CASE(format, name, stype, ctype)                   \
+  case kExpr##format##ReplaceLane: {                                    \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
+    ++len;                                                              \
+    WasmValue new_val = Pop();                                          \
+    WasmValue simd_val = Pop();                                         \
+    stype s = simd_val.to_s128().to_##name();                           \
+    s.val[imm.lane] = new_val.to<ctype>();                              \
+    Push(WasmValue(Simd128(s)));                                        \
+    return true;                                                        \
+  }
+      REPLACE_LANE_CASE(F32x4, f32x4, float4, float)
+      REPLACE_LANE_CASE(I32x4, i32x4, int4, int32_t)
+      REPLACE_LANE_CASE(I16x8, i16x8, int8, int32_t)
+      REPLACE_LANE_CASE(I8x16, i8x16, int16, int32_t)
+#undef REPLACE_LANE_CASE
       default:
         return false;
     }
