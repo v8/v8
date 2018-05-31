@@ -797,7 +797,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       // The method will only return true for absolute truths based on the
       // receiver maps.
       FieldIndex index;
-      if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(), &index)) {
+      if (Accessors::IsJSObjectFieldAccessor(isolate(), map, lookup->name(),
+                                             &index)) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         return LoadHandler::LoadField(isolate(), index);
       }

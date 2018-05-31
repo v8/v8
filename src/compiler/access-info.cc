@@ -622,7 +622,7 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   // Check for special JSObject field accessors.
   FieldIndex field_index;
-  if (Accessors::IsJSObjectFieldAccessor(map, name, &field_index)) {
+  if (Accessors::IsJSObjectFieldAccessor(isolate(), map, name, &field_index)) {
     Type field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {

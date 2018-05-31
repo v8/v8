@@ -60,10 +60,8 @@ static V8_INLINE bool CheckForName(Handle<Name> name,
 
 // Returns true for properties that are accessors to object fields.
 // If true, *object_offset contains offset of object field.
-bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
-                                        FieldIndex* index) {
-  Isolate* isolate = name->GetIsolate();
-
+bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
+                                        Handle<Name> name, FieldIndex* index) {
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return CheckForName(name, isolate->factory()->length_string(),
