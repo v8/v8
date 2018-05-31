@@ -101,7 +101,11 @@ bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
 // Address space reservations are currently only meaningful using guard
 // regions, which is currently only supported on 64-bit systems. On other
 // platforms, we always fall back on bounds checks.
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_MIPS64
+  // MIPS64 has a user space of 2^40 bytes on most processors,
+  // address space limits needs to be smaller.
+  constexpr size_t kAddressSpaceLimit = 0x2000000000L;  // 128 GiB
+#elif V8_TARGET_ARCH_64_BIT
   constexpr size_t kAddressSpaceLimit = 0x10000000000L;  // 1 TiB
 #else
   constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
