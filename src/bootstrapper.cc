@@ -350,7 +350,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
       env->GetErrorsThrown());
 
   Heap* heap = isolate->heap();
-  Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
+  Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()),
+                                     isolate);
   global_proxy->set_native_context(heap->null_value());
   JSObject::ForceSetPrototype(global_proxy, isolate->factory()->null_value());
   global_proxy->map()->SetConstructor(heap->null_value());
@@ -624,7 +625,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function->shared()->set_scope_info(*scope_info);
   empty_function->shared()->set_function_literal_id(1);
   empty_function->shared()->DontAdaptArguments();
-  SharedFunctionInfo::SetScript(handle(empty_function->shared()), script);
+  SharedFunctionInfo::SetScript(handle(empty_function->shared(), isolate()),
+                                script);
 
   return empty_function;
 }
@@ -772,8 +774,9 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
   Handle<JSObject> object_function_prototype =
       factory->NewFunctionPrototype(object_fun);
 
-  Handle<Map> map = Map::Copy(handle(object_function_prototype->map()),
-                              "EmptyObjectPrototype");
+  Handle<Map> map =
+      Map::Copy(handle(object_function_prototype->map(), isolate()),
+                "EmptyObjectPrototype");
   map->set_is_prototype_map(true);
   // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
   map->set_is_immutable_proto(true);
@@ -906,7 +909,8 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
                                 "GeneratorFunction with name and home object");
   native_context()->set_generator_function_with_name_and_home_object_map(*map);
 
-  Handle<JSFunction> object_function(native_context()->object_function());
+  Handle<JSFunction> object_function(native_context()->object_function(),
+                                     isolate());
   Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
   Map::SetPrototype(generator_object_prototype_map, generator_object_prototype);
   native_context()->set_generator_object_prototype_map(
@@ -1022,7 +1026,8 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   native_context()->set_async_generator_function_with_name_and_home_object_map(
       *map);
 
-  Handle<JSFunction> object_function(native_context()->object_function());
+  Handle<JSFunction> object_function(native_context()->object_function(),
+                                     isolate());
   Handle<Map> async_generator_object_prototype_map = Map::Create(isolate(), 0);
   Map::SetPrototype(async_generator_object_prototype_map,
                     async_generator_object_prototype);
@@ -1127,7 +1132,7 @@ void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
   accessors->set_getter(*thrower);
   accessors->set_setter(*thrower);
 
-  Handle<Map> map(empty->map());
+  Handle<Map> map(empty->map(), isolate());
   ReplaceAccessors(map, factory()->arguments_string(), rw_attribs, accessors);
   ReplaceAccessors(map, factory()->caller_string(), rw_attribs, accessors);
 }
@@ -1173,7 +1178,7 @@ void Genesis::CreateRoots() {
 
 void Genesis::InstallGlobalThisBinding() {
   Handle<ScriptContextTable> script_contexts(
-      native_context()->script_context_table());
+      native_context()->script_context_table(), isolate());
   Handle<ScopeInfo> scope_info = ScopeInfo::CreateGlobalThisBinding(isolate());
   Handle<Context> context =
       factory()->NewScriptContext(native_context(), scope_info);
@@ -1240,7 +1245,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
 #endif
   } else {
     Handle<FunctionTemplateInfo> js_global_object_constructor(
-        FunctionTemplateInfo::cast(js_global_object_template->constructor()));
+        FunctionTemplateInfo::cast(js_global_object_template->constructor()),
+        isolate());
     js_global_object_function = ApiNatives::CreateApiFunction(
         isolate(), js_global_object_constructor, factory()->the_hole_value(),
         ApiNatives::GlobalObjectType);
@@ -1266,7 +1272,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
     Handle<FunctionTemplateInfo> global_constructor(
-            FunctionTemplateInfo::cast(data->constructor()));
+        FunctionTemplateInfo::cast(data->constructor()), isolate());
     global_proxy_function = ApiNatives::CreateApiFunction(
         isolate(), global_constructor, factory()->the_hole_value(),
         ApiNatives::GlobalProxyType);
@@ -4714,7 +4720,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
       string_function_prototype->map());
 
   Handle<JSGlobalObject> global_object =
-      handle(native_context()->global_object());
+      handle(native_context()->global_object(), isolate());
 
   // Install Global.decodeURI.
   SimpleInstallFunction(global_object, "decodeURI", Builtins::kGlobalDecodeURI,
