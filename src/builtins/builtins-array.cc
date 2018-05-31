@@ -491,7 +491,7 @@ class ArrayConcatVisitor {
   uint32_t bit_field_;
 };
 
-uint32_t EstimateElementCount(Handle<JSArray> array) {
+uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
@@ -504,7 +504,6 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       // a 32-bit signed integer.
       DCHECK_GE(static_cast<int32_t>(FixedArray::kMaxLength), 0);
       int fast_length = static_cast<int>(length);
-      Isolate* isolate = array->GetIsolate();
       FixedArray* elements = FixedArray::cast(array->elements());
       for (int i = 0; i < fast_length; i++) {
         if (!elements->get(i)->IsTheHole(isolate)) element_count++;
@@ -529,7 +528,6 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
     }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = NumberDictionary::cast(array->elements());
-      Isolate* isolate = dictionary->GetIsolate();
       int capacity = dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* key = dictionary->KeyAt(i);
@@ -558,9 +556,8 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
   return element_count;
 }
 
-void CollectElementIndices(Handle<JSObject> object, uint32_t range,
-                           std::vector<uint32_t>* indices) {
-  Isolate* isolate = object->GetIsolate();
+void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
+                           uint32_t range, std::vector<uint32_t>* indices) {
   ElementsKind kind = object->GetElementsKind();
   switch (kind) {
     case PACKED_SMI_ELEMENTS:
@@ -670,8 +667,8 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
   if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
-    CollectElementIndices(PrototypeIterator::GetCurrent<JSObject>(iter), range,
-                          indices);
+    CollectElementIndices(
+        isolate, PrototypeIterator::GetCurrent<JSObject>(iter), range, indices);
   }
 }
 
@@ -804,7 +801,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
       // Collect all indices in the object and the prototypes less
       // than length. This might introduce duplicates in the indices list.
-      CollectElementIndices(array, length, &indices);
+      CollectElementIndices(isolate, array, length, &indices);
       std::sort(indices.begin(), indices.end());
       size_t n = indices.size();
       FOR_WITH_HANDLE_SCOPE(isolate, size_t, j = 0, j, j < n, (void)0, {
@@ -891,7 +888,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             GetPackedElementsKind(array->GetElementsKind());
         kind = GetMoreGeneralElementsKind(kind, array_kind);
       }
-      element_estimate = EstimateElementCount(array);
+      element_estimate = EstimateElementCount(isolate, array);
     } else {
       if (obj->IsHeapObject()) {
         kind = GetMoreGeneralElementsKind(

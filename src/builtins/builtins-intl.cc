@@ -534,7 +534,8 @@ BUILTIN(LocaleConstructor) {
     Handle<String> locale_string;
     if (tag->IsJSLocale() &&
         Handle<JSLocale>::cast(tag)->locale()->IsString()) {
-      locale_string = Handle<String>(Handle<JSLocale>::cast(tag)->locale());
+      locale_string =
+          Handle<String>(Handle<JSLocale>::cast(tag)->locale(), isolate);
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, locale_string,
                                          Object::ToString(isolate, tag));
