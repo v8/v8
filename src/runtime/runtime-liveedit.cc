@@ -25,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   CONVERT_ARG_CHECKED(JSValue, script_value, 0);
 
   CHECK(script_value->value()->IsScript());
-  Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
+  Handle<Script> script(Script::cast(script_value->value()), isolate);
 
   std::vector<Handle<SharedFunctionInfo>> found;
   Heap* heap = isolate->heap();
@@ -36,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
       if (!heap_obj->IsSharedFunctionInfo()) continue;
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(heap_obj);
       if (shared->script() != *script) continue;
-      found.push_back(Handle<SharedFunctionInfo>(shared));
+      found.push_back(Handle<SharedFunctionInfo>(shared, isolate));
     }
   }
 
@@ -69,7 +69,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditGatherCompileInfo) {
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
 
   CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+  Handle<Script> script_handle(Script::cast(script->value()), isolate);
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            LiveEdit::GatherCompileInfo(script_handle, source));

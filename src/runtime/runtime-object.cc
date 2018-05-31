@@ -803,7 +803,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
   if (nexus.ic_state() == UNINITIALIZED) {
     if (name->IsUniqueName()) {
-      nexus.ConfigureMonomorphic(name, handle(object->map()),
+      nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
                                  MaybeObjectHandle());
     } else {
       nexus.ConfigureMegamorphic(PROPERTY);
@@ -860,7 +860,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   } else if (value->IsNull(isolate)) {
     // typeof(null) is object. But it's more user-friendly to annotate
     // null as type "null".
-    type = Handle<String>(isolate->heap()->null_string());
+    type = Handle<String>(isolate->heap()->null_string(), isolate);
   }
 
   DCHECK(vector->metadata()->HasTypeProfileSlot());

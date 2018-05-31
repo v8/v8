@@ -160,7 +160,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   // Find the JavaScript function on the top of the stack.
   JavaScriptFrameIterator it(isolate);
-  if (!it.done()) function = Handle<JSFunction>(it.frame()->function());
+  if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return isolate->heap()->undefined_value();
 
   // If the function is not optimized, just return.
@@ -271,7 +271,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Find the JavaScript function on the top of the stack.
   JavaScriptFrameIterator it(isolate);
   while (!it.done() && stack_depth--) it.Advance();
-  if (!it.done()) function = Handle<JSFunction>(it.frame()->function());
+  if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return isolate->heap()->undefined_value();
 
   // If the function is already optimized, just return.

@@ -47,7 +47,8 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   if (isolate->debug_execution_mode() == DebugInfo::kBreakpoints) {
-    isolate->debug()->Break(it.frame(), handle(it.frame()->function()));
+    isolate->debug()->Break(it.frame(),
+                            handle(it.frame()->function(), isolate));
   }
 
   // Return the handler from the original bytecode array.
@@ -116,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_DebugApplyInstrumentation) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  isolate->debug()->ApplyInstrumentation(handle(function->shared()));
+  isolate->debug()->ApplyInstrumentation(handle(function->shared(), isolate));
   return isolate->heap()->undefined_value();
 }
 
@@ -1211,7 +1212,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
 
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < instances->length(); i++) {
-    Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
+    Handle<Script> script(Script::cast(instances->get(i)), isolate);
     // Get the script wrapper in a local handle before calling GetScriptWrapper,
     // because using
     //   instances->set(i, *GetScriptWrapper(script))
@@ -1471,7 +1472,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   CONVERT_ARG_CHECKED(JSValue, script, 0);
 
   CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+  Handle<Script> script_handle(Script::cast(script->value()), isolate);
 
   if (script_handle->type() == Script::TYPE_WASM) {
     // Return 0 for now; this function will disappear soon anyway.
@@ -1590,7 +1591,7 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script* script = nullptr;
   while ((script = iterator.Next()) != nullptr) {
     if (script->id() == needle) {
-      *result = handle(script);
+      *result = handle(script, isolate);
       return true;
     }
   }
@@ -1618,7 +1619,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   CONVERT_NUMBER_CHECKED(int32_t, offset, Int32, args[3]);
 
   CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+  Handle<Script> script_handle(Script::cast(script->value()), isolate);
 
   return *ScriptLocationFromLine(isolate, script_handle, opt_line, opt_column,
                                  offset);
@@ -1648,7 +1649,7 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
 
   CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+  Handle<Script> script_handle(Script::cast(script->value()), isolate);
 
   const Script::OffsetFlag offset_flag =
       with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;

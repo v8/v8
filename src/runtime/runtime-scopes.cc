@@ -645,10 +645,9 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   return *function;
 }
 
-static Object* FindNameClash(Handle<ScopeInfo> scope_info,
+static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
                              Handle<JSGlobalObject> global_object,
                              Handle<ScriptContextTable> script_context) {
-  Isolate* isolate = scope_info->GetIsolate();
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
     Handle<String> name(scope_info->ContextLocalName(var));
     VariableMode mode = scope_info->ContextLocalMode(var);
@@ -697,7 +696,7 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
       native_context->script_context_table());
 
   Object* name_clash_result =
-      FindNameClash(scope_info, global_object, script_context_table);
+      FindNameClash(isolate, scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
 
   // We do not need script contexts here during bootstrap.
@@ -809,11 +808,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
 namespace {
 
-MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
+MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
                                    ShouldThrow should_throw,
                                    Handle<Object>* receiver_return = nullptr) {
-  Isolate* const isolate = name->GetIsolate();
-
   int index;
   PropertyAttributes attributes;
   InitializationFlag flag;
@@ -879,7 +876,8 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kThrowOnError));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadLookupSlot(isolate, name, kThrowOnError));
 }
 
 
@@ -887,7 +885,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kDontThrow));
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(isolate, name, kDontThrow));
 }
 
 
@@ -899,7 +897,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> value;
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, LoadLookupSlot(name, kThrowOnError, &receiver),
+      isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
       MakePair(isolate->heap()->exception(), nullptr));
   return MakePair(*value, *receiver);
 }
@@ -908,9 +906,9 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
 namespace {
 
 MaybeHandle<Object> StoreLookupSlot(
-    Handle<String> name, Handle<Object> value, LanguageMode language_mode,
+    Isolate* isolate, Handle<String> name, Handle<Object> value,
+    LanguageMode language_mode,
     ContextLookupFlags context_lookup_flags = FOLLOW_CHAINS) {
-  Isolate* const isolate = name->GetIsolate();
   Handle<Context> context(isolate->context(), isolate);
 
   int index;
@@ -963,7 +961,7 @@ MaybeHandle<Object> StoreLookupSlot(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   } else {
     // If absent in sloppy mode: add the property to the global object.
-    object = Handle<JSReceiver>(context->global_object());
+    object = handle(context->global_object(), isolate);
   }
 
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -980,8 +978,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           StoreLookupSlot(name, value, LanguageMode::kSloppy));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kSloppy));
 }
 
 // Store into a dynamic context for sloppy-mode block-scoped function hoisting
@@ -995,8 +993,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
       FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      StoreLookupSlot(name, value, LanguageMode::kSloppy, lookup_flags));
+      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kSloppy,
+                               lookup_flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
@@ -1004,8 +1002,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           StoreLookupSlot(name, value, LanguageMode::kStrict));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kStrict));
 }
 
 }  // namespace internal

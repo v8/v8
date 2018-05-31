@@ -58,7 +58,7 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
-void PrintRegisters(std::ostream& os, bool is_input,
+void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
@@ -82,8 +82,7 @@ void PrintRegisters(std::ostream& os, bool is_input,
   }
 
   // Print the registers.
-  JavaScriptFrameIterator frame_iterator(
-      bytecode_iterator.bytecode_array()->GetIsolate());
+  JavaScriptFrameIterator frame_iterator(isolate);
   InterpretedFrame* frame =
       reinterpret_cast<InterpretedFrame*>(frame_iterator.frame());
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
@@ -144,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
                                          bytecode_array->parameter_count());
     os << std::endl;
     // Print all input registers and accumulator.
-    PrintRegisters(os, true, bytecode_iterator, accumulator);
+    PrintRegisters(isolate, os, true, bytecode_iterator, accumulator);
 
     os << std::flush;
   }
