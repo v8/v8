@@ -636,8 +636,8 @@ class DebugWrapper {
         break;
       }
       case "number": {
-        if (obj.unserializableValue) {
-          value = obj.unserializableValue * 1.0;
+        if (obj.description === "NaN") {
+          value = NaN;
         }
         break;
       }

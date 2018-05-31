@@ -21,6 +21,7 @@ Running test: testPreciseCountCoverage
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -133,6 +134,7 @@ Running test: testPreciseCountCoverageIncremental
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -228,6 +230,7 @@ Running test: testPreciseCountCoverageIncremental
     id : <messageId>
     result : {
         result : {
+            description : 10946
             type : number
             value : 10946
         }
@@ -342,6 +345,7 @@ Running test: testPreciseCoverageFail
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -360,6 +364,7 @@ Running test: testBestEffortCoverage
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -385,6 +390,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -544,6 +550,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -737,6 +744,7 @@ Running test: testPreciseBinaryCoverage
     id : <messageId>
     result : {
         result : {
+            description : 8
             type : number
             value : 8
         }
@@ -822,6 +830,7 @@ Running test: testPreciseBinaryCoverage
     id : <messageId>
     result : {
         result : {
+            description : 10946
             type : number
             value : 10946
         }

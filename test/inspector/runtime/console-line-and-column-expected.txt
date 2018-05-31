@@ -4,6 +4,7 @@ Tests line and column numbers in console messages
     params : {
         args : [
             [0] : {
+                description : 239
                 type : number
                 value : 239
             }
@@ -29,6 +30,7 @@ Tests line and column numbers in console messages
     params : {
         args : [
             [0] : {
+                description : 239
                 type : number
                 value : 239
             }

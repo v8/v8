@@ -5,6 +5,7 @@ Running test: testResolvedPromise
     id : <messageId>
     result : {
         result : {
+            description : 239
             type : number
             value : 239
         }
@@ -43,6 +44,7 @@ Running test: testRejectedPromiseWithStack
         exceptionDetails : {
             columnNumber : 0
             exception : {
+                description : 239
                 type : number
                 value : 239
             }
@@ -51,6 +53,7 @@ Running test: testRejectedPromiseWithStack
             text : Uncaught (in promise)
         }
         result : {
+            description : 239
             type : number
             value : 239
         }
@@ -89,6 +92,7 @@ Running test: testPendingPromise
     id : <messageId>
     result : {
         result : {
+            description : 239
             type : number
             value : 239
         }

@@ -36,6 +36,7 @@ Running test: testCallFunctionOn
     id : <messageId>
     result : {
         result : {
+            description : 3
             type : number
             value : 3
         }
