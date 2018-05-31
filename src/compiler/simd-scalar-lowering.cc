@@ -678,6 +678,39 @@ void SimdScalarLowering::LowerConvertFromFloat(Node* node, bool is_signed) {
   ReplaceNode(node, rep_node, kNumLanes32);
 }
 
+void SimdScalarLowering::LowerConvertFromInt(Node* node,
+                                             SimdType input_rep_type,
+                                             SimdType output_rep_type,
+                                             bool is_signed) {
+  DCHECK_EQ(1, node->InputCount());
+  Node** rep = GetReplacementsWithType(node->InputAt(0), input_rep_type);
+
+  int32_t shift_val = 0;
+  if (input_rep_type == SimdType::kInt16x8) {
+    DCHECK_EQ(output_rep_type, SimdType::kInt32x4);
+    shift_val = kShift16;
+  } else {
+    DCHECK_EQ(output_rep_type, SimdType::kInt16x8);
+    DCHECK_EQ(input_rep_type, SimdType::kInt8x16);
+    shift_val = kShift8;
+  }
+
+  int num_lanes = NumLanes(output_rep_type);
+  Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+  for (int i = 0; i < num_lanes; ++i) {
+    rep_node[i] = rep[i];
+    if (!is_signed) {
+      rep_node[i] =
+          graph()->NewNode(machine()->Word32Shr(),
+                           graph()->NewNode(machine()->Word32Shl(), rep_node[i],
+                                            mcgraph_->Int32Constant(shift_val)),
+                           mcgraph_->Int32Constant(shift_val));
+    }
+  }
+
+  ReplaceNode(node, rep_node, num_lanes);
+}
+
 void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
                                    SimdType output_rep_type, bool is_signed) {
   DCHECK_EQ(2, node->InputCount());
@@ -1066,6 +1099,26 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kI32x4UConvertF32x4: {
       LowerConvertFromFloat(node, false);
+      break;
+    }
+    case IrOpcode::kI32x4SConvertI16x8Low:
+    case IrOpcode::kI32x4SConvertI16x8High: {
+      LowerConvertFromInt(node, SimdType::kInt16x8, SimdType::kInt32x4, true);
+      break;
+    }
+    case IrOpcode::kI32x4UConvertI16x8Low:
+    case IrOpcode::kI32x4UConvertI16x8High: {
+      LowerConvertFromInt(node, SimdType::kInt16x8, SimdType::kInt32x4, false);
+      break;
+    }
+    case IrOpcode::kI16x8SConvertI8x16Low:
+    case IrOpcode::kI16x8SConvertI8x16High: {
+      LowerConvertFromInt(node, SimdType::kInt8x16, SimdType::kInt16x8, true);
+      break;
+    }
+    case IrOpcode::kI16x8UConvertI8x16Low:
+    case IrOpcode::kI16x8UConvertI8x16High: {
+      LowerConvertFromInt(node, SimdType::kInt8x16, SimdType::kInt16x8, false);
       break;
     }
     case IrOpcode::kI16x8SConvertI32x4: {

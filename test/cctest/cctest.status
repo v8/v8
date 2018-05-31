@@ -345,10 +345,6 @@
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
   # Skip tests that fail on MIPS architectures which don't support SIMD,
   # because lowering mechanism doesn't work properly
-  'test-run-wasm-simd/RunWasm_I32x4ConvertI16x8_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8ConvertI8x16_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8ConvertI32x4_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I8x16ConvertI16x8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
