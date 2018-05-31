@@ -601,7 +601,8 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   }
 
   int32_t match_indices[] = {indices->back(), indices->back() + pattern_len};
-  RegExpImpl::SetLastMatchInfo(last_match_info, subject, 0, match_indices);
+  RegExpImpl::SetLastMatchInfo(isolate, last_match_info, subject, 0,
+                               match_indices);
 
   TruncateRegexpIndicesList(isolate);
 
@@ -620,7 +621,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithString(
   JSRegExp::Type typeTag = regexp->TypeTag();
   if (typeTag == JSRegExp::IRREGEXP) {
     // Ensure the RegExp is compiled so we can access the capture-name map.
-    if (RegExpImpl::IrregexpPrepare(regexp, subject) == -1) {
+    if (RegExpImpl::IrregexpPrepare(isolate, regexp, subject) == -1) {
       DCHECK(isolate->has_pending_exception());
       return isolate->heap()->exception();
     }
@@ -692,7 +693,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithString(
     builder.AddSubjectSlice(prev, subject_length);
   }
 
-  RegExpImpl::SetLastMatchInfo(last_match_info, subject, capture_count,
+  RegExpImpl::SetLastMatchInfo(isolate, last_match_info, subject, capture_count,
                                global_cache.LastSuccessfulMatch());
 
   RETURN_RESULT_OR_FAILURE(isolate, builder.ToString());
@@ -760,7 +761,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
 
   if (global_cache.HasException()) return isolate->heap()->exception();
 
-  RegExpImpl::SetLastMatchInfo(last_match_info, subject, capture_count,
+  RegExpImpl::SetLastMatchInfo(isolate, last_match_info, subject, capture_count,
                                global_cache.LastSuccessfulMatch());
 
   if (prev < subject_length) {
@@ -915,8 +916,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
-  RETURN_RESULT_OR_FAILURE(
-      isolate, RegExpImpl::Exec(regexp, subject, index, last_match_info));
+  RETURN_RESULT_OR_FAILURE(isolate, RegExpImpl::Exec(isolate, regexp, subject,
+                                                     index, last_match_info));
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpInternalReplace) {
@@ -1160,8 +1161,8 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
           isolate->factory()->CopyFixedArrayWithMap(
               cached_fixed_array, isolate->factory()->fixed_array_map());
       JSArray::SetContent(result_array, copied_fixed_array);
-      RegExpImpl::SetLastMatchInfo(last_match_array, subject, capture_count,
-                                   last_match);
+      RegExpImpl::SetLastMatchInfo(isolate, last_match_array, subject,
+                                   capture_count, last_match);
       DeleteArray(last_match);
       return *result_array;
     }
@@ -1269,7 +1270,8 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
                                                 subject_length);
     }
 
-    RegExpImpl::SetLastMatchInfo(last_match_array, subject, capture_count,
+    RegExpImpl::SetLastMatchInfo(isolate, last_match_array, subject,
+                                 capture_count,
                                  global_cache.LastSuccessfulMatch());
 
     if (subject_length > kMinLengthToCache) {
@@ -1337,7 +1339,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     Handle<Object> match_indices_obj;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, match_indices_obj,
-        RegExpImpl::Exec(regexp, string, last_index, last_match_info), String);
+        RegExpImpl::Exec(isolate, regexp, string, last_index, last_match_info),
+        String);
 
     if (match_indices_obj->IsNull(isolate)) {
       if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
@@ -1456,7 +1459,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   Handle<Object> match_indices_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, match_indices_obj,
-      RegExpImpl::Exec(regexp, subject, last_index, last_match_info));
+      RegExpImpl::Exec(isolate, regexp, subject, last_index, last_match_info));
 
   if (match_indices_obj->IsNull(isolate)) {
     if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
