@@ -54,7 +54,6 @@ namespace V8RuntimeAgentImplState {
 static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
-static const char bindings[] = "bindings";
 };
 
 using protocol::Runtime::RemoteObject;
@@ -640,86 +639,6 @@ void V8RuntimeAgentImpl::terminateExecution(
   m_inspector->debugger()->terminateExecution(std::move(callback));
 }
 
-Response V8RuntimeAgentImpl::addBinding(const String16& name) {
-  if (!m_state->getObject(V8RuntimeAgentImplState::bindings)) {
-    m_state->setObject(V8RuntimeAgentImplState::bindings,
-                       protocol::DictionaryValue::create());
-  }
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  bindings->setBoolean(name, true);
-  m_inspector->forEachContext(
-      m_session->contextGroupId(),
-      [&name, this](InspectedContext* context) { addBinding(context, name); });
-  return Response::OK();
-}
-
-void V8RuntimeAgentImpl::bindingCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  if (info.Length() != 1 || !info[0]->IsString()) {
-    info.GetIsolate()->ThrowException(toV8String(
-        isolate, "Invalid arguments: should be exactly one string."));
-    return;
-  }
-  V8InspectorImpl* inspector =
-      static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-  int contextId = InspectedContext::contextId(isolate->GetCurrentContext());
-  int contextGroupId = inspector->contextGroupId(contextId);
-
-  String16 name = toProtocolString(v8::Local<v8::String>::Cast(info.Data()));
-  String16 payload = toProtocolString(v8::Local<v8::String>::Cast(info[0]));
-
-  inspector->forEachSession(
-      contextGroupId,
-      [&name, &payload, &contextId](V8InspectorSessionImpl* session) {
-        session->runtimeAgent()->bindingCalled(name, payload, contextId);
-      });
-}
-
-void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
-                                    const String16& name) {
-  v8::HandleScope handles(m_inspector->isolate());
-  v8::Local<v8::Context> localContext = context->context();
-  v8::Local<v8::Object> global = localContext->Global();
-  v8::Local<v8::String> v8Name = toV8String(m_inspector->isolate(), name);
-  v8::Local<v8::Value> functionValue;
-  v8::MicrotasksScope microtasks(m_inspector->isolate(),
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
-  if (v8::Function::New(localContext, bindingCallback, v8Name)
-          .ToLocal(&functionValue)) {
-    v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
-    USE(success);
-  }
-}
-
-Response V8RuntimeAgentImpl::removeBinding(const String16& name) {
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings) return Response::OK();
-  bindings->remove(name);
-  return Response::OK();
-}
-
-void V8RuntimeAgentImpl::bindingCalled(const String16& name,
-                                       const String16& payload,
-                                       int executionContextId) {
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings || !bindings->booleanProperty(name, false)) return;
-  m_frontend.bindingCalled(name, payload, executionContextId);
-}
-
-void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
-  if (!m_enabled) return;
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings) return;
-  for (size_t i = 0; i < bindings->size(); ++i) {
-    addBinding(context, bindings->at(i).first);
-  }
-}
-
 void V8RuntimeAgentImpl::restore() {
   if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
     return;
@@ -728,10 +647,6 @@ void V8RuntimeAgentImpl::restore() {
   if (m_state->booleanProperty(
           V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
     m_session->setCustomObjectFormatterEnabled(true);
-
-  m_inspector->forEachContext(
-      m_session->contextGroupId(),
-      [this](InspectedContext* context) { addBindings(context); });
 }
 
 Response V8RuntimeAgentImpl::enable() {
@@ -754,7 +669,6 @@ Response V8RuntimeAgentImpl::disable() {
   if (!m_enabled) return Response::OK();
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
-  m_state->remove(V8RuntimeAgentImplState::bindings);
   m_inspector->disableStackCapturingIfNeeded();
   m_session->setCustomObjectFormatterEnabled(false);
   reset();
