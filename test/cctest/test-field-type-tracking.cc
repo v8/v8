@@ -267,7 +267,6 @@ class Expectations {
     Representation expected_representation = representations_[descriptor];
     if (!details.representation().Equals(expected_representation)) return false;
 
-    Object* value = descriptors->GetValue(descriptor);
     Object* expected_value = *values_[descriptor];
     if (details.location() == kField) {
       if (details.kind() == kData) {
@@ -278,6 +277,7 @@ class Expectations {
         UNREACHABLE();
       }
     } else {
+      Object* value = descriptors->GetStrongValue(descriptor);
       // kDescriptor
       if (details.kind() == kData) {
         CHECK(!FLAG_track_constant_fields);
@@ -561,7 +561,8 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
 
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
-  CHECK(obj->map()->instance_descriptors()->GetValue(0)->IsAccessorPair());
+  CHECK(
+      obj->map()->instance_descriptors()->GetStrongValue(0)->IsAccessorPair());
 
   Handle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();

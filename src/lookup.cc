@@ -834,7 +834,7 @@ Handle<Object> LookupIterator::FetchValue() const {
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
                                     field_index);
   } else {
-    result = holder_->map()->instance_descriptors()->GetValue(number_);
+    result = holder_->map()->instance_descriptors()->GetStrongValue(number_);
   }
   return handle(result, isolate_);
 }

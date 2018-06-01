@@ -430,7 +430,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
         isolate()->heap()->length_string()) {
       return NoChange();
     }
-    if (!descriptors->GetValue(JSFunction::kLengthDescriptorIndex)
+    if (!descriptors->GetStrongValue(JSFunction::kLengthDescriptorIndex)
              ->IsAccessorInfo()) {
       return NoChange();
     }
@@ -438,7 +438,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
         isolate()->heap()->name_string()) {
       return NoChange();
     }
-    if (!descriptors->GetValue(JSFunction::kNameDescriptorIndex)
+    if (!descriptors->GetStrongValue(JSFunction::kNameDescriptorIndex)
              ->IsAccessorInfo()) {
       return NoChange();
     }

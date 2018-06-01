@@ -591,7 +591,7 @@ int CollectOwnPropertyNamesInternal(Handle<JSObject> object,
 
     if (filter & ONLY_ALL_CAN_READ) {
       if (details.kind() != kAccessor) continue;
-      Object* accessors = descs->GetValue(i);
+      Object* accessors = descs->GetStrongValue(i);
       if (!accessors->IsAccessorInfo()) continue;
       if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
     }

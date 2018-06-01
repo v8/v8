@@ -311,16 +311,15 @@ bool Heap::CreateInitialMaps() {
   {
     STATIC_ASSERT(DescriptorArray::kFirstIndex != 0);
     int length = DescriptorArray::kFirstIndex;
-    int size = FixedArray::SizeFor(length);
+    int size = WeakFixedArray::SizeFor(length);
     if (!AllocateRaw(size, RO_SPACE).To(&obj)) return false;
     obj->set_map_after_allocation(descriptor_array_map(), SKIP_WRITE_BARRIER);
     DescriptorArray::cast(obj)->set_length(length);
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
-  DescriptorArray::cast(obj)->set(DescriptorArray::kDescriptorLengthIndex,
-                                  Smi::kZero);
-  DescriptorArray::cast(obj)->set(DescriptorArray::kEnumCacheIndex,
-                                  empty_enum_cache());
+  DescriptorArray::cast(obj)->SetNumberOfDescriptors(0);
+  WeakFixedArray::cast(obj)->Set(DescriptorArray::kEnumCacheIndex,
+                                 MaybeObject::FromObject(empty_enum_cache()));
 
   // Fix the instance_descriptors for the existing maps.
   FinalizePartialMap(meta_map());

@@ -1804,6 +1804,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
         LoadFixedArrayElement(container, key_index, kKeyToValueOffset));
   }
 
+  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
+                                       TNode<IntPtrT> key_index);
+  TNode<Object> LoadValueByKeyIndex(TNode<DescriptorArray> container,
+                                    TNode<IntPtrT> key_index);
+  TNode<MaybeObject> LoadFieldTypeByKeyIndex(TNode<DescriptorArray> container,
+                                             TNode<IntPtrT> key_index);
+
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
   template <class ContainerType>
@@ -1970,11 +1977,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
         TailCallStub(Builtins::CallableFor(isolate(), id), context, args...));
   }
 
-  void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
+  void LoadPropertyFromFastObject(Node* object, Node* map,
+                                  TNode<DescriptorArray> descriptors,
                                   Node* name_index, Variable* var_details,
                                   Variable* var_value);
 
-  void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
+  void LoadPropertyFromFastObject(Node* object, Node* map,
+                                  TNode<DescriptorArray> descriptors,
                                   Node* name_index, Node* details,
                                   Variable* var_value);
 

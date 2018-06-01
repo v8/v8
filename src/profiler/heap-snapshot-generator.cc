@@ -1448,7 +1448,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         case kDescriptor:
           SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
                                              descs->GetKey(i),
-                                             descs->GetValue(i));
+                                             descs->GetStrongValue(i));
           break;
       }
     }

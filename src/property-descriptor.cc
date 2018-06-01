@@ -76,7 +76,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     } else {
       DCHECK_EQ(kDescriptor, details.location());
       if (details.kind() == kData) {
-        value = handle(descs->GetValue(i), isolate);
+        value = handle(descs->GetStrongValue(i), isolate);
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         // Bail out to slow path.

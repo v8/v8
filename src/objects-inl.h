@@ -33,6 +33,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/maybe-object-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects.h"
@@ -1813,7 +1814,7 @@ ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
 ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 int DescriptorArray::number_of_descriptors() const {
-  return Smi::ToInt(get(kDescriptorLengthIndex));
+  return Smi::ToInt(get(kDescriptorLengthIndex)->ToSmi());
 }
 
 int DescriptorArray::number_of_descriptors_storage() const {
@@ -1826,7 +1827,8 @@ int DescriptorArray::NumberOfSlackDescriptors() const {
 
 
 void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
-  set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
+  set(kDescriptorLengthIndex,
+      MaybeObject::FromObject(Smi::FromInt(number_of_descriptors)));
 }
 
 inline int DescriptorArray::number_of_entries() const {
@@ -1838,7 +1840,7 @@ void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
 }
 
 EnumCache* DescriptorArray::GetEnumCache() {
-  return EnumCache::cast(get(kEnumCacheIndex));
+  return EnumCache::cast(get(kEnumCacheIndex)->ToStrongHeapObject());
 }
 
 // Perform a binary search in a fixed array.
@@ -1970,23 +1972,23 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
 
 Object** DescriptorArray::GetKeySlot(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  return RawFieldOfElementAt(ToKeyIndex(descriptor_number));
+  DCHECK((*RawFieldOfElementAt(ToKeyIndex(descriptor_number)))->IsObject());
+  return reinterpret_cast<Object**>(
+      RawFieldOfElementAt(ToKeyIndex(descriptor_number)));
 }
 
-
-Object** DescriptorArray::GetDescriptorStartSlot(int descriptor_number) {
-  return GetKeySlot(descriptor_number);
+MaybeObject** DescriptorArray::GetDescriptorStartSlot(int descriptor_number) {
+  return reinterpret_cast<MaybeObject**>(GetKeySlot(descriptor_number));
 }
 
-
-Object** DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
+MaybeObject** DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
   return GetValueSlot(descriptor_number - 1) + 1;
 }
 
 
 Name* DescriptorArray::GetKey(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  return Name::cast(get(ToKeyIndex(descriptor_number)));
+  return Name::cast(get(ToKeyIndex(descriptor_number))->ToStrongHeapObject());
 }
 
 
@@ -2002,11 +2004,11 @@ Name* DescriptorArray::GetSortedKey(int descriptor_number) {
 
 void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
   PropertyDetails details = GetDetails(descriptor_index);
-  set(ToDetailsIndex(descriptor_index), details.set_pointer(pointer).AsSmi());
+  set(ToDetailsIndex(descriptor_index),
+      MaybeObject::FromObject(details.set_pointer(pointer).AsSmi()));
 }
 
-
-Object** DescriptorArray::GetValueSlot(int descriptor_number) {
+MaybeObject** DescriptorArray::GetValueSlot(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   return RawFieldOfElementAt(ToValueIndex(descriptor_number));
 }
@@ -2016,22 +2018,25 @@ int DescriptorArray::GetValueOffset(int descriptor_number) {
   return OffsetOfElementAt(ToValueIndex(descriptor_number));
 }
 
-
-Object* DescriptorArray::GetValue(int descriptor_number) {
+Object* DescriptorArray::GetStrongValue(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  return get(ToValueIndex(descriptor_number));
+  return get(ToValueIndex(descriptor_number))->ToObject();
 }
 
 
 void DescriptorArray::SetValue(int descriptor_index, Object* value) {
-  set(ToValueIndex(descriptor_index), value);
+  set(ToValueIndex(descriptor_index), MaybeObject::FromObject(value));
 }
 
+MaybeObject* DescriptorArray::GetValue(int descriptor_number) {
+  DCHECK_LT(descriptor_number, number_of_descriptors());
+  return get(ToValueIndex(descriptor_number));
+}
 
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  Object* details = get(ToDetailsIndex(descriptor_number));
-  return PropertyDetails(Smi::cast(details));
+  MaybeObject* details = get(ToDetailsIndex(descriptor_number));
+  return PropertyDetails(details->ToSmi());
 }
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
@@ -2041,28 +2046,29 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
 
 FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
-  Object* wrapped_type = GetValue(descriptor_number);
+  MaybeObject* wrapped_type = GetValue(descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(handle(GetKey(descriptor_number), GetIsolate()),
-             handle(GetValue(descriptor_number), GetIsolate()),
+             MaybeObjectHandle(GetStrongValue(descriptor_number), GetIsolate()),
              GetDetails(descriptor_number));
 }
 
-void DescriptorArray::Set(int descriptor_number, Name* key, Object* value,
+void DescriptorArray::Set(int descriptor_number, Name* key, MaybeObject* value,
                           PropertyDetails details) {
   // Range check.
   DCHECK(descriptor_number < number_of_descriptors());
-  set(ToKeyIndex(descriptor_number), key);
+  set(ToKeyIndex(descriptor_number), MaybeObject::FromObject(key));
   set(ToValueIndex(descriptor_number), value);
-  set(ToDetailsIndex(descriptor_number), details.AsSmi());
+  set(ToDetailsIndex(descriptor_number),
+      MaybeObject::FromObject(details.AsSmi()));
 }
 
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   Name* key = *desc->GetKey();
-  Object* value = *desc->GetValue();
+  MaybeObject* value = *desc->GetValue();
   Set(descriptor_number, key, value, desc->GetDetails());
 }
 
@@ -2091,6 +2097,14 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
   int first_key = GetSortedKeyIndex(first);
   SetSortedKey(first, GetSortedKeyIndex(second));
   SetSortedKey(second, first_key);
+}
+
+MaybeObject* DescriptorArray::get(int index) const {
+  return WeakFixedArray::Get(index);
+}
+
+void DescriptorArray::set(int index, MaybeObject* value) {
+  WeakFixedArray::Set(index, value);
 }
 
 bool StringSetShape::IsMatch(String* key, Object* value) {

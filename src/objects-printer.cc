@@ -374,7 +374,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
           break;
         }
         case kDescriptor:
-          os << Brief(descs->GetValue(i));
+          os << Brief(descs->GetStrongValue(i));
           break;
       }
       os << " ";
@@ -2176,14 +2176,14 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
   PropertyDetails details = GetDetails(descriptor);
   details.PrintAsFastTo(os, mode);
   os << " @ ";
-  Object* value = GetValue(descriptor);
   switch (details.location()) {
     case kField: {
-      FieldType* field_type = Map::UnwrapFieldType(value);
+      FieldType* field_type = GetFieldType(descriptor);
       field_type->PrintTo(os);
       break;
     }
     case kDescriptor:
+      Object* value = GetStrongValue(descriptor);
       os << Brief(value);
       if (value->IsAccessorPair()) {
         AccessorPair* pair = AccessorPair::cast(value);

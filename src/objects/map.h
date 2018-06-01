@@ -648,8 +648,8 @@ class Map : public HeapObject {
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
 
-  static Handle<Object> WrapFieldType(Handle<FieldType> type);
-  static FieldType* UnwrapFieldType(Object* wrapped_type);
+  static MaybeObjectHandle WrapFieldType(Handle<FieldType> type);
+  static FieldType* UnwrapFieldType(MaybeObject* wrapped_type);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
       Handle<Map> map, Handle<Name> name, Handle<FieldType> type,
@@ -930,7 +930,7 @@ class Map : public HeapObject {
   void UpdateFieldType(int descriptor_number, Handle<Name> name,
                        PropertyConstness new_constness,
                        Representation new_representation,
-                       Handle<Object> new_wrapped_type);
+                       MaybeObjectHandle new_wrapped_type);
 
   // TODO(ishell): Move to MapUpdater.
   void PrintReconfiguration(FILE* file, int modify_index, PropertyKind kind,

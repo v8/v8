@@ -251,16 +251,22 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
   }
 }
 
-Node* AccessorAssembler::LoadDescriptorValue(Node* map, Node* descriptor) {
-  Node* descriptors = LoadMapDescriptors(map);
+TNode<Object> AccessorAssembler::LoadDescriptorValue(Node* map,
+                                                     Node* descriptor) {
+  return CAST(LoadDescriptorValueOrFieldType(map, descriptor));
+}
+
+TNode<MaybeObject> AccessorAssembler::LoadDescriptorValueOrFieldType(
+    Node* map, Node* descriptor) {
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
   Node* scaled_descriptor =
       IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
   Node* value_index = IntPtrAdd(
       scaled_descriptor, IntPtrConstant(DescriptorArray::kFirstIndex +
                                         DescriptorArray::kEntryValueIndex));
-  CSA_ASSERT(this, UintPtrLessThan(descriptor, LoadAndUntagFixedArrayBaseLength(
+  CSA_ASSERT(this, UintPtrLessThan(descriptor, LoadAndUntagWeakFixedArrayLength(
                                                    descriptors)));
-  return LoadFixedArrayElement(descriptors, value_index);
+  return LoadWeakFixedArrayElement(descriptors, value_index);
 }
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
@@ -924,21 +930,21 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
   // Load last descriptor details.
   Node* nof = DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
   CSA_ASSERT(this, WordNotEqual(nof, IntPtrConstant(0)));
-  Node* descriptors = LoadMapDescriptors(transition_map);
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(transition_map);
 
   Node* factor = IntPtrConstant(DescriptorArray::kEntrySize);
-  Node* last_key_index = IntPtrAdd(
-      IntPtrConstant(DescriptorArray::ToKeyIndex(-1)), IntPtrMul(nof, factor));
+  TNode<IntPtrT> last_key_index = UncheckedCast<IntPtrT>(IntPtrAdd(
+      IntPtrConstant(DescriptorArray::ToKeyIndex(-1)), IntPtrMul(nof, factor)));
   if (validate_transition_handler) {
-    Node* key = LoadFixedArrayElement(descriptors, last_key_index);
+    Node* key = LoadWeakFixedArrayElement(descriptors, last_key_index);
     GotoIf(WordNotEqual(key, p->name), miss);
   } else {
-    CSA_ASSERT(
-        this,
-        WordEqual(LoadFixedArrayElement(descriptors, last_key_index), p->name));
+    CSA_ASSERT(this,
+               WordEqual(BitcastMaybeObjectToWord(LoadWeakFixedArrayElement(
+                             descriptors, last_key_index)),
+                         p->name));
   }
-  Node* details =
-      LoadDetailsByKeyIndex<DescriptorArray>(descriptors, last_key_index);
+  Node* details = LoadDetailsByKeyIndex(descriptors, last_key_index);
   if (validate_transition_handler) {
     // Follow transitions only in the following cases:
     // 1) name is a non-private symbol and attributes equal to NONE,
@@ -964,9 +970,9 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
                                     true);
 }
 
-void AccessorAssembler::CheckFieldType(Node* descriptors, Node* name_index,
-                                       Node* representation, Node* value,
-                                       Label* bailout) {
+void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
+                                       Node* name_index, Node* representation,
+                                       Node* value, Label* bailout) {
   Label r_smi(this), r_double(this), r_heapobject(this), all_fine(this);
   // Ignore FLAG_track_fields etc. and always emit code for all checks,
   // because this builtin is part of the snapshot and therefore should
@@ -1002,20 +1008,25 @@ void AccessorAssembler::CheckFieldType(Node* descriptors, Node* name_index,
   BIND(&r_heapobject);
   {
     GotoIf(TaggedIsSmi(value), bailout);
-    Node* field_type =
-        LoadValueByKeyIndex<DescriptorArray>(descriptors, name_index);
+    TNode<MaybeObject> field_type = LoadFieldTypeByKeyIndex(
+        descriptors, UncheckedCast<IntPtrT>(name_index));
     intptr_t kNoneType = reinterpret_cast<intptr_t>(FieldType::None());
     intptr_t kAnyType = reinterpret_cast<intptr_t>(FieldType::Any());
+    DCHECK_NE(kNoneType, kClearedWeakHeapObject);
+    DCHECK_NE(kAnyType, kClearedWeakHeapObject);
     // FieldType::None can't hold any value.
-    GotoIf(WordEqual(field_type, IntPtrConstant(kNoneType)), bailout);
+    GotoIf(WordEqual(BitcastMaybeObjectToWord(field_type),
+                     IntPtrConstant(kNoneType)),
+           bailout);
     // FieldType::Any can hold any value.
-    GotoIf(WordEqual(field_type, IntPtrConstant(kAnyType)), &all_fine);
-    CSA_ASSERT(this, IsWeakCell(field_type));
-    // Cleared WeakCells count as FieldType::None, which can't hold any value.
-    field_type = LoadWeakCellValue(field_type, bailout);
+    GotoIf(WordEqual(BitcastMaybeObjectToWord(field_type),
+                     IntPtrConstant(kAnyType)),
+           &all_fine);
+    // Cleared weak references count as FieldType::None, which can't hold any
+    // value.
+    TNode<Map> field_type_map = CAST(ToWeakHeapObject(field_type, bailout));
     // FieldType::Class(...) performs a map check.
-    CSA_ASSERT(this, IsMap(field_type));
-    Branch(WordEqual(LoadMap(value), field_type), &all_fine, bailout);
+    Branch(WordEqual(LoadMap(value), field_type_map), &all_fine, bailout);
   }
 
   BIND(&all_fine);
@@ -1049,8 +1060,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
     Node* representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
-    CheckFieldType(descriptors, descriptor_name_index, representation, value,
-                   slow);
+    CheckFieldType(CAST(descriptors), descriptor_name_index, representation,
+                   value, slow);
 
     Node* field_index =
         DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
@@ -1160,8 +1171,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
   BIND(&if_descriptor);
   {
     // Check that constant matches value.
-    Node* constant = LoadValueByKeyIndex<DescriptorArray>(
-        descriptors, descriptor_name_index);
+    Node* constant = LoadValueByKeyIndex(
+        CAST(descriptors), UncheckedCast<IntPtrT>(descriptor_name_index));
     GotoIf(WordNotEqual(value, constant), slow);
 
     if (do_transitioning_store) {
@@ -1517,12 +1528,13 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
              &done);
     }
     Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
-    Node* maybe_field_type = LoadDescriptorValue(LoadMap(holder), descriptor);
+    TNode<MaybeObject> maybe_field_type =
+        LoadDescriptorValueOrFieldType(LoadMap(holder), descriptor);
 
     GotoIf(TaggedIsSmi(maybe_field_type), &done);
     // Check that value type matches the field type.
     {
-      Node* field_type = LoadWeakCellValue(maybe_field_type, bailout);
+      Node* field_type = ToWeakHeapObject(maybe_field_type, bailout);
       Branch(WordEqual(LoadMap(value), field_type), &done, bailout);
     }
     BIND(&done);
@@ -2070,7 +2082,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   // Try looking up the property on the receiver; if unsuccessful, look
   // for a handler in the stub cache.
-  Node* descriptors = LoadMapDescriptors(receiver_map);
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
 
   Label if_descriptor_found(this), stub_cache(this);
   TVARIABLE(IntPtrT, var_name_index);
