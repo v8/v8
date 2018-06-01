@@ -295,7 +295,7 @@ bool AddDescriptorsByTemplate(
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
   for (int i = 0; i < nof_descriptors; i++) {
-    Object* value = descriptors_template->GetStrongValue(i);
+    Object* value = descriptors_template->GetValue(i);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair =
           AccessorPair::Copy(handle(AccessorPair::cast(value), isolate));
@@ -335,7 +335,7 @@ bool AddDescriptorsByTemplate(
       DCHECK(!details.representation().IsDouble());
     }
     DCHECK(value->FitsRepresentation(details.representation()));
-    descriptors->Set(i, name, MaybeObject::FromObject(value), details);
+    descriptors->Set(i, name, value, details);
   }
 
   map->InitializeDescriptors(*descriptors,

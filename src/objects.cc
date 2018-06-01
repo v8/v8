@@ -2123,7 +2123,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
         if (details.location() == kDescriptor) {
-          prop_value = handle(descriptors->GetStrongValue(i), isolate);
+          prop_value = handle(descriptors->GetValue(i), isolate);
         } else {
           Representation representation = details.representation();
           FieldIndex index = FieldIndex::ForDescriptor(*map, i);
@@ -2979,6 +2979,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FIXED_ARRAY_TYPE:
     case BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
+    case DESCRIPTOR_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -2993,7 +2994,6 @@ VisitorId Map::GetVisitorId(Map* map) {
 
     case WEAK_FIXED_ARRAY_TYPE:
     case WEAK_ARRAY_LIST_TYPE:
-    case DESCRIPTOR_ARRAY_TYPE:
       return kVisitWeakArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -3739,23 +3739,19 @@ Handle<Context> JSReceiver::GetCreationContext() {
 }
 
 // static
-MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
-  if (type->IsClass()) {
-    return MaybeObjectHandle::Weak(type->AsClass());
-  }
-  return MaybeObjectHandle(type);
+Handle<Object> Map::WrapFieldType(Handle<FieldType> type) {
+  if (type->IsClass()) return Map::WeakCellForMap(type->AsClass());
+  return type;
 }
 
 // static
-FieldType* Map::UnwrapFieldType(MaybeObject* wrapped_type) {
-  if (wrapped_type->IsClearedWeakHeapObject()) {
-    return FieldType::None();
+FieldType* Map::UnwrapFieldType(Object* wrapped_type) {
+  Object* value = wrapped_type;
+  if (value->IsWeakCell()) {
+    if (WeakCell::cast(value)->cleared()) return FieldType::None();
+    value = WeakCell::cast(value)->value();
   }
-  HeapObject* heap_object;
-  if (wrapped_type->ToWeakHeapObject(&heap_object)) {
-    return FieldType::cast(heap_object);
-  }
-  return FieldType::cast(wrapped_type->ToObject());
+  return FieldType::cast(value);
 }
 
 MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
@@ -3787,7 +3783,7 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
         isolate, map->instance_type(), &constness, &representation, &type);
   }
 
-  MaybeObjectHandle wrapped_type = WrapFieldType(type);
+  Handle<Object> wrapped_type(WrapFieldType(type));
 
   DCHECK_IMPLIES(!FLAG_track_constant_fields,
                  constness == PropertyConstness::kMutable);
@@ -4072,7 +4068,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         }
       } else {
         DCHECK_EQ(kData, old_details.kind());
-        value = handle(old_descriptors->GetStrongValue(i), isolate);
+        value = handle(old_descriptors->GetValue(i), isolate);
         DCHECK(!old_representation.IsDouble() && !representation.IsDouble());
       }
     } else {
@@ -4227,7 +4223,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
 
     } else {
       DCHECK_EQ(kDescriptor, details.location());
-      value = handle(descs->GetStrongValue(i), isolate);
+      value = handle(descs->GetValue(i), isolate);
     }
     DCHECK(!value.is_null());
     PropertyDetails d(details.kind(), details.attributes(),
@@ -4378,7 +4374,7 @@ void DescriptorArray::GeneralizeAllFields() {
       details = details.CopyWithConstness(PropertyConstness::kMutable);
       SetValue(i, FieldType::Any());
     }
-    set(ToDetailsIndex(i), MaybeObject::FromObject(details.AsSmi()));
+    set(ToDetailsIndex(i), details.AsSmi());
   }
 }
 
@@ -4517,8 +4513,8 @@ Map* Map::FindFieldOwner(int descriptor) const {
 void Map::UpdateFieldType(int descriptor, Handle<Name> name,
                           PropertyConstness new_constness,
                           Representation new_representation,
-                          MaybeObjectHandle new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakHeapObject());
+                          Handle<Object> new_wrapped_type) {
+  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakCell());
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
@@ -4552,7 +4548,7 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
 
     // Skip if already updated the shared descriptor.
     if ((FLAG_modify_map_inplace && new_constness != details.constness()) ||
-        descriptors->GetFieldType(descriptor) != *new_wrapped_type.object()) {
+        descriptors->GetValue(descriptor) != *new_wrapped_type) {
       DCHECK_IMPLIES(!FLAG_track_constant_fields,
                      new_constness == PropertyConstness::kMutable);
       Descriptor d = Descriptor::DataField(
@@ -4632,7 +4628,7 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index));
 
-  MaybeObjectHandle wrapped_type(WrapFieldType(new_field_type));
+  Handle<Object> wrapped_type(WrapFieldType(new_field_type));
   field_owner->UpdateFieldType(modify_index, name, new_constness,
                                new_representation, wrapped_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
@@ -4771,7 +4767,7 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
         } else {
           DCHECK_EQ(kDescriptor, old_details.location());
           DCHECK(!FLAG_track_constant_fields);
-          Object* old_value = old_descriptors->GetStrongValue(i);
+          Object* old_value = old_descriptors->GetValue(i);
           if (!new_type->NowContains(old_value)) {
             return nullptr;
           }
@@ -4787,9 +4783,9 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
       }
     } else {
       DCHECK_EQ(kDescriptor, new_details.location());
-      if (old_details.location() == kField ||
-          old_descriptors->GetStrongValue(i) !=
-              new_descriptors->GetStrongValue(i)) {
+      Object* old_value = old_descriptors->GetValue(i);
+      Object* new_value = new_descriptors->GetValue(i);
+      if (old_details.location() == kField || old_value != new_value) {
         return nullptr;
       }
     }
@@ -6390,8 +6386,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
         d = Descriptor::DataField(
             key, current_offset, details.attributes(), constness,
             // TODO(verwaest): value->OptimalRepresentation();
-            Representation::Tagged(),
-            MaybeObjectHandle(FieldType::Any(isolate)));
+            Representation::Tagged(), FieldType::Any(isolate));
       }
     } else {
       DCHECK_EQ(kAccessor, details.kind());
@@ -8800,7 +8795,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
         if (details.location() == kDescriptor) {
-          prop_value = handle(descriptors->GetStrongValue(index), isolate);
+          prop_value = handle(descriptors->GetValue(index), isolate);
         } else {
           Representation representation = details.representation();
           FieldIndex field_index = FieldIndex::ForDescriptor(*map, index);
@@ -9069,7 +9064,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
       } else {
         DCHECK_EQ(kDescriptor, details.location());
         if (details.kind() == kData) {
-          if (descs->GetStrongValue(i) == value) {
+          if (descs->GetValue(i) == value) {
             return descs->GetKey(i);
           }
         }
@@ -9698,9 +9693,9 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor,
     DCHECK_EQ(PropertyConstness::kConst, details.constness());
     if (details.kind() == kData) {
       DCHECK(!FLAG_track_constant_fields);
-      DCHECK(descriptors->GetStrongValue(descriptor) != value ||
+      DCHECK(descriptors->GetValue(descriptor) != value ||
              value->FitsRepresentation(details.representation()));
-      return descriptors->GetStrongValue(descriptor) == value;
+      return descriptors->GetValue(descriptor) == value;
     } else {
       DCHECK_EQ(kAccessor, details.kind());
       return false;
@@ -9891,7 +9886,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
     DCHECK_EQ(kAccessor, descriptors->GetDetails(descriptor).kind());
     DCHECK_EQ(attributes, descriptors->GetDetails(descriptor).attributes());
 
-    Handle<Object> maybe_pair(descriptors->GetStrongValue(descriptor), isolate);
+    Handle<Object> maybe_pair(descriptors->GetValue(descriptor), isolate);
     if (!maybe_pair->IsAccessorPair()) {
       return Map::Normalize(map, mode, "TransitionToAccessorFromNonPair");
     }
@@ -9919,8 +9914,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       return Map::Normalize(map, mode, "AccessorsWithAttributes");
     }
 
-    Handle<Object> maybe_pair(old_descriptors->GetStrongValue(descriptor),
-                              isolate);
+    Handle<Object> maybe_pair(old_descriptors->GetValue(descriptor), isolate);
     if (!maybe_pair->IsAccessorPair()) {
       return Map::Normalize(map, mode, "AccessorsOverwritingNonPair");
     }
@@ -10027,23 +10021,20 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
 
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
-      MaybeObject* value_or_field_type = desc->GetValue(i);
+      Object* value = desc->GetValue(i);
       Name* key = desc->GetKey(i);
       PropertyDetails details = desc->GetDetails(i);
       // Bulk attribute changes never affect private properties.
       if (!key->IsPrivate()) {
         int mask = DONT_DELETE | DONT_ENUM;
         // READ_ONLY is an invalid attribute for JS setters/getters.
-        HeapObject* heap_object;
-        if (details.kind() != kAccessor ||
-            !(value_or_field_type->ToStrongHeapObject(&heap_object) &&
-              heap_object->IsAccessorPair())) {
+        if (details.kind() != kAccessor || !value->IsAccessorPair()) {
           mask |= READ_ONLY;
         }
         details = details.CopyAddAttributes(
             static_cast<PropertyAttributes>(attributes & mask));
       }
-      descriptors->Set(i, key, value_or_field_type, details);
+      descriptors->Set(i, key, value, details);
     }
   } else {
     for (int i = 0; i < size; ++i) {
@@ -10471,18 +10462,15 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
   int size = number_of_descriptors + slack;
   if (size == 0) return factory->empty_descriptor_array();
   // Allocate the array of keys.
-  Handle<WeakFixedArray> result =
-      factory->NewWeakFixedArrayWithMap<DescriptorArray>(
-          Heap::kDescriptorArrayMapRootIndex, LengthFor(size), pretenure);
-  result->Set(kDescriptorLengthIndex,
-              MaybeObject::FromObject(Smi::FromInt(number_of_descriptors)));
-  result->Set(kEnumCacheIndex,
-              MaybeObject::FromObject(isolate->heap()->empty_enum_cache()));
+  Handle<FixedArray> result = factory->NewFixedArrayWithMap(
+      Heap::kDescriptorArrayMapRootIndex, LengthFor(size), pretenure);
+  result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
+  result->set(kEnumCacheIndex, isolate->heap()->empty_enum_cache());
   return Handle<DescriptorArray>::cast(result);
 }
 
 void DescriptorArray::ClearEnumCache() {
-  set(kEnumCacheIndex, MaybeObject::FromObject(GetHeap()->empty_enum_cache()));
+  set(kEnumCacheIndex, GetHeap()->empty_enum_cache());
 }
 
 void DescriptorArray::Replace(int index, Descriptor* descriptor) {
@@ -10497,7 +10485,7 @@ void DescriptorArray::SetEnumCache(Handle<DescriptorArray> descriptors,
   EnumCache* enum_cache = descriptors->GetEnumCache();
   if (enum_cache == isolate->heap()->empty_enum_cache()) {
     enum_cache = *isolate->factory()->NewEnumCache(keys, indices);
-    descriptors->set(kEnumCacheIndex, MaybeObject::FromObject(enum_cache));
+    descriptors->set(kEnumCacheIndex, enum_cache);
   } else {
     enum_cache->set_keys(*keys);
     enum_cache->set_indices(*indices);

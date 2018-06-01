@@ -415,6 +415,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(BOILERPLATE_DESCRIPTION_TYPE)                               \
+  V(DESCRIPTOR_ARRAY_TYPE)                                      \
   V(HASH_TABLE_TYPE)                                            \
   V(SCOPE_INFO_TYPE)                                            \
                                                                 \
@@ -429,7 +430,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(WITH_CONTEXT_TYPE)                                          \
                                                                 \
   V(WEAK_FIXED_ARRAY_TYPE)                                      \
-  V(DESCRIPTOR_ARRAY_TYPE)                                      \
   V(TRANSITION_ARRAY_TYPE)                                      \
                                                                 \
   V(CALL_HANDLER_INFO_TYPE)                                     \
@@ -798,6 +798,7 @@ enum InstanceType : uint16_t {
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   BOILERPLATE_DESCRIPTION_TYPE,
+  DESCRIPTOR_ARRAY_TYPE,
   HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,
   BLOCK_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
@@ -811,7 +812,6 @@ enum InstanceType : uint16_t {
   WITH_CONTEXT_TYPE,  // LAST_FIXED_ARRAY_TYPE, LAST_CONTEXT_TYPE
 
   WEAK_FIXED_ARRAY_TYPE,  // FIRST_WEAK_FIXED_ARRAY_TYPE
-  DESCRIPTOR_ARRAY_TYPE,
   TRANSITION_ARRAY_TYPE,  // LAST_WEAK_FIXED_ARRAY_TYPE
 
   // Misc.

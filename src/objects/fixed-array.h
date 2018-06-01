@@ -280,8 +280,6 @@ class WeakFixedArray : public HeapObject {
 
   inline MaybeObject** RawFieldOfElementAt(int index);
 
-  inline MaybeObject** GetFirstElementAddress();
-
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
@@ -294,12 +292,11 @@ class WeakFixedArray : public HeapObject {
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
- protected:
+ private:
   static int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kPointerSize;
   }
 
- private:
   friend class Heap;
 
   static const int kFirstIndex = 1;

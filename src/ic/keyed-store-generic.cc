@@ -262,8 +262,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // The length property is non-configurable, so it's guaranteed to always
     // be the first property.
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
-    TNode<Uint32T> details = LoadDetailsByKeyIndex(
-        descriptors, IntPtrConstant(DescriptorArray::ToKeyIndex(0)));
+    TNode<Int32T> details = LoadAndUntagToWord32FixedArrayElement(
+        descriptors, DescriptorArray::ToDetailsIndex(0));
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
            slow);
   }
@@ -573,9 +573,10 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
                         &var_entry, &next_proto, bailout);
       BIND(&found_fast);
       {
-        TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
-        TNode<IntPtrT> name_index = var_entry.value();
-        Node* details = LoadDetailsByKeyIndex(descriptors, name_index);
+        Node* descriptors = var_meta_storage.value();
+        Node* name_index = var_entry.value();
+        Node* details =
+            LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
@@ -650,7 +651,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   BIND(&fast_properties);
   {
     Comment("fast property store");
-    TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
+    Node* descriptors = LoadMapDescriptors(receiver_map);
     Label descriptor_found(this), lookup_transition(this);
     TVARIABLE(IntPtrT, var_name_index);
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
@@ -658,8 +659,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&descriptor_found);
     {
-      TNode<IntPtrT> name_index = var_name_index.value();
-      Node* details = LoadDetailsByKeyIndex(descriptors, name_index);
+      Node* name_index = var_name_index.value();
+      Node* details =
+          LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
       Label data_property(this);
       JumpIfDataProperty(details, &data_property, &readonly);
 

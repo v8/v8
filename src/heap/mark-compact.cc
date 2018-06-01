@@ -1816,8 +1816,8 @@ void MarkCompactCollector::TrimDescriptorArray(Map* map,
   int number_of_descriptors = descriptors->number_of_descriptors_storage();
   int to_trim = number_of_descriptors - number_of_own_descriptors;
   if (to_trim > 0) {
-    heap_->RightTrimWeakFixedArray(descriptors,
-                                   to_trim * DescriptorArray::kEntrySize);
+    heap_->RightTrimFixedArray(descriptors,
+                               to_trim * DescriptorArray::kEntrySize);
     descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
     TrimEnumCache(map, descriptors);

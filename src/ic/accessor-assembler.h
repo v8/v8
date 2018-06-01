@@ -123,8 +123,8 @@ class AccessorAssembler : public CodeStubAssembler {
                                          Label* slow,
                                          bool do_transitioning_store);
 
-  void CheckFieldType(TNode<DescriptorArray> descriptors, Node* name_index,
-                      Node* representation, Node* value, Label* bailout);
+  void CheckFieldType(Node* descriptors, Node* name_index, Node* representation,
+                      Node* value, Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -137,9 +137,7 @@ class AccessorAssembler : public CodeStubAssembler {
                          TVariable<MaybeObject>* var_handler, Label* if_handler,
                          Label* miss, ExitPoint* exit_point);
 
-  TNode<Object> LoadDescriptorValue(Node* map, Node* descriptor);
-  TNode<MaybeObject> LoadDescriptorValueOrFieldType(Node* map,
-                                                    Node* descriptor);
+  Node* LoadDescriptorValue(Node* map, Node* descriptor);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 

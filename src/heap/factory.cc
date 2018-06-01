@@ -334,10 +334,6 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(Heap::RootListIndex map_root_index,
 template Handle<FixedArray> Factory::NewFixedArrayWithMap<FixedArray>(
     Heap::RootListIndex, int, PretenureFlag);
 
-template Handle<DescriptorArray>
-Factory::NewWeakFixedArrayWithMap<DescriptorArray>(Heap::RootListIndex, int,
-                                                   PretenureFlag);
-
 Handle<FixedArray> Factory::NewFixedArray(int length, PretenureFlag pretenure) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
@@ -2714,7 +2710,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i));
     Handle<PropertyCell> cell = NewPropertyCell(name);
-    cell->set_value(descs->GetStrongValue(i));
+    cell->set_value(descs->GetValue(i));
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(dictionary, name, cell, d));
   }
