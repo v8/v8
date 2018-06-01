@@ -2859,6 +2859,18 @@
                     ]
                 },
                 {
+                    "name": "setAsyncCallStackDepth",
+                    "description": "Enables or disables async call stacks tracking.",
+                    "parameters": [
+                        {
+                            "name": "maxDepth",
+                            "description": "Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async\ncall stacks (default).",
+                            "type": "integer"
+                        }
+                    ],
+                    "redirect": "Debugger"
+                },
+                {
                     "name": "setCustomObjectFormatterEnabled",
                     "experimental": true,
                     "parameters": [

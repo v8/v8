@@ -1213,7 +1213,9 @@ Response V8DebuggerAgentImpl::setReturnValue(
 }
 
 Response V8DebuggerAgentImpl::setAsyncCallStackDepth(int depth) {
-  if (!enabled()) return Response::Error(kDebuggerNotEnabled);
+  if (!enabled() && !m_session->runtimeAgent()->enabled()) {
+    return Response::Error(kDebuggerNotEnabled);
+  }
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, depth);
   m_debugger->setAsyncCallStackDepth(this, depth);
   return Response::OK();

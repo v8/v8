@@ -760,6 +760,9 @@ Response V8RuntimeAgentImpl::disable() {
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(
       m_session->contextGroupId());
+  if (m_session->debuggerAgent() && !m_session->debuggerAgent()->enabled()) {
+    m_session->debuggerAgent()->setAsyncCallStackDepth(0);
+  }
   return Response::OK();
 }
 
@@ -816,5 +819,4 @@ bool V8RuntimeAgentImpl::reportMessage(V8ConsoleMessage* message,
   m_frontend.flush();
   return m_inspector->hasConsoleMessageStorage(m_session->contextGroupId());
 }
-
 }  // namespace v8_inspector

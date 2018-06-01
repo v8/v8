@@ -1314,6 +1314,14 @@ domain Runtime
       # Exception details.
       optional ExceptionDetails exceptionDetails
 
+  # Enables or disables async call stacks tracking.
+  command setAsyncCallStackDepth
+    redirect Debugger
+    parameters
+      # Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async
+      # call stacks (default).
+      integer maxDepth
+
   experimental command setCustomObjectFormatterEnabled
     parameters
       boolean enabled
