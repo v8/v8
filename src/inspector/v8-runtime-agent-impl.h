@@ -110,10 +110,6 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   void terminateExecution(
       std::unique_ptr<TerminateExecutionCallback> callback) override;
 
-  Response addBinding(const String16& name) override;
-  Response removeBinding(const String16& name) override;
-  void addBindings(InspectedContext* context);
-
   void reset();
   void reportExecutionContextCreated(InspectedContext*);
   void reportExecutionContextDestroyed(InspectedContext*);
@@ -124,11 +120,6 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
 
  private:
   bool reportMessage(V8ConsoleMessage*, bool generatePreview);
-
-  static void bindingCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
-  void bindingCalled(const String16& name, const String16& payload,
-                     int executionContextId);
-  void addBinding(InspectedContext* context, const String16& name);
 
   V8InspectorSessionImpl* m_session;
   protocol::DictionaryValue* m_state;
