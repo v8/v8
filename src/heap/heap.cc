@@ -2875,12 +2875,10 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
 
 void Heap::RightTrimWeakFixedArray(WeakFixedArray* object,
                                    int elements_to_trim) {
-  // This function is safe to use only 1) during GC and 2) for old space
-  // WeakFixedArrays: 1) When marking, we record the weak slots, and shrinking
-  // invalidates them. 2) Scavenger might move new space WeakFixedArrays around,
-  // making the recorded slots collide with other objects.
+  // This function is safe to use only at the end of the mark compact
+  // collection: When marking, we record the weak slots, and shrinking
+  // invalidates them.
   DCHECK_EQ(gc_state(), MARK_COMPACT);
-  DCHECK(InOldSpace(object));
   CreateFillerForArray<WeakFixedArray>(object, elements_to_trim,
                                        elements_to_trim * kPointerSize);
 }
