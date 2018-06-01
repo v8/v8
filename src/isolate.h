@@ -1255,6 +1255,14 @@ class Isolate : private HiddenFactory {
 
   void DebugStateUpdated();
 
+  void SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
+                              void* data);
+  void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
+                              Handle<JSArrayBuffer> array_buffer,
+                              size_t offset_in_bytes, int32_t value,
+                              double timeout_in_ms,
+                              AtomicsWaitWakeHandle* stop_handle);
+
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
@@ -1542,6 +1550,8 @@ class Isolate : private HiddenFactory {
   base::RandomNumberGenerator* fuzzer_rng_;
   base::AtomicValue<RAILMode> rail_mode_;
   bool promise_hook_or_debug_is_active_;
+  v8::Isolate::AtomicsWaitCallback atomics_wait_callback_;
+  void* atomics_wait_callback_data_;
   PromiseHook promise_hook_;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_;
   HostInitializeImportMetaObjectCallback

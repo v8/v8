@@ -2513,6 +2513,8 @@ Isolate::Isolate()
       fuzzer_rng_(nullptr),
       rail_mode_(PERFORMANCE_ANIMATION),
       promise_hook_or_debug_is_active_(false),
+      atomics_wait_callback_(nullptr),
+      atomics_wait_callback_data_(nullptr),
       promise_hook_(nullptr),
       load_start_time_ms_(0),
       serializer_enabled_(false),
@@ -3839,6 +3841,27 @@ Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
 void Isolate::SetHostInitializeImportMetaObjectCallback(
     HostInitializeImportMetaObjectCallback callback) {
   host_initialize_import_meta_object_callback_ = callback;
+}
+
+void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
+                                     void* data) {
+  atomics_wait_callback_ = callback;
+  atomics_wait_callback_data_ = data;
+}
+
+void Isolate::RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
+                                     Handle<JSArrayBuffer> array_buffer,
+                                     size_t offset_in_bytes, int32_t value,
+                                     double timeout_in_ms,
+                                     AtomicsWaitWakeHandle* stop_handle) {
+  DCHECK(array_buffer->is_shared());
+  if (atomics_wait_callback_ == nullptr) return;
+  HandleScope handle_scope(this);
+  atomics_wait_callback_(
+      event, v8::Utils::ToLocalShared(array_buffer), offset_in_bytes, value,
+      timeout_in_ms,
+      reinterpret_cast<v8::Isolate::AtomicsWaitWakeHandle*>(stop_handle),
+      atomics_wait_callback_data_);
 }
 
 void Isolate::SetPromiseHook(PromiseHook hook) {

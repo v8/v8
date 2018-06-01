@@ -28053,3 +28053,207 @@ TEST(WasmStreamingAbortNoReject) {
   streaming.Abort({});
   CHECK_EQ(streaming.GetPromise()->State(), v8::Promise::kPending);
 }
+
+enum class AtomicsWaitCallbackAction {
+  Interrupt,
+  StopAndThrowInFirstCall,
+  StopAndThrowInSecondCall,
+  StopFromThreadAndThrow,
+  KeepWaiting
+};
+
+class StopAtomicsWaitThread;
+
+struct AtomicsWaitCallbackInfo {
+  v8::Isolate* isolate;
+  v8::Isolate::AtomicsWaitWakeHandle* wake_handle;
+  std::unique_ptr<StopAtomicsWaitThread> stop_thread;
+  AtomicsWaitCallbackAction action;
+
+  Local<v8::SharedArrayBuffer> expected_sab;
+  v8::Isolate::AtomicsWaitEvent expected_event;
+  double expected_timeout;
+  int32_t expected_value;
+  size_t expected_offset;
+
+  size_t ncalls = 0;
+};
+
+class StopAtomicsWaitThread : public v8::base::Thread {
+ public:
+  explicit StopAtomicsWaitThread(AtomicsWaitCallbackInfo* info)
+      : Thread(Options("StopAtomicsWaitThread")), info_(info) {}
+
+  virtual void Run() {
+    CHECK_NOT_NULL(info_->wake_handle);
+    info_->wake_handle->Wake();
+  }
+
+ private:
+  AtomicsWaitCallbackInfo* info_;
+};
+
+void AtomicsWaitCallbackForTesting(
+    v8::Isolate::AtomicsWaitEvent event, Local<v8::SharedArrayBuffer> sab,
+    size_t offset_in_bytes, int32_t value, double timeout_in_ms,
+    v8::Isolate::AtomicsWaitWakeHandle* wake_handle, void* data) {
+  AtomicsWaitCallbackInfo* info = static_cast<AtomicsWaitCallbackInfo*>(data);
+  info->ncalls++;
+  info->wake_handle = wake_handle;
+  CHECK(sab->StrictEquals(info->expected_sab));
+  CHECK_EQ(timeout_in_ms, info->expected_timeout);
+  CHECK_EQ(value, info->expected_value);
+  CHECK_EQ(offset_in_bytes, info->expected_offset);
+
+  auto ThrowSomething = [&]() {
+    info->isolate->ThrowException(v8::Integer::New(info->isolate, 42));
+  };
+
+  if (event == v8::Isolate::AtomicsWaitEvent::kStartWait) {
+    CHECK_NOT_NULL(wake_handle);
+    switch (info->action) {
+      case AtomicsWaitCallbackAction::Interrupt:
+        info->isolate->TerminateExecution();
+        break;
+      case AtomicsWaitCallbackAction::StopAndThrowInFirstCall:
+        ThrowSomething();
+        V8_FALLTHROUGH;
+      case AtomicsWaitCallbackAction::StopAndThrowInSecondCall:
+        wake_handle->Wake();
+        break;
+      case AtomicsWaitCallbackAction::StopFromThreadAndThrow:
+        info->stop_thread = v8::base::make_unique<StopAtomicsWaitThread>(info);
+        info->stop_thread->Start();
+        break;
+      case AtomicsWaitCallbackAction::KeepWaiting:
+        break;
+    }
+  } else {
+    CHECK_EQ(event, info->expected_event);
+    CHECK_NULL(wake_handle);
+
+    if (info->stop_thread) {
+      info->stop_thread->Join();
+      info->stop_thread.reset();
+    }
+
+    if (info->action == AtomicsWaitCallbackAction::StopAndThrowInSecondCall ||
+        info->action == AtomicsWaitCallbackAction::StopFromThreadAndThrow) {
+      ThrowSomething();
+    }
+  }
+}
+
+TEST(AtomicsWaitCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<Value> sab = CompileRun(
+      "sab = new SharedArrayBuffer(12);"
+      "int32arr = new Int32Array(sab, 4);"
+      "sab");
+  CHECK(sab->IsSharedArrayBuffer());
+
+  AtomicsWaitCallbackInfo info;
+  info.isolate = isolate;
+  info.expected_sab = sab.As<v8::SharedArrayBuffer>();
+  isolate->SetAtomicsWaitCallback(AtomicsWaitCallbackForTesting, &info);
+
+  {
+    v8::TryCatch try_catch(isolate);
+    info.expected_offset = 4;
+    info.expected_timeout = std::numeric_limits<double>::infinity();
+    info.expected_value = 0;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kTerminatedExecution;
+    info.action = AtomicsWaitCallbackAction::Interrupt;
+    info.ncalls = 0;
+    CompileRun("Atomics.wait(int32arr, 0, 0);");
+    CHECK_EQ(info.ncalls, 2);
+    CHECK(try_catch.HasTerminated());
+  }
+
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("Atomics.wait(int32arr, 1, 1);");  // real value is 0 != 1
+    CHECK_EQ(info.ncalls, 2);
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch(isolate);
+    info.expected_offset = 8;
+    info.expected_timeout = 0.125;
+    info.expected_value = 0;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kTimedOut;
+    info.action = AtomicsWaitCallbackAction::KeepWaiting;
+    info.ncalls = 0;
+    CompileRun("Atomics.wait(int32arr, 1, 0, 0.125);");  // timeout
+    CHECK_EQ(info.ncalls, 2);
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch(isolate);
+    info.expected_offset = 8;
+    info.expected_timeout = std::numeric_limits<double>::infinity();
+    info.expected_value = 0;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
+    info.action = AtomicsWaitCallbackAction::StopAndThrowInFirstCall;
+    info.ncalls = 0;
+    CompileRun("Atomics.wait(int32arr, 1, 0);");
+    CHECK_EQ(info.ncalls, 1);  // Only one extra call
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->IsInt32());
+    CHECK_EQ(try_catch.Exception().As<v8::Int32>()->Value(), 42);
+  }
+
+  {
+    v8::TryCatch try_catch(isolate);
+    info.expected_offset = 8;
+    info.expected_timeout = std::numeric_limits<double>::infinity();
+    info.expected_value = 0;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
+    info.action = AtomicsWaitCallbackAction::StopAndThrowInSecondCall;
+    info.ncalls = 0;
+    CompileRun("Atomics.wait(int32arr, 1, 0);");
+    CHECK_EQ(info.ncalls, 2);
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->IsInt32());
+    CHECK_EQ(try_catch.Exception().As<v8::Int32>()->Value(), 42);
+  }
+
+  {
+    // Same test as before, but with a different `expected_value`.
+    v8::TryCatch try_catch(isolate);
+    info.expected_offset = 8;
+    info.expected_timeout = std::numeric_limits<double>::infinity();
+    info.expected_value = 200;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
+    info.action = AtomicsWaitCallbackAction::StopAndThrowInSecondCall;
+    info.ncalls = 0;
+    CompileRun(
+        "int32arr[1] = 200;"
+        "Atomics.wait(int32arr, 1, 200);");
+    CHECK_EQ(info.ncalls, 2);
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->IsInt32());
+    CHECK_EQ(try_catch.Exception().As<v8::Int32>()->Value(), 42);
+  }
+
+  {
+    // Wake the `Atomics.wait()` call from a thread.
+    v8::TryCatch try_catch(isolate);
+    info.expected_offset = 4;
+    info.expected_timeout = std::numeric_limits<double>::infinity();
+    info.expected_value = 0;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
+    info.action = AtomicsWaitCallbackAction::StopFromThreadAndThrow;
+    info.ncalls = 0;
+    CompileRun("Atomics.wait(int32arr, 0, 0);");
+    CHECK_EQ(info.ncalls, 2);
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->IsInt32());
+    CHECK_EQ(try_catch.Exception().As<v8::Int32>()->Value(), 42);
+  }
+}

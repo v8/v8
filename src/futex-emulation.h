@@ -35,6 +35,18 @@ class Handle;
 class Isolate;
 class JSArrayBuffer;
 
+class AtomicsWaitWakeHandle {
+ public:
+  explicit AtomicsWaitWakeHandle(Isolate* isolate) : isolate_(isolate) {}
+
+  void Wake();
+  inline bool has_stopped() const { return stopped_; }
+
+ private:
+  Isolate* isolate_;
+  bool stopped_ = false;
+};
+
 class FutexWaitListNode {
  public:
   FutexWaitListNode()

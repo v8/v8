@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+using AtomicsWaitEvent = v8::Isolate::AtomicsWaitEvent;
+
 base::LazyMutex FutexEmulation::mutex_ = LAZY_MUTEX_INITIALIZER;
 base::LazyInstance<FutexWaitList>::type FutexEmulation::wait_list_ =
     LAZY_INSTANCE_INITIALIZER;
@@ -71,6 +73,10 @@ void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
   node->prev_ = node->next_ = nullptr;
 }
 
+void AtomicsWaitWakeHandle::Wake() {
+  stopped_ = true;
+  isolate_->futex_wait_list_node()->NotifyWake();
+}
 
 Object* FutexEmulation::Wait(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
@@ -114,7 +120,17 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   base::TimeTicks timeout_time = start_time + rel_timeout;
   base::TimeTicks current_time = start_time;
 
+  AtomicsWaitWakeHandle stop_handle(isolate);
+
+  isolate->RunAtomicsWaitCallback(AtomicsWaitEvent::kStartWait, array_buffer,
+                                  addr, value, rel_timeout_ms, &stop_handle);
+
+  if (isolate->has_scheduled_exception()) {
+    return isolate->PromoteScheduledException();
+  }
+
   Object* result;
+  AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   {
     base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
@@ -144,6 +160,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
         Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
         if (interrupt_object->IsException(isolate)) {
           result = interrupt_object;
+          callback_result = AtomicsWaitEvent::kTerminatedExecution;
           mutex_.Pointer()->Lock();
           break;
         }
@@ -156,6 +173,11 @@ Object* FutexEmulation::Wait(Isolate* isolate,
         continue;
       }
 
+      if (stop_handle.has_stopped()) {
+        node->waiting_ = false;
+        callback_result = AtomicsWaitEvent::kAPIStopped;
+      }
+
       if (!node->waiting_) {
         result = isolate->heap()->ok();
         break;
@@ -166,6 +188,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
         current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
           result = isolate->heap()->timed_out();
+          callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }
 
@@ -184,7 +207,15 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     wait_list_.Pointer()->RemoveNode(node);
   }
 
+  isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
+                                  rel_timeout_ms, nullptr);
+
   node->waiting_ = false;
+
+  if (isolate->has_scheduled_exception()) {
+    CHECK_NE(callback_result, AtomicsWaitEvent::kTerminatedExecution);
+    result = isolate->PromoteScheduledException();
+  }
 
   return result;
 }
