@@ -1428,7 +1428,7 @@ TNode<Number> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {
 TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
     SloppyTNode<JSArray> array) {
   TNode<Object> length = LoadJSArrayLength(array);
-  CSA_ASSERT(this, IsFastElementsKind(LoadMapElementsKind(LoadMap(array))));
+  CSA_ASSERT(this, IsFastElementsKind(LoadElementsKind(array)));
   // JSArray length is always a positive Smi for fast arrays.
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   return UncheckedCast<Smi>(length);
@@ -1493,6 +1493,11 @@ TNode<Int32T> CodeStubAssembler::LoadMapElementsKind(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   Node* bit_field2 = LoadMapBitField2(map);
   return Signed(DecodeWord32<Map::ElementsKindBits>(bit_field2));
+}
+
+TNode<Int32T> CodeStubAssembler::LoadElementsKind(
+    SloppyTNode<HeapObject> object) {
+  return LoadMapElementsKind(LoadMap(object));
 }
 
 TNode<DescriptorArray> CodeStubAssembler::LoadMapDescriptors(

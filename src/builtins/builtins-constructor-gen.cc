@@ -36,20 +36,28 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  Node* target = Parameter(ConstructWithArrayLikeDescriptor::kTarget);
-  Node* new_target = Parameter(ConstructWithArrayLikeDescriptor::kNewTarget);
-  Node* arguments_list =
-      Parameter(ConstructWithArrayLikeDescriptor::kArgumentsList);
-  Node* context = Parameter(ConstructWithArrayLikeDescriptor::kContext);
+  TNode<Object> target =
+      CAST(Parameter(ConstructWithArrayLikeDescriptor::kTarget));
+  SloppyTNode<Object> new_target =
+      CAST(Parameter(ConstructWithArrayLikeDescriptor::kNewTarget));
+  TNode<Object> arguments_list =
+      CAST(Parameter(ConstructWithArrayLikeDescriptor::kArgumentsList));
+  TNode<Context> context =
+      CAST(Parameter(ConstructWithArrayLikeDescriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
-  Node* target = Parameter(ConstructWithSpreadDescriptor::kTarget);
-  Node* new_target = Parameter(ConstructWithSpreadDescriptor::kNewTarget);
-  Node* spread = Parameter(ConstructWithSpreadDescriptor::kSpread);
-  Node* args_count = Parameter(ConstructWithSpreadDescriptor::kArgumentsCount);
-  Node* context = Parameter(ConstructWithSpreadDescriptor::kContext);
+  TNode<Object> target =
+      CAST(Parameter(ConstructWithSpreadDescriptor::kTarget));
+  SloppyTNode<Object> new_target =
+      CAST(Parameter(ConstructWithSpreadDescriptor::kNewTarget));
+  TNode<Object> spread =
+      CAST(Parameter(ConstructWithSpreadDescriptor::kSpread));
+  TNode<Int32T> args_count = UncheckedCast<Int32T>(
+      Parameter(ConstructWithSpreadDescriptor::kArgumentsCount));
+  TNode<Context> context =
+      CAST(Parameter(ConstructWithSpreadDescriptor::kContext));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 

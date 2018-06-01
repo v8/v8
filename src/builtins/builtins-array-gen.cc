@@ -246,7 +246,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         transition_smi_double(this);
     Label array_not_smi(this), array_fast(this), array_double(this);
 
-    Node* kind = LoadMapElementsKind(LoadMap(a()));
+    TNode<Int32T> kind = LoadElementsKind(a());
     Node* elements = LoadElements(a());
     GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS), &array_not_smi);
     TryStoreArrayElement(HOLEY_SMI_ELEMENTS, mode, &transition_pre, elements, k,
@@ -960,7 +960,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
                                    SmiTag(new_length));
 
-    Node* elements_kind = LoadMapElementsKind(LoadMap(array_receiver));
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
     GotoIf(Int32LessThanOrEqual(elements_kind,
                                 Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
            &fast_elements);
@@ -1538,7 +1538,7 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
     StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
                                    SmiTag(new_length));
 
-    Node* elements_kind = LoadMapElementsKind(LoadMap(array_receiver));
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
     GotoIf(
         Int32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_SMI_ELEMENTS)),
         &fast_elements_smi);
@@ -2977,7 +2977,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   Label if_smiorobjects(this), if_packed_doubles(this), if_holey_doubles(this);
 
-  Node* elements_kind = LoadMapElementsKind(LoadMap(array));
+  TNode<Int32T> elements_kind = LoadElementsKind(array);
   Node* elements = LoadElements(array);
   STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
   STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);

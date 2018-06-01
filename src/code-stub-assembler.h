@@ -623,6 +623,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Int32T> LoadMapInstanceType(SloppyTNode<Map> map);
   // Load the ElementsKind of a map.
   TNode<Int32T> LoadMapElementsKind(SloppyTNode<Map> map);
+  TNode<Int32T> LoadElementsKind(SloppyTNode<HeapObject> map);
   // Load the instance descriptors of a map.
   TNode<DescriptorArray> LoadMapDescriptors(SloppyTNode<Map> map);
   // Load the prototype of a map.

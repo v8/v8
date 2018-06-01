@@ -221,7 +221,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     TNode<Object> collection, TNode<JSArray> fast_jsarray,
     Label* if_may_have_side_effects) {
   TNode<FixedArrayBase> elements = LoadElements(fast_jsarray);
-  TNode<Int32T> elements_kind = LoadMapElementsKind(LoadMap(fast_jsarray));
+  TNode<Int32T> elements_kind = LoadElementsKind(fast_jsarray);
   TNode<JSFunction> add_func = GetInitialAddFunction(variant, native_context);
   CSA_ASSERT(
       this,
@@ -530,7 +530,7 @@ void BaseCollectionsAssembler::LoadKeyValue(
     TNode<JSArray> array = CAST(maybe_array);
     TNode<Smi> length = LoadFastJSArrayLength(array);
     TNode<FixedArrayBase> elements = LoadElements(array);
-    TNode<Int32T> elements_kind = LoadMapElementsKind(LoadMap(array));
+    TNode<Int32T> elements_kind = LoadElementsKind(array);
 
     Label if_smiorobjects(this), if_doubles(this);
     Branch(IsFastSmiOrTaggedElementsKind(elements_kind), &if_smiorobjects,
