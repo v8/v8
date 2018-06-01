@@ -10,8 +10,8 @@ assertThrows(() => Intl.Locale('sr'), TypeError);
 // Non-string locale.
 assertThrows(() => new Intl.Locale(5), TypeError);
 
-// Invalid locale.
-assertThrows(() => new Intl.Locale('abcdefghi'), TypeError);
+// Invalid locale string.
+assertThrows(() => new Intl.Locale('abcdefghi'), RangeError);
 
 // Options will be force converted into Object.
 assertDoesNotThrow(() => new Intl.Locale('sr', 5));
@@ -29,4 +29,89 @@ assertThrows(
           numeric: 'true',
           numberingSystem: 'roman',
         }),
-    TypeError);
+    RangeError);
+
+// Throws only once during construction.
+// Check for all getters to prevent regression.
+assertThrows(
+    () => new Intl.Locale('en-US', {
+      get calendar() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertThrows(
+    () => new Intl.Locale('en-US', {
+      get caseFirst() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertThrows(
+    () => new Intl.Locale('en-US', {
+      get collation() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertThrows(
+    () => new Intl.Locale('en-US', {
+      get hourCycle() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertThrows(
+    () => new Intl.Locale('en-US', {
+      get numeric() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertThrows(
+    () => new Intl.Locale('en-US', {
+      get numberingSystem() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+// These don't throw yet, we need to implement language/script/region
+// override logic first.
+assertDoesNotThrow(
+    () => new Intl.Locale('en-US', {
+      get language() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertDoesNotThrow(
+    () => new Intl.Locale('en-US', {
+      get script() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+assertDoesNotThrow(
+    () => new Intl.Locale('en-US', {
+      get region() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
+
+// There won't be an override for baseName so we don't expect it to throw.
+assertDoesNotThrow(
+    () => new Intl.Locale('en-US', {
+      get baseName() {
+        throw new Error('foo');
+      }
+    }),
+    Error);
