@@ -2300,6 +2300,18 @@ class ThreadImpl {
           Push(WasmValue(ExecuteI64ReinterpretF64(val)));
           break;
         }
+#define SIGN_EXTENSION_CASE(name, wtype, ntype)        \
+  case kExpr##name: {                                  \
+    ntype val = static_cast<ntype>(Pop().to<wtype>()); \
+    Push(WasmValue(static_cast<wtype>(val)));          \
+    break;                                             \
+  }
+          SIGN_EXTENSION_CASE(I32SExtendI8, int32_t, int8_t);
+          SIGN_EXTENSION_CASE(I32SExtendI16, int32_t, int16_t);
+          SIGN_EXTENSION_CASE(I64SExtendI8, int64_t, int8_t);
+          SIGN_EXTENSION_CASE(I64SExtendI16, int64_t, int16_t);
+          SIGN_EXTENSION_CASE(I64SExtendI32, int64_t, int32_t);
+#undef SIGN_EXTENSION_CASE
         case kNumericPrefix: {
           ++len;
           if (!ExecuteNumericOp(opcode, &decoder, code, pc, len)) return;
