@@ -97,7 +97,10 @@ class Handle final : public HandleBase {
                   "static type violation");
   }
 
-  V8_INLINE explicit Handle(T* object);
+#ifdef DEPRECATE_GET_ISOLATE
+  [[deprecated("Use Handle(T* object, Isolate* isolate)")]]
+#endif
+      V8_INLINE explicit Handle(T* object);
   V8_INLINE Handle(T* object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
@@ -166,7 +169,11 @@ V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(T* object) {
+#ifdef DEPRECATE_GET_ISOLATE
+[[deprecated("Use handle(T* object, Isolate* isolate)")]]
+#endif
+    V8_INLINE Handle<T>
+    handle(T* object) {
   return Handle<T>(object);
 }
 

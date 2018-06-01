@@ -22,6 +22,10 @@ declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
+  # Turns on deprecation warnings for HeapObject::GetIsolate,
+  # HeapObject::GetHeap, Handle(T* obj) and handle(T* obj).
+  v8_deprecate_get_isolate = false
+
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
   # within a release Chrome.
   v8_enable_debugging_features = is_debug
@@ -195,8 +199,10 @@ config("internal_config") {
     "$target_gen_dir",
   ]
 
+  defines = []
+
   if (is_component_build) {
-    defines = [ "BUILDING_V8_SHARED" ]
+    defines += [ "BUILDING_V8_SHARED" ]
   }
 }
 
@@ -319,6 +325,9 @@ config("features") {
   }
   if (v8_imminent_deprecation_warnings) {
     defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
+  }
+  if (v8_deprecate_get_isolate) {
+    defines += [ "DEPRECATE_GET_ISOLATE" ]
   }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
@@ -562,6 +571,10 @@ config("toolchain") {
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el") {
       cflags += [ "-Wshorten-64-to-32" ]
+    }
+
+    if (v8_deprecate_get_isolate) {
+      cflags += [ "-Wno-error=deprecated" ]
     }
   }
 

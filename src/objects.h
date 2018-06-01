@@ -1776,10 +1776,18 @@ class HeapObject: public Object {
   inline void set_map_word(MapWord map_word);
 
   // The Heap the object was allocated in. Used also to access Isolate.
-  inline Heap* GetHeap() const;
+#ifdef DEPRECATE_GET_ISOLATE
+  [[deprecated("Pass Heap explicitly")]]
+#endif
+      inline Heap*
+      GetHeap() const;
 
-  // Convenience method to get current isolate.
-  inline Isolate* GetIsolate() const;
+// Convenience method to get current isolate.
+#ifdef DEPRECATE_GET_ISOLATE
+  [[deprecated("Pass Isolate explicitly")]]
+#endif
+      inline Isolate*
+      GetIsolate() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
