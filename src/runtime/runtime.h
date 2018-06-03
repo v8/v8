@@ -97,8 +97,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(GetWeakMapEntries, 2, 1)              \
   F(GetWeakSetValues, 2, 1)               \
-  F(IsJSMap, 1, 1)                        \
-  F(IsJSSet, 1, 1)                        \
   F(IsJSWeakMap, 1, 1)                    \
   F(IsJSWeakSet, 1, 1)                    \
   F(MapGrow, 1, 1)                        \
@@ -127,62 +125,37 @@ namespace internal {
   F(IsDate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)             \
-  F(ChangeBreakOnException, 2, 1)               \
-  F(CheckExecutionState, 1, 1)                  \
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
   F(DebugApplyInstrumentation, 1, 1)            \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
-  F(DebugConstructedBy, 2, 1)                   \
-  F(DebugEvaluate, 5, 1)                        \
-  F(DebugEvaluateGlobal, 2, 1)                  \
-  F(DebugGetInternalProperties, 1, 1)           \
   F(DebugGetLoadedScripts, 0, 1)                \
-  F(DebugGetProperty, 2, 1)                     \
-  F(DebugGetPropertyDetails, 2, 1)              \
-  F(DebugGetPrototype, 1, 1)                    \
   F(DebugIsActive, 0, 1)                        \
   F(DebugOnFunctionCall, 2, 1)                  \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
-  F(DebugPropertyAttributesFromDetails, 1, 1)   \
-  F(DebugPropertyKindFromDetails, 1, 1)         \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugAsyncFunctionSuspended, 1, 1)          \
   F(DebugAsyncFunctionFinished, 2, 1)           \
-  F(DebugReferencedBy, 3, 1)                    \
-  F(DebugSetScriptSource, 2, 1)                 \
   F(DebugToggleBlockCoverage, 1, 1)             \
   F(DebugTogglePreciseCoverage, 1, 1)           \
-  F(FunctionGetDebugName, 1, 1)                 \
   F(FunctionGetInferredName, 1, 1)              \
-  F(GetAllScopesDetails, 4, 1)                  \
   F(GetBreakLocations, 1, 1)                    \
   F(GetDebugContext, 0, 1)                      \
-  F(GetFrameCount, 1, 1)                        \
-  F(GetFrameDetails, 2, 1)                      \
-  F(GetFunctionScopeCount, 1, 1)                \
-  F(GetFunctionScopeDetails, 2, 1)              \
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(GetHeapUsage, 0, 1)                         \
-  F(GetScopeCount, 2, 1)                        \
-  F(GetScopeDetails, 4, 1)                      \
   F(GetScript, 1, 1)                            \
   F(HandleDebuggerStatement, 0, 1)              \
   F(IncBlockCounter, 2, 1)                      \
   F(IsBreakOnException, 1, 1)                   \
-  F(PrepareStep, 2, 1)                          \
   F(ScheduleBreak, 0, 1)                        \
-  F(ScriptLineCount, 1, 1)                      \
   F(ScriptLocationFromLine2, 4, 1)              \
   F(ScriptLocationFromLine, 4, 1)               \
   F(ScriptPositionInfo2, 3, 1)                  \
   F(ScriptPositionInfo, 3, 1)                   \
-  F(SetScopeVariableValue, 6, 1)
-
-#define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
+  F(SetGeneratorScopeVariableValue, 4, 1)
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInEnumerate, 1, 1)           \
@@ -210,14 +183,12 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(Call, -1 /* >= 2 */, 1)                \
-  F(FunctionGetContextData, 1, 1)          \
   F(FunctionGetName, 1, 1)                 \
   F(FunctionGetScript, 1, 1)               \
   F(FunctionGetScriptId, 1, 1)             \
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionIsAPIFunction, 1, 1)           \
-  F(FunctionToString, 1, 1)                \
   F(IsConstructor, 1, 1)                   \
   F(IsFunction, 1, 1)                      \
   F(SetCode, 2, 1)                         \
@@ -230,12 +201,9 @@ namespace internal {
   F(AsyncGeneratorYield, 3, 1)                \
   F(CreateJSGeneratorObject, 2, 1)            \
   F(GeneratorClose, 1, 1)                     \
-  F(GeneratorGetContinuation, 1, 1)           \
   F(GeneratorGetFunction, 1, 1)               \
   F(GeneratorGetInputOrDebugPos, 1, 1)        \
-  F(GeneratorGetReceiver, 1, 1)               \
-  F(GeneratorGetResumeMode, 1, 1)             \
-  F(GeneratorGetSourcePosition, 1, 1)
+  F(GeneratorGetResumeMode, 1, 1)
 
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F)           \
@@ -330,8 +298,7 @@ namespace internal {
   F(LiveEditPatchFunctionPositions, 2, 1)           \
   F(LiveEditReplaceFunctionCode, 2, 1)              \
   F(LiveEditReplaceRefToNestedFunction, 3, 1)       \
-  F(LiveEditReplaceScript, 3, 1)                    \
-  F(LiveEditRestartFrame, 2, 1)
+  F(LiveEditReplaceScript, 3, 1)
 
 #define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
 
@@ -372,7 +339,6 @@ namespace internal {
   F(DefineSetterPropertyUnchecked, 4, 1)                        \
   F(DeleteProperty, 3, 1)                                       \
   F(GetFunctionName, 1, 1)                                      \
-  F(GetInterceptorInfo, 1, 1)                                   \
   F(GetOwnPropertyDescriptor, 2, 1)                             \
   F(GetOwnPropertyKeys, 2, 1)                                   \
   F(GetProperty, 2, 1)                                          \
@@ -511,7 +477,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_SYMBOL(F)       \
   F(CreatePrivateFieldSymbol, 0, 1)        \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
-  F(SymbolDescription, 1, 1)               \
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)
 
@@ -564,12 +529,7 @@ namespace internal {
   F(InNewSpace, 1, 1)                         \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsConcurrentRecompilationSupported, 0, 1) \
-  F(IsJSError, 1, 1)                          \
-  F(IsJSGeneratorObject, 1, 1)                \
-  F(IsJSMapIterator, 1, 1)                    \
-  F(IsJSSetIterator, 1, 1)                    \
   F(IsLiftoffFunction, 1, 1)                  \
-  F(IsScriptWrapper, 1, 1)                    \
   F(IsWasmCode, 1, 1)                         \
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
   F(NativeScriptsCount, 0, 1)                 \
@@ -676,7 +636,6 @@ namespace internal {
   FOR_EACH_INTRINSIC_COMPILER(F)            \
   FOR_EACH_INTRINSIC_DATE(F)                \
   FOR_EACH_INTRINSIC_DEBUG(F)               \
-  FOR_EACH_INTRINSIC_ERROR(F)               \
   FOR_EACH_INTRINSIC_FORIN(F)               \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \

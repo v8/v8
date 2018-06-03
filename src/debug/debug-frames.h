@@ -71,27 +71,6 @@ class FrameInspector {
 
   DISALLOW_COPY_AND_ASSIGN(FrameInspector);
 };
-
-
-class DebugFrameHelper : public AllStatic {
- public:
-  static SaveContext* FindSavedContextForFrame(Isolate* isolate,
-                                               StandardFrame* frame);
-  // Advances the iterator to the frame that matches the index and returns the
-  // inlined frame index, or -1 if not found.  Skips native JS functions.
-  static int FindIndexedNonNativeFrame(StackTraceFrameIterator* it, int index);
-
-  // Helper functions for wrapping and unwrapping stack frame ids.
-  static Smi* WrapFrameId(StackFrame::Id id) {
-    DCHECK(IsAligned(OffsetFrom(id), static_cast<intptr_t>(4)));
-    return Smi::FromInt(id >> 2);
-  }
-
-  static StackFrame::Id UnwrapFrameId(int wrapped) {
-    return static_cast<StackFrame::Id>(wrapped << 2);
-  }
-};
-
 }  // namespace internal
 }  // namespace v8
 

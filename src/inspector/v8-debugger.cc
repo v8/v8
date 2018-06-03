@@ -600,13 +600,12 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
 }
 
 void V8Debugger::BreakProgramRequested(
-    v8::Local<v8::Context> pausedContext, v8::Local<v8::Object>,
+    v8::Local<v8::Context> pausedContext,
     const std::vector<v8::debug::BreakpointId>& break_points_hit) {
   handleProgramBreak(pausedContext, v8::Local<v8::Value>(), break_points_hit);
 }
 
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
-                                 v8::Local<v8::Object>,
                                  v8::Local<v8::Value> exception,
                                  v8::Local<v8::Value> promise,
                                  bool isUncaught) {

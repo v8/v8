@@ -332,10 +332,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IsArray)                             \
   V(IsDate)                              \
   V(IsFunction)                          \
-  V(IsJSMap)                             \
   V(IsJSProxy)                           \
   V(IsJSReceiver)                        \
-  V(IsJSSet)                             \
   V(IsJSWeakMap)                         \
   V(IsJSWeakSet)                         \
   V(IsRegExp)                            \

@@ -11,12 +11,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_IsJSGeneratorObject) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsJSGeneratorObject());
-}
-
 RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -58,14 +52,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   return generator->function();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->receiver();
-}
-
 RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
@@ -94,23 +80,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return Smi::FromInt(generator->continuation());
-}
-
-RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  if (!generator->is_suspended()) return isolate->heap()->undefined_value();
-  return Smi::FromInt(generator->source_position());
 }
 
 // Return true if {generator}'s PC has a catch handler. This allows

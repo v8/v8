@@ -266,41 +266,5 @@ RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
 
   return *result;
 }
-
-
-// Restarts a call frame and completely drops all frames above.
-// Returns true if successful. Otherwise returns undefined or an error message.
-RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
-  HandleScope scope(isolate);
-  CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK_EQ(2, args.length());
-  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
-  CHECK(isolate->debug()->CheckExecutionState(break_id));
-
-  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
-  Heap* heap = isolate->heap();
-
-  // Find the relevant frame with the requested index.
-  StackFrame::Id id = isolate->debug()->break_frame_id();
-  if (id == StackFrame::NO_ID) {
-    // If there are no JavaScript stack frames return undefined.
-    return heap->undefined_value();
-  }
-
-  StackTraceFrameIterator it(isolate, id);
-  int inlined_jsframe_index =
-      DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
-  // Liveedit is not supported on Wasm.
-  if (inlined_jsframe_index == -1 || it.is_wasm()) {
-    return heap->undefined_value();
-  }
-  // We don't really care what the inlined frame index is, since we are
-  // throwing away the entire frame anyways.
-  const char* error_message = LiveEdit::RestartFrame(it.javascript_frame());
-  if (error_message) {
-    return *(isolate->factory()->InternalizeUtf8String(error_message));
-  }
-  return heap->true_value();
-}
 }  // namespace internal
 }  // namespace v8

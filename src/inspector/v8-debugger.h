@@ -175,10 +175,10 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(
-      v8::Local<v8::Context> paused_context, v8::Local<v8::Object>,
+      v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
-                       v8::Local<v8::Object>, v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> exception,
                        v8::Local<v8::Value> promise, bool is_uncaught) override;
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,

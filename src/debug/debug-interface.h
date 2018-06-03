@@ -147,10 +147,9 @@ class DebugDelegate {
   // |inspector_break_points_hit| contains id of breakpoints installed with
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
-      v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
+      v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
-                               v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught) {
   }

@@ -13,18 +13,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_IsJSMapIterator) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsJSMapIterator());
-}
-
-RUNTIME_FUNCTION(Runtime_IsJSSetIterator) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsJSSetIterator());
-}
-
 RUNTIME_FUNCTION(Runtime_TheHole) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
@@ -123,6 +111,14 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   return isolate->heap()->ToBoolean(was_present);
 }
 
+RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
+  CONVERT_NUMBER_CHECKED(int, max_values, Int32, args[1]);
+  CHECK_GE(max_values, 0);
+  return *JSWeakCollection::GetEntries(holder, max_values);
+}
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   HandleScope scope(isolate);
@@ -145,30 +141,6 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
 
   JSWeakCollection::Set(weak_collection, key, value, hash);
   return *weak_collection;
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
-  CONVERT_NUMBER_CHECKED(int, max_values, Int32, args[1]);
-  CHECK_GE(max_values, 0);
-  return *JSWeakCollection::GetEntries(holder, max_values);
-}
-
-RUNTIME_FUNCTION(Runtime_IsJSMap) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSMap());
-}
-
-RUNTIME_FUNCTION(Runtime_IsJSSet) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSSet());
 }
 
 RUNTIME_FUNCTION(Runtime_IsJSWeakMap) {

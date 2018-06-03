@@ -181,32 +181,5 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &init_flag,
                                      &maybe_assigned_flag) != -1;
 }
-
-SaveContext* DebugFrameHelper::FindSavedContextForFrame(Isolate* isolate,
-                                                        StandardFrame* frame) {
-  SaveContext* save = isolate->save_context();
-  while (save != nullptr && !save->IsBelowFrame(frame)) {
-    save = save->prev();
-  }
-  DCHECK(save != nullptr);
-  return save;
-}
-
-int DebugFrameHelper::FindIndexedNonNativeFrame(StackTraceFrameIterator* it,
-                                                int index) {
-  int count = -1;
-  for (; !it->done(); it->Advance()) {
-    std::vector<FrameSummary> frames;
-    it->frame()->Summarize(&frames);
-    for (size_t i = frames.size(); i != 0; i--) {
-      // Omit functions from native and extension scripts.
-      if (!frames[i - 1].is_subject_to_debugging()) continue;
-      if (++count == index) return static_cast<int>(i) - 1;
-    }
-  }
-  return -1;
-}
-
-
 }  // namespace internal
 }  // namespace v8

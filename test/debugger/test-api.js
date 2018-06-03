@@ -284,7 +284,7 @@ class DebugWrapper {
     }
 
     function setScopeVariableValue(name, value) {
-      const res = %SetScopeVariableValue(gen, null, null, index, name, value);
+      const res = %SetGeneratorScopeVariableValue(gen, index, name, value);
       if (!res) throw new Error("Failed to set variable '" + name + "' value");
     }
 

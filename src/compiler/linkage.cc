@@ -158,7 +158,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kGeneratorGetContinuation:
     case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:
@@ -185,8 +184,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
     case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsJSMap:
-    case Runtime::kInlineIsJSSet:
     case Runtime::kInlineIsJSWeakMap:
     case Runtime::kInlineIsJSWeakSet:
     case Runtime::kInlineIsJSReceiver:

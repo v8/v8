@@ -87,7 +87,6 @@ class BreakHandler : public debug::DebugDelegate {
   std::vector<BreakPoint> expected_breaks_;
 
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             v8::Local<v8::Object> exec_state,
                              const std::vector<int>&) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_breaks_.size(), count_);
@@ -193,7 +192,6 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
   std::vector<BreakpointValues> expected_values_;
 
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             v8::Local<v8::Object> exec_state,
                              const std::vector<int>&) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_values_.size(), count_);

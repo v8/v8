@@ -1704,44 +1704,6 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   return FixedArray::ShrinkOrEmpty(results, length);
 }
 
-
-MaybeHandle<Object> Debug::MakeExecutionState() {
-  // Create the execution state object.
-  Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()) };
-  return CallFunction("MakeExecutionState", arraysize(argv), argv);
-}
-
-
-MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
-                                              bool uncaught,
-                                              Handle<Object> promise) {
-  // Create the new exception event object.
-  Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()),
-                            exception,
-                            isolate_->factory()->ToBoolean(uncaught),
-                            promise };
-  return CallFunction("MakeExceptionEvent", arraysize(argv), argv);
-}
-
-
-MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
-                                            v8::DebugEvent type) {
-  // Create the compile event object.
-  Handle<Object> script_wrapper = Script::GetWrapper(script);
-  Handle<Object> argv[] = { script_wrapper,
-                            isolate_->factory()->NewNumberFromInt(type) };
-  return CallFunction("MakeCompileEvent", arraysize(argv), argv);
-}
-
-MaybeHandle<Object> Debug::MakeAsyncTaskEvent(
-    v8::debug::DebugAsyncActionType type, int id) {
-  // Create the async task event object.
-  Handle<Object> argv[] = {Handle<Smi>(Smi::FromInt(type), isolate_),
-                           Handle<Smi>(Smi::FromInt(id), isolate_)};
-  return CallFunction("MakeAsyncTaskEvent", arraysize(argv), argv);
-}
-
-
 void Debug::OnThrow(Handle<Object> exception) {
   if (in_debug_scope() || ignore_events()) return;
   // Temporarily clear any scheduled_exception to allow evaluating
@@ -1782,7 +1744,7 @@ void Debug::OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
 
 namespace {
 v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
-  Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
+  Handle<Context> context = handle(isolate->context());
   // Isolate::context() may have been nullptr when "script collected" event
   // occurred.
   if (context.is_null()) return v8::Local<v8::Context>();
@@ -1813,9 +1775,7 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
 }
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
-  // We cannot generate debug events when JS execution is disallowed.
-  // TODO(5530): Reenable debug events within DisallowJSScopes once relevant
-  // code (MakeExceptionEvent and ProcessDebugEvent) have been moved to C++.
+  // TODO(kozyatinskiy): regress-662674.js test fails on arm without this.
   if (!AllowJavascriptExecution::IsAllowed(isolate_)) return;
 
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
@@ -1860,14 +1820,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
 
-  // Create the execution state.
-  Handle<Object> exec_state;
-  // Bail out and don't call debugger if exception.
-  if (!MakeExecutionState().ToHandle(&exec_state)) return;
-
   debug_delegate_->ExceptionThrown(
       GetDebugEventContext(isolate_),
-      v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
       v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise), uncaught);
 }
 
@@ -1887,11 +1841,6 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
   PostponeInterruptsScope no_interrupts(isolate_);
   DisableBreak no_recursive_break(this);
 
-  // Create the execution state.
-  Handle<Object> exec_state;
-  // Bail out and don't call debugger if exception.
-  if (!MakeExecutionState().ToHandle(&exec_state)) return;
-
   std::vector<int> inspector_break_points_hit;
   int inspector_break_points_count = 0;
   // This array contains breakpoints installed using JS debug API.
@@ -1903,19 +1852,7 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
 
   debug_delegate_->BreakProgramRequested(
       GetDebugEventContext(isolate_),
-      v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
       inspector_break_points_hit);
-}
-
-
-void Debug::OnCompileError(Handle<Script> script) {
-  ProcessCompileEvent(v8::CompileError, script);
-}
-
-
-// Handle debugger actions when a new script is compiled.
-void Debug::OnAfterCompile(Handle<Script> script) {
-  ProcessCompileEvent(v8::AfterCompile, script);
 }
 
 void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
@@ -2036,7 +1973,11 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
                             bool preview, bool* stack_changed) {
+  SaveContext save(isolate_);
   DebugScope debug_scope(this);
+  if (debug_scope.failed()) return false;
+  isolate_->set_context(*debug_context());
+
   set_live_edit_enabled(true);
   Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = {script_wrapper, source,
@@ -2058,7 +1999,15 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
   return true;
 }
 
-void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
+void Debug::OnCompileError(Handle<Script> script) {
+  ProcessCompileEvent(true, script);
+}
+
+void Debug::OnAfterCompile(Handle<Script> script) {
+  ProcessCompileEvent(false, script);
+}
+
+void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   // Attach the correct debug id to the script. The debug id is used by the
   // inspector to filter scripts by native context.
   script->set_context_data(isolate_->native_context()->debug_context_id());
@@ -2075,8 +2024,7 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   DisableBreak no_recursive_break(this);
   AllowJavascriptExecution allow_script(isolate_);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
-                                  live_edit_enabled(),
-                                  event != v8::AfterCompile);
+                                  live_edit_enabled(), has_compile_error);
 }
 
 
@@ -2147,26 +2095,6 @@ void Debug::UpdateHookOnFunctionCall() {
       thread_local_.last_step_action_ == StepIn ||
       isolate_->debug_execution_mode() == DebugInfo::kSideEffects ||
       thread_local_.break_on_next_function_call_;
-}
-
-MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
-  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
-  DebugScope debug_scope(this);
-  if (debug_scope.failed()) return isolate_->factory()->undefined_value();
-
-  // Create the execution state.
-  Handle<Object> exec_state;
-  if (!MakeExecutionState().ToHandle(&exec_state)) {
-    return isolate_->factory()->undefined_value();
-  }
-
-  Handle<Object> argv[] = { exec_state, data };
-  return Execution::Call(
-      isolate_,
-      fun,
-      Handle<Object>(debug_context()->global_proxy(), isolate_),
-      arraysize(argv),
-      argv);
 }
 
 void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
@@ -2254,7 +2182,6 @@ void Debug::PrintBreakLocation() {
 DebugScope::DebugScope(Debug* debug)
     : debug_(debug),
       prev_(debug->debugger_entry()),
-      save_(debug_->isolate_),
       no_termination_exceptons_(debug_->isolate_,
                                 StackGuard::TERMINATE_EXECUTION) {
   // Link recursive debugger entry.
@@ -2277,7 +2204,6 @@ DebugScope::DebugScope(Debug* debug)
   // Make sure that debugger is loaded and enter the debugger context.
   // The previous context is kept in save_.
   failed_ = !debug_->is_loaded();
-  if (!failed_) isolate()->set_context(*debug->debug_context());
 }
 
 
@@ -2461,116 +2387,5 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   isolate_->TerminateExecution();
   return false;
 }
-
-void LegacyDebugDelegate::AsyncEventOccurred(
-    v8::debug::DebugAsyncActionType type, int id, bool is_blackboxed) {
-  DebugScope debug_scope(isolate_->debug());
-  if (debug_scope.failed()) return;
-  HandleScope scope(isolate_);
-  Handle<Object> event_data;
-  if (isolate_->debug()->MakeAsyncTaskEvent(type, id).ToHandle(&event_data)) {
-    ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data));
-  }
-}
-
-void LegacyDebugDelegate::ScriptCompiled(v8::Local<v8::debug::Script> script,
-                                         bool is_live_edited,
-                                         bool is_compile_error) {
-  Handle<Object> event_data;
-  v8::DebugEvent event = is_compile_error ? v8::CompileError : v8::AfterCompile;
-  if (isolate_->debug()
-          ->MakeCompileEvent(v8::Utils::OpenHandle(*script), event)
-          .ToHandle(&event_data)) {
-    ProcessDebugEvent(event, Handle<JSObject>::cast(event_data));
-  }
-}
-
-void LegacyDebugDelegate::BreakProgramRequested(
-    v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
-    const std::vector<debug::BreakpointId>&) {
-  ProcessDebugEvent(v8::Break, isolate_->factory()->NewJSObjectWithNullProto(),
-                    Handle<JSObject>::cast(v8::Utils::OpenHandle(*exec_state)));
-}
-
-void LegacyDebugDelegate::ExceptionThrown(v8::Local<v8::Context> paused_context,
-                                          v8::Local<v8::Object> exec_state,
-                                          v8::Local<v8::Value> exception,
-                                          v8::Local<v8::Value> promise,
-                                          bool is_uncaught) {
-  Handle<Object> event_data;
-  if (isolate_->debug()
-          ->MakeExceptionEvent(v8::Utils::OpenHandle(*exception), is_uncaught,
-                               v8::Utils::OpenHandle(*promise))
-          .ToHandle(&event_data)) {
-    ProcessDebugEvent(
-        v8::Exception, Handle<JSObject>::cast(event_data),
-        Handle<JSObject>::cast(v8::Utils::OpenHandle(*exec_state)));
-  }
-}
-
-void LegacyDebugDelegate::ProcessDebugEvent(v8::DebugEvent event,
-                                            Handle<JSObject> event_data) {
-  Handle<Object> exec_state;
-  if (isolate_->debug()->MakeExecutionState().ToHandle(&exec_state)) {
-    ProcessDebugEvent(event, event_data, Handle<JSObject>::cast(exec_state));
-  }
-}
-
-NativeDebugDelegate::NativeDebugDelegate(Isolate* isolate,
-                                         v8::Debug::EventCallback callback,
-                                         Handle<Object> data)
-    : LegacyDebugDelegate(isolate), callback_(callback) {
-  data_ = isolate->global_handles()->Create(*data);
-}
-
-NativeDebugDelegate::~NativeDebugDelegate() {
-  GlobalHandles::Destroy(data_.location());
-}
-
-NativeDebugDelegate::EventDetails::EventDetails(DebugEvent event,
-                                                Handle<JSObject> exec_state,
-                                                Handle<JSObject> event_data,
-                                                Handle<Object> callback_data)
-    : event_(event),
-      exec_state_(exec_state),
-      event_data_(event_data),
-      callback_data_(callback_data) {}
-
-DebugEvent NativeDebugDelegate::EventDetails::GetEvent() const {
-  return event_;
-}
-
-v8::Local<v8::Object> NativeDebugDelegate::EventDetails::GetExecutionState()
-    const {
-  return v8::Utils::ToLocal(exec_state_);
-}
-
-v8::Local<v8::Object> NativeDebugDelegate::EventDetails::GetEventData() const {
-  return v8::Utils::ToLocal(event_data_);
-}
-
-v8::Local<v8::Context> NativeDebugDelegate::EventDetails::GetEventContext()
-    const {
-  return GetDebugEventContext(exec_state_->GetIsolate());
-}
-
-v8::Local<v8::Value> NativeDebugDelegate::EventDetails::GetCallbackData()
-    const {
-  return v8::Utils::ToLocal(callback_data_);
-}
-
-v8::Isolate* NativeDebugDelegate::EventDetails::GetIsolate() const {
-  return reinterpret_cast<v8::Isolate*>(exec_state_->GetIsolate());
-}
-
-void NativeDebugDelegate::ProcessDebugEvent(v8::DebugEvent event,
-                                            Handle<JSObject> event_data,
-                                            Handle<JSObject> exec_state) {
-  EventDetails event_details(event, exec_state, event_data, data_);
-  Isolate* isolate = isolate_;
-  callback_(event_details);
-  CHECK(!isolate->has_scheduled_exception());
-}
-
 }  // namespace internal
 }  // namespace v8
