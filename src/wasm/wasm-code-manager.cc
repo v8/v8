@@ -383,8 +383,9 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
       can_request_more_memory_(can_request_more),
       use_trap_handler_(env.use_trap_handler) {
   if (num_functions > 0) {
-    code_table_.reset(new WasmCode*[num_functions]);
-    memset(code_table_.get(), 0, num_functions * sizeof(WasmCode*));
+    uint32_t num_wasm_functions = num_functions - num_imports;
+    code_table_.reset(new WasmCode*[num_wasm_functions]);
+    memset(code_table_.get(), 0, num_wasm_functions * sizeof(WasmCode*));
   }
   VirtualMemory my_mem;
   owned_code_space_.push_back(my_mem);
@@ -394,9 +395,11 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   DCHECK_LE(num_functions_, max_functions);
-  WasmCode** new_table = new WasmCode*[max_functions];
-  memset(new_table, 0, max_functions * sizeof(*new_table));
-  memcpy(new_table, code_table_.get(), num_functions_ * sizeof(*new_table));
+  uint32_t num_wasm = num_functions_ - num_imported_functions_;
+  uint32_t max_wasm = max_functions - num_imported_functions_;
+  WasmCode** new_table = new WasmCode*[max_wasm];
+  memset(new_table, 0, max_wasm * sizeof(*new_table));
+  memcpy(new_table, code_table_.get(), num_wasm * sizeof(*new_table));
   code_table_.reset(new_table);
 }
 
@@ -406,8 +409,8 @@ void NativeModule::SetNumFunctionsForTesting(uint32_t num_functions) {
 
 void NativeModule::SetCodeForTesting(uint32_t index, WasmCode* code) {
   DCHECK_LT(index, num_functions_);
-  DCHECK_LT(num_imported_functions_, index);
-  code_table_[index] = code;
+  DCHECK_LE(num_imported_functions_, index);
+  code_table_[index - num_imported_functions_] = code;
 }
 
 WasmCode* NativeModule::AddOwnedCode(
@@ -454,9 +457,11 @@ WasmCode* NativeModule::AddOwnedCode(
 
 WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
                                     uint32_t index) {
+  // TODO(wasm): Adding instance-specific wasm-to-js wrappers as owned code to
+  // this NativeModule is a memory leak until the whole NativeModule dies.
   WasmCode* ret = AddAnonymousCode(code, kind);
-  code_table_[index] = ret;
   ret->index_ = Just(index);
+  if (index >= num_imported_functions_) set_code(index, ret);
   return ret;
 }
 
@@ -468,8 +473,8 @@ WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
 
 void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
-  for (uint32_t i = num_imported_functions_, e = num_functions_; i < e; ++i) {
-    code_table_[i] = lazy_builtin;
+  for (WasmCode*& code_table_entry : code_table()) {
+    code_table_entry = lazy_builtin;
   }
 }
 
@@ -586,7 +591,7 @@ WasmCode* NativeModule::AddCode(
       safepoint_table_offset, handler_table_offset,
       std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
 
-  code_table_[index] = ret;
+  set_code(index, ret);
 
   // Apply the relocation delta by iterating over the RelocInfo.
   AllowDeferredHandleDereference embedding_raw_address;
@@ -812,7 +817,7 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
       original_code->handler_table_offset_, std::move(protected_instructions),
       original_code->tier(), flush_icache);
   if (!ret->IsAnonymous()) {
-    code_table_[ret->index()] = ret;
+    set_code(ret->index(), ret);
   }
   return ret;
 }

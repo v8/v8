@@ -398,6 +398,7 @@ class RelocInfo {
     PC_JUMP,
 
     // Points to a wasm code table entry.
+    // TODO(clemensh): Remove this once we have the jump table (issue 7758).
     WASM_CODE_TABLE_ENTRY,
 
     // Pseudo-types

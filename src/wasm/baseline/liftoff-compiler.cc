@@ -1949,8 +1949,11 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
       compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, wasm_unit_->counters_->liftoff_compile_time());
+  // TODO(clemensh): Remove this once we have the jump table (issue 7758).
   wasm::WasmCode** code_table_entry =
-      &wasm_unit_->native_module_->code_table()[wasm_unit_->func_index_];
+      &wasm_unit_->native_module_
+           ->code_table()[wasm_unit_->func_index_ -
+                          wasm_unit_->native_module_->num_imported_functions()];
   DCHECK(!protected_instructions_);
   protected_instructions_.reset(
       new std::vector<trap_handler::ProtectedInstructionData>());

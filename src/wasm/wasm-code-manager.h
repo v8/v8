@@ -266,13 +266,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* code(uint32_t index) const {
     DCHECK_LT(index, num_functions_);
     DCHECK_LE(num_imported_functions_, index);
-    return code_table_[index];
+    return code_table_[index - num_imported_functions_];
   }
 
   bool has_code(uint32_t index) const {
     DCHECK_LT(index, num_functions_);
     DCHECK_LE(num_imported_functions_, index);
-    return code_table_[index] != nullptr;
+    return code_table_[index - num_imported_functions_] != nullptr;
   }
 
   WasmCode* runtime_stub(WasmCode::RuntimeStubId index) const {
@@ -309,7 +309,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t num_functions() const { return num_functions_; }
   uint32_t num_imported_functions() const { return num_imported_functions_; }
   Vector<WasmCode*> code_table() const {
-    return {code_table_.get(), num_functions_};
+    return {code_table_.get(), num_functions_ - num_imported_functions_};
   }
   bool use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
@@ -350,6 +350,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
+
+  void set_code(uint32_t index, WasmCode* code) {
+    DCHECK_LT(index, num_functions_);
+    DCHECK_LE(num_imported_functions_, index);
+    DCHECK_EQ(code->index(), index);
+    code_table_[index - num_imported_functions_] = code;
+  }
 
   // Holds all allocated code objects, is maintained to be in ascending order
   // according to the codes instruction start address to allow lookups.

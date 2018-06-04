@@ -499,7 +499,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       constant_pool_offset, stack_slot_count, safepoint_table_offset,
       handler_table_offset, std::move(protected_instructions), tier,
       WasmCode::kNoFlushICache);
-  native_module_->code_table_[fn_index] = ret;
+  native_module_->set_code(fn_index, ret);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
@@ -538,8 +538,10 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       case RelocInfo::WASM_CODE_TABLE_ENTRY: {
         DCHECK(FLAG_wasm_tier_up);
         DCHECK(ret->is_liftoff());
+        uint32_t code_table_index =
+            ret->index() - native_module_->num_imported_functions_;
         WasmCode** code_table_entry =
-            &native_module_->code_table()[ret->index()];
+            &native_module_->code_table()[code_table_index];
         iter.rinfo()->set_wasm_code_table_entry(
             reinterpret_cast<Address>(code_table_entry), SKIP_ICACHE_FLUSH);
         break;
