@@ -23,6 +23,7 @@ class JumpOptimizationInfo;
 namespace wasm {
 enum ModuleOrigin : uint8_t;
 struct FunctionBody;
+class NativeModule;
 struct WasmModule;
 }  // namespace wasm
 
@@ -49,6 +50,7 @@ class Pipeline : public AllStatic {
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
+      wasm::NativeModule* native_module, int function_index,
       wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must

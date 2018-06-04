@@ -5147,6 +5147,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
         source_positions, node_origins, &wasm_compilation_data_,
         wasm_unit_->func_body_,
         const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
+        wasm_unit_->native_module_, wasm_unit_->func_index_,
         wasm_unit_->env_->module->origin));
     ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
@@ -5200,19 +5201,6 @@ wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
     return nullptr;
   }
 
-  // TODO(mtrofin): when we crystalize a design in lieu of WasmCodeDesc, that
-  // works for both wasm and non-wasm, we can simplify AddCode to just take
-  // that as a parameter.
-  const CodeDesc& desc = job_->compilation_info()->wasm_code_desc()->code_desc;
-  wasm::WasmCode* code = wasm_unit_->native_module_->AddCode(
-      desc, job_->compilation_info()->wasm_code_desc()->frame_slot_count,
-      wasm_unit_->func_index_,
-      job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
-      job_->compilation_info()->wasm_code_desc()->handler_table_offset,
-      wasm_compilation_data_.ReleaseProtectedInstructions(),
-      job_->compilation_info()->wasm_code_desc()->source_positions_table,
-      wasm::WasmCode::kTurbofan);
-  if (!code) return code;
   if (FLAG_trace_wasm_decode_time) {
     double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
     PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
@@ -5221,7 +5209,7 @@ wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
            codegen_ms);
   }
 
-  return code;
+  return job_->compilation_info()->wasm_code();
 }
 
 namespace {

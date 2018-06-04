@@ -69,6 +69,7 @@
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
 #include "src/disassembler.h"
 #include "src/isolate-inl.h"
@@ -137,10 +138,12 @@ class PipelineData {
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
-               WasmCompilationData* wasm_compilation_data)
+               WasmCompilationData* wasm_compilation_data,
+               int wasm_function_index)
       : isolate_(isolate),
         info_(info),
         debug_name_(info_->GetDebugName()),
+        wasm_function_index_(wasm_function_index),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
@@ -378,10 +381,17 @@ class PipelineData {
 
   const char* debug_name() const { return debug_name_.get(); }
 
+  WasmCompilationData* wasm_compilation_data() const {
+    return wasm_compilation_data_;
+  }
+
+  int wasm_function_index() const { return wasm_function_index_; }
+
  private:
   Isolate* const isolate_;
   OptimizedCompilationInfo* const info_;
   std::unique_ptr<char[]> debug_name_;
+  int wasm_function_index_ = -1;
   bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
@@ -939,16 +949,18 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
-      bool asmjs_origin)
+      wasm::NativeModule* native_module, int function_index, bool asmjs_origin)
       : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), info,
                                 "TurboFan", State::kReadyToExecute),
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             function_body, wasm_module, info, isolate, &zone_stats_)),
         data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
-              source_positions, node_origins, wasm_compilation_data),
+              source_positions, node_origins, wasm_compilation_data,
+              function_index),
         pipeline_(&data_),
         linkage_(call_descriptor),
+        native_module_(native_module),
         asmjs_origin_(asmjs_origin) {}
 
  protected:
@@ -964,6 +976,7 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage linkage_;
+  wasm::NativeModule* native_module_;
   bool asmjs_origin_;
 };
 
@@ -1015,27 +1028,27 @@ size_t PipelineWasmCompilationJob::AllocatedMemory() const {
 PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   CodeGenerator* code_generator = pipeline_.data_->code_generator();
-  OptimizedCompilationInfo::WasmCodeDesc* wasm_code_desc =
-      compilation_info()->wasm_code_desc();
-  code_generator->tasm()->GetCode(isolate, &wasm_code_desc->code_desc);
-  wasm_code_desc->safepoint_table_offset =
-      code_generator->GetSafepointTableOffset();
-  wasm_code_desc->handler_table_offset =
-      code_generator->GetHandlerTableOffset();
-  wasm_code_desc->frame_slot_count =
-      code_generator->frame()->GetTotalFrameSlotCount();
-  wasm_code_desc->source_positions_table =
-      code_generator->GetSourcePositionTable();
+  CodeDesc code_desc;
+  code_generator->tasm()->GetCode(isolate, &code_desc);
+
+  wasm::WasmCode* code = native_module_->AddCode(
+      code_desc, code_generator->frame()->GetTotalFrameSlotCount(),
+      data_.wasm_function_index(), code_generator->GetSafepointTableOffset(),
+      code_generator->GetHandlerTableOffset(),
+      data_.wasm_compilation_data()->ReleaseProtectedInstructions(),
+      code_generator->GetSourcePositionTable(), wasm::WasmCode::kTurbofan);
+
+  if (!code) return FAILED;
 
   if (data_.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data_.info(), std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
-    CodeDesc& code_desc = wasm_code_desc->code_desc;
     Disassembler::Decode(
-        isolate, &disassembler_stream, code_desc.buffer,
-        code_desc.buffer + wasm_code_desc->safepoint_table_offset);
+        isolate, &disassembler_stream, code->instructions().start(),
+        code->instructions().start() + code->safepoint_table_offset(),
+        CodeReference(code));
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);
     }
@@ -1043,6 +1056,8 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
     json_of << "\"}\n]";
     json_of << "\n}";
   }
+
+  compilation_info()->SetCode(code);
 
   return SUCCEEDED;
 }
@@ -2136,10 +2151,12 @@ OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
     wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
+    wasm::NativeModule* native_module, int function_index,
     wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(
       info, isolate, mcgraph, call_descriptor, source_positions, node_origins,
-      wasm_compilation_data, function_body, wasm_module, asmjs_origin);
+      wasm_compilation_data, function_body, wasm_module, native_module,
+      function_index, asmjs_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

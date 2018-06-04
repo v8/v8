@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/bailout-reason.h"
+#include "src/code-reference.h"
 #include "src/compilation-dependencies.h"
 #include "src/feedback-vector.h"
 #include "src/frames.h"
@@ -58,18 +59,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kTraceTurboScheduled = 1 << 16,
   };
 
-  // TODO(mtrofin): investigate if this might be generalized outside wasm, with
-  // the goal of better separating the compiler from where compilation lands. At
-  // that point, the Handle<Code> member of OptimizedCompilationInfo would also
-  // be removed.
-  struct WasmCodeDesc {
-    CodeDesc code_desc;
-    size_t safepoint_table_offset = 0;
-    size_t handler_table_offset = 0;
-    uint32_t frame_slot_count = 0;
-    Handle<ByteArray> source_positions_table;
-  };
-
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
@@ -85,7 +74,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   bool has_shared_info() const { return !shared_info().is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
-  Handle<Code> code() const { return code_; }
+  Handle<Code> code() const { return code_.as_js_code(); }
+
+  wasm::WasmCode* wasm_code() const {
+    return const_cast<wasm::WasmCode*>(code_.as_wasm_code());
+  }
   AbstractCode::Kind abstract_code_kind() const { return code_kind_; }
   Code::Kind code_kind() const {
     DCHECK(code_kind_ < static_cast<AbstractCode::Kind>(Code::NUMBER_OF_KINDS));
@@ -184,7 +177,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Code getters and setters.
 
-  void SetCode(Handle<Code> code) { code_ = code; }
+  template <typename T>
+  void SetCode(T code) {
+    code_ = CodeReference(code);
+  }
 
   bool has_context() const;
   Context* context() const;
@@ -270,8 +266,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   StackFrame::Type GetOutputStackFrameType() const;
 
-  WasmCodeDesc* wasm_code_desc() { return &wasm_code_desc_; }
-
  private:
   OptimizedCompilationInfo(Vector<const char> debug_name,
                            AbstractCode::Kind code_kind, Zone* zone);
@@ -295,8 +289,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<JSFunction> closure_;
 
   // The compiled code.
-  Handle<Code> code_;
-  WasmCodeDesc wasm_code_desc_;
+  CodeReference code_;
 
   // Entry point when compiling for OSR, {BailoutId::None} otherwise.
   BailoutId osr_offset_;
