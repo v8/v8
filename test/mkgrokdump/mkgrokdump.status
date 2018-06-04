@@ -4,7 +4,7 @@
 
 [
 # Only test for default mode x64.
-['variant != default or arch != x64 or asan == True', {
+['variant != default or arch != x64', {
   '*': [SKIP],
 }],  # variant != default or arch != x64
 ]
