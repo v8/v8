@@ -614,10 +614,6 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
-  void set_embedded_address(Address address, ICacheFlushMode flush_mode);
-
-  Address embedded_address() const;
-
   // On ARM/ARM64, note that pc_ is the address of the instruction referencing
   // the constant pool and not the address of the constant pool entry.
   Address pc_;
