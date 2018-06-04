@@ -232,8 +232,10 @@ class TorqueBaseListener : public TorqueListener {
   void exitHandlerWithStatement(
       TorqueParser::HandlerWithStatementContext* /*ctx*/) override {}
 
-  void enterTryCatch(TorqueParser::TryCatchContext* /*ctx*/) override {}
-  void exitTryCatch(TorqueParser::TryCatchContext* /*ctx*/) override {}
+  void enterTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* /*ctx*/) override {}
+  void exitTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* /*ctx*/) override {}
 
   void enterDiagnosticStatement(
       TorqueParser::DiagnosticStatementContext* /*ctx*/) override {}

@@ -63,7 +63,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(TailCallStatement)                  \
   V(VarDeclarationStatement)            \
   V(GotoStatement)                      \
-  V(TryCatchStatement)
+  V(TryLabelStatement)
 
 #define AST_DECLARATION_NODE_KIND_LIST(V) \
   V(TypeDeclaration)                      \
@@ -88,7 +88,6 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   AST_STATEMENT_NODE_KIND_LIST(V)       \
   AST_DECLARATION_NODE_KIND_LIST(V)     \
   AST_CALLABLE_NODE_KIND_LIST(V)        \
-  V(CatchBlock)                         \
   V(LabelBlock)
 
 struct AstNode {
@@ -525,14 +524,6 @@ struct ForOfLoopStatement : Statement {
   Statement* body;
 };
 
-struct CatchBlock : AstNode {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(CatchBlock)
-  CatchBlock(SourcePosition p, const std::string& c, Statement* b)
-      : AstNode(kKind, p), caught(std::move(c)), body(std::move(b)) {}
-  std::string caught;
-  Statement* body;
-};
-
 struct LabelBlock : AstNode {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LabelBlock)
   LabelBlock(SourcePosition p, const std::string& l,
@@ -546,12 +537,11 @@ struct LabelBlock : AstNode {
   Statement* body;
 };
 
-struct TryCatchStatement : Statement {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryCatchStatement)
-  TryCatchStatement(SourcePosition p, Statement* t, std::vector<CatchBlock*> c)
-      : Statement(kKind, p), try_block(std::move(t)), catch_blocks(c) {}
+struct TryLabelStatement : Statement {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryLabelStatement)
+  TryLabelStatement(SourcePosition p, Statement* t)
+      : Statement(kKind, p), try_block(std::move(t)) {}
   Statement* try_block;
-  std::vector<CatchBlock*> catch_blocks;
   std::vector<LabelBlock*> label_blocks;
 };
 

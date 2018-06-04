@@ -108,7 +108,8 @@ class AstGenerator : public TorqueBaseVisitor {
   antlrcpp::Any visitPrimaryExpression(
       TorqueParser::PrimaryExpressionContext* context) override;
 
-  antlrcpp::Any visitTryCatch(TorqueParser::TryCatchContext* context) override;
+  antlrcpp::Any visitTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* context) override;
 
   antlrcpp::Any visitStatementScope(
       TorqueParser::StatementScopeContext* context) override;

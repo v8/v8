@@ -871,7 +871,7 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   return TypeOracle::GetVoidType();
 }
 
-const Type* ImplementationVisitor::Visit(TryCatchStatement* stmt) {
+const Type* ImplementationVisitor::Visit(TryLabelStatement* stmt) {
   ScopedIndent indent(this);
   Label* try_done = declarations()->DeclarePrivateLabel("try_done");
   GenerateLabelDefinition(try_done);

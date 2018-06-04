@@ -247,7 +247,7 @@ class DeclarationVisitor : public FileVisitor {
     Visit(expr->location);
   }
 
-  void Visit(TryCatchStatement* stmt);
+  void Visit(TryLabelStatement* stmt);
 
   void GenerateHeader(std::string& file_name) {
     std::stringstream new_contents_stream;

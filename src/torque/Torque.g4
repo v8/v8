@@ -29,7 +29,6 @@ BREAK: 'break';
 GOTO: 'goto';
 OTHERWISE: 'otherwise';
 TRY: 'try';
-CATCH: 'catch';
 LABEL: 'label';
 LABELS: 'labels';
 TAIL: 'tail';
@@ -244,8 +243,8 @@ returnStatement: RETURN expression?;
 breakStatement: BREAK;
 continueStatement: CONTINUE;
 gotoStatement: GOTO labelReference argumentList?;
-handlerWithStatement: (CATCH IDENTIFIER | LABEL labelDeclaration) statementBlock;
-tryCatch: TRY statementBlock handlerWithStatement+;
+handlerWithStatement: LABEL labelDeclaration statementBlock;
+tryLabelStatement: TRY statementBlock handlerWithStatement+;
 
 diagnosticStatement: ((ASSERT_TOKEN | CHECK_TOKEN) '(' expression ')') | UNREACHABLE_TOKEN | DEBUG_TOKEN;
 
@@ -261,7 +260,7 @@ statement : variableDeclarationWithInitialization ';'
           | whileLoop
           | forOfLoop
           | forLoop
-          | tryCatch
+          | tryLabelStatement
           ;
 
 statementList : statement*;

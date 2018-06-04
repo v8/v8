@@ -221,8 +221,10 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void exitHandlerWithStatement(
       TorqueParser::HandlerWithStatementContext* ctx) = 0;
 
-  virtual void enterTryCatch(TorqueParser::TryCatchContext* ctx) = 0;
-  virtual void exitTryCatch(TorqueParser::TryCatchContext* ctx) = 0;
+  virtual void enterTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* ctx) = 0;
+  virtual void exitTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* ctx) = 0;
 
   virtual void enterDiagnosticStatement(
       TorqueParser::DiagnosticStatementContext* ctx) = 0;

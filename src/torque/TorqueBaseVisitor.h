@@ -248,7 +248,8 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
-  antlrcpp::Any visitTryCatch(TorqueParser::TryCatchContext* ctx) override {
+  antlrcpp::Any visitTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* ctx) override {
     return visitChildren(ctx);
   }
 

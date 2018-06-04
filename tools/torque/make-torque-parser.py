@@ -14,7 +14,7 @@ import re
 
 cwd = os.getcwd()
 tools = ntpath.dirname(sys.argv[0]);
-grammar = tools + '/../src/torque/Torque.g4'
+grammar = tools + '/../../src/torque/Torque.g4'
 basename = ntpath.basename(grammar)
 dirname = ntpath.dirname(grammar)
 os.chdir(dirname)
@@ -31,7 +31,7 @@ def fix_file(filename):
   copyright = '// Copyright 2018 the V8 project authors. All rights reserved.\n'
   copyright += '// Use of this source code is governed by a BSD-style license that can be\n'
   copyright += '// found in the LICENSE file.\n'
-  file_path = tools + '/../src/torque/' + filename;
+  file_path = tools + '/../../src/torque/' + filename;
   temp_file_path = file_path + '.tmp'
   output_file = open(temp_file_path, 'w')
   output_file.write(copyright);

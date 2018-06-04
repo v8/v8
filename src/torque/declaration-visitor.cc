@@ -258,13 +258,13 @@ void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
       changed_vars);
 }
 
-void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
-  // Activate a new scope to declare catch handler labels, they should not be
-  // visible outside the catch.
+void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
+  // Activate a new scope to declare handler labels, they should not be
+  // visible outside the label block.
   {
     Declarations::NodeScopeActivator scope(declarations(), stmt);
 
-    // Declare catch labels
+    // Declare labels
     for (LabelBlock* block : stmt->label_blocks) {
       CurrentSourcePosition::Scope scope(block->pos);
       Label* shared_label = declarations()->DeclareLabel(block->label);
@@ -284,18 +284,11 @@ void DeclarationVisitor::Visit(TryCatchStatement* stmt) {
         }
       }
       if (global_context_.verbose()) {
-        std::cout << " declaring catch for exception " << block->label << "\n";
+        std::cout << " declaring label " << block->label << "\n";
       }
     }
 
-    // Try catch not supported yet
-    DCHECK_EQ(stmt->catch_blocks.size(), 0);
-
     Visit(stmt->try_block);
-  }
-
-  for (CatchBlock* block : stmt->catch_blocks) {
-    Visit(block->body);
   }
 
   for (LabelBlock* block : stmt->label_blocks) {

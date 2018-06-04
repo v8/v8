@@ -506,36 +506,25 @@ antlrcpp::Any AstGenerator::visitForOfLoop(
   return implicit_cast<Statement*>(result);
 }
 
-antlrcpp::Any AstGenerator::visitTryCatch(
-    TorqueParser::TryCatchContext* context) {
-  TryCatchStatement* result = RegisterNode(new TryCatchStatement{
-      Pos(context),
-      context->statementBlock()->accept(this).as<Statement*>(),
-      {}});
+antlrcpp::Any AstGenerator::visitTryLabelStatement(
+    TorqueParser::TryLabelStatementContext* context) {
+  TryLabelStatement* result = RegisterNode(new TryLabelStatement{
+      Pos(context), context->statementBlock()->accept(this).as<Statement*>()});
   for (auto* handler : context->handlerWithStatement()) {
-    if (handler->CATCH() != nullptr) {
-      CatchBlock* catch_block = RegisterNode(new CatchBlock{
-          Pos(handler->statementBlock()),
-          {},
-          handler->statementBlock()->accept(this).as<Statement*>()});
-      catch_block->caught = handler->IDENTIFIER()->getSymbol()->getText();
-      result->catch_blocks.push_back(catch_block);
-    } else {
-      handler->labelDeclaration()->accept(this);
-      auto parameter_list = handler->labelDeclaration()->parameterList();
-      ParameterList label_parameters = parameter_list == nullptr
-                                           ? ParameterList()
-                                           : handler->labelDeclaration()
-                                                 ->parameterList()
-                                                 ->accept(this)
-                                                 .as<ParameterList>();
-      LabelBlock* label_block = RegisterNode(new LabelBlock{
-          Pos(handler->statementBlock()),
-          handler->labelDeclaration()->IDENTIFIER()->getSymbol()->getText(),
-          label_parameters,
-          handler->statementBlock()->accept(this).as<Statement*>()});
-      result->label_blocks.push_back(label_block);
-    }
+    handler->labelDeclaration()->accept(this);
+    auto parameter_list = handler->labelDeclaration()->parameterList();
+    ParameterList label_parameters = parameter_list == nullptr
+                                         ? ParameterList()
+                                         : handler->labelDeclaration()
+                                               ->parameterList()
+                                               ->accept(this)
+                                               .as<ParameterList>();
+    LabelBlock* label_block = RegisterNode(new LabelBlock{
+        Pos(handler->statementBlock()),
+        handler->labelDeclaration()->IDENTIFIER()->getSymbol()->getText(),
+        label_parameters,
+        handler->statementBlock()->accept(this).as<Statement*>()});
+    result->label_blocks.push_back(label_block);
   }
   return implicit_cast<Statement*>(result);
 }
