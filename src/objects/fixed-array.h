@@ -315,13 +315,13 @@ class WeakArrayList : public HeapObject {
   DECL_VERIFIER(WeakArrayList)
   DECL_PRINTER(WeakArrayList)
 
-  static Handle<WeakArrayList> Add(Handle<WeakArrayList> array,
-                                   Handle<HeapObject> obj1, Smi* obj2);
+  static Handle<WeakArrayList> AddToEnd(Handle<WeakArrayList> array,
+                                        MaybeObjectHandle value);
 
   inline MaybeObject* Get(int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
-  // If you need to grow the WeakArrayList, use the static Add() methods
+  // If you need to grow the WeakArrayList, use the static AddToEnd() method
   // instead.
   inline void Set(int index, MaybeObject* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

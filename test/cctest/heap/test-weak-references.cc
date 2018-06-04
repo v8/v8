@@ -453,16 +453,24 @@ TEST(WeakArrayListBasic) {
     Handle<FixedArray> index6 = factory->NewFixedArray(1);
     index6->set(0, Smi::FromInt(2019));
 
-    array = WeakArrayList::Add(array, index0, Smi::FromInt(1));
+    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index0));
+    array = WeakArrayList::AddToEnd(
+        array, MaybeObjectHandle(Smi::FromInt(1), isolate));
     CHECK_EQ(array->length(), 2);
 
-    array = WeakArrayList::Add(array, index2, Smi::FromInt(3));
+    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index2));
+    array = WeakArrayList::AddToEnd(
+        array, MaybeObjectHandle(Smi::FromInt(3), isolate));
     CHECK_EQ(array->length(), 4);
 
-    array = WeakArrayList::Add(array, index4, Smi::FromInt(5));
+    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index4));
+    array = WeakArrayList::AddToEnd(
+        array, MaybeObjectHandle(Smi::FromInt(5), isolate));
     CHECK_EQ(array->length(), 6);
 
-    array = WeakArrayList::Add(array, index6, Smi::FromInt(7));
+    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index6));
+    array = WeakArrayList::AddToEnd(
+        array, MaybeObjectHandle(Smi::FromInt(7), isolate));
     CHECK_EQ(array->length(), 8);
 
     CHECK(heap->InNewSpace(*array));

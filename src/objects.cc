@@ -10372,15 +10372,14 @@ Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
 }
 
 // static
-Handle<WeakArrayList> WeakArrayList::Add(Handle<WeakArrayList> array,
-                                         Handle<HeapObject> obj1, Smi* obj2) {
+Handle<WeakArrayList> WeakArrayList::AddToEnd(Handle<WeakArrayList> array,
+                                              MaybeObjectHandle value) {
   int length = array->length();
-  array = EnsureSpace(array, length + 2);
+  array = EnsureSpace(array, length + 1);
   // Check that GC didn't remove elements from the array.
   DCHECK_EQ(array->length(), length);
-  array->Set(length, HeapObjectReference::Weak(*obj1));
-  array->Set(length + 1, MaybeObject::FromSmi(obj2));
-  array->set_length(length + 2);
+  array->Set(length, *value);
+  array->set_length(length + 1);
   return array;
 }
 

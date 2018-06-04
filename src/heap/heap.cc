@@ -5108,8 +5108,10 @@ void Heap::AddRetainedMap(Handle<Map> map) {
   if (array->IsFull()) {
     CompactRetainedMaps(*array);
   }
-  array =
-      WeakArrayList::Add(array, map, Smi::FromInt(FLAG_retain_maps_for_n_gc));
+  array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(map));
+  array = WeakArrayList::AddToEnd(
+      array,
+      MaybeObjectHandle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()));
   if (*array != retained_maps()) {
     set_retained_maps(*array);
   }
