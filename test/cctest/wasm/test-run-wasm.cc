@@ -1962,9 +1962,6 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
-  // TODO(gdeepti): Enable this test for sign extension opcodes when lowering
-  // is enabled.
-  if (WasmOpcodes::IsSignExtensionOpcode(opcode)) return;
   // TODO(ahaas): Enable this test for anyref opcodes when code generation for
   // them is implemented.
   if (WasmOpcodes::IsAnyRefOpcode(opcode)) return;
