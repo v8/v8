@@ -3085,10 +3085,6 @@ bool Isolate::Init(StartupDeserializer* des) {
 
     heap_.NotifyDeserializationComplete();
   }
-  // Flush the instruction cache for the entire code-space. Must happen after
-  // builtins deserialization and setting the memory executable again.
-  if (!create_heap_objects) des->FlushICacheForNewIsolate();
-
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 

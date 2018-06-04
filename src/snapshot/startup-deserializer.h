@@ -21,9 +21,8 @@ class StartupDeserializer final : public Deserializer<> {
   // Deserialize the snapshot into an empty heap.
   void DeserializeInto(Isolate* isolate);
 
-  void FlushICacheForNewIsolate();
-
  private:
+  void FlushICacheForNewIsolate();
   void PrintDisassembledCodeObjects();
 
   // Rehash after deserializing an isolate.
