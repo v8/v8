@@ -38,9 +38,8 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       source_range_map_(nullptr),
       literal_(nullptr) {}
 
-ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
-    : ParseInfo(shared->GetIsolate()->allocator()) {
-  Isolate* isolate = shared->GetIsolate();
+ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
+    : ParseInfo(isolate->allocator()) {
   InitFromIsolate(isolate);
 
   // Do not support re-parsing top-level function of a wrapped script.
@@ -67,7 +66,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   DCHECK(!(is_eval() && is_module()));
 
   if (shared->HasOuterScopeInfo()) {
-    set_outer_scope_info(handle(shared->GetOuterScopeInfo()));
+    set_outer_scope_info(handle(shared->GetOuterScopeInfo(), isolate));
   }
 
   // CollectTypeProfile uses its own feedback slots. If we have existing
@@ -83,9 +82,9 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   }
 }
 
-ParseInfo::ParseInfo(Handle<Script> script)
-    : ParseInfo(script->GetIsolate()->allocator()) {
-  InitFromIsolate(script->GetIsolate());
+ParseInfo::ParseInfo(Isolate* isolate, Handle<Script> script)
+    : ParseInfo(isolate->allocator()) {
+  InitFromIsolate(isolate);
 
   set_allow_lazy_parsing();
   set_toplevel();
@@ -97,7 +96,7 @@ ParseInfo::ParseInfo(Handle<Script> script)
   set_module(script->origin_options().IsModule());
   DCHECK(!(is_eval() && is_module()));
 
-  set_collect_type_profile(script->GetIsolate()->is_collecting_type_profile() &&
+  set_collect_type_profile(isolate->is_collecting_type_profile() &&
                            script->IsUserJavaScript());
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
@@ -107,8 +106,8 @@ ParseInfo::ParseInfo(Handle<Script> script)
 ParseInfo::~ParseInfo() {}
 
 // static
-ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
-  Isolate* isolate = shared->GetIsolate();
+ParseInfo* ParseInfo::AllocateWithoutScript(Isolate* isolate,
+                                            Handle<SharedFunctionInfo> shared) {
   ParseInfo* p = new ParseInfo(isolate->allocator());
 
   p->InitFromIsolate(isolate);
@@ -134,7 +133,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_module(false);
   DCHECK_NE(shared->kind(), FunctionKind::kModule);
 
-  Handle<HeapObject> scope_info(shared->GetOuterScopeInfo());
+  Handle<HeapObject> scope_info(shared->GetOuterScopeInfo(), isolate);
   if (!scope_info->IsTheHole(isolate) &&
       Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
     p->set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));

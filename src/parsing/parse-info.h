@@ -37,15 +37,16 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(AccountingAllocator* zone_allocator);
-  ParseInfo(Handle<Script> script);
-  ParseInfo(Handle<SharedFunctionInfo> shared);
+  ParseInfo(AccountingAllocator* zone_allocator);
+  ParseInfo(Isolate* isolate, Handle<Script> script);
+  ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   ~ParseInfo();
 
   void InitFromIsolate(Isolate* isolate);
 
-  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+  static ParseInfo* AllocateWithoutScript(Isolate* isolate,
+                                          Handle<SharedFunctionInfo> shared);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
   // creates and returns a new factory if none exists.

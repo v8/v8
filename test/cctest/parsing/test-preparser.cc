@@ -743,7 +743,7 @@ TEST(PreParserScopeAnalysis) {
           i::PreParsedScopeData::cast(shared->preparsed_scope_data()));
 
       // Parse the lazy function using the scope data.
-      i::ParseInfo using_scope_data(shared);
+      i::ParseInfo using_scope_data(isolate, shared);
       using_scope_data.set_lazy_compile();
       using_scope_data.consumed_preparsed_scope_data()->SetData(
           produced_data_on_heap);
@@ -759,7 +759,7 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::DeclarationScope::Analyze(&using_scope_data));
 
       // Parse the lazy function again eagerly to produce baseline data.
-      i::ParseInfo not_using_scope_data(shared);
+      i::ParseInfo not_using_scope_data(isolate, shared);
       not_using_scope_data.set_lazy_compile();
       CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate));
 
@@ -799,7 +799,7 @@ TEST(Regress753896) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
 
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.

@@ -458,7 +458,8 @@ Parser::Parser(ParseInfo* info)
 }
 
 void Parser::DeserializeScopeChain(
-    ParseInfo* info, MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
+    Isolate* isolate, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
   // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
   // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
@@ -466,8 +467,7 @@ void Parser::DeserializeScopeChain(
   Scope* scope = script_scope;
   Handle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
-    DCHECK(ThreadId::Current().Equals(
-        outer_scope_info->GetIsolate()->thread_id()));
+    DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
     scope = Scope::DeserializeScopeChain(
         zone(), *outer_scope_info, script_scope, ast_value_factory(),
         Scope::DeserializationMode::kScopesOnly);
@@ -505,7 +505,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   // Initialize parser state.
-  DeserializeScopeChain(info, info->maybe_outer_scope_info());
+  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
 
   scanner_.Initialize(info->character_stream(), info->is_module());
   FunctionLiteral* result = DoParseProgram(info);
@@ -524,8 +524,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
       start = 0;
       end = String::cast(script->source())->length();
     }
-    LOG(script->GetIsolate(),
-        FunctionEvent(event_name, script, -1, ms, start, end, "", 0));
+    LOG(isolate, FunctionEvent(event_name, script, -1, ms, start, end, "", 0));
   }
   return result;
 }
@@ -690,7 +689,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  DeserializeScopeChain(info, info->maybe_outer_scope_info());
+  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
   DCHECK_EQ(factory()->zone(), info->zone());
 
   // Initialize parser state.
@@ -712,7 +711,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     DeclarationScope* function_scope = result->scope();
     Script* script = *info->script();
     std::unique_ptr<char[]> function_name = result->GetDebugName();
-    LOG(script->GetIsolate(),
+    LOG(isolate,
         FunctionEvent("parse-function", script, -1, ms,
                       function_scope->start_position(),
                       function_scope->end_position(), function_name.get(),

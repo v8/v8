@@ -129,7 +129,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   if (scope_info->scope_type() != FUNCTION_SCOPE) {
     // Global or eval code.
     Handle<Script> script(Script::cast(shared_info->script()));
-    info.reset(new ParseInfo(script));
+    info.reset(new ParseInfo(isolate_, script));
     if (scope_info->scope_type() == EVAL_SCOPE) {
       info->set_eval();
       if (!function_->context()->IsNativeContext()) {
@@ -145,7 +145,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     }
   } else {
     // Inner function.
-    info.reset(new ParseInfo(shared_info));
+    info.reset(new ParseInfo(isolate_, shared_info));
   }
   if (parsing::ParseAny(info.get(), shared_info, isolate_) &&
       Rewriter::Rewrite(info.get())) {

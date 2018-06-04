@@ -208,7 +208,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   if (shared_->HasOuterScopeInfo()) {
     outer_scope_info = handle(shared_->GetOuterScopeInfo());
   }
-  parser_->DeserializeScopeChain(parse_info_.get(), outer_scope_info);
+  parser_->DeserializeScopeChain(isolate, parse_info_.get(), outer_scope_info);
 
   Handle<String> name(shared_->Name());
   parse_info_->set_function_name(

@@ -1000,7 +1000,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
   source_->parser.reset(new Parser(source_->info.get()));
-  source_->parser->DeserializeScopeChain(source_->info.get(),
+  source_->parser->DeserializeScopeChain(isolate, source_->info.get(),
                                          MaybeHandle<ScopeInfo>());
 }
 
@@ -1077,7 +1077,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
   // Set up parse info.
-  ParseInfo parse_info(shared_info);
+  ParseInfo parse_info(isolate, shared_info);
   parse_info.set_lazy_compile();
 
   // Check if the compiler dispatcher has shared_info enqueued for compile.
@@ -1214,7 +1214,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   script->set_shared_function_infos(isolate->heap()->empty_weak_fixed_array());
 
   // Start a compilation.
-  ParseInfo parse_info(script);
+  ParseInfo parse_info(isolate, script);
   parse_info.set_eager();
 
   // TODO(635): support extensions.
@@ -1308,7 +1308,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
     script->set_eval_from_position(eval_position);
 
-    ParseInfo parse_info(script);
+    ParseInfo parse_info(isolate, script);
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
@@ -1709,7 +1709,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         NewScript(isolate, source, script_details, origin_options, natives);
 
     // Compile the function and add it to the isolate cache.
-    ParseInfo parse_info(script);
+    ParseInfo parse_info(isolate, script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
     if (origin_options.IsModule()) parse_info.set_module();
     parse_info.set_extension(extension);
@@ -1781,7 +1781,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
                        NOT_NATIVES_CODE);
     script->set_wrapped_arguments(*arguments);
 
-    ParseInfo parse_info(script);
+    ParseInfo parse_info(isolate, script);
     parse_info.set_eval();  // Use an eval scope as declaration scope.
     parse_info.set_wrapped_as_function();
     // parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
