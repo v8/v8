@@ -49,7 +49,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // Minimum descriptor array length required for fast path.
   const int min_descriptors_length = DescriptorArray::LengthFor(Max(
       JSFunction::kLengthDescriptorIndex, JSFunction::kNameDescriptorIndex));
-  TNode<Smi> descriptors_length = LoadFixedArrayBaseLength(descriptors);
+  TNode<Smi> descriptors_length = LoadWeakFixedArrayLength(descriptors);
   GotoIf(SmiLessThanOrEqual(descriptors_length,
                             SmiConstant(min_descriptors_length)),
          &slow);
@@ -60,25 +60,25 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Comment("Check name and length properties");
   {
     const int length_index = JSFunction::kLengthDescriptorIndex;
-    TNode<Name> maybe_length = CAST(LoadFixedArrayElement(
+    TNode<Name> maybe_length = CAST(LoadWeakFixedArrayElement(
         descriptors, DescriptorArray::ToKeyIndex(length_index)));
     GotoIf(WordNotEqual(maybe_length, LoadRoot(Heap::klength_stringRootIndex)),
            &slow);
 
-    TNode<Object> maybe_length_accessor = LoadFixedArrayElement(
-        descriptors, DescriptorArray::ToValueIndex(length_index));
+    TNode<Object> maybe_length_accessor = CAST(LoadWeakFixedArrayElement(
+        descriptors, DescriptorArray::ToValueIndex(length_index)));
     GotoIf(TaggedIsSmi(maybe_length_accessor), &slow);
     Node* length_value_map = LoadMap(CAST(maybe_length_accessor));
     GotoIfNot(IsAccessorInfoMap(length_value_map), &slow);
 
     const int name_index = JSFunction::kNameDescriptorIndex;
-    TNode<Name> maybe_name = CAST(LoadFixedArrayElement(
+    TNode<Name> maybe_name = CAST(LoadWeakFixedArrayElement(
         descriptors, DescriptorArray::ToKeyIndex(name_index)));
     GotoIf(WordNotEqual(maybe_name, LoadRoot(Heap::kname_stringRootIndex)),
            &slow);
 
-    TNode<Object> maybe_name_accessor = LoadFixedArrayElement(
-        descriptors, DescriptorArray::ToValueIndex(name_index));
+    TNode<Object> maybe_name_accessor = CAST(LoadWeakFixedArrayElement(
+        descriptors, DescriptorArray::ToValueIndex(name_index)));
     GotoIf(TaggedIsSmi(maybe_name_accessor), &slow);
     TNode<Map> name_value_map = LoadMap(CAST(maybe_name_accessor));
     GotoIfNot(IsAccessorInfoMap(name_value_map), &slow);

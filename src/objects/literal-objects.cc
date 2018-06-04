@@ -99,7 +99,7 @@ void AddToDescriptorArrayTemplate(
     } else {
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter);
-      Object* raw_accessor = descriptor_array_template->GetValue(entry);
+      Object* raw_accessor = descriptor_array_template->GetStrongValue(entry);
       AccessorPair* pair;
       if (raw_accessor->IsAccessorPair()) {
         pair = AccessorPair::cast(raw_accessor);

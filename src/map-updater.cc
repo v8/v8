@@ -44,7 +44,7 @@ Object* MapUpdater::GetValue(int descriptor) const {
     return *new_value_;
   }
   DCHECK_EQ(kDescriptor, GetDetails(descriptor).location());
-  return old_descriptors_->GetValue(descriptor);
+  return old_descriptors_->GetStrongValue(descriptor);
 }
 
 FieldType* MapUpdater::GetFieldType(int descriptor) const {
@@ -78,7 +78,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
   if (location == kField) {
     return handle(descriptors->GetFieldType(descriptor), isolate_);
   } else {
-    return descriptors->GetValue(descriptor)
+    return descriptors->GetStrongValue(descriptor)
         ->OptimalType(isolate_, representation);
   }
 }
@@ -321,7 +321,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     DCHECK_EQ(old_details.kind(), tmp_details.kind());
     DCHECK_EQ(old_details.attributes(), tmp_details.attributes());
     if (old_details.kind() == kAccessor &&
-        !EqualImmutableValues(GetValue(i), tmp_descriptors->GetValue(i))) {
+        !EqualImmutableValues(GetValue(i),
+                              tmp_descriptors->GetStrongValue(i))) {
       // TODO(ishell): mutable accessors are not implemented yet.
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
@@ -347,7 +348,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
                       old_field_type);
     } else {
       // kDescriptor: Check that the value matches.
-      if (!EqualImmutableValues(GetValue(i), tmp_descriptors->GetValue(i))) {
+      if (!EqualImmutableValues(GetValue(i),
+                                tmp_descriptors->GetStrongValue(i))) {
         break;
       }
     }
@@ -374,8 +376,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
             target_descriptors->GetFieldType(modified_descriptor_)));
       } else {
         DCHECK(details.location() == kField ||
-               EqualImmutableValues(*new_value_, target_descriptors->GetValue(
-                                                     modified_descriptor_)));
+               EqualImmutableValues(
+                   *new_value_,
+                   target_descriptors->GetStrongValue(modified_descriptor_)));
       }
     }
 #endif
@@ -404,7 +407,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     DCHECK_EQ(old_details.attributes(), tmp_details.attributes());
 #endif
     if (old_details.kind() == kAccessor &&
-        !EqualImmutableValues(GetValue(i), tmp_descriptors->GetValue(i))) {
+        !EqualImmutableValues(GetValue(i),
+                              tmp_descriptors->GetStrongValue(i))) {
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
     DCHECK(!tmp_map->is_deprecated());
@@ -447,7 +451,8 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       current_offset += old_details.field_width_in_words();
     }
     Descriptor d(handle(GetKey(i), isolate_),
-                 handle(old_descriptors_->GetValue(i), isolate_), old_details);
+                 MaybeObjectHandle(old_descriptors_->GetValue(i), isolate_),
+                 old_details);
     new_descriptors->Set(i, &d);
   }
 
@@ -471,7 +476,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     PropertyLocation next_location =
         old_details.location() == kField ||
                 target_details.location() == kField ||
-                !EqualImmutableValues(target_descriptors->GetValue(i),
+                !EqualImmutableValues(target_descriptors->GetStrongValue(i),
                                       GetValue(i))
             ? kField
             : kDescriptor;
@@ -503,7 +508,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           isolate_, instance_type, &next_constness, &next_representation,
           &next_field_type);
 
-      Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
+      MaybeObjectHandle wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
@@ -556,7 +561,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
                     !Map::IsInplaceGeneralizableField(
                         next_constness, next_representation, *next_field_type));
 
-      Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
+      MaybeObjectHandle wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
         DCHECK_IMPLIES(!FLAG_track_constant_fields,
@@ -616,8 +621,8 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
         break;
       }
     } else {
-      if (!EqualImmutableValues(descriptors->GetValue(i),
-                                next_descriptors->GetValue(i))) {
+      if (!EqualImmutableValues(descriptors->GetStrongValue(i),
+                                next_descriptors->GetStrongValue(i))) {
         break;
       }
     }
@@ -665,15 +670,15 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
       old_field_type = handle(
           old_descriptors_->GetFieldType(modified_descriptor_), isolate_);
     } else {
-      old_value =
-          handle(old_descriptors_->GetValue(modified_descriptor_), isolate_);
+      old_value = handle(old_descriptors_->GetStrongValue(modified_descriptor_),
+                         isolate_);
     }
     if (new_details.location() == kField) {
       new_field_type =
           handle(new_descriptors->GetFieldType(modified_descriptor_), isolate_);
     } else {
-      new_value =
-          handle(new_descriptors->GetValue(modified_descriptor_), isolate_);
+      new_value = handle(new_descriptors->GetStrongValue(modified_descriptor_),
+                         isolate_);
     }
 
     old_map_->PrintGeneralization(

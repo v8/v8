@@ -419,7 +419,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           DCHECK(!FLAG_track_constant_fields);
           *access_info = PropertyAccessInfo::DataConstant(
               MapHandles{receiver_map},
-              handle(descriptors->GetValue(number), isolate()), holder);
+              handle(descriptors->GetStrongValue(number), isolate()), holder);
           return true;
         } else {
           DCHECK_EQ(kAccessor, details.kind());
@@ -444,7 +444,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                 MapHandles{receiver_map}, cell);
             return true;
           }
-          Handle<Object> accessors(descriptors->GetValue(number), isolate());
+          Handle<Object> accessors(descriptors->GetStrongValue(number),
+                                   isolate());
           if (!accessors->IsAccessorPair()) return false;
           Handle<Object> accessor(
               access_mode == AccessMode::kLoad

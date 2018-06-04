@@ -658,7 +658,7 @@ void FeedbackMetadata::FeedbackMetadataVerify() {
 }
 
 void DescriptorArray::DescriptorArrayVerify() {
-  FixedArrayVerify();
+  WeakFixedArrayVerify();
   int nof_descriptors = number_of_descriptors();
   if (number_of_descriptors_storage() == 0) {
     Heap* heap = GetHeap();
@@ -673,13 +673,24 @@ void DescriptorArray::DescriptorArrayVerify() {
     Isolate* isolate = GetIsolate();
     // Check that properties with private symbols names are non-enumerable.
     for (int descriptor = 0; descriptor < nof_descriptors; descriptor++) {
-      Object* key = get(ToKeyIndex(descriptor));
+      Object* key = get(ToKeyIndex(descriptor))->ToObject();
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
       if (key->IsUndefined(isolate)) continue;
+      PropertyDetails details = GetDetails(descriptor);
       if (Name::cast(key)->IsPrivate()) {
-        PropertyDetails details = GetDetails(descriptor);
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
+      }
+      MaybeObject* value = get(ToValueIndex(descriptor));
+      HeapObject* heap_object;
+      if (details.location() == kField) {
+        CHECK(value == MaybeObject::FromObject(FieldType::None()) ||
+              value == MaybeObject::FromObject(FieldType::Any()) ||
+              value->IsClearedWeakHeapObject() ||
+              (value->ToWeakHeapObject(&heap_object) && heap_object->IsMap()));
+      } else {
+        CHECK(!value->IsWeakOrClearedHeapObject());
+        CHECK(!value->ToObject()->IsMap());
       }
     }
   }

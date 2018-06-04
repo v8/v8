@@ -249,6 +249,11 @@ MaybeObject** WeakFixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
 }
 
+MaybeObject** WeakFixedArray::GetFirstElementAddress() {
+  return reinterpret_cast<MaybeObject**>(
+      FIELD_ADDR(this, OffsetOfElementAt(0)));
+}
+
 MaybeObject* WeakArrayList::Get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->capacity());
   return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));

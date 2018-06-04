@@ -1796,6 +1796,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns an untagged int32.
   template <class ContainerType>
   TNode<Uint32T> LoadDetailsByKeyIndex(Node* container, Node* key_index) {
+    static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
+                  "Use the non-templatized version for DescriptorArray");
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
@@ -1807,12 +1809,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns a tagged value.
   template <class ContainerType>
   TNode<Object> LoadValueByKeyIndex(Node* container, Node* key_index) {
+    static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
+                  "Use the non-templatized version for DescriptorArray");
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
     return UncheckedCast<Object>(
         LoadFixedArrayElement(container, key_index, kKeyToValueOffset));
   }
+
+  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
+                                       TNode<IntPtrT> key_index);
+  TNode<Object> LoadValueByKeyIndex(TNode<DescriptorArray> container,
+                                    TNode<IntPtrT> key_index);
+  TNode<MaybeObject> LoadFieldTypeByKeyIndex(TNode<DescriptorArray> container,
+                                             TNode<IntPtrT> key_index);
 
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
@@ -1980,11 +1991,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
         TailCallStub(Builtins::CallableFor(isolate(), id), context, args...));
   }
 
-  void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
+  void LoadPropertyFromFastObject(Node* object, Node* map,
+                                  TNode<DescriptorArray> descriptors,
                                   Node* name_index, Variable* var_details,
                                   Variable* var_value);
 
-  void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
+  void LoadPropertyFromFastObject(Node* object, Node* map,
+                                  TNode<DescriptorArray> descriptors,
                                   Node* name_index, Node* details,
                                   Variable* var_value);
 

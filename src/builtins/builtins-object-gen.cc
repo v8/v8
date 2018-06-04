@@ -581,8 +581,8 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
   DescriptorArrayForEach(
       list, Unsigned(Int32Constant(0)), nof_descriptors,
       [=, &var_stable](TNode<UintPtrT> descriptor_key_index) {
-        TNode<Name> next_key =
-            CAST(LoadFixedArrayElement(from_descriptors, descriptor_key_index));
+        TNode<Name> next_key = CAST(
+            LoadWeakFixedArrayElement(from_descriptors, descriptor_key_index));
 
         TVARIABLE(Object, var_value, SmiConstant(0));
         Label do_store(this), next_iteration(this);
@@ -620,12 +620,11 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
 
           BIND(&if_found_fast);
           {
-            Node* descriptors = var_meta_storage.value();
-            Node* name_index = var_entry.value();
+            TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
+            TNode<IntPtrT> name_index = var_entry.value();
 
             // Skip non-enumerable properties.
-            var_details =
-                LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
+            var_details = LoadDetailsByKeyIndex(descriptors, name_index);
             GotoIf(IsSetWord32(var_details.value(),
                                PropertyDetails::kAttributesDontEnumMask),
                    &next_iteration);

@@ -4976,7 +4976,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
           isolate(), *length, array_function->initial_map());
       DCHECK_NE(old, DescriptorArray::kNotFound);
       Descriptor d = Descriptor::AccessorConstant(
-          length, handle(array_descriptors->GetValue(old), isolate()),
+          length, handle(array_descriptors->GetStrongValue(old), isolate()),
           array_descriptors->GetDetails(old).attributes());
       initial_map->AppendDescriptor(&d);
     }
@@ -5381,7 +5381,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           DCHECK(!FLAG_track_constant_fields);
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
-          Handle<Object> value(descs->GetValue(i), isolate());
+          Handle<Object> value(descs->GetStrongValue(i), isolate());
           JSObject::AddProperty(to, key, value, details.attributes());
 
         } else {
@@ -5394,7 +5394,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner(isolate());
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
-          Handle<Object> value(descs->GetValue(i), isolate());
+          Handle<Object> value(descs->GetStrongValue(i), isolate());
           PropertyDetails d(kAccessor, details.attributes(),
                             PropertyCellType::kMutable);
           JSObject::SetNormalizedProperty(to, key, value, d);

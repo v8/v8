@@ -43,6 +43,7 @@ class MaybeObject {
   inline HeapObject* GetHeapObject();
   inline Object* GetHeapObjectOrSmi();
 
+  inline bool IsObject();
   inline Object* ToObject();
 
   static MaybeObject* FromSmi(Smi* smi) {
