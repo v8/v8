@@ -1677,17 +1677,11 @@ class ThreadImpl {
       BINOP_CASE(I32x4Sub, i32x4, int4, 4, a - b)
       BINOP_CASE(I32x4Mul, i32x4, int4, 4, a * b)
       BINOP_CASE(I32x4MinS, i32x4, int4, 4, a < b ? a : b)
-      BINOP_CASE(
-          I32x4MinU, i32x4, int4, 4,
-          *reinterpret_cast<uint32_t*>(&a) < *reinterpret_cast<uint32_t*>(&b)
-              ? a
-              : b)
+      BINOP_CASE(I32x4MinU, i32x4, int4, 4,
+                 static_cast<uint32_t>(a) < static_cast<uint32_t>(b) ? a : b)
       BINOP_CASE(I32x4MaxS, i32x4, int4, 4, a > b ? a : b)
-      BINOP_CASE(
-          I32x4MaxU, i32x4, int4, 4,
-          *reinterpret_cast<uint32_t*>(&a) > *reinterpret_cast<uint32_t*>(&b)
-              ? a
-              : b)
+      BINOP_CASE(I32x4MaxU, i32x4, int4, 4,
+                 static_cast<uint32_t>(a) > static_cast<uint32_t>(b) ? a : b)
       BINOP_CASE(S128And, i32x4, int4, 4, a & b)
       BINOP_CASE(S128Or, i32x4, int4, 4, a | b)
       BINOP_CASE(S128Xor, i32x4, int4, 4, a ^ b)
@@ -1695,17 +1689,11 @@ class ThreadImpl {
       BINOP_CASE(I16x8Sub, i16x8, int8, 8, a - b)
       BINOP_CASE(I16x8Mul, i16x8, int8, 8, a * b)
       BINOP_CASE(I16x8MinS, i16x8, int8, 8, a < b ? a : b)
-      BINOP_CASE(
-          I16x8MinU, i16x8, int8, 8,
-          *reinterpret_cast<uint16_t*>(&a) < *reinterpret_cast<uint16_t*>(&b)
-              ? a
-              : b)
+      BINOP_CASE(I16x8MinU, i16x8, int8, 8,
+                 static_cast<uint16_t>(a) < static_cast<uint16_t>(b) ? a : b)
       BINOP_CASE(I16x8MaxS, i16x8, int8, 8, a > b ? a : b)
-      BINOP_CASE(
-          I16x8MaxU, i16x8, int8, 8,
-          *reinterpret_cast<uint16_t*>(&a) > *reinterpret_cast<uint16_t*>(&b)
-              ? a
-              : b)
+      BINOP_CASE(I16x8MaxU, i16x8, int8, 8,
+                 static_cast<uint16_t>(a) > static_cast<uint16_t>(b) ? a : b)
       BINOP_CASE(I16x8AddSaturateS, i16x8, int8, 8, SaturateAdd<int16_t>(a, b))
       BINOP_CASE(I16x8AddSaturateU, i16x8, int8, 8, SaturateAdd<uint16_t>(a, b))
       BINOP_CASE(I16x8SubSaturateS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
@@ -1714,15 +1702,11 @@ class ThreadImpl {
       BINOP_CASE(I8x16Sub, i8x16, int16, 16, a - b)
       BINOP_CASE(I8x16Mul, i8x16, int16, 16, a * b)
       BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
-      BINOP_CASE(
-          I8x16MinU, i8x16, int16, 16,
-          *reinterpret_cast<uint8_t*>(&a) < *reinterpret_cast<uint8_t*>(&b) ? a
-                                                                            : b)
+      BINOP_CASE(I8x16MinU, i8x16, int16, 16,
+                 static_cast<uint8_t>(a) < static_cast<uint8_t>(b) ? a : b)
       BINOP_CASE(I8x16MaxS, i8x16, int16, 16, a > b ? a : b)
-      BINOP_CASE(
-          I8x16MaxU, i8x16, int16, 16,
-          *reinterpret_cast<uint8_t*>(&a) > *reinterpret_cast<uint8_t*>(&b) ? a
-                                                                            : b)
+      BINOP_CASE(I8x16MaxU, i8x16, int16, 16,
+                 static_cast<uint8_t>(a) > static_cast<uint8_t>(b) ? a : b)
       BINOP_CASE(I8x16AddSaturateS, i8x16, int16, 16, SaturateAdd<int8_t>(a, b))
       BINOP_CASE(I8x16AddSaturateU, i8x16, int16, 16,
                  SaturateAdd<uint8_t>(a, b))
@@ -1778,54 +1762,42 @@ class ThreadImpl {
       CMPOP_CASE(I32x4GeS, i32x4, int4, int4, 4, a >= b)
       CMPOP_CASE(I32x4LtS, i32x4, int4, int4, 4, a < b)
       CMPOP_CASE(I32x4LeS, i32x4, int4, int4, 4, a <= b)
-      CMPOP_CASE(
-          I32x4GtU, i32x4, int4, int4, 4,
-          *reinterpret_cast<uint32_t*>(&a) > *reinterpret_cast<uint32_t*>(&b))
-      CMPOP_CASE(
-          I32x4GeU, i32x4, int4, int4, 4,
-          *reinterpret_cast<uint32_t*>(&a) >= *reinterpret_cast<uint32_t*>(&b))
-      CMPOP_CASE(
-          I32x4LtU, i32x4, int4, int4, 4,
-          *reinterpret_cast<uint32_t*>(&a) < *reinterpret_cast<uint32_t*>(&b))
-      CMPOP_CASE(
-          I32x4LeU, i32x4, int4, int4, 4,
-          *reinterpret_cast<uint32_t*>(&a) <= *reinterpret_cast<uint32_t*>(&b))
+      CMPOP_CASE(I32x4GtU, i32x4, int4, int4, 4,
+                 static_cast<uint32_t>(a) > static_cast<uint32_t>(b))
+      CMPOP_CASE(I32x4GeU, i32x4, int4, int4, 4,
+                 static_cast<uint32_t>(a) >= static_cast<uint32_t>(b))
+      CMPOP_CASE(I32x4LtU, i32x4, int4, int4, 4,
+                 static_cast<uint32_t>(a) < static_cast<uint32_t>(b))
+      CMPOP_CASE(I32x4LeU, i32x4, int4, int4, 4,
+                 static_cast<uint32_t>(a) <= static_cast<uint32_t>(b))
       CMPOP_CASE(I16x8Eq, i16x8, int8, int8, 8, a == b)
       CMPOP_CASE(I16x8Ne, i16x8, int8, int8, 8, a != b)
       CMPOP_CASE(I16x8GtS, i16x8, int8, int8, 8, a > b)
       CMPOP_CASE(I16x8GeS, i16x8, int8, int8, 8, a >= b)
       CMPOP_CASE(I16x8LtS, i16x8, int8, int8, 8, a < b)
       CMPOP_CASE(I16x8LeS, i16x8, int8, int8, 8, a <= b)
-      CMPOP_CASE(
-          I16x8GtU, i16x8, int8, int8, 8,
-          *reinterpret_cast<uint16_t*>(&a) > *reinterpret_cast<uint16_t*>(&b))
-      CMPOP_CASE(
-          I16x8GeU, i16x8, int8, int8, 8,
-          *reinterpret_cast<uint16_t*>(&a) >= *reinterpret_cast<uint16_t*>(&b))
-      CMPOP_CASE(
-          I16x8LtU, i16x8, int8, int8, 8,
-          *reinterpret_cast<uint16_t*>(&a) < *reinterpret_cast<uint16_t*>(&b))
-      CMPOP_CASE(
-          I16x8LeU, i16x8, int8, int8, 8,
-          *reinterpret_cast<uint16_t*>(&a) <= *reinterpret_cast<uint16_t*>(&b))
+      CMPOP_CASE(I16x8GtU, i16x8, int8, int8, 8,
+                 static_cast<uint16_t>(a) > static_cast<uint16_t>(b))
+      CMPOP_CASE(I16x8GeU, i16x8, int8, int8, 8,
+                 static_cast<uint16_t>(a) >= static_cast<uint16_t>(b))
+      CMPOP_CASE(I16x8LtU, i16x8, int8, int8, 8,
+                 static_cast<uint16_t>(a) < static_cast<uint16_t>(b))
+      CMPOP_CASE(I16x8LeU, i16x8, int8, int8, 8,
+                 static_cast<uint16_t>(a) <= static_cast<uint16_t>(b))
       CMPOP_CASE(I8x16Eq, i8x16, int16, int16, 16, a == b)
       CMPOP_CASE(I8x16Ne, i8x16, int16, int16, 16, a != b)
       CMPOP_CASE(I8x16GtS, i8x16, int16, int16, 16, a > b)
       CMPOP_CASE(I8x16GeS, i8x16, int16, int16, 16, a >= b)
       CMPOP_CASE(I8x16LtS, i8x16, int16, int16, 16, a < b)
       CMPOP_CASE(I8x16LeS, i8x16, int16, int16, 16, a <= b)
-      CMPOP_CASE(
-          I8x16GtU, i8x16, int16, int16, 16,
-          *reinterpret_cast<uint8_t*>(&a) > *reinterpret_cast<uint8_t*>(&b))
-      CMPOP_CASE(
-          I8x16GeU, i8x16, int16, int16, 16,
-          *reinterpret_cast<uint8_t*>(&a) >= *reinterpret_cast<uint8_t*>(&b))
-      CMPOP_CASE(
-          I8x16LtU, i8x16, int16, int16, 16,
-          *reinterpret_cast<uint8_t*>(&a) < *reinterpret_cast<uint8_t*>(&b))
-      CMPOP_CASE(
-          I8x16LeU, i8x16, int16, int16, 16,
-          *reinterpret_cast<uint8_t*>(&a) <= *reinterpret_cast<uint8_t*>(&b))
+      CMPOP_CASE(I8x16GtU, i8x16, int16, int16, 16,
+                 static_cast<uint8_t>(a) > static_cast<uint8_t>(b))
+      CMPOP_CASE(I8x16GeU, i8x16, int16, int16, 16,
+                 static_cast<uint8_t>(a) >= static_cast<uint8_t>(b))
+      CMPOP_CASE(I8x16LtU, i8x16, int16, int16, 16,
+                 static_cast<uint8_t>(a) < static_cast<uint8_t>(b))
+      CMPOP_CASE(I8x16LeU, i8x16, int16, int16, 16,
+                 static_cast<uint8_t>(a) <= static_cast<uint8_t>(b))
 #undef CMPOP_CASE
 #define REPLACE_LANE_CASE(format, name, stype, ctype)                   \
   case kExpr##format##ReplaceLane: {                                    \
