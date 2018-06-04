@@ -235,7 +235,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_regexp_named_captures, "harmony regexp named captures")           \
   V(harmony_regexp_property, "harmony Unicode regexp property classes")       \
   V(harmony_function_tostring, "harmony Function.prototype.toString")         \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")             \
   V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
   V(harmony_import_meta, "harmony import.meta property")                      \
   V(harmony_bigint, "harmony arbitrary precision integers")                   \

@@ -45,7 +45,6 @@ FEATURE_FLAGS = {
   'BigInt': '--harmony-bigint',
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
-  'Promise.prototype.finally': '--harmony-promise-finally',
   'class-fields-public': '--harmony-public-fields',
   'optional-catch-binding': '--harmony-optional-catch-binding',
   'class-fields-private': '--harmony-private-fields',

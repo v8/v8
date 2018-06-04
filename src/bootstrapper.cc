@@ -2352,6 +2352,40 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               Builtins::kPromisePrototypeCatch, 1, true);
     native_context()->set_promise_catch(*promise_catch);
 
+    SimpleInstallFunction(isolate_, prototype, "finally",
+                          Builtins::kPromisePrototypeFinally, 1, true,
+                          DONT_ENUM);
+
+    {
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate(), Builtins::kPromiseThenFinally,
+          isolate_->factory()->empty_string(), 1);
+      info->set_native(true);
+      native_context()->set_promise_then_finally_shared_fun(*info);
+    }
+
+    {
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate(), Builtins::kPromiseCatchFinally,
+          isolate_->factory()->empty_string(), 1);
+      info->set_native(true);
+      native_context()->set_promise_catch_finally_shared_fun(*info);
+    }
+
+    {
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate(), Builtins::kPromiseValueThunkFinally,
+          isolate_->factory()->empty_string(), 0);
+      native_context()->set_promise_value_thunk_finally_shared_fun(*info);
+    }
+
+    {
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate(), Builtins::kPromiseThrowerFinally,
+          isolate_->factory()->empty_string(), 0);
+      native_context()->set_promise_thrower_finally_shared_fun(*info);
+    }
+
     // Force the Promise constructor to fast properties, so that we can use the
     // fast paths for various things like
     //
@@ -4402,49 +4436,6 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     Handle<JSFunction> symbol_fun(native_context()->symbol_function());
     InstallConstant(isolate(), symbol_fun, "matchAll",
                     factory()->match_all_symbol());
-  }
-}
-
-void Genesis::InitializeGlobal_harmony_promise_finally() {
-  if (!FLAG_harmony_promise_finally) return;
-
-  Handle<JSFunction> constructor(native_context()->promise_function());
-  Handle<JSObject> prototype(JSObject::cast(constructor->instance_prototype()));
-  SimpleInstallFunction(isolate(), prototype, "finally",
-                        Builtins::kPromisePrototypeFinally, 1, true, DONT_ENUM);
-
-  // The promise prototype map has changed because we added a property
-  // to prototype, so we update the saved map.
-  Handle<Map> prototype_map(prototype->map());
-  Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
-
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate(), Builtins::kPromiseThenFinally, factory()->empty_string(), 1);
-    info->set_native(true);
-    native_context()->set_promise_then_finally_shared_fun(*info);
-  }
-
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate(), Builtins::kPromiseCatchFinally, factory()->empty_string(),
-        1);
-    info->set_native(true);
-    native_context()->set_promise_catch_finally_shared_fun(*info);
-  }
-
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate(), Builtins::kPromiseValueThunkFinally,
-        factory()->empty_string(), 0);
-    native_context()->set_promise_value_thunk_finally_shared_fun(*info);
-  }
-
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate(), Builtins::kPromiseThrowerFinally, factory()->empty_string(),
-        0);
-    native_context()->set_promise_thrower_finally_shared_fun(*info);
   }
 }
 
