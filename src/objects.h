@@ -3204,9 +3204,6 @@ enum BuiltinFunctionId {
   FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)
       ATOMIC_FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)
 #undef DECL_FUNCTION_ID
-  // Fake id for a special case of Math.pow. Note, it continues the
-  // list of math functions.
-  kMathPowHalf,
   // These are manually assigned to special getters during bootstrapping.
   kArrayBufferByteLength,
   kArrayBufferIsView,
