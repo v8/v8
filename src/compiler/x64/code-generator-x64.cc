@@ -703,15 +703,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallWasmFunction: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
         if (info()->IsWasm()) {
-          __ near_call(wasm_code, RelocInfo::WASM_CALL);
+          __ near_call(wasm_code, constant.rmode());
         } else {
           if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
-            __ RetpolineCall(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+            __ RetpolineCall(wasm_code, constant.rmode());
           } else {
-            __ Call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+            __ Call(wasm_code, constant.rmode());
           }
         }
       } else {
@@ -752,12 +752,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallWasm: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
         if (info()->IsWasm()) {
-          __ near_jmp(wasm_code, RelocInfo::WASM_CALL);
+          __ near_jmp(wasm_code, constant.rmode());
         } else {
-          __ Move(kScratchRegister, wasm_code, RelocInfo::JS_TO_WASM_CALL);
+          __ Move(kScratchRegister, wasm_code, constant.rmode());
           __ jmp(kScratchRegister);
         }
       } else {

@@ -14272,14 +14272,14 @@ bool Code::IsProcessIndependent(Isolate* isolate) {
   STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
   STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
                 (1 << RelocInfo::COMMENT));
-  STATIC_ASSERT(
-      mode_mask ==
-      (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
+  STATIC_ASSERT(mode_mask ==
+                (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                 RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+                 RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+                 RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+                 RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                 RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
 
   bool is_process_independent = true;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {

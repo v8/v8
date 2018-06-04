@@ -57,14 +57,14 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
     STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
     STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
                   (1 << RelocInfo::COMMENT));
-    STATIC_ASSERT(
-        mode_mask ==
-        (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-         RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-         RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-         RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
+    STATIC_ASSERT(mode_mask ==
+                  (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                   RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+                   RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
 
     constexpr bool kVerbose = false;
     bool found_mismatch = false;

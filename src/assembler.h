@@ -368,6 +368,7 @@ class RelocInfo {
     CODE_TARGET,
     EMBEDDED_OBJECT,
     WASM_CALL,
+    WASM_STUB_CALL,
     JS_TO_WASM_CALL,
 
     RUNTIME_ENTRY,
@@ -435,6 +436,9 @@ class RelocInfo {
     return mode == RUNTIME_ENTRY;
   }
   static inline bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
+  static inline bool IsWasmStubCall(Mode mode) {
+    return mode == WASM_STUB_CALL;
+  }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) {
     return mode <= LAST_GCED_ENUM;
@@ -505,18 +509,23 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  Address js_to_wasm_address() const;
   Address wasm_call_address() const;
+  Address wasm_stub_call_address() const;
+  Address js_to_wasm_address() const;
+
+  uint32_t wasm_stub_call_tag() const;
+
+  void set_wasm_call_address(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_wasm_stub_call_address(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_js_to_wasm_address(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   void set_target_address(
       Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-
-  void set_wasm_call_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void set_js_to_wasm_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -605,9 +614,7 @@ class RelocInfo {
 
  private:
   void set_embedded_address(Address address, ICacheFlushMode flush_mode);
-  void set_embedded_size(uint32_t size, ICacheFlushMode flush_mode);
 
-  uint32_t embedded_size() const;
   Address embedded_address() const;
 
   // On ARM/ARM64, note that pc_ is the address of the instruction referencing

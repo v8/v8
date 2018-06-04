@@ -333,6 +333,10 @@ bool Builtins::IsIsolateIndependent(int index) {
     // isolate-independent once copies are no longer generated for wasm.
     case kWasmCompileLazy:
       return false;
+    // TODO(mstarzinger): Will be made Isolate independent once the CEntry stub
+    // is loaded from the instance.
+    case kWasmStackGuard:
+      return false;
     default:
       return true;
   }

@@ -268,6 +268,7 @@ void WasmCode::Validate() const {
       // TODO(mstarzinger): Validate that we go through a trampoline.
       case RelocInfo::WASM_CODE_TABLE_ENTRY:
       case RelocInfo::WASM_CALL:
+      case RelocInfo::WASM_STUB_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED:
@@ -344,6 +345,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm-to-js";
     case WasmCode::kLazyStub:
       return "lazy-compile";
+    case WasmCode::kRuntimeStub:
+      return "runtime-stub";
     case WasmCode::kInterpreterEntry:
       return "interpreter entry";
     case WasmCode::kTrampoline:
@@ -470,6 +473,17 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   }
 }
 
+void NativeModule::SetRuntimeStubs(Isolate* isolate) {
+  DCHECK(runtime_stub_table_.empty());
+  runtime_stub_table_.resize(WasmCode::kRuntimeStubCount);
+#define COPY_BUILTIN(Name)                                                     \
+  runtime_stub_table_[WasmCode::k##Name] =                                     \
+      AddAnonymousCode(isolate->builtins()->builtin_handle(Builtins::k##Name), \
+                       WasmCode::kRuntimeStub);
+  WASM_RUNTIME_STUB_LIST(COPY_BUILTIN);
+#undef COPY_BUILTIN
+}
+
 WasmSharedModuleData* NativeModule::shared_module_data() const {
   DCHECK_NOT_NULL(shared_module_data_);
   return *shared_module_data_;
@@ -578,12 +592,20 @@ WasmCode* NativeModule::AddCode(
   // Apply the relocation delta by iterating over the RelocInfo.
   AllowDeferredHandleDereference embedding_raw_address;
   intptr_t delta = ret->instructions().start() - desc.buffer;
-  int mode_mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask;
+  int mode_mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
+                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
                         ret->constant_pool(), mode_mask);
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsCodeTarget(mode)) {
+    if (RelocInfo::IsWasmStubCall(mode)) {
+      uint32_t stub_call_tag = it.rinfo()->wasm_stub_call_tag();
+      DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
+      WasmCode* code =
+          runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
+      it.rinfo()->set_wasm_stub_call_address(code->instruction_start(),
+                                             SKIP_ICACHE_FLUSH);
+    } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles to direct pointers to the first instruction in the
       // code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);

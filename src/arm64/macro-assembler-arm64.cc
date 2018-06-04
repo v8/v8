@@ -1970,7 +1970,7 @@ static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
   int64_t offset = static_cast<int64_t>(target);
   // The target of WebAssembly calls is still an index instead of an actual
   // address at this point, and needs to be encoded as-is.
-  if (rmode != RelocInfo::WASM_CALL) {
+  if (rmode != RelocInfo::WASM_CALL && rmode != RelocInfo::WASM_STUB_CALL) {
     offset -= reinterpret_cast<int64_t>(pc);
     DCHECK_EQ(offset % kInstructionSize, 0);
     offset = offset / static_cast<int>(kInstructionSize);

@@ -111,11 +111,10 @@ bool ContainsInt64(wasm::FunctionSig* sig) {
 }  // namespace
 
 WasmGraphBuilder::WasmGraphBuilder(
-    Isolate* isolate, wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
+    wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
     Handle<Code> centry_stub, wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
-    : isolate_(isolate),
-      zone_(zone),
+    : zone_(zone),
       mcgraph_(mcgraph),
       env_(env),
       centry_stub_(centry_stub),
@@ -255,11 +254,13 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   if (effect == nullptr) effect = effect_;
   if (control == nullptr) control = control_;
 
-  Node* limit =
-      graph()->NewNode(mcgraph()->machine()->Load(MachineType::Pointer()),
-                       mcgraph()->ExternalConstant(
-                           ExternalReference::address_of_stack_limit(isolate_)),
-                       mcgraph()->IntPtrConstant(0), *effect, *control);
+  Node* limit_address = graph()->NewNode(
+      mcgraph()->machine()->Load(MachineType::Pointer()), instance_node_.get(),
+      mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(StackLimitAddress)),
+      *effect, *control);
+  Node* limit = graph()->NewNode(
+      mcgraph()->machine()->Load(MachineType::Pointer()), limit_address,
+      mcgraph()->IntPtrConstant(0), *effect, *control);
   *effect = limit;
   Node* pointer = graph()->NewNode(mcgraph()->machine()->LoadStackPointer());
 
@@ -271,21 +272,19 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
 
   if (stack_check_call_operator_ == nullptr) {
     // Build and cache the stack check call operator and the constant
-    // representing the stackcheck code.
-    Handle<Code> code = BUILTIN_CODE(isolate_, WasmStackGuard);
-    CallInterfaceDescriptor idesc = WasmRuntimeCallDescriptor(isolate_);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate_, mcgraph()->zone(), idesc, 0, CallDescriptor::kNoFlags,
-        Operator::kNoProperties, MachineType::AnyTagged(), 1,
-        Linkage::kNoContext);
-    stack_check_builtin_code_node_.set(
-        graph()->NewNode(mcgraph()->common()->HeapConstant(code)));
+    // representing the stack check code.
+    wasm::FunctionSig dummy_sig(0, 0, nullptr);
+    auto call_descriptor = GetWasmCallDescriptor(mcgraph()->zone(), &dummy_sig);
+    // A direct call to a wasm runtime stub defined in this module.
+    // Just encode the stub index. This will be patched at relocation.
+    stack_check_code_node_.set(mcgraph()->RelocatableIntPtrConstant(
+        wasm::WasmCode::kWasmStackGuard, RelocInfo::WASM_STUB_CALL));
     stack_check_call_operator_ = mcgraph()->common()->Call(call_descriptor);
   }
 
-  Node* call = graph()->NewNode(stack_check_call_operator_,
-                                stack_check_builtin_code_node_.get(), *effect,
-                                stack_check.if_false);
+  Node* call =
+      graph()->NewNode(stack_check_call_operator_, stack_check_code_node_.get(),
+                       instance_node_.get(), *effect, stack_check.if_false);
 
   SetSourcePosition(call, position);
 
@@ -4003,8 +4002,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   WasmWrapperGraphBuilder(Zone* zone, wasm::ModuleEnv* env, JSGraph* jsgraph,
                           wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt)
-      : WasmGraphBuilder(jsgraph->isolate(), env, zone, jsgraph,
+      : WasmGraphBuilder(env, zone, jsgraph,
                          CodeFactory::CEntry(jsgraph->isolate()), sig, spt),
+        isolate_(jsgraph->isolate()),
         jsgraph_(jsgraph) {}
 
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
@@ -4697,6 +4697,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   JSGraph* jsgraph() { return jsgraph_; }
 
  private:
+  Isolate* const isolate_;
   JSGraph* jsgraph_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 };
@@ -5030,9 +5031,9 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   // Create a TF graph during decoding.
   SourcePositionTable* source_position_table =
       new (mcgraph_->zone()) SourcePositionTable(mcgraph_->graph());
-  WasmGraphBuilder builder(wasm_unit_->isolate_, wasm_unit_->env_,
-                           mcgraph_->zone(), mcgraph_, wasm_unit_->centry_stub_,
-                           wasm_unit_->func_body_.sig, source_position_table);
+  WasmGraphBuilder builder(wasm_unit_->env_, mcgraph_->zone(), mcgraph_,
+                           wasm_unit_->centry_stub_, wasm_unit_->func_body_.sig,
+                           source_position_table);
   graph_construction_result_ =
       wasm::BuildTFGraph(wasm_unit_->isolate_->allocator(), &builder,
                          wasm_unit_->func_body_, node_origins);

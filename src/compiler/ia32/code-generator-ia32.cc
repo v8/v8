@@ -601,15 +601,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallWasmFunction: {
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt32());
         if (info()->IsWasm()) {
-          __ wasm_call(wasm_code, RelocInfo::WASM_CALL);
+          __ wasm_call(wasm_code, constant.rmode());
         } else {
           if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
-            __ RetpolineCall(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+            __ RetpolineCall(wasm_code, constant.rmode());
           } else {
-            __ call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+            __ call(wasm_code, constant.rmode());
           }
         }
       } else {
@@ -650,13 +650,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTailCallWasm: {
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
-        if (info()->IsWasm()) {
-          __ jmp(wasm_code, RelocInfo::WASM_CALL);
-        } else {
-          __ jmp(wasm_code, RelocInfo::JS_TO_WASM_CALL);
-        }
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt32());
+        __ jmp(wasm_code, constant.rmode());
       } else {
         Register reg = i.InputRegister(0);
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {

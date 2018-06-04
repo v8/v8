@@ -157,6 +157,8 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
   Address addr = static_cast<Address>(tag);
   if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
     rinfo->set_target_external_reference(addr, SKIP_ICACHE_FLUSH);
+  } else if (rinfo->rmode() == RelocInfo::WASM_STUB_CALL) {
+    rinfo->set_wasm_stub_call_address(addr, SKIP_ICACHE_FLUSH);
   } else {
     rinfo->set_target_address(addr, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
   }
@@ -176,9 +178,14 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
     return static_cast<uint32_t>(instr->ImmPCOffset() / kInstructionSize);
   }
 #else
-  Address addr = rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE
-                     ? rinfo->target_external_reference()
-                     : rinfo->target_address();
+  Address addr;
+  if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
+    addr = rinfo->target_external_reference();
+  } else if (rinfo->rmode() == RelocInfo::WASM_STUB_CALL) {
+    addr = rinfo->wasm_stub_call_address();
+  } else {
+    addr = rinfo->target_address();
+  }
   return static_cast<uint32_t>(addr);
 #endif
 }
@@ -223,6 +230,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
 
   // wasm code targets reverse lookup
   std::map<Address, uint32_t> wasm_targets_lookup_;
+  std::map<Address, uint32_t> wasm_stub_targets_lookup_;
   // immovable builtins and runtime entries lookup
   std::map<Address, uint32_t> reference_table_lookup_;
   std::map<Address, uint32_t> builtin_lookup_;
@@ -237,12 +245,17 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
+  for (uint32_t i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
+    Address addr =
+        native_module_->runtime_stub(static_cast<WasmCode::RuntimeStubId>(i))
+            ->instruction_start();
+    wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
+  }
   ExternalReferenceTable* table = isolate_->heap()->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     reference_table_lookup_.insert(std::make_pair(addr, i));
   }
-  // Defer populating stub_lookup_ to when we write the stubs.
   for (auto pair : native_module_->trampolines_) {
     v8::internal::Code* code = Code::GetCodeFromTargetAddress(pair.first);
     int builtin_index = code->builtin_index();
@@ -316,6 +329,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+             RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
@@ -334,6 +348,13 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       case RelocInfo::WASM_CALL: {
         Address orig_target = orig_iter.rinfo()->wasm_call_address();
         uint32_t tag = wasm_targets_lookup_[orig_target];
+        SetWasmCalleeTag(iter.rinfo(), tag);
+      } break;
+      case RelocInfo::WASM_STUB_CALL: {
+        Address orig_target = orig_iter.rinfo()->wasm_stub_call_address();
+        auto stub_iter = wasm_stub_targets_lookup_.find(orig_target);
+        DCHECK(stub_iter != wasm_stub_targets_lookup_.end());
+        uint32_t tag = stub_iter->second;
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
@@ -482,6 +503,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+             RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
@@ -494,6 +516,16 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
         Address target = GetBuiltinTrampolineFromTag(tag);
         iter.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER,
                                          SKIP_ICACHE_FLUSH);
+        break;
+      }
+      case RelocInfo::WASM_STUB_CALL: {
+        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
+        DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
+        Address target =
+            native_module_
+                ->runtime_stub(static_cast<WasmCode::RuntimeStubId>(tag))
+                ->instruction_start();
+        iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
       case RelocInfo::EXTERNAL_REFERENCE: {

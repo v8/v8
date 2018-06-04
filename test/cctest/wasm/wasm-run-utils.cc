@@ -269,7 +269,7 @@ void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
                        ModuleEnv* module, FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(jsgraph->isolate(), module, zone, jsgraph,
+  compiler::WasmGraphBuilder builder(module, zone, jsgraph,
                                      CodeFactory::CEntry(jsgraph->isolate(), 1),
                                      sig, source_position_table);
   TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);

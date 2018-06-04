@@ -261,5 +261,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(() => i2.exports.main(2));
   assertThrows(() => i1.exports.main(3));
   assertThrows(() => i2.exports.main(3));
+})();
 
+(function StackOverflowAfterSerialization() {
+  const builder = new WasmModuleBuilder();
+  var fun = builder.addFunction('main', kSig_v_v);
+  fun.addBody([kExprCallFunction, fun.index]);
+  fun.exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  var buffer = %SerializeWasmModule(module);
+  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var instance = new WebAssembly.Instance(module);
+
+  assertThrows(instance.exports.main, RangeError);
 })();

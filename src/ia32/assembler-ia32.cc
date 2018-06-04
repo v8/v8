@@ -205,21 +205,11 @@ bool RelocInfo::IsInConstantPool() {
 
 Address RelocInfo::embedded_address() const { return Memory::Address_at(pc_); }
 
-uint32_t RelocInfo::embedded_size() const { return Memory::uint32_at(pc_); }
-
 void RelocInfo::set_embedded_address(Address address,
                                      ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(pc_, sizeof(Address));
-  }
-}
-
-void RelocInfo::set_embedded_size(uint32_t size,
-                                  ICacheFlushMode icache_flush_mode) {
-  Memory::uint32_at(pc_) = size;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(uint32_t));
   }
 }
 
@@ -233,6 +223,11 @@ void RelocInfo::set_js_to_wasm_address(Address address,
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
   return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t RelocInfo::wasm_stub_call_tag() const {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  return Memory::uint32_at(pc_);
 }
 
 // -----------------------------------------------------------------------------

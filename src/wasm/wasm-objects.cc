@@ -790,14 +790,15 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   Handle<FixedArray> imported_function_instances =
       isolate->factory()->NewFixedArray(num_imported_functions);
-
   instance->set_imported_function_instances(*imported_function_instances);
+
   Handle<FixedArray> imported_function_callables =
       isolate->factory()->NewFixedArray(num_imported_functions);
-
   instance->set_imported_function_callables(*imported_function_callables);
 
   instance->SetRawMemory(nullptr, 0);
+  instance->set_stack_limit_address(
+      isolate->stack_guard()->address_of_jslimit());
   instance->set_globals_start(nullptr);
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_sig_ids(nullptr);
@@ -1366,6 +1367,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
                                                    std::move(native_module));
     compiled_module->set_native_module(*native_module_wrapper);
   }
+  compiled_module->GetNativeModule()->SetRuntimeStubs(isolate);
 
   // TODO(mtrofin): copy the rest of the specialization parameters over.
   // We're currently OK because we're only using defaults.

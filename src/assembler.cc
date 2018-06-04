@@ -226,6 +226,18 @@ void RelocInfo::set_wasm_call_address(Address address,
                                    icache_flush_mode);
 }
 
+Address RelocInfo::wasm_stub_call_address() const {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void RelocInfo::set_wasm_stub_call_address(Address address,
+                                           ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
 void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
@@ -539,6 +551,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "veneer pool";
     case WASM_CALL:
       return "internal wasm call";
+    case WASM_STUB_CALL:
+      return "wasm stub call";
     case WASM_CODE_TABLE_ENTRY:
       return "wasm code table entry";
     case JS_TO_WASM_CALL:
@@ -640,6 +654,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CONST_POOL:
     case VENEER_POOL:
     case WASM_CALL:
+    case WASM_STUB_CALL:
     case JS_TO_WASM_CALL:
     case WASM_CODE_TABLE_ENTRY:
     case NONE:

@@ -633,10 +633,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                          i.TempRegister(2));
       }
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
-        __ Call(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
-                                            : RelocInfo::JS_TO_WASM_CALL);
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
+        __ Call(wasm_code, constant.rmode());
       } else {
         __ daddiu(kScratchReg, i.InputRegister(0), 0);
         __ Call(kScratchReg);
@@ -665,10 +664,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallWasm: {
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
-        __ Jump(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
-                                            : RelocInfo::JS_TO_WASM_CALL);
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
+        __ Jump(wasm_code, constant.rmode());
       } else {
         __ daddiu(kScratchReg, i.InputRegister(0), 0);
         __ Jump(kScratchReg);

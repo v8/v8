@@ -183,18 +183,9 @@ Address RelocInfo::embedded_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-uint32_t RelocInfo::embedded_size() const {
-  return Memory::uint32_at(Assembler::target_pointer_address_at(pc_));
-}
-
 void RelocInfo::set_embedded_address(Address address,
                                      ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
-}
-
-void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
-  Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
-  // No icache flushing needed, see comment in set_target_address_at.
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,
@@ -206,6 +197,18 @@ void RelocInfo::set_js_to_wasm_address(Address address,
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
   return embedded_address();
+}
+
+uint32_t RelocInfo::wasm_stub_call_tag() const {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  if (instr->IsLdrLiteralX()) {
+    return static_cast<uint32_t>(
+        Memory::Address_at(Assembler::target_pointer_address_at(pc_)));
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    return static_cast<uint32_t>(instr->ImmPCOffset() / kInstructionSize);
+  }
 }
 
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,

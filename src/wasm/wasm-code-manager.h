@@ -23,13 +23,15 @@ namespace internal {
 struct CodeDesc;
 class Code;
 class Histogram;
-class WasmCompiledModule;
 
 namespace wasm {
 
 class NativeModule;
 class WasmCodeManager;
 struct WasmModule;
+
+// Convenience macro listing all wasm runtime stubs.
+#define WASM_RUNTIME_STUB_LIST(V) V(WasmStackGuard)
 
 // Sorted, disjoint and non-overlapping memory ranges. A range is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -86,8 +88,18 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kFunction,
     kWasmToJsWrapper,
     kLazyStub,
+    kRuntimeStub,
     kInterpreterEntry,
     kTrampoline
+  };
+
+  // Each runtime stub is identified by an id. This id is used to reference the
+  // stub via {RelocInfo::WASM_STUB_CALL} and gets resolved during relocation.
+  enum RuntimeStubId {
+#define DEF_ENUM(Name, ...) k##Name,
+    WASM_RUNTIME_STUB_LIST(DEF_ENUM)
+#undef DEF_ENUM
+        kRuntimeStubCount
   };
 
   // kOther is used if we have WasmCode that is neither
@@ -245,6 +257,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by the runtime.
   void SetLazyBuiltin(Handle<Code> code);
 
+  // Initializes all runtime stubs by copying them over from the JS-allocated
+  // heap into this native module. It must be called exactly once per native
+  // module before adding other WasmCode so that runtime stub ids can be
+  // resolved during relocation.
+  void SetRuntimeStubs(Isolate* isolate);
+
   // function_count is WasmModule::functions.size().
   uint32_t function_count() const {
     DCHECK_LE(code_table_.size(), std::numeric_limits<uint32_t>::max());
@@ -268,6 +286,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool has_code(uint32_t index) const {
     DCHECK_LT(index, function_count());
     return code_table_[index] != nullptr;
+  }
+
+  WasmCode* runtime_stub(WasmCode::RuntimeStubId index) const {
+    DCHECK_LT(index, WasmCode::kRuntimeStubCount);
+    return runtime_stub_table_[index];
   }
 
   // Register/release the protected instructions in all code objects with the
@@ -341,6 +364,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
 
   std::vector<WasmCode*> code_table_;
+  std::vector<WasmCode*> runtime_stub_table_;
   std::unique_ptr<std::vector<WasmCode*>> lazy_compile_stubs_;
   uint32_t num_imported_functions_;
 
