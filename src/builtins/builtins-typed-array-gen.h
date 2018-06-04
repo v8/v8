@@ -130,6 +130,16 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
+
+  // Returns true iff number is NaN.
+  // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
+  TNode<BoolT> NumberIsNaN(TNode<Number> number);
+
+  // TODO(szuend): Remove when UncheckedCasts are supported in Torque.
+  TNode<FixedTypedArrayBase> UncheckedCastFixedArrayBaseToFixedTypedArrayBase(
+      TNode<FixedArrayBase> array) {
+    return CAST(array);
+  }
 };
 
 }  // namespace internal

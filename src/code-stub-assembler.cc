@@ -11807,26 +11807,5 @@ void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
                                     native_context);
 }
 
-TNode<BoolT> CodeStubAssembler::NumberIsNaN(TNode<Number> value) {
-  Label is_heapnumber(this), done(this);
-  TVARIABLE(BoolT, result);
-
-  GotoIf(TaggedIsNotSmi(value), &is_heapnumber);
-  result = Int32FalseConstant();
-  Goto(&done);
-
-  BIND(&is_heapnumber);
-  {
-    CSA_ASSERT(this, IsHeapNumber(CAST(value)));
-
-    TNode<Float64T> value_f = LoadHeapNumberValue(CAST(value));
-    result = Float64NotEqual(value_f, value_f);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return result.value();
-}
-
 }  // namespace internal
 }  // namespace v8
