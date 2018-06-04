@@ -52,6 +52,7 @@ type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
 type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags generates
 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
+type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
 
 type MessageTemplate constexpr 'MessageTemplate';
 type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
@@ -127,6 +128,9 @@ const false: constexpr bool = 'false';
 const kStrict: constexpr LanguageMode = 'LanguageMode::kStrict';
 const kSloppy: constexpr LanguageMode = 'LanguageMode::kSloppy';
 
+const SMI_PARAMETERS: constexpr ParameterMode = 'SMI_PARAMETERS';
+const INTPTR_PARAMETERS: constexpr ParameterMode = 'INTPTR_PARAMETERS';
+
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
@@ -144,12 +148,19 @@ extern macro EnsureArrayPushable(Map): ElementsKind labels Bailout;
 
 extern builtin ToObject(Context, Object): Object;
 extern macro IsNullOrUndefined(Object): bool;
+extern macro IsTheHole(Object): bool;
+extern macro IsString(HeapObject): bool;
+extern builtin ToString(Context, Object): String;
 
 extern runtime CreateDataProperty(Context, Object, Object, Object);
 extern runtime SetProperty(Context, Object, Object, Object, LanguageMode);
 extern runtime DeleteProperty(Context, Object, Object, LanguageMode);
 
 extern runtime StringEqual(Context, String, String): Oddball;
+extern builtin StringLessThan(Context, String, String): Boolean;
+
+extern macro StrictEqual(Object, Object): Boolean;
+extern runtime SmiLexicographicCompare(Context, Object, Object): Number;
 
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '!=' macro Word32NotEqual(int32, int32): bool;
@@ -227,8 +238,8 @@ extern operator
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
 
-extern operator 'cast<>' macro TaggedToJSDataView(
-    Object): JSDataView labels CastError;
+extern operator
+'cast<>' macro TaggedToJSDataView(Object): JSDataView labels CastError;
 extern operator
 'cast<>' macro TaggedToHeapObject(Object): HeapObject labels CastError;
 extern operator 'cast<>' macro TaggedToSmi(Object): Smi labels CastError;
@@ -266,6 +277,8 @@ extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;
 extern operator 'convert<>' macro SmiTag(intptr): Smi;
 extern operator 'convert<>' macro SmiFromInt32(int32): Smi;
 extern operator 'convert<>' macro SmiUntag(Smi): intptr;
+extern operator 'convert<>' macro LoadHeapNumberValue(HeapNumber): float64;
+extern operator 'convert<>' macro ChangeNumberToFloat64(Number): float64;
 
 extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never labels Taken,
@@ -291,6 +304,7 @@ extern operator '.elements=' macro StoreElements(JSObject, FixedArrayBase);
 
 extern operator '.length' macro LoadTypedArrayLength(JSTypedArray): Smi;
 extern operator '.length' macro LoadJSArrayLength(JSArray): Number;
+extern operator '.length_fast' macro LoadFastJSArrayLength(JSArray): Smi;
 extern operator '.length=' macro StoreJSArrayLength(JSArray, Smi);
 
 extern operator '.length' macro LoadFixedArrayBaseLength(FixedArrayBase): Smi;
@@ -300,6 +314,16 @@ extern operator
 '[]=' macro StoreFixedArrayElement(FixedArray, intptr, Object): void;
 extern operator
 '[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
+
+extern macro LoadFixedDoubleArrayElement(FixedDoubleArray, Smi): float64;
+extern macro Float64SilenceNaN(float64): float64;
+
+extern macro StoreFixedDoubleArrayElement(
+    FixedDoubleArray, Object, float64, constexpr ParameterMode);
+macro StoreFixedDoubleArrayElementWithSmiIndex(
+    array: FixedDoubleArray, index: Smi, value: float64) {
+  StoreFixedDoubleArrayElement(array, index, value, SMI_PARAMETERS);
+}
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsFastSmiOrTaggedElementsKind(ElementsKind): bool;
@@ -373,5 +397,8 @@ macro HasPropertyObject(
 }
 
 extern macro IsCallable(HeapObject): bool;
+extern macro IsJSArray(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
+
+extern macro NumberIsNaN(Number): bool;

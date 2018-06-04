@@ -634,6 +634,7 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kArrayPrototypeFlatMap:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayPrototypeSlice:
+    case Builtins::kArrayPrototypeSort:
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:

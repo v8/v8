@@ -195,6 +195,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return CAST(result);
   }
 
+  // Returns true iff number is NaN.
+  // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
+  TNode<BoolT> NumberIsNaN(TNode<Number> number);
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -797,6 +801,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       MachineType machine_type, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       Label* if_hole = nullptr);
+
+  Node* LoadFixedDoubleArrayElement(TNode<FixedDoubleArray> object,
+                                    TNode<Smi> index) {
+    return LoadFixedDoubleArrayElement(object, index, MachineType::Float64(), 0,
+                                       SMI_PARAMETERS);
+  }
 
   // Load a feedback slot from a FeedbackVector.
   TNode<MaybeObject> LoadFeedbackVectorSlot(

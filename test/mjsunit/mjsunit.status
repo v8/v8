@@ -779,6 +779,13 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['(arch == arm or arch == arm64) and simulator_run', {
+  # TODO(szuend): Re-enable when pivot calculation is fixed:
+  # https://crbug.com/v8/7795
+  'regress/regress-2185': [SKIP],
+}], # (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
