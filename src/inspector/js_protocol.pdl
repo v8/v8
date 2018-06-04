@@ -1326,6 +1326,10 @@ domain Runtime
     parameters
       boolean enabled
 
+  experimental command setMaxCallStackSizeToCapture
+    parameters
+      integer size
+
   # Terminate current or next JavaScript execution.
   # Will cancel the termination when the outer-most script execution ends.
   experimental command terminateExecution

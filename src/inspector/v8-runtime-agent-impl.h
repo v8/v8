@@ -89,6 +89,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   Response releaseObjectGroup(const String16& objectGroup) override;
   Response runIfWaitingForDebugger() override;
   Response setCustomObjectFormatterEnabled(bool) override;
+  Response setMaxCallStackSizeToCapture(int) override;
   Response discardConsoleEntries() override;
   Response compileScript(const String16& expression, const String16& sourceURL,
                          bool persistScript, Maybe<int> executionContextId,

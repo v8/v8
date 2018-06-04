@@ -11,6 +11,8 @@
 
 namespace v8_inspector {
 
+int V8StackTraceImpl::maxCallStackSizeToCapture = 200;
+
 namespace {
 
 static const v8::StackTrace::StackTraceOptions stackTraceOptions =
@@ -216,10 +218,12 @@ std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
 }
 
 StringView V8StackTraceImpl::firstNonEmptySourceURL() const {
-  for (size_t i = 0; i < m_frames.size(); ++i) {
-    if (m_frames[i]->sourceURL().length()) {
-      return toStringView(m_frames[i]->sourceURL());
+  StackFrameIterator current(this);
+  while (!current.done()) {
+    if (current.frame()->sourceURL().length()) {
+      return toStringView(current.frame()->sourceURL());
     }
+    current.next();
   }
   return StringView();
 }

@@ -48,7 +48,7 @@ class V8StackTraceImpl : public V8StackTrace {
  public:
   static void setCaptureStackTraceForUncaughtExceptions(v8::Isolate*,
                                                         bool capture);
-  static const int maxCallStackSizeToCapture = 200;
+  static int maxCallStackSizeToCapture;
   static std::unique_ptr<V8StackTraceImpl> create(V8Debugger*,
                                                   int contextGroupId,
                                                   v8::Local<v8::StackTrace>,

@@ -461,6 +461,14 @@ Response V8RuntimeAgentImpl::setCustomObjectFormatterEnabled(bool enabled) {
   return Response::OK();
 }
 
+Response V8RuntimeAgentImpl::setMaxCallStackSizeToCapture(int size) {
+  if (size < 0) {
+    return Response::Error("maxCallStackSizeToCapture should be non-negative");
+  }
+  V8StackTraceImpl::maxCallStackSizeToCapture = size;
+  return Response::OK();
+}
+
 Response V8RuntimeAgentImpl::discardConsoleEntries() {
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
