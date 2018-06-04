@@ -685,7 +685,7 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
         int32_t callee_func_index =
             ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
         DCHECK_LT(callee_func_index,
-                  wasm_caller->native_module()->function_count());
+                  wasm_caller->native_module()->num_functions());
         // {caller_ret_offset} points to one instruction after the call.
         // Remember the last called function before that offset.
         if (offset < caller_ret_offset) {
@@ -871,7 +871,7 @@ bool compile_lazy(const WasmModule* module) {
 
 void FlushICache(const wasm::NativeModule* native_module) {
   for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->function_count();
+                e = native_module->num_functions();
        i < e; ++i) {
     const wasm::WasmCode* code = native_module->code(i);
     if (code == nullptr) continue;
@@ -907,7 +907,7 @@ void RecordStats(const wasm::WasmCode* code, Counters* counters) {
 
 void RecordStats(const wasm::NativeModule* native_module, Counters* counters) {
   for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->function_count();
+                e = native_module->num_functions();
        i < e; ++i) {
     const wasm::WasmCode* code = native_module->code(i);
     if (code != nullptr) RecordStats(code, counters);

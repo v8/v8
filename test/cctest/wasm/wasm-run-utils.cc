@@ -48,8 +48,9 @@ TestingModuleBuilder::TestingModuleBuilder(
         maybe_import_index, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
-    native_module_->ResizeCodeTableForTesting(maybe_import_index + 1,
-                                              kMaxFunctions);
+    if (native_module_->num_functions() <= maybe_import_index) {
+      native_module_->SetNumFunctionsForTesting(maybe_import_index + 1);
+    }
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
         code, wasm::WasmCode::kWasmToJsWrapper, maybe_import_index);
 
@@ -99,8 +100,8 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
     test_module_->functions.reserve(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
-  if (native_module_) {
-    native_module_->ResizeCodeTableForTesting(index + 1, kMaxFunctions);
+  if (native_module_ && native_module_->num_functions() <= index) {
+    native_module_->SetNumFunctionsForTesting(index + 1);
   }
   test_module_->functions.push_back({sig, index, 0, {0, 0}, false, false});
   if (name) {
@@ -231,6 +232,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
   native_module_ = compiled_module->GetNativeModule();
+  native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   DCHECK(compiled_module->IsWasmCompiledModule());
   auto instance =

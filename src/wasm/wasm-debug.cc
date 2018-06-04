@@ -562,7 +562,7 @@ Handle<FixedArray> GetOrCreateInterpretedFunctions(
   int num_functions = debug_info->wasm_instance()
                           ->compiled_module()
                           ->GetNativeModule()
-                          ->function_count();
+                          ->num_functions();
   Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(num_functions);
   debug_info->set_interpreted_functions(*new_arr);
   return new_arr;
@@ -603,7 +603,7 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
   wasm::NativeModule* native_module =
       instance->compiled_module()->GetNativeModule();
   for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->function_count();
+                e = native_module->num_functions();
        i < e; ++i) {
     wasm::WasmCode* code = native_module->code(i);
     RedirectCallsitesInCode(isolate, code, map);

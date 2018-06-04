@@ -98,7 +98,7 @@ class TestingModuleBuilder {
 
   byte* AddMemory(uint32_t size);
 
-  size_t CodeTableLength() const { return native_module_->function_count(); }
+  size_t CodeTableLength() const { return native_module_->num_functions(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {

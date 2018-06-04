@@ -1561,10 +1561,10 @@ void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
   if (native_module == nullptr) return;
   // TODO(titzer): we skip the logging of the import wrappers
   // here, but they should be included somehow.
-  const uint32_t start =
+  const uint32_t num_imported_functions =
       native_module->shared_module_data()->module()->num_imported_functions;
-  const uint32_t number_of_codes = native_module->function_count();
-  for (uint32_t i = start; i < number_of_codes; i++) {
+  const uint32_t num_functions = native_module->num_functions();
+  for (uint32_t i = num_imported_functions; i < num_functions; i++) {
     wasm::WasmCode* code = native_module->code(i);
     if (code == nullptr) continue;
     code->LogCode(isolate);

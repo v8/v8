@@ -263,28 +263,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // resolved during relocation.
   void SetRuntimeStubs(Isolate* isolate);
 
-  // function_count is WasmModule::functions.size().
-  uint32_t function_count() const {
-    DCHECK_LE(code_table_.size(), std::numeric_limits<uint32_t>::max());
-    return static_cast<uint32_t>(code_table_.size());
-  }
-
   WasmCode* code(uint32_t index) const {
-    DCHECK_LT(index, function_count());
-    DCHECK_LE(num_imported_functions(), index);
+    DCHECK_LT(index, num_functions_);
+    DCHECK_LE(num_imported_functions_, index);
     return code_table_[index];
   }
 
-  // TODO(clemensh): Remove this method once we have the jump table
-  // (crbug.com/v8/7758).
-  void SetCodeForTesting(uint32_t index, WasmCode* code) {
-    DCHECK_LT(index, function_count());
-    DCHECK_LE(num_imported_functions(), index);
-    code_table_[index] = code;
-  }
-
   bool has_code(uint32_t index) const {
-    DCHECK_LT(index, function_count());
+    DCHECK_LT(index, num_functions_);
+    DCHECK_LE(num_imported_functions_, index);
     return code_table_[index] != nullptr;
   }
 
@@ -308,7 +295,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
-  void ResizeCodeTableForTesting(size_t num_functions, size_t max_functions);
+  void ReserveCodeTableForTesting(uint32_t max_functions);
+  void SetNumFunctionsForTesting(uint32_t num_functions);
+  void SetCodeForTesting(uint32_t index, WasmCode* code);
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
@@ -317,8 +306,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmSharedModuleData* shared_module_data() const;
   void SetSharedModuleData(Handle<WasmSharedModuleData>);
 
+  uint32_t num_functions() const { return num_functions_; }
   uint32_t num_imported_functions() const { return num_imported_functions_; }
-  const std::vector<WasmCode*>& code_table() const { return code_table_; }
+  Vector<WasmCode*> code_table() const {
+    return {code_table_.get(), num_functions_};
+  }
   bool use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
@@ -363,10 +355,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // according to the codes instruction start address to allow lookups.
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
 
-  std::vector<WasmCode*> code_table_;
-  std::vector<WasmCode*> runtime_stub_table_;
-  std::unique_ptr<std::vector<WasmCode*>> lazy_compile_stubs_;
+  uint32_t num_functions_;
   uint32_t num_imported_functions_;
+  std::unique_ptr<WasmCode* []> code_table_;
+  std::unique_ptr<WasmCode* []> lazy_compile_stubs_;
+
+  WasmCode* runtime_stub_table_[WasmCode::kRuntimeStubCount] = {nullptr};
 
   // Maps from instruction start of an immovable code object to instruction
   // start of the trampoline.
