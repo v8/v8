@@ -1085,6 +1085,63 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
   o << ")";
 }
 
+class ParameterDifference {
+ public:
+  ParameterDifference(const TypeVector& to, const TypeVector& from) {
+    DCHECK_EQ(to.size(), from.size());
+    for (size_t i = 0; i < to.size(); ++i) {
+      AddParameter(to[i], from[i]);
+    }
+  }
+
+  // An overload is selected if it is strictly better than all alternatives.
+  // This means that it has to be strictly better in at least one parameter,
+  // and better or equally good in all others.
+  //
+  // When comparing a pair of corresponding parameters of two overloads...
+  // ... they are considered equally good if:
+  //     - They are equal.
+  //     - Both require some implicit conversion.
+  // ... one is considered better if:
+  //     - It is a strict subtype of the other.
+  //     - It doesn't require an implicit conversion, while the other does.
+  bool StrictlyBetterThan(const ParameterDifference& other) const {
+    DCHECK_EQ(difference_.size(), other.difference_.size());
+    bool better_parameter_found = false;
+    for (size_t i = 0; i < difference_.size(); ++i) {
+      base::Optional<const Type*> a = difference_[i];
+      base::Optional<const Type*> b = other.difference_[i];
+      if (a == b) {
+        continue;
+      } else if (a && b && a != b && (*a)->IsSubtypeOf(*b)) {
+        DCHECK(!(*b)->IsSubtypeOf(*a));
+        better_parameter_found = true;
+      } else if (a && !b) {
+        better_parameter_found = true;
+      } else {
+        return false;
+      }
+    }
+    return better_parameter_found;
+  }
+
+ private:
+  // Pointwise difference between call arguments and a signature.
+  // {base::nullopt} means that an implicit conversion was necessary,
+  // otherwise we store the supertype found in the signature.
+  std::vector<base::Optional<const Type*>> difference_;
+
+  void AddParameter(const Type* to, const Type* from) {
+    if (from->IsSubtypeOf(to)) {
+      difference_.push_back(to);
+    } else if (IsAssignableFrom(to, from)) {
+      difference_.push_back(base::nullopt);
+    } else {
+      UNREACHABLE();
+    }
+  }
+};
+
 VisitResult ImplementationVisitor::GenerateOperation(
     const std::string& operation, Arguments arguments,
     base::Optional<const Type*> return_type) {
@@ -1092,30 +1149,51 @@ VisitResult ImplementationVisitor::GenerateOperation(
 
   auto i = global_context_.op_handlers_.find(operation);
   if (i != global_context_.op_handlers_.end()) {
-    for (auto handler : i->second) {
+    std::vector<OperationHandler*> candidates;
+    for (OperationHandler& handler : i->second) {
       if (IsCompatibleSignature(handler.parameter_types, parameter_types)) {
-        // Operators used in a bit context can also be function calls that never
-        // return but have a True and False label
-        if (!return_type && handler.result_type->IsNever()) {
-          if (arguments.labels.size() == 0) {
-            Label* true_label = declarations()->LookupLabel(kTrueLabelName);
-            arguments.labels.push_back(true_label);
-            Label* false_label = declarations()->LookupLabel(kFalseLabelName);
-            arguments.labels.push_back(false_label);
-          }
-        }
-
-        if (!return_type || return_type == handler.result_type) {
-          return GenerateCall(handler.macro_name, arguments, false);
+        if (!return_type || *return_type == handler.result_type) {
+          candidates.push_back(&handler);
         }
       }
+    }
+    auto is_better_candidate = [&](OperationHandler* a, OperationHandler* b) {
+      return ParameterDifference(a->parameter_types.types, parameter_types)
+          .StrictlyBetterThan(
+              ParameterDifference(b->parameter_types.types, parameter_types));
+    };
+    if (!candidates.empty()) {
+      OperationHandler* best = *std::min_element(
+          candidates.begin(), candidates.end(), is_better_candidate);
+      for (OperationHandler* candidate : candidates) {
+        if (candidate != best && !is_better_candidate(best, candidate)) {
+          std::stringstream s;
+          s << "ambiguous operation \"" << operation << "\" with types ("
+            << parameter_types << "), candidates:";
+          for (OperationHandler* handler : candidates) {
+            s << "\n    (" << handler->parameter_types << ") => "
+              << handler->result_type;
+          }
+          ReportError(s.str());
+        }
+      }
+      // Operators used in a bit context can also be function calls that never
+      // return but have a True and False label
+      if (!return_type && best->result_type->IsNever()) {
+        if (arguments.labels.size() == 0) {
+          Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+          arguments.labels.push_back(true_label);
+          Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+          arguments.labels.push_back(false_label);
+        }
+      }
+      return GenerateCall(best->macro_name, arguments, false);
     }
   }
   std::stringstream s;
   s << "cannot find implementation of operation \"" << operation
     << "\" with types " << parameter_types;
   ReportError(s.str());
-  return VisitResult(TypeOracle::GetVoidType(), "");
 }
 
 void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {

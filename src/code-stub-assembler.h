@@ -2358,8 +2358,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<IntPtrT> GetArgumentsLength(CodeStubArguments* args);
   TNode<Object> GetArgumentValue(CodeStubArguments* args, TNode<IntPtrT> index);
-  TNode<Object> GetArgumentValueSmiIndex(CodeStubArguments* args,
-                                         TNode<Smi> index);
 
   // Support for printf-style debugging
   void Print(const char* s);

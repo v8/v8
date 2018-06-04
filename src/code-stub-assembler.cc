@@ -11749,11 +11749,6 @@ TNode<Object> CodeStubAssembler::GetArgumentValue(CodeStubArguments* args,
   return args->GetOptionalArgumentValue(index);
 }
 
-TNode<Object> CodeStubAssembler::GetArgumentValueSmiIndex(
-    CodeStubArguments* args, TNode<Smi> index) {
-  return args->GetOptionalArgumentValue(SmiUntag(index));
-}
-
 void CodeStubAssembler::Print(const char* s) {
   std::string formatted(s);
   formatted += "\n";

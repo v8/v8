@@ -232,8 +232,6 @@ extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
 extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
 extern operator
     '[]' macro GetArgumentValue(constexpr Arguments, intptr): Object;
-extern operator
-    '[]' macro GetArgumentValueSmiIndex(constexpr Arguments, Smi): Object;
 
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
