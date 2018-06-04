@@ -262,11 +262,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 class WasmOutOfLineTrap : public OutOfLineCode {
  public:
-  WasmOutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
-      : OutOfLineCode(gen),
-        gen_(gen),
-        frame_elided_(frame_elided),
-        instr_(instr) {}
+  WasmOutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+      : OutOfLineCode(gen), gen_(gen), instr_(instr) {}
 
   void Generate() override {
     X64OperandConverter i(gen_, instr_);
@@ -280,15 +277,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   CodeGenerator* gen_;
 
   void GenerateWithTrapId(Builtins::Name trap_id) {
-    bool old_has_frame = __ has_frame();
-    if (frame_elided_) {
-      __ set_has_frame(true);
-      __ EnterFrame(StackFrame::WASM_COMPILED);
-    }
     GenerateCallToTrap(trap_id);
-    if (frame_elided_) {
-      __ set_has_frame(old_has_frame);
-    }
   }
 
  private:
@@ -316,15 +305,13 @@ class WasmOutOfLineTrap : public OutOfLineCode {
     }
   }
 
-  bool frame_elided_;
   Instruction* instr_;
 };
 
 class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
  public:
-  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, bool frame_elided,
-                               Instruction* instr)
-      : WasmOutOfLineTrap(gen, frame_elided, instr), pc_(pc) {}
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr)
+      : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
 
   void Generate() final {
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
@@ -342,8 +329,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessProtected) {
-    const bool frame_elided = !codegen->frame_access_state()->has_frame();
-    new (zone) WasmProtectedInstructionTrap(codegen, pc, frame_elided, instr);
+    new (zone) WasmProtectedInstructionTrap(codegen, pc, instr);
   }
 }
 
@@ -2943,8 +2929,7 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  bool frame_elided = !frame_access_state()->has_frame();
-  auto ool = new (zone()) WasmOutOfLineTrap(this, frame_elided, instr);
+  auto ool = new (zone()) WasmOutOfLineTrap(this, instr);
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
