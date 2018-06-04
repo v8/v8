@@ -63,7 +63,6 @@ class WasmCompilationUnit final {
   // only allowed to happen on the foreground thread.
   WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::NativeModule*,
                       wasm::FunctionBody, wasm::WasmName, int index,
-                      Handle<Code> centry_stub,
                       CompilationMode = GetDefaultCompilationMode(),
                       Counters* = nullptr, bool lower_simd = false);
 
@@ -91,7 +90,6 @@ class WasmCompilationUnit final {
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
-  Handle<Code> centry_stub_;
   int func_index_;
   size_t memory_cost_ = 0;
   wasm::NativeModule* native_module_;

@@ -161,7 +161,7 @@ class WasmGraphBuilder {
   enum UseRetpoline : bool { kRetpoline = true, kNoRetpoline = false };
 
   WasmGraphBuilder(wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
-                   Handle<Code> centry_stub, wasm::FunctionSig* sig,
+                   wasm::FunctionSig* sig,
                    compiler::SourcePositionTable* spt = nullptr);
 
   Node** Buffer(size_t count) {
@@ -349,12 +349,9 @@ class WasmGraphBuilder {
   Node** effect_ = nullptr;
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
 
-  Handle<Code> centry_stub_;
-
   SetOncePointer<Node> instance_node_;
   SetOncePointer<Node> globals_start_;
   SetOncePointer<Node> imported_mutable_globals_;
-  SetOncePointer<Node> centry_stub_node_;
   SetOncePointer<Node> stack_check_code_node_;
   const Operator* stack_check_call_operator_ = nullptr;
 
@@ -371,7 +368,6 @@ class WasmGraphBuilder {
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
-  Node* CEntryStub();
   Node* NoContextConstant();
 
   Node* MemBuffer(uint32_t offset);

@@ -158,7 +158,6 @@ class AsyncCompileJob {
 
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
-  Handle<Code> centry_stub_;
 
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 

@@ -10,7 +10,6 @@
 #include "src/base/optional.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/identity-map.h"
@@ -530,8 +529,7 @@ const wasm::WasmCode* LazyCompileFunction(
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
   WasmCompilationUnit unit(isolate, &module_env, native_module, body,
-                           CStrVector(func_name.c_str()), func_index,
-                           CodeFactory::CEntry(isolate));
+                           CStrVector(func_name.c_str()), func_index);
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
@@ -952,11 +950,9 @@ size_t GetMaxUsableMemorySize(Isolate* isolate) {
 // CompilationState when {Commit} is called.
 class CompilationUnitBuilder {
  public:
-  explicit CompilationUnitBuilder(NativeModule* native_module,
-                                  Handle<Code> centry_stub)
+  explicit CompilationUnitBuilder(NativeModule* native_module)
       : native_module_(native_module),
-        compilation_state_(native_module->compilation_state()),
-        centry_stub_(centry_stub) {}
+        compilation_state_(native_module->compilation_state()) {}
 
   void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
                Vector<const uint8_t> bytes, WasmName name) {
@@ -1000,13 +996,12 @@ class CompilationUnitBuilder {
         native_module_,
         wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
                            bytes.end()},
-        name, function->func_index, centry_stub_, mode,
+        name, function->func_index, mode,
         compilation_state_->isolate()->async_counters().get());
   }
 
   NativeModule* native_module_;
   CompilationState* compilation_state_;
-  Handle<Code> centry_stub_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
 };
@@ -1047,12 +1042,11 @@ size_t GetNumFunctionsToCompile(const WasmModule* wasm_module) {
 void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
                                 const ModuleWireBytes& wire_bytes,
                                 const WasmModule* wasm_module,
-                                Handle<Code> centry_stub,
                                 NativeModule* native_module) {
   uint32_t start = wasm_module->num_imported_functions;
   uint32_t num_funcs = static_cast<uint32_t>(functions.size());
 
-  CompilationUnitBuilder builder(native_module, centry_stub);
+  CompilationUnitBuilder builder(native_module);
   for (uint32_t i = start; i < num_funcs; ++i) {
     const WasmFunction* func = &functions[i];
     uint32_t buffer_offset = func->code.offset();
@@ -1111,7 +1105,7 @@ void UpdateAllCompiledModulesWithTopTierCode(
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
                        const ModuleWireBytes& wire_bytes, ModuleEnv* module_env,
                        Handle<WasmModuleObject> module_object,
-                       Handle<Code> centry_stub, ErrorThrower* thrower) {
+                       ErrorThrower* thrower) {
   const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
 
@@ -1149,13 +1143,11 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   compilation_state->SetWireBytes(wire_bytes);
 
   DeferredHandles* deferred_handles = nullptr;
-  Handle<Code> centry_deferred = centry_stub;
   Handle<WasmModuleObject> module_object_deferred;
   if (compilation_state->compile_mode() == CompileMode::kTiering) {
-    // Open a deferred handle scope for the centry_stub, in order to allow
+    // Open a deferred handle scope for the module_object, in order to allow
     // for background tiering compilation.
     DeferredHandleScope deferred(isolate);
-    centry_deferred = Handle<Code>(*centry_stub, isolate);
     module_object_deferred = handle(*module_object, isolate);
     deferred_handles = deferred.Detach();
   }
@@ -1203,7 +1195,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   //    {BackgroundCompileTask} instances are spawned which run on
   //    background threads.
   InitializeCompilationUnits(module->functions, compilation_state->wire_bytes(),
-                             module, centry_deferred, native_module);
+                             module, native_module);
 
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
@@ -1295,7 +1287,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   WasmModule* wasm_module = module.get();
-  Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
   TimedHistogramScope wasm_compile_module_time_scope(
       SELECT_WASM_COUNTER(isolate->async_counters(), wasm_module->origin,
                           wasm_compile, module_time));
@@ -1389,7 +1380,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
 
     if (compile_parallel) {
       CompileInParallel(isolate, native_module, wire_bytes, &env, module_object,
-                        centry_stub, thrower);
+                        thrower);
     } else {
       CompileSequentially(isolate, native_module, wire_bytes, &env, thrower);
     }
@@ -3030,10 +3021,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // is done.
     job_->background_task_manager_.CancelAndWait();
 
-    Isolate* isolate = job_->isolate_;
-
-    job_->centry_stub_ = CodeFactory::CEntry(isolate);
-
     DCHECK_LE(module_->num_imported_functions, module_->functions.size());
     // Create the compiled module object and populate with compiled functions
     // and information needed at instantiation time. This object needs to be
@@ -3127,7 +3114,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       compilation_state->SetNumberOfFunctionsToCompile(functions_count);
       // Add compilation units and kick off compilation.
       InitializeCompilationUnits(module_->functions, job_->wire_bytes_,
-                                 env.module, job_->centry_stub_,
+                                 env.module,
                                  job_->compiled_module_->GetNativeModule());
     }
   }
@@ -3323,8 +3310,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.SetValue(2);
-  compilation_unit_builder_.reset(
-      new CompilationUnitBuilder(native_module, job_->centry_stub_));
+  compilation_unit_builder_.reset(new CompilationUnitBuilder(native_module));
   return true;
 }
 

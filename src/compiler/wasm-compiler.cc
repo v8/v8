@@ -112,12 +112,11 @@ bool ContainsInt64(wasm::FunctionSig* sig) {
 
 WasmGraphBuilder::WasmGraphBuilder(
     wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
-    Handle<Code> centry_stub, wasm::FunctionSig* sig,
+    wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
     : zone_(zone),
       mcgraph_(mcgraph),
       env_(env),
-      centry_stub_(centry_stub),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
       has_simd_(ContainsSimd(sig)),
@@ -214,14 +213,6 @@ Node* WasmGraphBuilder::RefNull() {
   Node* null = LOAD_INSTANCE_FIELD(NullValue, MachineType::TaggedPointer());
   *effect_ = null;
   return null;
-}
-
-Node* WasmGraphBuilder::CEntryStub() {
-  if (!centry_stub_node_.is_set()) {
-    centry_stub_node_.set(
-        graph()->NewNode(mcgraph()->common()->HeapConstant(centry_stub_)));
-  }
-  return centry_stub_node_.get();
 }
 
 Node* WasmGraphBuilder::NoContextConstant() {
@@ -2963,16 +2954,18 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       mcgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
-  // CEntryStubConstant nodes have to be created and cached in the main
-  // thread. At the moment this is only done for CEntryStubConstant(1).
+  // The CEntryStub is loaded from the instance_node so that generated code is
+  // Isolate independent. At the moment this is only done for CEntryStub(1).
   DCHECK_EQ(1, fun->result_size);
+  Node* centry_stub = *effect_ =
+      LOAD_INSTANCE_FIELD(CEntryStub, MachineType::TaggedPointer());
   // At the moment we only allow 4 parameters. If more parameters are needed,
   // increase this constant accordingly.
   static const int kMaxParams = 4;
   DCHECK_GE(kMaxParams, parameter_count);
   Node* inputs[kMaxParams + 6];
   int count = 0;
-  inputs[count++] = CEntryStub();
+  inputs[count++] = centry_stub;
   for (int i = 0; i < parameter_count; i++) {
     inputs[count++] = parameters[i];
   }
@@ -4002,8 +3995,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   WasmWrapperGraphBuilder(Zone* zone, wasm::ModuleEnv* env, JSGraph* jsgraph,
                           wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt)
-      : WasmGraphBuilder(env, zone, jsgraph,
-                         CodeFactory::CEntry(jsgraph->isolate()), sig, spt),
+      : WasmGraphBuilder(env, zone, jsgraph, sig, spt),
         isolate_(jsgraph->isolate()),
         jsgraph_(jsgraph) {}
 
@@ -4353,8 +4345,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // called {WasmExportedFunction} via the {WasmExportedFunctionData}
     // structure. since JSToWasm wrappers can be compiled at module compile time
     // and patched at instance build time.
-    DCHECK_NULL(instance_node_);
-    instance_node_ = BuildLoadInstanceFromExportedFunction(js_closure);
+    instance_node_.set(BuildLoadInstanceFromExportedFunction(js_closure));
 
     if (!wasm::IsJSCompatibleSignature(sig_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
@@ -4409,12 +4400,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
-    CallDescriptor* call_descriptor;
     Node* start = Start(wasm_count + 3);
     *effect_ = start;
     *control_ = start;
 
+    // Create the instance_node from the passed parameter.
     instance_node_.set(Param(wasm::kWasmInstanceParameterIndex));
+
     Node* callables_node = LOAD_INSTANCE_FIELD(ImportedFunctionCallables,
                                                MachineType::TaggedPointer());
     Node* callable_node = LOAD_FIXED_ARRAY_SLOT(callables_node, index);
@@ -4433,6 +4425,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return false;
     }
 
+    CallDescriptor* call_descriptor;
     Node** args = Buffer(wasm_count + 9);
     Node* call = nullptr;
 
@@ -4560,6 +4553,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* start = Start(param_count + 3);
     *effect_ = start;
     *control_ = start;
+
+    // Create the instance_node from the passed parameter.
+    instance_node_.set(Param(wasm::kWasmInstanceParameterIndex));
 
     // Compute size for the argument buffer.
     int args_size_bytes = 0;
@@ -5032,8 +5028,7 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   SourcePositionTable* source_position_table =
       new (mcgraph_->zone()) SourcePositionTable(mcgraph_->graph());
   WasmGraphBuilder builder(wasm_unit_->env_, mcgraph_->zone(), mcgraph_,
-                           wasm_unit_->centry_stub_, wasm_unit_->func_body_.sig,
-                           source_position_table);
+                           wasm_unit_->func_body_.sig, source_position_table);
   graph_construction_result_ =
       wasm::BuildTFGraph(wasm_unit_->isolate_->allocator(), &builder,
                          wasm_unit_->func_body_, node_origins);

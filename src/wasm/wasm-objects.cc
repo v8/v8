@@ -7,6 +7,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/base/iterator.h"
+#include "src/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-interface.h"
 #include "src/objects-inl.h"
@@ -795,6 +796,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<FixedArray> imported_function_callables =
       isolate->factory()->NewFixedArray(num_imported_functions);
   instance->set_imported_function_callables(*imported_function_callables);
+
+  Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
+  instance->set_centry_stub(*centry_stub);
 
   instance->SetRawMemory(nullptr, 0);
   instance->set_stack_limit_address(

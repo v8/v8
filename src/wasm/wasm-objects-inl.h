@@ -159,6 +159,7 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, managed_indirect_patcher, Foreign,
                    kManagedIndirectPatcherOffset)
 ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
 ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
+ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
 
 inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;

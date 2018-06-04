@@ -4,7 +4,6 @@
 
 #include "src/wasm/function-compiler.h"
 
-#include "src/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
@@ -37,7 +36,6 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
                                          wasm::NativeModule* native_module,
                                          wasm::FunctionBody body,
                                          wasm::WasmName name, int index,
-                                         Handle<Code> centry_stub,
                                          CompilationMode mode,
                                          Counters* counters, bool lower_simd)
     : isolate_(isolate),
@@ -45,7 +43,6 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
       func_body_(body),
       func_name_(name),
       counters_(counters ? counters : isolate->counters()),
-      centry_stub_(centry_stub),
       func_index_(index),
       native_module_(native_module),
       lower_simd_(lower_simd),
@@ -141,8 +138,7 @@ wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
 
   WasmCompilationUnit unit(isolate, env, native_module, function_body,
                            wire_bytes.GetNameOrNull(function, env->module),
-                           function->func_index,
-                           CodeFactory::CEntry(isolate, 1), mode);
+                           function->func_index, mode);
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }

@@ -5,7 +5,6 @@
 #include "test/cctest/wasm/wasm-run-utils.h"
 
 #include "src/assembler-inl.h"
-#include "src/code-factory.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -272,7 +271,6 @@ void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end) {
   compiler::WasmGraphBuilder builder(module, zone, jsgraph,
-                                     CodeFactory::CEntry(jsgraph->isolate(), 1),
                                      sig, source_position_table);
   TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
 }
@@ -436,8 +434,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
           ? WasmCompilationUnit::CompilationMode::kLiftoff
           : WasmCompilationUnit::CompilationMode::kTurbofan;
   WasmCompilationUnit unit(isolate(), &module_env, native_module, func_body,
-                           func_name, function_->func_index,
-                           CodeFactory::CEntry(isolate(), 1), comp_mode,
+                           func_name, function_->func_index, comp_mode,
                            isolate()->counters(), builder_->lower_simd());
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
