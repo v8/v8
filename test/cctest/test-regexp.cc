@@ -432,7 +432,6 @@ TEST(RegExpParser) {
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
 
-  FLAG_harmony_regexp_named_captures = true;
   CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<a>",
                "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))", true);
   CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<b>",
@@ -447,7 +446,6 @@ TEST(RegExpParser) {
 
   CheckParseEq("(?<\\u{03C0}>a)", "(^ 'a')", true);
   CheckParseEq("(?<\\u03C0>a)", "(^ 'a')", true);
-  FLAG_harmony_regexp_named_captures = false;
 }
 
 TEST(ParserRegression) {
@@ -501,7 +499,6 @@ TEST(Errors) {
   }
   ExpectError(os.str().c_str(), kTooManyCaptures);
 
-  FLAG_harmony_regexp_named_captures = true;
   const char* kInvalidCaptureName = "Invalid capture group name";
   ExpectError("(?<>.)", kInvalidCaptureName, true);
   ExpectError("(?<1>.)", kInvalidCaptureName, true);
@@ -516,7 +513,6 @@ TEST(Errors) {
   ExpectError("(?<b>)\\k<a>", kInvalidCaptureReferenced, true);
   const char* kInvalidNamedReference = "Invalid named reference";
   ExpectError("\\ka", kInvalidNamedReference, true);
-  FLAG_harmony_regexp_named_captures = false;
 }
 
 

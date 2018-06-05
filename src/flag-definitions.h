@@ -232,7 +232,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 #define HARMONY_SHIPPING(V)                                                   \
   V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}")      \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")           \
   V(harmony_regexp_property, "harmony Unicode regexp property classes")       \
   V(harmony_function_tostring, "harmony Function.prototype.toString")         \
   V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \

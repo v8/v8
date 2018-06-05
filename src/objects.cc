@@ -11692,7 +11692,6 @@ int String::IndexOf(Isolate* isolate, Handle<String> receiver,
 MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
                                             Handle<String> replacement,
                                             int start_index) {
-  DCHECK_IMPLIES(match->HasNamedCaptures(), FLAG_harmony_regexp_named_captures);
   DCHECK_GE(start_index, 0);
 
   Factory* factory = isolate->factory();

@@ -149,9 +149,6 @@ class CompiledReplacement {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
     // repeated parsing when used repeatedly.
-    DCHECK_IMPLIES(capture_name_map != nullptr,
-                   FLAG_harmony_regexp_named_captures);
-
     int length = characters.length();
     int last = 0;
     for (int i = 0; i < length; i++) {
@@ -329,7 +326,6 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
       DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
       Object* maybe_capture_name_map = regexp->CaptureNameMap();
       if (maybe_capture_name_map->IsFixedArray()) {
-        DCHECK(FLAG_harmony_regexp_named_captures);
         capture_name_map = FixedArray::cast(maybe_capture_name_map);
       }
     }
@@ -948,7 +944,6 @@ class MatchInfoBackedMatch : public String::Match {
       Object* o = regexp->CaptureNameMap();
       has_named_captures_ = o->IsFixedArray();
       if (has_named_captures_) {
-        DCHECK(FLAG_harmony_regexp_named_captures);
         capture_name_map_ = handle(FixedArray::cast(o), isolate);
       }
     } else {
@@ -1106,7 +1101,6 @@ class VectorBackedMatch : public String::Match {
 Handle<JSObject> ConstructNamedCaptureGroupsObject(
     Isolate* isolate, Handle<FixedArray> capture_map,
     std::function<Object*(int)> f_get_capture) {
-  DCHECK(FLAG_harmony_regexp_named_captures);
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
   const int capture_count = capture_map->length() >> 1;
@@ -1219,7 +1213,6 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
         Handle<Object> maybe_capture_map(regexp->CaptureNameMap(), isolate);
         const bool has_named_captures = maybe_capture_map->IsFixedArray();
-        DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
 
         const int argc =
             has_named_captures ? 4 + capture_count : 3 + capture_count;
@@ -1498,7 +1491,6 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     }
   }
 
-  DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
   const uint32_t argc = GetArgcForReplaceCallable(m, has_named_captures);
   if (argc == static_cast<uint32_t>(-1)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -1854,14 +1846,11 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     }
 
     Handle<Object> groups_obj = isolate->factory()->undefined_value();
-    if (FLAG_harmony_regexp_named_captures) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, groups_obj,
-          Object::GetProperty(result, factory->groups_string()));
-    }
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, groups_obj,
+        Object::GetProperty(result, factory->groups_string()));
 
     const bool has_named_captures = !groups_obj->IsUndefined(isolate);
-    DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
 
     Handle<String> replacement;
     if (functional_replace) {

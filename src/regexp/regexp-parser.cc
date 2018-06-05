@@ -477,18 +477,17 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               builder->AddCharacter('u');
             } else {
               // With /u, invalid escapes are not treated as identity escapes.
-              return ReportError(CStrVector("Invalid unicode escape"));
+              return ReportError(CStrVector("Invalid Unicode escape"));
             }
             break;
           }
           case 'k':
             // Either an identity escape or a named back-reference.  The two
             // interpretations are mutually exclusive: '\k' is interpreted as
-            // an identity escape for non-unicode patterns without named
+            // an identity escape for non-Unicode patterns without named
             // capture groups, and as the beginning of a named back-reference
             // in all other cases.
-            if (FLAG_harmony_regexp_named_captures &&
-                (unicode() || HasNamedCaptures())) {
+            if (unicode() || HasNamedCaptures()) {
               Advance(2);
               ParseNamedBackReference(builder, state CHECK_FAILED);
               break;
@@ -678,13 +677,10 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
           subexpr_type = NEGATIVE_LOOKAROUND;
           break;
         }
-        if (FLAG_harmony_regexp_named_captures) {
-          is_named_capture = true;
-          has_named_captures_ = true;
-          Advance();
-          break;
-        }
-        V8_FALLTHROUGH;
+        is_named_capture = true;
+        has_named_captures_ = true;
+        Advance();
+        break;
       default:
         ReportError(CStrVector("Invalid group"));
         return nullptr;
@@ -765,7 +761,6 @@ void RegExpParser::ScanForCaptures() {
           // * or a named capture '(?<'.
           //
           // Of these, only named captures are capturing groups.
-          if (!FLAG_harmony_regexp_named_captures) break;
 
           Advance();
           if (current() != '<') break;
@@ -830,8 +825,6 @@ static void push_code_unit(ZoneVector<uc16>* v, uint32_t code_unit) {
 }
 
 const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
-  DCHECK(FLAG_harmony_regexp_named_captures);
-
   ZoneVector<uc16>* name =
       new (zone()->New(sizeof(ZoneVector<uc16>))) ZoneVector<uc16>(zone());
 
@@ -879,7 +872,6 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
 
 bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
                                              int index) {
-  DCHECK(FLAG_harmony_regexp_named_captures);
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 

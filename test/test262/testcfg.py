@@ -43,7 +43,6 @@ from testrunner.outproc import test262
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
   'BigInt': '--harmony-bigint',
-  'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
   'class-fields-public': '--harmony-public-fields',
   'optional-catch-binding': '--harmony-optional-catch-binding',
