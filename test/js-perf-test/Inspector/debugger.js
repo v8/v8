@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 (function() {
+
 createSuite('Debugger.paused', 10000, DebuggerPaused, Setup, TearDown);
 createSuite(
     'Debugger.getPossibleBreakpoints', 10000, DebuggerGetPossibleBreakpoints,
@@ -39,13 +40,14 @@ function SetupGetPossibleBreakpoints() {
           return false;
         }
       }\n`;
-  }
+  };
   listener = function(msg) {
     if (msg.method === 'Debugger.scriptParsed') {
       scriptId = msg.params.scriptId;
       listener = null;
     }
-  } SendMessage('Runtime.evaluate', {expression});
+  };
+  SendMessage('Runtime.evaluate', {expression});
 }
 
 function DebuggerGetPossibleBreakpoints() {
@@ -69,4 +71,5 @@ function AsyncStacksInstrumentation() {
   p = p.then(() => done = true);
   while (!done) %RunMicrotasks();
 }
+
 })();

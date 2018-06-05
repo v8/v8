@@ -122,7 +122,8 @@
   function SmiNoIteratorFromSetup() {
     func = (v, i) => v + i;
     array = smi_array;
-    arg = {length: array.length} Object.assign(arg, array);
+    arg = {length: array.length};
+    Object.assign(arg, array);
   }
 
   function TransplantedFromSetup() {
