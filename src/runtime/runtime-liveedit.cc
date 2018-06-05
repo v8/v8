@@ -103,7 +103,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
 
 // Recreate the shared function infos array after changing the IDs of all
 // SharedFunctionInfos.
-RUNTIME_FUNCTION(Runtime_LiveEditFixupScript) {
+RUNTIME_FUNCTION(Runtime_LiveEditResizeScriptFunctionArray) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
   DCHECK_EQ(args.length(), 2);
@@ -120,15 +120,18 @@ RUNTIME_FUNCTION(Runtime_LiveEditFixupScript) {
 RUNTIME_FUNCTION(Runtime_LiveEditFunctionSourceUpdated) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK_EQ(args.length(), 2);
+  DCHECK_EQ(args.length(), 3);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 0);
-  CONVERT_INT32_ARG_CHECKED(new_function_literal_id, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSValue, script_value, 1);
+  CONVERT_INT32_ARG_CHECKED(new_function_literal_id, 2);
   CHECK(SharedInfoWrapper::IsInstance(shared_info));
 
-  LiveEdit::FunctionSourceUpdated(shared_info, new_function_literal_id);
+  CHECK(script_value->value()->IsScript());
+  Handle<Script> script(Script::cast(script_value->value()));
+
+  LiveEdit::FunctionSourceUpdated(shared_info, script, new_function_literal_id);
   return isolate->heap()->undefined_value();
 }
-
 
 // Replaces code of SharedFunctionInfo with a new one.
 RUNTIME_FUNCTION(Runtime_LiveEditReplaceFunctionCode) {
@@ -143,24 +146,39 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceFunctionCode) {
   return isolate->heap()->undefined_value();
 }
 
-
 // Connects SharedFunctionInfo to another script.
 RUNTIME_FUNCTION(Runtime_LiveEditFunctionSetScript) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, script_object, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_literal_id_arg, 2);
 
   if (function_object->IsJSValue()) {
     Handle<JSValue> function_wrapper = Handle<JSValue>::cast(function_object);
+
     if (script_object->IsJSValue()) {
       CHECK(JSValue::cast(*script_object)->value()->IsScript());
       Script* script = Script::cast(JSValue::cast(*script_object)->value());
       script_object = Handle<Object>(script, isolate);
     }
+
     CHECK(function_wrapper->value()->IsSharedFunctionInfo());
-    LiveEdit::SetFunctionScript(function_wrapper, script_object);
+    int32_t function_literal_id = -1;
+    SharedFunctionInfo* shared =
+        SharedFunctionInfo::cast(function_wrapper->value());
+    if (function_literal_id_arg->IsNull(isolate)) {
+      if (shared->script()->IsScript()) {
+        function_literal_id = shared->GetFunctionLiteralId(isolate);
+      }
+    } else {
+      CHECK(function_literal_id_arg->IsNumber());
+      function_literal_id_arg->ToInt32(&function_literal_id);
+    }
+
+    LiveEdit::SetFunctionScript(function_wrapper, script_object,
+                                function_literal_id);
   } else {
     // Just ignore this. We may not have a SharedFunctionInfo for some functions
     // and we check it in this function.

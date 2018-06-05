@@ -29,5 +29,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 f();
 Debug.setListener(null);
-assertNull(exception);
+if (exception != null) {
+  throw exception;
+}
 assertEquals(6, counter);

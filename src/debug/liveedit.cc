@@ -863,12 +863,14 @@ void LiveEdit::ReplaceFunctionCode(
 }
 
 void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
+                                     Handle<Script> script,
                                      int new_function_literal_id) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  shared_info->set_function_literal_id(new_function_literal_id);
   shared_info_array->GetIsolate()->debug()->DeoptimizeFunction(shared_info);
+
+  SharedFunctionInfo::SetScript(shared_info, script, new_function_literal_id);
 }
 
 void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
@@ -888,17 +890,20 @@ void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*new_noscript_list);
 
     // Put the SharedFunctionInfo at its new, correct location.
-    SharedFunctionInfo::SetScript(info, script);
+    SharedFunctionInfo::SetScript(info, script, iterator.CurrentIndex());
   }
 }
 
 void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
-                                 Handle<Object> script_handle) {
+                                 Handle<Object> script_handle,
+                                 int function_literal_id) {
   Handle<SharedFunctionInfo> shared_info =
       UnwrapSharedFunctionInfoFromJSValue(function_wrapper);
   Isolate* isolate = function_wrapper->GetIsolate();
   CHECK(script_handle->IsScript() || script_handle->IsUndefined(isolate));
-  SharedFunctionInfo::SetScript(shared_info, script_handle);
+  CHECK_IMPLIES(script_handle->IsScript(), function_literal_id >= 0);
+  SharedFunctionInfo::SetScript(shared_info, script_handle,
+                                function_literal_id);
   shared_info->DisableOptimization(BailoutReason::kLiveEdit);
 
   function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);

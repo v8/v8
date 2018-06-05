@@ -291,9 +291,9 @@ namespace internal {
   F(LiveEditCheckAndDropActivations, 3, 1)          \
   F(LiveEditCompareStrings, 2, 1)                   \
   F(LiveEditFindSharedFunctionInfosForScript, 1, 1) \
-  F(LiveEditFixupScript, 2, 1)                      \
-  F(LiveEditFunctionSetScript, 2, 1)                \
-  F(LiveEditFunctionSourceUpdated, 2, 1)            \
+  F(LiveEditResizeScriptFunctionArray, 2, 1)        \
+  F(LiveEditFunctionSetScript, 3, 1)                \
+  F(LiveEditFunctionSourceUpdated, 3, 1)            \
   F(LiveEditGatherCompileInfo, 2, 1)                \
   F(LiveEditPatchFunctionPositions, 2, 1)           \
   F(LiveEditReplaceFunctionCode, 2, 1)              \

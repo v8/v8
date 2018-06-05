@@ -42,8 +42,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   // Make sure we have an outer scope info, even though it's empty
   shared->set_raw_outer_scope_info_or_feedback_metadata(
       ScopeInfo::Empty(isolate));
-  shared->set_function_literal_id(1);
-  SharedFunctionInfo::SetScript(shared, script);
+  SharedFunctionInfo::SetScript(shared, script, 1);
   return scope.CloseAndEscape(shared);
 }
 
