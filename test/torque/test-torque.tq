@@ -203,4 +203,9 @@ module test {
     }
     return False;
   }
+
+  macro TestHexLiteral() {
+    check(convert<intptr>(0xffff) + 1 == 0x10000);
+    check(convert<intptr>(-0xffff) == -65535);
+  }
 }
