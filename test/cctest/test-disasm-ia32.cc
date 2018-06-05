@@ -883,6 +883,7 @@ TEST(DisasmIa320) {
     __ Nop(i);
   }
 
+  __ pause();
   __ ret(0);
 
   CodeDesc desc;

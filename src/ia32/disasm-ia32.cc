@@ -2516,6 +2516,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else if (*(data+1) == 0xAB) {
           data += 2;
           AppendToBuffer("rep_stos");
+        } else if (*(data + 1) == 0x90) {
+          data += 2;
+          AppendToBuffer("pause");
         } else {
           UnimplementedInstruction();
         }
