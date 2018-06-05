@@ -56,7 +56,7 @@ Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context,
   PromiseInit(instance);
 
   Label out(this);
-  GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &out);
+  GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &out);
   CallRuntime(Runtime::kPromiseHookInit, context, instance, parent);
   Goto(&out);
 
@@ -80,7 +80,7 @@ Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
   }
 
   Label out(this);
-  GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &out);
+  GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &out);
   CallRuntime(Runtime::kPromiseHookInit, context, instance,
               UndefinedConstant());
   Goto(&out);
@@ -839,7 +839,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
     PromiseInit(instance);
     var_result.Bind(instance);
 
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &debug_push);
+    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &debug_push);
     CallRuntime(Runtime::kPromiseHookInit, context, instance,
                 UndefinedConstant());
     Goto(&debug_push);
@@ -1059,7 +1059,8 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
   GotoIfNot(WordEqual(then, promise_then), &if_slow);
   Node* const thenable_map = LoadMap(thenable);
   GotoIfNot(IsJSPromiseMap(thenable_map), &if_slow);
-  GotoIf(IsPromiseHookEnabledOrDebugIsActive(), &if_slow);
+  GotoIf(IsPromiseHookEnabled(), &if_slow);
+  GotoIf(IsDebugActive(), &if_slow);
   BranchIfPromiseSpeciesLookupChainIntact(native_context, thenable_map,
                                           &if_fast, &if_slow);
 
@@ -1665,7 +1666,8 @@ TF_BUILTIN(RejectPromise, PromiseBuiltinsAssembler) {
   // the runtime handle this operation, which greatly reduces
   // the complexity here and also avoids a couple of back and
   // forth between JavaScript and C++ land.
-  GotoIf(IsPromiseHookEnabledOrDebugIsActive(), &if_runtime);
+  GotoIf(IsPromiseHookEnabled(), &if_runtime);
+  GotoIf(IsDebugActive(), &if_runtime);
 
   // 7. If promise.[[PromiseIsHandled]] is false, perform
   //    HostPromiseRejectionTracker(promise, "reject").
@@ -1712,7 +1714,8 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
   // the runtime handle this operation, which greatly reduces
   // the complexity here and also avoids a couple of back and
   // forth between JavaScript and C++ land.
-  GotoIf(IsPromiseHookEnabledOrDebugIsActive(), &if_runtime);
+  GotoIf(IsPromiseHookEnabled(), &if_runtime);
+  GotoIf(IsDebugActive(), &if_runtime);
 
   // 6. If SameValue(resolution, promise) is true, then
   // We can use pointer comparison here, since the {promise} is guaranteed

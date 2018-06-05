@@ -98,7 +98,7 @@ Node* AsyncBuiltinsAssembler::Await(
   {
     // Add PromiseHooks if needed
     Label next(this);
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &next);
+    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &next);
     CallRuntime(Runtime::kAwaitPromisesInit, context, wrapped_value,
                 outer_promise, throwaway);
     Goto(&next);

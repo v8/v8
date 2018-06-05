@@ -121,7 +121,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   // InternalPerformPromiseThen.
 
   Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
-  GotoIf(IsDebugActive(), &call_debug_hook);
+  GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
   Goto(&after_debug_hook);
   BIND(&after_debug_hook);
 
@@ -196,13 +196,14 @@ TF_BUILTIN(AsyncFunctionPromiseRelease, AsyncFunctionBuiltinsAssembler) {
   Node* const promise = Parameter(Descriptor::kPromise);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label if_is_debug_active(this, Label::kDeferred);
-  GotoIf(IsDebugActive(), &if_is_debug_active);
+  Label call_debug_instrumentation(this, Label::kDeferred);
+  GotoIf(HasAsyncEventDelegate(), &call_debug_instrumentation);
+  GotoIf(IsDebugActive(), &call_debug_instrumentation);
 
   // Early exit if debug is not active.
   Return(UndefinedConstant());
 
-  BIND(&if_is_debug_active);
+  BIND(&call_debug_instrumentation);
   {
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.

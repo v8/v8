@@ -53,8 +53,10 @@ class StatsCounter;
   V(address_of_pending_message_obj, "address_of_pending_message_obj")          \
   V(get_or_create_hash_raw, "get_or_create_hash_raw")                          \
   V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")        \
-  V(promise_hook_or_debug_is_active_address,                                   \
-    "Isolate::promise_hook_or_debug_is_active_address()")                      \
+  V(promise_hook_address, "Isolate::promise_hook_address()")                   \
+  V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
+  V(promise_hook_or_async_event_delegate_address,                              \
+    "Isolate::promise_hook_or_async_event_delegate_address()")                 \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \
     "Debug::hook_on_function_call_address()")                                  \

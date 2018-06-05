@@ -200,7 +200,6 @@ void V8Debugger::disable() {
   }
   if (--m_enableCount) return;
   clearContinueToLocation();
-  allAsyncTasksCanceled();
   m_taskWithScheduledBreak = nullptr;
   m_taskWithScheduledBreakDebuggerId = String16();
   m_pauseOnAsyncCall = false;
@@ -854,6 +853,8 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   m_inspector->client()->maxAsyncCallStackDepthChanged(
       m_maxAsyncCallStackDepth);
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
+  v8::debug::SetAsyncEventDelegate(m_isolate,
+                                   maxAsyncCallStackDepth ? this : nullptr);
 }
 
 std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(

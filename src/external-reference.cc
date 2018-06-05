@@ -839,9 +839,20 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
-ExternalReference ExternalReference::promise_hook_or_debug_is_active_address(
+ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
+  return ExternalReference(isolate->promise_hook_address());
+}
+
+ExternalReference ExternalReference::async_event_delegate_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->promise_hook_or_debug_is_active_address());
+  return ExternalReference(isolate->async_event_delegate_address());
+}
+
+ExternalReference
+ExternalReference::promise_hook_or_async_event_delegate_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->promise_hook_or_async_event_delegate_address());
 }
 
 ExternalReference ExternalReference::debug_is_active_address(Isolate* isolate) {

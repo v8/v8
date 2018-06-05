@@ -345,7 +345,6 @@ void Debug::ThreadInit() {
   thread_local_.ignore_step_into_function_ = Smi::kZero;
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::kZero;
-  thread_local_.async_task_count_ = 0;
   thread_local_.last_breakpoint_id_ = 0;
   clear_suspended_generator();
   thread_local_.restart_fp_ = kNullAddress;
@@ -1733,15 +1732,6 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   }
 }
 
-void Debug::OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
-                                        debug::DebugAsyncActionType event) {
-  if (in_debug_scope() || ignore_events()) return;
-  if (!debug_delegate_) return;
-  PostponeInterruptsScope no_interrupts(isolate_);
-  int id = NextAsyncTaskId(promise);
-  debug_delegate_->AsyncEventOccurred(event, id, false);
-}
-
 namespace {
 v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
   Handle<Context> context = handle(isolate->context());
@@ -1853,66 +1843,6 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
   debug_delegate_->BreakProgramRequested(
       GetDebugEventContext(isolate_),
       inspector_break_points_hit);
-}
-
-void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
-                           Handle<Object> parent) {
-  if (hook_type == PromiseHookType::kResolve) return;
-  if (in_debug_scope() || ignore_events()) return;
-  if (!debug_delegate_) return;
-  PostponeInterruptsScope no_interrupts(isolate_);
-
-  if (hook_type == PromiseHookType::kBefore) {
-    if (!promise->async_task_id()) return;
-    debug_delegate_->AsyncEventOccurred(debug::kDebugWillHandle,
-                                        promise->async_task_id(), false);
-  } else if (hook_type == PromiseHookType::kAfter) {
-    if (!promise->async_task_id()) return;
-    debug_delegate_->AsyncEventOccurred(debug::kDebugDidHandle,
-                                        promise->async_task_id(), false);
-  } else {
-    DCHECK(hook_type == PromiseHookType::kInit);
-    debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
-    bool last_frame_was_promise_builtin = false;
-    JavaScriptFrameIterator it(isolate_);
-    while (!it.done()) {
-      std::vector<Handle<SharedFunctionInfo>> infos;
-      it.frame()->GetFunctions(&infos);
-      for (size_t i = 1; i <= infos.size(); ++i) {
-        Handle<SharedFunctionInfo> info = infos[infos.size() - i];
-        if (info->IsUserJavaScript()) {
-          // We should not report PromiseThen and PromiseCatch which is called
-          // indirectly, e.g. Promise.all calls Promise.then internally.
-          if (last_frame_was_promise_builtin) {
-            int id = NextAsyncTaskId(promise);
-            debug_delegate_->AsyncEventOccurred(type, id, IsBlackboxed(info));
-          }
-          return;
-        }
-        last_frame_was_promise_builtin = false;
-        if (info->HasBuiltinId()) {
-          if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
-            type = debug::kDebugPromiseThen;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
-            type = debug::kDebugPromiseCatch;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeFinally) {
-            type = debug::kDebugPromiseFinally;
-            last_frame_was_promise_builtin = true;
-          }
-        }
-      }
-      it.Advance();
-    }
-  }
-}
-
-int Debug::NextAsyncTaskId(Handle<JSPromise> promise) {
-  if (!promise->async_task_id()) {
-    promise->set_async_task_id(++thread_local_.async_task_count_);
-  }
-  return promise->async_task_id();
 }
 
 namespace {
@@ -2086,7 +2016,9 @@ void Debug::UpdateState() {
     Unload();
   }
   is_active_ = is_active;
-  isolate_->DebugStateUpdated();
+  if (is_active && isolate_->IsPromiseHookProtectorIntact()) {
+    isolate_->InvalidatePromiseHookProtector();
+  }
 }
 
 void Debug::UpdateHookOnFunctionCall() {

@@ -11588,13 +11588,28 @@ Node* CodeStubAssembler::IsDebugActive() {
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
-Node* CodeStubAssembler::IsPromiseHookEnabledOrDebugIsActive() {
-  Node* const promise_hook_or_debug_is_active =
+Node* CodeStubAssembler::IsPromiseHookEnabled() {
+  Node* const promise_hook = Load(
+      MachineType::Pointer(),
+      ExternalConstant(ExternalReference::promise_hook_address(isolate())));
+  return WordNotEqual(promise_hook, IntPtrConstant(0));
+}
+
+Node* CodeStubAssembler::HasAsyncEventDelegate() {
+  Node* const async_event_delegate =
+      Load(MachineType::Pointer(),
+           ExternalConstant(
+               ExternalReference::async_event_delegate_address(isolate())));
+  return WordNotEqual(async_event_delegate, IntPtrConstant(0));
+}
+
+Node* CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
+  Node* const promise_hook_or_async_event_delegate =
       Load(MachineType::Uint8(),
            ExternalConstant(
-               ExternalReference::promise_hook_or_debug_is_active_address(
+               ExternalReference::promise_hook_or_async_event_delegate_address(
                    isolate())));
-  return Word32NotEqual(promise_hook_or_debug_is_active, Int32Constant(0));
+  return Word32NotEqual(promise_hook_or_async_event_delegate, Int32Constant(0));
 }
 
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {

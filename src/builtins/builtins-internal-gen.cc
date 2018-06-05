@@ -792,7 +792,8 @@ void InternalBuiltinsAssembler::RunPromiseHook(
     Runtime::FunctionId id, TNode<Context> context,
     SloppyTNode<HeapObject> promise_or_capability) {
   Label hook(this, Label::kDeferred), done_hook(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActive(), &hook, &done_hook);
+  GotoIf(IsDebugActive(), &hook);
+  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &hook, &done_hook);
   BIND(&hook);
   {
     // Get to the underlying JSPromise instance.

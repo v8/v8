@@ -2513,7 +2513,6 @@ Isolate::Isolate()
       random_number_generator_(nullptr),
       fuzzer_rng_(nullptr),
       rail_mode_(PERFORMANCE_ANIMATION),
-      promise_hook_or_debug_is_active_(false),
       atomics_wait_callback_(nullptr),
       atomics_wait_callback_data_(nullptr),
       promise_hook_(nullptr),
@@ -3471,7 +3470,7 @@ bool Isolate::IsPromiseHookProtectorIntact() {
   bool is_promise_hook_protector_intact =
       Smi::ToInt(promise_hook_cell->value()) == kProtectorValid;
   DCHECK_IMPLIES(is_promise_hook_protector_intact,
-                 !promise_hook_or_debug_is_active_);
+                 !promise_hook_or_async_event_delegate_);
   return is_promise_hook_protector_intact;
 }
 
@@ -3762,12 +3761,13 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
-void Isolate::DebugStateUpdated() {
-  bool promise_hook_or_debug_is_active = promise_hook_ || debug()->is_active();
-  if (promise_hook_or_debug_is_active && IsPromiseHookProtectorIntact()) {
+void Isolate::PromiseHookStateUpdated() {
+  bool is_active = promise_hook_ || async_event_delegate_;
+  if (is_active && IsPromiseHookProtectorIntact()) {
+    HandleScope scope(this);
     InvalidatePromiseHookProtector();
   }
-  promise_hook_or_debug_is_active_ = promise_hook_or_debug_is_active;
+  promise_hook_or_async_event_delegate_ = is_active;
 }
 
 namespace {
@@ -3869,15 +3869,79 @@ void Isolate::RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
 
 void Isolate::SetPromiseHook(PromiseHook hook) {
   promise_hook_ = hook;
-  DebugStateUpdated();
+  PromiseHookStateUpdated();
 }
 
 void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                              Handle<Object> parent) {
-  if (debug()->is_active()) debug()->RunPromiseHook(type, promise, parent);
+  RunPromiseHookForAsyncEventDelegate(type, promise);
   if (promise_hook_ == nullptr) return;
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
+}
+
+void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
+                                                  Handle<JSPromise> promise) {
+  if (!async_event_delegate_) return;
+  if (type == PromiseHookType::kResolve) return;
+
+  if (type == PromiseHookType::kBefore) {
+    if (!promise->async_task_id()) return;
+    async_event_delegate_->AsyncEventOccurred(debug::kDebugWillHandle,
+                                              promise->async_task_id(), false);
+  } else if (type == PromiseHookType::kAfter) {
+    if (!promise->async_task_id()) return;
+    async_event_delegate_->AsyncEventOccurred(debug::kDebugDidHandle,
+                                              promise->async_task_id(), false);
+  } else {
+    DCHECK(type == PromiseHookType::kInit);
+    debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
+    bool last_frame_was_promise_builtin = false;
+    JavaScriptFrameIterator it(this);
+    while (!it.done()) {
+      std::vector<Handle<SharedFunctionInfo>> infos;
+      it.frame()->GetFunctions(&infos);
+      for (size_t i = 1; i <= infos.size(); ++i) {
+        Handle<SharedFunctionInfo> info = infos[infos.size() - i];
+        if (info->IsUserJavaScript()) {
+          // We should not report PromiseThen and PromiseCatch which is called
+          // indirectly, e.g. Promise.all calls Promise.then internally.
+          if (last_frame_was_promise_builtin) {
+            if (!promise->async_task_id()) {
+              promise->set_async_task_id(++async_task_count_);
+            }
+            async_event_delegate_->AsyncEventOccurred(
+                type, promise->async_task_id(), debug()->IsBlackboxed(info));
+          }
+          return;
+        }
+        last_frame_was_promise_builtin = false;
+        if (info->HasBuiltinId()) {
+          if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
+            type = debug::kDebugPromiseThen;
+            last_frame_was_promise_builtin = true;
+          } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
+            type = debug::kDebugPromiseCatch;
+            last_frame_was_promise_builtin = true;
+          } else if (info->builtin_id() == Builtins::kPromisePrototypeFinally) {
+            type = debug::kDebugPromiseFinally;
+            last_frame_was_promise_builtin = true;
+          }
+        }
+      }
+      it.Advance();
+    }
+  }
+}
+
+void Isolate::OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
+                                          debug::DebugAsyncActionType event) {
+  if (!async_event_delegate_) return;
+  if (!promise->async_task_id()) {
+    promise->set_async_task_id(++async_task_count_);
+  }
+  async_event_delegate_->AsyncEventOccurred(event, promise->async_task_id(),
+                                            false);
 }
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {

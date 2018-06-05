@@ -140,8 +140,6 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() {}
-  virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
-                                  bool is_blackboxed) {}
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with
@@ -161,6 +159,15 @@ class DebugDelegate {
 };
 
 void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
+
+class AsyncEventDelegate {
+ public:
+  virtual ~AsyncEventDelegate() {}
+  virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
+                                  bool is_blackboxed) = 0;
+};
+
+void SetAsyncEventDelegate(Isolate* isolate, AsyncEventDelegate* delegate);
 
 void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);

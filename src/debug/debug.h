@@ -224,9 +224,6 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
-  void OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
-                                   debug::DebugAsyncActionType);
-
   Handle<Context> GetDebugContext();
   void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
@@ -274,11 +271,6 @@ class Debug {
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
-
-  void RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
-                      Handle<Object> parent);
-
-  int NextAsyncTaskId(Handle<JSPromise> promise);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
 
@@ -574,8 +566,6 @@ class Debug {
 
     // The new frame pointer to drop to when restarting a frame.
     Address restart_fp_;
-
-    int async_task_count_;
 
     // Last used inspector breakpoint id.
     int last_breakpoint_id_;

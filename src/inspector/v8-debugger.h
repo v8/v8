@@ -35,7 +35,8 @@ using ScheduleStepIntoAsyncCallback =
 using TerminateExecutionCallback =
     protocol::Runtime::Backend::TerminateExecutionCallback;
 
-class V8Debugger : public v8::debug::DebugDelegate {
+class V8Debugger : public v8::debug::DebugDelegate,
+                   public v8::debug::AsyncEventDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();

@@ -880,8 +880,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->debug()->OnAsyncFunctionStateChanged(promise,
-                                                debug::kAsyncFunctionSuspended);
+  isolate->OnAsyncFunctionStateChanged(promise, debug::kAsyncFunctionSuspended);
   return isolate->heap()->undefined_value();
 }
 
@@ -892,8 +891,8 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
   isolate->PopPromise();
   if (has_suspend) {
-    isolate->debug()->OnAsyncFunctionStateChanged(
-        promise, debug::kAsyncFunctionFinished);
+    isolate->OnAsyncFunctionStateChanged(promise,
+                                         debug::kAsyncFunctionFinished);
   }
   return isolate->heap()->undefined_value();
 }

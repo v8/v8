@@ -9555,6 +9555,11 @@ void debug::SetDebugDelegate(Isolate* v8_isolate,
   isolate->debug()->SetDebugDelegate(delegate, false);
 }
 
+void debug::SetAsyncEventDelegate(Isolate* v8_isolate,
+                                  debug::AsyncEventDelegate* delegate) {
+  reinterpret_cast<i::Isolate*>(v8_isolate)->set_async_event_delegate(delegate);
+}
+
 void debug::ResetBlackboxedStateCache(Isolate* v8_isolate,
                                       v8::Local<debug::Script> script) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
