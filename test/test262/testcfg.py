@@ -44,7 +44,6 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
   'BigInt': '--harmony-bigint',
   'class-fields-public': '--harmony-public-fields',
-  'optional-catch-binding': '--harmony-optional-catch-binding',
   'class-fields-private': '--harmony-private-fields',
   'Array.prototype.flat': '--harmony-array-flat',
   'Array.prototype.flatMap': '--harmony-array-flat',

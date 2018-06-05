@@ -1121,7 +1121,6 @@ enum ParserFlag {
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
   kAllowHarmonyDoExpressions,
-  kAllowHarmonyOptionalCatchBinding,
   kAllowHarmonyNumericSeparator
 };
 
@@ -1139,8 +1138,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
-  i::FLAG_harmony_optional_catch_binding =
-      flags.Contains(kAllowHarmonyOptionalCatchBinding);
   i::FLAG_harmony_numeric_separator =
       flags.Contains(kAllowHarmonyNumericSeparator);
 }
@@ -1159,8 +1156,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_do_expressions(
       flags.Contains(kAllowHarmonyDoExpressions));
-  parser->set_allow_harmony_optional_catch_binding(
-      flags.Contains(kAllowHarmonyOptionalCatchBinding));
   parser->set_allow_harmony_numeric_separator(
       flags.Contains(kAllowHarmonyNumericSeparator));
 }
@@ -2259,9 +2254,9 @@ TEST(FunctionDeclaresItselfStrict) {
 TEST(ErrorsTryWithoutCatchOrFinally) {
   const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-      "try { }",           "try { } foo();",         "try { } catch (e) foo();",
-      "try { } catch { }", "try { } finally foo();", nullptr};
+  const char* statement_data[] = {"try { }", "try { } foo();",
+                                  "try { } catch (e) foo();",
+                                  "try { } finally foo();", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2299,13 +2294,7 @@ TEST(OptionalCatchBinding) {
   };
   // clang-format on
 
-  // No error with flag
-  static const ParserFlag flags[] = {kAllowHarmonyOptionalCatchBinding};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0, flags,
-                    arraysize(flags));
-
-  // Still an error without flag
-  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(OptionalCatchBindingInDoExpression) {
@@ -2326,16 +2315,9 @@ TEST(OptionalCatchBindingInDoExpression) {
   };
   // clang-format on
 
-  // No error with flag
-  static const ParserFlag do_and_catch_flags[] = {
-      kAllowHarmonyDoExpressions, kAllowHarmonyOptionalCatchBinding};
+  static const ParserFlag do_and_catch_flags[] = {kAllowHarmonyDoExpressions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     do_and_catch_flags, arraysize(do_and_catch_flags));
-
-  // Still an error without flag
-  static const ParserFlag do_flag[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, do_flag,
-                    arraysize(do_flag));
 }
 
 TEST(ErrorsRegexpLiteral) {

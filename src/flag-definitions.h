@@ -233,7 +233,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}")      \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
   V(harmony_function_tostring, "harmony Function.prototype.toString")         \
-  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
   V(harmony_import_meta, "harmony import.meta property")                      \
   V(harmony_bigint, "harmony arbitrary precision integers")                   \
   V(harmony_dynamic_import, "harmony dynamic import")                         \
