@@ -63,7 +63,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
                            Handle<JSFunction> closure);
-  // Construct a compilation info for stub compilation, Wasm, and testing.
+  // Construct a compilation info for stub compilation (or testing).
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            Code::Kind code_kind);
 

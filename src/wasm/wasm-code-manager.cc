@@ -271,7 +271,6 @@ void WasmCode::Validate() const {
       case RelocInfo::WASM_STUB_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
-      case RelocInfo::INTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED:
       case RelocInfo::OFF_HEAP_TARGET:
       case RelocInfo::COMMENT:
