@@ -1245,7 +1245,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
     CHECK(IsCompiled("String.raw"));
-    CHECK(!IsCompiled("Array.prototype.sort"));
+    CHECK(!IsCompiled("Array.prototype.lastIndexOf"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();

@@ -9,10 +9,6 @@ module typed_array {
   const kTypedArrayProtoSort: MethodName = '\"%TypedArray%.prototype.sort\"';
   extern macro ValidateTypedArray(Context, Object, MethodName): JSTypedArray;
 
-  extern macro NumberIsNaN(Number): bool;
-
-  type ParameterMode constexpr 'ParameterMode';
-  const SMI_PARAMETERS: constexpr ParameterMode = 'SMI_PARAMETERS';
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
   extern macro StoreFixedTypedArrayElementFromTagged(
@@ -57,10 +53,6 @@ module typed_array {
     return BIGINT64_ELEMENTS;
   }
 
-  extern operator
-  'convert<>' macro UncheckedCastFixedArrayBaseToFixedTypedArrayBase(
-      FixedArrayBase): FixedTypedArrayBase;
-
   builtin LoadFixedElement<T : type>(
       context: Context, array: JSTypedArray, index: Smi): Object {
     return LoadFixedTypedArrayElementAsTagged(
@@ -71,7 +63,7 @@ module typed_array {
       context: Context, array: JSTypedArray, index: Smi,
       value: Object): Object {
     let elements: FixedTypedArrayBase =
-        convert<FixedTypedArrayBase>(array.elements);
+        unsafe_cast<FixedTypedArrayBase>(array.elements);
     StoreFixedTypedArrayElementFromTagged(
         context, elements, index, value, KindForArrayType<T>(), SMI_PARAMETERS);
     return Undefined;
