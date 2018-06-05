@@ -172,7 +172,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
       offset > bytecode_iterator.current_offset()) {
     OFStream os(stdout);
     // Print all output registers and accumulator.
-    PrintRegisters(os, false, bytecode_iterator, accumulator);
+    PrintRegisters(isolate, os, false, bytecode_iterator, accumulator);
     os << std::flush;
   }
   return isolate->heap()->undefined_value();
