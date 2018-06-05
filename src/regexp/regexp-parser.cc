@@ -342,20 +342,15 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             uc32 p = Next();
             Advance(2);
             if (unicode()) {
-              if (FLAG_harmony_regexp_property) {
-                ZoneList<CharacterRange>* ranges =
-                    new (zone()) ZoneList<CharacterRange>(2, zone());
-                if (!ParsePropertyClass(ranges, p == 'P')) {
-                  return ReportError(CStrVector("Invalid property name"));
-                }
-                RegExpCharacterClass* cc = new (zone())
-                    RegExpCharacterClass(zone(), ranges, builder->flags());
-                builder->AddCharacterClass(cc);
-              } else {
-                // With /u, no identity escapes except for syntax characters
-                // are allowed. Otherwise, all identity escapes are allowed.
-                return ReportError(CStrVector("Invalid escape"));
+              ZoneList<CharacterRange>* ranges =
+                  new (zone()) ZoneList<CharacterRange>(2, zone());
+              if (!ParsePropertyClass(ranges, p == 'P')) {
+                return ReportError(CStrVector("Invalid property name"));
               }
+              RegExpCharacterClass* cc = new (zone())
+                  RegExpCharacterClass(zone(), ranges, builder->flags());
+              builder->AddCharacterClass(cc);
+
             } else {
               builder->AddCharacter(p);
             }
@@ -1590,7 +1585,7 @@ void RegExpParser::ParseClassEscape(ZoneList<CharacterRange>* ranges,
         return;
       case 'p':
       case 'P':
-        if (FLAG_harmony_regexp_property && unicode()) {
+        if (unicode()) {
           bool negate = Next() == 'P';
           Advance(2);
           if (!ParsePropertyClass(ranges, negate)) {
