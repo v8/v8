@@ -3867,6 +3867,26 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #endif
 }
 
+Code* Heap::builtin(int index) {
+  DCHECK(Builtins::IsBuiltinId(index));
+  // Code::cast cannot be used here since we access builtins
+  // during the marking phase of mark sweep. See IC::Clear.
+  return reinterpret_cast<Code*>(builtins_[index]);
+}
+
+Address Heap::builtin_address(int index) {
+  DCHECK(Builtins::IsBuiltinId(index) || index == Builtins::builtin_count);
+  return reinterpret_cast<Address>(&builtins_[index]);
+}
+
+void Heap::set_builtin(int index, HeapObject* builtin) {
+  DCHECK(Builtins::IsBuiltinId(index));
+  DCHECK(Internals::HasHeapObjectTag(builtin));
+  // The given builtin may be completely uninitialized thus we cannot check its
+  // type here.
+  builtins_[index] = builtin;
+}
+
 void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
   IterateStrongRoots(v, mode);
   IterateWeakRoots(v, mode);
@@ -3982,7 +4002,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // heap. Note that it is not necessary to iterate over code objects
   // on scavenge collections.
   if (!isMinorGC) {
-    isolate_->builtins()->IterateBuiltins(v);
+    IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
     isolate_->interpreter()->IterateDispatchTable(v);
     v->Synchronize(VisitorSynchronization::kDispatchTable);
@@ -4044,6 +4064,12 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
   isolate_->global_handles()->IterateWeakRoots(v);
+}
+
+void Heap::IterateBuiltins(RootVisitor* v) {
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    v->VisitRootPointer(Root::kBuiltins, Builtins::name(i), &builtins_[i]);
+  }
 }
 
 // TODO(1236194): Since the heap size is configurable on the command line

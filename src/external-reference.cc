@@ -128,7 +128,7 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 }
 
 ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
-  return ExternalReference(isolate->builtins()->builtins_table_address());
+  return ExternalReference(isolate->heap()->builtin_address(0));
 }
 
 ExternalReference ExternalReference::handle_scope_implementer_address(

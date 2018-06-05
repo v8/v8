@@ -65,12 +65,6 @@ const BuiltinMetadata builtin_metadata[] = {
 
 }  // namespace
 
-Builtins::Builtins() : initialized_(false) {
-  memset(builtins_, 0, sizeof(builtins_[0]) * builtin_count);
-}
-
-Builtins::~Builtins() {}
-
 BailoutId Builtins::GetContinuationBailoutId(Name name) {
   DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC);
   return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
@@ -85,18 +79,11 @@ Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
 
 void Builtins::TearDown() { initialized_ = false; }
 
-void Builtins::IterateBuiltins(RootVisitor* v) {
-  for (int i = 0; i < builtin_count; i++) {
-    v->VisitRootPointer(Root::kBuiltins, name(i), &builtins_[i]);
-  }
-}
-
 const char* Builtins::Lookup(Address pc) {
   // may be called during initialization (disassembler!)
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
-      Code* entry = Code::cast(builtins_[i]);
-      if (entry->contains(pc)) return name(i);
+      if (isolate_->heap()->builtin(i)->contains(pc)) return name(i);
     }
   }
   return nullptr;
@@ -137,16 +124,15 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
 }
 
 void Builtins::set_builtin(int index, HeapObject* builtin) {
-  DCHECK(Builtins::IsBuiltinId(index));
-  DCHECK(Internals::HasHeapObjectTag(builtin));
-  // The given builtin may be completely uninitialized thus we cannot check its
-  // type here.
-  builtins_[index] = builtin;
+  isolate_->heap()->set_builtin(index, builtin);
 }
+
+Code* Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
 
 Handle<Code> Builtins::builtin_handle(int index) {
   DCHECK(IsBuiltinId(index));
-  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(index)));
+  return Handle<Code>(
+      reinterpret_cast<Code**>(isolate_->heap()->builtin_address(index)));
 }
 
 // static
@@ -157,8 +143,7 @@ int Builtins::GetStackParameterCount(Name name) {
 
 // static
 Callable Builtins::CallableFor(Isolate* isolate, Name name) {
-  Handle<Code> code(
-      reinterpret_cast<Code**>(isolate->builtins()->builtin_address(name)));
+  Handle<Code> code = isolate->builtins()->builtin_handle(name);
   CallDescriptors::Key key;
   switch (name) {
 // This macro is deliberately crafted so as to emit very little code,
@@ -199,13 +184,15 @@ bool Builtins::IsBuiltin(const Code* code) {
   return Builtins::IsBuiltinId(code->builtin_index());
 }
 
-bool Builtins::IsBuiltinHandle(Handle<Code> code, int* index) const {
-  Object** const handle_location = bit_cast<Object**>(code.address());
-  Object* const* start = &builtins_[0];
-  Object* const* end = &builtins_[Builtins::builtin_count];
+bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
+                               int* index) const {
+  Heap* heap = isolate_->heap();
+  Address handle_location = maybe_code.address();
+  Address start = heap->builtin_address(0);
+  Address end = heap->builtin_address(Builtins::builtin_count);
   if (handle_location >= end) return false;
   if (handle_location < start) return false;
-  *index = static_cast<int>(handle_location - start);
+  *index = static_cast<int>(handle_location - start) >> kPointerSizeLog2;
   DCHECK(Builtins::IsBuiltinId(*index));
   return true;
 }

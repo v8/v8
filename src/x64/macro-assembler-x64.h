@@ -366,9 +366,10 @@ class TurboAssembler : public Assembler {
   void LoadAddress(Register destination, ExternalReference source);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupConstant(Register destination, Handle<HeapObject> object);
   void LookupExternalReference(Register destination,
                                ExternalReference reference);
+  void LoadBuiltin(Register destination, int builtin_index);
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Operand pointing to an external reference.
@@ -529,6 +530,10 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
+  void set_builtin_index(int builtin_index) {
+    maybe_builtin_index_ = builtin_index;
+  }
+
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   int smi_count = 0;
@@ -546,6 +551,7 @@ class TurboAssembler : public Assembler {
   Handle<HeapObject> code_object_;
 
  private:
+  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   Isolate* const isolate_;
 };

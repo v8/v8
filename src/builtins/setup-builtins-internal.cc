@@ -72,6 +72,7 @@ Code* BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   const size_t buffer_size = 32 * KB;
   byte buffer[buffer_size];  // NOLINT(runtime/arrays)
   MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   generator(&masm);
   CodeDesc desc;
@@ -92,6 +93,7 @@ Code* BuildAdaptor(Isolate* isolate, int32_t builtin_index,
   const size_t buffer_size = 32 * KB;
   byte buffer[buffer_size];  // NOLINT(runtime/arrays)
   MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
   CodeDesc desc;
@@ -157,7 +159,7 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, int index,
                                       Code* code) {
   DCHECK_EQ(index, code->builtin_index());
-  builtins->builtins_[index] = code;
+  builtins->set_builtin(index, code);
 }
 
 void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
@@ -189,8 +191,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       if (RelocInfo::IsCodeTarget(rinfo->rmode())) {
         Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
         if (!target->is_builtin()) continue;
-        Code* new_target =
-            Code::cast(builtins->builtins_[target->builtin_index()]);
+        Code* new_target = builtins->builtin(target->builtin_index());
         rinfo->set_target_address(new_target->raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
@@ -199,8 +200,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         if (!object->IsCode()) continue;
         Code* target = Code::cast(object);
         if (!target->is_builtin()) continue;
-        Code* new_target =
-            Code::cast(builtins->builtins_[target->builtin_index()]);
+        Code* new_target = builtins->builtin(target->builtin_index());
         rinfo->set_target_object(isolate->heap(), new_target,
                                  UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }
@@ -274,16 +274,14 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   ReplacePlaceholders(isolate);
 
-#define SET_PROMISE_REJECTION_PREDICTION(Name)       \
-  Code::cast(builtins->builtins_[Builtins::k##Name]) \
-      ->set_is_promise_rejection(true);
+#define SET_PROMISE_REJECTION_PREDICTION(Name) \
+  builtins->builtin(Builtins::k##Name)->set_is_promise_rejection(true);
 
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION
 
-#define SET_EXCEPTION_CAUGHT_PREDICTION(Name)        \
-  Code::cast(builtins->builtins_[Builtins::k##Name]) \
-      ->set_is_exception_caught(true);
+#define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
+  builtins->builtin(Builtins::k##Name)->set_is_exception_caught(true);
 
   BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION

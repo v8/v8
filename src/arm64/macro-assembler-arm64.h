@@ -259,7 +259,7 @@ class TurboAssembler : public Assembler {
   // This is required for compatibility with architecture independent code.
   // Remove if not needed.
   void Move(Register dst, Register src);
-  void Move(Register dst, Handle<HeapObject> x);
+  void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, Smi* src);
 
   // Register swap. Note that the register operands should be distinct.
@@ -879,9 +879,10 @@ class TurboAssembler : public Assembler {
   void Movi(const VRegister& vd, uint64_t hi, uint64_t lo);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupConstant(Register destination, Handle<HeapObject> object);
   void LookupExternalReference(Register destination,
                                ExternalReference reference);
+  void LoadBuiltin(Register destination, int builtin_index);
 #endif  // V8_EMBEDDED_BUILTINS
 
   void Jump(Register target, Condition cond = al);
@@ -1230,6 +1231,10 @@ class TurboAssembler : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
+  void set_builtin_index(int builtin_index) {
+    maybe_builtin_index_ = builtin_index;
+  }
+
  protected:
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows
@@ -1266,6 +1271,7 @@ class TurboAssembler : public Assembler {
   Handle<HeapObject> code_object_;
 
  private:
+  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   bool root_array_available_ = true;
   Isolate* const isolate_;

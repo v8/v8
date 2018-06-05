@@ -271,9 +271,10 @@ class TurboAssembler : public Assembler {
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupConstant(Register destination, Handle<HeapObject> object);
   void LookupExternalReference(Register destination,
                                ExternalReference reference);
+  void LoadBuiltin(Register destination, int builtin_index);
 #endif  // V8_EMBEDDED_BUILTINS
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
@@ -864,6 +865,10 @@ class TurboAssembler : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
+  void set_builtin_index(int builtin_index) {
+    maybe_builtin_index_ = builtin_index;
+  }
+
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
@@ -872,6 +877,7 @@ class TurboAssembler : public Assembler {
   Handle<HeapObject> code_object_;
 
  private:
+  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   bool root_array_available_ = true;
   Isolate* const isolate_;

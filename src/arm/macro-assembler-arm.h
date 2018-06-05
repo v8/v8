@@ -322,9 +322,10 @@ class TurboAssembler : public Assembler {
                Register src_high, uint32_t shift);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupConstant(Register destination, Handle<HeapObject> object);
   void LookupExternalReference(Register destination,
                                ExternalReference reference);
+  void LoadBuiltin(Register destination, int builtin_index);
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions. Note, the value returned is
@@ -552,11 +553,16 @@ class TurboAssembler : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
+  void set_builtin_index(int builtin_index) {
+    maybe_builtin_index_ = builtin_index;
+  }
+
  protected:
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;
 
  private:
+  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   bool root_array_available_ = true;
   Isolate* const isolate_;

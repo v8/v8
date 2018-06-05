@@ -1120,6 +1120,10 @@ class Heap {
     return kRootsExternalReferenceTableOffset;
   }
 
+  static constexpr int roots_to_builtins_offset() {
+    return kRootsBuiltinsOffset;
+  }
+
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void SetRootCodeStubs(SimpleNumberDictionary* value);
 
@@ -1217,6 +1221,14 @@ class Heap {
   void HandleGCRequest();
 
   // ===========================================================================
+  // Builtins. =================================================================
+  // ===========================================================================
+
+  Code* builtin(int index);
+  Address builtin_address(int index);
+  void set_builtin(int index, HeapObject* builtin);
+
+  // ===========================================================================
   // Iterators. ================================================================
   // ===========================================================================
 
@@ -1229,6 +1241,8 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, VisitMode mode);
   // Iterates over weak global handles.
   void IterateWeakGlobalHandles(RootVisitor* v);
+  // Iterates over builtins.
+  void IterateBuiltins(RootVisitor* v);
 
   // ===========================================================================
   // Store buffer API. =========================================================
@@ -2234,6 +2248,14 @@ class Heap {
   static constexpr int kRootsExternalReferenceTableOffset =
       kRootListLength * kPointerSize;
   ExternalReferenceTable external_reference_table_;
+
+  // As external references above, builtins are accessed through an offset from
+  // the roots register. Its offset from roots_ must remain static. This is
+  // verified in Isolate::Init() using runtime checks.
+  static constexpr int kRootsBuiltinsOffset =
+      kRootsExternalReferenceTableOffset +
+      ExternalReferenceTable::SizeInBytes();
+  Object* builtins_[Builtins::builtin_count];
 
   size_t code_range_size_;
   size_t max_semi_space_size_;

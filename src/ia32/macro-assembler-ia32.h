@@ -370,11 +370,16 @@ class TurboAssembler : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
+  void set_builtin_index(int builtin_index) {
+    maybe_builtin_index_ = builtin_index;
+  }
+
  protected:
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;
 
  private:
+  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   bool root_array_available_ = false;
   Isolate* const isolate_;

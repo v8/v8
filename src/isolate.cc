@@ -2503,6 +2503,7 @@ Isolate::Isolate()
       global_handles_(nullptr),
       eternal_handles_(nullptr),
       thread_manager_(nullptr),
+      builtins_(this),
       setup_delegate_(nullptr),
       regexp_stack_(nullptr),
       date_cache_(nullptr),
@@ -3113,6 +3114,8 @@ bool Isolate::Init(StartupDeserializer* des) {
       static_cast<int>(OFFSET_OF(Isolate, heap_.external_reference_table_)),
       Internals::kIsolateRootsOffset +
           Heap::kRootsExternalReferenceTableOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.builtins_)),
+           Internals::kIsolateRootsOffset + Heap::kRootsBuiltinsOffset);
 
   {
     HandleScope scope(this);
