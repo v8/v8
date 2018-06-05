@@ -21,6 +21,7 @@ struct CoverageScript;
 struct TypeProfileEntry;
 struct TypeProfileScript;
 class Coverage;
+class PostponeInterruptsScope;
 class Script;
 class TypeProfile;
 }  // namespace internal
@@ -476,6 +477,15 @@ bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
                            v8::Local<v8::String> condition, BreakpointId* id);
 
 v8::Platform* GetCurrentPlatform();
+
+class PostponeInterruptsScope {
+ public:
+  explicit PostponeInterruptsScope(v8::Isolate* isolate);
+  ~PostponeInterruptsScope();
+
+ private:
+  std::unique_ptr<i::PostponeInterruptsScope> scope_;
+};
 
 }  // namespace debug
 }  // namespace v8

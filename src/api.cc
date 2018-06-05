@@ -9839,6 +9839,13 @@ bool debug::SetFunctionBreakpoint(v8::Local<v8::Function> function,
                                                     condition_string, id);
 }
 
+debug::PostponeInterruptsScope::PostponeInterruptsScope(v8::Isolate* isolate)
+    : scope_(
+          new i::PostponeInterruptsScope(reinterpret_cast<i::Isolate*>(isolate),
+                                         i::StackGuard::API_INTERRUPT)) {}
+
+debug::PostponeInterruptsScope::~PostponeInterruptsScope() {}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();
