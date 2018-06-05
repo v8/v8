@@ -208,4 +208,9 @@ module test {
     check(convert<intptr>(0xffff) + 1 == 0x10000);
     check(convert<intptr>(-0xffff) == -65535);
   }
+
+  macro TestLargeIntegerLiterals(c: Context) {
+    let x: int32 = 0x40000000;
+    let y: int32 = 0x7fffffff;
+  }
 }

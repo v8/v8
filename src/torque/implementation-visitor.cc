@@ -464,12 +464,10 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
   const Type* result_type =
       declarations()->LookupType(CONST_FLOAT64_TYPE_STRING);
   if (i == d) {
-    if (Internals::IsValidSmi(i)) {
-      if (sizeof(void*) == sizeof(double) && ((i >> 30) != (i >> 31))) {
-        result_type = declarations()->LookupType(CONST_INT32_TYPE_STRING);
-      } else {
-        result_type = declarations()->LookupType(CONST_INT31_TYPE_STRING);
-      }
+    if ((i >> 30) == (i >> 31)) {
+      result_type = declarations()->LookupType(CONST_INT31_TYPE_STRING);
+    } else {
+      result_type = declarations()->LookupType(CONST_INT32_TYPE_STRING);
     }
   }
   std::string temp = GenerateNewTempVariable(result_type);

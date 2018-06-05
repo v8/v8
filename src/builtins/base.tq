@@ -260,6 +260,8 @@ extern implicit operator
 'convert<>' macro IntPtrConstant(constexpr int31): intptr;
 extern implicit operator
 'convert<>' macro Int32Constant(constexpr int31): int32;
+extern implicit operator
+'convert<>' macro Int32Constant(constexpr int32): int32;
 extern implicit operator 'convert<>' macro SmiConstant(constexpr int31): Smi;
 extern implicit operator
 'convert<>' macro NumberConstant(constexpr int31): Number;
