@@ -587,6 +587,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
         __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
@@ -636,6 +639,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ jmp(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
         __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
@@ -669,6 +675,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
+      DCHECK_IMPLIES(
+          HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+          reg == kJavaScriptCallCodeStartRegister);
       if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
         __ RetpolineJump(reg);
       } else {
