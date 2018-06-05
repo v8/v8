@@ -307,7 +307,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   for (int i = root_nof; i < old_nof_; ++i) {
     PropertyDetails old_details = GetDetails(i);
-    Map* transition = TransitionsAccessor(target_map_)
+    Map* transition = TransitionsAccessor(isolate_, target_map_)
                           .SearchTransition(GetKey(i), old_details.kind(),
                                             old_details.attributes());
     if (transition == nullptr) break;
@@ -393,7 +393,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   // Find the last compatible target map in the transition tree.
   for (int i = target_nof; i < old_nof_; ++i) {
     PropertyDetails old_details = GetDetails(i);
-    Map* transition = TransitionsAccessor(target_map_)
+    Map* transition = TransitionsAccessor(isolate_, target_map_)
                           .SearchTransition(GetKey(i), old_details.kind(),
                                             old_details.attributes());
     if (transition == nullptr) break;
@@ -603,7 +603,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     Name* name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map* next =
-        TransitionsAccessor(current, &no_allocation)
+        TransitionsAccessor(isolate_, current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next == nullptr) break;
     DescriptorArray* next_descriptors = next->instance_descriptors();
@@ -639,7 +639,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   DCHECK_NE(old_nof_, split_nof);
 
   PropertyDetails split_details = GetDetails(split_nof);
-  TransitionsAccessor transitions(split_map);
+  TransitionsAccessor transitions(isolate_, split_map);
 
   // Invalidate a transition target at |key|.
   Map* maybe_transition = transitions.SearchTransition(

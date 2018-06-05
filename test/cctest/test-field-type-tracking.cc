@@ -397,8 +397,8 @@ class Expectations {
                  heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    Map* target =
-        TransitionsAccessor(map).SearchTransition(*name, kData, attributes);
+    Map* target = TransitionsAccessor(isolate_, map)
+                      .SearchTransition(*name, kData, attributes);
     CHECK_NOT_NULL(target);
     return handle(target);
   }
@@ -2153,8 +2153,8 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       Handle<String> name = MakeName("prop", i);
-      Map* target =
-          TransitionsAccessor(map2).SearchTransition(*name, kData, NONE);
+      Map* target = TransitionsAccessor(isolate, map2)
+                        .SearchTransition(*name, kData, NONE);
       CHECK_NOT_NULL(target);
       map2 = handle(target);
     }
@@ -2177,13 +2177,13 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 
   // Fill in transition tree of |map2| so that it can't have more transitions.
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions; i++) {
-    CHECK(TransitionsAccessor(map2).CanHaveMoreTransitions());
+    CHECK(TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
     Handle<String> name = MakeName("foo", i);
     Map::CopyWithField(map2, name, any_type, NONE, PropertyConstness::kMutable,
                        Representation::Smi(), INSERT_TRANSITION)
         .ToHandleChecked();
   }
-  CHECK(!TransitionsAccessor(map2).CanHaveMoreTransitions());
+  CHECK(!TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
 
   // Try to update |map|, since there is no place for propX transition at |map2|
   // |map| should become "copy-generalized".

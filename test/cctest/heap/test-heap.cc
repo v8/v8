@@ -2703,10 +2703,9 @@ TEST(OptimizedAllocationArrayLiterals) {
   CHECK(CcTest::heap()->InNewSpace(o->elements()));
 }
 
-
-static int CountMapTransitions(Map* map) {
+static int CountMapTransitions(i::Isolate* isolate, Map* map) {
   DisallowHeapAllocation no_gc;
-  return TransitionsAccessor(map, &no_gc).NumberOfTransitions();
+  return TransitionsAccessor(isolate, map, &no_gc).NumberOfTransitions();
 }
 
 
@@ -2720,8 +2719,10 @@ TEST(Regress1465) {
   FLAG_trace_incremental_marking = true;
   FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
   static const int transitions_count = 256;
 
   CompileRun("function F() {}");
@@ -2740,7 +2741,7 @@ TEST(Regress1465) {
           CcTest::global()->Get(ctx, v8_str("root")).ToLocalChecked()));
 
   // Count number of live transitions before marking.
-  int transitions_before = CountMapTransitions(root->map());
+  int transitions_before = CountMapTransitions(i_isolate, root->map());
   CompileRun("%DebugPrint(root);");
   CHECK_EQ(transitions_count, transitions_before);
 
@@ -2749,7 +2750,7 @@ TEST(Regress1465) {
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
-  int transitions_after = CountMapTransitions(root->map());
+  int transitions_after = CountMapTransitions(i_isolate, root->map());
   CompileRun("%DebugPrint(root);");
   CHECK_EQ(1, transitions_after);
 }
@@ -2796,6 +2797,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   FLAG_stress_incremental_marking = false;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
+  i::Isolate* i_isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 10;
   CompileRun("function F() { }");
@@ -2804,7 +2806,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
-  int transitions_before = CountMapTransitions(root->map());
+  int transitions_before = CountMapTransitions(i_isolate, root->map());
   CHECK_EQ(transitions_count, transitions_before);
 
   // Get rid of o
@@ -2816,8 +2818,8 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
-  int transitions_after = CountMapTransitions(
-      Map::cast(root->map()->GetBackPointer()));
+  int transitions_after =
+      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
 
@@ -2827,6 +2829,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
   FLAG_stress_incremental_marking = false;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
+  i::Isolate* i_isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 10;
   CompileRun("function F() {}");
@@ -2835,7 +2838,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
-  int transitions_before = CountMapTransitions(root->map());
+  int transitions_before = CountMapTransitions(i_isolate, root->map());
   CHECK_EQ(transitions_count, transitions_before);
 
   root = GetByName("root");
@@ -2844,8 +2847,8 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
-  int transitions_after = CountMapTransitions(
-      Map::cast(root->map()->GetBackPointer()));
+  int transitions_after =
+      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(2, transitions_after);
 }
 
@@ -2855,6 +2858,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   FLAG_stress_incremental_marking = false;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
+  i::Isolate* i_isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 10;
   CompileRun("function F() {}");
@@ -2863,7 +2867,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
-  int transitions_before = CountMapTransitions(root->map());
+  int transitions_before = CountMapTransitions(i_isolate, root->map());
   CHECK_EQ(transitions_count, transitions_before);
 
   root = GetByName("root");
@@ -2872,8 +2876,8 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
-  int transitions_after = CountMapTransitions(
-      Map::cast(root->map()->GetBackPointer()));
+  int transitions_after =
+      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
 #endif  // DEBUG

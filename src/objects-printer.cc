@@ -769,7 +769,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   }
   {
     DisallowHeapAllocation no_gc;
-    TransitionsAccessor transitions(this, &no_gc);
+    TransitionsAccessor transitions(GetIsolate(), this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";
@@ -2237,7 +2237,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
   } else if (key == heap->strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
-    DCHECK(!IsSpecialTransition(key));
+    DCHECK(!IsSpecialTransition(key->GetIsolate(), key));
     os << "(transition to ";
     int descriptor = target->LastAdded();
     DescriptorArray* descriptors = target->instance_descriptors();
@@ -2302,7 +2302,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
     ss << Brief(target);
     os << std::left << std::setw(50) << ss.str() << ": ";
 
-    Heap* heap = key->GetHeap();
+    Heap* heap = isolate_->heap();
     if (key == heap->nonextensible_symbol()) {
       os << "to non-extensible";
     } else if (key == heap->sealed_symbol()) {
@@ -2320,21 +2320,21 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
       key->ShortPrint(os);
 #endif
       os << " ";
-      DCHECK(!IsSpecialTransition(key));
+      DCHECK(!IsSpecialTransition(isolate_, key));
       os << "to ";
       int descriptor = target->LastAdded();
       DescriptorArray* descriptors = target->instance_descriptors();
       descriptors->PrintDescriptorDetails(os, descriptor,
                                           PropertyDetails::kForTransitions);
     }
-    TransitionsAccessor transitions(target, no_gc);
+    TransitionsAccessor transitions(isolate_, target, no_gc);
     transitions.PrintTransitionTree(os, level + 1, no_gc);
   }
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
   DisallowHeapAllocation no_gc;
-  TransitionsAccessor ta(map(), &no_gc);
+  TransitionsAccessor ta(GetIsolate(), map(), &no_gc);
   if (ta.NumberOfTransitions() == 0) return;
   os << "\n - transitions";
   ta.PrintTransitions(os);
@@ -2437,8 +2437,8 @@ extern void _v8_internal_Print_TransitionTree(void* object) {
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
     i::DisallowHeapAllocation no_gc;
-    i::TransitionsAccessor transitions(reinterpret_cast<i::Map*>(object),
-                                       &no_gc);
+    i::Map* map = reinterpret_cast<i::Map*>(object);
+    i::TransitionsAccessor transitions(map->GetIsolate(), map, &no_gc);
     transitions.PrintTransitionTree();
 #endif
   }

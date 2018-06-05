@@ -636,7 +636,7 @@ Object* Map::GetBackPointer() const {
 
 Map* Map::ElementsTransitionMap() {
   DisallowHeapAllocation no_gc;
-  return TransitionsAccessor(this, &no_gc)
+  return TransitionsAccessor(GetIsolate(), this, &no_gc)
       .SearchSpecial(GetHeap()->elements_transition_symbol());
 }
 

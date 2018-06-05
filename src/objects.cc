@@ -3653,7 +3653,7 @@ void HeapObject::RehashBasedOnMap() {
       DescriptorArray::cast(this)->Sort();
       break;
     case TRANSITION_ARRAY_TYPE:
-      TransitionArray::cast(this)->Sort();
+      TransitionArray::cast(this)->Sort(GetIsolate());
       break;
     case SMALL_ORDERED_HASH_MAP_TYPE:
       DCHECK_EQ(0, SmallOrderedHashMap::cast(this)->NumberOfElements());
@@ -4330,8 +4330,9 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
       old_map->set_owns_descriptors(false);
       DCHECK(old_map->is_abandoned_prototype_map());
       // Ensure that no transition was inserted for prototype migrations.
-      DCHECK_EQ(0, TransitionsAccessor(old_map).NumberOfTransitions());
-      DCHECK(new_map->GetBackPointer()->IsUndefined(new_map->GetIsolate()));
+      DCHECK_EQ(0, TransitionsAccessor(old_map->GetIsolate(), old_map)
+                       .NumberOfTransitions());
+      DCHECK(new_map->GetBackPointer()->IsUndefined(old_map->GetIsolate()));
       DCHECK(object->map() != *old_map);
     }
   } else {
@@ -4440,7 +4441,8 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
 void Map::DeprecateTransitionTree() {
   if (is_deprecated()) return;
   DisallowHeapAllocation no_gc;
-  TransitionsAccessor transitions(this, &no_gc);
+  Isolate* isolate = GetIsolate();
+  TransitionsAccessor transitions(isolate, this, &no_gc);
   int num_transitions = transitions.NumberOfTransitions();
   for (int i = 0; i < num_transitions; ++i) {
     transitions.GetTarget(i)->DeprecateTransitionTree();
@@ -4448,10 +4450,10 @@ void Map::DeprecateTransitionTree() {
   DCHECK(!constructor_or_backpointer()->IsFunctionTemplateInfo());
   set_is_deprecated(true);
   if (FLAG_trace_maps) {
-    LOG(GetIsolate(), MapEvent("Deprecate", this, nullptr));
+    LOG(isolate, MapEvent("Deprecate", this, nullptr));
   }
   dependent_code()->DeoptimizeDependentCodeGroup(
-      GetIsolate(), DependentCode::kTransitionGroup);
+      isolate, DependentCode::kTransitionGroup);
   NotifyLeafMapLayoutChange();
 }
 
@@ -4525,7 +4527,8 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
   if (details.location() != kField) return;
   DCHECK_EQ(kData, details.kind());
 
-  Zone zone(GetIsolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = GetIsolate();
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneQueue<Map*> backlog(&zone);
   backlog.push(this);
 
@@ -4533,7 +4536,7 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
     Map* current = backlog.front();
     backlog.pop();
 
-    TransitionsAccessor transitions(current, &no_allocation);
+    TransitionsAccessor transitions(isolate, current, &no_allocation);
     int num_transitions = transitions.NumberOfTransitions();
     for (int i = 0; i < num_transitions; ++i) {
       Map* target = transitions.GetTarget(i);
@@ -4725,7 +4728,8 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
 
 Map* Map::TryReplayPropertyTransitions(Map* old_map) {
   DisallowHeapAllocation no_allocation;
-  DisallowDeoptimization no_deoptimization(GetIsolate());
+  Isolate* isolate = GetIsolate();
+  DisallowDeoptimization no_deoptimization(isolate);
 
   int root_nof = NumberOfOwnDescriptors();
 
@@ -4736,7 +4740,7 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
   for (int i = root_nof; i < old_nof; ++i) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     Map* transition =
-        TransitionsAccessor(new_map, &no_allocation)
+        TransitionsAccessor(isolate, new_map, &no_allocation)
             .SearchTransition(old_descriptors->GetKey(i), old_details.kind(),
                               old_details.attributes());
     if (transition == nullptr) return nullptr;
@@ -8510,7 +8514,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   Handle<Map> old_map(object->map(), isolate);
-  TransitionsAccessor transitions(old_map);
+  TransitionsAccessor transitions(isolate, old_map);
   Map* transition = transitions.SearchSpecial(*transition_marker);
   if (transition != nullptr) {
     Handle<Map> transition_map(transition, isolate);
@@ -9366,7 +9370,7 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
       LOG(isolate, MapEvent("Transition", *parent, *child, "prototype", *name));
     }
   } else {
-    TransitionsAccessor(parent).Insert(name, child, flag);
+    TransitionsAccessor(isolate, parent).Insert(name, child, flag);
     if (FLAG_trace_maps) {
       LOG(isolate, MapEvent("Transition", *parent, *child, "", *name));
     }
@@ -9389,9 +9393,10 @@ Handle<Map> Map::CopyReplaceDescriptors(
     result->set_may_have_interesting_symbols(true);
   }
 
+  Isolate* isolate = map->GetIsolate();
   if (!map->is_prototype_map()) {
     if (flag == INSERT_TRANSITION &&
-        TransitionsAccessor(map).CanHaveMoreTransitions()) {
+        TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
       result->InitializeDescriptors(*descriptors, *layout_descriptor);
 
       DCHECK(!maybe_name.is_null());
@@ -9408,9 +9413,9 @@ Handle<Map> Map::CopyReplaceDescriptors(
       // Mirror conditions above that did not call ConnectTransition().
       (map->is_prototype_map() ||
        !(flag == INSERT_TRANSITION &&
-         TransitionsAccessor(map).CanHaveMoreTransitions()))) {
-    LOG(map->GetIsolate(), MapEvent("ReplaceDescriptors", *map, *result, reason,
-                                    maybe_name.is_null() ? nullptr : *name));
+         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()))) {
+    LOG(isolate, MapEvent("ReplaceDescriptors", *map, *result, reason,
+                          maybe_name.is_null() ? nullptr : *name));
   }
   return result;
 }
@@ -9526,15 +9531,16 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
     DCHECK(kind != map->elements_kind());
   }
 
-  bool insert_transition = flag == INSERT_TRANSITION &&
-                           TransitionsAccessor(map).CanHaveMoreTransitions() &&
-                           maybe_elements_transition_map == nullptr;
+  Isolate* isolate = map->GetIsolate();
+  bool insert_transition =
+      flag == INSERT_TRANSITION &&
+      TransitionsAccessor(isolate, map).CanHaveMoreTransitions() &&
+      maybe_elements_transition_map == nullptr;
 
   if (insert_transition) {
     Handle<Map> new_map = CopyForTransition(map, "CopyAsElementsKind");
     new_map->set_elements_kind(kind);
 
-    Isolate* isolate = map->GetIsolate();
     Handle<Name> name = isolate->factory()->elements_transition_symbol();
     ConnectTransition(map, new_map, name, SPECIAL_TRANSITION);
     return new_map;
@@ -9562,8 +9568,8 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
-  Map* maybe_transition =
-      TransitionsAccessor(initial_map).SearchSpecial(*transition_symbol);
+  Map* maybe_transition = TransitionsAccessor(isolate, initial_map)
+                              .SearchSpecial(*transition_symbol);
   if (maybe_transition != nullptr) {
     return handle(maybe_transition, isolate);
   }
@@ -9579,7 +9585,7 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   map->set_prototype(initial_map->prototype());
   map->set_construction_counter(initial_map->construction_counter());
 
-  if (TransitionsAccessor(initial_map).CanHaveMoreTransitions()) {
+  if (TransitionsAccessor(isolate, initial_map).CanHaveMoreTransitions()) {
     Map::ConnectTransition(initial_map, map, transition_symbol,
                            SPECIAL_TRANSITION);
   }
@@ -9756,8 +9762,9 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   // Migrate to the newest map before storing the property.
   map = Update(map);
 
-  Map* maybe_transition =
-      TransitionsAccessor(map).SearchTransition(*name, kData, attributes);
+  Isolate* isolate = map->GetIsolate();
+  Map* maybe_transition = TransitionsAccessor(isolate, map)
+                              .SearchTransition(*name, kData, attributes);
   if (maybe_transition != nullptr) {
     Handle<Map> transition(maybe_transition);
     int descriptor = transition->LastAdded();
@@ -9775,7 +9782,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
     if (!FLAG_track_constant_fields && value->IsJSFunction()) {
       maybe_map = Map::CopyWithConstant(map, name, value, attributes, flag);
     } else {
-      Isolate* isolate = name->GetIsolate();
       Representation representation = value->OptimalRepresentation();
       Handle<FieldType> type = value->OptimalType(isolate, representation);
       maybe_map = Map::CopyWithField(map, name, type, attributes, constness,
@@ -9880,8 +9886,8 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                        ? KEEP_INOBJECT_PROPERTIES
                                        : CLEAR_INOBJECT_PROPERTIES;
 
-  Map* maybe_transition =
-      TransitionsAccessor(map).SearchTransition(*name, kAccessor, attributes);
+  Map* maybe_transition = TransitionsAccessor(isolate, map)
+                              .SearchTransition(*name, kAccessor, attributes);
   if (maybe_transition != nullptr) {
     Handle<Map> transition(maybe_transition, isolate);
     DescriptorArray* descriptors = transition->instance_descriptors();
@@ -9964,10 +9970,11 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
                                    TransitionFlag flag) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
 
+  Isolate* isolate = map->GetIsolate();
   // Share descriptors only if map owns descriptors and it not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
-      !map->GetBackPointer()->IsUndefined(map->GetIsolate()) &&
-      TransitionsAccessor(map).CanHaveMoreTransitions()) {
+      !map->GetBackPointer()->IsUndefined(isolate) &&
+      TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
     return ShareDescriptor(map, descriptors, descriptor);
   }
 
@@ -12379,11 +12386,12 @@ static void StopSlackTracking(Map* map, void* data) {
 
 void Map::CompleteInobjectSlackTracking() {
   DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
   // Has to be an initial map.
-  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  DCHECK(GetBackPointer()->IsUndefined(isolate));
 
   int slack = UnusedPropertyFields();
-  TransitionsAccessor transitions(this, &no_gc);
+  TransitionsAccessor transitions(isolate, this, &no_gc);
   transitions.TraverseTransitionTree(&GetMinInobjectSlack, &slack);
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
@@ -15131,11 +15139,13 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
 
 Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
                                        Handle<Object> prototype) {
+  Isolate* isolate = map->GetIsolate();
   Handle<Map> new_map =
-      TransitionsAccessor(map).GetPrototypeTransition(prototype);
+      TransitionsAccessor(isolate, map).GetPrototypeTransition(prototype);
   if (new_map.is_null()) {
     new_map = Copy(map, "TransitionToPrototype");
-    TransitionsAccessor(map).PutPrototypeTransition(prototype, new_map);
+    TransitionsAccessor(isolate, map)
+        .PutPrototypeTransition(prototype, new_map);
     Map::SetPrototype(new_map, prototype);
   }
   return new_map;

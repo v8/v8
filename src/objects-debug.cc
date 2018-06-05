@@ -542,7 +542,8 @@ void JSObject::JSObjectVerify() {
 
 
 void Map::MapVerify() {
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
+  Heap* heap = isolate->heap();
   CHECK(!heap->InNewSpace(this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
@@ -554,8 +555,10 @@ void Map::MapVerify() {
   VerifyHeapPointer(instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
-  SLOW_DCHECK(TransitionsAccessor(this, &no_gc).IsSortedNoDuplicates());
-  SLOW_DCHECK(TransitionsAccessor(this, &no_gc).IsConsistentWithBackPointers());
+  SLOW_DCHECK(
+      TransitionsAccessor(isolate, this, &no_gc).IsSortedNoDuplicates());
+  SLOW_DCHECK(TransitionsAccessor(isolate, this, &no_gc)
+                  .IsConsistentWithBackPointers());
   SLOW_DCHECK(!FLAG_unbox_double_fields ||
               layout_descriptor()->IsConsistentWithMap(this));
   if (!may_have_interesting_symbols()) {
@@ -1966,15 +1969,16 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;
+  Isolate* isolate = GetIsolate();
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
     uint32_t hash = key->Hash();
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
-    if (!TransitionsAccessor::IsSpecialTransition(key)) {
+    if (!TransitionsAccessor::IsSpecialTransition(isolate, key)) {
       Map* target = GetTarget(i);
       PropertyDetails details =
-          TransitionsAccessor::GetTargetDetails(key, target);
+          TransitionsAccessor::GetTargetDetails(isolate, key, target);
       kind = details.kind();
       attributes = details.attributes();
     } else {

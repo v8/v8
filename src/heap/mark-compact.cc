@@ -1708,7 +1708,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map* dead_target) {
     Map* parent = Map::cast(potential_parent);
     DisallowHeapAllocation no_gc_obviously;
     if (non_atomic_marking_state()->IsBlackOrGrey(parent) &&
-        TransitionsAccessor(parent, &no_gc_obviously)
+        TransitionsAccessor(isolate(), parent, &no_gc_obviously)
             .HasSimpleTransitionTo(dead_target)) {
       ClearPotentialSimpleMapTransition(parent, dead_target);
     }

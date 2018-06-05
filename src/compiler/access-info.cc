@@ -663,7 +663,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
   Map* transition =
-      TransitionsAccessor(map).SearchTransition(*name, kData, NONE);
+      TransitionsAccessor(isolate_, map).SearchTransition(*name, kData, NONE);
   if (transition == nullptr) return false;
 
   Handle<Map> transition_map(transition);
