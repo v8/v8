@@ -454,6 +454,13 @@
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size': [FAIL],
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-byteoffset-throws-from-modulo-element-size': [FAIL],
 
+  # Tests assume that the sort order of "same elements" (comparator returns 0)
+  # is deterministic.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7808
+  'intl402/String/prototype/localeCompare/returns-same-results-as-Collator': [SKIP],
+  'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
+  'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
+
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

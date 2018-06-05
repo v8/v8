@@ -53,6 +53,7 @@ type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags generates
 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
 type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
+type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
 
 type MessageTemplate constexpr 'MessageTemplate';
 type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
@@ -131,6 +132,9 @@ const kSloppy: constexpr LanguageMode = 'LanguageMode::kSloppy';
 const SMI_PARAMETERS: constexpr ParameterMode = 'SMI_PARAMETERS';
 const INTPTR_PARAMETERS: constexpr ParameterMode = 'INTPTR_PARAMETERS';
 
+const kArraySortRandomStateRootIndex: constexpr RootListIndex =
+    'Heap::kArraySortRandomStateRootIndex';
+
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
@@ -155,6 +159,10 @@ extern builtin ToString(Context, Object): String;
 extern runtime CreateDataProperty(Context, Object, Object, Object);
 extern runtime SetProperty(Context, Object, Object, Object, LanguageMode);
 extern runtime DeleteProperty(Context, Object, Object, LanguageMode);
+
+extern macro LoadRoot(constexpr RootListIndex): Object;
+extern macro StoreRoot(constexpr RootListIndex, Object): Object;
+extern macro LoadAndUntagToWord32Root(constexpr RootListIndex): int32;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
@@ -208,11 +216,17 @@ extern operator '!=' macro WordNotEqual(Object, Object): bool;
 
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
+extern operator '&' macro SmiAnd(Smi, Smi): Smi;
 extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '>>>' macro WordShr(intptr, intptr): intptr;
+
+extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '*' macro Int32Mul(int32, int32): int32;
+extern operator '%' macro Int32Mod(int32, int32): int32;
+extern operator '&' macro Word32And(int32, int32): int32;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -235,6 +249,7 @@ extern operator
 
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
+extern macro TaggedIsPositiveSmi(Object): bool;
 
 extern operator
 'cast<>' macro TaggedToJSDataView(Object): JSDataView labels CastError;
@@ -277,6 +292,7 @@ extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;
 extern operator 'convert<>' macro SmiTag(intptr): Smi;
 extern operator 'convert<>' macro SmiFromInt32(int32): Smi;
 extern operator 'convert<>' macro SmiUntag(Smi): intptr;
+extern operator 'convert<>' macro SmiToInt32(Smi): int32;
 extern operator 'convert<>' macro LoadHeapNumberValue(HeapNumber): float64;
 extern operator 'convert<>' macro ChangeNumberToFloat64(Number): float64;
 

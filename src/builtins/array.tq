@@ -637,16 +637,42 @@ module array {
     }
   }
 
+  // Returns a random positive Smi in the range of [0, range).
+  macro Rand(range: Smi): Smi {
+    assert(TaggedIsPositiveSmi(range));
+
+    let current_state: int32 =
+        LoadAndUntagToWord32Root(kArraySortRandomStateRootIndex);
+    let a: int32 = 1103515245;
+    let c: int32 = 12345;
+    let m: int32 = 0x3fffffff; // 2^30 bitmask.
+
+    let new_state: int32 = ((current_state * a) + c) & m;
+    StoreRoot(kArraySortRandomStateRootIndex, convert<Smi>(new_state));
+
+    let r: int32 = convert<int32>(range);
+    return convert<Smi>(new_state % r);
+  }
+
   macro CalculatePivot<E : type>(
       context: Context, receiver: Object, elements: Object,
       initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
       to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn): Object
   labels Bailout {
-    // TODO(szuend): Check if a more involved third_index calculation is
-    //               worth it for very large arrays.
-    let third_index: Smi = from + ((to - from) >>> 1);
+    let random: Smi = Rand(to - from - 2);
+    assert(TaggedIsPositiveSmi(random));
 
-    // Find a pivot as the median of first, last and middle element.
+    let third_index: Smi = from + 1 + random;
+    assert(third_index > from);
+    assert(third_index <= to - 1);
+
+    // Find a pivot as the median of first, last and a random middle element.
+    // Always using the middle element as the third index causes the quicksort
+    // to degrade to O(n^2) for certain data configurations.
+    // The previous solution was to sample larger arrays and use the median
+    // element of the sorted sample. This causes more overhead than just
+    // choosing a random middle element, which also mitigates the worst cases
+    // in all relevant benchmarks.
     let v0: Object = Load<E>(context, elements, from) otherwise Bailout;
     let v1: Object = Load<E>(context, elements, to - 1) otherwise Bailout;
     let v2: Object = Load<E>(context, elements, third_index) otherwise Bailout;

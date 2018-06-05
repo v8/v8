@@ -300,7 +300,8 @@ using v8::MemoryPressureLevel;
     ConstructStubCreateDeoptPCOffset)                                          \
   V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
     ConstructStubInvokeDeoptPCOffset)                                          \
-  V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
+  V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)   \
+  V(Smi, array_sort_random_state, ArraySortRandomState)
 
 #define ROOT_LIST(V)  \
   STRONG_ROOT_LIST(V) \
