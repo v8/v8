@@ -62,6 +62,9 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 #endif
   SetTracingFlags(
       PassesFilter(debug_name, CStrVector(FLAG_trace_turbo_filter)));
+  if (!FLAG_turbo_disable_switch_jump_table) {
+    SetFlag(kSwitchJumpTableEnabled);
+  }
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
