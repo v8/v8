@@ -2861,14 +2861,14 @@
                 {
                     "name": "setAsyncCallStackDepth",
                     "description": "Enables or disables async call stacks tracking.",
+                    "redirect": "Debugger",
                     "parameters": [
                         {
                             "name": "maxDepth",
                             "description": "Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async\ncall stacks (default).",
                             "type": "integer"
                         }
-                    ],
-                    "redirect": "Debugger"
+                    ]
                 },
                 {
                     "name": "setCustomObjectFormatterEnabled",
@@ -2897,12 +2897,17 @@
                 },
                 {
                     "name": "addBinding",
-                    "description": "Adds binding with the given name on the global objects of all inspected\ncontexts, including those created later. Bindings survive reloads.\nBinding function takes exactly one argument, this argument should be string,\nin case of any other input, function throws an exception.\nEach binding function call produces Runtime.bindingCalled notification.",
+                    "description": "If executionContextId is empty, adds binding with the given name on the\nglobal objects of all inspected contexts, including those created later,\nbindings survive reloads.\nIf executionContextId is specified, adds binding only on global object of\ngiven execution context.\nBinding function takes exactly one argument, this argument should be string,\nin case of any other input, function throws an exception.\nEach binding function call produces Runtime.bindingCalled notification.",
                     "experimental": true,
                     "parameters": [
                         {
                             "name": "name",
                             "type": "string"
+                        },
+                        {
+                            "name": "executionContextId",
+                            "optional": true,
+                            "$ref": "ExecutionContextId"
                         }
                     ]
                 },

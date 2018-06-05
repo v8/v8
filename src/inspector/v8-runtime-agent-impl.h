@@ -111,7 +111,8 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   void terminateExecution(
       std::unique_ptr<TerminateExecutionCallback> callback) override;
 
-  Response addBinding(const String16& name) override;
+  Response addBinding(const String16& name,
+                      Maybe<int> executionContextId) override;
   Response removeBinding(const String16& name) override;
   void addBindings(InspectedContext* context);
 

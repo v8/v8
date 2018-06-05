@@ -648,13 +648,28 @@ void V8RuntimeAgentImpl::terminateExecution(
   m_inspector->debugger()->terminateExecution(std::move(callback));
 }
 
-Response V8RuntimeAgentImpl::addBinding(const String16& name) {
+Response V8RuntimeAgentImpl::addBinding(const String16& name,
+                                        Maybe<int> executionContextId) {
   if (!m_state->getObject(V8RuntimeAgentImplState::bindings)) {
     m_state->setObject(V8RuntimeAgentImplState::bindings,
                        protocol::DictionaryValue::create());
   }
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
+  if (bindings->booleanProperty(name, false)) return Response::OK();
+  if (executionContextId.isJust()) {
+    int contextId = executionContextId.fromJust();
+    InspectedContext* context =
+        m_inspector->getContext(m_session->contextGroupId(), contextId);
+    if (!context) {
+      return Response::Error(
+          "Cannot find execution context with given executionContextId");
+    }
+    addBinding(context, name);
+    // false means that we should not add this binding later.
+    bindings->setBoolean(name, false);
+    return Response::OK();
+  }
   bindings->setBoolean(name, true);
   m_inspector->forEachContext(
       m_session->contextGroupId(),
@@ -714,7 +729,7 @@ void V8RuntimeAgentImpl::bindingCalled(const String16& name,
                                        int executionContextId) {
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings || !bindings->booleanProperty(name, false)) return;
+  if (!bindings || !bindings->get(name)) return;
   m_frontend.bindingCalled(name, payload, executionContextId);
 }
 
@@ -724,6 +739,7 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
       m_state->getObject(V8RuntimeAgentImplState::bindings);
   if (!bindings) return;
   for (size_t i = 0; i < bindings->size(); ++i) {
+    if (!bindings->at(i).second) continue;
     addBinding(context, bindings->at(i).first);
   }
 }
