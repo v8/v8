@@ -274,8 +274,6 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     shared->script()->set_wasm_module_object(*module_object);
   }
   module_object->set_shared(*shared);
-
-  compiled_module->LogWasmCodes(isolate);
   return module_object;
 }
 

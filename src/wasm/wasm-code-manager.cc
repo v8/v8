@@ -300,7 +300,6 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
   os << "Body (size = " << body_size << ")\n";
 
 #ifdef ENABLE_DISASSEMBLER
-
   size_t instruction_size = body_size;
   if (constant_pool_offset_ && constant_pool_offset_ < instruction_size) {
     instruction_size = constant_pool_offset_;
