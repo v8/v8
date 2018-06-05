@@ -47,6 +47,7 @@ double MakeDay(double year, double month, double date) {
       (kMinMonth <= month && month <= kMaxMonth) && std::isfinite(date)) {
     int y = FastD2I(year);
     int m = FastD2I(month);
+    int dt = FastD2I(date);
     y += m / 12;
     m %= 12;
     if (m < 0) {
@@ -80,7 +81,7 @@ double MakeDay(double year, double month, double date) {
                                           182, 213, 244, 274, 305, 335};
       day_from_year += kDayFromMonth[m];
     }
-    return static_cast<double>(day_from_year - 1) + date;
+    return static_cast<double>(day_from_year - 1 + dt);
   }
   return std::numeric_limits<double>::quiet_NaN();
 }
