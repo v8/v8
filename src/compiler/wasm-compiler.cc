@@ -2727,10 +2727,15 @@ bool CanCover(Node* value, IrOpcode::Value opcode) {
   return true;
 }
 
-Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
+Node* WasmGraphBuilder::BuildChangeInt32ToIntPtr(Node* value) {
   if (mcgraph()->machine()->Is64()) {
     value = graph()->NewNode(mcgraph()->machine()->ChangeInt32ToInt64(), value);
   }
+  return value;
+}
+
+Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
+  value = BuildChangeInt32ToIntPtr(value);
   return graph()->NewNode(mcgraph()->machine()->WordShl(), value,
                           BuildSmiShiftBitsConstant());
 }
@@ -4056,9 +4061,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
 
-    if (machine->Is64()) {
+    if (SmiValuesAre32Bits()) {
       return BuildChangeInt32ToSmi(value);
     }
+    DCHECK(SmiValuesAre31Bits());
 
     Node* effect = *effect_;
     Node* control = *control_;
@@ -4076,6 +4082,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Node* if_false = graph()->NewNode(common->IfFalse(), branch);
     Node* vfalse = graph()->NewNode(common->Projection(0), add, if_false);
+    vfalse = BuildChangeInt32ToIntPtr(vfalse);
 
     Node* merge = graph()->NewNode(common->Merge(2), if_true, if_false);
     Node* phi = graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
@@ -4129,9 +4136,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // On 64-bit machines we can just wrap the 32-bit integer in a smi, for
     // 32-bit machines we need to deal with potential overflow and fallback to
     // boxing.
-    if (machine->Is64()) {
+    if (SmiValuesAre32Bits()) {
       vsmi = BuildChangeInt32ToSmi(value32);
     } else {
+      DCHECK(SmiValuesAre31Bits());
       Node* smi_tag = graph()->NewNode(machine->Int32AddWithOverflow(), value32,
                                        value32, if_smi);
 
@@ -4145,6 +4153,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
       if_smi = graph()->NewNode(common->IfFalse(), branch_ovf);
       vsmi = graph()->NewNode(common->Projection(0), smi_tag, if_smi);
+      vsmi = BuildChangeInt32ToIntPtr(vsmi);
     }
 
     // Allocate the box for the {value}.

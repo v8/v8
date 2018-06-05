@@ -3246,7 +3246,7 @@ void Simulator::Debug() {
               current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
-              STATIC_ASSERT(kSmiValueSize == 32);
+              DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
               int32_t untagged = (value >> kSmiShift) & 0xFFFFFFFF;
               PrintF("smi %" PRId32, untagged);
             } else {

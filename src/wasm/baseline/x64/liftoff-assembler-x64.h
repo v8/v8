@@ -755,6 +755,10 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                         &Assembler::shrq_cl, pinned);
 }
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  movsxlq(dst, src);
+}
+
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {

@@ -186,7 +186,8 @@ TEST(SmiCompare) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  byte* buffer =
+      AllocateAssemblerBuffer(&allocated, 2 * Assembler::kMinimalBufferSize);
   MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 

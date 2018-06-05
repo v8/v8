@@ -1103,6 +1103,7 @@ void MacroAssembler::SmiTag(Register dst, Register src) {
   if (dst != src) {
     movp(dst, src);
   }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   shlp(dst, Immediate(kSmiShift));
 }
 
@@ -1111,6 +1112,7 @@ void TurboAssembler::SmiUntag(Register dst, Register src) {
   if (dst != src) {
     movp(dst, src);
   }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   sarp(dst, Immediate(kSmiShift));
 }
 
@@ -1218,7 +1220,16 @@ void MacroAssembler::SmiAddConstant(Operand dst, Smi* constant) {
            Immediate(constant->value()));
     } else {
       DCHECK(SmiValuesAre31Bits());
-      addp(dst, Immediate(constant));
+      if (kPointerSize == kInt64Size) {
+        // Sign-extend value after addition
+        movl(kScratchRegister, dst);
+        addl(kScratchRegister, Immediate(constant));
+        movsxlq(kScratchRegister, kScratchRegister);
+        movq(dst, kScratchRegister);
+      } else {
+        DCHECK_EQ(kSmiShiftSize, 32);
+        addp(dst, Immediate(constant));
+      }
     }
   }
 }
@@ -1241,18 +1252,21 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
     return SmiIndex(dst, times_1);
   } else {
     DCHECK(SmiValuesAre31Bits());
-    DCHECK(shift >= times_1 && shift <= (static_cast<int>(times_8) + 1));
     if (dst != src) {
       movp(dst, src);
     }
     // We have to sign extend the index register to 64-bit as the SMI might
     // be negative.
     movsxlq(dst, dst);
-    if (shift == times_1) {
-      sarq(dst, Immediate(kSmiShift));
-      return SmiIndex(dst, times_1);
+    if (shift < kSmiShift) {
+      sarq(dst, Immediate(kSmiShift - shift));
+    } else if (shift != kSmiShift) {
+      if (shift - kSmiShift <= static_cast<int>(times_8)) {
+        return SmiIndex(dst, static_cast<ScaleFactor>(shift - kSmiShift));
+      }
+      shlq(dst, Immediate(shift - kSmiShift));
     }
-    return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
+    return SmiIndex(dst, times_1);
   }
 }
 

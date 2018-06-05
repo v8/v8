@@ -386,18 +386,16 @@ unsigned Operand::shift_amount() const {
 
 
 Operand Operand::UntagSmi(Register smi) {
-  STATIC_ASSERT(kXRegSizeInBits == static_cast<unsigned>(kSmiShift +
-                                                         kSmiValueSize));
   DCHECK(smi.Is64Bits());
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   return Operand(smi, ASR, kSmiShift);
 }
 
 
 Operand Operand::UntagSmiAndScale(Register smi, int scale) {
-  STATIC_ASSERT(kXRegSizeInBits == static_cast<unsigned>(kSmiShift +
-                                                         kSmiValueSize));
   DCHECK(smi.Is64Bits());
   DCHECK((scale >= 0) && (scale <= (64 - kSmiValueSize)));
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (scale > kSmiShift) {
     return Operand(smi, LSL, scale - kSmiShift);
   } else if (scale < kSmiShift) {

@@ -633,6 +633,10 @@ I64_SHIFTOP(shr, dsrlv)
 
 #undef I64_SHIFTOP
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  addu(dst, src, zero_reg);
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   TurboAssembler::Neg_s(dst, src);
 }

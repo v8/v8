@@ -257,6 +257,10 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return true;
 }
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  UNREACHABLE();
+}
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {

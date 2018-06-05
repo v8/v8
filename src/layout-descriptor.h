@@ -96,6 +96,10 @@ class LayoutDescriptor : public ByteArray {
   LayoutDescriptor* SetTaggedForTesting(int field_index, bool tagged);
 
  private:
+  // Exclude sign-bit to simplify encoding.
+  static constexpr int kBitsInSmiLayout =
+      SmiValuesAre32Bits() ? 32 : kSmiValueSize - 1;
+
   static const int kBitsPerLayoutWord = 32;
   int number_of_layout_words() { return length() / kUInt32Size; }
   uint32_t get_layout_word(int index) const { return get_uint32(index); }

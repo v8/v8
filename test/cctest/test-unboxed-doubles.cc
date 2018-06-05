@@ -86,6 +86,7 @@ void WriteToField(JSObject* object, int descriptor, Object* value) {
 }
 
 const int kNumberOfBits = 32;
+const int kBitsInSmiLayout = SmiValuesAre32Bits() ? 32 : kSmiValueSize - 1;
 
 enum TestPropertyKind {
   PROP_ACCESSOR_INFO,
@@ -144,9 +145,9 @@ TEST(LayoutDescriptorBasicFast) {
 
   CHECK(!layout_desc->IsSlowLayout());
   CHECK(layout_desc->IsFastPointerLayout());
-  CHECK_EQ(kSmiValueSize, layout_desc->capacity());
+  CHECK_EQ(kBitsInSmiLayout, layout_desc->capacity());
 
-  for (int i = 0; i < kSmiValueSize + 13; i++) {
+  for (int i = 0; i < kBitsInSmiLayout + 13; i++) {
     CHECK(layout_desc->IsTagged(i));
   }
   CHECK(layout_desc->IsTagged(-1));
@@ -154,7 +155,7 @@ TEST(LayoutDescriptorBasicFast) {
   CHECK(layout_desc->IsTagged(15635));
   CHECK(layout_desc->IsFastPointerLayout());
 
-  for (int i = 0; i < kSmiValueSize; i++) {
+  for (int i = 0; i < kBitsInSmiLayout; i++) {
     layout_desc = layout_desc->SetTaggedForTesting(i, false);
     CHECK(!layout_desc->IsTagged(i));
     layout_desc = layout_desc->SetTaggedForTesting(i, true);
@@ -178,7 +179,7 @@ TEST(LayoutDescriptorBasicSlow) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     // All properties tagged.
@@ -193,7 +194,7 @@ TEST(LayoutDescriptorBasicSlow) {
 
     layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    CHECK_EQ(kSmiValueSize, layout_descriptor->capacity());
+    CHECK_EQ(kBitsInSmiLayout, layout_descriptor->capacity());
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 
@@ -228,7 +229,7 @@ TEST(LayoutDescriptorBasicSlow) {
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(layout_descriptor->IsSlowLayout());
     CHECK(!layout_descriptor->IsFastPointerLayout());
-    CHECK_GT(layout_descriptor->capacity(), kSmiValueSize);
+    CHECK_GT(layout_descriptor->capacity(), kBitsInSmiLayout);
 
     CHECK(!layout_descriptor->IsTagged(0));
     CHECK(!layout_descriptor->IsTagged(kPropsCount - 1));
@@ -336,13 +337,13 @@ static void TestLayoutDescriptorQueriesFast(int max_sequence_length) {
 
   {
     int bit_flip_positions[] = {1000};
-    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+    TestLayoutDescriptorQueries(kBitsInSmiLayout, bit_flip_positions,
                                 max_sequence_length);
   }
 
   {
     int bit_flip_positions[] = {0, 1000};
-    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+    TestLayoutDescriptorQueries(kBitsInSmiLayout, bit_flip_positions,
                                 max_sequence_length);
   }
 
@@ -351,20 +352,20 @@ static void TestLayoutDescriptorQueriesFast(int max_sequence_length) {
     for (int i = 0; i <= kNumberOfBits; i++) {
       bit_flip_positions[i] = i;
     }
-    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+    TestLayoutDescriptorQueries(kBitsInSmiLayout, bit_flip_positions,
                                 max_sequence_length);
   }
 
   {
     int bit_flip_positions[] = {3, 7, 8, 10, 15, 21, 30, 1000};
-    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+    TestLayoutDescriptorQueries(kBitsInSmiLayout, bit_flip_positions,
                                 max_sequence_length);
   }
 
   {
     int bit_flip_positions[] = {0,  1,  2,  3,  5,  7,  9,
                                 12, 15, 18, 22, 26, 29, 1000};
-    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+    TestLayoutDescriptorQueries(kBitsInSmiLayout, bit_flip_positions,
                                 max_sequence_length);
   }
 }
@@ -545,7 +546,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
@@ -679,7 +680,7 @@ TEST(LayoutDescriptorAppend) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
@@ -694,10 +695,10 @@ TEST(LayoutDescriptorAppend) {
   CHECK(!layout_descriptor->IsSlowLayout());
 
   layout_descriptor =
-      TestLayoutDescriptorAppend(isolate, kSmiValueSize, props, kPropsCount);
+      TestLayoutDescriptorAppend(isolate, kBitsInSmiLayout, props, kPropsCount);
   CHECK(!layout_descriptor->IsSlowLayout());
 
-  layout_descriptor = TestLayoutDescriptorAppend(isolate, kSmiValueSize * 2,
+  layout_descriptor = TestLayoutDescriptorAppend(isolate, kBitsInSmiLayout * 2,
                                                  props, kPropsCount);
   CHECK(layout_descriptor->IsSlowLayout());
 
@@ -713,7 +714,7 @@ TEST(LayoutDescriptorAppendAllDoubles) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
@@ -728,14 +729,14 @@ TEST(LayoutDescriptorAppendAllDoubles) {
   CHECK(!layout_descriptor->IsSlowLayout());
 
   layout_descriptor =
-      TestLayoutDescriptorAppend(isolate, kSmiValueSize, props, kPropsCount);
+      TestLayoutDescriptorAppend(isolate, kBitsInSmiLayout, props, kPropsCount);
   CHECK(!layout_descriptor->IsSlowLayout());
 
-  layout_descriptor = TestLayoutDescriptorAppend(isolate, kSmiValueSize + 1,
+  layout_descriptor = TestLayoutDescriptorAppend(isolate, kBitsInSmiLayout + 1,
                                                  props, kPropsCount);
   CHECK(layout_descriptor->IsSlowLayout());
 
-  layout_descriptor = TestLayoutDescriptorAppend(isolate, kSmiValueSize * 2,
+  layout_descriptor = TestLayoutDescriptorAppend(isolate, kBitsInSmiLayout * 2,
                                                  props, kPropsCount);
   CHECK(layout_descriptor->IsSlowLayout());
 
@@ -745,12 +746,12 @@ TEST(LayoutDescriptorAppendAllDoubles) {
 
   {
     // Ensure layout descriptor switches into slow mode at the right moment.
-    layout_descriptor =
-        TestLayoutDescriptorAppend(isolate, kPropsCount, props, kSmiValueSize);
+    layout_descriptor = TestLayoutDescriptorAppend(isolate, kPropsCount, props,
+                                                   kBitsInSmiLayout);
     CHECK(!layout_descriptor->IsSlowLayout());
 
     layout_descriptor = TestLayoutDescriptorAppend(isolate, kPropsCount, props,
-                                                   kSmiValueSize + 1);
+                                                   kBitsInSmiLayout + 1);
     CHECK(layout_descriptor->IsSlowLayout());
   }
 }
@@ -830,7 +831,7 @@ TEST(LayoutDescriptorAppendIfFastOrUseFull) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
@@ -847,11 +848,11 @@ TEST(LayoutDescriptorAppendIfFastOrUseFull) {
   CHECK(!layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-      isolate, kSmiValueSize, descriptors, kPropsCount);
+      isolate, kBitsInSmiLayout, descriptors, kPropsCount);
   CHECK(!layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-      isolate, kSmiValueSize * 2, descriptors, kPropsCount);
+      isolate, kBitsInSmiLayout * 2, descriptors, kPropsCount);
   CHECK(layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
@@ -866,7 +867,7 @@ TEST(LayoutDescriptorAppendIfFastOrUseFullAllDoubles) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
@@ -883,15 +884,15 @@ TEST(LayoutDescriptorAppendIfFastOrUseFullAllDoubles) {
   CHECK(!layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-      isolate, kSmiValueSize, descriptors, kPropsCount);
+      isolate, kBitsInSmiLayout, descriptors, kPropsCount);
   CHECK(!layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-      isolate, kSmiValueSize + 1, descriptors, kPropsCount);
+      isolate, kBitsInSmiLayout + 1, descriptors, kPropsCount);
   CHECK(layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-      isolate, kSmiValueSize * 2, descriptors, kPropsCount);
+      isolate, kBitsInSmiLayout * 2, descriptors, kPropsCount);
   CHECK(layout_descriptor->IsSlowLayout());
 
   layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
@@ -901,11 +902,11 @@ TEST(LayoutDescriptorAppendIfFastOrUseFullAllDoubles) {
   {
     // Ensure layout descriptor switches into slow mode at the right moment.
     layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-        isolate, kPropsCount, descriptors, kSmiValueSize);
+        isolate, kPropsCount, descriptors, kBitsInSmiLayout);
     CHECK(!layout_descriptor->IsSlowLayout());
 
     layout_descriptor = TestLayoutDescriptorAppendIfFastOrUseFull(
-        isolate, kPropsCount, descriptors, kSmiValueSize + 1);
+        isolate, kPropsCount, descriptors, kBitsInSmiLayout + 1);
     CHECK(layout_descriptor->IsSlowLayout());
   }
 }
@@ -922,7 +923,7 @@ TEST(Regress436816) {
   // mid-test states would fail heap verification.
   CcTest::CollectAllGarbage();
 
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
@@ -1276,7 +1277,7 @@ TEST(LayoutDescriptorHelperMixed) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
@@ -1288,9 +1289,10 @@ TEST(LayoutDescriptorHelperMixed) {
 
   TestLayoutDescriptorHelper(isolate, 13, descriptors, kPropsCount);
 
-  TestLayoutDescriptorHelper(isolate, kSmiValueSize, descriptors, kPropsCount);
+  TestLayoutDescriptorHelper(isolate, kBitsInSmiLayout, descriptors,
+                             kPropsCount);
 
-  TestLayoutDescriptorHelper(isolate, kSmiValueSize * 2, descriptors,
+  TestLayoutDescriptorHelper(isolate, kBitsInSmiLayout * 2, descriptors,
                              kPropsCount);
 
   TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);
@@ -1303,7 +1305,7 @@ TEST(LayoutDescriptorHelperAllTagged) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_TAGGED;
@@ -1315,9 +1317,10 @@ TEST(LayoutDescriptorHelperAllTagged) {
 
   TestLayoutDescriptorHelper(isolate, 13, descriptors, kPropsCount);
 
-  TestLayoutDescriptorHelper(isolate, kSmiValueSize, descriptors, kPropsCount);
+  TestLayoutDescriptorHelper(isolate, kBitsInSmiLayout, descriptors,
+                             kPropsCount);
 
-  TestLayoutDescriptorHelper(isolate, kSmiValueSize * 2, descriptors,
+  TestLayoutDescriptorHelper(isolate, kBitsInSmiLayout * 2, descriptors,
                              kPropsCount);
 
   TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);
@@ -1330,7 +1333,7 @@ TEST(LayoutDescriptorHelperAllDoubles) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  const int kPropsCount = kSmiValueSize * 3;
+  const int kPropsCount = kBitsInSmiLayout * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
@@ -1342,9 +1345,10 @@ TEST(LayoutDescriptorHelperAllDoubles) {
 
   TestLayoutDescriptorHelper(isolate, 13, descriptors, kPropsCount);
 
-  TestLayoutDescriptorHelper(isolate, kSmiValueSize, descriptors, kPropsCount);
+  TestLayoutDescriptorHelper(isolate, kBitsInSmiLayout, descriptors,
+                             kPropsCount);
 
-  TestLayoutDescriptorHelper(isolate, kSmiValueSize * 2, descriptors,
+  TestLayoutDescriptorHelper(isolate, kBitsInSmiLayout * 2, descriptors,
                              kPropsCount);
 
   TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);

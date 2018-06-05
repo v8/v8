@@ -499,10 +499,10 @@ class TurboAssembler : public Assembler {
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
-      STATIC_ASSERT(kSmiShift == 32);
-      dsra32(dst, src, 0);
+      dsra32(dst, src, kSmiShift - 32);
     } else {
-      sra(dst, src, kSmiTagSize);
+      DCHECK(SmiValuesAre31Bits());
+      sra(dst, src, kSmiShift);
     }
   }
 
@@ -1166,9 +1166,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void SmiTag(Register dst, Register src) {
     STATIC_ASSERT(kSmiTag == 0);
     if (SmiValuesAre32Bits()) {
-      STATIC_ASSERT(kSmiShift == 32);
       dsll32(dst, src, 0);
     } else {
+      DCHECK(SmiValuesAre31Bits());
       Addu(dst, src, src);
     }
   }
@@ -1183,6 +1183,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
       // The int portion is upper 32-bits of 64-bit word.
       dsra(dst, src, kSmiShift - scale);
     } else {
+      DCHECK(SmiValuesAre31Bits());
       DCHECK_GE(scale, kSmiTagSize);
       sll(dst, src, scale - kSmiTagSize);
     }

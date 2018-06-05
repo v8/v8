@@ -1038,14 +1038,16 @@ Node* EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node) {
       __ Bind(&if_smi);
     }
 
-    if (machine()->Is64()) {
+    if (SmiValuesAre32Bits()) {
       Node* value_smi = ChangeInt32ToSmi(value32);
       __ Goto(&done, value_smi);
     } else {
+      DCHECK(SmiValuesAre31Bits());
       Node* add = __ Int32AddWithOverflow(value32, value32);
       Node* ovf = __ Projection(1, add);
       __ GotoIf(ovf, &if_heapnumber);
       Node* value_smi = __ Projection(0, add);
+      value_smi = ChangeInt32ToIntPtr(value_smi);
       __ Goto(&done, value_smi);
     }
   }
@@ -1089,9 +1091,10 @@ Node* EffectControlLinearizer::LowerChangeInt31ToTaggedSigned(Node* node) {
 Node* EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node) {
   Node* value = node->InputAt(0);
 
-  if (machine()->Is64()) {
+  if (SmiValuesAre32Bits()) {
     return ChangeInt32ToSmi(value);
   }
+  DCHECK(SmiValuesAre31Bits());
 
   auto if_overflow = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
@@ -1099,7 +1102,9 @@ Node* EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node) {
   Node* add = __ Int32AddWithOverflow(value, value);
   Node* ovf = __ Projection(1, add);
   __ GotoIf(ovf, &if_overflow);
-  __ Goto(&done, __ Projection(0, add));
+  Node* value_smi = __ Projection(0, add);
+  value_smi = ChangeInt32ToIntPtr(value_smi);
+  __ Goto(&done, value_smi);
 
   __ Bind(&if_overflow);
   Node* number = AllocateHeapNumberWithValue(__ ChangeInt32ToFloat64(value));
@@ -1789,7 +1794,9 @@ Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(
   Node* check = __ Projection(1, add);
   __ DeoptimizeIf(DeoptimizeReason::kOverflow, params.feedback(), check,
                   frame_state);
-  return __ Projection(0, add);
+  Node* result = __ Projection(0, add);
+  result = ChangeInt32ToIntPtr(result);
+  return result;
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,

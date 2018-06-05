@@ -743,6 +743,10 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                    &TurboAssembler::ShrPair, pinned);
 }
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   TurboAssembler::Neg_s(dst, src);
 }

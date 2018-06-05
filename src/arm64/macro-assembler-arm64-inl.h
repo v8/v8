@@ -1034,40 +1034,43 @@ void TurboAssembler::InitializeRootRegister() {
 
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
-  STATIC_ASSERT(kXRegSizeInBits ==
-                static_cast<unsigned>(kSmiShift + kSmiValueSize));
   DCHECK(dst.Is64Bits() && src.Is64Bits());
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   Lsl(dst, src, kSmiShift);
 }
-
 
 void MacroAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
 void TurboAssembler::SmiUntag(Register dst, Register src) {
-  STATIC_ASSERT(kXRegSizeInBits ==
-                static_cast<unsigned>(kSmiShift + kSmiValueSize));
   DCHECK(dst.Is64Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts) {
     AssertSmi(src);
   }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   Asr(dst, src, kSmiShift);
 }
 
 void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
-  STATIC_ASSERT(kXRegSizeInBits ==
-                static_cast<unsigned>(kSmiShift + kSmiValueSize));
   DCHECK(dst.Is64Bits());
-  if (src.IsImmediateOffset() && src.shift_amount() == 0) {
-    if (FLAG_enable_slow_asserts) {
+  if (SmiValuesAre32Bits()) {
+    if (src.IsImmediateOffset() && src.shift_amount() == 0) {
+      if (FLAG_enable_slow_asserts) {
+        Ldr(dst, src);
+        AssertSmi(dst);
+      }
+      // Load value directly from the upper half-word.
+      // Assumes that Smis are shifted by 32 bits and little endianness.
+      DCHECK_EQ(kSmiShift, 32);
+      Ldrsw(dst,
+            MemOperand(src.base(), src.offset() + (kSmiShift / kBitsPerByte),
+                       src.addrmode()));
+
+    } else {
       Ldr(dst, src);
-      AssertSmi(dst);
+      SmiUntag(dst);
     }
-    // Load value directly from the upper half-word.
-    // Assumes that Smis are shifted by 32 bits and little endianness.
-    DCHECK_EQ(kSmiShift, 32);
-    Ldrsw(dst, MemOperand(src.base(), src.offset() + (kSmiShift / kBitsPerByte),
-                          src.addrmode()));
   } else {
+    DCHECK(SmiValuesAre31Bits());
     Ldr(dst, src);
     SmiUntag(dst);
   }

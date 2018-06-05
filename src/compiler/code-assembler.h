@@ -479,6 +479,7 @@ class SloppyTNode : public TNode<T> {
   V(Int32Add, Word32T, Word32T, Word32T)                                \
   V(Int32AddWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Sub, Word32T, Word32T, Word32T)                                \
+  V(Int32SubWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Mul, Word32T, Word32T, Word32T)                                \
   V(Int32MulWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Div, Int32T, Int32T, Int32T)                                   \

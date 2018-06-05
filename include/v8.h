@@ -175,18 +175,18 @@ const int kSmiTag = 0;
 const int kSmiTagSize = 1;
 const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
-template <size_t ptr_size>
+template <size_t tagged_ptr_size>
 struct SmiTagging;
 
 template <int kSmiShiftSize>
 V8_INLINE internal::Object* IntToSmi(int value) {
   int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  uintptr_t tagged_value =
-      (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
+  intptr_t tagged_value =
+      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
   return reinterpret_cast<internal::Object*>(tagged_value);
 }
 
-// Smi constants for 32-bit systems.
+// Smi constants for systems where tagged pointer is a 32-bit value.
 template <>
 struct SmiTagging<4> {
   enum { kSmiShiftSize = 0, kSmiValueSize = 31 };
@@ -216,7 +216,7 @@ struct SmiTagging<4> {
   }
 };
 
-// Smi constants for 64-bit systems.
+// Smi constants for systems where tagged pointer is a 64-bit value.
 template <>
 struct SmiTagging<8> {
   enum { kSmiShiftSize = 31, kSmiValueSize = 32 };
@@ -236,7 +236,15 @@ struct SmiTagging<8> {
   }
 };
 
+#if V8_COMPRESS_POINTERS
+static_assert(
+    kApiPointerSize == kApiInt64Size,
+    "Pointer compression can be enabled only for 64-bit architectures");
+typedef SmiTagging<4> PlatformSmiTagging;
+#else
 typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
+#endif
+
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 const int kSmiMinValue = (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);

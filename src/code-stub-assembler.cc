@@ -524,14 +524,27 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
   return TNode<Float64T>::UncheckedCast(var_x.value());
 }
 
+TNode<BoolT> CodeStubAssembler::IsValidSmi(TNode<Smi> smi) {
+  if (SmiValuesAre31Bits() && kPointerSize == kInt64Size) {
+    // Check that the Smi value is properly sign-extended.
+    TNode<IntPtrT> value = Signed(BitcastTaggedToWord(smi));
+    return WordEqual(value, ChangeInt32ToIntPtr(TruncateIntPtrToInt32(value)));
+  }
+  return Int32TrueConstant();
+}
+
 Node* CodeStubAssembler::SmiShiftBitsConstant() {
   return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
 TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
   TNode<IntPtrT> value_intptr = ChangeInt32ToIntPtr(value);
-  return BitcastWordToTaggedSigned(
-      WordShl(value_intptr, SmiShiftBitsConstant()));
+  TNode<Smi> smi =
+      BitcastWordToTaggedSigned(WordShl(value_intptr, SmiShiftBitsConstant()));
+#if V8_COMPRESS_POINTERS
+  CSA_ASSERT(this, IsValidSmi(smi));
+#endif
+  return smi;
 }
 
 TNode<BoolT> CodeStubAssembler::IsValidPositiveSmi(TNode<IntPtrT> value) {
@@ -551,16 +564,23 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
   if (ToInt32Constant(value, constant_value) && Smi::IsValid(constant_value)) {
     return SmiConstant(constant_value);
   }
-  return BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
+  TNode<Smi> smi =
+      BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
+#if V8_COMPRESS_POINTERS
+  CSA_ASSERT(this, IsValidSmi(smi));
+#endif
+  return smi;
 }
 
 TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
+#if V8_COMPRESS_POINTERS
+  CSA_ASSERT(this, IsValidSmi(value));
+#endif
   intptr_t constant_value;
   if (ToIntPtrConstant(value, constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
-  return UncheckedCast<IntPtrT>(
-      WordSar(BitcastTaggedToWord(value), SmiShiftBitsConstant()));
+  return Signed(WordSar(BitcastTaggedToWord(value), SmiShiftBitsConstant()));
 }
 
 TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
@@ -582,22 +602,44 @@ TNode<Smi> CodeStubAssembler::SmiMin(TNode<Smi> a, TNode<Smi> b) {
 
 TNode<Smi> CodeStubAssembler::TrySmiAdd(TNode<Smi> lhs, TNode<Smi> rhs,
                                         Label* if_overflow) {
-  TNode<PairT<IntPtrT, BoolT>> pair =
-      IntPtrAddWithOverflow(BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
-  TNode<BoolT> overflow = Projection<1>(pair);
-  GotoIf(overflow, if_overflow);
-  TNode<IntPtrT> result = Projection<0>(pair);
-  return BitcastWordToTaggedSigned(result);
+  if (SmiValuesAre32Bits()) {
+    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAddWithOverflow(
+        BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
+    TNode<BoolT> overflow = Projection<1>(pair);
+    GotoIf(overflow, if_overflow);
+    TNode<IntPtrT> result = Projection<0>(pair);
+    return BitcastWordToTaggedSigned(result);
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    TNode<PairT<Int32T, BoolT>> pair =
+        Int32AddWithOverflow(TruncateIntPtrToInt32(BitcastTaggedToWord(lhs)),
+                             TruncateIntPtrToInt32(BitcastTaggedToWord(rhs)));
+    TNode<BoolT> overflow = Projection<1>(pair);
+    GotoIf(overflow, if_overflow);
+    TNode<Int32T> result = Projection<0>(pair);
+    return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(result));
+  }
 }
 
 TNode<Smi> CodeStubAssembler::TrySmiSub(TNode<Smi> lhs, TNode<Smi> rhs,
                                         Label* if_overflow) {
-  TNode<PairT<IntPtrT, BoolT>> pair =
-      IntPtrSubWithOverflow(BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
-  TNode<BoolT> overflow = Projection<1>(pair);
-  GotoIf(overflow, if_overflow);
-  TNode<IntPtrT> result = Projection<0>(pair);
-  return BitcastWordToTaggedSigned(result);
+  if (SmiValuesAre32Bits()) {
+    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrSubWithOverflow(
+        BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
+    TNode<BoolT> overflow = Projection<1>(pair);
+    GotoIf(overflow, if_overflow);
+    TNode<IntPtrT> result = Projection<0>(pair);
+    return BitcastWordToTaggedSigned(result);
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    TNode<PairT<Int32T, BoolT>> pair =
+        Int32SubWithOverflow(TruncateIntPtrToInt32(BitcastTaggedToWord(lhs)),
+                             TruncateIntPtrToInt32(BitcastTaggedToWord(rhs)));
+    TNode<BoolT> overflow = Projection<1>(pair);
+    GotoIf(overflow, if_overflow);
+    TNode<Int32T> result = Projection<0>(pair);
+    return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(result));
+  }
 }
 
 TNode<Object> CodeStubAssembler::NumberMax(SloppyTNode<Object> a,
@@ -1313,7 +1355,7 @@ Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     SloppyTNode<HeapObject> object, int offset) {
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += kPointerSize / 2;
 #endif
@@ -1327,7 +1369,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(Node* object,
                                                                  int offset) {
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += kPointerSize / 2;
 #endif
@@ -1340,7 +1382,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(Node* object,
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagSmi(Node* base, int index) {
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     index += kPointerSize / 2;
 #endif
@@ -1357,7 +1399,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32Root(
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
   int index = root_index * kPointerSize;
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     index += kPointerSize / 2;
 #endif
@@ -1370,7 +1412,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32Root(
 }
 
 Node* CodeStubAssembler::StoreAndTagSmi(Node* base, int offset, Node* value) {
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
     int zero_offset = offset + kPointerSize / 2;
     int payload_offset = offset;
 #if V8_TARGET_LITTLE_ENDIAN
@@ -2169,7 +2211,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
   DCHECK_EQ(additional_offset % kPointerSize, 0);
   int endian_correction = 0;
 #if V8_TARGET_LITTLE_ENDIAN
-  if (Is64()) endian_correction = kPointerSize / 2;
+  if (SmiValuesAre32Bits()) endian_correction = kPointerSize / 2;
 #endif
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag +
                         endian_correction;
@@ -2183,7 +2225,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
                 offset,
                 LoadAndUntagObjectField(object, FixedArrayBase::kLengthOffset),
                 FixedArray::kHeaderSize + endian_correction));
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
     return UncheckedCast<Int32T>(Load(MachineType::Int32(), object, offset));
   } else {
     return SmiToInt32(Load(MachineType::AnyTagged(), object, offset));
@@ -4419,11 +4461,12 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
   TVARIABLE(Number, var_result);
   BIND(&if_valueisint32);
   {
-    if (Is64()) {
+    if (SmiValuesAre32Bits()) {
       TNode<Smi> result = SmiTag(ChangeInt32ToIntPtr(value32));
       var_result = result;
       Goto(&if_join);
     } else {
+      DCHECK(SmiValuesAre31Bits());
       TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value32, value32);
       TNode<BoolT> overflow = Projection<1>(pair);
       Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
@@ -4432,8 +4475,9 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
       Goto(&if_valueisheapnumber);
       BIND(&if_notoverflow);
       {
-        TNode<IntPtrT> result = ChangeInt32ToIntPtr(Projection<0>(pair));
-        var_result = BitcastWordToTaggedSigned(result);
+        TNode<Smi> result =
+            BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+        var_result = result;
         Goto(&if_join);
       }
     }
@@ -4449,9 +4493,10 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
 
 TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
     SloppyTNode<Int32T> value) {
-  if (Is64()) {
+  if (SmiValuesAre32Bits()) {
     return SmiTag(ChangeInt32ToIntPtr(value));
   }
+  DCHECK(SmiValuesAre31Bits());
   TVARIABLE(Number, var_result);
   TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value, value);
   TNode<BoolT> overflow = Projection<1>(pair);
@@ -4467,8 +4512,10 @@ TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
   Goto(&if_join);
   BIND(&if_notoverflow);
   {
-    TNode<Smi> result =
-        BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+    TNode<IntPtrT> almost_tagged_value =
+        ChangeInt32ToIntPtr(Projection<0>(pair));
+    TNode<Smi> result;
+    result = BitcastWordToTaggedSigned(almost_tagged_value);
     var_result = result;
   }
   Goto(&if_join);
@@ -4487,10 +4534,11 @@ TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
 
   BIND(&if_not_overflow);
   {
-    if (Is64()) {
+    if (SmiValuesAre32Bits()) {
       var_result =
           SmiTag(ReinterpretCast<IntPtrT>(ChangeUint32ToUint64(value)));
     } else {
+      DCHECK(SmiValuesAre31Bits());
       // If tagging {value} results in an overflow, we need to use a HeapNumber
       // to represent it.
       // TODO(tebbi): This overflow can never happen.
@@ -4499,9 +4547,9 @@ TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
       TNode<BoolT> overflow = Projection<1>(pair);
       GotoIf(overflow, &if_overflow);
 
-      TNode<Smi> result =
-          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
-      var_result = result;
+      TNode<IntPtrT> almost_tagged_value =
+          ChangeInt32ToIntPtr(Projection<0>(pair));
+      var_result = BitcastWordToTaggedSigned(almost_tagged_value);
     }
   }
   Goto(&if_join);
@@ -5942,8 +5990,7 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
     // If new length is greater than String::kMaxLength, goto runtime to
     // throw. Note: we also need to invalidate the string length protector, so
     // can't just throw here directly.
-    GotoIf(SmiGreaterThan(new_length, SmiConstant(String::kMaxLength)),
-           &runtime);
+    GotoIf(SmiAbove(new_length, SmiConstant(String::kMaxLength)), &runtime);
 
     TVARIABLE(String, var_left, left);
     TVARIABLE(String, var_right, right);
