@@ -1962,8 +1962,7 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
     TNode<Object> maybe_regexp, TNode<String> string,
     TNode<BoolT> is_fast_regexp, char const* method_name) {
   Label create_iterator(this), if_fast_regexp(this),
-      if_slow_regexp(this, Label::kDeferred), if_not_regexp(this),
-      throw_type_error(this, Label::kDeferred);
+      if_slow_regexp(this, Label::kDeferred), if_not_regexp(this);
 
   // 1. Let S be ? ToString(O).
   // Handled by the caller of MatchAllIterator.
@@ -2044,35 +2043,22 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
     var_matcher = RegExpCreate(context, native_context, maybe_regexp,
                                StringConstant("g"));
 
-    // d. Let global be true.
+    // c. Let global be true.
     var_global = Int32Constant(1);
 
-    // e. Let fullUnicode be false.
+    // d. Let fullUnicode be false.
     var_unicode = Int32Constant(0);
 
-    Label if_matcher_slow_regexp(this, Label::kDeferred);
-    BranchIfFastRegExp(context, var_matcher.value(), &create_iterator,
-                       &if_matcher_slow_regexp);
-    BIND(&if_matcher_slow_regexp);
-    {
-      // c. If ? IsRegExp(matcher) is not true, throw a TypeError exception.
-      GotoIfNot(IsRegExp(context, var_matcher.value()), &throw_type_error);
+#ifdef DEBUG
+    // Assert: ! Get(matcher, "lastIndex") is 0.
+    TNode<Object> last_index =
+        CAST(LoadLastIndex(context, var_matcher.value(), false));
+    CSA_ASSERT(this, WordEqual(SmiConstant(0), last_index));
+#endif  // DEBUG
 
-      // f. If ? Get(matcher, "lastIndex") is not 0, throw a TypeError
-      // exception.
-      TNode<Object> last_index =
-          CAST(LoadLastIndex(context, var_matcher.value(), false));
-      Branch(WordEqual(SmiConstant(0), last_index), &create_iterator,
-             &throw_type_error);
-    }
-  }
-  BIND(&throw_type_error);
-  {
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant(method_name), maybe_regexp);
+    Goto(&create_iterator);
   }
   // 4. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).
-  // CreateRegExpStringIterator ( R, S, global, fullUnicode )
   BIND(&create_iterator);
   {
     TNode<Map> map = CAST(LoadContextElement(
