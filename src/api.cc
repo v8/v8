@@ -642,7 +642,7 @@ size_t SnapshotCreator::AddData(i::Object* object) {
     list = i::ArrayList::New(isolate, 1);
   } else {
     list = i::Handle<i::ArrayList>(
-        i::ArrayList::cast(isolate->heap()->serialized_objects()));
+        i::ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
   }
   size_t index = static_cast<size_t>(list->Length());
   list = i::ArrayList::Add(list, obj);
@@ -661,8 +661,8 @@ size_t SnapshotCreator::AddData(Local<Context> context, i::Object* object) {
   if (!ctx->serialized_objects()->IsArrayList()) {
     list = i::ArrayList::New(isolate, 1);
   } else {
-    list =
-        i::Handle<i::ArrayList>(i::ArrayList::cast(ctx->serialized_objects()));
+    list = i::Handle<i::ArrayList>(
+        i::ArrayList::cast(ctx->serialized_objects()), isolate);
   }
   size_t index = static_cast<size_t>(list->Length());
   list = i::ArrayList::Add(list, obj);
@@ -677,7 +677,8 @@ void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
   if (!ctx->serialized_objects()->IsArrayList()) {
     ctx->set_serialized_objects(isolate->heap()->empty_fixed_array());
   } else {
-    i::Handle<i::ArrayList> list(i::ArrayList::cast(ctx->serialized_objects()));
+    i::Handle<i::ArrayList> list(i::ArrayList::cast(ctx->serialized_objects()),
+                                 isolate);
     i::Handle<i::FixedArray> elements = i::ArrayList::Elements(list);
     ctx->set_serialized_objects(*elements);
   }
@@ -688,7 +689,7 @@ void ConvertSerializedObjectsToFixedArray(i::Isolate* isolate) {
     isolate->heap()->SetSerializedObjects(isolate->heap()->empty_fixed_array());
   } else {
     i::Handle<i::ArrayList> list(
-        i::ArrayList::cast(isolate->heap()->serialized_objects()));
+        i::ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
     i::Handle<i::FixedArray> elements = i::ArrayList::Elements(list);
     isolate->heap()->SetSerializedObjects(*elements);
   }
@@ -1268,7 +1269,7 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
                       "Not a native context") &&
       Utils::ApiCheck(index >= 0, location, "Negative index");
   if (!ok) return i::Handle<i::FixedArray>();
-  i::Handle<i::FixedArray> data(env->embedder_data());
+  i::Handle<i::FixedArray> data(env->embedder_data(), isolate);
   if (index < data->length()) return data;
   if (!Utils::ApiCheck(can_grow, location, "Index too large")) {
     return i::Handle<i::FixedArray>();
@@ -1486,7 +1487,7 @@ MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
     i::Object* info = serialized_objects->get(int_index);
     if (info->IsFunctionTemplateInfo()) {
       return Utils::ToLocal(i::Handle<i::FunctionTemplateInfo>(
-          i::FunctionTemplateInfo::cast(info)));
+          i::FunctionTemplateInfo::cast(info), i_isolate));
     }
   }
   return Local<FunctionTemplate>();
@@ -1598,7 +1599,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
     handle->set_instance_template(*Utils::OpenHandle(*templ));
   }
   i::Handle<i::ObjectTemplateInfo> result(
-      i::ObjectTemplateInfo::cast(handle->instance_template()));
+      i::ObjectTemplateInfo::cast(handle->instance_template()), isolate);
   return Utils::ToLocal(result);
 }
 
@@ -1700,8 +1701,8 @@ MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
   if (int_index < serialized_objects->length()) {
     i::Object* info = serialized_objects->get(int_index);
     if (info->IsObjectTemplateInfo()) {
-      return Utils::ToLocal(
-          i::Handle<i::ObjectTemplateInfo>(i::ObjectTemplateInfo::cast(info)));
+      return Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>(
+          i::ObjectTemplateInfo::cast(info), i_isolate));
     }
   }
   return Local<ObjectTemplate>();
@@ -2108,8 +2109,9 @@ int UnboundScript::GetId() {
   LOG_API(isolate, UnboundScript, GetId);
   i::HandleScope scope(isolate);
   i::Handle<i::SharedFunctionInfo> function_info(
-      i::SharedFunctionInfo::cast(*obj));
-  i::Handle<i::Script> script(i::Script::cast(function_info->script()));
+      i::SharedFunctionInfo::cast(*obj), isolate);
+  i::Handle<i::Script> script(i::Script::cast(function_info->script()),
+                              isolate);
   return script->id();
 }
 
@@ -2120,7 +2122,7 @@ int UnboundScript::GetLineNumber(int code_pos) {
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, UnboundScript, GetLineNumber);
   if (obj->script()->IsScript()) {
-    i::Handle<i::Script> script(i::Script::cast(obj->script()));
+    i::Handle<i::Script> script(i::Script::cast(obj->script()), isolate);
     return i::Script::GetLineNumber(script, code_pos);
   } else {
     return -1;
@@ -2217,8 +2219,9 @@ Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
 
 Local<UnboundScript> Script::GetUnboundScript() {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return ToApiHandle<UnboundScript>(
-      i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
+  i::SharedFunctionInfo* sfi = i::JSFunction::cast(*obj)->shared();
+  i::Isolate* isolate = sfi->GetIsolate();
+  return ToApiHandle<UnboundScript>(i::handle(sfi, isolate));
 }
 
 // static
@@ -2335,8 +2338,8 @@ Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
       GetStatus() < kEvaluating, "v8::Module::GetUnboundScript",
       "v8::Module::GetUnboundScript must be used on an unevaluated module");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  return ToApiHandle<UnboundModuleScript>(
-      i::Handle<i::SharedFunctionInfo>(self->GetSharedFunctionInfo()));
+  return ToApiHandle<UnboundModuleScript>(i::Handle<i::SharedFunctionInfo>(
+      self->GetSharedFunctionInfo(), self->GetIsolate()));
 }
 
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
@@ -2571,9 +2574,10 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     context = isolate->factory()->NewWithContext(
         context,
         i::ScopeInfo::CreateForWithScope(
-            isolate, context->IsNativeContext()
-                         ? i::Handle<i::ScopeInfo>::null()
-                         : i::Handle<i::ScopeInfo>(context->scope_info())),
+            isolate,
+            context->IsNativeContext()
+                ? i::Handle<i::ScopeInfo>::null()
+                : i::Handle<i::ScopeInfo>(context->scope_info(), isolate)),
         extension);
   }
 
@@ -2700,8 +2704,10 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
 
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
     Local<Function> function) {
-  i::Handle<i::SharedFunctionInfo> shared(
-      i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function))->shared());
+  auto js_function =
+      i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function));
+  i::Handle<i::SharedFunctionInfo> shared(js_function->shared(),
+                                          js_function->GetIsolate());
   CHECK(shared->is_wrapped());
   return i::CodeSerializer::Serialize(shared);
 }
@@ -2905,7 +2911,7 @@ ScriptOrigin Message::GetScriptOrigin() const {
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   auto script_wraper = i::Handle<i::Object>(message->script(), isolate);
   auto script_value = i::Handle<i::JSValue>::cast(script_wraper);
-  i::Handle<i::Script> script(i::Script::cast(script_value->value()));
+  i::Handle<i::Script> script(i::Script::cast(script_value->value()), isolate);
   return GetScriptOriginForScript(isolate, script);
 }
 
@@ -5300,7 +5306,8 @@ ScriptOrigin Function::GetScriptOrigin() const {
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared()->script()->IsScript()) {
-    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()),
+                                func->GetIsolate());
     return GetScriptOriginForScript(func->GetIsolate(), script);
   }
   return v8::ScriptOrigin(Local<Value>());
@@ -5317,7 +5324,8 @@ int Function::GetScriptLineNumber() const {
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared()->script()->IsScript()) {
-    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()),
+                                func->GetIsolate());
     return i::Script::GetLineNumber(script, func->shared()->StartPosition());
   }
   return kLineOffsetNotFound;
@@ -5331,7 +5339,8 @@ int Function::GetScriptColumnNumber() const {
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared()->script()->IsScript()) {
-    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()),
+                                func->GetIsolate());
     return i::Script::GetColumnNumber(script, func->shared()->StartPosition());
   }
   return kLineOffsetNotFound;
@@ -5347,7 +5356,8 @@ int Function::ScriptId() const {
   if (!func->shared()->script()->IsScript()) {
     return v8::UnboundScript::kNoScriptId;
   }
-  i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+  i::Handle<i::Script> script(i::Script::cast(func->shared()->script()),
+                              func->GetIsolate());
   return script->id();
 }
 
@@ -6848,7 +6858,7 @@ Local<v8::BigInt> v8::BigIntObject::ValueOf() const {
   i::Isolate* isolate = jsvalue->GetIsolate();
   LOG_API(isolate, BigIntObject, BigIntValue);
   return Utils::ToLocal(
-      i::Handle<i::BigInt>(i::BigInt::cast(jsvalue->value())));
+      i::Handle<i::BigInt>(i::BigInt::cast(jsvalue->value()), isolate));
 }
 
 Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
@@ -6890,7 +6900,7 @@ Local<v8::String> v8::StringObject::ValueOf() const {
   i::Isolate* isolate = jsvalue->GetIsolate();
   LOG_API(isolate, StringObject, StringValue);
   return Utils::ToLocal(
-      i::Handle<i::String>(i::String::cast(jsvalue->value())));
+      i::Handle<i::String>(i::String::cast(jsvalue->value()), isolate));
 }
 
 
@@ -6910,7 +6920,7 @@ Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
   i::Isolate* isolate = jsvalue->GetIsolate();
   LOG_API(isolate, SymbolObject, SymbolValue);
   return Utils::ToLocal(
-      i::Handle<i::Symbol>(i::Symbol::cast(jsvalue->value())));
+      i::Handle<i::Symbol>(i::Symbol::cast(jsvalue->value()), isolate));
 }
 
 
@@ -6986,7 +6996,8 @@ Local<v8::RegExp> v8::RegExp::New(Local<String> pattern, Flags flags) {
 
 Local<v8::String> v8::RegExp::GetSource() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
-  return Utils::ToLocal(i::Handle<i::String>(obj->Pattern()));
+  return Utils::ToLocal(
+      i::Handle<i::String>(obj->Pattern(), obj->GetIsolate()));
 }
 
 
@@ -7123,7 +7134,8 @@ enum class MapAsArrayKind {
 i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
                                  int offset, MapAsArrayKind kind) {
   i::Factory* factory = isolate->factory();
-  i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj));
+  i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj),
+                                     isolate);
   if (offset >= table->NumberOfElements()) return factory->NewJSArray(0);
   int length = (table->NumberOfElements() - offset) *
                (kind == MapAsArrayKind::kEntries ? 2 : 1);
@@ -7230,7 +7242,8 @@ namespace {
 i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
                                  int offset) {
   i::Factory* factory = isolate->factory();
-  i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj));
+  i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj),
+                                     isolate);
   int length = table->NumberOfElements() - offset;
   if (length <= 0) return factory->NewJSArray(0);
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
@@ -7433,7 +7446,8 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::String> wire_bytes(obj->shared()->module_bytes());
+  i::Handle<i::String> wire_bytes(obj->shared()->module_bytes(),
+                                  obj->GetIsolate());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
@@ -7721,7 +7735,8 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   i::Handle<i::JSArrayBuffer> buffer;
   if (obj->IsJSDataView()) {
-    i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*obj));
+    i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*obj),
+                                       obj->GetIsolate());
     DCHECK(data_view->buffer()->IsJSArrayBuffer());
     buffer = i::handle(i::JSArrayBuffer::cast(data_view->buffer()));
   } else {
@@ -7739,13 +7754,16 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
       i::Min(byte_length, i::NumberToSize(self->byte_length()));
   if (bytes_to_copy) {
     i::DisallowHeapAllocation no_gc;
-    i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()));
+    i::Isolate* isolate = self->GetIsolate();
+    i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()),
+                                       isolate);
     const char* source = reinterpret_cast<char*>(buffer->backing_store());
     if (source == nullptr) {
       DCHECK(self->IsJSTypedArray());
-      i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*self));
+      i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*self),
+                                             isolate);
       i::Handle<i::FixedTypedArrayBase> fixed_array(
-          i::FixedTypedArrayBase::cast(typed_array->elements()));
+          i::FixedTypedArrayBase::cast(typed_array->elements()), isolate);
       source = reinterpret_cast<char*>(fixed_array->DataPtr());
     }
     memcpy(dest, source + byte_offset, bytes_to_copy);
@@ -7756,7 +7774,8 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
 
 bool v8::ArrayBufferView::HasBuffer() const {
   i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()));
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()),
+                                     self->GetIsolate());
   return buffer->backing_store() != nullptr;
 }
 
@@ -8083,7 +8102,7 @@ v8::Local<v8::Context> Isolate::GetCurrentContext() {
   if (context == nullptr) return Local<Context>();
   i::Context* native_context = context->native_context();
   if (native_context == nullptr) return Local<Context>();
-  return Utils::ToLocal(i::Handle<i::Context>(native_context));
+  return Utils::ToLocal(i::Handle<i::Context>(native_context, isolate));
 }
 
 
@@ -9215,7 +9234,8 @@ std::vector<int> debug::Script::LineEnds() const {
   i::HandleScope scope(isolate);
   i::Script::InitLineEnds(script);
   CHECK(script->line_ends()->IsFixedArray());
-  i::Handle<i::FixedArray> line_ends(i::FixedArray::cast(script->line_ends()));
+  i::Handle<i::FixedArray> line_ends(i::FixedArray::cast(script->line_ends()),
+                                     isolate);
   std::vector<int> result(line_ends->length());
   for (int i = 0; i < line_ends->length(); ++i) {
     i::Smi* line_end = i::Smi::cast(line_ends->get(i));
@@ -9749,12 +9769,14 @@ void debug::GlobalLexicalScopeNames(
     v8::Local<v8::Context> v8_context,
     v8::PersistentValueVector<v8::String>* names) {
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+  i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::ScriptContextTable> table(
-      context->global_object()->native_context()->script_context_table());
+      context->global_object()->native_context()->script_context_table(),
+      isolate);
   for (int i = 0; i < table->used(); i++) {
     i::Handle<i::Context> context = i::ScriptContextTable::GetContext(table, i);
     DCHECK(context->IsScriptContext());
-    i::Handle<i::ScopeInfo> scope_info(context->scope_info());
+    i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
     int local_count = scope_info->ContextLocalCount();
     for (int j = 0; j < local_count; ++j) {
       i::String* name = scope_info->ContextLocalName(j);
