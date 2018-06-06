@@ -506,7 +506,7 @@ var prettyPrinted;
     try {
       fun();
     } catch(e) {
-      assertEquals(val, e);
+      assertSame(val, e);
       return;
     }
     failWithMessage("Did not throw exception");
