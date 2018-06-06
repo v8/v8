@@ -2445,6 +2445,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsDetachedBuffer(Node* buffer);
   TNode<JSArrayBuffer> LoadArrayBufferViewBuffer(
       TNode<JSArrayBufferView> array_buffer_view);
+  TNode<RawPtrT> LoadArrayBufferBackingStore(TNode<JSArrayBuffer> array_buffer);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

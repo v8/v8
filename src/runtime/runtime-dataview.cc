@@ -256,12 +256,6 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
     return *result;                                                 \
   }
 
-DATA_VIEW_PROTOTYPE_GET(Int8, int8_t)
-DATA_VIEW_PROTOTYPE_GET(Uint8, uint8_t)
-DATA_VIEW_PROTOTYPE_GET(Int16, int16_t)
-DATA_VIEW_PROTOTYPE_GET(Uint16, uint16_t)
-DATA_VIEW_PROTOTYPE_GET(Int32, int32_t)
-DATA_VIEW_PROTOTYPE_GET(Uint32, uint32_t)
 DATA_VIEW_PROTOTYPE_GET(Float32, float)
 DATA_VIEW_PROTOTYPE_GET(Float64, double)
 DATA_VIEW_PROTOTYPE_GET(BigInt64, int64_t)

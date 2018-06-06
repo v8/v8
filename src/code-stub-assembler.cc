@@ -11418,6 +11418,12 @@ TNode<JSArrayBuffer> CodeStubAssembler::LoadArrayBufferViewBuffer(
                                         JSArrayBufferView::kBufferOffset);
 }
 
+TNode<RawPtrT> CodeStubAssembler::LoadArrayBufferBackingStore(
+    TNode<JSArrayBuffer> array_buffer) {
+  return LoadObjectField<RawPtrT>(array_buffer,
+                                  JSArrayBuffer::kBackingStoreOffset);
+}
+
 CodeStubArguments::CodeStubArguments(
     CodeStubAssembler* assembler, Node* argc, Node* fp,
     CodeStubAssembler::ParameterMode param_mode, ReceiverMode receiver_mode)

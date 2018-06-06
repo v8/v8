@@ -58,7 +58,9 @@ struct WordT : IntegralT {
                           : MachineRepresentation::kWord64;
 };
 
-struct RawPtrT : WordT {};
+struct RawPtrT : WordT {
+  static constexpr MachineType kMachineType = MachineType::Pointer();
+};
 
 template <class To>
 struct RawPtr : RawPtrT {};

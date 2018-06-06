@@ -8,13 +8,15 @@ module data_view {
       JSArrayBufferView): JSArrayBuffer;
   extern operator '.byte_length' macro LoadDataViewByteLength(JSDataView): Smi;
   extern operator '.byte_offset' macro LoadDataViewByteOffset(JSDataView): Smi;
+  extern operator '.backing_store' macro LoadArrayBufferBackingStore(
+      JSArrayBuffer): RawPtr;
 
   macro WasNeutered(view: JSArrayBufferView): bool {
     return IsDetachedBuffer(view.buffer);
   }
 
   macro ValidateDataView(context: Context,
-        o: Object, method: String): JSDataView {
+      o: Object, method: String): JSDataView {
     try {
       return cast<JSDataView>(o) otherwise CastError;
     }
@@ -25,66 +27,192 @@ module data_view {
 
   // ES6 section 24.2.4.1 get DataView.prototype.buffer
   javascript builtin DataViewPrototypeGetBuffer(
-    context: Context, receiver: Object, ...arguments): JSArrayBuffer {
-      let data_view: JSDataView = ValidateDataView(
-          context, receiver, 'get DataView.prototype.buffer');
-      return data_view.buffer;
+      context: Context, receiver: Object, ...arguments): JSArrayBuffer {
+    let data_view: JSDataView = ValidateDataView(
+      context, receiver, 'get DataView.prototype.buffer');
+    return data_view.buffer;
   }
 
   // ES6 section 24.2.4.2 get DataView.prototype.byteLength
   javascript builtin DataViewPrototypeGetByteLength(
-    context: Context, receiver: Object, ...arguments): Smi {
-      let data_view: JSDataView = ValidateDataView(
-          context, receiver, 'get DataView.prototype.byte_length');
-      if (WasNeutered(data_view)) {
-        // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-        // here if the JSArrayBuffer of the {data_view} was neutered.
-        let zero: Smi = 0;
-        return zero;
-      }
-      return data_view.byte_length;
+      context: Context, receiver: Object, ...arguments): Smi {
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, 'get DataView.prototype.byte_length');
+    if (WasNeutered(data_view)) {
+      // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
+      // here if the JSArrayBuffer of the {data_view} was neutered.
+      return 0;
+    }
+    return data_view.byte_length;
   }
 
   // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
   javascript builtin DataViewPrototypeGetByteOffset(
-    context: Context, receiver: Object, ...arguments): Smi {
-      let data_view: JSDataView = ValidateDataView(
-          context, receiver, 'get DataView.prototype.byte_offset');
-      if (WasNeutered(data_view)) {
-        // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-        // here if the JSArrayBuffer of the {data_view} was neutered.
-        let zero: Smi = 0;
-        return zero;
-      }
-      return data_view.byte_offset;
+      context: Context, receiver: Object, ...arguments): Smi {
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, 'get DataView.prototype.byte_offset');
+    if (WasNeutered(data_view)) {
+      // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
+      // here if the JSArrayBuffer of the {data_view} was neutered.
+      return 0;
+    }
+    return data_view.byte_offset;
+  }
+
+  extern macro BranchIfToBooleanIsTrue(Object): never labels Taken, NotTaken;
+
+  // TODO(theotime): This function should be moved to base.tq, we can't call
+  // functions that were defined in another Torque file for now.
+  macro ToBoolean(obj: Object): bool {
+      try {
+        BranchIfToBooleanIsTrue(obj) otherwise Taken, NotTaken;
+      } label Taken {
+        return true;
+      } label NotTaken {
+        return false;
+    }
+  }
+
+  extern macro LoadUint8(RawPtr, intptr): int32;
+  extern macro LoadInt8(RawPtr, intptr): int32;
+
+  macro LoadDataViewUint8(data_pointer: RawPtr, offset: intptr): Smi {
+    return convert<Smi>(LoadUint8(data_pointer, offset));
+  }
+
+  macro LoadDataViewInt8(data_pointer: RawPtr, offset: intptr): Smi {
+    return convert<Smi>(LoadInt8(data_pointer, offset));
+  }
+
+  macro LoadDataView16(data_pointer: RawPtr, offset: intptr,
+                       requested_little_endian: bool,
+                       signed: constexpr bool): Number {
+    let b0: int32;
+    let b1: int32;
+    let result: int32;
+
+    // Sign-extend the most significant byte by loading it as an Int8.
+    if (requested_little_endian) {
+      b0 = LoadUint8(data_pointer, offset);
+      b1 = LoadInt8(data_pointer, offset + 1);
+      result = (b1 << 8) + b0;
+    } else {
+      b0 = LoadInt8(data_pointer, offset);
+      b1 = LoadUint8(data_pointer, offset + 1);
+      result = (b0 << 8) + b1;
+    }
+    if constexpr (signed) {
+      return convert<Smi>(result);
+    } else {
+      // Bit-mask the higher bits to prevent sign extension if we're unsigned.
+      return convert<Smi>(result & 0xFFFF);
+    }
+  }
+
+  macro LoadDataView32(data_pointer: RawPtr, offset: intptr,
+                       requested_little_endian: bool,
+                       signed: constexpr bool): Number {
+    let b0: int32 = LoadUint8(data_pointer, offset);
+    let b1: int32 = LoadUint8(data_pointer, offset + 1);
+    let b2: int32 = LoadUint8(data_pointer, offset + 2);
+    let b3: int32 = LoadUint8(data_pointer, offset + 3);
+    let result: int32;
+
+    if (requested_little_endian) {
+      let low_part: int32 = (b1 << 8) + b0;
+      let high_part: int32 = (b3 << 8) + b2;
+      result = (high_part << 16) + low_part;
+    } else {
+      let high_part: int32 = (b0 << 8) + b1;
+      let low_part: int32 = (b2 << 8) + b3;
+      result = (high_part << 16) + low_part;
+    }
+    if constexpr (signed) {
+      return convert<Number>(result);
+    } else {
+      return convert<Number>(convert<uint32>(result));
+    }
   }
 
   // Context, receiver, byteOffset, littleEndian
-  extern runtime DataViewGetInt8(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetUint8(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetInt16(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetUint16(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetInt32(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetUint32(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetFloat32(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetFloat64(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetBigInt64(Context, Object, Object, Object): Object;
-  extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Object;
+  extern runtime DataViewGetFloat32(Context, Object, Object, Object): Number;
+  extern runtime DataViewGetFloat64(Context, Object, Object, Object): Number;
+  extern runtime DataViewGetBigInt64(Context, Object, Object, Object): Number;
+  extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Number;
+
+  extern macro ToSmiIndex(Object, Context): Smi labels RangeError;
+  extern macro DataViewElementSize(constexpr ElementsKind): constexpr int32;
+
+  macro DataViewGet(context: Context,
+                    receiver: Object,
+                    offset: Object,
+                    requested_little_endian: Object,
+                    kind: constexpr ElementsKind): Number {
+
+    // TODO(theotime): add more specific method name to match
+    // the former implementation.
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, 'get DataView.prototype.get');
+
+    let getIndex: Smi;
+    try {
+      getIndex = ToSmiIndex(offset, context) otherwise RangeError;
+    }
+    label RangeError {
+      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+    }
+
+    let littleEndian: bool = ToBoolean(requested_little_endian);
+    let buffer: JSArrayBuffer = data_view.buffer;
+
+    if (IsDetachedBuffer(buffer)) {
+      ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
+    }
+
+    let viewOffset: Smi = data_view.byte_offset;
+    let viewSize: Smi = data_view.byte_length;
+    let elementSize: Smi = convert<Smi>(DataViewElementSize(kind));
+
+    if (getIndex + elementSize > viewSize ||
+        getIndex + elementSize < getIndex) {
+      // TODO(theotime): do we really need to check for overflow here?
+      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+    }
+
+    let bufferIndex: intptr = convert<intptr>(getIndex + viewOffset);
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return LoadDataViewUint8(data_pointer, bufferIndex);
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return LoadDataViewInt8(data_pointer, bufferIndex);
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return LoadDataView16(data_pointer, bufferIndex, littleEndian, false);
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return LoadDataView16(data_pointer, bufferIndex, littleEndian, true);
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return LoadDataView32(data_pointer, bufferIndex, littleEndian, false);
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return LoadDataView32(data_pointer, bufferIndex, littleEndian, true);
+    } else {
+      unreachable;
+    }
+  }
 
   javascript builtin DataViewPrototypeGetInt8(
-    context: Context, receiver: Object, ...arguments): Object {
-      let offset: Object = arguments.length > 0 ?
-          arguments[0] :
-          Undefined;
-      return DataViewGetInt8(context, receiver, offset, Undefined);
-    }
+      context: Context, receiver: Object, ...arguments): Object {
+    let offset: Object = arguments.length > 0 ?
+        arguments[0] :
+        Undefined;
+    return DataViewGet(context, receiver, offset, Undefined, INT8_ELEMENTS);
+  }
 
   javascript builtin DataViewPrototypeGetUint8(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
           arguments[0] :
           Undefined;
-      return DataViewGetUint8(context, receiver, offset, Undefined);
+      return DataViewGet(context, receiver, offset, Undefined, UINT8_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetInt16(
@@ -95,7 +223,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetInt16(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         INT16_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetUint16(
@@ -106,7 +235,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetUint16(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         UINT16_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetInt32(
@@ -117,7 +247,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetInt32(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         INT32_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetUint32(
@@ -128,7 +259,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetUint32(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         UINT32_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetFloat32(
@@ -175,10 +307,9 @@ module data_view {
       return DataViewGetBigUint64(context, receiver, offset, is_little_endian);
     }
 
-
   // Context, receiver, byteOffset, value, littleEndian
   extern runtime
-  DataViewSetInt8(Context, Object, Object, Object, Object): Object;
+      DataViewSetInt8(Context, Object, Object, Object, Object): Object;
   extern runtime
       DataViewSetUint8(Context, Object, Object, Object, Object): Object;
   extern runtime

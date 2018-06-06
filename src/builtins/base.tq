@@ -11,6 +11,7 @@ type Smi extends Tagged generates 'TNode<Smi>';
 type HeapObject extends Tagged generates 'TNode<HeapObject>';
 type Object = Smi | HeapObject;
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
+type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
 type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
@@ -116,6 +117,8 @@ const kBadSortComparisonFunction: constexpr MessageTemplate =
     'MessageTemplate::kBadSortComparisonFunction';
 const kIncompatibleMethodReceiver: constexpr MessageTemplate =
     'MessageTemplate::kIncompatibleMethodReceiver';
+const kInvalidDataViewAccessorOffset: constexpr MessageTemplate =
+    'MessageTemplate::kInvalidDataViewAccessorOffset';
 
 const Hole: Oddball = 'TheHoleConstant()';
 const Null: Oddball = 'NullConstant()';
@@ -208,11 +211,18 @@ extern operator '!=' macro WordNotEqual(Object, Object): bool;
 
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
+extern operator '&' macro SmiAnd(Smi, Smi): Smi;
 extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '>>>' macro WordShr(intptr, intptr): intptr;
+
+extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '*' macro Int32Mul(int32, int32): int32;
+extern operator '%' macro Int32Mod(int32, int32): int32;
+extern operator '&' macro Word32And(int32, int32): int32;
+extern operator '<<' macro Word32Shl(int32, int32): int32;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -273,6 +283,8 @@ extern operator
 extern implicit operator 'convert<>' macro SmiFromInt32(ElementsKind): Smi;
 
 extern operator 'convert<>' macro ChangeInt32ToTagged(int32): Number;
+extern operator 'convert<>' macro ChangeUint32ToTagged(uint32): Number;
+extern operator 'convert<>' macro UncheckedCastInt32ToUint32(int32): uint32;
 extern operator 'convert<>' macro TruncateWordToWord32(intptr): int32;
 extern operator 'convert<>' macro SmiTag(intptr): Smi;
 extern operator 'convert<>' macro SmiFromInt32(int32): Smi;
