@@ -17,6 +17,8 @@ namespace internal {
 using compiler::Node;
 template <class T>
 using TNode = compiler::TNode<T>;
+template <class T>
+using SloppyTNode = compiler::SloppyTNode<T>;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state) {
@@ -8505,16 +8507,16 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
   return IntPtrLessThanOrEqual(offset, last_offset);
 }
 
-Node* CodeStubAssembler::LoadFeedbackVector(Node* closure) {
-  Node* feedback_cell =
-      LoadObjectField(closure, JSFunction::kFeedbackCellOffset);
-  CSA_ASSERT(this, IsFeedbackCell(feedback_cell));
-  return LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
+TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVector(
+    SloppyTNode<JSFunction> closure) {
+  TNode<FeedbackCell> feedback_cell =
+      CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
+  return CAST(LoadObjectField(feedback_cell, FeedbackCell::kValueOffset));
 }
 
-Node* CodeStubAssembler::LoadFeedbackVectorForStub() {
-  Node* function =
-      LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset);
+TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
+  TNode<JSFunction> function =
+      CAST(LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset));
   return LoadFeedbackVector(function);
 }
 

@@ -145,7 +145,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
   // Load the FeedbackVector for the current function.
-  compiler::Node* LoadFeedbackVector();
+  compiler::TNode<FeedbackVector> LoadFeedbackVector();
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].

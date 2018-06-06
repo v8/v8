@@ -23,6 +23,8 @@ namespace interpreter {
 
 using compiler::CodeAssemblerState;
 using compiler::Node;
+template <class T>
+using TNode = compiler::TNode<T>;
 
 InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                            Bytecode bytecode,
@@ -667,8 +669,8 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
   return SmiUntag(LoadConstantPoolEntryAtOperandIndex(operand_index));
 }
 
-Node* InterpreterAssembler::LoadFeedbackVector() {
-  Node* function = LoadRegister(Register::function_closure());
+TNode<FeedbackVector> InterpreterAssembler::LoadFeedbackVector() {
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
   return CodeStubAssembler::LoadFeedbackVector(function);
 }
 

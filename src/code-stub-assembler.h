@@ -2209,10 +2209,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* OrdinaryHasInstance(Node* context, Node* callable, Node* object);
 
   // Load type feedback vector from the stub caller's frame.
-  Node* LoadFeedbackVectorForStub();
+  TNode<FeedbackVector> LoadFeedbackVectorForStub();
 
   // Load type feedback vector for the given closure.
-  Node* LoadFeedbackVector(Node* closure);
+  TNode<FeedbackVector> LoadFeedbackVector(SloppyTNode<JSFunction> closure);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
@@ -2717,8 +2717,9 @@ class CodeStubArguments {
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const ForEachBodyFunction& body, Node* first = nullptr,
-               Node* last = nullptr, CodeStubAssembler::ParameterMode mode =
-                                         CodeStubAssembler::INTPTR_PARAMETERS) {
+               Node* last = nullptr,
+               CodeStubAssembler::ParameterMode mode =
+                   CodeStubAssembler::INTPTR_PARAMETERS) {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
     ForEach(list, body, first, last);
   }
@@ -2726,8 +2727,9 @@ class CodeStubArguments {
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const CodeStubAssembler::VariableList& vars,
                const ForEachBodyFunction& body, Node* first = nullptr,
-               Node* last = nullptr, CodeStubAssembler::ParameterMode mode =
-                                         CodeStubAssembler::INTPTR_PARAMETERS);
+               Node* last = nullptr,
+               CodeStubAssembler::ParameterMode mode =
+                   CodeStubAssembler::INTPTR_PARAMETERS);
 
   void PopAndReturn(Node* value);
 

@@ -154,7 +154,7 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
 
   void LdaGlobal(int slot_operand_index, int name_operand_index,
                  TypeofMode typeof_mode) {
-    TNode<FeedbackVector> feedback_vector = CAST(LoadFeedbackVector());
+    TNode<FeedbackVector> feedback_vector = LoadFeedbackVector();
     Node* feedback_slot = BytecodeOperandIdx(slot_operand_index);
 
     AccessorAssembler accessor_asm(state());
