@@ -687,25 +687,35 @@ function startOf(timestamp, time) {
 class ParseProcessor extends LogReader {
   constructor() {
     super();
-    let config = (processor) => {
+    this.dispatchTable_ = {
+      // Avoid accidental leaking of __proto__ properties and force this object
+      // to be in dictionary-mode.
+      __proto__: null,
+      // "function", {event type},
       // {script file},{script id},{start position},{end position},
       // {time},{timestamp},{function name}
-      return {
-        parsers: [null, parseInt, parseInt, parseInt, parseFloat, parseInt, null],
-        processor: processor
+      'function': {
+        parsers: [
+          null, null, parseInt, parseInt, parseInt, parseFloat, parseInt, null
+        ],
+        processor: this.processFunctionEvent
       }
     };
-
-    this.dispatchTable_ = {
-      'parse-full': config(this.processFull),
-      'parse-function': config(this.processFunction),
-      'parse-script': config(this.processScript),
-      'parse-eval': config(this.processEval),
-      'preparse-no-resolution': config(this.processPreparseNoResolution),
-      'preparse-resolution': config(this.processPreparseResolution),
-      'first-execution': config(this.processFirstExecution),
-      'compile-lazy': config(this.processCompileLazy),
-      'compile': config(this.processCompile)
+    this.functionEventDispatchTable_ = {
+      // Avoid accidental leaking of __proto__ properties and force this object
+      // to be in dictionary-mode.
+      __proto__: null,
+      'full-parse': this.processFull.bind(this),
+      'parse-function': this.processFunction.bind(this),
+      'parse-script': this.processScript.bind(this),
+      'parse-eval': this.processEval.bind(this),
+      'preparse-no-resolution': this.processPreparseNoResolution.bind(this),
+      'preparse-resolution': this.processPreparseResolution.bind(this),
+      'first-execution': this.processFirstExecution.bind(this),
+      'compile-lazy': this.processCompileLazy.bind(this),
+      'compile': this.processCompile.bind(this)
+      'compile-eval': this.processCompileEval.bind(this)
+      'optimize-lazy': this.processOptimizeLazy.bind(this)
     };
 
     this.idToScript = new Map();
@@ -778,7 +788,19 @@ class ParseProcessor extends LogReader {
     ];
     let metrics = series.map(each => each[0]);
     this.totalScript.getAccumulatedTimeMetrics(metrics, 0, this.lastEvent, 10);
-  };
+  }
+
+  processFunctionEvent(
+      eventName, file, scriptId, startPosition, endPosition, time, timestamp,
+      functionName) {
+    let handlerFn = this.functionEventDispatchTable_[eventName];
+    if (handlerFn === undefined) {
+      console.error('Couldn\'t find handler for function event:' + eventName);
+    }
+    handlerFn(
+        file, scriptId, startPosition, endPosition, time, timestamp,
+        functionName);
+  }
 
   addEntry(entry) {
     this.entries.push(entry);
@@ -802,12 +824,34 @@ class ParseProcessor extends LogReader {
 
   lookupFunktion(file, scriptId,
     startPosition, endPosition, time, timestamp, functionName) {
+    if (file == "" && scriptId == -1) {
+      return this.lookupFunktionByRange(startPosition, endPosition);
+    }
     let script = this.lookupScript(file, scriptId);
     let funktion = script.funktionAtPosition(startPosition);
     if (funktion === void 0) {
       funktion = new Funktion(functionName, startPosition, endPosition, script);
     }
     return funktion;
+  }
+
+  // Iterates over all functions and tries to find matching ones.
+  lookupFunktionsByRange(start, end) {
+    let results = [];
+    this.idToScript.forEach(script => {
+      script.forEach(funktion => {
+        if (funktion.startPostion == start && funktion.endPosition == end) {
+          results.push(funktion);
+        }
+      });
+    });
+    return results;
+  }
+
+  lookupFunktionByRange(start, end) {
+    let results = this.lookupFunktionsByRange(start, end);
+    if (results.length != 1) throw "Could not find unique function by range";
+    return results[0];
   }
 
   processEval(file, scriptId, startPosition,
@@ -880,11 +924,10 @@ class ParseProcessor extends LogReader {
   }
 
   processCompileLazy(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
+      startPosition, endPosition, time, timestamp, functionName) {
     let funktion = this.lookupFunktion(...arguments);
     funktion.lazyCompileTimestamp = startOf(timestamp, time);
     funktion.lazyCompileTime = time;
-    script.firstPar
   }
 
   processCompile(file, scriptId,
