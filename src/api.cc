@@ -1514,10 +1514,10 @@ Local<AccessorSignature> AccessorSignature::New(
   return Utils::AccessorSignatureToLocal(Utils::OpenHandle(*receiver));
 }
 
-
-#define SET_FIELD_WRAPPED(obj, setter, cdata) do {                      \
-    i::Handle<i::Object> foreign = FromCData(obj->GetIsolate(), cdata); \
-    (obj)->setter(*foreign);                                            \
+#define SET_FIELD_WRAPPED(isolate, obj, setter, cdata)        \
+  do {                                                        \
+    i::Handle<i::Object> foreign = FromCData(isolate, cdata); \
+    (obj)->setter(*foreign);                                  \
   } while (false)
 
 void FunctionTemplate::SetCallHandler(FunctionCallback callback,
@@ -1530,8 +1530,8 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   i::HandleScope scope(isolate);
   i::Handle<i::CallHandlerInfo> obj = isolate->factory()->NewCallHandlerInfo(
       side_effect_type == SideEffectType::kHasNoSideEffect);
-  SET_FIELD_WRAPPED(obj, set_callback, callback);
-  SET_FIELD_WRAPPED(obj, set_js_callback, obj->redirected_callback());
+  SET_FIELD_WRAPPED(isolate, obj, set_callback, callback);
+  SET_FIELD_WRAPPED(isolate, obj, set_js_callback, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -1549,16 +1549,16 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
     v8::Local<AccessorSignature> signature, bool is_special_data_property,
     bool replace_on_access) {
   i::Handle<i::AccessorInfo> obj = isolate->factory()->NewAccessorInfo();
-  SET_FIELD_WRAPPED(obj, set_getter, getter);
+  SET_FIELD_WRAPPED(isolate, obj, set_getter, getter);
   DCHECK_IMPLIES(replace_on_access,
                  is_special_data_property && setter == nullptr);
   if (is_special_data_property && setter == nullptr) {
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
-  SET_FIELD_WRAPPED(obj, set_setter, setter);
+  SET_FIELD_WRAPPED(isolate, obj, set_setter, setter);
   i::Address redirected = obj->redirected_getter();
   if (redirected != i::kNullAddress) {
-    SET_FIELD_WRAPPED(obj, set_js_getter, redirected);
+    SET_FIELD_WRAPPED(isolate, obj, set_js_getter, redirected);
   }
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
@@ -1823,13 +1823,15 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE, i::TENURED));
   obj->set_flags(0);
 
-  if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
-  if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
-  if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
-  if (descriptor != 0) SET_FIELD_WRAPPED(obj, set_descriptor, descriptor);
-  if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
-  if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
-  if (definer != 0) SET_FIELD_WRAPPED(obj, set_definer, definer);
+  if (getter != 0) SET_FIELD_WRAPPED(isolate, obj, set_getter, getter);
+  if (setter != 0) SET_FIELD_WRAPPED(isolate, obj, set_setter, setter);
+  if (query != 0) SET_FIELD_WRAPPED(isolate, obj, set_query, query);
+  if (descriptor != 0)
+    SET_FIELD_WRAPPED(isolate, obj, set_descriptor, descriptor);
+  if (remover != 0) SET_FIELD_WRAPPED(isolate, obj, set_deleter, remover);
+  if (enumerator != 0)
+    SET_FIELD_WRAPPED(isolate, obj, set_enumerator, enumerator);
+  if (definer != 0) SET_FIELD_WRAPPED(isolate, obj, set_definer, definer);
   obj->set_can_intercept_symbols(
       !(static_cast<int>(flags) &
         static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
@@ -1933,7 +1935,7 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
-  SET_FIELD_WRAPPED(info, set_callback, callback);
+  SET_FIELD_WRAPPED(isolate, info, set_callback, callback);
   info->set_named_interceptor(nullptr);
   info->set_indexed_interceptor(nullptr);
 
@@ -1963,7 +1965,7 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
-  SET_FIELD_WRAPPED(info, set_callback, callback);
+  SET_FIELD_WRAPPED(isolate, info, set_callback, callback);
   auto named_interceptor = CreateNamedInterceptorInfo(
       isolate, named_handler.getter, named_handler.setter, named_handler.query,
       named_handler.descriptor, named_handler.deleter, named_handler.enumerator,
@@ -2007,8 +2009,8 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::CallHandlerInfo> obj = isolate->factory()->NewCallHandlerInfo();
-  SET_FIELD_WRAPPED(obj, set_callback, callback);
-  SET_FIELD_WRAPPED(obj, set_js_callback, obj->redirected_callback());
+  SET_FIELD_WRAPPED(isolate, obj, set_callback, callback);
+  SET_FIELD_WRAPPED(isolate, obj, set_js_callback, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
