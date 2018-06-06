@@ -5,6 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include <memory>
+#include <sstream>
 
 #include "src/api.h"
 #include "src/arguments.h"
@@ -530,7 +531,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   // MaybeObject*.
   MaybeObject* maybe_object = reinterpret_cast<MaybeObject*>(args[0]);
 
-  OFStream os(stdout);
+  std::ostringstream os;
   if (maybe_object->IsClearedWeakHeapObject()) {
     os << "[weak cleared]";
   } else {
@@ -575,6 +576,9 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 #endif
   }
   os << std::endl;
+
+  // TODO(clemensh): Introduce an output stream which outputs to android log.
+  PrintF("%s", os.str().c_str());
 
   return args[0];  // return TOS
 }
