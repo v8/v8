@@ -267,21 +267,18 @@ class WasmOutOfLineTrap : public OutOfLineCode {
 
   void Generate() override {
     X64OperandConverter i(gen_, instr_);
-
-    Builtins::Name trap_id =
-        static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
+    TrapId trap_id =
+        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
     GenerateWithTrapId(trap_id);
   }
 
  protected:
   CodeGenerator* gen_;
 
-  void GenerateWithTrapId(Builtins::Name trap_id) {
-    GenerateCallToTrap(trap_id);
-  }
+  void GenerateWithTrapId(TrapId trap_id) { GenerateCallToTrap(trap_id); }
 
  private:
-  void GenerateCallToTrap(Builtins::Name trap_id) {
+  void GenerateCallToTrap(TrapId trap_id) {
     if (!gen_->wasm_runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
@@ -295,8 +292,9 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       __ Ret(static_cast<int>(pop_size), rcx);
     } else {
       gen_->AssembleSourcePosition(instr_);
-      __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-              RelocInfo::CODE_TARGET);
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched at relocation.
+      __ near_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map =
           new (gen_->zone()) ReferenceMap(gen_->zone());
       gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
@@ -315,8 +313,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
 
   void Generate() final {
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
-
-    GenerateWithTrapId(Builtins::kThrowWasmTrapMemOutOfBounds);
+    GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
   }
 
  private:

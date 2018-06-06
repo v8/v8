@@ -1562,6 +1562,7 @@ enum class PoisoningMitigationLevel {
   kDontPoison,
   kPoisonCriticalOnly
 };
+
 enum class LoadSensitivity {
   kCritical,  // Critical loads are poisoned whenever we can run untrusted
               // code (i.e., when --untrusted-code-mitigations is on).
@@ -1569,6 +1570,17 @@ enum class LoadSensitivity {
               // (--branch-load-poisoning).
   kSafe       // Safe loads are never poisoned.
 };
+
+// The reason for a WebAssembly trap.
+#define FOREACH_WASM_TRAPREASON(V) \
+  V(TrapUnreachable)               \
+  V(TrapMemOutOfBounds)            \
+  V(TrapDivByZero)                 \
+  V(TrapDivUnrepresentable)        \
+  V(TrapRemByZero)                 \
+  V(TrapFloatUnrepresentable)      \
+  V(TrapFuncInvalid)               \
+  V(TrapFuncSigMismatch)
 
 }  // namespace internal
 }  // namespace v8

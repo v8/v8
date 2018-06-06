@@ -897,22 +897,25 @@ Node* WasmGraphBuilder::BranchExpectFalse(Node* cond, Node** true_node,
                 BranchHint::kFalse);
 }
 
-Builtins::Name WasmGraphBuilder::GetBuiltinIdForTrap(wasm::TrapReason reason) {
+TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
   // TODO(wasm): "!env_" should not happen when compiling an actual wasm
   // function.
   if (!env_ || !env_->runtime_exception_support) {
-    // We use Builtins::builtin_count as a marker to tell the code generator
+    // We use TrapId::kInvalid as a marker to tell the code generator
     // to generate a call to a testing c-function instead of a runtime
-    // function. This code should only be called from a cctest.
-    return Builtins::builtin_count;
+    // stub. This code should only be called from a cctest.
+    return TrapId::kInvalid;
   }
 
   switch (reason) {
-#define TRAPREASON_TO_MESSAGE(name) \
-  case wasm::k##name:               \
-    return Builtins::kThrowWasm##name;
-    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
-#undef TRAPREASON_TO_MESSAGE
+#define TRAPREASON_TO_TRAPID(name)                                             \
+  case wasm::k##name:                                                          \
+    static_assert(                                                             \
+        static_cast<int>(TrapId::k##name) == wasm::WasmCode::kThrowWasm##name, \
+        "trap id mismatch");                                                   \
+    return TrapId::k##name;
+    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
+#undef TRAPREASON_TO_TRAPID
     default:
       UNREACHABLE();
   }
@@ -920,7 +923,7 @@ Builtins::Name WasmGraphBuilder::GetBuiltinIdForTrap(wasm::TrapReason reason) {
 
 Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
                                    wasm::WasmCodePosition position) {
-  Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
+  TrapId trap_id = GetTrapIdForTrap(reason);
   Node* node = graph()->NewNode(mcgraph()->common()->TrapIf(trap_id), cond,
                                 Effect(), Control());
   *control_ = node;
@@ -930,8 +933,7 @@ Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
 
 Node* WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
                                     wasm::WasmCodePosition position) {
-  Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
-
+  TrapId trap_id = GetTrapIdForTrap(reason);
   Node* node = graph()->NewNode(mcgraph()->common()->TrapUnless(trap_id), cond,
                                 Effect(), Control());
   *control_ = node;

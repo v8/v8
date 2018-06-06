@@ -323,6 +323,14 @@ bool Builtins::IsIsolateIndependent(int index) {
     // TODO(mstarzinger): Will be made Isolate independent once the CEntry stub
     // is loaded from the instance.
     case kWasmStackGuard:
+    case kThrowWasmTrapUnreachable:
+    case kThrowWasmTrapMemOutOfBounds:
+    case kThrowWasmTrapDivByZero:
+    case kThrowWasmTrapDivUnrepresentable:
+    case kThrowWasmTrapRemByZero:
+    case kThrowWasmTrapFloatUnrepresentable:
+    case kThrowWasmTrapFuncInvalid:
+    case kThrowWasmTrapFuncSigMismatch:
       return false;
     default:
       return true;

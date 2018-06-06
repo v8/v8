@@ -720,7 +720,8 @@ Instruction* InstructionSelector::EmitWithContinuation(
   } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsTrap()) {
-    continuation_inputs_.push_back(g.UseImmediate(cont->trap_id()));
+    int trap_id = static_cast<int>(cont->trap_id());
+    continuation_inputs_.push_back(g.UseImmediate(trap_id));
   } else {
     DCHECK(cont->IsNone());
   }
@@ -1272,11 +1273,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
     case IrOpcode::kTrapIf:
-      return VisitTrapIf(node, static_cast<Runtime::FunctionId>(
-                                   OpParameter<int32_t>(node->op())));
+      return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
-      return VisitTrapUnless(node, static_cast<Runtime::FunctionId>(
-                                       OpParameter<int32_t>(node->op())));
+      return VisitTrapUnless(node, TrapIdOf(node->op()));
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
@@ -2754,16 +2753,15 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   }
 }
 
-void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
   FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+      FlagsContinuation::ForTrap(kNotEqual, trap_id, node->InputAt(1));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapUnless(Node* node,
-                                          Runtime::FunctionId func_id) {
+void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
   FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
+      FlagsContinuation::ForTrap(kEqual, trap_id, node->InputAt(1));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

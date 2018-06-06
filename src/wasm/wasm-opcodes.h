@@ -562,17 +562,6 @@ enum WasmOpcode {
 #undef DECLARE_PREFIX
 };
 
-// The reason for a trap.
-#define FOREACH_WASM_TRAPREASON(V) \
-  V(TrapUnreachable)               \
-  V(TrapMemOutOfBounds)            \
-  V(TrapDivByZero)                 \
-  V(TrapDivUnrepresentable)        \
-  V(TrapRemByZero)                 \
-  V(TrapFloatUnrepresentable)      \
-  V(TrapFuncInvalid)               \
-  V(TrapFuncSigMismatch)
-
 enum TrapReason {
 #define DECLARE_ENUM(name) k##name,
   FOREACH_WASM_TRAPREASON(DECLARE_ENUM)

@@ -76,8 +76,8 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for a wasm trap.
-  static FlagsContinuation ForTrap(FlagsCondition condition,
-                                   Runtime::FunctionId trap_id, Node* result) {
+  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id,
+                                   Node* result) {
     return FlagsContinuation(condition, trap_id, result);
   }
 
@@ -118,7 +118,7 @@ class FlagsContinuation final {
     DCHECK(IsSet());
     return frame_state_or_result_;
   }
-  Runtime::FunctionId trap_id() const {
+  TrapId trap_id() const {
     DCHECK(IsTrap());
     return trap_id_;
   }
@@ -210,8 +210,7 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
-  FlagsContinuation(FlagsCondition condition, Runtime::FunctionId trap_id,
-                    Node* result)
+  FlagsContinuation(FlagsCondition condition, TrapId trap_id, Node* result)
       : mode_(kFlags_trap),
         condition_(condition),
         frame_state_or_result_(result),
@@ -228,7 +227,7 @@ class FlagsContinuation final {
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
   BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
-  Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
+  TrapId trap_id_;               // Only valid if mode_ == kFlags_trap.
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
@@ -567,8 +566,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                          BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
-  void VisitTrapIf(Node* node, Runtime::FunctionId func_id);
-  void VisitTrapUnless(Node* node, Runtime::FunctionId func_id);
+  void VisitTrapIf(Node* node, TrapId trap_id);
+  void VisitTrapUnless(Node* node, TrapId trap_id);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);

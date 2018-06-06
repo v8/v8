@@ -33,6 +33,7 @@ class NodeOriginTable;
 class Operator;
 class SourcePositionTable;
 class WasmDecorator;
+enum class TrapId : uint32_t;
 }  // namespace compiler
 
 namespace wasm {
@@ -493,7 +494,7 @@ class WasmGraphBuilder {
                                             Node* js_context,
                                             Node* const* parameters,
                                             int parameter_count);
-  Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason);
+  TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(

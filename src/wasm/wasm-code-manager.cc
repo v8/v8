@@ -473,7 +473,9 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   runtime_stub_table_[WasmCode::k##Name] =                                     \
       AddAnonymousCode(isolate->builtins()->builtin_handle(Builtins::k##Name), \
                        WasmCode::kRuntimeStub);
-  WASM_RUNTIME_STUB_LIST(COPY_BUILTIN);
+#define COPY_BUILTIN_TRAP(Name) COPY_BUILTIN(ThrowWasm##Name)
+  WASM_RUNTIME_STUB_LIST(COPY_BUILTIN, COPY_BUILTIN_TRAP);
+#undef COPY_BUILTIN_TRAP
 #undef COPY_BUILTIN
 }
 

@@ -30,8 +30,11 @@ class NativeModule;
 class WasmCodeManager;
 struct WasmModule;
 
-// Convenience macro listing all wasm runtime stubs.
-#define WASM_RUNTIME_STUB_LIST(V) V(WasmStackGuard)
+// Convenience macro listing all wasm runtime stubs. Note that the first few
+// elements of the list coincide with {compiler::TrapId}, order matters.
+#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
+  FOREACH_WASM_TRAPREASON(VTRAP)         \
+  V(WasmStackGuard)
 
 // Sorted, disjoint and non-overlapping memory ranges. A range is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -96,8 +99,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Each runtime stub is identified by an id. This id is used to reference the
   // stub via {RelocInfo::WASM_STUB_CALL} and gets resolved during relocation.
   enum RuntimeStubId {
-#define DEF_ENUM(Name, ...) k##Name,
-    WASM_RUNTIME_STUB_LIST(DEF_ENUM)
+#define DEF_ENUM(Name) k##Name,
+#define DEF_ENUM_TRAP(Name) kThrowWasm##Name,
+    WASM_RUNTIME_STUB_LIST(DEF_ENUM, DEF_ENUM_TRAP)
+#undef DEF_ENUM_TRAP
 #undef DEF_ENUM
         kRuntimeStubCount
   };

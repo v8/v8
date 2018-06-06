@@ -3481,15 +3481,14 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
 
     void Generate() final {
       IA32OperandConverter i(gen_, instr_);
-
-      Builtins::Name trap_id =
-          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
+      TrapId trap_id =
+          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
       GenerateCallToTrap(trap_id);
     }
 
    private:
-    void GenerateCallToTrap(Builtins::Name trap_id) {
-      if (trap_id == Builtins::builtin_count) {
+    void GenerateCallToTrap(TrapId trap_id) {
+      if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
         __ PrepareCallCFunction(0, esi);
@@ -3502,8 +3501,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret(static_cast<int>(pop_size), ecx);
       } else {
         gen_->AssembleSourcePosition(instr_);
-        __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-                RelocInfo::CODE_TARGET);
+        // A direct call to a wasm runtime stub defined in this module.
+        // Just encode the stub index. This will be patched at relocation.
+        __ wasm_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
