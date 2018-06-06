@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "src/allocation.h"
+#include "src/async-hooks-wrapper.h"
 #include "src/base/platform/time.h"
 #include "src/string-hasher.h"
 #include "src/utils.h"
@@ -396,6 +397,14 @@ class Shell : public i::AllStatic {
                              Local<Value> value,
                              const  PropertyCallbackInfo<void>& info);
 
+  static void AsyncHooksCreateHook(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncHooksExecutionAsyncId(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncHooksTriggerAsyncId(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static AsyncHooks* GetAsyncHooks() { return async_hooks_wrapper_; }
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -489,6 +498,8 @@ class Shell : public i::AllStatic {
   static bool allow_new_workers_;
   static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
+
+  static AsyncHooks* async_hooks_wrapper_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.
