@@ -334,17 +334,20 @@ bool Heap::InNewSpace(HeapObject* heap_object) {
   return result;
 }
 
+// static
 bool Heap::InFromSpace(Object* object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InFromSpace(HeapObject::cast(object));
 }
 
+// static
 bool Heap::InFromSpace(MaybeObject* object) {
   HeapObject* heap_object;
   return object->ToStrongOrWeakHeapObject(&heap_object) &&
          InFromSpace(heap_object);
 }
 
+// static
 bool Heap::InFromSpace(HeapObject* heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)
       ->IsFlagSet(Page::IN_FROM_SPACE);

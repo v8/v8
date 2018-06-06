@@ -1427,14 +1427,12 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   Heap* heap_;
 };
 
-bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
+bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, Object** p) {
   Object* o = *p;
   if (!o->IsHeapObject()) return false;
   HeapObject* heap_object = HeapObject::cast(o);
-  return heap_object->GetHeap()
-      ->mark_compact_collector()
-      ->non_atomic_marking_state()
-      ->IsWhite(HeapObject::cast(o));
+  return heap->mark_compact_collector()->non_atomic_marking_state()->IsWhite(
+      heap_object);
 }
 
 void MarkCompactCollector::MarkStringTable(
@@ -2016,7 +2014,7 @@ static inline SlotCallbackResult UpdateSlot(
     HeapObjectReferenceType reference_type) {
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
-    DCHECK(heap_obj->GetHeap()->InFromSpace(heap_obj) ||
+    DCHECK(Heap::InFromSpace(heap_obj) ||
            MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
            Page::FromAddress(heap_obj->address())
                ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
@@ -2029,7 +2027,7 @@ static inline SlotCallbackResult UpdateSlot(
     } else {
       base::AsAtomicPointer::Release_CompareAndSwap(slot, old, target);
     }
-    DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
+    DCHECK(!Heap::InFromSpace(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
   }
   // OLD_TO_OLD slots are always removed after updating.

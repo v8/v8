@@ -60,11 +60,9 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
                     bool is_turbofanned, int stack_slots,
                     int safepoint_table_offset, int handler_table_offset) {
   DCHECK(IsAligned(code->address(), kCodeAlignment));
-  DCHECK(
-      !code->GetIsolate()->heap()->memory_allocator()->code_range()->valid() ||
-      code->GetIsolate()->heap()->memory_allocator()->code_range()->contains(
-          code->address()) ||
-      object_size <= code->GetIsolate()->heap()->code_space()->AreaSize());
+  DCHECK(!heap->memory_allocator()->code_range()->valid() ||
+         heap->memory_allocator()->code_range()->contains(code->address()) ||
+         object_size <= heap->code_space()->AreaSize());
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
 
@@ -2335,20 +2333,24 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
-  Handle<Context> native_context(function->context()->native_context());
+  Handle<Context> native_context(function->context()->native_context(),
+                                 isolate());
   Handle<Map> new_map;
   if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
-    new_map = handle(native_context->async_generator_object_prototype_map());
+    new_map = handle(native_context->async_generator_object_prototype_map(),
+                     isolate());
   } else if (IsResumableFunction(function->shared()->kind())) {
     // Generator and async function prototypes can share maps since they
     // don't have "constructor" properties.
-    new_map = handle(native_context->generator_object_prototype_map());
+    new_map =
+        handle(native_context->generator_object_prototype_map(), isolate());
   } else {
     // Each function prototype gets a fresh map to avoid unwanted sharing of
     // maps between prototypes of different constructors.
-    Handle<JSFunction> object_function(native_context->object_function());
+    Handle<JSFunction> object_function(native_context->object_function(),
+                                       isolate());
     DCHECK(object_function->has_initial_map());
-    new_map = handle(object_function->initial_map());
+    new_map = handle(object_function->initial_map(), isolate());
   }
 
   DCHECK(!new_map->is_prototype_map());
@@ -2365,7 +2367,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
     PretenureFlag pretenure) {
   Handle<Map> initial_map(
-      Map::cast(context->native_context()->get(info->function_map_index())));
+      Map::cast(context->native_context()->get(info->function_map_index())),
+      isolate());
   return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
                                            pretenure);
 }
@@ -2374,7 +2377,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
     Handle<FeedbackCell> feedback_cell, PretenureFlag pretenure) {
   Handle<Map> initial_map(
-      Map::cast(context->native_context()->get(info->function_map_index())));
+      Map::cast(context->native_context()->get(info->function_map_index())),
+      isolate());
   return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
                                            feedback_cell, pretenure);
 }
@@ -2663,7 +2667,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
   JSFunction::EnsureHasInitialMap(constructor);
-  Handle<Map> map(constructor->initial_map());
+  Handle<Map> map(constructor->initial_map(), isolate());
   return NewJSObjectFromMap(map, pretenure);
 }
 
@@ -2671,7 +2675,7 @@ Handle<JSObject> Factory::NewJSObjectWithNullProto(PretenureFlag pretenure) {
   Handle<JSObject> result =
       NewJSObject(isolate()->object_function(), pretenure);
   Handle<Map> new_map =
-      Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
+      Map::Copy(Handle<Map>(result->map(), isolate()), "ObjectWithNullProto");
   Map::SetPrototype(new_map, null_value());
   JSObject::MigrateToMap(result, new_map);
   return result;
@@ -2680,7 +2684,7 @@ Handle<JSObject> Factory::NewJSObjectWithNullProto(PretenureFlag pretenure) {
 Handle<JSGlobalObject> Factory::NewJSGlobalObject(
     Handle<JSFunction> constructor) {
   DCHECK(constructor->has_initial_map());
-  Handle<Map> map(constructor->initial_map());
+  Handle<Map> map(constructor->initial_map(), isolate());
   DCHECK(map->is_dictionary_map());
 
   // Make sure no field properties are described in the initial map.
@@ -2705,14 +2709,14 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
-  Handle<DescriptorArray> descs(map->instance_descriptors());
+  Handle<DescriptorArray> descs(map->instance_descriptors(), isolate());
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
     DCHECK_EQ(kAccessor, details.kind());
     PropertyDetails d(kAccessor, details.attributes(),
                       PropertyCellType::kMutable);
-    Handle<Name> name(descs->GetKey(i));
+    Handle<Name> name(descs->GetKey(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(name);
     cell->set_value(descs->GetStrongValue(i));
     // |dictionary| already contains enough space for all properties.
@@ -2821,7 +2825,8 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
     JSFunction* array_function = native_context->array_function();
     map = array_function->initial_map();
   }
-  return Handle<JSArray>::cast(NewJSObjectFromMap(handle(map), pretenure));
+  return Handle<JSArray>::cast(
+      NewJSObjectFromMap(handle(map, isolate()), pretenure));
 }
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
@@ -2882,8 +2887,9 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
 
 Handle<JSWeakMap> Factory::NewJSWeakMap() {
   Context* native_context = isolate()->raw_native_context();
-  Handle<Map> map(native_context->js_weak_map_fun()->initial_map());
-  Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)));
+  Handle<Map> map(native_context->js_weak_map_fun()->initial_map(), isolate());
+  Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)),
+                            isolate());
   {
     // Do not leak handles for the hash table, it would make entries strong.
     HandleScope scope(isolate());
@@ -2907,7 +2913,7 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
   DCHECK(IsResumableFunction(function->shared()->kind()));
   JSFunction::EnsureHasInitialMap(function);
-  Handle<Map> map(function->initial_map());
+  Handle<Map> map(function->initial_map(), isolate());
 
   DCHECK(map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
          map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
@@ -2951,14 +2957,16 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared,
   Handle<JSFunction> array_buffer_fun(
       shared == SharedFlag::kShared
           ? isolate()->native_context()->shared_array_buffer_fun()
-          : isolate()->native_context()->array_buffer_fun());
+          : isolate()->native_context()->array_buffer_fun(),
+      isolate());
   Handle<Map> map(array_buffer_fun->initial_map(), isolate());
   return Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, pretenure));
 }
 
 Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
                                                       bool done) {
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  Handle<Map> map(isolate()->native_context()->iterator_result_map(),
+                  isolate());
   Handle<JSIteratorResult> js_iter_result =
       Handle<JSIteratorResult>::cast(NewJSObjectFromMap(map));
   js_iter_result->set_value(*value);
@@ -2968,7 +2976,8 @@ Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
 
 Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
     Handle<JSReceiver> sync_iterator, Handle<Object> next) {
-  Handle<Map> map(isolate()->native_context()->async_from_sync_iterator_map());
+  Handle<Map> map(isolate()->native_context()->async_from_sync_iterator_map(),
+                  isolate());
   Handle<JSAsyncFromSyncIterator> iterator =
       Handle<JSAsyncFromSyncIterator>::cast(NewJSObjectFromMap(map));
 
@@ -2978,14 +2987,14 @@ Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
 }
 
 Handle<JSMap> Factory::NewJSMap() {
-  Handle<Map> map(isolate()->native_context()->js_map_map());
+  Handle<Map> map(isolate()->native_context()->js_map_map(), isolate());
   Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));
   JSMap::Initialize(js_map, isolate());
   return js_map;
 }
 
 Handle<JSSet> Factory::NewJSSet() {
-  Handle<Map> map(isolate()->native_context()->js_set_map());
+  Handle<Map> map(isolate()->native_context()->js_set_map(), isolate());
   Handle<JSSet> js_set = Handle<JSSet>::cast(NewJSObjectFromMap(map));
   JSSet::Initialize(js_set, isolate());
   return js_set;
@@ -3103,7 +3112,8 @@ void SetupArrayBufferView(i::Isolate* isolate,
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
                                               PretenureFlag pretenure) {
-  Handle<JSFunction> typed_array_fun(GetTypedArrayFun(type, isolate()));
+  Handle<JSFunction> typed_array_fun(GetTypedArrayFun(type, isolate()),
+                                     isolate());
   Handle<Map> map(typed_array_fun->initial_map(), isolate());
   return Handle<JSTypedArray>::cast(NewJSObjectFromMap(map, pretenure));
 }

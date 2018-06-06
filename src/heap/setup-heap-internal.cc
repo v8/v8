@@ -106,8 +106,8 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
     // Eagerly initialize the WeakCell cache for the map as it will not be
     // writable in RO_SPACE.
     HandleScope handle_scope(isolate());
-    Handle<WeakCell> weak_cell =
-        isolate()->factory()->NewWeakCell(Handle<Map>(map), TENURED_READ_ONLY);
+    Handle<WeakCell> weak_cell = isolate()->factory()->NewWeakCell(
+        Handle<Map>(map, isolate()), TENURED_READ_ONLY);
     map->set_weak_cell_cache(*weak_cell);
   }
 
@@ -160,8 +160,8 @@ void Heap::FinalizePartialMap(Map* map) {
   // Eagerly initialize the WeakCell cache for the map as it will not be
   // writable in RO_SPACE.
   HandleScope handle_scope(isolate());
-  Handle<WeakCell> weak_cell =
-      isolate()->factory()->NewWeakCell(Handle<Map>(map), TENURED_READ_ONLY);
+  Handle<WeakCell> weak_cell = isolate()->factory()->NewWeakCell(
+      Handle<Map>(map, isolate()), TENURED_READ_ONLY);
   map->set_weak_cell_cache(*weak_cell);
 }
 

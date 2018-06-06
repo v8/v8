@@ -1375,9 +1375,9 @@ class Heap {
   inline bool InNewSpace(Object* object);
   inline bool InNewSpace(MaybeObject* object);
   inline bool InNewSpace(HeapObject* heap_object);
-  inline bool InFromSpace(Object* object);
-  inline bool InFromSpace(MaybeObject* object);
-  inline bool InFromSpace(HeapObject* heap_object);
+  static inline bool InFromSpace(Object* object);
+  static inline bool InFromSpace(MaybeObject* object);
+  static inline bool InFromSpace(HeapObject* heap_object);
   inline bool InToSpace(Object* object);
   inline bool InToSpace(MaybeObject* object);
   inline bool InToSpace(HeapObject* heap_object);

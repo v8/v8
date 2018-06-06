@@ -1523,15 +1523,16 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
 // Helper class for verifying the string table.
 class StringTableVerifier : public ObjectVisitor {
  public:
+  explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
+
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       DCHECK(!HasWeakHeapObjectTag(*p));
       if ((*p)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*p);
-        Isolate* isolate = object->GetIsolate();
         // Check that the string is actually internalized.
-        CHECK(object->IsTheHole(isolate) || object->IsUndefined(isolate) ||
+        CHECK(object->IsTheHole(isolate_) || object->IsUndefined(isolate_) ||
               object->IsInternalizedString());
       }
     }
@@ -1540,12 +1541,14 @@ class StringTableVerifier : public ObjectVisitor {
                      MaybeObject** end) override {
     UNREACHABLE();
   }
+
+ private:
+  Isolate* isolate_;
 };
 
-
-static void VerifyStringTable(Heap* heap) {
-  StringTableVerifier verifier;
-  heap->string_table()->IterateElements(&verifier);
+static void VerifyStringTable(Isolate* isolate) {
+  StringTableVerifier verifier(isolate);
+  isolate->heap()->string_table()->IterateElements(&verifier);
 }
 #endif  // VERIFY_HEAP
 
@@ -1694,7 +1697,7 @@ bool Heap::PerformGarbageCollection(
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyStringTable(this);
+    VerifyStringTable(this->isolate());
   }
 #endif
 
@@ -1813,7 +1816,7 @@ bool Heap::PerformGarbageCollection(
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyStringTable(this);
+    VerifyStringTable(this->isolate());
   }
 #endif
 
@@ -2476,20 +2479,21 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   class ExternalStringTableVisitorAdapter : public RootVisitor {
    public:
     explicit ExternalStringTableVisitorAdapter(
-        v8::ExternalResourceVisitor* visitor)
-        : visitor_(visitor) {}
+        Isolate* isolate, v8::ExternalResourceVisitor* visitor)
+        : isolate_(isolate), visitor_(visitor) {}
     virtual void VisitRootPointers(Root root, const char* description,
                                    Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
         DCHECK((*p)->IsExternalString());
         visitor_->VisitExternalString(
-            Utils::ToLocal(Handle<String>(String::cast(*p))));
+            Utils::ToLocal(Handle<String>(String::cast(*p), isolate_)));
       }
     }
 
    private:
+    Isolate* isolate_;
     v8::ExternalResourceVisitor* visitor_;
-  } external_string_table_visitor(visitor);
+  } external_string_table_visitor(isolate(), visitor);
 
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
@@ -5812,7 +5816,7 @@ Code* GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
 
 bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
   Map* map = GcSafeMapOfCodeSpaceObject(code);
-  DCHECK(map == code->GetHeap()->code_map());
+  DCHECK(map == code_map());
 #ifdef V8_EMBEDDED_BUILTINS
   if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
 #endif

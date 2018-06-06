@@ -486,16 +486,14 @@ void IncrementalMarking::MarkRoots() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
-bool ShouldRetainMap(Map* map, int age) {
+bool IncrementalMarking::ShouldRetainMap(Map* map, int age) {
   if (age == 0) {
     // The map has aged. Do not retain this map.
     return false;
   }
   Object* constructor = map->GetConstructor();
-  Heap* heap = map->GetHeap();
   if (!constructor->IsHeapObject() ||
-      heap->incremental_marking()->marking_state()->IsWhite(
-          HeapObject::cast(constructor))) {
+      marking_state()->IsWhite(HeapObject::cast(constructor))) {
     // The constructor is dead, no new objects with this map can
     // be created. Do not retain this map.
     return false;
