@@ -1071,7 +1071,7 @@ int CompareIsNanF32Latency() { return CompareIsNanFLatency(); }
 
 int Neg_sLatency() {
   if (IsMipsArchVariant(kMips32r6)) {
-    return 1;
+    return Latency::NEG_S;
   } else {
     // Estimated.
     return CompareIsNanF32Latency() + 2 * Latency::BRANCH + Latency::NEG_S +
@@ -1083,7 +1083,7 @@ int CompareIsNanF64Latency() { return CompareIsNanFLatency(); }
 
 int Neg_dLatency() {
   if (IsMipsArchVariant(kMips32r6)) {
-    return 1;
+    return Latency::NEG_D;
   } else {
     // Estimated.
     return CompareIsNanF64Latency() + 2 * Latency::BRANCH + Latency::NEG_D +
