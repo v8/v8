@@ -319,7 +319,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   SmiAboveOrEqual)
 #undef PARAMETER_BINOP
 
-  Node* NoContextConstant();
+  TNode<Object> NoContextConstant();
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name) \
   compiler::TNode<std::remove_reference<decltype(                     \
       *std::declval<Heap>().rootAccessorName())>::type>               \
@@ -2096,7 +2096,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   Label* if_null_or_undefined);
 
   template <class... TArgs>
-  TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Context> context,
+  TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                             TArgs... args) {
     DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
                    !Builtins::IsLazy(id));
@@ -2105,7 +2105,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   template <class... TArgs>
-  TNode<Object> TailCallBuiltin(Builtins::Name id, SloppyTNode<Context> context,
+  TNode<Object> TailCallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                                 TArgs... args) {
     DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
                    !Builtins::IsLazy(id));

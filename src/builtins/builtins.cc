@@ -320,18 +320,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     // isolate-independent once copies are no longer generated for wasm.
     case kWasmCompileLazy:
       return false;
-    // TODO(mstarzinger): Will be made Isolate independent once the CEntry stub
-    // is loaded from the instance.
-    case kWasmStackGuard:
-    case kThrowWasmTrapUnreachable:
-    case kThrowWasmTrapMemOutOfBounds:
-    case kThrowWasmTrapDivByZero:
-    case kThrowWasmTrapDivUnrepresentable:
-    case kThrowWasmTrapRemByZero:
-    case kThrowWasmTrapFloatUnrepresentable:
-    case kThrowWasmTrapFuncInvalid:
-    case kThrowWasmTrapFuncSigMismatch:
-      return false;
     default:
       return true;
   }

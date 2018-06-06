@@ -1115,14 +1115,28 @@ template <class... TArgs>
 TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
                                                  SloppyTNode<Object> context,
                                                  TArgs... args) {
+  int result_size = Runtime::FunctionForId(function)->result_size;
+  TNode<Object> centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
+  return TailCallRuntimeWithCEntryImpl(function, centry, context, args...);
+}
+
+// Instantiate TailCallRuntime() for argument counts used by CSA-generated code
+#define INSTANTIATE(...)                                                       \
+  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::TailCallRuntimeImpl( \
+      Runtime::FunctionId, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
+#undef INSTANTIATE
+
+template <class... TArgs>
+TNode<Object> CodeAssembler::TailCallRuntimeWithCEntryImpl(
+    Runtime::FunctionId function, TNode<Object> centry, TNode<Object> context,
+    TArgs... args) {
   int argc = static_cast<int>(sizeof...(args));
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(call_descriptor->ReturnCount());
 
-  Node* centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
   Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
 
@@ -1132,11 +1146,13 @@ TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
       raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes));
 }
 
-// Instantiate TailCallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                                       \
-  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::TailCallRuntimeImpl( \
-      Runtime::FunctionId, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
+// Instantiate TailCallRuntimeWithCEntry() for argument counts used by
+// CSA-generated code.
+#define INSTANTIATE(...)                            \
+  template V8_EXPORT_PRIVATE TNode<Object>          \
+      CodeAssembler::TailCallRuntimeWithCEntryImpl( \
+          Runtime::FunctionId, TNode<Object>, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, TNode<Object>)
 #undef INSTANTIATE
 
 template <class... TArgs>

@@ -997,6 +997,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                implicit_cast<SloppyTNode<Object>>(args)...);
   }
 
+  template <class... TArgs>
+  TNode<Object> TailCallRuntimeWithCEntryImpl(Runtime::FunctionId function,
+                                              TNode<Object> centry,
+                                              TNode<Object> context,
+                                              TArgs... args);
+  template <class... TArgs>
+  TNode<Object> TailCallRuntimeWithCEntry(Runtime::FunctionId function,
+                                          TNode<Object> centry,
+                                          TNode<Object> context,
+                                          TArgs... args) {
+    return TailCallRuntimeWithCEntryImpl(function, centry, context,
+                                         implicit_cast<TNode<Object>>(args)...);
+  }
+
   //
   // If context passed to CallStub is nullptr, it won't be passed to the stub.
   //
