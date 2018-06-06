@@ -691,7 +691,7 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         PrintableInstructionBlock& printable_block) {
+                         const PrintableInstructionBlock& printable_block) {
   const InstructionBlock* block = printable_block.block_;
   const RegisterConfiguration* config = printable_block.register_configuration_;
   const InstructionSequence* code = printable_block.code_;
