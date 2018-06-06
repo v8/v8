@@ -193,6 +193,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 
     TNode<FixedArrayBase> elements = var_elements.value();
     TNode<Int32T> length = var_length.value();
+    GotoIf(Word32Equal(length, Int32Constant(0)), &if_not_double);
     Branch(IsFixedDoubleArray(elements), &if_double, &if_not_double);
 
     BIND(&if_not_double);
@@ -228,6 +229,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
+  CSA_ASSERT(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
   // Allocate a new FixedArray of Objects.
   TNode<FixedArray> new_elements = AllocateFixedArray(
@@ -318,6 +320,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<JSArray> list = CAST(
         CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn));
     var_length = LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset);
+
     var_elements = LoadElements(list);
     var_elements_kind = LoadElementsKind(list);
     Branch(Int32LessThan(var_elements_kind.value(),
@@ -345,6 +348,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_double);
   {
+    GotoIf(Word32Equal(var_length.value(), Int32Constant(0)), &if_smiorobject);
     CallOrConstructDoubleVarargs(target, new_target, CAST(var_elements.value()),
                                  var_length.value(), args_count, context,
                                  var_elements_kind.value());
