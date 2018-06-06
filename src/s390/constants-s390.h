@@ -686,7 +686,11 @@ typedef uint64_t SixByteInstr;
     0xEDAD) /* type = RSL_B CONVERT TO PACKED (from extended DFP)  */         \
   V(cdpt, CDPT, 0xEDAE) /* type = RSL_B CONVERT FROM PACKED (to long DFP)  */ \
   V(cxpt, CXPT,                                                               \
-    0xEDAF) /* type = RSL_B CONVERT FROM PACKED (to extended DFP)  */
+    0xEDAF) /* type = RSL_B CONVERT FROM PACKED (to extended DFP)  */         \
+  V(czdt, CZDT, 0xEDA8) /* type = RSL CONVERT TO ZONED (from long DFP)  */    \
+  V(czxt, CZXT, 0xEDA9) /* type = RSL CONVERT TO ZONED (from extended DFP) */ \
+  V(cdzt, CDZT, 0xEDAA) /* type = RSL CONVERT FROM ZONED (to long DFP)  */    \
+  V(cxzt, CXZT, 0xEDAB) /* type = RSL CONVERT FROM ZONED (to extended DFP) */
 
 #define S390_SI_OPCODE_LIST(V)                                          \
   V(tm, TM, 0x91)       /* type = SI    TEST UNDER MASK  */             \
@@ -855,12 +859,6 @@ typedef uint64_t SixByteInstr;
 
 #define S390_RI_C_OPCODE_LIST(V) \
   V(brc, BRC, 0xA74) /* type = RI_C BRANCH RELATIVE ON CONDITION  */
-
-#define S390_RSL_OPCODE_LIST(V)                                                \
-  V(czdt, CZDT, 0xEDA8) /* type = RSL CONVERT TO ZONED (from long DFP)  */     \
-  V(czxt, CZXT, 0xEDA9) /* type = RSL CONVERT TO ZONED (from extended DFP)  */ \
-  V(cdzt, CDZT, 0xEDAA) /* type = RSL CONVERT FROM ZONED (to long DFP)  */     \
-  V(cxzt, CXZT, 0xEDAB) /* type = RSL CONVERT FROM ZONED (to extended DFP) */
 
 #define S390_SMI_OPCODE_LIST(V) \
   V(bpp, BPP, 0xC7) /* type = SMI   BRANCH PREDICTION PRELOAD  */
@@ -1096,7 +1094,6 @@ typedef uint64_t SixByteInstr;
   V(icm, ICM, 0xBF)   /* type = RS_B  INSERT CHARACTERS UNDER MASK (low)  */
 
 #define S390_S_OPCODE_LIST(V)                                                  \
-  V(awr, AWR, 0x2E)           /* type = S     ADD UNNORMALIZED (long HFP)  */  \
   V(lpsw, LPSW, 0x82)         /* type = S     LOAD PSW  */                     \
   V(diagnose, DIAGNOSE, 0x83) /* type = S     DIAGNOSE  */                     \
   V(ts, TS, 0x93)             /* type = S     TEST AND SET  */                 \
@@ -1541,6 +1538,7 @@ typedef uint64_t SixByteInstr;
     0xEC45) /* type = RIE_E BRANCH RELATIVE ON INDEX LOW OR EQ. (64)  */
 
 #define S390_RR_OPCODE_LIST(V)                                                 \
+  V(awr, AWR, 0x2E)     /* type = RR    ADD UNNORMALIZED (long HFP)  */        \
   V(spm, SPM, 0x04)     /* type = RR    SET PROGRAM MASK  */                   \
   V(balr, BALR, 0x05)   /* type = RR    BRANCH AND LINK  */                    \
   V(bctr, BCTR, 0x06)   /* type = RR    BRANCH ON COUNT (32)  */               \
@@ -1684,7 +1682,6 @@ typedef uint64_t SixByteInstr;
   S390_RSI_OPCODE_LIST(V)   \
   S390_RI_B_OPCODE_LIST(V)  \
   S390_RI_C_OPCODE_LIST(V)  \
-  S390_RSL_OPCODE_LIST(V)   \
   S390_SMI_OPCODE_LIST(V)   \
   S390_RXY_A_OPCODE_LIST(V) \
   S390_RXY_B_OPCODE_LIST(V) \

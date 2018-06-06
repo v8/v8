@@ -900,12 +900,12 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
   {                                                                         \
     __ LoadlW(temp0, MemOperand(addr, offset));                             \
     __ llgfr(temp1, temp0);                                                 \
-    __ risbg(temp0, old_val, Operand(start), Operand(end),                  \
-             Operand(shift_amount), false);                                 \
-    __ risbg(temp1, new_val, Operand(start), Operand(end),                  \
-             Operand(shift_amount), false);                                 \
+    __ RotateInsertSelectBits(temp0, old_val, Operand(start),               \
+             Operand(end), Operand(shift_amount), false);                   \
+    __ RotateInsertSelectBits(temp1, new_val, Operand(start),               \
+             Operand(end), Operand(shift_amount), false);                   \
     __ CmpAndSwap(temp0, temp1, MemOperand(addr, offset));                  \
-    __ risbg(output, temp0, Operand(start+shift_amount),                    \
+    __ RotateInsertSelectBits(output, temp0, Operand(start+shift_amount),   \
              Operand(end+shift_amount), Operand(64-shift_amount), true);    \
   }
 
@@ -1036,12 +1036,12 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     Label do_cs;                                                          \
     __ LoadlW(prev, MemOperand(addr, offset));                            \
     __ bind(&do_cs);                                                      \
-    __ risbg(temp, value, Operand(start), Operand(end),                   \
+    __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),  \
              Operand(static_cast<intptr_t>(shift_amount)), true);         \
     __ bin_inst(new_val, prev, temp);                                     \
     __ lr(temp, prev);                                                    \
-    __ risbg(temp, new_val, Operand(start), Operand(end),                 \
-             Operand::Zero(), false);                                     \
+    __ RotateInsertSelectBits(temp, new_val, Operand(start),              \
+             Operand(end), Operand::Zero(), false);                       \
     __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                  \
     __ bne(&do_cs, Label::kNear);                                         \
   } while (false)
@@ -1807,8 +1807,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int shiftAmount = i.InputInt32(1);
         int endBit = 63 - shiftAmount;
         int startBit = 63 - i.InputInt32(2);
-        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
-                 Operand(endBit), Operand(shiftAmount), true);
+        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+               Operand(startBit), Operand(endBit), Operand(shiftAmount), true);
       } else {
         int shiftAmount = i.InputInt32(1);
         int clearBit = 63 - i.InputInt32(2);
@@ -1824,8 +1824,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int shiftAmount = i.InputInt32(1);
         int endBit = 63;
         int startBit = 63 - i.InputInt32(2);
-        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
-                 Operand(endBit), Operand(shiftAmount), true);
+        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                Operand(startBit), Operand(endBit), Operand(shiftAmount), true);
       } else {
         int shiftAmount = i.InputInt32(1);
         int clearBit = 63 - i.InputInt32(2);
@@ -1839,8 +1839,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int shiftAmount = i.InputInt32(1);
         int endBit = 63 - i.InputInt32(2);
         int startBit = 0;
-        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
-                 Operand(endBit), Operand(shiftAmount), true);
+        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                Operand(startBit), Operand(endBit), Operand(shiftAmount), true);
       } else {
         int shiftAmount = i.InputInt32(1);
         int clearBit = i.InputInt32(2);
@@ -1971,16 +1971,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_UNARY_OP(D_DInstr(sqdbr), nullInstr, nullInstr);
       break;
     case kS390_FloorFloat:
-      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF);
+      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilFloat:
-      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF);
+      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateFloat:
-      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0);
+      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     //  Double operations
     case kS390_ModDouble:
@@ -2074,20 +2074,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lpdbr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_FloorDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_RoundDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_NegFloat:
       ASSEMBLE_UNARY_OP(D_DInstr(lcebr), nullInstr, nullInstr);
@@ -2550,8 +2550,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ LoadlW(output, MemOperand(r1, offset));                               \
     __ bind(&do_cs);                                                         \
     __ llgfr(r0, output);                                                    \
-    __ risbg(r0, value, Operand(start), Operand(end), Operand(shift_amount), \
-             false);                                                         \
+    __ RotateInsertSelectBits(r0, value, Operand(start), Operand(end),       \
+             Operand(shift_amount), false);                                  \
     __ csy(output, r0, MemOperand(r1, offset));                              \
     __ bne(&do_cs, Label::kNear);                                            \
     __ srl(output, Operand(shift_amount));                                   \
@@ -2700,8 +2700,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kWord32Atomic##op##Uint8:                                        \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
           int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
-          __ risbg(result, prev, Operand(56), Operand(63),              \
-                   Operand(static_cast<intptr_t>(rotate_left)), true);  \
+          __ RotateInsertSelectBits(result, prev, Operand(56),          \
+              Operand(63), Operand(static_cast<intptr_t>(rotate_left)), \
+              true);                                                    \
         });                                                             \
     break;                                                              \
   case kWord32Atomic##op##Int16:                                        \
@@ -2714,8 +2715,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kWord32Atomic##op##Uint16:                                       \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
           int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
-          __ risbg(result, prev, Operand(48), Operand(63),              \
-                   Operand(static_cast<intptr_t>(rotate_left)), true);  \
+          __ RotateInsertSelectBits(result, prev, Operand(48),          \
+              Operand(63), Operand(static_cast<intptr_t>(rotate_left)), \
+              true);                                                    \
         });                                                             \
     break;
       ATOMIC_BINOP_CASE(Add, Add32)

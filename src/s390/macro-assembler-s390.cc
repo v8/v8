@@ -432,6 +432,39 @@ void TurboAssembler::Move(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
+// Wrapper around Assembler::mvc (SS-a format)
+void TurboAssembler::MoveChar(const MemOperand& opnd1,
+                              const MemOperand& opnd2,
+                              const Operand& length) {
+  mvc(opnd1, opnd2, Operand(static_cast<intptr_t>(length.immediate() - 1)));
+}
+
+// Wrapper around Assembler::clc (SS-a format)
+void TurboAssembler::CompareLogicalChar(const MemOperand& opnd1,
+                                        const MemOperand& opnd2,
+                                        const Operand& length) {
+  clc(opnd1, opnd2, Operand(static_cast<intptr_t>(length.immediate() - 1)));
+}
+
+// Wrapper around Assembler::xc (SS-a format)
+void TurboAssembler::ExclusiveOrChar(const MemOperand& opnd1,
+                                     const MemOperand& opnd2,
+                                     const Operand& length) {
+  xc(opnd1, opnd2, Operand(static_cast<intptr_t>(length.immediate() - 1)));
+}
+
+// Wrapper around Assembler::risbg(n) (RIE-f)
+void TurboAssembler::RotateInsertSelectBits(Register dst, Register src,
+                               const Operand& startBit, const Operand& endBit,
+                               const Operand& shiftAmt, bool zeroBits) {
+  if (zeroBits)
+    // High tag the top bit of I4/EndBit to zero out any unselected bits
+    risbg(dst, src, startBit,
+          Operand(static_cast<intptr_t>(endBit.immediate() | 0x80)), shiftAmt);
+  else
+    risbg(dst, src, startBit, endBit, shiftAmt);
+}
+
 void TurboAssembler::MultiPush(RegList regs, Register location) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kPointerSize;
@@ -754,7 +787,7 @@ void TurboAssembler::ConvertUnsignedIntToDouble(DoubleRegister dst,
 }
 
 void TurboAssembler::ConvertIntToFloat(DoubleRegister dst, Register src) {
-  cefbr(Condition(4), dst, src);
+  cefbra(Condition(4), dst, src);
 }
 
 void TurboAssembler::ConvertUnsignedIntToFloat(DoubleRegister dst,
@@ -1523,8 +1556,8 @@ void MacroAssembler::PushStackHandler() {
   StoreP(r0, MemOperand(sp));  // Padding.
 
   // Copy the old handler into the next handler slot.
-  mvc(MemOperand(sp, StackHandlerConstants::kNextOffset), MemOperand(r7),
-      kPointerSize);
+  MoveChar(MemOperand(sp, StackHandlerConstants::kNextOffset), MemOperand(r7),
+      Operand(kPointerSize));
   // Set this new handler as the current one.
   StoreP(sp, MemOperand(r7));
 }
@@ -2299,7 +2332,7 @@ void TurboAssembler::Div32(Register dst, Register src1, Register src2) {
 #define Generate_DivU32(instr) \
   {                            \
     lr(r0, src1);              \
-    srdl(r0, Operand(32));     \
+    srdl(r0, r0, Operand(32)); \
     instr(r0, src2);           \
     LoadlW(dst, r1);           \
   }
@@ -2373,7 +2406,7 @@ void TurboAssembler::Mod32(Register dst, Register src1, Register src2) {
 #define Generate_ModU32(instr) \
   {                            \
     lr(r0, src1);              \
-    srdl(r0, Operand(32));     \
+    srdl(r0, r0, Operand(32)); \
     instr(r0, src2);           \
     LoadlW(dst, r0);           \
   }
@@ -3067,14 +3100,15 @@ void TurboAssembler::AndP(Register dst, Register src, const Operand& opnd) {
           base::bits::CountLeadingZeros64(shifted_value) - trailing_zeros;
       int endBit = 63 - trailing_zeros;
       // Start: startBit, End: endBit, Shift = 0, true = zero unselected bits.
-      risbg(dst, src, Operand(startBit), Operand(endBit), Operand::Zero(),
-            true);
+      RotateInsertSelectBits(dst, src, Operand(startBit), Operand(endBit),
+            Operand::Zero(), true);
       return;
     } else if (-1 == shifted_value) {
       // A Special case in which all top bits up to MSB are 1's.  In this case,
       // we can set startBit to be 0.
       int endBit = 63 - trailing_zeros;
-      risbg(dst, src, Operand::Zero(), Operand(endBit), Operand::Zero(), true);
+      RotateInsertSelectBits(dst, src, Operand::Zero(), Operand(endBit),
+            Operand::Zero(), true);
       return;
     }
   }
@@ -4291,7 +4325,8 @@ void TurboAssembler::ClearRightImm(Register dst, Register src,
   // Try to use RISBG if possible
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
     int endBit = 63 - numBitsToClear;
-    risbg(dst, src, Operand::Zero(), Operand(endBit), Operand::Zero(), true);
+    RotateInsertSelectBits(dst, src, Operand::Zero(), Operand(endBit),
+          Operand::Zero(), true);
     return;
   }
 
