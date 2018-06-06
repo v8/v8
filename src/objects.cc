@@ -16725,139 +16725,6 @@ uint32_t HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
   return entry;
 }
 
-
-// Force instantiation of template instances class.
-// Please note this list is compiler dependent.
-
-template class HashTable<StringTable, StringTableShape>;
-
-template class HashTable<CompilationCacheTable, CompilationCacheShape>;
-
-template class HashTable<ObjectHashTable, ObjectHashTableShape>;
-
-template class Dictionary<NameDictionary, NameDictionaryShape>;
-
-template class Dictionary<GlobalDictionary, GlobalDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
-    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
-
-template Handle<GlobalDictionary>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
-    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
-
-template Handle<NumberDictionary>
-    Dictionary<NumberDictionary, NumberDictionaryShape>::AtPut(
-        Handle<NumberDictionary>, uint32_t, Handle<Object>, PropertyDetails);
-
-template Handle<SimpleNumberDictionary>
-    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>::AtPut(
-        Handle<SimpleNumberDictionary>, uint32_t, Handle<Object>,
-        PropertyDetails);
-
-template Object* Dictionary<
-    NumberDictionary, NumberDictionaryShape>::SlowReverseLookup(Object* value);
-
-template Object* Dictionary<
-    NameDictionary, NameDictionaryShape>::SlowReverseLookup(Object* value);
-
-template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape>::DeleteEntry(
-    Handle<NameDictionary>, int);
-
-template Handle<NumberDictionary>
-Dictionary<NumberDictionary, NumberDictionaryShape>::DeleteEntry(
-    Handle<NumberDictionary>, int);
-
-template Handle<SimpleNumberDictionary>
-Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>::DeleteEntry(
-    Handle<SimpleNumberDictionary>, int);
-
-template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
-                                                    PretenureFlag,
-                                                    MinimumCapacity);
-
-template Handle<ObjectHashSet>
-HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
-                                                  PretenureFlag,
-                                                  MinimumCapacity);
-
-template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>,
-                                                       int additionalCapacity);
-
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
-    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
-    int*);
-
-template Handle<GlobalDictionary>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
-    Handle<GlobalDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
-    int*);
-
-template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash();
-
-template Handle<NumberDictionary>
-Dictionary<NumberDictionary, NumberDictionaryShape>::Add(
-    Handle<NumberDictionary>, uint32_t, Handle<Object>, PropertyDetails, int*);
-
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
-    Handle<NameDictionary>, int);
-
-template Handle<SimpleNumberDictionary>
-Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>::Add(
-    Handle<SimpleNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
-    int*);
-
-template int Dictionary<GlobalDictionary,
-                        GlobalDictionaryShape>::NumberOfEnumerableProperties();
-
-template int
-Dictionary<NameDictionary, NameDictionaryShape>::NumberOfEnumerableProperties();
-
-template void
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CopyEnumKeysTo(
-    Handle<GlobalDictionary> dictionary, Handle<FixedArray> storage,
-    KeyCollectionMode mode, KeyAccumulator* accumulator);
-
-template void
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::CopyEnumKeysTo(
-    Handle<NameDictionary> dictionary, Handle<FixedArray> storage,
-    KeyCollectionMode mode, KeyAccumulator* accumulator);
-
-template Handle<FixedArray>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::IterationIndices(
-    Handle<GlobalDictionary> dictionary);
-template void
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CollectKeysTo(
-    Handle<GlobalDictionary> dictionary, KeyAccumulator* keys);
-
-template Handle<FixedArray>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::IterationIndices(
-    Handle<NameDictionary> dictionary);
-template void
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
-    Handle<NameDictionary> dictionary, KeyAccumulator* keys);
-
-template int Dictionary<NumberDictionary,
-                        NumberDictionaryShape>::NumberOfEnumerableProperties();
-
 namespace {
 
 bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
@@ -18992,6 +18859,94 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   }
   return MaybeHandle<Name>();
 }
+
+// Force instantiation of template instances class.
+// Please note this list is compiler dependent.
+// Keep this at the end of this file
+
+template class HashTable<StringTable, StringTableShape>;
+
+template class HashTable<CompilationCacheTable, CompilationCacheShape>;
+
+template class HashTable<ObjectHashTable, ObjectHashTableShape>;
+
+template class Dictionary<NameDictionary, NameDictionaryShape>;
+
+template class Dictionary<GlobalDictionary, GlobalDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Dictionary<NumberDictionary, NumberDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+template Handle<NameDictionary>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
+    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
+
+template Handle<GlobalDictionary>
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
+    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
+
+template Handle<NameDictionary>
+HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
+                                                    PretenureFlag,
+                                                    MinimumCapacity);
+
+template Handle<ObjectHashSet>
+HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
+                                                  PretenureFlag,
+                                                  MinimumCapacity);
+
+template Handle<NameDictionary>
+HashTable<NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>,
+                                                       int additionalCapacity);
+
+template Handle<NameDictionary>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
+    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
+
+template Handle<GlobalDictionary>
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
+    Handle<GlobalDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
+
+template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash();
+
+template Handle<NameDictionary>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
+    Handle<NameDictionary>, int);
+
+template void
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CopyEnumKeysTo(
+    Handle<GlobalDictionary> dictionary, Handle<FixedArray> storage,
+    KeyCollectionMode mode, KeyAccumulator* accumulator);
+
+template void
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::CopyEnumKeysTo(
+    Handle<NameDictionary> dictionary, Handle<FixedArray> storage,
+    KeyCollectionMode mode, KeyAccumulator* accumulator);
+
+template Handle<FixedArray>
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::IterationIndices(
+    Handle<GlobalDictionary> dictionary);
+template void
+BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CollectKeysTo(
+    Handle<GlobalDictionary> dictionary, KeyAccumulator* keys);
+
+template Handle<FixedArray>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::IterationIndices(
+    Handle<NameDictionary> dictionary);
+template void
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
+    Handle<NameDictionary> dictionary, KeyAccumulator* keys);
 
 }  // namespace internal
 }  // namespace v8
