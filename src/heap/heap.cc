@@ -4735,16 +4735,6 @@ bool Heap::SetUp() {
   DCHECK_EQ(Smi::kZero, hash_seed());
   if (FLAG_randomize_hashes) InitializeHashSeed();
 
-  // Set up the random state that is used for random number generation in
-  // Torque.
-  int array_sort_random_seed = FLAG_random_seed;
-  if (array_sort_random_seed == 0) {
-    array_sort_random_seed = isolate()->random_number_generator()->NextInt();
-  }
-  // Cut the seed to valid Smi range.
-  array_sort_random_seed &= ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1);
-  set_array_sort_random_state(Smi::FromInt(array_sort_random_seed));
-
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        i++) {
     deferred_counters_[i] = 0;
