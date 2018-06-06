@@ -36,12 +36,12 @@ class CodeReference {
   }
 
   Handle<Code> as_js_code() const {
-    CHECK_EQ(JS, kind_);
+    DCHECK_EQ(JS, kind_);
     return js_code_;
   }
 
   const wasm::WasmCode* as_wasm_code() const {
-    CHECK_EQ(WASM, kind_);
+    DCHECK_EQ(WASM, kind_);
     return wasm_code_;
   }
 
