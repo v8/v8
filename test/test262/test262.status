@@ -432,9 +432,6 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7475
-  'built-ins/Date/UTC/non-integer-values': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7480
   'intl402/Collator/unicode-ext-seq-in-private-tag': [FAIL],
   'intl402/Collator/unicode-ext-seq-with-attribute': [FAIL],

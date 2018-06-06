@@ -80,7 +80,7 @@ double MakeDay(double year, double month, double date) {
                                           182, 213, 244, 274, 305, 335};
       day_from_year += kDayFromMonth[m];
     }
-    return static_cast<double>(day_from_year - 1) + date;
+    return static_cast<double>(day_from_year - 1) + DoubleToInteger(date);
   }
   return std::numeric_limits<double>::quiet_NaN();
 }
