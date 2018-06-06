@@ -1443,13 +1443,6 @@ PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
   accounting_stats_.Clear();
 }
 
-
-bool PagedSpace::SetUp() { return true; }
-
-
-bool PagedSpace::HasBeenSetUp() { return true; }
-
-
 void PagedSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     MemoryChunk* chunk = memory_chunk_list_.front();
@@ -2256,6 +2249,10 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
   }
   return true;
+}
+
+size_t LargeObjectSpace::Available() {
+  return ObjectSizeFor(heap()->memory_allocator()->Available());
 }
 
 void SpaceWithLinearArea::StartNextInlineAllocationStep() {
@@ -3244,12 +3241,6 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
       objects_size_(0),
       chunk_map_(1024) {}
 
-LargeObjectSpace::~LargeObjectSpace() {}
-
-bool LargeObjectSpace::SetUp() {
-  return true;
-}
-
 void LargeObjectSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     LargePage* page = first_page();
@@ -3259,7 +3250,6 @@ void LargeObjectSpace::TearDown() {
     memory_chunk_list_.Remove(page);
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
-  SetUp();
 }
 
 

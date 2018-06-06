@@ -336,9 +336,8 @@ bool Heap::CanExpandOldGeneration(size_t size) {
 }
 
 bool Heap::HasBeenSetUp() {
-  return old_space_ != nullptr && code_space_ != nullptr &&
-         map_space_ != nullptr && lo_space_ != nullptr &&
-         read_only_space_ != nullptr;
+  // We will always have a new space when the heap is set up.
+  return new_space_ != nullptr;
 }
 
 
@@ -4717,23 +4716,16 @@ bool Heap::SetUp() {
   }
 
   space_[OLD_SPACE] = old_space_ = new OldSpace(this);
-  if (!old_space_->SetUp()) return false;
-
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
-  if (!code_space_->SetUp()) return false;
-
   space_[MAP_SPACE] = map_space_ = new MapSpace(this, MAP_SPACE);
-  if (!map_space_->SetUp()) return false;
 
-  // The large object code space may contain code or data.  We set the memory
+  // The large object space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
   space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this, LO_SPACE);
-  if (!lo_space_->SetUp()) return false;
 
   space_[RO_SPACE] = read_only_space_ =
       new ReadOnlySpace(this, RO_SPACE, NOT_EXECUTABLE);
-  if (!read_only_space_->SetUp()) return false;
 
   // Set up the seed that is used to randomize the string hash function.
   DCHECK_EQ(Smi::kZero, hash_seed());
@@ -5009,34 +5001,9 @@ void Heap::TearDown() {
   delete tracer_;
   tracer_ = nullptr;
 
-  new_space_->TearDown();
-  delete new_space_;
-  new_space_ = nullptr;
-
-  if (old_space_ != nullptr) {
-    delete old_space_;
-    old_space_ = nullptr;
-  }
-
-  if (code_space_ != nullptr) {
-    delete code_space_;
-    code_space_ = nullptr;
-  }
-
-  if (map_space_ != nullptr) {
-    delete map_space_;
-    map_space_ = nullptr;
-  }
-
-  if (lo_space_ != nullptr) {
-    lo_space_->TearDown();
-    delete lo_space_;
-    lo_space_ = nullptr;
-  }
-
-  if (read_only_space_ != nullptr) {
-    delete read_only_space_;
-    read_only_space_ = nullptr;
+  for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
+    delete space_[i];
+    space_[i] = nullptr;
   }
 
   store_buffer()->TearDown();

@@ -468,10 +468,6 @@ V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
   return AllocateRaw(size_in_bytes, alignment);
 }
 
-size_t LargeObjectSpace::Available() {
-  return ObjectSizeFor(heap()->memory_allocator()->Available());
-}
-
 
 LocalAllocationBuffer LocalAllocationBuffer::InvalidBuffer() {
   return LocalAllocationBuffer(

@@ -2038,16 +2038,6 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   ~PagedSpace() override { TearDown(); }
 
-  // Set up the space using the given address range of virtual memory (from
-  // the memory allocator's initial chunk) if possible.  If the block of
-  // addresses is not big enough to contain a single page-aligned page, a
-  // fresh chunk will be allocated.
-  bool SetUp();
-
-  // Returns true if the space has been successfully set up and not
-  // subsequently torn down.
-  bool HasBeenSetUp();
-
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
   inline bool Contains(Object* o);
@@ -2366,7 +2356,6 @@ class SemiSpace : public Space {
 
   void SetUp(size_t initial_capacity, size_t maximum_capacity);
   void TearDown();
-  bool HasBeenSetUp() { return maximum_capacity_ != 0; }
 
   bool Commit();
   bool Uncommit();
@@ -2548,6 +2537,8 @@ class NewSpace : public SpaceWithLinearArea {
         from_space_(heap, kFromSpace),
         reservation_() {}
 
+  ~NewSpace() override { TearDown(); }
+
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
   inline bool Contains(Object* o);
@@ -2557,11 +2548,6 @@ class NewSpace : public SpaceWithLinearArea {
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
   void TearDown();
-
-  // True if the space has been set up but not torn down.
-  bool HasBeenSetUp() {
-    return to_space_.HasBeenSetUp() && from_space_.HasBeenSetUp();
-  }
 
   // Flip the pair of spaces.
   void Flip();
@@ -2934,10 +2920,7 @@ class LargeObjectSpace : public Space {
   typedef LargePageIterator iterator;
 
   LargeObjectSpace(Heap* heap, AllocationSpace id);
-  virtual ~LargeObjectSpace();
-
-  // Initializes internal data structures.
-  bool SetUp();
+  ~LargeObjectSpace() override { TearDown(); }
 
   // Releases internal resources, frees objects in this space.
   void TearDown();
@@ -2953,7 +2936,7 @@ class LargeObjectSpace : public Space {
                                                      Executability executable);
 
   // Available bytes for objects in this space.
-  inline size_t Available() override;
+  size_t Available() override;
 
   size_t Size() override { return size_; }
   size_t SizeOfObjects() override { return objects_size_; }

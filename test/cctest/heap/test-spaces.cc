@@ -257,7 +257,7 @@ TEST(NewSpace) {
 
   CHECK(new_space.SetUp(CcTest::heap()->InitialSemiSpaceSize(),
                         CcTest::heap()->InitialSemiSpaceSize()));
-  CHECK(new_space.HasBeenSetUp());
+  CHECK(new_space.MaximumCapacity());
 
   while (new_space.Available() >= kMaxRegularHeapObjectSize) {
     CHECK(new_space.Contains(
@@ -281,8 +281,6 @@ TEST(OldSpace) {
 
   OldSpace* s = new OldSpace(heap);
   CHECK_NOT_NULL(s);
-
-  CHECK(s->SetUp());
 
   while (s->Available() > 0) {
     s->AllocateRawUnaligned(kMaxRegularHeapObjectSize).ToObjectChecked();
