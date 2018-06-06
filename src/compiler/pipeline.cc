@@ -575,8 +575,7 @@ void PrintCode(Handle<Code> code, OptimizedCompilationInfo* info) {
           ? FLAG_print_builtin_code
           : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
              (info->IsOptimizing() && FLAG_print_opt_code &&
-              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)) ||
-             (info->IsWasm() && FLAG_print_wasm_code));
+              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());

@@ -218,7 +218,7 @@ void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
 bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   return isolate->logger()->is_listening_to_code_events() ||
-         isolate->is_profiling() || FLAG_print_wasm_code || FLAG_print_code;
+         isolate->is_profiling();
 }
 
 void WasmCode::LogCode(Isolate* isolate) const {
@@ -236,18 +236,6 @@ void WasmCode::LogCode(Isolate* isolate) const {
     PROFILE(isolate,
             CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
                             {cname.get(), static_cast<size_t>(name_length)}));
-
-#ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_code || FLAG_print_wasm_code) {
-      // TODO(wasm): Use proper log files, here and elsewhere.
-      OFStream os(stdout);
-      os << "--- Wasm " << (is_liftoff() ? "liftoff" : "turbofan")
-         << " code ---\n";
-      this->Disassemble(cname.get(), isolate, os);
-      os << "--- End code ---\n";
-    }
-#endif
-
     if (!source_positions().is_empty()) {
       LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
                                                          source_positions()));
@@ -287,7 +275,9 @@ void WasmCode::Validate() const {
 
 void WasmCode::Print(Isolate* isolate) const {
   OFStream os(stdout);
+  os << "--- WebAssembly code ---\n";
   Disassemble(nullptr, isolate, os);
+  os << "--- End code ---\n";
 }
 
 void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
@@ -557,7 +547,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  if (FLAG_print_wasm_code) {
+  if (FLAG_print_code || FLAG_print_wasm_code) {
     // TODO(mstarzinger): don't need the isolate here.
     ret->Print(code->GetIsolate());
   }
@@ -624,6 +614,10 @@ WasmCode* NativeModule::AddCode(
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
+  if (FLAG_print_code || FLAG_print_wasm_code) {
+    // TODO(mstarzinger): don't need the isolate here.
+    ret->Print(source_pos_table->GetIsolate());
+  }
   return ret;
 }
 

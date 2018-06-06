@@ -550,11 +550,15 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
         UNREACHABLE();
     }
   }
+
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-
+  if (FLAG_print_code || FLAG_print_wasm_code) {
+    // TODO(mstarzinger): don't need the isolate here.
+    ret->Print(isolate_);
+  }
   return true;
 }
 
