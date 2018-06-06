@@ -469,7 +469,6 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::vector<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
-AsyncHooks* Shell::async_hooks_wrapper_;
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
 base::LazyMutex Shell::cached_code_mutex_;
@@ -1245,32 +1244,6 @@ void Shell::RealmSharedSet(Local<String> property,
   data->realm_shared_.Reset(isolate, value);
 }
 
-// async_hooks.createHook() registers functions to be called for different
-// lifetime events of each async operation.
-void Shell::AsyncHooksCreateHook(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Local<Object> wrap = async_hooks_wrapper_->CreateHook(args);
-  args.GetReturnValue().Set(wrap);
-}
-
-// async_hooks.executionAsyncId() returns the asyncId of the current execution
-// context.
-void Shell::AsyncHooksExecutionAsyncId(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  HandleScope handle_scope(isolate);
-  args.GetReturnValue().Set(
-      v8::Number::New(isolate, async_hooks_wrapper_->GetExecutionAsyncId()));
-}
-
-void Shell::AsyncHooksTriggerAsyncId(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  HandleScope handle_scope(isolate);
-  args.GetReturnValue().Set(
-      v8::Number::New(isolate, async_hooks_wrapper_->GetTriggerAsyncId()));
-}
-
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
@@ -1884,26 +1857,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
           .ToLocalChecked(),
       os_templ);
 
-  if (i::FLAG_expose_async_hooks) {
-    Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
-    async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "createHook", NewStringType::kNormal)
-            .ToLocalChecked(),
-        FunctionTemplate::New(isolate, AsyncHooksCreateHook));
-    async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "executionAsyncId", NewStringType::kNormal)
-            .ToLocalChecked(),
-        FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
-    async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "triggerAsyncId", NewStringType::kNormal)
-            .ToLocalChecked(),
-        FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
-    global_template->Set(
-        String::NewFromUtf8(isolate, "async_hooks", NewStringType::kNormal)
-            .ToLocalChecked(),
-        async_hooks_templ);
-  }
-
   return global_template;
 }
 
@@ -1957,9 +1910,6 @@ void Shell::Initialize(Isolate* isolate) {
       v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
           v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
           v8::Isolate::kMessageLog);
-
-  // TODO(mslekova): dispose properly
-  async_hooks_wrapper_ = new AsyncHooks(isolate);
 }
 
 
@@ -2108,8 +2058,6 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 }
 
 void Shell::OnExit(v8::Isolate* isolate) {
-  delete async_hooks_wrapper_;  // This uses the isolate
-
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
           reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
