@@ -193,8 +193,7 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
 }
 
 void DeclarationVisitor::Visit(StandardDeclaration* decl) {
-  Signature signature =
-      MakeSignature(decl->callable, decl->callable->signature.get());
+  Signature signature = MakeSignature(decl->callable->signature.get());
   Visit(decl->callable, signature, decl->body);
 }
 
@@ -203,33 +202,54 @@ void DeclarationVisitor::Visit(GenericDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
-  Generic* generic = declarations()->LookupGeneric(decl->name);
-  SpecializationKey key = {generic, GetTypeVector(decl->generic_parameters)};
-  CallableNode* callable = generic->declaration()->callable;
+  GenericList* generic_list = declarations()->LookupGeneric(decl->name);
 
-  {
-    Signature signature_with_types =
-        MakeSignature(callable, decl->signature.get());
+  // Find the matching generic specialization based on the concrete parameter
+  // list.
+  CallableNode* matching_callable = nullptr;
+  SpecializationKey matching_key;
+  Signature signature_with_types = MakeSignature(decl->signature.get());
+  for (Generic* generic : generic_list->list()) {
+    SpecializationKey key = {generic, GetTypeVector(decl->generic_parameters)};
+    CallableNode* callable_candidate = generic->declaration()->callable;
     // Abuse the Specialization nodes' scope to temporarily declare the
     // specialization aliases for the generic types to compare signatures. This
     // scope is never used for anything else, so it's OK to pollute it.
-    Declarations::NodeScopeActivator specialization_activator(declarations(),
-                                                              decl);
+    Declarations::CleanNodeScopeActivator specialization_activator(
+        declarations(), decl);
     DeclareSpecializedTypes(key);
     Signature generic_signature_with_types =
-        MakeSignature(generic->declaration()->callable,
-                      generic->declaration()->callable->signature.get());
-    if (!signature_with_types.HasSameTypesAs(generic_signature_with_types)) {
-      std::stringstream stream;
-      stream << "specialization of " << callable->name
-             << " has incompatible parameter list or label list with generic "
-                "definition";
-      ReportError(stream.str());
+        MakeSignature(generic->declaration()->callable->signature.get());
+    if (signature_with_types.HasSameTypesAs(generic_signature_with_types)) {
+      if (matching_callable != nullptr) {
+        std::stringstream stream;
+        stream << "specialization of " << callable_candidate->name
+               << " is ambigous, it matches more than one generic declaration ("
+               << *matching_key.first << " and " << *key.first << ")";
+        ReportError(stream.str());
+      }
+      matching_callable = callable_candidate;
+      matching_key = key;
     }
   }
 
-  SpecializeGeneric(
-      {key, callable, decl->signature.get(), decl->body, decl->pos});
+  if (matching_callable == nullptr) {
+    std::stringstream stream;
+    stream << "specialization of " << decl->name
+           << " doesn't match any generic declaration";
+    ReportError(stream.str());
+  }
+
+  // Make sure the declarations of the parameter types for the specialization
+  // are the ones from the matching generic.
+  {
+    Declarations::CleanNodeScopeActivator specialization_activator(
+        declarations(), decl);
+    DeclareSpecializedTypes(matching_key);
+  }
+
+  SpecializeGeneric({matching_key, matching_callable, decl->signature.get(),
+                     decl->body, decl->pos});
 }
 
 void DeclarationVisitor::Visit(ReturnStatement* stmt) {
@@ -298,15 +318,22 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
 
 void DeclarationVisitor::Visit(IdentifierExpression* expr) {
   if (expr->generic_arguments.size() != 0) {
-    Generic* generic = declarations()->LookupGeneric(expr->name);
     TypeVector specialization_types;
     for (auto t : expr->generic_arguments) {
       specialization_types.push_back(declarations()->GetType(t));
     }
-    CallableNode* callable = generic->declaration()->callable;
-    QueueGenericSpecialization({generic, specialization_types}, callable,
-                               callable->signature.get(),
-                               generic->declaration()->body);
+    // Specialize all versions of the generic, since the exact parameter type
+    // list cannot be resolved until the call's parameter expressions are
+    // evaluated. This is an overly conservative but simple way to make sure
+    // that the correct specialization exists.
+    for (auto generic : declarations()->LookupGeneric(expr->name)->list()) {
+      CallableNode* callable = generic->declaration()->callable;
+      if (generic->declaration()->body) {
+        QueueGenericSpecialization({generic, specialization_types}, callable,
+                                   callable->signature.get(),
+                                   generic->declaration()->body);
+      }
+    }
   }
 }
 
@@ -333,7 +360,7 @@ void DeclarationVisitor::Specialize(const SpecializationKey& key,
 
   // TODO(tebbi): The error should point to the source position where the
   // instantiation was requested.
-  CurrentSourcePosition::Scope scope(generic->declaration()->pos);
+  CurrentSourcePosition::Scope pos_scope(generic->declaration()->pos);
   size_t generic_parameter_count =
       generic->declaration()->generic_parameters.size();
   if (generic_parameter_count != key.second.size()) {
@@ -346,14 +373,16 @@ void DeclarationVisitor::Specialize(const SpecializationKey& key,
     ReportError(stream.str());
   }
 
+  Signature type_signature;
   {
     // Manually activate the specialized generic's scope when declaring the
     // generic parameter specializations.
-    Declarations::GenericScopeActivator scope(declarations(), key);
+    Declarations::GenericScopeActivator namespace_scope(declarations(), key);
     DeclareSpecializedTypes(key);
+    type_signature = MakeSignature(signature);
   }
 
-  Visit(callable, MakeSignature(callable, signature), body);
+  Visit(callable, type_signature, body);
 }
 
 }  // namespace torque

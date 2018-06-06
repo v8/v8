@@ -59,7 +59,6 @@ class DeclarationVisitor : public FileVisitor {
     Visit(expr->index);
   }
   void Visit(FieldAccessExpression* expr) { Visit(expr->object); }
-  void Visit(CastExpression* expr) { Visit(expr->value); }
   void Visit(UnsafeCastExpression* expr) { Visit(expr->value); }
   void Visit(ConvertExpression* expr) { Visit(expr->value); }
   void Visit(BlockStatement* expr) {

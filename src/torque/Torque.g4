@@ -17,7 +17,6 @@ JAVASCRIPT: 'javascript';
 IMPLICIT: 'implicit';
 DEFERRED: 'deferred';
 IF: 'if';
-CAST_KEYWORD: 'cast';
 UNSAFE_CAST_KEYWORD: 'unsafe_cast';
 CONVERT_KEYWORD: 'convert';
 FOR: 'for';
@@ -216,7 +215,6 @@ primaryExpression
         : helperCall
         | DECIMAL_LITERAL
         | STRING_LITERAL
-        | CAST_KEYWORD '<' type '>' '(' expression ')' OTHERWISE IDENTIFIER
         | UNSAFE_CAST_KEYWORD '<' type '>' '(' expression ')'
         | CONVERT_KEYWORD '<' type '>' '(' expression ')'
         | ('(' expression ')');

@@ -235,32 +235,54 @@ extern operator '!' macro Word32BinaryNot(bool): bool;
 extern operator '.map' macro LoadMap(HeapObject): Map;
 extern operator '.map=' macro StoreMap(HeapObject, Map);
 extern operator
-    '.instanceType' macro LoadInstanceType(HeapObject): InstanceType;
+'.instanceType' macro LoadInstanceType(HeapObject): InstanceType;
 
 extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
 
 extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
 extern operator
-    '[]' macro GetArgumentValue(constexpr Arguments, intptr): Object;
+'[]' macro GetArgumentValue(constexpr Arguments, intptr): Object;
 
 extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
 
-extern operator
-'cast<>' macro TaggedToJSDataView(Object): JSDataView labels CastError;
-extern operator
-'cast<>' macro TaggedToHeapObject(Object): HeapObject labels CastError;
-extern operator 'cast<>' macro TaggedToSmi(Object): Smi labels CastError;
-extern operator
-'cast<>' macro TaggedToJSArray(Object): JSArray labels CastError;
-extern operator
-'cast<>' macro TaggedToCallable(Object): Callable labels CastError;
-extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedArray(
+extern macro TaggedToJSDataView(Object): JSDataView labels CastError;
+extern macro TaggedToHeapObject(Object): HeapObject labels CastError;
+extern macro TaggedToSmi(Object): Smi labels CastError;
+extern macro TaggedToJSArray(Object): JSArray labels CastError;
+extern macro TaggedToCallable(Object): Callable labels CastError;
+extern macro ConvertFixedArrayBaseToFixedArray(
     FixedArrayBase): FixedArray labels CastError;
-extern operator 'cast<>' macro ConvertFixedArrayBaseToFixedDoubleArray(
+extern macro ConvertFixedArrayBaseToFixedDoubleArray(
     FixedArrayBase): FixedDoubleArray labels CastError;
-extern operator 'cast<>' macro TaggedToNumber(
-      Object): Number labels CastError;
+extern macro TaggedToNumber(Object): Number labels CastError;
+
+macro cast<A : type>(o: Object): A labels CastError;
+cast<Number>(o: Object): Number labels CastError {
+  return TaggedToNumber(o) otherwise CastError;
+}
+cast<HeapObject>(o: Object): HeapObject labels CastError {
+  return TaggedToHeapObject(o) otherwise CastError;
+}
+cast<Smi>(o: Object): Smi labels CastError {
+  return TaggedToSmi(o) otherwise CastError;
+}
+cast<JSDataView>(o: Object): JSDataView labels CastError {
+  return TaggedToJSDataView(o) otherwise CastError;
+}
+cast<Callable>(o: Object): Callable labels CastError {
+  return TaggedToCallable(o) otherwise CastError;
+}
+cast<JSArray>(o: Object): JSArray labels CastError {
+  return TaggedToJSArray(o) otherwise CastError;
+}
+macro cast<A : type>(o: FixedArrayBase): A labels CastError;
+cast<FixedArray>(o: FixedArrayBase): FixedArray labels CastError {
+  return ConvertFixedArrayBaseToFixedArray(o) otherwise CastError;
+}
+cast<FixedDoubleArray>(o: FixedArrayBase): FixedDoubleArray labels CastError {
+  return ConvertFixedArrayBaseToFixedDoubleArray(o) otherwise CastError;
+}
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 
@@ -399,9 +421,10 @@ labels IfHole {
 }
 
 macro HasPropertyObject(
-    o: Object, p: Object, c: Context, f: constexpr HasPropertyLookupMode): Oddball {
+    o: Object, p: Object, c: Context,
+    f: constexpr HasPropertyLookupMode): Oddball {
   try {
-    return HasProperty(cast<HeapObject>(o) otherwise CastError, p, c, f);
+    return HasProperty((cast<HeapObject>(o) otherwise CastError), p, c, f);
   }
   label CastError {
     return False;

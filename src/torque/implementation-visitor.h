@@ -83,7 +83,6 @@ class ImplementationVisitor : public FileVisitor {
     return GenerateFetchFromLocation(expr, GetLocationReference(expr));
   }
 
-  VisitResult Visit(CastExpression* expr);
   VisitResult Visit(UnsafeCastExpression* expr);
   VisitResult Visit(ConvertExpression* expr);
 
@@ -227,7 +226,7 @@ class ImplementationVisitor : public FileVisitor {
                   const CallableNodeSignature* signature,
                   Statement* body) override {
     Declarations::GenericScopeActivator scope(declarations(), key);
-    Visit(callable, MakeSignature(callable, signature), body);
+    Visit(callable, MakeSignature(signature), body);
   }
 
   std::string NewTempVariable();

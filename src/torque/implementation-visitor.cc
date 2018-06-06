@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/torque/implementation-visitor.h"
+#include "src/torque/parameter-difference.h"
 
 #include "include/v8.h"
 
@@ -151,7 +152,7 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
 
 void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
                                   const Signature& sig, Statement* body) {
-  Signature signature = MakeSignature(decl, decl->signature.get());
+  Signature signature = MakeSignature(decl->signature.get());
   std::string name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
   const TypeVector& list = signature.types();
@@ -501,13 +502,15 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
 VisitResult ImplementationVisitor::Visit(IdentifierExpression* expr) {
   std::string name = expr->name;
   if (expr->generic_arguments.size() != 0) {
-    Generic* generic = declarations()->LookupGeneric(expr->name);
-    TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
-    name = GetGeneratedCallableName(name, specialization_types);
-    CallableNode* callable = generic->declaration()->callable;
-    QueueGenericSpecialization({generic, specialization_types}, callable,
-                               callable->signature.get(),
-                               generic->declaration()->body);
+    GenericList* generic_list = declarations()->LookupGeneric(expr->name);
+    for (Generic* generic : generic_list->list()) {
+      TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
+      name = GetGeneratedCallableName(name, specialization_types);
+      CallableNode* callable = generic->declaration()->callable;
+      QueueGenericSpecialization({generic, specialization_types}, callable,
+                                 callable->signature.get(),
+                                 generic->declaration()->body);
+    }
   }
 
   if (Builtin* builtin = Builtin::DynamicCast(declarations()->Lookup(name))) {
@@ -515,13 +518,6 @@ VisitResult ImplementationVisitor::Visit(IdentifierExpression* expr) {
   }
 
   return GenerateFetchFromLocation(expr, GetLocationReference(expr));
-}
-
-VisitResult ImplementationVisitor::Visit(CastExpression* expr) {
-  Arguments args;
-  args.parameters = {Visit(expr->value)};
-  args.labels = LabelsFromIdentifiers({expr->otherwise});
-  return GenerateOperation("cast<>", args, declarations()->GetType(expr->type));
 }
 
 VisitResult ImplementationVisitor::Visit(UnsafeCastExpression* expr) {
@@ -1083,62 +1079,6 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
   o << ")";
 }
 
-class ParameterDifference {
- public:
-  ParameterDifference(const TypeVector& to, const TypeVector& from) {
-    DCHECK_EQ(to.size(), from.size());
-    for (size_t i = 0; i < to.size(); ++i) {
-      AddParameter(to[i], from[i]);
-    }
-  }
-
-  // An overload is selected if it is strictly better than all alternatives.
-  // This means that it has to be strictly better in at least one parameter,
-  // and better or equally good in all others.
-  //
-  // When comparing a pair of corresponding parameters of two overloads...
-  // ... they are considered equally good if:
-  //     - They are equal.
-  //     - Both require some implicit conversion.
-  // ... one is considered better if:
-  //     - It is a strict subtype of the other.
-  //     - It doesn't require an implicit conversion, while the other does.
-  bool StrictlyBetterThan(const ParameterDifference& other) const {
-    DCHECK_EQ(difference_.size(), other.difference_.size());
-    bool better_parameter_found = false;
-    for (size_t i = 0; i < difference_.size(); ++i) {
-      base::Optional<const Type*> a = difference_[i];
-      base::Optional<const Type*> b = other.difference_[i];
-      if (a == b) {
-        continue;
-      } else if (a && b && a != b && (*a)->IsSubtypeOf(*b)) {
-        DCHECK(!(*b)->IsSubtypeOf(*a));
-        better_parameter_found = true;
-      } else if (a && !b) {
-        better_parameter_found = true;
-      } else {
-        return false;
-      }
-    }
-    return better_parameter_found;
-  }
-
- private:
-  // Pointwise difference between call arguments and a signature.
-  // {base::nullopt} means that an implicit conversion was necessary,
-  // otherwise we store the supertype found in the signature.
-  std::vector<base::Optional<const Type*>> difference_;
-
-  void AddParameter(const Type* to, const Type* from) {
-    if (from->IsSubtypeOf(to)) {
-      difference_.push_back(to);
-    } else if (IsAssignableFrom(to, from)) {
-      difference_.push_back(base::nullopt);
-    } else {
-      UNREACHABLE();
-    }
-  }
-};
 
 VisitResult ImplementationVisitor::GenerateOperation(
     const std::string& operation, Arguments arguments,
@@ -1563,14 +1503,30 @@ void ImplementationVisitor::Visit(StandardDeclaration* decl) {
 }
 
 void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
-  Generic* generic = declarations()->LookupGeneric(decl->name);
-  TypeVector specialization_types = GetTypeVector(decl->generic_parameters);
-  CallableNode* callable = generic->declaration()->callable;
-  SpecializeGeneric({{generic, specialization_types},
-                     callable,
-                     decl->signature.get(),
-                     decl->body,
-                     decl->pos});
+  Signature signature_with_types = MakeSignature(decl->signature.get());
+  Declarations::NodeScopeActivator specialization_activator(declarations(),
+                                                            decl);
+  GenericList* generic_list = declarations()->LookupGeneric(decl->name);
+  for (Generic* generic : generic_list->list()) {
+    CallableNode* callable = generic->declaration()->callable;
+    Signature generic_signature_with_types =
+        MakeSignature(callable->signature.get());
+    if (signature_with_types.HasSameTypesAs(generic_signature_with_types)) {
+      TypeVector specialization_types = GetTypeVector(decl->generic_parameters);
+      SpecializeGeneric({{generic, specialization_types},
+                         callable,
+                         decl->signature.get(),
+                         decl->body,
+                         decl->pos});
+      return;
+    }
+  }
+  // Because the DeclarationVisitor already performed the same lookup
+  // as above to find aspecialization match and already threw if it didn't
+  // find one, failure to find a match here should never happen.
+  // TODO(danno): Remember the specialization found in the declaration visitor
+  //              so that the lookup doesn't have to be repeated here.
+  UNREACHABLE();
 }
 
 VisitResult ImplementationVisitor::Visit(CallExpression* expr,
@@ -1579,14 +1535,18 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
   std::string name = expr->callee.name;
   bool has_template_arguments = expr->callee.generic_arguments.size() != 0;
   if (has_template_arguments) {
-    Generic* generic = declarations()->LookupGeneric(expr->callee.name);
     TypeVector specialization_types =
         GetTypeVector(expr->callee.generic_arguments);
     name = GetGeneratedCallableName(name, specialization_types);
-    CallableNode* callable = generic->declaration()->callable;
-    QueueGenericSpecialization({generic, specialization_types}, callable,
-                               callable->signature.get(),
-                               generic->declaration()->body);
+    for (auto generic :
+         declarations()->LookupGeneric(expr->callee.name)->list()) {
+      CallableNode* callable = generic->declaration()->callable;
+      if (generic->declaration()->body) {
+        QueueGenericSpecialization({generic, specialization_types}, callable,
+                                   callable->signature.get(),
+                                   generic->declaration()->body);
+      }
+    }
   }
   for (Expression* arg : expr->arguments)
     arguments.parameters.push_back(Visit(arg));

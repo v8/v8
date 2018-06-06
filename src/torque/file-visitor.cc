@@ -5,14 +5,13 @@
 #include "src/torque/file-visitor.h"
 
 #include "src/torque/declarable.h"
+#include "src/torque/parameter-difference.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 
-Signature FileVisitor::MakeSignature(CallableNode* decl,
-                                     const CallableNodeSignature* signature) {
-  Declarations::NodeScopeActivator scope(declarations(), decl);
+Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
   LabelDeclarationVector definition_vector;
   for (auto label : signature->labels) {
     LabelDeclaration def = {label.name, GetTypeVector(label.types)};
@@ -45,25 +44,40 @@ Callable* FileVisitor::LookupCall(const std::string& name,
   } else if (declarable->IsRuntimeFunction()) {
     result = RuntimeFunction::cast(declarable);
   } else if (declarable->IsMacroList()) {
-    for (auto& m : MacroList::cast(declarable)->list()) {
+    std::vector<Macro*> candidates;
+    for (Macro* m : MacroList::cast(declarable)->list()) {
       if (IsCompatibleSignature(m->signature().parameter_types,
                                 parameter_types)) {
-        if (result != nullptr) {
-          std::stringstream stream;
-          stream << "multiple matching matching parameter list for macro "
-                 << name << ": (" << parameter_types << ") and ("
-                 << result->signature().parameter_types << ")";
-          ReportError(stream.str());
-        }
-        result = m;
+        candidates.push_back(m);
       }
     }
-    if (result == nullptr) {
-      std::stringstream stream;
-      stream << "no matching matching parameter list for macro " << name
-             << ": call parameters were (" << parameter_types << ")";
-      ReportError(stream.str());
+
+    auto is_better_candidate = [&](Macro* a, Macro* b) {
+      return ParameterDifference(a->signature().parameter_types.types,
+                                 parameter_types)
+          .StrictlyBetterThan(ParameterDifference(
+              b->signature().parameter_types.types, parameter_types));
+    };
+    if (!candidates.empty()) {
+      Macro* best = *std::min_element(candidates.begin(), candidates.end(),
+                                      is_better_candidate);
+      for (Macro* candidate : candidates) {
+        if (candidate != best && !is_better_candidate(best, candidate)) {
+          std::stringstream s;
+          s << "ambiguous macro \"" << name << "\" with types ("
+            << parameter_types << "), candidates:";
+          for (Macro* m : candidates) {
+            s << "\n    (" << m->signature().parameter_types << ") => "
+              << m->signature().return_type;
+          }
+          ReportError(s.str());
+        }
+      }
+      return best;
     }
+    std::stringstream stream;
+    stream << "cannot find macro with name \"" << name << "\"";
+    ReportError(stream.str());
   } else {
     std::stringstream stream;
     stream << "can't call " << declarable->type_name() << " " << name
@@ -100,14 +114,13 @@ void FileVisitor::SpecializeGeneric(
       completed_specializations_.end()) {
     std::stringstream stream;
     stream << "cannot redeclare specialization of "
-           << specialization.key.first->declaration()->callable->name
-           << " with types <" << specialization.key.second << ">";
+           << specialization.key.first->name() << " with types <"
+           << specialization.key.second << ">";
     ReportError(stream.str());
   }
   if (!specialization.body) {
     std::stringstream stream;
-    stream << "missing specialization of "
-           << specialization.key.first->declaration()->callable->name
+    stream << "missing specialization of " << specialization.key.first->name()
            << " with types <" << specialization.key.second << ">";
     ReportError(stream.str());
   }

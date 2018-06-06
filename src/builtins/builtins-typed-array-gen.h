@@ -5,15 +5,15 @@
 #ifndef V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
+class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : BaseBuiltinsFromDSLAssembler(state) {}
 
   TNode<JSTypedArray> SpeciesCreateByLength(TNode<Context> context,
                                             TNode<JSTypedArray> exemplar,

@@ -64,7 +64,7 @@ class Declarations {
 
   Label* LookupLabel(const std::string& name);
 
-  Generic* LookupGeneric(const std::string& name);
+  GenericList* LookupGeneric(const std::string& name);
 
   const AbstractType* DeclareAbstractType(const std::string& name,
                                           const std::string& generated,
@@ -109,12 +109,13 @@ class Declarations {
   void PrintScopeChain() { chain_.Print(); }
 
   class NodeScopeActivator;
+  class CleanNodeScopeActivator;
   class GenericScopeActivator;
   class ScopedGenericSpecializationKey;
   class ScopedGenericScopeChainSnapshot;
 
  private:
-  Scope* GetNodeScope(const AstNode* node);
+  Scope* GetNodeScope(const AstNode* node, bool reset_scope = false);
   Scope* GetGenericScope(Generic* generic, const TypeVector& types);
 
   template <class T>
@@ -148,6 +149,15 @@ class Declarations::NodeScopeActivator {
  public:
   NodeScopeActivator(Declarations* declarations, AstNode* node)
       : activator_(declarations->GetNodeScope(node)) {}
+
+ private:
+  Scope::Activator activator_;
+};
+
+class Declarations::CleanNodeScopeActivator {
+ public:
+  CleanNodeScopeActivator(Declarations* declarations, AstNode* node)
+      : activator_(declarations->GetNodeScope(node, true)) {}
 
  private:
   Scope::Activator activator_;

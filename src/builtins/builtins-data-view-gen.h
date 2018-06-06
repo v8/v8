@@ -5,16 +5,16 @@
 #ifndef V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 #define V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 
-#include "src/code-stub-assembler.h"
 #include "src/elements-kind.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-class DataViewBuiltinsAssembler : public CodeStubAssembler {
+class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : BaseBuiltinsFromDSLAssembler(state) {}
 
   TNode<Smi> LoadDataViewByteOffset(TNode<JSDataView> data_view) {
     return LoadObjectField<Smi>(data_view, JSDataView::kByteOffsetOffset);

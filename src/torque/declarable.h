@@ -32,6 +32,7 @@ class Declarable {
     kBuiltin,
     kRuntimeFunction,
     kGeneric,
+    kGenericList,
     kTypeAlias,
     kLabel,
     kConstant
@@ -46,6 +47,7 @@ class Declarable {
   bool IsLabel() const { return kind() == kLabel; }
   bool IsVariable() const { return kind() == kVariable; }
   bool IsMacroList() const { return kind() == kMacroList; }
+  bool IsGenericList() const { return kind() == kGenericList; }
   bool IsConstant() const { return kind() == kConstant; }
   bool IsValue() const { return IsVariable() || IsConstant() || IsParameter(); }
   virtual const char* type_name() const { return "<<unknown>>"; }
@@ -286,6 +288,7 @@ class Generic : public Declarable {
   DECLARE_DECLARABLE_BOILERPLATE(Generic, generic);
 
   GenericDeclaration* declaration() const { return declaration_; }
+  const std::string& name() const { return name_; }
   Module* module() const { return module_; }
 
  private:
@@ -293,11 +296,29 @@ class Generic : public Declarable {
   Generic(const std::string& name, Module* module,
           GenericDeclaration* declaration)
       : Declarable(Declarable::kGeneric),
+        name_(name),
         module_(module),
         declaration_(declaration) {}
 
+  std::string name_;
   Module* module_;
   GenericDeclaration* declaration_;
+};
+
+class GenericList : public Declarable {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(GenericList, generic_list);
+  const std::vector<Generic*>& list() { return list_; }
+  Generic* AddGeneric(Generic* generic) {
+    list_.push_back(generic);
+    return generic;
+  }
+
+ private:
+  friend class Declarations;
+  GenericList() : Declarable(Declarable::kGenericList) {}
+
+  std::vector<Generic*> list_;
 };
 
 typedef std::pair<Generic*, TypeVector> SpecializationKey;
@@ -320,6 +341,7 @@ std::ostream& operator<<(std::ostream& os, const Callable& m);
 std::ostream& operator<<(std::ostream& os, const Variable& v);
 std::ostream& operator<<(std::ostream& os, const Builtin& b);
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
+std::ostream& operator<<(std::ostream& os, const Generic& g);
 
 #undef DECLARE_DECLARABLE_BOILERPLATE
 

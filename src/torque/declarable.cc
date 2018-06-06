@@ -34,6 +34,21 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const Generic& g) {
+  os << "generic " << g.name() << "<";
+  bool first = true;
+  for (auto t : g.declaration()->generic_parameters) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << t << ": type";
+  }
+  os << ">";
+
+  return os;
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

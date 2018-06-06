@@ -39,7 +39,6 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(ElementAccessExpression)             \
   V(AssignmentExpression)                \
   V(IncrementDecrementExpression)        \
-  V(CastExpression)                      \
   V(UnsafeCastExpression)                \
   V(ConvertExpression)
 
@@ -300,16 +299,6 @@ struct NumberLiteralExpression : Expression {
   NumberLiteralExpression(SourcePosition p, std::string n)
       : Expression(kKind, p), number(std::move(n)) {}
   std::string number;
-};
-
-struct CastExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(CastExpression)
-  CastExpression(SourcePosition p, TypeExpression* t, std::string o,
-                 Expression* v)
-      : Expression(kKind, p), type(t), otherwise(o), value(v) {}
-  TypeExpression* type;
-  std::string otherwise;
-  Expression* value;
 };
 
 struct ConvertExpression : Expression {

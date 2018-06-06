@@ -9,13 +9,15 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-Scope* Declarations::GetNodeScope(const AstNode* node) {
+Scope* Declarations::GetNodeScope(const AstNode* node, bool reset_scope) {
   std::pair<const AstNode*, TypeVector> key(
       node, current_generic_specialization_ == nullptr
                 ? TypeVector()
                 : current_generic_specialization_->second);
-  auto i = scopes_.find(key);
-  if (i != scopes_.end()) return i->second;
+  if (!reset_scope) {
+    auto i = scopes_.find(key);
+    if (i != scopes_.end()) return i->second;
+  }
   Scope* result = chain_.NewScope();
   scopes_[key] = result;
   return result;
@@ -175,11 +177,11 @@ Builtin* Declarations::LookupBuiltin(const std::string& name) {
   return nullptr;
 }
 
-Generic* Declarations::LookupGeneric(const std::string& name) {
-  Declarable* declarable = Lookup(name);
-  if (declarable != nullptr) {
-    if (declarable->IsGeneric()) {
-      return Generic::cast(declarable);
+GenericList* Declarations::LookupGeneric(const std::string& name) {
+  Declarable* declarable_list = Lookup(name);
+  if (declarable_list != nullptr) {
+    if (declarable_list->IsGenericList()) {
+      return GenericList::cast(declarable_list);
     }
     ReportError(name + " is not a generic");
   }
@@ -308,9 +310,20 @@ void Declarations::DeclareConstant(const std::string& name, const Type* type,
 
 Generic* Declarations::DeclareGeneric(const std::string& name, Module* module,
                                       GenericDeclaration* generic) {
-  CheckAlreadyDeclared(name, "generic");
+  auto previous = chain_.Lookup(name);
+  GenericList* generic_list = nullptr;
+  if (previous == nullptr) {
+    generic_list = new GenericList();
+    Declare(name, std::unique_ptr<Declarable>(generic_list));
+  } else if (!previous->IsGenericList()) {
+    std::stringstream s;
+    s << "cannot redeclare non-generic " << name << " as a generic";
+    ReportError(s.str());
+  } else {
+    generic_list = GenericList::cast(previous);
+  }
   Generic* result = new Generic(name, module, generic);
-  Declare(name, std::unique_ptr<Generic>(result));
+  generic_list->AddGeneric(result);
   generic_declaration_scopes_[result] = GetScopeChainSnapshot();
   return result;
 }

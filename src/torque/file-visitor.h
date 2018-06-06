@@ -70,8 +70,7 @@ class FileVisitor {
   Callable* LookupCall(const std::string& name,
                        const TypeVector& parameter_types);
 
-  Signature MakeSignature(CallableNode* decl,
-                          const CallableNodeSignature* signature);
+  Signature MakeSignature(const CallableNodeSignature* signature);
 
   std::string GetGeneratedCallableName(const std::string& name,
                                        const TypeVector& specialized_types);
