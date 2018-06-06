@@ -268,7 +268,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
-    source->GetIsolate()->counters()->code_cache_reject_reason()->AddSample(
+    isolate->counters()->code_cache_reject_reason()->AddSample(
         sanity_check_result);
     return MaybeHandle<SharedFunctionInfo>();
   }

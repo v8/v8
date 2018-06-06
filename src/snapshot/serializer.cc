@@ -576,12 +576,12 @@ void Serializer<
 // TODO(all): replace this with proper iteration of weak slots in serializer.
 class UnlinkWeakNextScope {
  public:
-  explicit UnlinkWeakNextScope(HeapObject* object) : object_(nullptr) {
+  explicit UnlinkWeakNextScope(Heap* heap, HeapObject* object)
+      : object_(nullptr) {
     if (object->IsAllocationSite()) {
       object_ = object;
       next_ = AllocationSite::cast(object)->weak_next();
-      AllocationSite::cast(object)->set_weak_next(
-          object->GetHeap()->undefined_value());
+      AllocationSite::cast(object)->set_weak_next(heap->undefined_value());
     }
   }
 
@@ -695,7 +695,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeDeferred() {
 template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::SerializeContent(Map* map,
                                                                 int size) {
-  UnlinkWeakNextScope unlink_weak_next(object_);
+  UnlinkWeakNextScope unlink_weak_next(serializer_->isolate()->heap(), object_);
   if (object_->IsCode()) {
     // For code objects, output raw bytes first.
     OutputCode(size);

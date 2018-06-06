@@ -79,7 +79,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
     VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
-    result = Handle<HeapObject>(HeapObject::cast(root));
+    result = handle(HeapObject::cast(root), isolate);
     Rehash();
     allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }

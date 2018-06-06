@@ -161,11 +161,11 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
 
         if (canonical != nullptr) return canonical;
 
-        new_internalized_strings_.push_back(handle(string));
+        new_internalized_strings_.push_back(handle(string, isolate_));
         return string;
       }
     } else if (obj->IsScript()) {
-      new_scripts_.push_back(handle(Script::cast(obj)));
+      new_scripts_.push_back(handle(Script::cast(obj), isolate_));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
