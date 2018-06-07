@@ -322,7 +322,8 @@ Generic* Declarations::DeclareGeneric(const std::string& name, Module* module,
   } else {
     generic_list = GenericList::cast(previous);
   }
-  Generic* result = new Generic(name, module, generic);
+  Generic* result = RegisterDeclarable(
+      std::unique_ptr<Generic>(new Generic(name, module, generic)));
   generic_list->AddGeneric(result);
   generic_declaration_scopes_[result] = GetScopeChainSnapshot();
   return result;
