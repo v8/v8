@@ -141,6 +141,7 @@ class PropertyAccessInfo final {
 class AccessInfoFactory final {
  public:
   AccessInfoFactory(CompilationDependencies* dependencies,
+                    const JSHeapBroker* js_heap_broker,
                     Handle<Context> native_context, Zone* zone);
 
   bool ComputeElementAccessInfo(Handle<Map> map, AccessMode access_mode,
@@ -167,12 +168,14 @@ class AccessInfoFactory final {
                         PropertyAccessInfo* access_info);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Factory* factory() const;
   Isolate* isolate() const { return isolate_; }
   Handle<Context> native_context() const { return native_context_; }
   Zone* zone() const { return zone_; }
 
   CompilationDependencies* const dependencies_;
+  const JSHeapBroker* const js_heap_broker_;
   Handle<Context> const native_context_;
   Isolate* const isolate_;
   TypeCache const& type_cache_;

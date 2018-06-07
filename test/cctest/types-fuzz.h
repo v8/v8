@@ -40,7 +40,7 @@ namespace compiler {
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone), isolate_(isolate), rng_(rng) {
+      : zone_(zone), js_heap_broker_(isolate), rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = Type::name();            \
   types.push_back(name);
@@ -65,13 +65,14 @@ class Types {
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
     uninitialized = isolate->factory()->uninitialized_value();
-    SmiConstant = Type::NewConstant(isolate, smi, zone);
-    Signed32Constant = Type::NewConstant(isolate, signed32, zone);
+    SmiConstant = Type::NewConstant(js_heap_broker(), smi, zone);
+    Signed32Constant = Type::NewConstant(js_heap_broker(), signed32, zone);
 
-    ObjectConstant1 = Type::HeapConstant(isolate, object1, zone);
-    ObjectConstant2 = Type::HeapConstant(isolate, object2, zone);
-    ArrayConstant = Type::HeapConstant(isolate, array, zone);
-    UninitializedConstant = Type::HeapConstant(isolate, uninitialized, zone);
+    ObjectConstant1 = Type::HeapConstant(js_heap_broker(), object1, zone);
+    ObjectConstant2 = Type::HeapConstant(js_heap_broker(), object2, zone);
+    ArrayConstant = Type::HeapConstant(js_heap_broker(), array, zone);
+    UninitializedConstant =
+        Type::HeapConstant(js_heap_broker(), uninitialized, zone);
 
     values.push_back(smi);
     values.push_back(boxed_smi);
@@ -84,7 +85,7 @@ class Types {
     values.push_back(float2);
     values.push_back(float3);
     for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
-      types.push_back(Type::NewConstant(isolate, *it, zone));
+      types.push_back(Type::NewConstant(js_heap_broker(), *it, zone));
     }
 
     integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
@@ -120,7 +121,7 @@ class Types {
 
 #define DECLARE_TYPE(name, value) Type name;
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
-  #undef DECLARE_TYPE
+#undef DECLARE_TYPE
 
   Type SignedSmall;
   Type UnsignedSmall;
@@ -142,11 +143,11 @@ class Types {
   ValueVector integers;  // "Integer" values used for range limits.
 
   Type NewConstant(Handle<i::Object> value) {
-    return Type::NewConstant(isolate_, value, zone_);
+    return Type::NewConstant(js_heap_broker(), value, zone_);
   }
 
   Type HeapConstant(Handle<i::HeapObject> value) {
-    return Type::HeapConstant(isolate_, value, zone_);
+    return Type::HeapConstant(js_heap_broker(), value, zone_);
   }
 
   Type Range(double min, double max) { return Type::Range(min, max, zone_); }
@@ -184,7 +185,7 @@ class Types {
       }
       case 1: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
-        return Type::NewConstant(isolate_, values[i], zone_);
+        return Type::NewConstant(js_heap_broker(), values[i], zone_);
       }
       case 2: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
@@ -208,10 +209,11 @@ class Types {
   }
 
   Zone* zone() { return zone_; }
+  const JSHeapBroker* js_heap_broker() const { return &js_heap_broker_; }
 
  private:
   Zone* zone_;
-  Isolate* isolate_;
+  JSHeapBroker js_heap_broker_;
   v8::base::RandomNumberGenerator* rng_;
 };
 

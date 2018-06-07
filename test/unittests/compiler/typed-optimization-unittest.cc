@@ -38,7 +38,8 @@ class TypedOptimizationTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph);
+    TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph,
+                              js_heap_broker());
     return reducer.Reduce(node);
   }
 

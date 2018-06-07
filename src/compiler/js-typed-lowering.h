@@ -31,7 +31,8 @@ enum Signedness { kSigned, kUnsigned };
 class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone);
+  JSTypedLowering(Editor* editor, JSGraph* jsgraph,
+                  const JSHeapBroker* js_heap_broker, Zone* zone);
   ~JSTypedLowering() final {}
 
   const char* reducer_name() const override { return "JSTypedLowering"; }

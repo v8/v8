@@ -286,8 +286,8 @@ class RepresentationSelector {
     bool weakened_ = false;
   };
 
-  RepresentationSelector(JSGraph* jsgraph, Zone* zone,
-                         RepresentationChanger* changer,
+  RepresentationSelector(JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
+                         Zone* zone, RepresentationChanger* changer,
                          SourcePositionTable* source_positions,
                          NodeOriginTable* node_origins)
       : jsgraph_(jsgraph),
@@ -306,7 +306,7 @@ class RepresentationSelector {
         source_positions_(source_positions),
         node_origins_(node_origins),
         type_cache_(TypeCache::Get()),
-        op_typer_(jsgraph->isolate(), graph_zone()) {
+        op_typer_(jsgraph->isolate(), js_heap_broker, graph_zone()) {
   }
 
   // Forward propagation of types from type feedback.
@@ -3252,11 +3252,14 @@ class RepresentationSelector {
   Zone* graph_zone() { return jsgraph_->zone(); }
 };
 
-SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
+SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph,
+                                       const JSHeapBroker* js_heap_broker,
+                                       Zone* zone,
                                        SourcePositionTable* source_positions,
                                        NodeOriginTable* node_origins,
                                        PoisoningMitigationLevel poisoning_level)
     : jsgraph_(jsgraph),
+      js_heap_broker_(js_heap_broker),
       zone_(zone),
       type_cache_(TypeCache::Get()),
       source_positions_(source_positions),
@@ -3265,8 +3268,8 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
 
 void SimplifiedLowering::LowerAllNodes() {
   RepresentationChanger changer(jsgraph(), jsgraph()->isolate());
-  RepresentationSelector selector(jsgraph(), zone_, &changer, source_positions_,
-                                  node_origins_);
+  RepresentationSelector selector(jsgraph(), js_heap_broker_, zone_, &changer,
+                                  source_positions_, node_origins_);
   selector.Run(this);
 }
 

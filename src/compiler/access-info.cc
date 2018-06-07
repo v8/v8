@@ -237,8 +237,10 @@ Handle<Cell> PropertyAccessInfo::export_cell() const {
 }
 
 AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
+                                     const JSHeapBroker* js_heap_broker,
                                      Handle<Context> native_context, Zone* zone)
     : dependencies_(dependencies),
+      js_heap_broker_(js_heap_broker),
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
       type_cache_(TypeCache::Get()),
@@ -398,8 +400,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               dependencies()->AssumeFieldOwner(field_owner_map);
 
               // Remember the field map, and try to infer a useful type.
-              field_type =
-                  Type::For(isolate(), descriptors_field_type->AsClass());
+              field_type = Type::For(js_heap_broker(),
+                                     descriptors_field_type->AsClass());
               field_map = descriptors_field_type->AsClass();
             }
           }
@@ -704,7 +706,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       dependencies()->AssumeFieldOwner(field_owner_map);
 
       // Remember the field map, and try to infer a useful type.
-      field_type = Type::For(isolate(), descriptors_field_type->AsClass());
+      field_type =
+          Type::For(js_heap_broker(), descriptors_field_type->AsClass());
       field_map = descriptors_field_type->AsClass();
     }
   }

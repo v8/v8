@@ -18,14 +18,15 @@ namespace compiler {
 
 TypedOptimization::TypedOptimization(Editor* editor,
                                      CompilationDependencies* dependencies,
-                                     JSGraph* jsgraph)
+                                     JSGraph* jsgraph,
+                                     const JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       jsgraph_(jsgraph),
-      true_type_(Type::HeapConstant(jsgraph->isolate(), factory()->true_value(),
+      true_type_(Type::HeapConstant(js_heap_broker, factory()->true_value(),
                                     graph()->zone())),
-      false_type_(Type::HeapConstant(
-          jsgraph->isolate(), factory()->false_value(), graph()->zone())),
+      false_type_(Type::HeapConstant(js_heap_broker, factory()->false_value(),
+                                     graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
 TypedOptimization::~TypedOptimization() {}

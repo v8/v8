@@ -33,13 +33,14 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
-    : isolate_(isolate),
-      flags_(flags),
+Typer::Typer(Isolate* isolate, const JSHeapBroker* js_heap_broker, Flags flags,
+             Graph* graph)
+    : flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
-      operation_typer_(isolate, zone()) {
+      js_heap_broker_(js_heap_broker),
+      operation_typer_(isolate, js_heap_broker, zone()) {
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
@@ -227,7 +228,6 @@ class Typer::Visitor : public Reducer {
   Type Weaken(Node* node, Type current_type, Type previous_type);
 
   Zone* zone() { return typer_->zone(); }
-  Isolate* isolate() { return typer_->isolate(); }
   Graph* graph() { return typer_->graph(); }
 
   void SetWeakened(NodeId node_id) { weakened_nodes_.insert(node_id); }
@@ -2178,7 +2178,7 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 // Heap constants.
 
 Type Typer::Visitor::TypeConstant(Handle<Object> value) {
-  return Type::NewConstant(isolate(), value, zone());
+  return Type::NewConstant(typer_->js_heap_broker(), value, zone());
 }
 
 }  // namespace compiler

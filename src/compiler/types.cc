@@ -132,10 +132,8 @@ Type::bitset Type::BitsetLub() const {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(Isolate* isolate, i::Map* map) {
-  DisallowHeapAllocation no_allocation;
-  Heap* heap = isolate->heap();
-  switch (map->instance_type()) {
+Type::bitset BitsetType::Lub(HeapReferenceType const& type) {
+  switch (type.instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
@@ -165,16 +163,19 @@ Type::bitset BitsetType::Lub(Isolate* isolate, i::Map* map) {
     case BIGINT_TYPE:
       return kBigInt;
     case ODDBALL_TYPE: {
-      if (map == heap->undefined_map()) return kUndefined;
-      if (map == heap->null_map()) return kNull;
-      if (map == heap->boolean_map()) return kBoolean;
-      if (map == heap->the_hole_map()) return kHole;
-      DCHECK(map == heap->uninitialized_map() ||
-             map == heap->termination_exception_map() ||
-             map == heap->arguments_marker_map() ||
-             map == heap->optimized_out_map() ||
-             map == heap->stale_register_map());
-      return kOtherInternal;
+      switch (type.oddball_type()) {
+        case HeapReferenceType::kHole:
+          return kHole;
+        case HeapReferenceType::kBoolean:
+          return kBoolean;
+        case HeapReferenceType::kNull:
+          return kNull;
+        case HeapReferenceType::kUndefined:
+          return kUndefined;
+        case HeapReferenceType::kUnknown:
+          return kOtherInternal;
+      }
+      UNREACHABLE();
     }
     case HEAP_NUMBER_TYPE:
       return kNumber;
@@ -185,15 +186,15 @@ Type::bitset BitsetType::Lub(Isolate* isolate, i::Map* map) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      if (map->is_undetectable()) {
+      if (type.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We
         // could add another Type bit to support other use cases in the
         // future if necessary.
-        DCHECK(map->is_callable());
+        DCHECK(type.is_callable());
         return kOtherUndetectable;
       }
-      if (map->is_callable()) {
+      if (type.is_callable()) {
         return kOtherCallable;
       }
       return kOtherObject;
@@ -232,18 +233,18 @@ Type::bitset BitsetType::Lub(Isolate* isolate, i::Map* map) {
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_TABLE_TYPE:
-      DCHECK(!map->is_callable());
-      DCHECK(!map->is_undetectable());
+      DCHECK(!type.is_callable());
+      DCHECK(!type.is_undetectable());
       return kOtherObject;
     case JS_BOUND_FUNCTION_TYPE:
-      DCHECK(!map->is_undetectable());
+      DCHECK(!type.is_undetectable());
       return kBoundFunction;
     case JS_FUNCTION_TYPE:
-      DCHECK(!map->is_undetectable());
+      DCHECK(!type.is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
-      DCHECK(!map->is_undetectable());
-      if (map->is_callable()) return kCallableProxy;
+      DCHECK(!type.is_undetectable());
+      if (type.is_callable()) return kCallableProxy;
       return kOtherProxy;
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
@@ -329,12 +330,13 @@ Type::bitset BitsetType::Lub(Isolate* isolate, i::Map* map) {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(Isolate* isolate, i::Object* value) {
+Type::bitset BitsetType::Lub(const JSHeapBroker* js_heap_broker,
+                             Handle<HeapObject> value) {
   DisallowHeapAllocation no_allocation;
   if (value->IsNumber()) {
     return Lub(value->Number());
   }
-  return Lub(isolate, i::HeapObject::cast(value)->map());
+  return Lub(js_heap_broker->HeapReferenceTypeForObject(value));
 }
 
 Type::bitset BitsetType::Lub(double value) {
@@ -811,14 +813,14 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(Isolate* isolate, i::Handle<i::Object> value,
-                       Zone* zone) {
+Type Type::NewConstant(const JSHeapBroker* js_heap_broker,
+                       Handle<i::Object> value, Zone* zone) {
   if (value->IsNumber()) {
     return NewConstant(value->Number(), zone);
   } else if (value->IsString() && !value->IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(isolate, i::Handle<i::HeapObject>::cast(value), zone);
+  return HeapConstant(js_heap_broker, Handle<HeapObject>::cast(value), zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1044,9 +1046,9 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(Isolate* isolate, i::Handle<i::HeapObject> value,
-                        Zone* zone) {
-  return FromTypeBase(HeapConstantType::New(isolate, value, zone));
+Type Type::HeapConstant(const JSHeapBroker* js_heap_broker,
+                        Handle<HeapObject> value, Zone* zone) {
+  return FromTypeBase(HeapConstantType::New(js_heap_broker, value, zone));
 }
 
 // static

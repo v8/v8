@@ -37,6 +37,7 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-generic-lowering.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
@@ -130,6 +131,7 @@ class PipelineData {
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
+    js_heap_broker_ = new (graph_zone_) JSHeapBroker(isolate_);
   }
 
   // For WebAssembly compile entry point.
@@ -245,6 +247,8 @@ class PipelineData {
   Handle<JSGlobalObject> global_object() const {
     return handle(info()->global_object(), isolate());
   }
+
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
 
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
@@ -416,6 +420,7 @@ class PipelineData {
   JSGraph* jsgraph_ = nullptr;
   MachineGraph* mcgraph_ = nullptr;
   Schedule* schedule_ = nullptr;
+  JSHeapBroker* js_heap_broker_ = nullptr;
 
   // All objects in the following group of fields are allocated in
   // instruction_zone_. They are all set to nullptr when the instruction_zone_
@@ -1160,8 +1165,8 @@ struct InliningPhase {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
     }
     JSNativeContextSpecialization native_context_specialization(
-        &graph_reducer, data->jsgraph(), flags, data->native_context(),
-        data->info()->dependencies(), temp_zone);
+        &graph_reducer, data->jsgraph(), data->js_heap_broker(), flags,
+        data->native_context(), data->info()->dependencies(), temp_zone);
     JSInliningHeuristic inlining(
         &graph_reducer, data->info()->is_inlining_enabled()
                             ? JSInliningHeuristic::kGeneralInlining
@@ -1234,12 +1239,14 @@ struct TypedLoweringPhase {
                                               data->common(), temp_zone);
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        data->native_context(), temp_zone);
-    JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
+        data->js_heap_broker(), data->native_context(), temp_zone);
+    JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(),
+                                   data->js_heap_broker(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
                                                     data->jsgraph());
     TypedOptimization typed_optimization(
-        &graph_reducer, data->info()->dependencies(), data->jsgraph());
+        &graph_reducer, data->info()->dependencies(), data->jsgraph(),
+        data->js_heap_broker());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(data->isolate(), &graph_reducer,
@@ -1279,8 +1286,9 @@ struct SimplifiedLoweringPhase {
   static const char* phase_name() { return "simplified lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    SimplifiedLowering lowering(data->jsgraph(), temp_zone,
-                                data->source_positions(), data->node_origins(),
+    SimplifiedLowering lowering(data->jsgraph(), data->js_heap_broker(),
+                                temp_zone, data->source_positions(),
+                                data->node_origins(),
                                 data->info()->GetPoisoningMitigationLevel());
     lowering.LowerAllNodes();
   }
@@ -1326,12 +1334,12 @@ struct ConcurrentOptimizationPrepPhase {
     // This is needed for escape analysis.
     NodeProperties::SetType(
         data->jsgraph()->FalseConstant(),
-        Type::HeapConstant(data->isolate(),
+        Type::HeapConstant(data->js_heap_broker(),
                            data->isolate()->factory()->false_value(),
                            data->jsgraph()->zone()));
     NodeProperties::SetType(
         data->jsgraph()->TrueConstant(),
-        Type::HeapConstant(data->isolate(),
+        Type::HeapConstant(data->js_heap_broker(),
                            data->isolate()->factory()->true_value(),
                            data->jsgraph()->zone()));
   }
@@ -1475,8 +1483,8 @@ struct LoadEliminationPhase {
                                          data->machine(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
                                                     data->jsgraph());
-    TypeNarrowingReducer type_narrowing_reducer(&graph_reducer,
-                                                data->jsgraph());
+    TypeNarrowingReducer type_narrowing_reducer(&graph_reducer, data->jsgraph(),
+                                                data->js_heap_broker());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
@@ -1909,7 +1917,7 @@ bool PipelineImpl::CreateGraph() {
     // Type the graph and keep the Typer running on newly created nodes within
     // this scope; the Typer is automatically unlinked from the Graph once we
     // leave this scope below.
-    Typer typer(isolate(), flags, data->graph());
+    Typer typer(isolate(), data->js_heap_broker(), flags, data->graph());
     Run<TyperPhase>(&typer);
     RunPrintAndVerify(TyperPhase::phase_name());
 
