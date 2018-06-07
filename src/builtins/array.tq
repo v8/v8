@@ -637,16 +637,53 @@ module array {
     }
   }
 
-  macro CalculatePivot<E : type>(
-      context: Context, receiver: Object, elements: Object,
-      initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
-      to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn): Object
-  labels Bailout {
-    // TODO(szuend): Check if a more involved third_index calculation is
-    //               worth it for very large arrays.
-    let third_index: Smi = from + ((to - from) >>> 1);
+  // TODO(szuend): Replace these with constants when Torque has them.
+  macro kReceiverIdx(): constexpr int31 { return 0; }
+  macro kUserCmpFnIdx(): constexpr int31 { return 1; }
+  macro kSortComparePtrIdx(): constexpr int31 { return 2; }
+  macro kInitialReceiverMapIdx(): constexpr int31 { return 3; }
+  macro kInitialReceiverLengthIdx(): constexpr int31 { return 4; }
+  macro kElementsIdx(): constexpr int31 { return 5; }
+  macro kRandomStateIdx(): constexpr int31 { return 6; }
 
-    // Find a pivot as the median of first, last and middle element.
+  // Returns a random positive Smi in the range of [0, range).
+  macro Rand(sortState: FixedArray, range: Smi): Smi {
+    assert(TaggedIsPositiveSmi(range));
+
+    let current_state_smi: Smi = unsafe_cast<Smi>(sortState[kRandomStateIdx()]);
+    let current_state: int32 = convert<int32>(current_state_smi);
+
+    let a: int32 = 1103515245;
+    let c: int32 = 12345;
+    let m: int32 = 0x3fffffff;  // 2^30 bitmask.
+
+    let new_state: int32 = ((current_state * a) + c) & m;
+    sortState[kRandomStateIdx()] = convert<Smi>(new_state);
+
+    let r: int32 = convert<int32>(range);
+    return convert<Smi>(new_state % r);
+  }
+
+  macro CalculatePivot<E : type>(
+      sortState: FixedArray, context: Context, receiver: Object,
+      elements: Object, initialReceiverMap: Object,
+      initialReceiverLength: Number, from: Smi, to: Smi, userCmpFn: Object,
+      sortCompare: CompareBuiltinFn): Object
+  labels Bailout {
+    let random: Smi = Rand(sortState, to - from - 2);
+    assert(TaggedIsPositiveSmi(random));
+
+    let third_index: Smi = from + 1 + random;
+    assert(third_index > from);
+    assert(third_index <= to - 1);
+
+    // Find a pivot as the median of first, last and a random middle element.
+    // Always using the middle element as the third index causes the quicksort
+    // to degrade to O(n^2) for certain data configurations.
+    // The previous solution was to sample larger arrays and use the median
+    // element of the sorted sample. This causes more overhead than just
+    // choosing a random middle element, which also mitigates the worst cases
+    // in all relevant benchmarks.
     let v0: Object = Load<E>(context, elements, from) otherwise Bailout;
     let v1: Object = Load<E>(context, elements, to - 1) otherwise Bailout;
     let v2: Object = Load<E>(context, elements, third_index) otherwise Bailout;
@@ -708,12 +745,19 @@ module array {
   }
 
   macro ArrayQuickSortImpl<E : type>(
-      context: Context, receiver: Object, elements: Object,
-      initialReceiverMap: Object, initialReceiverLength: Number, fromArg: Smi,
-      toArg: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn)
+      context: Context, sortState: FixedArray, fromArg: Smi, toArg: Smi)
   labels Bailout {
     let from: Smi = fromArg;
     let to: Smi = toArg;
+
+    let receiver: Object = sortState[kReceiverIdx()];
+    let userCmpFn: Object = sortState[kUserCmpFnIdx()];
+    let sortCompare: CompareBuiltinFn =
+        unsafe_cast<CompareBuiltinFn>(sortState[kSortComparePtrIdx()]);
+    let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
+    let initialReceiverLength: Number =
+        unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
+    let elements: Object = sortState[kElementsIdx()];
 
     while (to - from > 1) {
       if (to - from <= 10) {
@@ -725,7 +769,7 @@ module array {
       }
 
       let pivot: Object = CalculatePivot<E>(
-          context, receiver, elements, initialReceiverMap,
+          sortState, context, receiver, elements, initialReceiverMap,
           initialReceiverLength, from, to, userCmpFn, sortCompare)
       otherwise Bailout;
 
@@ -785,54 +829,43 @@ module array {
       }
 
       if ((to - high_start) < (low_end - from)) {
-        ArrayQuickSort<E>(
-            context, receiver, elements, initialReceiverMap,
-            initialReceiverLength, high_start, to, userCmpFn, sortCompare);
+        ArrayQuickSort<E>(context, sortState, high_start, to);
         to = low_end;
       } else {
-        ArrayQuickSort<E>(
-            context, receiver, elements, initialReceiverMap,
-            initialReceiverLength, from, low_end, userCmpFn, sortCompare);
+        ArrayQuickSort<E>(context, sortState, from, low_end);
         from = high_start;
       }
     }
   }
 
   builtin ArrayQuickSort<ElementsAccessor : type>(
-      context: Context, receiver: Object, elements: Object,
-      initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
-      to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn): Object {
+      context: Context, sortState: FixedArray, from: Smi, to: Smi): Object {
     try {
-      ArrayQuickSortImpl<ElementsAccessor>(
-          context, receiver, elements, initialReceiverMap,
-          initialReceiverLength, from, to, userCmpFn, sortCompare)
+      ArrayQuickSortImpl<ElementsAccessor>(context, sortState, from, to)
       otherwise Slow;
     }
     label Slow {
-      ArrayQuickSort<GenericElementsAccessor>(
-          context, receiver, receiver, initialReceiverMap,
-          initialReceiverLength, from, to, userCmpFn, sortCompare);
+      // Generic version uses Set- and GetProperty, replace elements with
+      // the receiver itself.
+      sortState[kElementsIdx()] = sortState[kReceiverIdx()];
+      ArrayQuickSort<GenericElementsAccessor>(context, sortState, from, to);
     }
-    return receiver;
+    return SmiConstant(0);
   }
 
   // The specialization is needed since we would end up in an endless loop
   // when the ElementsAccessor fails and bails to the ElementsAccessor again.
   ArrayQuickSort<GenericElementsAccessor>(
-      context: Context, receiver: Object, elements: Object,
-      initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
-      to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn): Object {
+      context: Context, sortState: FixedArray, from: Smi, to: Smi): Object {
     try {
-      ArrayQuickSortImpl<GenericElementsAccessor>(
-          context, receiver, elements, initialReceiverMap,
-          initialReceiverLength, from, to, userCmpFn, sortCompare)
+      ArrayQuickSortImpl<GenericElementsAccessor>(context, sortState, from, to)
       otherwise Error;
     }
     label Error {
       // The generic baseline path must not fail.
       unreachable;
     }
-    return receiver;
+    return SmiConstant(0);
   }
 
   // For compatibility with JSC, we also sort elements inherited from
@@ -860,13 +893,26 @@ module array {
     }
 
     // 2. Let obj be ? ToObject(this value).
-    let obj: Object = ToObject(context, receiver);
+    let obj: JSReceiver = ToObject(context, receiver);
+    let map: Map = obj.map;
 
-    let cmpBuiltin: CompareBuiltinFn =
+    let sort_state: FixedArray =
+        AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(7));
+
+    sort_state[kReceiverIdx()] = obj;
+    sort_state[kUserCmpFnIdx()] = comparefnObj;
+    sort_state[kSortComparePtrIdx()] =
         comparefnObj != Undefined ? SortCompareUserFn : SortCompareDefault;
+    sort_state[kInitialReceiverMapIdx()] = map;
+
+    // Initialize the remaining fields with Undefined.
+    // Needed for heap verification.
+    sort_state[kInitialReceiverLengthIdx()] = Undefined;
+    sort_state[kElementsIdx()] = Undefined;
+    sort_state[kRandomStateIdx()] = Undefined;
+
     try {
       let a: JSArray = cast<JSArray>(obj) otherwise slow;
-      let map: Map = a.map;
       let elementsKind: ElementsKind = map.elements_kind;
       if (!IsFastElementsKind(elementsKind)) goto slow;
 
@@ -878,26 +924,23 @@ module array {
       //               for PACKED_* and handling Undefineds during sorting.
       let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
 
+      sort_state[kInitialReceiverLengthIdx()] = len;
+      sort_state[kElementsIdx()] = a.elements;
+      sort_state[kRandomStateIdx()] = nofNonUndefined;
+
       // TODO(szuend): Extract into IsDoubleElementsKind when bool types are
       //               fixed in Torque.
       if (elementsKind == convert<ElementsKind>(PACKED_DOUBLE_ELEMENTS) ||
           elementsKind == convert<ElementsKind>(HOLEY_DOUBLE_ELEMENTS)) {
-        let elements: FixedDoubleArray =
-            unsafe_cast<FixedDoubleArray>(a.elements);
         ArrayQuickSort<FastDoubleElements>(
-            context, obj, elements, map, len, 0, nofNonUndefined, comparefnObj,
-            cmpBuiltin);
+            context, sort_state, 0, nofNonUndefined);
       } else {
-        let elements: FixedArray = unsafe_cast<FixedArray>(a.elements);
-
         if (elementsKind == convert<ElementsKind>(PACKED_SMI_ELEMENTS)) {
           ArrayQuickSort<FastPackedSmiElements>(
-              context, obj, elements, map, len, 0, nofNonUndefined,
-              comparefnObj, cmpBuiltin);
+              context, sort_state, 0, nofNonUndefined);
         } else {
           ArrayQuickSort<FastSmiOrObjectElements>(
-              context, obj, elements, map, len, 0, nofNonUndefined,
-              comparefnObj, cmpBuiltin);
+              context, sort_state, 0, nofNonUndefined);
         }
       }
     }
@@ -909,9 +952,12 @@ module array {
       if (len < 2) return receiver;
       let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
 
+      sort_state[kInitialReceiverLengthIdx()] = len;
+      sort_state[kElementsIdx()] = obj;
+      sort_state[kRandomStateIdx()] = nofNonUndefined;
+
       ArrayQuickSort<GenericElementsAccessor>(
-          context, obj, obj, Undefined, len, 0, nofNonUndefined, comparefnObj,
-          cmpBuiltin);
+          context, sort_state, 0, nofNonUndefined);
     }
 
     return receiver;

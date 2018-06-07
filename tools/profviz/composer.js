@@ -176,7 +176,9 @@ function PlotScriptComposer(kResX, kResY, error_output) {
   }
 
   function MergeRanges(ranges) {
-    ranges.sort(function(a, b) { return a.start - b.start; });
+    ranges.sort(function(a, b) {
+      return (a.start == b.start) ? a.end - b.end : a.start - b.start;
+    });
     var result = [];
     var j = 0;
     for (var i = 0; i < ranges.length; i = j) {
@@ -516,8 +518,13 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     // Label the longest pauses.
     execution_pauses =
         RestrictRangesTo(execution_pauses, range_start, range_end);
-    execution_pauses.sort(
-        function(a, b) { return b.duration() - a.duration(); });
+    execution_pauses.sort(function(a, b) {
+      if (a.duration() == b.duration() && b.end == a.end)
+        return b.start - a.start;
+
+      return (a.duration() == b.duration())
+          ? b.end - a.end : b.duration() - a.duration();
+    });
 
     var max_pause_time = execution_pauses.length > 0
         ? execution_pauses[0].duration() : 0;
