@@ -14,14 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// NOTE: If code is marked as being a "shortcut", this means that removing
-// the code won't affect the semantics of the surrounding function definition.
-
-// static
-bool Type::IsInteger(i::Object* x) {
-  return x->IsNumber() && Type::IsInteger(x->Number());
-}
-
 // -----------------------------------------------------------------------------
 // Range-related helper functions.
 
@@ -55,12 +47,6 @@ bool Type::Overlap(const RangeType* lhs, const RangeType* rhs) {
 bool Type::Contains(const RangeType* lhs, const RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
-}
-
-bool Type::Contains(const RangeType* range, i::Object* val) {
-  DisallowHeapAllocation no_allocation;
-  return IsInteger(val) && range->Min() <= val->Number() &&
-         val->Number() <= range->Max();
 }
 
 // -----------------------------------------------------------------------------
@@ -460,14 +446,8 @@ double BitsetType::Max(bitset bits) {
 // static
 bool OtherNumberConstantType::IsOtherNumberConstant(double value) {
   // Not an integer, not NaN, and not -0.
-  return !std::isnan(value) && !Type::IsInteger(value) &&
+  return !std::isnan(value) && !RangeType::IsInteger(value) &&
          !i::IsMinusZero(value);
-}
-
-// static
-bool OtherNumberConstantType::IsOtherNumberConstant(Object* value) {
-  return value->IsHeapNumber() &&
-         IsOtherNumberConstant(HeapNumber::cast(value)->value());
 }
 
 HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
@@ -819,7 +799,7 @@ Type Type::NormalizeRangeAndBitset(Type range, bitset* bits, Zone* zone) {
 }
 
 Type Type::NewConstant(double value, Zone* zone) {
-  if (IsInteger(value)) {
+  if (RangeType::IsInteger(value)) {
     return Range(value, value, zone);
   } else if (i::IsMinusZero(value)) {
     return Type::MinusZero();
@@ -833,10 +813,7 @@ Type Type::NewConstant(double value, Zone* zone) {
 
 Type Type::NewConstant(Isolate* isolate, i::Handle<i::Object> value,
                        Zone* zone) {
-  if (IsInteger(*value)) {
-    double v = value->Number();
-    return Range(v, v, zone);
-  } else if (value->IsHeapNumber()) {
+  if (value->IsNumber()) {
     return NewConstant(value->Number(), zone);
   } else if (value->IsString() && !value->IsInternalizedString()) {
     return Type::String();

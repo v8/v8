@@ -312,6 +312,10 @@ class RangeType : public TypeBase {
   double Min() const { return limits_.min; }
   double Max() const { return limits_.max; }
 
+  static bool IsInteger(double x) {
+    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
+  }
+
  private:
   friend class Type;
   friend class BitsetType;
@@ -319,10 +323,6 @@ class RangeType : public TypeBase {
 
   static RangeType* New(double min, double max, Zone* zone) {
     return New(Limits(min, max), zone);
-  }
-
-  static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
   }
 
   static RangeType* New(Limits lim, Zone* zone) {
@@ -419,11 +419,6 @@ class V8_EXPORT_PRIVATE Type {
   // containing a range, that range is returned; otherwise, nullptr is returned.
   Type GetRange() const;
 
-  static bool IsInteger(i::Object* x);
-  static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
-  }
-
   int NumConstants() const;
 
   static Type Invalid() { return Type(); }
@@ -489,7 +484,6 @@ class V8_EXPORT_PRIVATE Type {
 
   static bool Overlap(const RangeType* lhs, const RangeType* rhs);
   static bool Contains(const RangeType* lhs, const RangeType* rhs);
-  static bool Contains(const RangeType* range, i::Object* val);
 
   static int UpdateRange(Type type, UnionType* result, int size, Zone* zone);
 
@@ -521,7 +515,6 @@ class OtherNumberConstantType : public TypeBase {
   double Value() const { return value_; }
 
   static bool IsOtherNumberConstant(double value);
-  static bool IsOtherNumberConstant(Object* value);
 
  private:
   friend class Type;
