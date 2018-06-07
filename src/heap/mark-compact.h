@@ -822,7 +822,6 @@ class MarkingVisitor final
   V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
   V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
   V8_INLINE int VisitCodeDataContainer(Map* map, CodeDataContainer* object);
-  V8_INLINE int VisitEphemeronHashTable(Map* map, EphemeronHashTable* object);
   V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);

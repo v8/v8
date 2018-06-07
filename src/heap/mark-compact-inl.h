@@ -96,18 +96,22 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     heap_->set_encountered_weak_collections(weak_collection);
   }
 
-  int size = JSWeakCollection::BodyDescriptor::SizeOf(map, weak_collection);
-  JSWeakCollection::BodyDescriptor::IterateBody(map, weak_collection, size,
-                                                this);
-  return size;
-}
+  // Skip visiting the backing hash table containing the mappings and the
+  // pointer to the other enqueued weak collections, both are post-processed.
+  int size = JSWeakCollection::BodyDescriptorWeak::SizeOf(map, weak_collection);
+  JSWeakCollection::BodyDescriptorWeak::IterateBody(map, weak_collection, size,
+                                                    this);
 
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
-    VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
-  // TODO(dinfuehr): Account size of the backing store.
-  return 0;
+  // Partially initialized weak collection is enqueued, but table is ignored.
+  if (!weak_collection->table()->IsEphemeronHashTable()) return size;
+
+  // Mark the backing hash table without pushing it on the marking stack.
+  Object** slot =
+      HeapObject::RawField(weak_collection, JSWeakCollection::kTableOffset);
+  HeapObject* obj = HeapObject::cast(*slot);
+  collector_->RecordSlot(weak_collection, slot, obj);
+  MarkObjectWithoutPush(weak_collection, obj);
+  return size;
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,

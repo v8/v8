@@ -13,7 +13,6 @@
 #include "src/base/platform/time.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
-#include "src/objects/hash-table.h"
 #include "src/profiler/strings-storage.h"
 #include "src/string-hasher.h"
 #include "src/visitors.h"
@@ -379,8 +378,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractJSCollectionReferences(int entry, JSCollection* collection);
   void ExtractJSWeakCollectionReferences(int entry,
                                          JSWeakCollection* collection);
-  void ExtractEphemeronHashTableReferences(int entry,
-                                           EphemeronHashTable* table);
   void ExtractContextReferences(int entry, Context* context);
   void ExtractMapReferences(int entry, Map* map);
   void ExtractSharedFunctionInfoReferences(int entry,

@@ -841,8 +841,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
 
 
 bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
-  if (obj->IsFixedArray() || obj->IsEphemeronHashTable())
-    return false;  // FixedArrays & EphemeronHashTables are processed on pass 2
+  if (obj->IsFixedArray()) return false;  // FixedArrays are processed on pass 2
 
   if (obj->IsJSGlobalProxy()) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
@@ -901,12 +900,10 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
 
 
 bool V8HeapExplorer::ExtractReferencesPass2(int entry, HeapObject* obj) {
-  if (!obj->IsFixedArray() && !obj->IsEphemeronHashTable()) return false;
+  if (!obj->IsFixedArray()) return false;
 
   if (obj->IsContext()) {
     ExtractContextReferences(entry, Context::cast(obj));
-  } else if (obj->IsEphemeronHashTable()) {
-    ExtractEphemeronHashTableReferences(entry, EphemeronHashTable::cast(obj));
   } else {
     ExtractFixedArrayReferences(entry, FixedArray::cast(obj));
   }
@@ -1040,32 +1037,12 @@ void V8HeapExplorer::ExtractJSCollectionReferences(int entry,
 
 void V8HeapExplorer::ExtractJSWeakCollectionReferences(int entry,
                                                        JSWeakCollection* obj) {
+  if (obj->table()->IsEphemeronHashTable()) {
+    EphemeronHashTable* table = EphemeronHashTable::cast(obj->table());
+    TagFixedArraySubType(table, JS_WEAK_COLLECTION_SUB_TYPE);
+  }
   SetInternalReference(obj, entry, "table", obj->table(),
                        JSWeakCollection::kTableOffset);
-}
-
-void V8HeapExplorer::ExtractEphemeronHashTableReferences(
-    int entry, EphemeronHashTable* table) {
-  for (int i = 0, capacity = table->Capacity(); i < capacity; ++i) {
-    int key_index = EphemeronHashTable::EntryToIndex(i) +
-                    EphemeronHashTable::kEntryKeyIndex;
-    int value_index = EphemeronHashTable::EntryToValueIndex(i);
-    Object* key = table->get(key_index);
-    Object* value = table->get(value_index);
-    SetWeakReference(table, entry, key_index, key,
-                     table->OffsetOfElementAt(key_index));
-    SetInternalReference(table, entry, value_index, value,
-                         table->OffsetOfElementAt(value_index));
-    HeapEntry* key_entry = GetEntry(key);
-    int key_entry_index = key_entry->index();
-    HeapEntry* value_entry = GetEntry(value);
-    if (key_entry && value_entry) {
-      const char* edge_name =
-          names_->GetFormatted("key %s in WeakMap", key_entry->name());
-      filler_->SetNamedAutoIndexReference(
-          HeapGraphEdge::kInternal, key_entry_index, edge_name, value_entry);
-    }
-  }
 }
 
 void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
@@ -1373,10 +1350,50 @@ void V8HeapExplorer::ExtractJSPromiseReferences(int entry, JSPromise* promise) {
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
-  for (int i = 0, l = array->length(); i < l; ++i) {
-    DCHECK(!HasWeakHeapObjectTag(array->get(i)));
-    SetInternalReference(array, entry, i, array->get(i),
-                         array->OffsetOfElementAt(i));
+  auto it = array_types_.find(array);
+  if (it == array_types_.end()) {
+    for (int i = 0, l = array->length(); i < l; ++i) {
+      DCHECK(!HasWeakHeapObjectTag(array->get(i)));
+      SetInternalReference(array, entry, i, array->get(i),
+                           array->OffsetOfElementAt(i));
+    }
+    return;
+  }
+  switch (it->second) {
+    case JS_WEAK_COLLECTION_SUB_TYPE: {
+      EphemeronHashTable* table = EphemeronHashTable::cast(array);
+      for (int i = 0, capacity = table->Capacity(); i < capacity; ++i) {
+        int key_index = EphemeronHashTable::EntryToIndex(i) +
+                        EphemeronHashTable::kEntryKeyIndex;
+        int value_index = EphemeronHashTable::EntryToValueIndex(i);
+        Object* key = table->get(key_index);
+        Object* value = table->get(value_index);
+        SetWeakReference(table, entry, key_index, key,
+                         table->OffsetOfElementAt(key_index));
+        SetInternalReference(table, entry, value_index, value,
+                             table->OffsetOfElementAt(value_index));
+        HeapEntry* key_entry = GetEntry(key);
+        int key_entry_index = key_entry->index();
+        HeapEntry* value_entry = GetEntry(value);
+        if (key_entry && value_entry) {
+          const char* edge_name =
+              names_->GetFormatted("key %s in WeakMap", key_entry->name());
+          filler_->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
+                                              key_entry_index, edge_name,
+                                              value_entry);
+        }
+      }
+      break;
+    }
+
+    // TODO(alph): Add special processing for other types of FixedArrays.
+
+    default:
+      for (int i = 0, l = array->length(); i < l; ++i) {
+        SetInternalReference(array, entry, i, array->get(i),
+                             array->OffsetOfElementAt(i));
+      }
+      break;
   }
 }
 
