@@ -176,6 +176,7 @@ class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object);
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
   // mechanism depends on CEntry. If use_real_aborts is false, Abort will
@@ -1275,20 +1276,20 @@ class TurboAssembler : public Assembler {
   int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   bool root_array_available_ = true;
-  Isolate* const isolate_;
+  Isolate* const isolate_ = nullptr;
 #if DEBUG
   // Tell whether any of the macro instruction can be used. When false the
   // MacroAssembler will assert if a method which can emit a variable number
   // of instructions is called.
-  bool allow_macro_instructions_;
+  bool allow_macro_instructions_ = true;
 #endif
 
 
   // Scratch registers available for use by the MacroAssembler.
-  CPURegList tmp_list_;
-  CPURegList fptmp_list_;
+  CPURegList tmp_list_ = DefaultTmpList();
+  CPURegList fptmp_list_ = DefaultFPTmpList();
 
-  bool use_real_aborts_;
+  bool use_real_aborts_ = true;
 
   // Helps resolve branching to labels potentially out of range.
   // If the label is not bound, it registers the information necessary to later

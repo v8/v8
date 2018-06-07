@@ -147,6 +147,7 @@ class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object);
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() const { return has_frame_; }
@@ -880,8 +881,8 @@ class TurboAssembler : public Assembler {
   int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
   bool root_array_available_ = true;
-  Isolate* const isolate_;
-  bool has_double_zero_reg_set_;
+  Isolate* const isolate_ = nullptr;
+  bool has_double_zero_reg_set_ = false;
 
   void CompareF(SecondaryField sizeField, FPUCondition cc, FPURegister cmp1,
                 FPURegister cmp2);

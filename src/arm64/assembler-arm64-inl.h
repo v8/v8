@@ -563,7 +563,7 @@ Address Assembler::runtime_entry_at(Address pc) {
     return Assembler::target_address_at(pc, 0 /* unused */);
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    return instr->ImmPCOffset() + isolate_data().code_range_start_;
+    return instr->ImmPCOffset() + isolate_data().code_range_start;
   }
 }
 

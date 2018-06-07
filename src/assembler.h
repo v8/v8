@@ -92,16 +92,14 @@ class JumpOptimizationInfo {
 
 enum class CodeObjectRequired { kNo, kYes };
 
-
-class AssemblerBase: public Malloced {
+class AssemblerBase : public Malloced {
  public:
   struct IsolateData {
     explicit IsolateData(Isolate* isolate);
-    IsolateData(const IsolateData&) = default;
 
-    bool serializer_enabled_;
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-    Address code_range_start_;
+    bool serializer_enabled;
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+    Address code_range_start;
 #endif
   };
 
@@ -110,8 +108,8 @@ class AssemblerBase: public Malloced {
 
   IsolateData isolate_data() const { return isolate_data_; }
 
-  bool serializer_enabled() const { return isolate_data_.serializer_enabled_; }
-  void enable_serializer() { isolate_data_.serializer_enabled_ = true; }
+  bool serializer_enabled() const { return isolate_data_.serializer_enabled; }
+  void enable_serializer() { isolate_data_.serializer_enabled = true; }
 
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }

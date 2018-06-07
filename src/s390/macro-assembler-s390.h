@@ -171,6 +171,7 @@ class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object);
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -1049,7 +1050,7 @@ class TurboAssembler : public Assembler {
 
   bool has_frame_ = false;
   bool root_array_available_ = true;
-  Isolate* isolate_;
+  Isolate* const isolate_ = nullptr;
 };
 
 // MacroAssembler implements a collection of frequently used macros.

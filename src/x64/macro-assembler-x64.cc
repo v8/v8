@@ -88,6 +88,10 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
   }
 }
 
+TurboAssembler::TurboAssembler(IsolateData isolate_data, void* buffer,
+                               int buffer_size)
+    : Assembler(isolate_data, buffer, buffer_size) {}
+
 static const int64_t kInvalidRootRegisterDelta = -1;
 
 int64_t TurboAssembler::RootRegisterDelta(ExternalReference other) {

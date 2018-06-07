@@ -984,7 +984,7 @@ class Assembler : public AssemblerBase {
   // at 'pc'.
   // Runtime entries can be temporarily encoded as the offset between the
   // runtime function entrypoint and the code range start (stored in the
-  // code_range_start_ field), in order to be encodable as we generate the code,
+  // code_range_start field), in order to be encodable as we generate the code,
   // before it is moved into the code space.
   inline Address runtime_entry_at(Address pc);
 

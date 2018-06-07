@@ -55,6 +55,10 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
   }
 }
 
+TurboAssembler::TurboAssembler(IsolateData isolate_data, void* buffer,
+                               int buffer_size)
+    : Assembler(isolate_data, buffer, buffer_size) {}
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
                                                     Register exclusion2,

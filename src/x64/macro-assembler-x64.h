@@ -126,6 +126,7 @@ class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object);
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() const { return has_frame_; }
@@ -552,7 +553,7 @@ class TurboAssembler : public Assembler {
  private:
   int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   bool has_frame_ = false;
-  Isolate* const isolate_;
+  Isolate* const isolate_ = nullptr;
 };
 
 // MacroAssembler implements a collection of frequently used macros.

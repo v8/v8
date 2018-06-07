@@ -114,6 +114,7 @@ class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object);
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
@@ -693,7 +694,7 @@ class TurboAssembler : public Assembler {
 
   bool has_frame_ = false;
   bool root_array_available_ = true;
-  Isolate* const isolate_;
+  Isolate* const isolate_ = nullptr;
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);

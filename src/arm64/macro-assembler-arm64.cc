@@ -52,19 +52,16 @@ CPURegList TurboAssembler::DefaultFPTmpList() {
 
 TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                                CodeObjectRequired create_code_object)
-    : Assembler(isolate, buffer, buffer_size),
-      isolate_(isolate),
-#if DEBUG
-      allow_macro_instructions_(true),
-#endif
-      tmp_list_(DefaultTmpList()),
-      fptmp_list_(DefaultFPTmpList()),
-      use_real_aborts_(true) {
+    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ = Handle<HeapObject>::New(
         isolate->heap()->self_reference_marker(), isolate);
   }
 }
+
+TurboAssembler::TurboAssembler(IsolateData isolate_data, void* buffer,
+                               int buffer_size)
+    : Assembler(isolate_data, buffer, buffer_size) {}
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
@@ -2163,7 +2160,7 @@ void TurboAssembler::CallForDeoptimization(Address target,
   Mov(temp, Immediate(target, rmode));
 
   int64_t offset = static_cast<int64_t>(target) -
-                   static_cast<int64_t>(isolate_data().code_range_start_);
+                   static_cast<int64_t>(isolate_data().code_range_start);
   DCHECK_EQ(offset % kInstructionSize, 0);
   offset = offset / static_cast<int>(kInstructionSize);
   DCHECK(IsNearCallOffset(offset));

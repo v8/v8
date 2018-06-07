@@ -43,14 +43,16 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
 
 TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
                                CodeObjectRequired create_code_object)
-    : Assembler(isolate, buffer, buffer_size),
-      isolate_(isolate),
-      has_double_zero_reg_set_(false) {
+    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ = Handle<HeapObject>::New(
         isolate->heap()->self_reference_marker(), isolate);
   }
 }
+
+TurboAssembler::TurboAssembler(IsolateData isolate_data, void* buffer,
+                               int buffer_size)
+    : Assembler(isolate_data, buffer, buffer_size) {}
 
 static inline bool IsZero(const Operand& rt) {
   if (rt.is_reg()) {
