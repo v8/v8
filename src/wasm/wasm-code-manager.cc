@@ -818,23 +818,20 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
 }
 
 void NativeModule::UnpackAndRegisterProtectedInstructions() {
-  for (uint32_t i = num_imported_functions_, e = num_functions_; i < e; ++i) {
-    WasmCode* wasm_code = code(i);
+  for (WasmCode* wasm_code : code_table()) {
     if (wasm_code == nullptr) continue;
     wasm_code->RegisterTrapHandlerData();
   }
 }
 
 void NativeModule::ReleaseProtectedInstructions() {
-  for (uint32_t i = num_imported_functions_, e = num_functions_; i < e; ++i) {
-    WasmCode* wasm_code = code(i);
-    if (wasm_code->HasTrapHandlerIndex()) {
-      CHECK_LT(wasm_code->trap_handler_index(),
-               static_cast<size_t>(std::numeric_limits<int>::max()));
-      trap_handler::ReleaseHandlerData(
-          static_cast<int>(wasm_code->trap_handler_index()));
-      wasm_code->ResetTrapHandlerIndex();
-    }
+  for (WasmCode* wasm_code : code_table()) {
+    if (wasm_code == nullptr || !wasm_code->HasTrapHandlerIndex()) continue;
+    CHECK_LT(wasm_code->trap_handler_index(),
+             static_cast<size_t>(std::numeric_limits<int>::max()));
+    trap_handler::ReleaseHandlerData(
+        static_cast<int>(wasm_code->trap_handler_index()));
+    wasm_code->ResetTrapHandlerIndex();
   }
 }
 
