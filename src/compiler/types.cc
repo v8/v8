@@ -254,7 +254,6 @@ Type::bitset BitsetType::Lub(HeapReferenceType const& type) {
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
-    case EPHEMERON_HASH_TABLE_TYPE:
     case WEAK_FIXED_ARRAY_TYPE:
     case WEAK_ARRAY_LIST_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:

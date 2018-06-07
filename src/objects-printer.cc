@@ -98,7 +98,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
     case HASH_TABLE_TYPE:
-    case EPHEMERON_HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -864,15 +863,8 @@ void PrintWeakArrayListWithHeader(std::ostream& os, WeakArrayList* array) {
 }  // namespace
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
-  const char* name = "FixedArray";
-
-  if (IsHashTable()) {
-    name = "HashTable";
-  } else if (IsEphemeronHashTable()) {
-    name = "EphemeronHashTable";
-  }
-
-  PrintFixedArrayWithHeader(os, this, name);
+  PrintFixedArrayWithHeader(os, this,
+                            IsHashTable() ? "HashTable" : "FixedArray");
 }
 
 void BoilerplateDescription::BoilerplateDescriptionPrint(std::ostream& os) {

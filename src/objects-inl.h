@@ -83,7 +83,6 @@ TYPE_CHECKER(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
-TYPE_CHECKER(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)
 TYPE_CHECKER(FeedbackCell, FEEDBACK_CELL_TYPE)
 TYPE_CHECKER(FeedbackMetadata, FEEDBACK_METADATA_TYPE)
 TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
@@ -505,6 +504,8 @@ bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
+
+bool HeapObject::IsEphemeronHashTable() const { return IsHashTable(); }
 
 bool HeapObject::IsOrderedHashSet() const {
   return map() == GetHeap()->ordered_hash_set_map();

@@ -458,8 +458,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, simple_number_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, string_table)
 
-    ALLOCATE_VARSIZE_MAP(EPHEMERON_HASH_TABLE_TYPE, ephemeron_hash_table)
-
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, array_list)
 
     ALLOCATE_VARSIZE_MAP(FUNCTION_CONTEXT_TYPE, function_context)

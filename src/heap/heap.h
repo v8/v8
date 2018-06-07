@@ -140,7 +140,6 @@ using v8::MemoryPressureLevel;
   V(Map, string_table_map, StringTableMap)                                     \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
-  V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -327,7 +326,6 @@ using v8::MemoryPressureLevel;
   V(CodeMap)                            \
   V(DebugEvaluateContextMap)            \
   V(DescriptorArrayMap)                 \
-  V(EphemeronHashTableMap)              \
   V(EmptyByteArray)                     \
   V(EmptyDescriptorArray)               \
   V(EmptyFixedArray)                    \

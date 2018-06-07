@@ -312,10 +312,7 @@ class ObjectHashTable
   DECL_CAST(ObjectHashTable)
 };
 
-class EphemeronHashTableShape : public ObjectHashTableShape {
- public:
-  static inline int GetMapRootIndex();
-};
+typedef ObjectHashTableShape EphemeronHashTableShape;
 
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment
 // by the GC. The GC treats its entries as ephemerons: both key and value are
