@@ -357,6 +357,11 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
+  int VisitEphemeronHashTable(Map* map, EphemeronHashTable* object) {
+    bailout_.Push(object);
+    return 0;
+  }
+
   void MarkObject(HeapObject* object) {
 #ifdef THREAD_SANITIZER
     // Perform a dummy acquire load to tell TSAN that there is no data race

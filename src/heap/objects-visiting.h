@@ -9,6 +9,7 @@
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/string.h"
 #include "src/visitors.h"
@@ -33,6 +34,7 @@ class JSWeakCollection;
   V(CodeDataContainer)           \
   V(ConsString)                  \
   V(DataHandler)                 \
+  V(EphemeronHashTable)          \
   V(FeedbackCell)                \
   V(FeedbackVector)              \
   V(FixedArray)                  \

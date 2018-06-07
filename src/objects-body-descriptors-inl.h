@@ -364,7 +364,6 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-template <JSWeakCollection::BodyVisitingPolicy body_visiting_policy>
 class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kTableOffset + kPointerSize == kNextOffset);
@@ -377,12 +376,7 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    if (body_visiting_policy == kIgnoreWeakness) {
-      IterateBodyImpl(map, obj, kPropertiesOrHashOffset, object_size, v);
-    } else {
-      IteratePointers(obj, kPropertiesOrHashOffset, kTableOffset, v);
-      IterateBodyImpl(map, obj, kSize, object_size, v);
-    }
+    IterateBodyImpl(map, obj, kPropertiesOrHashOffset, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {

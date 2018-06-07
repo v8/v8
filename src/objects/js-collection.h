@@ -110,19 +110,14 @@ class JSWeakCollection : public JSObject {
   static const int kNextOffset = kTableOffset + kPointerSize;
   static const int kSize = kNextOffset + kPointerSize;
 
-  // Visiting policy defines whether the table and next collection fields
-  // should be visited or not.
-  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
-
   // Iterates the function object according to the visiting policy.
-  template <BodyVisitingPolicy>
   class BodyDescriptorImpl;
 
   // Visit the whole object.
-  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
+  typedef BodyDescriptorImpl BodyDescriptor;
 
-  // Don't visit table and next collection fields.
-  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);
