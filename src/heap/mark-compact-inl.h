@@ -103,7 +103,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
                                                     this);
 
   // Partially initialized weak collection is enqueued, but table is ignored.
-  if (!weak_collection->table()->IsHashTable()) return size;
+  if (!weak_collection->table()->IsEphemeronHashTable()) return size;
 
   // Mark the backing hash table without pushing it on the marking stack.
   Object** slot =

@@ -58,6 +58,10 @@ int BaseShape<Key>::GetMapRootIndex() {
   return Heap::kHashTableMapRootIndex;
 }
 
+int EphemeronHashTableShape::GetMapRootIndex() {
+  return Heap::kEphemeronHashTableMapRootIndex;
+}
+
 template <typename Derived, typename Shape>
 int HashTable<Derived, Shape>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
