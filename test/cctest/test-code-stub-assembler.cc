@@ -210,7 +210,7 @@ TEST(ToUint32) {
 }
 
 namespace {
-void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value, bool expected) {
+void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value) {
   const int kNumParams = 0;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
 
@@ -221,6 +221,7 @@ void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value, bool expected) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   MaybeHandle<Object> maybe_handle = ft.Call();
 
+  bool expected = i::PlatformSmiTagging::IsValidSmi(value) && (value >= 0);
   if (expected) {
     CHECK(maybe_handle.ToHandleChecked()->IsTrue(isolate));
   } else {
@@ -232,23 +233,23 @@ void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value, bool expected) {
 TEST(IsValidPositiveSmi) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  IsValidPositiveSmiCase(isolate, -1, false);
-  IsValidPositiveSmiCase(isolate, 0, true);
-  IsValidPositiveSmiCase(isolate, 1, true);
+  IsValidPositiveSmiCase(isolate, -1);
+  IsValidPositiveSmiCase(isolate, 0);
+  IsValidPositiveSmiCase(isolate, 1);
 
-#ifdef V8_TARGET_ARCH_32_BIT
-  IsValidPositiveSmiCase(isolate, 0x3FFFFFFFU, true);
-  IsValidPositiveSmiCase(isolate, 0xC0000000U, false);
-  IsValidPositiveSmiCase(isolate, 0x40000000U, false);
-  IsValidPositiveSmiCase(isolate, 0xBFFFFFFFU, false);
-#else
+  IsValidPositiveSmiCase(isolate, 0x3FFFFFFFU);
+  IsValidPositiveSmiCase(isolate, 0xC0000000U);
+  IsValidPositiveSmiCase(isolate, 0x40000000U);
+  IsValidPositiveSmiCase(isolate, 0xBFFFFFFFU);
+
   typedef std::numeric_limits<int32_t> int32_limits;
-  IsValidPositiveSmiCase(isolate, int32_limits::max(), true);
-  IsValidPositiveSmiCase(isolate, int32_limits::min(), false);
+  IsValidPositiveSmiCase(isolate, int32_limits::max());
+  IsValidPositiveSmiCase(isolate, int32_limits::min());
+#ifdef V8_TARGET_ARCH_64_BIT
   IsValidPositiveSmiCase(isolate,
-                         static_cast<intptr_t>(int32_limits::max()) + 1, false);
+                         static_cast<intptr_t>(int32_limits::max()) + 1);
   IsValidPositiveSmiCase(isolate,
-                         static_cast<intptr_t>(int32_limits::min()) - 1, false);
+                         static_cast<intptr_t>(int32_limits::min()) - 1);
 #endif
 }
 
