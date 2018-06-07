@@ -103,8 +103,8 @@ class Resizer {
   sep_right_snap: number;
   sep_width_offset: number;
   panes_updated_callback: () => void;
-  resizer_right: d3.Selection<any>;
-  resizer_left: d3.Selection<any>;
+  resizer_right: d3.Selection<HTMLDivElement, any, any, any>;
+  resizer_left: d3.Selection<HTMLDivElement, any, any, any>;
 
   constructor(panes_updated_callback: () => void, dead_width: number) {
     let resizer = this;
@@ -124,38 +124,38 @@ class Resizer {
     // Offset to prevent resizers from sliding slightly over one another.
     resizer.sep_width_offset = 7;
 
-    let dragResizeLeft = d3.behavior.drag()
+    let dragResizeLeft = d3.drag()
       .on('drag', function () {
         let x = d3.mouse(this.parentElement)[0];
         resizer.sep_left = Math.min(Math.max(0, x), resizer.sep_right - resizer.sep_width_offset);
         resizer.updatePanes();
       })
-      .on('dragstart', function () {
+      .on('start', function () {
         resizer.resizer_left.classed("dragged", true);
         let x = d3.mouse(this.parentElement)[0];
         if (x > dead_width) {
           resizer.sep_left_snap = resizer.sep_left;
         }
       })
-      .on('dragend', function () {
+      .on('end', function () {
         resizer.resizer_left.classed("dragged", false);
       });
     resizer.resizer_left.call(dragResizeLeft);
 
-    let dragResizeRight = d3.behavior.drag()
+    let dragResizeRight = d3.drag()
       .on('drag', function () {
         let x = d3.mouse(this.parentElement)[0];
         resizer.sep_right = Math.max(resizer.sep_left + resizer.sep_width_offset, Math.min(x, resizer.client_width));
         resizer.updatePanes();
       })
-      .on('dragstart', function () {
+      .on('start', function () {
         resizer.resizer_right.classed("dragged", true);
         let x = d3.mouse(this.parentElement)[0];
         if (x < (resizer.client_width - dead_width)) {
           resizer.sep_right_snap = resizer.sep_right;
         }
       })
-      .on('dragend', function () {
+      .on('end', function () {
         resizer.resizer_right.classed("dragged", false);
       });;
     resizer.resizer_right.call(dragResizeRight);
@@ -269,7 +269,7 @@ window.onload = function () {
     // button #upload.
     d3.select("#upload").on("click",
       () => document.getElementById("upload-helper").click());
-    d3.select("#upload-helper").on("change", function () {
+    d3.select("#upload-helper").on("change", function (this: HTMLInputElement) {
       var uploadFile = this.files && this.files[0];
       var filereader = new FileReader();
       filereader.onload = function (e) {

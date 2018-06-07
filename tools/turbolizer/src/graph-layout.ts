@@ -456,7 +456,6 @@ function layoutNodeGraph(graph) {
   });
 
   redetermineGraphBoundingBox(graph);
-
 }
 
 function redetermineGraphBoundingBox(graph) {
@@ -489,4 +488,15 @@ function redetermineGraphBoundingBox(graph) {
 
   graph.maxGraphX = graph.maxGraphNodeX +
     graph.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
+
+  const width = (graph.maxGraphX - graph.minGraphX);
+  const height = graph.maxGraphY - graph.minGraphY;
+  graph.width = width;
+  graph.height = height;
+
+  const extent = [
+    [graph.minGraphX-width/2, graph.minGraphY-height/2],
+    [graph.maxGraphX+width/2, graph.maxGraphY+height/2]
+  ];
+  graph.panZoom.translateExtent(extent);
 }

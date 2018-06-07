@@ -23,19 +23,15 @@ class GraphMultiView extends View {
     const view = this;
     view.sourceResolver = sourceResolver;
     view.selectionBroker = selectionBroker;
+    const searchInput = document.getElementById("search-input");
+    searchInput.addEventListener("keyup", e => {
+      if (!view.currentPhaseView) return;
+      view.currentPhaseView.searchInputAction(this.currentPhaseView, searchInput, e)
+    });
+    searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
     this.graph = new GraphView(id, selectionBroker,
       (phaseName) => view.displayPhaseByName(phaseName));
     this.schedule = new ScheduleView(id, selectionBroker);
-
-
-    function handleSearch(e) {
-      if (this.currentPhaseView) {
-        this.currentPhaseView.searchInputAction(this.currentPhaseView, this, e)
-      }
-    }
-    const searchInput = document.getElementById("search-input");
-    searchInput.addEventListener("keyup", handleSearch);
-    searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
     this.selectMenu = (<HTMLSelectElement>document.getElementById('display-selector'));
   }
 

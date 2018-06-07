@@ -19,25 +19,27 @@ interface GraphState {
 }
 
 class GraphView extends View {
-  divElement: d3.Selection<any>;
-  svg: d3.Selection<any>;
+  divElement: d3.Selection<any, any, any, any>;
+  svg: d3.Selection<any, any, any, any>;
   showPhaseByName: (string) => void;
   state: GraphState;
   nodes: Array<GNode>;
   edges: Array<any>;
   selectionHandler: NodeSelectionHandler;
-  graphElement: d3.Selection<any>;
-  visibleNodes: d3.Selection<GNode>;
-  visibleEdges: d3.Selection<Edge>;
+  graphElement: d3.Selection<any, any, any, any>;
+  visibleNodes: d3.Selection<any, GNode, any, any>;
+  visibleEdges: d3.Selection<any, Edge, any, any>;
   minGraphX: number;
   maxGraphX: number;
   minGraphY: number;
   maxGraphY: number;
+  width: number;
+  height: number;
   maxGraphNodeX: number;
-  drag: d3.behavior.Drag<{}>;
-  dragSvg: d3.behavior.Zoom<{}>;
+  drag: d3.DragBehavior<any, GNode, GNode>;
+  panZoom: d3.ZoomBehavior<SVGElement, any>;
   nodeMap: Array<any>;
-  visibleBubbles: d3.Selection<any>;
+  visibleBubbles: d3.Selection<any, any, any, any>;
   transitionTimout: number;
 
   createViewElement() {
@@ -54,7 +56,9 @@ class GraphView extends View {
     const svg = this.divElement.append("svg").attr('version', '1.1')
       .attr("width", "100%")
       .attr("height", "100%");
-    svg.on("mouseup", function (d) { graph.svgMouseUp.call(graph, d); });
+    svg.on("click", function (d) {
+      graph.selectionHandler.clear();
+    });
     graph.svg = svg;
 
     graph.nodes = [];
@@ -133,14 +137,13 @@ class GraphView extends View {
     graph.visibleEdges = this.graphElement.append("g");
     graph.visibleNodes = this.graphElement.append("g");
 
-    graph.drag = d3.behavior.drag<GNode>()
-      .origin(function (d) {
-        return { x: d.x, y: d.y };
-      })
-      .on("drag", function (args) {
-        graph.state.justDragged = true;
-        graph.dragmove.call(graph, args);
-      })
+    graph.drag = d3.drag<any, GNode, GNode>()
+      .on("drag", function (d) {
+        d.x += d3.event.dx;
+        d.y += d3.event.dy;
+        graph.updateGraphVisibility();
+      });
+
 
     d3.select("#layout").on("click", partial(this.layoutAction, graph));
     d3.select("#show-all").on("click", partial(this.showAllAction, graph));
@@ -153,29 +156,32 @@ class GraphView extends View {
     // listen for key events
     d3.select(window).on("keydown", function (e) {
       graph.svgKeyDown.call(graph);
-    })
-      .on("keyup", function () {
-        graph.svgKeyUp.call(graph);
-      });
+    }).on("keyup", function () {
+      graph.svgKeyUp.call(graph);
+    });
 
-    graph.dragSvg = d3.behavior.zoom()
-      .on("zoom", function () {
-        if (d3.event.sourceEvent.shiftKey) {
-          return false;
-        } else {
-          graph.zoomed.call(graph);
-        }
-        return true;
+    function zoomed() {
+      if (d3.event.shiftKey) return false;
+      graph.graphElement.attr("transform", d3.event.transform);
+    }
+
+    const zoomSvg = d3.zoom<SVGElement, any>()
+      .scaleExtent([0.2, 40])
+      .on("zoom", zoomed)
+      .on("start", function () {
+        if (d3.event.shiftKey) return;
+        d3.select('body').style("cursor", "move");
       })
-      .on("zoomstart", function () {
-        if (!d3.event.sourceEvent.shiftKey) d3.select('body').style("cursor", "move");
-      })
-      .on("zoomend", function () {
+      .on("end", function () {
         d3.select('body').style("cursor", "auto");
       });
 
-    svg.call(graph.dragSvg).on("dblclick.zoom", null);
+    svg.call(zoomSvg).on("dblclick.zoom", null);
+
+    graph.panZoom = zoomSvg;
+
   }
+
 
   static get selectedClass() {
     return "selected";
@@ -190,7 +196,7 @@ class GraphView extends View {
     return 50;
   }
 
-  getNodeHeight(d) {
+  getNodeHeight(d): number {
     if (this.state.showTypes) {
       return d.normalheight + d.labelbbox.height;
     } else {
@@ -242,22 +248,15 @@ class GraphView extends View {
     }
   }
 
-  dragmove(d) {
-    var graph = this;
-    d.x += d3.event.dx;
-    d.y += d3.event.dy;
-    graph.updateGraphVisibility();
-  }
-
   initializeContent(data, rememberedSelection) {
     this.createGraph(data, rememberedSelection);
     if (rememberedSelection != null) {
       this.attachSelection(rememberedSelection);
       this.connectVisibleSelectedNodes();
       this.viewSelection();
+    } else {
+      this.viewWholeGraph();
     }
-    this.updateGraphVisibility();
-    this.fitGraphViewToWindow();
   }
 
   deleteContent() {
@@ -302,7 +301,7 @@ class GraphView extends View {
       n.labelbbox = g.measureText(n.displayLabel);
       n.typebbox = g.measureText(n.getDisplayType());
       var innerwidth = Math.max(n.labelbbox.width, n.typebbox.width);
-      n.width = Math.alignUp(innerwidth + NODE_INPUT_WIDTH * 2,
+      n.width = MoreMath.alignUp(innerwidth + NODE_INPUT_WIDTH * 2,
         NODE_INPUT_WIDTH);
       var innerheight = Math.max(n.labelbbox.height, n.typebbox.height);
       n.normalheight = innerheight + 20;
@@ -328,7 +327,6 @@ class GraphView extends View {
         }
       }
     });
-    g.fitGraphViewToWindow();
     g.updateGraphVisibility();
     g.layoutGraph();
     g.updateGraphVisibility();
@@ -404,41 +402,6 @@ class GraphView extends View {
     return this.state.selection.detachSelection();
   }
 
-  pathMouseUp(path, d) {
-    d3.event.stopPropagation();
-    const edge = path.datum();
-    if (!d3.event.shiftKey) {
-      this.selectionHandler.clear();
-    }
-    this.selectionHandler.select([edge.source, edge.target], true);
-    return false;
-  };
-
-  nodeMouseDown(node, d) {
-    d3.event.stopPropagation();
-    this.state.mouseDownNode = d;
-  }
-
-  nodeMouseUp(d3node, d) {
-    let graph = this;
-    let state = graph.state;
-
-    if (!state.mouseDownNode) return;
-
-    if (state.justDragged) {
-      // dragged, not clicked
-      redetermineGraphBoundingBox(graph);
-      state.justDragged = false;
-    } else {
-      // clicked, not dragged
-      var extend = d3.event.shiftKey;
-      if (!extend) {
-        graph.selectionHandler.clear();
-      }
-      graph.selectionHandler.select([d3node.datum()], undefined);
-    }
-  }
-
   selectAllNodes() {
     var graph = this;
     if (!d3.event.shiftKey) {
@@ -511,7 +474,7 @@ class GraphView extends View {
     graph.toggleTypes();
   }
 
-  searchInputAction(graph, searchBar, e:KeyboardEvent) {
+  searchInputAction(graph, searchBar, e: KeyboardEvent) {
     if (e.keyCode == 13) {
       graph.selectionHandler.clear();
       var query = searchBar.value;
@@ -542,21 +505,6 @@ class GraphView extends View {
       graph.viewSelection();
     }
     e.stopPropagation();
-  }
-
-  svgMouseUp() {
-    const graph = this;
-    const state = graph.state;
-    if (state.justScaleTransGraph) {
-      // Dragged
-      state.justScaleTransGraph = false;
-    } else {
-      // Clicked
-      if (state.mouseDownNode == null && !d3.event.shiftKey) {
-        graph.selectionHandler.clear();
-      }
-    }
-    state.mouseDownNode = null;
   }
 
   svgKeyDown() {
@@ -620,8 +568,8 @@ class GraphView extends View {
       case 69:
         // 'e'
         showSelectionFrontierNodes(d3.event.altKey,
-            (edge, index) => { return edge.type == 'effect'; },
-            true);
+          (edge, index) => { return edge.type == 'effect'; },
+          true);
         break;
       case 79:
         // 'o'
@@ -656,7 +604,6 @@ class GraphView extends View {
       case 191:
         // '/'
         document.getElementById("search-input").focus();
-        document.getElementById("search-input").select();
         break;
       default:
         eventHandled = false;
@@ -706,9 +653,7 @@ class GraphView extends View {
     var filteredEdges = graph.edges.filter(function (e) {
       return e.isVisible();
     });
-    const selEdges = graph.visibleEdges.selectAll("path").data(filteredEdges, function (edge) {
-      return edge.stringID();
-    });
+    const selEdges = graph.visibleEdges.selectAll<SVGPathElement, Edge>("path").data(filteredEdges, edgeToStr);
 
     // remove old links
     selEdges.exit().remove();
@@ -721,8 +666,12 @@ class GraphView extends View {
         return !e.isVisible();
       })
       .attr("id", function (edge) { return "e," + edge.stringID(); })
-      .on("mouseup", function (d) {
-        graph.pathMouseUp.call(graph, d3.select(this), d);
+      .on("click", function (edge) {
+        d3.event.stopPropagation();
+        if (!d3.event.shiftKey) {
+          graph.selectionHandler.clear();
+        }
+        graph.selectionHandler.select([edge.source, edge.target], true);
       })
       .attr("adjacentToHover", "false");
 
@@ -741,12 +690,9 @@ class GraphView extends View {
     });
 
     // select existing nodes
-    const filteredNodes = graph.nodes.filter(function (n) {
-      return n.visible;
-    });
-    let selNodes = graph.visibleNodes.selectAll("g").data(filteredNodes, function (d) {
-      return d.id;
-    });
+    const filteredNodes = graph.nodes.filter(n => n.visible);
+    const allNodes = graph.visibleNodes.selectAll<SVGGElement, GNode>("g");
+    const selNodes = allNodes.data(filteredNodes, nodeToStr);
 
     // remove old nodes
     selNodes.exit().remove();
@@ -763,43 +709,35 @@ class GraphView extends View {
       .classed("input", function (n) { return n.isInput(); })
       .classed("simplified", function (n) { return n.isSimplified(); })
       .classed("machine", function (n) { return n.isMachine(); })
-      .on("mousedown", function (d) {
-        graph.nodeMouseDown.call(graph, d3.select(this), d);
-      })
-      .on("mouseup", function (d) {
-        graph.nodeMouseUp.call(graph, d3.select(this), d);
-      })
-      .on('mouseover', function (d) {
-        var nodeSelection = d3.select(this);
-        let node = graph.nodeMap[d.id];
-        let visibleEdges = graph.visibleEdges.selectAll('path');
-        let adjInputEdges = visibleEdges.filter(e => { return e.target === node; });
-        let adjOutputEdges = visibleEdges.filter(e => { return e.source === node; });
+      .on('mouseenter', function (node) {
+        const visibleEdges = graph.visibleEdges.selectAll<SVGPathElement, Edge>('path');
+        const adjInputEdges = visibleEdges.filter(e => { return e.target === node; });
+        const adjOutputEdges = visibleEdges.filter(e => { return e.source === node; });
         adjInputEdges.attr('relToHover', "input");
         adjOutputEdges.attr('relToHover', "output");
-        let adjInputNodes = adjInputEdges.data().map(e => e.source);
-        let visibleNodes = graph.visibleNodes.selectAll("g");
-        visibleNodes.data(adjInputNodes, function (d) {
-          return d.id;
-        }).attr('relToHover', "input");
-        let adjOutputNodes = adjOutputEdges.data().map(e => e.target);
-        visibleNodes.data(adjOutputNodes, function (d) {
-          return d.id;
-        }).attr('relToHover', "output");
+        const adjInputNodes = adjInputEdges.data().map(e => e.source);
+        const visibleNodes = graph.visibleNodes.selectAll<SVGGElement, GNode>("g");
+        const input = visibleNodes.data<GNode>(adjInputNodes, nodeToStr)
+          .attr('relToHover', "input");
+        const adjOutputNodes = adjOutputEdges.data().map(e => e.target);
+        const output = visibleNodes.data<GNode>(adjOutputNodes, nodeToStr)
+          .attr('relToHover', "output");
         graph.updateGraphVisibility();
       })
-      .on('mouseout', function (d) {
-        var nodeSelection = d3.select(this);
-        let node = graph.nodeMap[d.id];
-        let visibleEdges = graph.visibleEdges.selectAll('path');
-        let adjEdges = visibleEdges.filter(e => { return e.target === node || e.source === node; });
+      .on('mouseleave', function (node) {
+        const visibleEdges = graph.visibleEdges.selectAll<SVGPathElement, Edge>('path');
+        const adjEdges = visibleEdges.filter(e => { return e.target === node || e.source === node; });
         adjEdges.attr('relToHover', "none");
-        let adjNodes = adjEdges.data().map(e => e.target).concat(adjEdges.data().map(e => e.source));
-        let visibleNodes = graph.visibleNodes.selectAll("g");
-        let nodes = visibleNodes.data(adjNodes, function (d) {
-          return d.id;
-        }).attr('relToHover', "none");
+        const adjNodes = adjEdges.data().map(e => e.target).concat(adjEdges.data().map(e => e.source));
+        const visibleNodes = graph.visibleNodes.selectAll<SVGPathElement, GNode>("g");
+        const nodes = visibleNodes.data(adjNodes, nodeToStr)
+          .attr('relToHover', "none");
         graph.updateGraphVisibility();
+      })
+      .on("click", (d) => {
+        if (!d3.event.shiftKey) graph.selectionHandler.clear();
+        graph.selectionHandler.select([d], undefined);
+        d3.event.stopPropagation();
       })
       .call(graph.drag)
 
@@ -829,7 +767,7 @@ class GraphView extends View {
           .attr("transform", function (d) {
             return "translate(" + x + "," + y + ")";
           })
-          .on("mousedown", function (d) {
+          .on("click", function (d) {
             var components = this.id.split(',');
             var node = graph.nodeMap[components[3]];
             var edge = node.inputs[components[2]];
@@ -857,7 +795,7 @@ class GraphView extends View {
           .attr("transform", function (d) {
             return "translate(" + x + "," + y + ")";
           })
-          .on("mousedown", function (d) {
+          .on("click", function (d) {
             d.setOutputVisibility(d.areAnyOutputsVisible() == 0);
             d3.event.stopPropagation();
             graph.updateGraphVisibility();
@@ -901,7 +839,7 @@ class GraphView extends View {
       }
     });
 
-    selNodes.select('.type').each(function (d) {
+    selNodes.select<SVGTextElement>('.type').each(function (d) {
       this.setAttribute('visibility', graph.state.showTypes ? 'visible' : 'hidden');
     });
 
@@ -922,113 +860,30 @@ class GraphView extends View {
     selEdges.attr("d", function (edge) {
       return edge.generatePath(graph);
     });
-
-    redetermineGraphBoundingBox(this);
   }
-
-  getVisibleTranslation(translate, scale) {
-    var graph = this;
-    var height = (graph.maxGraphY - graph.minGraphY + 2 * GRAPH_MARGIN) * scale;
-    var width = (graph.maxGraphX - graph.minGraphX + 2 * GRAPH_MARGIN) * scale;
-
-    var dimensions = this.getSvgViewDimensions();
-
-    var baseY = translate[1];
-    var minY = (graph.minGraphY - GRAPH_MARGIN) * scale;
-    var maxY = (graph.maxGraphY + GRAPH_MARGIN) * scale;
-
-    var adjustY = 0;
-    var adjustYCandidate = 0;
-    if ((maxY + baseY) < dimensions[1]) {
-      adjustYCandidate = dimensions[1] - (maxY + baseY);
-      if ((minY + baseY + adjustYCandidate) > 0) {
-        adjustY = (dimensions[1] / 2) - (maxY - (height / 2)) - baseY;
-      } else {
-        adjustY = adjustYCandidate;
-      }
-    } else if (-baseY < minY) {
-      adjustYCandidate = -(baseY + minY);
-      if ((maxY + baseY + adjustYCandidate) < dimensions[1]) {
-        adjustY = (dimensions[1] / 2) - (maxY - (height / 2)) - baseY;
-      } else {
-        adjustY = adjustYCandidate;
-      }
-    }
-    translate[1] += adjustY;
-
-    var baseX = translate[0];
-    var minX = (graph.minGraphX - GRAPH_MARGIN) * scale;
-    var maxX = (graph.maxGraphX + GRAPH_MARGIN) * scale;
-
-    var adjustX = 0;
-    var adjustXCandidate = 0;
-    if ((maxX + baseX) < dimensions[0]) {
-      adjustXCandidate = dimensions[0] - (maxX + baseX);
-      if ((minX + baseX + adjustXCandidate) > 0) {
-        adjustX = (dimensions[0] / 2) - (maxX - (width / 2)) - baseX;
-      } else {
-        adjustX = adjustXCandidate;
-      }
-    } else if (-baseX < minX) {
-      adjustXCandidate = -(baseX + minX);
-      if ((maxX + baseX + adjustXCandidate) < dimensions[0]) {
-        adjustX = (dimensions[0] / 2) - (maxX - (width / 2)) - baseX;
-      } else {
-        adjustX = adjustXCandidate;
-      }
-    }
-    translate[0] += adjustX;
-    return translate;
-  }
-
-  translateClipped(translate, scale, transition?: boolean): void{
-    var graph = this;
-    var graphNode = this.graphElement.node() as SVGElement;
-    var translate = this.getVisibleTranslation(translate, scale);
-    if (transition) {
-      graphNode.classList.add('visible-transition');
-      clearTimeout(graph.transitionTimout);
-      graph.transitionTimout = setTimeout(function () {
-        graphNode.classList.remove('visible-transition');
-      }, 1000);
-    }
-    var translateString = "translate(" + translate[0] + "px," + translate[1] + "px) scale(" + scale + ")";
-    graphNode.style.transform = translateString;
-    graph.dragSvg.translate(translate);
-    graph.dragSvg.scale(scale);
-  }
-
-  zoomed() {
-    this.state.justScaleTransGraph = true;
-    var scale = this.dragSvg.scale();
-    this.translateClipped(d3.event.translate, scale);
-  }
-
 
   getSvgViewDimensions() {
-    var canvasWidth = this.container.clientWidth;
-    var documentElement = document.documentElement;
-    var canvasHeight = documentElement.clientHeight;
-    return [canvasWidth, canvasHeight];
+    return [this.container.clientWidth, this.container.clientHeight];
   }
 
+  getSvgExtent(): [[number, number], [number, number]] {
+    return [[0, 0], [this.container.clientWidth, this.container.clientHeight]];
+  }
 
   minScale() {
-    var graph = this;
-    var dimensions = this.getSvgViewDimensions();
-    var width = graph.maxGraphX - graph.minGraphX;
-    var height = graph.maxGraphY - graph.minGraphY;
-    var minScale = dimensions[0] / (width + GRAPH_MARGIN * 2);
-    var minScaleYCandidate = dimensions[1] / (height + GRAPH_MARGIN * 2);
-    if (minScaleYCandidate < minScale) {
-      minScale = minScaleYCandidate;
-    }
-    this.dragSvg.scaleExtent([minScale, 1.5]);
+    const graph = this;
+    const dimensions = this.getSvgViewDimensions();
+    const minXScale = dimensions[0] / (2 * graph.width);
+    const minYScale = dimensions[1] / (2 * graph.height);
+    const minScale = Math.min(minXScale, minYScale);
+    this.panZoom.scaleExtent([minScale, 40]);
     return minScale;
   }
 
   fitGraphViewToWindow() {
-    this.translateClipped(this.dragSvg.translate(), this.dragSvg.scale());
+    const trans = d3.zoomTransform(this.svg.node());
+    const ctrans = this.panZoom.constrain()(trans, this.getSvgExtent(), this.panZoom.translateExtent())
+    this.panZoom.transform(this.svg, ctrans)
   }
 
   toggleTypes() {
@@ -1043,7 +898,7 @@ class GraphView extends View {
     var graph = this;
     var minX, maxX, minY, maxY;
     var hasSelection = false;
-    graph.visibleNodes.selectAll("g").each(function (n) {
+    graph.visibleNodes.selectAll<SVGGElement, GNode>("g").each(function (n) {
       if (graph.state.selection.isSelected(n)) {
         hasSelection = true;
         minX = minX ? Math.min(minX, n.x) : n.x;
@@ -1062,23 +917,21 @@ class GraphView extends View {
   }
 
   viewGraphRegion(minX, minY, maxX, maxY, transition) {
-    var graph = this;
-    var dimensions = this.getSvgViewDimensions();
-    var width = maxX - minX;
-    var height = maxY - minY;
-    var scale = Math.min(dimensions[0] / width, dimensions[1] / height);
-    scale = Math.min(1.5, scale);
-    scale = Math.max(graph.minScale(), scale);
-    var translation = [-minX * scale, -minY * scale];
-    translation = graph.getVisibleTranslation(translation, scale);
-    graph.translateClipped(translation, scale, transition);
+    const [width, height] = this.getSvgViewDimensions();
+    const dx = maxX - minX;
+    const dy = maxY - minY;
+    const x = (minX + maxX) / 2;
+    const y = (minY + maxY) / 2;
+    const scale = Math.min(width / (1.1 * dx), height / (1.1 * dy));
+    const transform = d3.zoomIdentity.translate(1500, 100).scale(0.75);
+    this.svg
+      .transition().duration(300).call(this.panZoom.translateTo, x, y)
+      .transition().duration(300).call(this.panZoom.scaleTo, scale)
+      .transition().duration(300).call(this.panZoom.translateTo, x, y);
   }
 
   viewWholeGraph() {
-    var graph = this;
-    var minScale = graph.minScale();
-    var translation = [0, 0];
-    translation = graph.getVisibleTranslation(translation, minScale);
-    graph.translateClipped(translation, minScale);
+    this.panZoom.scaleTo(this.svg, 0);
+    this.panZoom.translateTo(this.svg, this.minGraphX + this.width / 2, this.minGraphY + this.height / 2)
   }
 }

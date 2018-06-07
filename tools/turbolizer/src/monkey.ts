@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Math.alignUp = function(raw, multiple) {
-  return Math.floor((raw + multiple - 1) / multiple) * multiple;
-}
+const MoreMath = {
+  alignUp: (raw, multiple) => {
+    return Math.floor((raw + multiple - 1) / multiple) * multiple;
+  }
+};

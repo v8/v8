@@ -88,3 +88,5 @@ class Edge {
   }
 
 }
+
+const edgeToStr = (e:Edge) => e.stringID();

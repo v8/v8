@@ -31,6 +31,7 @@ class GNode {
   visible: boolean;
   rank: number;
   opinfo: string;
+  labelbbox: {width: number, height: number};
 
   isControl() {
     return this.control;
@@ -165,3 +166,5 @@ class GNode {
         this.inputs[this.inputs.length - 1].source.opcode == "Loop");
   }
 };
+
+const nodeToStr = (n:GNode) => "N" + n.id;

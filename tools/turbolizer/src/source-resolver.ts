@@ -44,7 +44,11 @@ interface Phase {
 
 interface Schedule {}
 
-interface NodeOrigin {}
+interface NodeOrigin {
+  nodeId: number;
+  phase: string;
+  reducer: string;
+}
 
 class SourceResolver {
   nodePositionMap: Array<SourcePosition>;
