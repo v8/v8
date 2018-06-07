@@ -416,6 +416,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_ARRAY_TYPE)                                           \
   V(BOILERPLATE_DESCRIPTION_TYPE)                               \
   V(HASH_TABLE_TYPE)                                            \
+  V(EPHEMERON_HASH_TABLE_TYPE)                                  \
   V(SCOPE_INFO_TYPE)                                            \
                                                                 \
   V(BLOCK_CONTEXT_TYPE)                                         \
@@ -799,6 +800,7 @@ enum InstanceType : uint16_t {
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   BOILERPLATE_DESCRIPTION_TYPE,
   HASH_TABLE_TYPE,
+  EPHEMERON_HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,
   BLOCK_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
   CATCH_CONTEXT_TYPE,

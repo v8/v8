@@ -1037,7 +1037,7 @@ void V8HeapExplorer::ExtractJSCollectionReferences(int entry,
 
 void V8HeapExplorer::ExtractJSWeakCollectionReferences(int entry,
                                                        JSWeakCollection* obj) {
-  if (obj->table()->IsHashTable()) {
+  if (obj->table()->IsEphemeronHashTable()) {
     EphemeronHashTable* table = EphemeronHashTable::cast(obj->table());
     TagFixedArraySubType(table, JS_WEAK_COLLECTION_SUB_TYPE);
   }

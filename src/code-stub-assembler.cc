@@ -2503,10 +2503,11 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 int additional_offset,
                                                 ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(
-      this,
-      Word32Or(IsHashTable(object),
-               Word32Or(IsFixedArray(object),
-                        Word32Or(IsPropertyArray(object), IsContext(object)))));
+      this, Word32Or(IsHashTable(object),
+                     Word32Or(IsFixedArray(object),
+                              Word32Or(IsPropertyArray(object),
+                                       Word32Or(IsEphemeronHashTable(object),
+                                                IsContext(object))))));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
@@ -5313,6 +5314,11 @@ TNode<BoolT> CodeStubAssembler::IsFixedDoubleArray(
 
 TNode<BoolT> CodeStubAssembler::IsHashTable(SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, HASH_TABLE_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsEphemeronHashTable(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, EPHEMERON_HASH_TABLE_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsDictionary(SloppyTNode<HeapObject> object) {

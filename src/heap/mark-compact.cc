@@ -1878,6 +1878,8 @@ void MarkCompactCollector::ProcessWeakCollections() {
           visitor.VisitPointer(table, value_slot);
         }
       }
+    } else {
+      DCHECK(weak_collection->table()->IsUndefined(isolate()));
     }
     weak_collection_obj = weak_collection->next();
   }
@@ -1899,6 +1901,8 @@ void MarkCompactCollector::ClearWeakCollections() {
           table->RemoveEntry(i);
         }
       }
+    } else {
+      DCHECK(weak_collection->table()->IsUndefined(isolate()));
     }
     weak_collection_obj = weak_collection->next();
     weak_collection->set_next(heap()->undefined_value());
