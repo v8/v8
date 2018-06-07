@@ -136,8 +136,7 @@ class LiftoffCompiler {
                   SourcePositionTableBuilder* source_position_table_builder,
                   std::vector<trap_handler::ProtectedInstructionData>*
                       protected_instructions,
-                  Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone,
-                  WasmCode* const* code_table_entry)
+                  Zone* compilation_zone, WasmCode* const* code_table_entry)
       : asm_(liftoff_asm),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -150,7 +149,6 @@ class LiftoffCompiler {
         source_position_table_builder_(source_position_table_builder),
         protected_instructions_(protected_instructions),
         compilation_zone_(compilation_zone),
-        codegen_zone_(codegen_zone),
         safepoint_table_builder_(compilation_zone_),
         code_table_entry_(code_table_entry) {}
 
@@ -1486,12 +1484,11 @@ class LiftoffCompiler {
       stack_slots.Construct();
     }
 
-    // Allocate the codegen zone if not done before.
-    if (!*codegen_zone_) {
-      codegen_zone_->reset(
-          new Zone(__ isolate()->allocator(), "LiftoffCodegenZone"));
-    }
-    __ CallRuntime(codegen_zone_->get(), runtime_function);
+    // Set context to zero (Smi::kZero) for the runtime call.
+    __ TurboAssembler::Move(kContextRegister, Smi::kZero);
+    LiftoffRegister centry(kJavaScriptCallCodeStartRegister);
+    LOAD_INSTANCE_FIELD(centry, CEntryStub, kPointerLoadType);
+    __ CallRuntimeWithCEntry(runtime_function, centry.gp());
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
   }
@@ -1901,9 +1898,6 @@ class LiftoffCompiler {
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
   Zone* compilation_zone_;
-  // This zone is allocated when needed, held externally, and survives until
-  // code generation (in FinishCompilation).
-  std::unique_ptr<Zone>* codegen_zone_;
   SafepointTableBuilder safepoint_table_builder_;
   // The pc offset of the instructions to reserve the stack frame. Needed to
   // patch the actually needed stack size in the end.
@@ -1961,8 +1955,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, wasm_unit_->func_body_, &asm_, call_descriptor,
               wasm_unit_->env_, &source_position_table_builder_,
-              protected_instructions_.get(), &zone, &codegen_zone_,
-              code_table_entry);
+              protected_instructions_.get(), &zone, code_table_entry);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {
@@ -1987,10 +1980,8 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
   // Record the memory cost this unit places on the system until
   // it is finalized.
   wasm_unit_->memory_cost_ =
-      asm_.pc_offset() +
-      protected_instructions_->size() *
-          sizeof(trap_handler::ProtectedInstructionData) +
-      (codegen_zone_ ? codegen_zone_->allocation_size() : 0);
+      asm_.pc_offset() + protected_instructions_->size() *
+                             sizeof(trap_handler::ProtectedInstructionData);
 
   safepoint_table_offset_ = decoder.interface().GetSafepointTableOffset();
   wasm_unit_->isolate_->counters()->liftoff_compiled_functions()->Increment();

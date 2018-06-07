@@ -835,10 +835,9 @@ class TurboAssembler : public Assembler {
   // Call a code stub.
   void CallStubDelayed(CodeStub* stub);
 
-  // Call a runtime routine.
-  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
-  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
+  // builtin for the target runtime function and uses an indirect call.
+  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in

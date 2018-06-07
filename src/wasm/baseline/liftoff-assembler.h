@@ -540,7 +540,6 @@ class LiftoffAssembler : public TurboAssembler {
                     int stack_bytes, ExternalReference ext_ref);
 
   inline void CallNativeWasmCode(Address addr);
-  inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);
   // Indirect call: If {target == no_reg}, then pop the target from the stack.
   inline void CallIndirect(wasm::FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,

@@ -2973,8 +2973,10 @@ void CodeGenerator::AssembleConstructFrame() {
           // runtime call.
           __ EnterFrame(StackFrame::WASM_COMPILED);
         }
+        __ ldr(r2, FieldMemOperand(kWasmInstanceRegister,
+                                   WasmInstanceObject::kCEntryStubOffset));
         __ Move(cp, Smi::kZero);
-        __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
+        __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, r2);
         // We come from WebAssembly, there are no references for the GC.
         ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
         RecordSafepoint(reference_map, Safepoint::kSimple, 0,

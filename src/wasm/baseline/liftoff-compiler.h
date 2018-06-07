@@ -32,10 +32,6 @@ class LiftoffCompilationUnit final {
   std::unique_ptr<std::vector<trap_handler::ProtectedInstructionData>>
       protected_instructions_;
 
-  // The {codegen_zone_} needs to survive until FinishCompilation. It's only
-  // rarely used (e.g. for runtime calls), so it's only allocated when needed.
-  std::unique_ptr<Zone> codegen_zone_;
-
   DISALLOW_COPY_AND_ASSIGN(LiftoffCompilationUnit);
 };
 

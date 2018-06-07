@@ -3090,8 +3090,10 @@ void CodeGenerator::AssembleConstructFrame() {
         __ set_has_frame(true);
         __ EnterFrame(StackFrame::WASM_COMPILED);
       }
+      __ movp(rcx, FieldOperand(kWasmInstanceRegister,
+                                WasmInstanceObject::kCEntryStubOffset));
       __ Move(rsi, Smi::kZero);
-      __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
+      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, rcx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple, 0,
                       Safepoint::kNoLazyDeopt);

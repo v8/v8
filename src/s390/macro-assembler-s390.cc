@@ -1626,19 +1626,14 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
   beq(done);
 }
 
-void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                                        SaveFPRegsMode save_doubles) {
+void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
+                                           Register centry) {
   const Runtime::Function* f = Runtime::FunctionForId(fid);
   mov(r2, Operand(f->nargs));
   Move(r3, ExternalReference::Create(f));
-
-#if V8_TARGET_ARCH_S390X
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
-#else
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
-#endif
-  Call(code, RelocInfo::CODE_TARGET);
+  DCHECK(!AreAliased(centry, r2, r3));
+  la(centry, MemOperand(centry, Code::kHeaderSize - kHeapObjectTag));
+  Call(centry);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,

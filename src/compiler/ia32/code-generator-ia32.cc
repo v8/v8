@@ -3797,8 +3797,10 @@ void CodeGenerator::AssembleConstructFrame() {
         __ set_has_frame(true);
         __ EnterFrame(StackFrame::WASM_COMPILED);
       }
+      __ mov(ecx, FieldOperand(kWasmInstanceRegister,
+                               WasmInstanceObject::kCEntryStubOffset));
       __ Move(esi, Smi::kZero);
-      __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
+      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, ecx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple, 0,
                       Safepoint::kNoLazyDeopt);
