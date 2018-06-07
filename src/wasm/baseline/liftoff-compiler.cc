@@ -115,19 +115,19 @@ class LiftoffCompiler {
   struct OutOfLineCode {
     MovableLabel label;
     MovableLabel continuation;
-    Builtins::Name builtin;
+    WasmCode::RuntimeStubId stub;
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
     uint32_t pc;  // for trap handler.
 
     // Named constructors:
-    static OutOfLineCode Trap(Builtins::Name b, WasmCodePosition pos,
+    static OutOfLineCode Trap(WasmCode::RuntimeStubId s, WasmCodePosition pos,
                               uint32_t pc) {
       DCHECK_LT(0, pos);
-      return {{}, {}, b, pos, {}, pc};
+      return {{}, {}, s, pos, {}, pc};
     }
     static OutOfLineCode StackCheck(WasmCodePosition pos, LiftoffRegList regs) {
-      return {{}, {}, Builtins::kWasmStackGuard, pos, regs, 0};
+      return {{}, {}, WasmCode::kWasmStackGuard, pos, regs, 0};
     }
   };
 
@@ -442,9 +442,9 @@ class LiftoffCompiler {
 
   void GenerateOutOfLineCode(OutOfLineCode& ool) {
     __ bind(ool.label.get());
-    const bool is_stack_check = ool.builtin == Builtins::kWasmStackGuard;
+    const bool is_stack_check = ool.stub == WasmCode::kWasmStackGuard;
     const bool is_mem_out_of_bounds =
-        ool.builtin == Builtins::kThrowWasmTrapMemOutOfBounds;
+        ool.stub == WasmCode::kThrowWasmTrapMemOutOfBounds;
 
     if (is_mem_out_of_bounds && env_->use_trap_handler) {
       uint32_t pc = static_cast<uint32_t>(__ pc_offset());
@@ -469,8 +469,7 @@ class LiftoffCompiler {
 
     source_position_table_builder_->AddPosition(
         __ pc_offset(), SourcePosition(ool.position), false);
-    __ Call(__ isolate()->builtins()->builtin_handle(ool.builtin),
-            RelocInfo::CODE_TARGET);
+    __ CallRuntimeStub(ool.stub);
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
     DCHECK_EQ(ool.continuation.get()->is_bound(), is_stack_check);
@@ -649,7 +648,7 @@ class LiftoffCompiler {
     DCHECK_EQ(can_trap, trap_position > 0);
     Label* trap = can_trap ? AddOutOfLineTrap(
                                  trap_position,
-                                 Builtins::kThrowWasmTrapFloatUnrepresentable)
+                                 WasmCode::kThrowWasmTrapFloatUnrepresentable)
                            : nullptr;
     if (!__ emit_type_conversion(opcode, dst, src, trap)) {
       DCHECK_NOT_NULL(fallback_fn);
@@ -941,11 +940,11 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           WasmCodePosition position = decoder->position();
-          AddOutOfLineTrap(position, Builtins::kThrowWasmTrapDivByZero);
+          AddOutOfLineTrap(position, WasmCode::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
           // the first one, thus get both pointers afterwards.
           AddOutOfLineTrap(position,
-                           Builtins::kThrowWasmTrapDivUnrepresentable);
+                           WasmCode::kThrowWasmTrapDivUnrepresentable);
           Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
           Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
           __ emit_i32_divs(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero,
@@ -957,7 +956,7 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           Label* div_by_zero = AddOutOfLineTrap(
-              decoder->position(), Builtins::kThrowWasmTrapDivByZero);
+              decoder->position(), WasmCode::kThrowWasmTrapDivByZero);
           __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
         });
         break;
@@ -966,7 +965,7 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           Label* rem_by_zero = AddOutOfLineTrap(
-              decoder->position(), Builtins::kThrowWasmTrapRemByZero);
+              decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
           __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
         break;
@@ -975,7 +974,7 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           Label* rem_by_zero = AddOutOfLineTrap(
-              decoder->position(), Builtins::kThrowWasmTrapRemByZero);
+              decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
           __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
         break;
@@ -984,11 +983,11 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           WasmCodePosition position = decoder->position();
-          AddOutOfLineTrap(position, Builtins::kThrowWasmTrapDivByZero);
+          AddOutOfLineTrap(position, WasmCode::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
           // the first one, thus get both pointers afterwards.
           AddOutOfLineTrap(position,
-                           Builtins::kThrowWasmTrapDivUnrepresentable);
+                           WasmCode::kThrowWasmTrapDivUnrepresentable);
           Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
           Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
           if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero,
@@ -1004,7 +1003,7 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           Label* div_by_zero = AddOutOfLineTrap(
-              decoder->position(), Builtins::kThrowWasmTrapDivByZero);
+              decoder->position(), WasmCode::kThrowWasmTrapDivByZero);
           if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
@@ -1016,7 +1015,7 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           Label* rem_by_zero = AddOutOfLineTrap(
-              decoder->position(), Builtins::kThrowWasmTrapRemByZero);
+              decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
           if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
@@ -1028,7 +1027,7 @@ class LiftoffCompiler {
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
           Label* rem_by_zero = AddOutOfLineTrap(
-              decoder->position(), Builtins::kThrowWasmTrapRemByZero);
+              decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
           if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
@@ -1233,7 +1232,7 @@ class LiftoffCompiler {
 
   void Unreachable(Decoder* decoder) {
     Label* unreachable_label = AddOutOfLineTrap(
-        decoder->position(), Builtins::kThrowWasmTrapUnreachable);
+        decoder->position(), WasmCode::kThrowWasmTrapUnreachable);
     __ emit_jump(unreachable_label);
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
@@ -1357,15 +1356,15 @@ class LiftoffCompiler {
     __ cache_state()->Steal(if_block->else_state->state);
   }
 
-  Label* AddOutOfLineTrap(WasmCodePosition position, Builtins::Name builtin,
-                          uint32_t pc = 0) {
+  Label* AddOutOfLineTrap(WasmCodePosition position,
+                          WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
     DCHECK(!FLAG_wasm_no_bounds_checks);
     // The pc is needed for memory OOB trap with trap handler enabled. Other
     // callers should not even compute it.
-    DCHECK_EQ(pc != 0, builtin == Builtins::kThrowWasmTrapMemOutOfBounds &&
+    DCHECK_EQ(pc != 0, stub == WasmCode::kThrowWasmTrapMemOutOfBounds &&
                            env_->use_trap_handler);
 
-    out_of_line_code_.push_back(OutOfLineCode::Trap(builtin, position, pc));
+    out_of_line_code_.push_back(OutOfLineCode::Trap(stub, position, pc));
     return out_of_line_code_.back().label.get();
   }
 
@@ -1385,7 +1384,7 @@ class LiftoffCompiler {
     // instruction we are about to generate. It would be better to just not add
     // protected instruction info when the pc is 0.
     Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), Builtins::kThrowWasmTrapMemOutOfBounds,
+        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds,
         env_->use_trap_handler ? __ pc_offset() : 0);
 
     if (statically_oob) {
@@ -1537,7 +1536,7 @@ class LiftoffCompiler {
             &protected_load_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
-                       Builtins::kThrowWasmTrapMemOutOfBounds,
+                       WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
     __ PushRegister(value_type, value);
@@ -1569,7 +1568,7 @@ class LiftoffCompiler {
              &protected_store_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
-                       Builtins::kThrowWasmTrapMemOutOfBounds,
+                       WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
     if (FLAG_wasm_trace_memory) {
@@ -1757,7 +1756,7 @@ class LiftoffCompiler {
 
     // Bounds check against the table size.
     Label* invalid_func_label = AddOutOfLineTrap(
-        decoder->position(), Builtins::kThrowWasmTrapFuncInvalid);
+        decoder->position(), WasmCode::kThrowWasmTrapFuncInvalid);
 
     uint32_t canonical_sig_num = env_->module->signature_ids[imm.sig_index];
     DCHECK_GE(canonical_sig_num, 0);
@@ -1807,7 +1806,7 @@ class LiftoffCompiler {
     __ LoadConstant(tmp_const, WasmValue(canonical_sig_num));
 
     Label* sig_mismatch_label = AddOutOfLineTrap(
-        decoder->position(), Builtins::kThrowWasmTrapFuncSigMismatch);
+        decoder->position(), WasmCode::kThrowWasmTrapFuncSigMismatch);
     __ emit_cond_jump(kUnequal, sig_mismatch_label,
                       LiftoffAssembler::kWasmIntPtr, scratch.gp(),
                       tmp_const.gp());

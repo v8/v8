@@ -340,6 +340,10 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
   BAILOUT("CallIndirect");
 }
 
+void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
+  BAILOUT("CallRuntimeStub");
+}
+
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
   BAILOUT("AllocateStackSlot");
 }

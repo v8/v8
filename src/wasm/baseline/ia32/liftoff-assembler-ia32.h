@@ -1582,6 +1582,12 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
   }
 }
 
+void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  wasm_call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+}
+
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
   sub(esp, Immediate(size));
   mov(addr, esp);
