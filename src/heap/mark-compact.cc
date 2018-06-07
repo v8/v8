@@ -1859,16 +1859,17 @@ void MarkCompactCollector::ProcessWeakCollections() {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
     DCHECK(non_atomic_marking_state()->IsBlackOrGrey(weak_collection));
-    if (weak_collection->table()->IsHashTable()) {
-      ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
+    if (weak_collection->table()->IsEphemeronHashTable()) {
+      EphemeronHashTable* table =
+          EphemeronHashTable::cast(weak_collection->table());
       for (int i = 0; i < table->Capacity(); i++) {
         HeapObject* heap_object = HeapObject::cast(table->KeyAt(i));
         if (non_atomic_marking_state()->IsBlackOrGrey(heap_object)) {
           Object** key_slot =
-              table->RawFieldOfElementAt(ObjectHashTable::EntryToIndex(i));
+              table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
           RecordSlot(table, key_slot, *key_slot);
-          Object** value_slot =
-              table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
+          Object** value_slot = table->RawFieldOfElementAt(
+              EphemeronHashTable::EntryToValueIndex(i));
           if (V8_UNLIKELY(FLAG_track_retaining_path) &&
               (*value_slot)->IsHeapObject()) {
             heap()->AddEphemeralRetainer(heap_object,
@@ -1889,8 +1890,9 @@ void MarkCompactCollector::ClearWeakCollections() {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
     DCHECK(non_atomic_marking_state()->IsBlackOrGrey(weak_collection));
-    if (weak_collection->table()->IsHashTable()) {
-      ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
+    if (weak_collection->table()->IsEphemeronHashTable()) {
+      EphemeronHashTable* table =
+          EphemeronHashTable::cast(weak_collection->table());
       for (int i = 0; i < table->Capacity(); i++) {
         HeapObject* key = HeapObject::cast(table->KeyAt(i));
         if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {

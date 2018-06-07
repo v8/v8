@@ -1054,6 +1054,7 @@ template <class C> inline bool Is(Object* obj);
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
   V(DescriptorArray)                           \
+  V(EphemeronHashTable)                        \
   V(EnumCache)                                 \
   V(External)                                  \
   V(ExternalOneByteString)                     \

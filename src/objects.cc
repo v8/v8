@@ -18000,23 +18000,24 @@ Object* Dictionary<Derived, Shape>::SlowReverseLookup(Object* value) {
   return isolate->heap()->undefined_value();
 }
 
-
-Object* ObjectHashTable::Lookup(Isolate* isolate, Handle<Object> key,
-                                int32_t hash) {
+template <typename Derived, typename Shape>
+Object* ObjectHashTableBase<Derived, Shape>::Lookup(Isolate* isolate,
+                                                    Handle<Object> key,
+                                                    int32_t hash) {
   DisallowHeapAllocation no_gc;
-  DCHECK(IsKey(isolate, *key));
+  DCHECK(this->IsKey(isolate, *key));
 
-  int entry = FindEntry(isolate, key, hash);
+  int entry = this->FindEntry(isolate, key, hash);
   if (entry == kNotFound) return isolate->heap()->the_hole_value();
-  return get(EntryToIndex(entry) + 1);
+  return this->get(Derived::EntryToIndex(entry) + 1);
 }
 
-
-Object* ObjectHashTable::Lookup(Handle<Object> key) {
+template <typename Derived, typename Shape>
+Object* ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
 
-  Isolate* isolate = GetIsolate();
-  DCHECK(IsKey(isolate, *key));
+  Isolate* isolate = this->GetIsolate();
+  DCHECK(this->IsKey(isolate, *key));
 
   // If the object does not have an identity hash, it was never used as a key.
   Object* hash = key->GetHash();
@@ -18026,18 +18027,21 @@ Object* ObjectHashTable::Lookup(Handle<Object> key) {
   return Lookup(isolate, key, Smi::ToInt(hash));
 }
 
-Object* ObjectHashTable::ValueAt(int entry) {
-  return get(EntryToValueIndex(entry));
+template <typename Derived, typename Shape>
+Object* ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
+                                                    int32_t hash) {
+  return Lookup(this->GetIsolate(), key, hash);
 }
 
-Object* ObjectHashTable::Lookup(Handle<Object> key, int32_t hash) {
-  return Lookup(GetIsolate(), key, hash);
+template <typename Derived, typename Shape>
+Object* ObjectHashTableBase<Derived, Shape>::ValueAt(int entry) {
+  return this->get(EntryToValueIndex(entry));
 }
 
-
-Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
-                                             Handle<Object> key,
-                                             Handle<Object> value) {
+template <typename Derived, typename Shape>
+Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
+                                                         Handle<Object> key,
+                                                         Handle<Object> value) {
   Isolate* isolate = table->GetIsolate();
   DCHECK(table->IsKey(isolate, *key));
   DCHECK(!value->IsTheHole(isolate));
@@ -18045,14 +18049,14 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   // Make sure the key object has an identity hash code.
   int32_t hash = key->GetOrCreateHash(isolate)->value();
 
-  return Put(table, key, value, hash);
+  return ObjectHashTableBase<Derived, Shape>::Put(table, key, value, hash);
 }
 
-
-Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
-                                             Handle<Object> key,
-                                             Handle<Object> value,
-                                             int32_t hash) {
+template <typename Derived, typename Shape>
+Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
+                                                         Handle<Object> key,
+                                                         Handle<Object> value,
+                                                         int32_t hash) {
   Isolate* isolate = table->GetIsolate();
   DCHECK(table->IsKey(isolate, *key));
   DCHECK(!value->IsTheHole(isolate));
@@ -18061,7 +18065,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    table->set(EntryToIndex(entry) + 1, *value);
+    table->set(Derived::EntryToIndex(entry) + 1, *value);
     return table;
   }
 
@@ -18086,15 +18090,14 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   }
 
   // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1);
+  table = Derived::EnsureCapacity(table, 1);
   table->AddEntry(table->FindInsertionEntry(hash), *key, *value);
   return table;
 }
 
-
-Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
-                                                Handle<Object> key,
-                                                bool* was_present) {
+template <typename Derived, typename Shape>
+Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
+    Handle<Derived> table, Handle<Object> key, bool* was_present) {
   DCHECK(table->IsKey(table->GetIsolate(), *key));
 
   Object* hash = key->GetHash();
@@ -18106,11 +18109,10 @@ Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
   return Remove(table, key, was_present, Smi::ToInt(hash));
 }
 
-
-Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
-                                                Handle<Object> key,
-                                                bool* was_present,
-                                                int32_t hash) {
+template <typename Derived, typename Shape>
+Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
+    Handle<Derived> table, Handle<Object> key, bool* was_present,
+    int32_t hash) {
   Isolate* isolate = table->GetIsolate();
   DCHECK(table->IsKey(isolate, *key));
 
@@ -18122,21 +18124,22 @@ Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
 
   *was_present = true;
   table->RemoveEntry(entry);
-  return Shrink(table);
+  return Derived::Shrink(table);
 }
 
-
-void ObjectHashTable::AddEntry(int entry, Object* key, Object* value) {
-  set(EntryToIndex(entry), key);
-  set(EntryToIndex(entry) + 1, value);
-  ElementAdded();
+template <typename Derived, typename Shape>
+void ObjectHashTableBase<Derived, Shape>::AddEntry(int entry, Object* key,
+                                                   Object* value) {
+  this->set(Derived::EntryToIndex(entry), key);
+  this->set(Derived::EntryToIndex(entry) + 1, value);
+  this->ElementAdded();
 }
 
-
-void ObjectHashTable::RemoveEntry(int entry) {
-  set_the_hole(EntryToIndex(entry));
-  set_the_hole(EntryToIndex(entry) + 1);
-  ElementRemoved();
+template <typename Derived, typename Shape>
+void ObjectHashTableBase<Derived, Shape>::RemoveEntry(int entry) {
+  this->set_the_hole(Derived::EntryToIndex(entry));
+  this->set_the_hole(Derived::EntryToIndex(entry) + 1);
+  this->ElementRemoved();
 }
 
 
@@ -18168,7 +18171,7 @@ void JSMap::Clear(Handle<JSMap> map) {
 
 void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,
                                   Isolate* isolate) {
-  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
+  Handle<EphemeronHashTable> table = EphemeronHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
 }
 
@@ -18177,11 +18180,11 @@ void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
                            Handle<Object> key, Handle<Object> value,
                            int32_t hash) {
   DCHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
+  Handle<EphemeronHashTable> table(
+      EphemeronHashTable::cast(weak_collection->table()));
   DCHECK(table->IsKey(table->GetIsolate(), *key));
-  Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Put(table, key, value, hash);
+  Handle<EphemeronHashTable> new_table =
+      EphemeronHashTable::Put(table, key, value, hash);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
@@ -18193,12 +18196,12 @@ void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
 bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
                               Handle<Object> key, int32_t hash) {
   DCHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
+  Handle<EphemeronHashTable> table(
+      EphemeronHashTable::cast(weak_collection->table()));
   DCHECK(table->IsKey(table->GetIsolate(), *key));
   bool was_present = false;
-  Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Remove(table, key, &was_present, hash);
+  Handle<EphemeronHashTable> new_table =
+      EphemeronHashTable::Remove(table, key, &was_present, hash);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
@@ -18210,7 +18213,7 @@ bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
 Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
                                              int max_entries) {
   Isolate* isolate = holder->GetIsolate();
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<EphemeronHashTable> table(EphemeronHashTable::cast(holder->table()));
   if (max_entries == 0 || max_entries > table->NumberOfElements()) {
     max_entries = table->NumberOfElements();
   }
@@ -18869,6 +18872,12 @@ template class HashTable<StringTable, StringTableShape>;
 template class HashTable<CompilationCacheTable, CompilationCacheShape>;
 
 template class HashTable<ObjectHashTable, ObjectHashTableShape>;
+
+template class HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+
+template class ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+
+template class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
 
 template class Dictionary<NameDictionary, NameDictionaryShape>;
 

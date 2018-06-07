@@ -505,6 +505,8 @@ bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
 
+bool HeapObject::IsEphemeronHashTable() const { return IsHashTable(); }
+
 bool HeapObject::IsOrderedHashSet() const {
   return map() == GetHeap()->ordered_hash_set_map();
 }
@@ -597,6 +599,7 @@ CAST_ACCESSOR(BoilerplateDescription)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
 CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
@@ -3309,10 +3312,6 @@ Object* Object::GetHash() {
 Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
                                               Handle<Object> key) {
   return key;
-}
-
-Handle<ObjectHashTable> ObjectHashTable::Shrink(Handle<ObjectHashTable> table) {
-  return DerivedHashTable::Shrink(table);
 }
 
 Relocatable::Relocatable(Isolate* isolate) {

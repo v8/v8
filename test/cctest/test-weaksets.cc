@@ -53,7 +53,7 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   // Do not leak handles for the hash table, it would make entries strong.
   {
     HandleScope scope(isolate);
-    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+    Handle<EphemeronHashTable> table = EphemeronHashTable::New(isolate, 1);
     weakset->set_table(*table);
   }
   return weakset;
@@ -96,14 +96,14 @@ TEST(WeakSet_Weakness) {
     int32_t hash = key->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakset, key, smi, hash);
   }
-  CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
 
   // Force a full GC.
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
@@ -114,9 +114,9 @@ TEST(WeakSet_Weakness) {
 
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      1, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      1, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 }
 
 
@@ -128,7 +128,7 @@ TEST(WeakSet_Shrinking) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
   // Check initial capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->Capacity());
 
   // Fill up weak set to trigger capacity change.
   {
@@ -143,19 +143,20 @@ TEST(WeakSet_Shrinking) {
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, ObjectHashTable::cast(weakset->table())->Capacity());
+  CHECK_EQ(128, EphemeronHashTable::cast(weakset->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      32, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      32,
+      EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->Capacity());
 }
 
 

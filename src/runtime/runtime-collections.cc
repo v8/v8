@@ -98,9 +98,9 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
-  DCHECK(ObjectHashTableShape::IsLive(isolate, *key));
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
+  DCHECK(EphemeronHashTableShape::IsLive(isolate, *key));
+  Handle<EphemeronHashTable> table(
+      EphemeronHashTable::cast(weak_collection->table()));
   // Should only be called when shrinking the table is necessary. See
   // HashTable::Shrink().
   DCHECK(table->NumberOfElements() - 1 <= (table->Capacity() >> 2) &&
@@ -130,11 +130,11 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
-  DCHECK(ObjectHashTableShape::IsLive(isolate, *key));
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
+  DCHECK(EphemeronHashTableShape::IsLive(isolate, *key));
+  Handle<EphemeronHashTable> table(
+      EphemeronHashTable::cast(weak_collection->table()));
   // Should only be called when rehashing or resizing the table is necessary.
-  // See ObjectHashTable::Put() and HashTable::HasSufficientCapacityToAdd().
+  // See EphemeronHashTable::Put() and HashTable::HasSufficientCapacityToAdd().
   DCHECK((table->NumberOfDeletedElements() << 1) > table->NumberOfElements() ||
          !table->HasSufficientCapacityToAdd(1));
 #endif

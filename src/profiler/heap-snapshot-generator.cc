@@ -1038,7 +1038,7 @@ void V8HeapExplorer::ExtractJSCollectionReferences(int entry,
 void V8HeapExplorer::ExtractJSWeakCollectionReferences(int entry,
                                                        JSWeakCollection* obj) {
   if (obj->table()->IsHashTable()) {
-    ObjectHashTable* table = ObjectHashTable::cast(obj->table());
+    EphemeronHashTable* table = EphemeronHashTable::cast(obj->table());
     TagFixedArraySubType(table, JS_WEAK_COLLECTION_SUB_TYPE);
   }
   SetInternalReference(obj, entry, "table", obj->table(),
@@ -1361,11 +1361,11 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
   }
   switch (it->second) {
     case JS_WEAK_COLLECTION_SUB_TYPE: {
-      ObjectHashTable* table = ObjectHashTable::cast(array);
+      EphemeronHashTable* table = EphemeronHashTable::cast(array);
       for (int i = 0, capacity = table->Capacity(); i < capacity; ++i) {
-        int key_index =
-            ObjectHashTable::EntryToIndex(i) + ObjectHashTable::kEntryKeyIndex;
-        int value_index = ObjectHashTable::EntryToValueIndex(i);
+        int key_index = EphemeronHashTable::EntryToIndex(i) +
+                        EphemeronHashTable::kEntryKeyIndex;
+        int value_index = EphemeronHashTable::EntryToValueIndex(i);
         Object* key = table->get(key_index);
         Object* value = table->get(value_index);
         SetWeakReference(table, entry, key_index, key,

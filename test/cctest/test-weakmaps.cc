@@ -85,14 +85,14 @@ TEST(Weakness) {
     int32_t object_hash = object->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakmap, object, smi, object_hash);
   }
-  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
@@ -103,9 +103,9 @@ TEST(Weakness) {
 
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(2,
-           ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(
+      2, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 }
 
 
@@ -117,7 +117,7 @@ TEST(Shrinking) {
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Check initial capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
 
   // Fill up weak map to trigger capacity change.
   {
@@ -132,19 +132,20 @@ TEST(Shrinking) {
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(128, EphemeronHashTable::cast(weakmap->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      32, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      32,
+      EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
 }
 
 
