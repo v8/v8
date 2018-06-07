@@ -83,7 +83,7 @@ class SharedFunctionInfo : public HeapObject {
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE static void SetScript(
       Handle<SharedFunctionInfo> shared, Handle<Object> script_object,
-      int function_literal_id, bool reset_preparsed_scope_data = true);
+      bool reset_preparsed_scope_data = true);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -148,6 +148,11 @@ class SharedFunctionInfo : public HeapObject {
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
   DECL_INT_ACCESSORS(expected_nof_properties)
+
+  // [function_literal_id] - uniquely identifies the FunctionLiteral this
+  // SharedFunctionInfo represents within its script, or -1 if this
+  // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
+  DECL_INT_ACCESSORS(function_literal_id)
 
 #if V8_SFI_HAS_UNIQUE_ID
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
@@ -216,9 +221,6 @@ class SharedFunctionInfo : public HeapObject {
 
   // [script]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
-
-  // Get the function literal id associated with this function, for parsing.
-  int GetFunctionLiteralId(Isolate* isolate) const;
 
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
@@ -436,7 +438,6 @@ class SharedFunctionInfo : public HeapObject {
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
     SharedFunctionInfo* Next();
-    int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
     void Reset(Handle<Script> script);
@@ -486,6 +487,7 @@ class SharedFunctionInfo : public HeapObject {
   V(kFunctionIdentifierOffset, kPointerSize)               \
   V(kEndOfPointerFieldsOffset, 0)                          \
   /* Raw data fields. */                                   \
+  V(kFunctionLiteralIdOffset, kInt32Size)                  \
   V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
   V(kLengthOffset, kUInt16Size)                            \
   V(kFormalParameterCountOffset, kUInt16Size)              \

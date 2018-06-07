@@ -85,13 +85,11 @@ class LiveEdit : AllStatic {
   static void FixupScript(Handle<Script> script, int max_function_literal_id);
 
   static void FunctionSourceUpdated(Handle<JSArray> shared_info_array,
-                                    Handle<Script> script,
                                     int new_function_literal_id);
 
   // Updates script field in FunctionSharedInfo.
   static void SetFunctionScript(Handle<JSValue> function_wrapper,
-                                Handle<Object> script_handle,
-                                int function_literal_id);
+                                Handle<Object> script_handle);
 
   static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
                                      Handle<JSArray> position_change_array);

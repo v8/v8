@@ -54,7 +54,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   set_function_flags(shared->flags());
   set_start_position(shared->StartPosition());
   set_end_position(shared->EndPosition());
-  function_literal_id_ = shared->GetFunctionLiteralId(isolate);
+  function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
@@ -104,6 +104,42 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<Script> script)
 }
 
 ParseInfo::~ParseInfo() {}
+
+// static
+ParseInfo* ParseInfo::AllocateWithoutScript(Isolate* isolate,
+                                            Handle<SharedFunctionInfo> shared) {
+  ParseInfo* p = new ParseInfo(isolate->allocator());
+
+  p->InitFromIsolate(isolate);
+  p->set_toplevel(shared->is_toplevel());
+  p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
+  p->set_is_named_expression(shared->is_named_expression());
+  p->set_function_flags(shared->flags());
+  p->set_start_position(shared->StartPosition());
+  p->set_end_position(shared->EndPosition());
+  p->function_literal_id_ = shared->function_literal_id();
+  p->set_language_mode(shared->language_mode());
+
+  // BUG(5946): This function exists as a workaround until we can
+  // get rid of %SetCode in our native functions. The ParseInfo
+  // is explicitly set up for the case that:
+  // a) you have a native built-in,
+  // b) it's being run for the 2nd-Nth time in an isolate,
+  // c) we've already compiled bytecode and therefore don't need
+  //    to parse.
+  // We tolerate a ParseInfo without a Script in this case.
+  p->set_native(true);
+  p->set_eval(false);
+  p->set_module(false);
+  DCHECK_NE(shared->kind(), FunctionKind::kModule);
+
+  Handle<HeapObject> scope_info(shared->GetOuterScopeInfo(), isolate);
+  if (!scope_info->IsTheHole(isolate) &&
+      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
+    p->set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
+  }
+  return p;
+}
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 

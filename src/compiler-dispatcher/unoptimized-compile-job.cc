@@ -197,7 +197,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   parse_info_->set_end_position(shared_->EndPosition());
   parse_info_->set_unicode_cache(unicode_cache_.get());
   parse_info_->set_language_mode(shared_->language_mode());
-  parse_info_->set_function_literal_id(shared_->GetFunctionLiteralId(isolate));
+  parse_info_->set_function_literal_id(shared_->function_literal_id());
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     parse_info_->set_runtime_call_stats(new (parse_info_->zone())
                                             RuntimeCallStats());

@@ -45,6 +45,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   void InitFromIsolate(Isolate* isolate);
 
+  static ParseInfo* AllocateWithoutScript(Isolate* isolate,
+                                          Handle<SharedFunctionInfo> shared);
+
   // Either returns the ast-value-factory associcated with this ParseInfo, or
   // creates and returns a new factory if none exists.
   AstValueFactory* GetOrCreateAstValueFactory();

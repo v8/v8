@@ -43,6 +43,7 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, raw_start_position_and_type,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, raw_start_position_and_type,
                     is_toplevel, SharedFunctionInfo::IsTopLevelBit)
 
+INT_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if V8_SFI_HAS_UNIQUE_ID
 INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif

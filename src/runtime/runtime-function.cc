@@ -119,17 +119,16 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   bool was_native = target_shared->native();
   target_shared->set_flags(source_shared->flags());
   target_shared->set_native(was_native);
+  target_shared->set_function_literal_id(source_shared->function_literal_id());
+
   target_shared->set_scope_info(source_shared->scope_info());
 
   Handle<Object> source_script(source_shared->script(), isolate);
-  int function_literal_id = source_shared->GetFunctionLiteralId(isolate);
   if (source_script->IsScript()) {
     SharedFunctionInfo::SetScript(source_shared,
-                                  isolate->factory()->undefined_value(),
-                                  function_literal_id);
+                                  isolate->factory()->undefined_value());
   }
-  SharedFunctionInfo::SetScript(target_shared, source_script,
-                                function_literal_id);
+  SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
   target->set_code(source_shared->GetCode());

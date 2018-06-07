@@ -620,9 +620,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function->shared()->set_raw_start_position(0);
   empty_function->shared()->set_raw_end_position(source->length());
   empty_function->shared()->set_scope_info(*scope_info);
+  empty_function->shared()->set_function_literal_id(1);
   empty_function->shared()->DontAdaptArguments();
   SharedFunctionInfo::SetScript(handle(empty_function->shared(), isolate()),
-                                script, 1);
+                                script);
 
   return empty_function;
 }

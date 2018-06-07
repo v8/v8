@@ -207,8 +207,6 @@
     var position_patch_report = new GlobalArray();
     change_log.push( {position_patched: position_patch_report} );
 
-    %LiveEditResizeScriptFunctionArray(script, max_function_literal_id);
-
     for (var i = 0; i < update_positions_list.length; i++) {
       // TODO(LiveEdit): take into account whether it's source_changed or
       // unchanged and whether positions changed at all.
@@ -222,16 +220,17 @@
         update_positions_list[i].live_shared_function_infos.forEach(function(
             info) {
           %LiveEditFunctionSourceUpdated(
-              info.raw_array, script, new_function_literal_id);
+              info.raw_array, new_function_literal_id);
         });
       }
     }
 
+    %LiveEditFixupScript(script, max_function_literal_id);
+
     // Link all the functions we're going to use to an actual script.
     for (var i = 0; i < link_to_original_script_list.length; i++) {
       %LiveEditFunctionSetScript(
-          link_to_original_script_list[i].info.shared_function_info, script,
-          link_to_original_script_list[i].info.function_literal_id);
+          link_to_original_script_list[i].info.shared_function_info, script);
     }
 
     preview_description.updated = true;
@@ -261,8 +260,7 @@
       // LiveEdit itself believe that any function in heap that points to a
       // particular script is a regular function.
       // For some functions we will restore this link later.
-      %LiveEditFunctionSetScript(info.shared_function_info, UNDEFINED,
-                                 info.function_literal_id);
+      %LiveEditFunctionSetScript(info.shared_function_info, UNDEFINED);
       compile_info.push(info);
       old_index_map.push(i);
     }
@@ -361,12 +359,9 @@
   // may access its own text.
   function LinkToOldScript(old_info_node, old_script, report_array) {
     if (old_info_node.live_shared_function_infos) {
-      // TODO(leszeks): Passing "null" here as a marker that we should calculate
-      // the SFI's function literal id is ugly, it'd be better if this
-      // information was e.g. already on the info object.
       old_info_node.live_shared_function_infos.
           forEach(function (info) {
-            %LiveEditFunctionSetScript(info.info, old_script, null);
+            %LiveEditFunctionSetScript(info.info, old_script);
           });
 
       report_array.push( { name: old_info_node.info.function_name } );
