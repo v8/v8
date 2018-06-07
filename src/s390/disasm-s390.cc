@@ -848,10 +848,10 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       Format(instr, "llghr\t'r5,'r6");
       break;
     case LOCR:
-      Format(instr, "locr\t'm1,'r5,'r6");
+      Format(instr, "locr\t'r5,'r6,'m2");
       break;
     case LOCGR:
-      Format(instr, "locgr\t'm1,'r5,'r6");
+      Format(instr, "locgr\t'r5,'r6,'m2");
       break;
     case LNGR:
       Format(instr, "lngr\t'r5,'r6");
