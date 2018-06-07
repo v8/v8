@@ -73,6 +73,10 @@ module data_view {
     }
   }
 
+  extern macro BitcastInt32ToFloat32(int32): float32;
+  extern macro Float64InsertLowWord32(float64, int32): float64;
+  extern macro Float64InsertHighWord32(float64, int32): float64;
+
   extern macro LoadUint8(RawPtr, intptr): int32;
   extern macro LoadInt8(RawPtr, intptr): int32;
 
@@ -134,9 +138,57 @@ module data_view {
     }
   }
 
+  macro LoadDataViewFloat32(data_pointer: RawPtr, offset: intptr,
+                            requested_little_endian: bool): Number {
+    let b0: int32 = LoadUint8(data_pointer, offset);
+    let b1: int32 = LoadUint8(data_pointer, offset + 1);
+    let b2: int32 = LoadUint8(data_pointer, offset + 2);
+    let b3: int32 = LoadUint8(data_pointer, offset + 3);
+    let result: int32;
+
+    if (requested_little_endian) {
+      let low_part: int32 = (b1 << 8) + b0;
+      let high_part: int32 = (b3 << 8) + b2;
+      result = (high_part << 16) + low_part;
+    } else {
+      let high_part: int32 = (b0 << 8) + b1;
+      let low_part: int32 = (b2 << 8) + b3;
+      result = (high_part << 16) + low_part;
+    }
+
+    let float_res: float64 = convert<float64>(BitcastInt32ToFloat32(result));
+    return AllocateHeapNumberWithValue(float_res);
+  }
+
+  macro LoadDataViewFloat64(data_pointer: RawPtr, offset: intptr,
+                            requested_little_endian: bool): Number {
+    let b0: int32 = LoadUint8(data_pointer, offset);
+    let b1: int32 = LoadUint8(data_pointer, offset + 1);
+    let b2: int32 = LoadUint8(data_pointer, offset + 2);
+    let b3: int32 = LoadUint8(data_pointer, offset + 3);
+    let b4: int32 = LoadUint8(data_pointer, offset + 4);
+    let b5: int32 = LoadUint8(data_pointer, offset + 5);
+    let b6: int32 = LoadUint8(data_pointer, offset + 6);
+    let b7: int32 = LoadUint8(data_pointer, offset + 7);
+    let result: float64 = convert<float64>(0);
+
+    if (requested_little_endian) {
+      let low_part: int32 = (b3 << 24) + (b2 << 16) + (b1 << 8) + b0;
+      let high_part: int32 = (b7 << 24) + (b6 << 16) + (b5 << 8) + b4;
+      result = Float64InsertLowWord32(result, low_part);
+      result = Float64InsertHighWord32(result, high_part);
+    }
+    else {
+      let high_part: int32 = (b0 << 24) + (b1 << 16) + (b2 << 8) + b3;
+      let low_part: int32 = (b4 << 24) + (b5 << 16) + (b6 << 8) + b7;
+      result = Float64InsertLowWord32(result, low_part);
+      result = Float64InsertHighWord32(result, high_part);
+    }
+
+    return AllocateHeapNumberWithValue(result);
+  }
+
   // Context, receiver, byteOffset, littleEndian
-  extern runtime DataViewGetFloat32(Context, Object, Object, Object): Number;
-  extern runtime DataViewGetFloat64(Context, Object, Object, Object): Number;
   extern runtime DataViewGetBigInt64(Context, Object, Object, Object): Number;
   extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Number;
 
@@ -194,6 +246,10 @@ module data_view {
       return LoadDataView32(data_pointer, bufferIndex, littleEndian, false);
     } else if constexpr (kind == INT32_ELEMENTS) {
       return LoadDataView32(data_pointer, bufferIndex, littleEndian, true);
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return LoadDataViewFloat32(data_pointer, bufferIndex, littleEndian);
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return LoadDataViewFloat64(data_pointer, bufferIndex, littleEndian);
     } else {
       unreachable;
     }
@@ -271,7 +327,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetFloat32(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         FLOAT32_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetFloat64(
@@ -282,7 +339,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetFloat64(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         FLOAT64_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetBigInt64(

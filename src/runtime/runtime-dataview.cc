@@ -256,8 +256,6 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
     return *result;                                                 \
   }
 
-DATA_VIEW_PROTOTYPE_GET(Float32, float)
-DATA_VIEW_PROTOTYPE_GET(Float64, double)
 DATA_VIEW_PROTOTYPE_GET(BigInt64, int64_t)
 DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
 #undef DATA_VIEW_PROTOTYPE_GET

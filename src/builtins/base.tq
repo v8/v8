@@ -12,7 +12,9 @@ type HeapObject extends Tagged generates 'TNode<HeapObject>';
 type Object = Smi|HeapObject;
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
 type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
+type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
+type float32 generates 'TNode<Float32T>' constexpr 'float';
 type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 
@@ -319,6 +321,7 @@ extern operator 'convert<>' macro SmiFromInt32(int32): Smi;
 extern operator 'convert<>' macro SmiUntag(Smi): intptr;
 extern operator 'convert<>' macro SmiToInt32(Smi): int32;
 extern operator 'convert<>' macro LoadHeapNumberValue(HeapNumber): float64;
+extern operator 'convert<>' macro ChangeFloat32ToFloat64(float32): float64;
 extern operator 'convert<>' macro ChangeNumberToFloat64(Number): float64;
 
 extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
