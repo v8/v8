@@ -1869,13 +1869,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
-  Node* UpdateWord(Node* word, Node* value) {
+  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<WordT> value) {
     return UpdateWord(word, value, BitField::kShift, BitField::kMask);
   }
 
   // Returns a node that contains the updated {value} inside {word} starting
   // at {shift} and fitting in {mask}.
-  Node* UpdateWord(Node* word, Node* value, uint32_t shift, uint32_t mask);
+  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<WordT> value, uint32_t shift,
+                          uint32_t mask);
 
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>
@@ -2367,7 +2368,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void TrapAllocationMemento(Node* object, Label* memento_found);
 
-  Node* PageFromAddress(Node* address);
+  TNode<IntPtrT> PageFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.
   TNode<MaybeObject> StoreWeakReferenceInFeedbackVector(
@@ -2376,7 +2377,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Create a new AllocationSite and install it into a feedback vector.
   TNode<AllocationSite> CreateAllocationSiteInFeedbackVector(
-      Node* feedback_vector, Node* slot);
+      SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot);
 
   enum class IndexAdvanceMode { kPre, kPost };
 

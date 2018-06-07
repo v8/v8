@@ -6893,10 +6893,11 @@ TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
       WordShr(WordAnd(word, IntPtrConstant(mask)), static_cast<int>(shift)));
 }
 
-Node* CodeStubAssembler::UpdateWord(Node* word, Node* value, uint32_t shift,
-                                    uint32_t mask) {
-  Node* encoded_value = WordShl(value, static_cast<int>(shift));
-  Node* inverted_mask = IntPtrConstant(~static_cast<intptr_t>(mask));
+TNode<WordT> CodeStubAssembler::UpdateWord(TNode<WordT> word,
+                                           TNode<WordT> value, uint32_t shift,
+                                           uint32_t mask) {
+  TNode<WordT> encoded_value = WordShl(value, static_cast<int>(shift));
+  TNode<IntPtrT> inverted_mask = IntPtrConstant(~static_cast<intptr_t>(mask));
   // Ensure the {value} fits fully in the mask.
   CSA_ASSERT(this, WordEqual(WordAnd(encoded_value, inverted_mask),
                              IntPtrConstant(0)));
@@ -9232,30 +9233,32 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
   Label no_memento_found(this);
   Label top_check(this), map_check(this);
 
-  Node* new_space_top_address = ExternalConstant(
+  TNode<ExternalReference> new_space_top_address = ExternalConstant(
       ExternalReference::new_space_allocation_top_address(isolate()));
   const int kMementoMapOffset = JSArray::kSize;
   const int kMementoLastWordOffset =
       kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
 
   // Bail out if the object is not in new space.
-  Node* object_word = BitcastTaggedToWord(object);
-  Node* object_page = PageFromAddress(object_word);
+  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
+  TNode<IntPtrT> object_page = PageFromAddress(object_word);
   {
-    Node* page_flags = Load(MachineType::IntPtr(), object_page,
-                            IntPtrConstant(Page::kFlagsOffset));
+    TNode<IntPtrT> page_flags =
+        UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), object_page,
+                                    IntPtrConstant(Page::kFlagsOffset)));
     GotoIf(WordEqual(WordAnd(page_flags,
                              IntPtrConstant(MemoryChunk::kIsInNewSpaceMask)),
                      IntPtrConstant(0)),
            &no_memento_found);
   }
 
-  Node* memento_last_word = IntPtrAdd(
+  TNode<IntPtrT> memento_last_word = IntPtrAdd(
       object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
-  Node* memento_last_word_page = PageFromAddress(memento_last_word);
+  TNode<IntPtrT> memento_last_word_page = PageFromAddress(memento_last_word);
 
-  Node* new_space_top = Load(MachineType::Pointer(), new_space_top_address);
-  Node* new_space_top_page = PageFromAddress(new_space_top);
+  TNode<IntPtrT> new_space_top = UncheckedCast<IntPtrT>(
+      Load(MachineType::Pointer(), new_space_top_address));
+  TNode<IntPtrT> new_space_top_page = PageFromAddress(new_space_top);
 
   // If the object is in new space, we need to check whether respective
   // potential memento object is on the same page as the current top.
@@ -9278,7 +9281,7 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
   // Memento map check.
   BIND(&map_check);
   {
-    Node* memento_map = LoadObjectField(object, kMementoMapOffset);
+    TNode<Object> memento_map = LoadObjectField(object, kMementoMapOffset);
     Branch(
         WordEqual(memento_map, LoadRoot(Heap::kAllocationMementoMapRootIndex)),
         memento_found, &no_memento_found);
@@ -9287,23 +9290,24 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
   Comment("] TrapAllocationMemento");
 }
 
-Node* CodeStubAssembler::PageFromAddress(Node* address) {
+TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
   return WordAnd(address, IntPtrConstant(~Page::kPageAlignmentMask));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
-    Node* feedback_vector, Node* slot) {
-  Node* size = IntPtrConstant(AllocationSite::kSize);
+    SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot) {
+  TNode<IntPtrT> size = IntPtrConstant(AllocationSite::kSize);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
   StoreMapNoWriteBarrier(site, Heap::kAllocationSiteWithWeakNextMapRootIndex);
   // Should match AllocationSite::Initialize.
-  Node* field = UpdateWord<AllocationSite::ElementsKindBits>(
+  TNode<WordT> field = UpdateWord<AllocationSite::ElementsKindBits>(
       IntPtrConstant(0), IntPtrConstant(GetInitialFastElementsKind()));
   StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kTransitionInfoOrBoilerplateOffset, SmiTag(field));
+      site, AllocationSite::kTransitionInfoOrBoilerplateOffset,
+      SmiTag(Signed(field)));
 
   // Unlike literals, constructed arrays don't have nested sites
-  Node* zero = SmiConstant(0);
+  TNode<Smi> zero = SmiConstant(0);
   StoreObjectFieldNoWriteBarrier(site, AllocationSite::kNestedSiteOffset, zero);
 
   // Pretenuring calculation field.
@@ -9319,9 +9323,9 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
                        Heap::kEmptyFixedArrayRootIndex);
 
   // Link the object to the allocation site list
-  Node* site_list = ExternalConstant(
+  TNode<ExternalReference> site_list = ExternalConstant(
       ExternalReference::allocation_sites_list_address(isolate()));
-  Node* next_site = LoadBufferObject(site_list, 0);
+  TNode<Object> next_site = CAST(LoadBufferObject(site_list, 0));
 
   // TODO(mvstanton): This is a store to a weak pointer, which we may want to
   // mark as such in order to skip the write barrier, once we have a unified
