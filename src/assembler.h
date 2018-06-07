@@ -362,12 +362,15 @@ class RelocInfo {
   static const int kMaxSmallPCDelta;
 
   enum Mode : int8_t {
-    // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
-    CODE_TARGET,
-    EMBEDDED_OBJECT,
-    WASM_CALL,
-    WASM_STUB_CALL,
+    // Please note the order is important (see IsRealRelocMode, IsCodeTarget,
+    // IsGCRelocMode, and IsShareableRelocMode predicates below).
+
+    CODE_TARGET,      // LAST_CODE_ENUM
+    EMBEDDED_OBJECT,  // LAST_GCED_ENUM
+
     JS_TO_WASM_CALL,
+    WASM_CALL,
+    WASM_STUB_CALL,  // FIRST_SHAREABLE_RELOC_MODE
 
     RUNTIME_ENTRY,
     COMMENT,
@@ -407,7 +410,7 @@ class RelocInfo {
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     LAST_CODE_ENUM = CODE_TARGET,
     LAST_GCED_ENUM = EMBEDDED_OBJECT,
-    FIRST_SHAREABLE_RELOC_MODE = RUNTIME_ENTRY,
+    FIRST_SHAREABLE_RELOC_MODE = WASM_STUB_CALL,
   };
 
   STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
@@ -428,6 +431,11 @@ class RelocInfo {
   static inline bool IsCodeTarget(Mode mode) {
     return mode <= LAST_CODE_ENUM;
   }
+  // Is the relocation mode affected by GC?
+  static inline bool IsGCRelocMode(Mode mode) { return mode <= LAST_GCED_ENUM; }
+  static inline bool IsShareableRelocMode(Mode mode) {
+    return mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
+  }
   static inline bool IsEmbeddedObject(Mode mode) {
     return mode == EMBEDDED_OBJECT;
   }
@@ -437,10 +445,6 @@ class RelocInfo {
   static inline bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
   static inline bool IsWasmStubCall(Mode mode) {
     return mode == WASM_STUB_CALL;
-  }
-  // Is the relocation mode affected by GC?
-  static inline bool IsGCRelocMode(Mode mode) {
-    return mode <= LAST_GCED_ENUM;
   }
   static inline bool IsComment(Mode mode) {
     return mode == COMMENT;

@@ -466,8 +466,7 @@ void ConstPool::Clear() {
 
 
 bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
-  return RelocInfo::IsNone(mode) ||
-         (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
+  return RelocInfo::IsNone(mode) || RelocInfo::IsShareableRelocMode(mode);
 }
 
 

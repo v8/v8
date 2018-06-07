@@ -5147,8 +5147,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                                      intptr_t value) {
   DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL);
-  bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                    (rmode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
+  bool sharing_ok =
+      RelocInfo::IsNone(rmode) || RelocInfo::IsShareableRelocMode(rmode);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;

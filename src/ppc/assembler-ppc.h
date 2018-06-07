@@ -1455,10 +1455,10 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
-    bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                      !(serializer_enabled() ||
-                        rmode < RelocInfo::FIRST_SHAREABLE_RELOC_MODE ||
-                        is_constant_pool_entry_sharing_blocked());
+    bool sharing_ok =
+        RelocInfo::IsNone(rmode) ||
+        (!serializer_enabled() && RelocInfo::IsShareableRelocMode(rmode) &&
+         !is_constant_pool_entry_sharing_blocked());
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
   ConstantPoolEntry::Access ConstantPoolAddEntry(Double value) {
