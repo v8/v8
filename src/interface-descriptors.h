@@ -603,16 +603,18 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-// This descriptor is also used by DebugBreakTrampoline because it handles both
-// regular function calls and construct calls, and we need to pass new.target
-// for the latter.
+// This descriptor is also used by DebugBreakTrampoline, CompileLazy* and
+// DeserializeLazy builtins because it handles both regular function calls and
+// construct calls, and we need to pass new.target for the latter.
 class ConstructTrampolineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructTrampolineDescriptor,
                                                CallInterfaceDescriptor)
+  static const Register FunctionRegister();
+  static const Register NewTargetRegister();
+  static const Register ActualArgumentsCountRegister();
 };
-
 
 class CallFunctionDescriptor : public CallInterfaceDescriptor {
  public:

@@ -8528,10 +8528,15 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
 }
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVector(
-    SloppyTNode<JSFunction> closure) {
+    SloppyTNode<JSFunction> closure, Label* if_undefined) {
   TNode<FeedbackCell> feedback_cell =
       CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
-  return CAST(LoadObjectField(feedback_cell, FeedbackCell::kValueOffset));
+  TNode<Object> maybe_vector =
+      LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
+  if (if_undefined) {
+    GotoIf(IsUndefined(maybe_vector), if_undefined);
+  }
+  return CAST(maybe_vector);
 }
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
@@ -11658,17 +11663,21 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 }
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
-    SloppyTNode<SharedFunctionInfo> shared_info) {
+    SloppyTNode<SharedFunctionInfo> shared_info, Label* if_compile_lazy) {
   TNode<Object> sfi_data =
       LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
 
-  TYPED_VARIABLE_DEF(Code, sfi_code, this);
+  TVARIABLE(Code, sfi_code);
 
   Label done(this);
   Label check_instance_type(this);
 
   // IsSmi: Is builtin
   GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
+  if (if_compile_lazy) {
+    GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtins::kCompileLazy)),
+           if_compile_lazy);
+  }
   sfi_code = LoadBuiltin(CAST(sfi_data));
   Goto(&done);
 
@@ -11715,7 +11724,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_pre_parsed_scope_data);
   DCHECK(!Builtins::IsLazy(Builtins::kCompileLazy));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
-  Goto(&done);
+  Goto(if_compile_lazy ? if_compile_lazy : &done);
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);

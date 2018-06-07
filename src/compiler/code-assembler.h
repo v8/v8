@@ -1062,6 +1062,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       const CallInterfaceDescriptor& descriptor, Node* context, Node* target,
       TArgs... args);
 
+  // Tailcalls to the given code object with JSCall linkage. The JS arguments
+  // (including receiver) are supposed to be already on the stack.
+  // This is a building block for implementing trampoline stubs that are
+  // installed instead of code objects with JSCall linkage.
+  // Note that no arguments adaption is going on here - all the JavaScript
+  // arguments are left on the stack unmodified. Therefore, this tail call can
+  // only be used after arguments adaptation has been performed already.
+  TNode<Object> TailCallJSCode(TNode<Code> code, TNode<Context> context,
+                               TNode<JSFunction> function,
+                               TNode<Object> new_target,
+                               TNode<Int32T> arg_count);
+
   template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, TArgs... args) {

@@ -1325,7 +1325,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   shared()->PrintSourceCode(os);
   JSObjectPrintBody(os, this);
   os << "\n - feedback vector: ";
-  if (has_feedback_vector()) {
+  if (!shared()->HasFeedbackMetadata()) {
+    os << "feedback metadata is not available in SFI\n";
+  } else if (has_feedback_vector()) {
     feedback_vector()->FeedbackVectorPrint(os);
   } else {
     os << "not available\n";

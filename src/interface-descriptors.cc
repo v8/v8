@@ -446,6 +446,25 @@ void ConstructTrampolineDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void ConstructTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {FunctionRegister(), NewTargetRegister(),
+                          ActualArgumentsCountRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+const Register ConstructTrampolineDescriptor::FunctionRegister() {
+  return kJSFunctionRegister;
+}
+
+const Register ConstructTrampolineDescriptor::NewTargetRegister() {
+  return kJavaScriptCallNewTargetRegister;
+}
+
+const Register ConstructTrampolineDescriptor::ActualArgumentsCountRegister() {
+  return kJavaScriptCallArgCountRegister;
+}
+
 void BuiltinDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kTarget, kNewTarget, kArgumentsCount
@@ -465,6 +484,7 @@ void BuiltinDescriptor::InitializePlatformSpecific(
 const Register BuiltinDescriptor::ArgumentsCountRegister() {
   return kJavaScriptCallArgCountRegister;
 }
+
 const Register BuiltinDescriptor::NewTargetRegister() {
   return kJavaScriptCallNewTargetRegister;
 }

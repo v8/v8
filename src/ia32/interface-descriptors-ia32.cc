@@ -171,17 +171,6 @@ void ConstructStubDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void ConstructTrampolineDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // eax : number of arguments
-  // edx : the new target
-  // edi : the target to call
-  Register registers[] = {edi, edx, eax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void AbortJSDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {edx};

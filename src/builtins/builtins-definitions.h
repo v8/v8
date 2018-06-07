@@ -120,8 +120,8 @@ namespace internal {
   ASM(InterpreterOnStackReplacement)                                           \
                                                                                \
   /* Code life-cycle */                                                        \
-  ASM(CompileLazy)                                                             \
-  ASM(CompileLazyDeoptimizedCode)                                              \
+  TFC(CompileLazy, ConstructTrampoline, 1)                                     \
+  TFC(CompileLazyDeoptimizedCode, ConstructTrampoline, 1)                      \
   ASM(DeserializeLazy)                                                         \
   ASM(InstantiateAsmJs)                                                        \
   ASM(NotifyDeoptimized)                                                       \

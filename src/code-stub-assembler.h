@@ -2216,7 +2216,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
 
   // Load type feedback vector for the given closure.
-  TNode<FeedbackVector> LoadFeedbackVector(SloppyTNode<JSFunction> closure);
+  TNode<FeedbackVector> LoadFeedbackVector(SloppyTNode<JSFunction> closure,
+                                           Label* if_undefined = nullptr);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
@@ -2463,8 +2464,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);
 
   // Figure out the SFI's code object using its data field.
+  // If |if_compile_lazy| is provided then the execution will go to the given
+  // label in case of an CompileLazy code object.
   TNode<Code> GetSharedFunctionInfoCode(
-      SloppyTNode<SharedFunctionInfo> shared_info);
+      SloppyTNode<SharedFunctionInfo> shared_info,
+      Label* if_compile_lazy = nullptr);
 
   Node* AllocateFunctionWithMapAndContext(Node* map, Node* shared_info,
                                           Node* context);

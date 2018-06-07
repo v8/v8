@@ -1238,7 +1238,7 @@ Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
   return raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
 }
 
-// Instantiate TailCallJSAndBytecodeDispatch() for argument counts used by
+// Instantiate TailCallStubThenBytecodeDispatch() for argument counts used by
 // CSA-generated code
 #define INSTANTIATE(...)                           \
   template V8_EXPORT_PRIVATE Node*                 \
@@ -1264,6 +1264,26 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
 template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
     Node*, Node*);
+
+TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
+                                            TNode<Context> context,
+                                            TNode<JSFunction> function,
+                                            TNode<Object> new_target,
+                                            TNode<Int32T> arg_count) {
+  // Use the ConstructTrampolineDescriptor because it passes new.target too in
+  // case this is called during construct.
+  ConstructTrampolineDescriptor descriptor(isolate());
+  size_t result_size = 1;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node* nodes[] = {code, function, new_target, arg_count, context};
+  CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
+  return UncheckedCast<Object>(
+      raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes));
+}
 
 Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
                                     int input_count, Node* const* inputs) {
