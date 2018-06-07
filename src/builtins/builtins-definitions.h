@@ -1103,6 +1103,8 @@ namespace internal {
   CPP(SymbolFor)                                                               \
   /* ES6 #sec-symbol.keyfor */                                                 \
   CPP(SymbolKeyFor)                                                            \
+  /* ES #sec-symbol.prototype.description */                                   \
+  TFJ(SymbolPrototypeDescriptionGetter, 0)                                     \
   /* ES6 #sec-symbol.prototype-@@toprimitive */                                \
   TFJ(SymbolPrototypeToPrimitive, 1, kHint)                                    \
   /* ES6 #sec-symbol.prototype.tostring */                                     \

@@ -4380,6 +4380,18 @@ void Genesis::InitializeGlobal_harmony_array_flat() {
                         Builtins::kArrayPrototypeFlatMap, 1, false, DONT_ENUM);
 }
 
+void Genesis::InitializeGlobal_harmony_symbol_description() {
+  if (!FLAG_harmony_symbol_description) return;
+
+  // Symbol.prototype.description
+  Handle<JSFunction> symbol_fun(native_context()->symbol_function());
+  Handle<JSObject> symbol_prototype(
+      JSObject::cast(symbol_fun->instance_prototype()));
+  SimpleInstallGetter(isolate(), symbol_prototype,
+                      factory()->InternalizeUtf8String("description"),
+                      Builtins::kSymbolPrototypeDescriptionGetter, true);
+}
+
 void Genesis::InitializeGlobal_harmony_string_matchall() {
   if (!FLAG_harmony_string_matchall) return;
 
