@@ -436,6 +436,7 @@ class GCIdleTimeAction;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
+class HeapController;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
@@ -652,20 +653,8 @@ class Heap {
   static const size_t kMaxSemiSpaceSizeInKB =
       16 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
 
-  // The old space size has to be a multiple of Page::kPageSize.
-  // Sizes are in MB.
-  static const size_t kMinOldGenerationSize = 128 * kPointerMultiplier;
-  static const size_t kMaxOldGenerationSize = 1024 * kPointerMultiplier;
-
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
-
-  V8_EXPORT_PRIVATE static const double kMinHeapGrowingFactor;
-  V8_EXPORT_PRIVATE static const double kMaxHeapGrowingFactor;
-  static const double kMaxHeapGrowingFactorMemoryConstrained;
-  static const double kMaxHeapGrowingFactorIdle;
-  static const double kConservativeHeapGrowingFactor;
-  static const double kTargetMutatorUtilization;
 
   static const int kNoGCFlags = 0;
   static const int kReduceMemoryFootprintMask = 1;
@@ -745,12 +734,6 @@ class Heap {
     }
     return "Unknown collector";
   }
-
-  V8_EXPORT_PRIVATE static double MaxHeapGrowingFactor(
-      size_t max_old_generation_size);
-  V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
-                                                    double mutator_speed,
-                                                    double max_factor);
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
@@ -1447,14 +1430,8 @@ class Heap {
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
-  static size_t ComputeMaxOldGenerationSize(uint64_t physical_memory) {
-    const size_t old_space_physical_memory_factor = 4;
-    size_t computed_size = static_cast<size_t>(
-        physical_memory / i::MB / old_space_physical_memory_factor *
-        kPointerMultiplier);
-    return Max(Min(computed_size, kMaxOldGenerationSize),
-               kMinOldGenerationSize);
-  }
+  V8_EXPORT_PRIVATE static size_t ComputeMaxOldGenerationSize(
+      uint64_t physical_memory);
 
   static size_t ComputeMaxSemiSpaceSize(uint64_t physical_memory) {
     const uint64_t min_physical_memory = 512 * MB;
@@ -2100,6 +2077,9 @@ class Heap {
   // Growing strategy. =========================================================
   // ===========================================================================
 
+  HeapController* heap_controller() { return heap_controller_; }
+  MemoryReducer* memory_reducer() { return memory_reducer_; }
+
   // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
   // This constant limits the effect of load RAIL mode on GC.
   // The value is arbitrary and chosen as the largest load time observed in
@@ -2107,22 +2087,6 @@ class Heap {
   static const int kMaxLoadTimeMs = 7000;
 
   bool ShouldOptimizeForLoadTime();
-
-  // Decrease the allocation limit if the new limit based on the given
-  // parameters is lower than the current limit.
-  void DampenOldGenerationAllocationLimit(size_t old_gen_size, double gc_speed,
-                                          double mutator_speed);
-
-  // Calculates the allocation limit based on a given growing factor and a
-  // given old generation size.
-  size_t CalculateOldGenerationAllocationLimit(double factor,
-                                               size_t old_gen_size);
-
-  // Sets the allocation limit to trigger the next full garbage collection.
-  void SetOldGenerationAllocationLimit(size_t old_gen_size, double gc_speed,
-                                       double mutator_speed);
-
-  size_t MinimumAllocationLimitGrowingStep();
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_;
@@ -2418,6 +2382,8 @@ class Heap {
 
   StoreBuffer* store_buffer_;
 
+  HeapController* heap_controller_;
+
   IncrementalMarking* incremental_marking_;
   ConcurrentMarking* concurrent_marking_;
 
@@ -2525,6 +2491,7 @@ class Heap {
   friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
+  friend class HeapController;
   friend class HeapIterator;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
