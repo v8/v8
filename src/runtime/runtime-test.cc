@@ -1053,9 +1053,14 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
-  wasm::WasmCode* wasm_code =
-      WasmExportedFunction::cast(*function)->GetWasmCode();
-  return isolate->heap()->ToBoolean(wasm_code->is_liftoff());
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  wasm::NativeModule* native_module =
+      exp_fun->instance()->compiled_module()->GetNativeModule();
+  uint32_t func_index = exp_fun->function_index();
+  return isolate->heap()->ToBoolean(
+      native_module->has_code(func_index) &&
+      native_module->code(func_index)->is_liftoff());
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {

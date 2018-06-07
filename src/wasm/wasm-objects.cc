@@ -990,13 +990,6 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   return Handle<WasmExportedFunction>::cast(js_function);
 }
 
-wasm::WasmCode* WasmExportedFunction::GetWasmCode() {
-  Address target = GetWasmCallTarget();
-  wasm::WasmCode* wasm_code =
-      GetIsolate()->wasm_engine()->code_manager()->LookupCode(target);
-  return wasm_code;
-}
-
 Address WasmExportedFunction::GetWasmCallTarget() {
   return instance()->GetCallTarget(function_index());
 }

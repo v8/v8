@@ -393,11 +393,6 @@ class WasmExportedFunction : public JSFunction {
                                           int func_index, int arity,
                                           Handle<Code> export_wrapper);
 
-  // TODO(clemensh): Remove this. There might not be a WasmCode object available
-  // yet.
-  // TODO(all): Replace all uses by {GetWasmCallTarget()}.
-  wasm::WasmCode* GetWasmCode();
-
   Address GetWasmCallTarget();
 };
 
