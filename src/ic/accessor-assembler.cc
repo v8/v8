@@ -1800,19 +1800,10 @@ void AccessorAssembler::EmitElementLoad(
   {
     Comment("dictionary elements");
     GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
-    TVARIABLE(IntPtrT, var_entry);
-    Label if_found(this);
-    NumberDictionaryLookup(CAST(elements), intptr_index, &if_found, &var_entry,
-                           if_hole);
-    BIND(&if_found);
-    // Check that the value is a data property.
-    TNode<IntPtrT> index = EntryToIndex<NumberDictionary>(var_entry.value());
-    Node* details = LoadDetailsByKeyIndex<NumberDictionary>(elements, index);
-    Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
-    // TODO(jkummerow): Support accessors without missing?
-    GotoIfNot(Word32Equal(kind, Int32Constant(kData)), miss);
-    // Finally, load the value.
-    exit_point->Return(LoadValueByKeyIndex<NumberDictionary>(elements, index));
+
+    TNode<Object> value = LoadNumberDictionaryElement(
+        CAST(elements), intptr_index, miss, if_hole);
+    exit_point->Return(value);
   }
 
   BIND(&if_typed_array);

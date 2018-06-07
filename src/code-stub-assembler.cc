@@ -7272,6 +7272,26 @@ void CodeStubAssembler::NumberDictionaryLookup(
   }
 }
 
+TNode<Object> CodeStubAssembler::LoadNumberDictionaryElement(
+    TNode<NumberDictionary> dictionary, TNode<IntPtrT> intptr_index,
+    Label* not_data, Label* if_hole) {
+  TVARIABLE(IntPtrT, var_entry);
+  Label if_found(this);
+  NumberDictionaryLookup(dictionary, intptr_index, &if_found, &var_entry,
+                         if_hole);
+  BIND(&if_found);
+
+  // Check that the value is a data property.
+  TNode<IntPtrT> index = EntryToIndex<NumberDictionary>(var_entry.value());
+  TNode<Uint32T> details =
+      LoadDetailsByKeyIndex<NumberDictionary>(dictionary, index);
+  TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
+  // TODO(jkummerow): Support accessors without missing?
+  GotoIfNot(Word32Equal(kind, Int32Constant(kData)), not_data);
+  // Finally, load athe value.
+  return LoadValueByKeyIndex<NumberDictionary>(dictionary, index);
+}
+
 template <class Dictionary>
 void CodeStubAssembler::FindInsertionEntry(TNode<Dictionary> dictionary,
                                            TNode<Name> key,
