@@ -2979,7 +2979,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FIXED_ARRAY_TYPE:
     case BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
-    case EPHEMERON_HASH_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -2991,6 +2990,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
       return kVisitFixedArray;
+
+    case EPHEMERON_HASH_TABLE_TYPE:
+      return kVisitEphemeronHashTable;
 
     case WEAK_FIXED_ARRAY_TYPE:
     case WEAK_ARRAY_LIST_TYPE:

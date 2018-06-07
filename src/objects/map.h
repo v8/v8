@@ -27,6 +27,7 @@ namespace internal {
   V(ConsString)            \
   V(DataHandler)           \
   V(DataObject)            \
+  V(EphemeronHashTable)    \
   V(FeedbackCell)          \
   V(FeedbackVector)        \
   V(FixedArray)            \
