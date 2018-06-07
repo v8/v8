@@ -165,8 +165,7 @@ unsigned CpuFeatures::dcache_line_size_ = 0;
 //
 //   01: code_target:          [6-bit pc delta] 01
 //
-//   10: short_data_record:    [6-bit pc delta] 10 followed by
-//                             [8-bit data delta]
+//   10: wasm_stub_call:       [6-bit pc delta] 10
 //
 //   11: long_record           [6 bit reloc mode] 11
 //                             followed by pc delta
@@ -190,7 +189,7 @@ const int kLongTagBits = 6;
 
 const int kEmbeddedObjectTag = 0;
 const int kCodeTargetTag = 1;
-const int kLocatableTag = 2;
+const int kWasmStubCallTag = 2;
 const int kDefaultTag = 3;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
@@ -202,55 +201,6 @@ const int kChunkMask = (1 << kChunkBits) - 1;
 const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
-
-// static
-bool RelocInfo::OffHeapTargetIsCodedSpecially() {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
-  return false;
-#elif defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390)
-  return true;
-#endif
-}
-
-Address RelocInfo::wasm_call_address() const {
-  DCHECK_EQ(rmode_, WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::set_wasm_call_address(Address address,
-                                      ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::wasm_stub_call_address() const {
-  DCHECK_EQ(rmode_, WASM_STUB_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::set_wasm_stub_call_address(Address address,
-                                           ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, WASM_STUB_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
-  Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
-      IsCodeTarget(rmode_)) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target_code);
-  }
-}
 
 uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   // Return if the pc_delta can fit in kSmallPCDeltaBits bits.
@@ -326,14 +276,15 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteShortTaggedPC(pc_delta, kCodeTargetTag);
     DCHECK_LE(begin_pos - pos_, RelocInfo::kMaxCallSize);
-  } else if (rmode == RelocInfo::DEOPT_REASON) {
-    DCHECK(rinfo->data() < (1 << kBitsPerByte));
-    WriteShortTaggedPC(pc_delta, kLocatableTag);
-    WriteShortData(rinfo->data());
+  } else if (rmode == RelocInfo::WASM_STUB_CALL) {
+    WriteShortTaggedPC(pc_delta, kWasmStubCallTag);
   } else {
     WriteModeAndPC(pc_delta, rmode);
     if (RelocInfo::IsComment(rmode)) {
       WriteData(rinfo->data());
+    } else if (RelocInfo::IsDeoptReason(rmode)) {
+      DCHECK_LT(rinfo->data(), 1 << kBitsPerByte);
+      WriteShortData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
                RelocInfo::IsDeoptPosition(rmode)) {
@@ -414,13 +365,9 @@ void RelocIterator::next() {
     } else if (tag == kCodeTargetTag) {
       ReadShortTaggedPC();
       if (SetMode(RelocInfo::CODE_TARGET)) return;
-    } else if (tag == kLocatableTag) {
+    } else if (tag == kWasmStubCallTag) {
       ReadShortTaggedPC();
-      Advance();
-      if (SetMode(RelocInfo::DEOPT_REASON)) {
-        ReadShortData();
-        return;
-      }
+      if (SetMode(RelocInfo::WASM_STUB_CALL)) return;
     } else {
       DCHECK_EQ(tag, kDefaultTag);
       RelocInfo::Mode rmode = GetMode();
@@ -434,6 +381,12 @@ void RelocIterator::next() {
             return;
           }
           Advance(kIntptrSize);
+        } else if (RelocInfo::IsDeoptReason(rmode)) {
+          Advance();
+          if (SetMode(rmode)) {
+            ReadShortData();
+            return;
+          }
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
@@ -502,6 +455,55 @@ RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
+
+// static
+bool RelocInfo::OffHeapTargetIsCodedSpecially() {
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+  return false;
+#elif defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390)
+  return true;
+#endif
+}
+
+Address RelocInfo::wasm_call_address() const {
+  DCHECK_EQ(rmode_, WASM_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void RelocInfo::set_wasm_call_address(Address address,
+                                      ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, WASM_CALL);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
+Address RelocInfo::wasm_stub_call_address() const {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void RelocInfo::set_wasm_stub_call_address(Address address,
+                                           ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
+void RelocInfo::set_target_address(Address target,
+                                   WriteBarrierMode write_barrier_mode,
+                                   ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
+      IsCodeTarget(rmode_)) {
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
+  }
+}
 
 #ifdef DEBUG
 bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
