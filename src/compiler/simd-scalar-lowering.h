@@ -92,7 +92,8 @@ class SimdScalarLowering {
                       SimdType type);
   void LowerConvertFromFloat(Node* node, bool is_signed);
   void LowerConvertFromInt(Node* node, SimdType input_rep_type,
-                           SimdType output_rep_type, bool is_signed);
+                           SimdType output_rep_type, bool is_signed,
+                           int start_index);
   void LowerPack(Node* node, SimdType input_rep_type, SimdType output_rep_type,
                  bool is_signed);
   void LowerShiftOp(Node* node, SimdType type);

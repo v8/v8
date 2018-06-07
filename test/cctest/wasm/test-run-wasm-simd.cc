@@ -886,27 +886,43 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ConvertF32x4) {
 }
 
 // Tests both signed and unsigned conversion from I16x8 (unpacking).
-WASM_SIMD_COMPILED_TEST(I32x4ConvertI16x8) {
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ConvertI16x8) {
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(execution_mode,
+                                                            lower_simd);
   byte a = 0;
   byte unpacked_signed = 1;
   byte unpacked_unsigned = 2;
+  byte zero_value = 3;
   byte simd0 = r.AllocateLocal(kWasmS128);
   byte simd1 = r.AllocateLocal(kWasmS128);
   byte simd2 = r.AllocateLocal(kWasmS128);
+  byte simd3 = r.AllocateLocal(kWasmS128);
+  byte simd4 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(simd1, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+        WASM_SET_LOCAL(
+            simd0, WASM_SIMD_I16x8_REPLACE_LANE(0, WASM_GET_LOCAL(simd0),
+                                                WASM_GET_LOCAL(zero_value))),
+        WASM_SET_LOCAL(simd1, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8High,
                                              WASM_GET_LOCAL(simd0))),
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, unpacked_signed),
         WASM_SET_LOCAL(simd2, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8High,
                                              WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT4(I32x4, simd2, I32, unpacked_unsigned), WASM_ONE);
+        WASM_SIMD_CHECK_SPLAT4(I32x4, simd2, I32, unpacked_unsigned),
+        WASM_SET_LOCAL(simd3, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                             WASM_GET_LOCAL(simd0))),
+        WASM_SIMD_CHECK4(I32x4, simd3, I32, zero_value, unpacked_signed,
+                         unpacked_signed, unpacked_signed),
+        WASM_SET_LOCAL(simd4, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8Low,
+                                             WASM_GET_LOCAL(simd0))),
+        WASM_SIMD_CHECK4(I32x4, simd4, I32, zero_value, unpacked_unsigned,
+                         unpacked_unsigned, unpacked_unsigned),
+        WASM_ONE);
 
   FOR_INT16_INPUTS(i) {
     int32_t unpacked_signed = static_cast<int32_t>(Widen<int16_t>(*i));
     int32_t unpacked_unsigned =
         static_cast<int32_t>(UnsignedWiden<int16_t>(*i));
-    CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned));
+    CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned, 0));
   }
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
@@ -1092,26 +1108,45 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ShrU) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
 // Tests both signed and unsigned conversion from I8x16 (unpacking).
-WASM_SIMD_COMPILED_TEST(I16x8ConvertI8x16) {
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8ConvertI8x16) {
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(execution_mode,
+                                                            lower_simd);
   byte a = 0;
   byte unpacked_signed = 1;
   byte unpacked_unsigned = 2;
+  byte zero_value = 3;
   byte simd0 = r.AllocateLocal(kWasmS128);
   byte simd1 = r.AllocateLocal(kWasmS128);
   byte simd2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(simd1, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
-                                             WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT8(I16x8, simd1, I32, unpacked_signed),
-        WASM_SET_LOCAL(simd2, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16High,
-                                             WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT8(I16x8, simd2, I32, unpacked_unsigned), WASM_ONE);
+  byte simd3 = r.AllocateLocal(kWasmS128);
+  byte simd4 = r.AllocateLocal(kWasmS128);
+  BUILD(
+      r, WASM_SET_LOCAL(simd0, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(a))),
+      WASM_SET_LOCAL(simd0,
+                     WASM_SIMD_I8x16_REPLACE_LANE(0, WASM_GET_LOCAL(simd0),
+                                                  WASM_GET_LOCAL(zero_value))),
+      WASM_SET_LOCAL(simd1, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16High,
+                                           WASM_GET_LOCAL(simd0))),
+      WASM_SIMD_CHECK_SPLAT8(I16x8, simd1, I32, unpacked_signed),
+      WASM_SET_LOCAL(simd2, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16High,
+                                           WASM_GET_LOCAL(simd0))),
+      WASM_SIMD_CHECK_SPLAT8(I16x8, simd2, I32, unpacked_unsigned),
+      WASM_SET_LOCAL(simd3, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                           WASM_GET_LOCAL(simd0))),
+      WASM_SIMD_CHECK8(I16x8, simd3, I32, zero_value, unpacked_signed,
+                       unpacked_signed, unpacked_signed, unpacked_signed,
+                       unpacked_signed, unpacked_signed, unpacked_signed),
+      WASM_SET_LOCAL(simd4, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16Low,
+                                           WASM_GET_LOCAL(simd0))),
+      WASM_SIMD_CHECK8(I16x8, simd4, I32, zero_value, unpacked_unsigned,
+                       unpacked_unsigned, unpacked_unsigned, unpacked_unsigned,
+                       unpacked_unsigned, unpacked_unsigned, unpacked_unsigned),
+      WASM_ONE);
 
   FOR_INT8_INPUTS(i) {
     int32_t unpacked_signed = static_cast<int32_t>(Widen<int8_t>(*i));
     int32_t unpacked_unsigned = static_cast<int32_t>(UnsignedWiden<int8_t>(*i));
-    CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned));
+    CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned, 0));
   }
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
