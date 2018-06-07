@@ -104,9 +104,11 @@ bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
 #if V8_TARGET_ARCH_MIPS64
   // MIPS64 has a user space of 2^40 bytes on most processors,
   // address space limits needs to be smaller.
-  constexpr size_t kAddressSpaceLimit = 0x2000000000L;  // 128 GiB
+  constexpr size_t kAddressSpaceLimit = 0x2100000000L;  // 132 GiB
 #elif V8_TARGET_ARCH_64_BIT
-  constexpr size_t kAddressSpaceLimit = 0x10000000000L;  // 1 TiB
+  // We set the limit to 1 TiB + 4 GiB so that there is room for mini-guards
+  // once we fill everything up with full-sized guard regions.
+  constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4GiB
 #else
   constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
 #endif
@@ -182,6 +184,21 @@ bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
   return allocations_.find(buffer_start) != allocations_.end();
 }
 
+bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
+  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  const auto allocation = allocations_.find(buffer_start);
+
+  if (allocation == allocations_.end()) {
+    return false;
+  }
+
+  Address start = reinterpret_cast<Address>(buffer_start);
+  Address limit =
+      reinterpret_cast<Address>(allocation->second.allocation_base) +
+      allocation->second.allocation_length;
+  return start + kWasmMaxHeapOffset < limit;
+}
+
 bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(const void* buffer_start) {
   if (IsWasmMemory(buffer_start)) {
     const AllocationData allocation = ReleaseAllocation(buffer_start);
@@ -245,7 +262,7 @@ MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
   void* memory = TryAllocateBackingStore(memory_tracker, isolate->heap(), size,
                                          require_full_guard_regions,
                                          &allocation_base, &allocation_length);
-  if (memory == nullptr && !trap_handler::IsTrapHandlerEnabled()) {
+  if (memory == nullptr && FLAG_wasm_trap_handler_fallback) {
     // If we failed to allocate with full guard regions, fall back on
     // mini-guards.
     require_full_guard_regions = false;

@@ -1077,5 +1077,13 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmMemoryHasFullGuardRegion) {
+  DCHECK_EQ(1, args.length());
+  DisallowHeapAllocation no_gc;
+  CONVERT_ARG_CHECKED(WasmMemoryObject, memory, 0);
+
+  return isolate->heap()->ToBoolean(memory->has_full_guard_region(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -556,7 +556,8 @@ namespace internal {
   F(ValidateWasmInstancesChain, 2, 1)         \
   F(ValidateWasmModuleState, 1, 1)            \
   F(WasmNumInterpretedCalls, 1, 1)            \
-  F(WasmTraceMemory, 1, 1)
+  F(WasmTraceMemory, 1, 1)                    \
+  F(WasmMemoryHasFullGuardRegion, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
   F(ArrayBufferNeuter, 1, 1)             \

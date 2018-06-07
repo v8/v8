@@ -282,7 +282,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* runtime_stub(WasmCode::RuntimeStubId index) const {
     DCHECK_LT(index, WasmCode::kRuntimeStubCount);
-    return runtime_stub_table_[index];
+    WasmCode* code = runtime_stub_table_[index];
+    DCHECK_NOT_NULL(code);
+    return code;
   }
 
   // Register/release the protected instructions in all code objects with the

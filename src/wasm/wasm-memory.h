@@ -69,6 +69,10 @@ class WasmMemoryTracker {
 
   bool IsWasmMemory(const void* buffer_start);
 
+  // Returns whether the given buffer is a Wasm memory with guard regions large
+  // enough to safely use trap handlers.
+  bool HasFullGuardRegions(const void* buffer_start);
+
   // Returns a pointer to a Wasm buffer's allocation data, or nullptr if the
   // buffer is not tracked.
   const AllocationData* FindAllocationData(const void* buffer_start);
@@ -132,6 +136,9 @@ class WasmMemoryTracker {
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };
 
+// Attempts to allocate an array buffer with guard regions suitable for trap
+// handling. If address space is not available, it will return a buffer with
+// mini-guards that will require bounds checks.
 MaybeHandle<JSArrayBuffer> NewArrayBuffer(
     Isolate*, size_t size, SharedFlag shared = SharedFlag::kNotShared);
 
