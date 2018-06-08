@@ -1100,5 +1100,27 @@ void GCTracer::AddBackgroundScopeSample(
   }
 }
 
+void GCTracer::RecordMarkCompactHistograms(HistogramTimer* gc_timer) {
+  Counters* counters = heap_->isolate()->counters();
+  if (gc_timer == counters->gc_finalize()) {
+    DCHECK_EQ(Scope::FIRST_TOP_MC_SCOPE, Scope::MC_CLEAR);
+    counters->gc_finalize_clear()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_CLEAR]));
+    counters->gc_finalize_epilogue()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_EPILOGUE]));
+    counters->gc_finalize_evacuate()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_EVACUATE]));
+    counters->gc_finalize_finish()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_FINISH]));
+    counters->gc_finalize_mark()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_MARK]));
+    counters->gc_finalize_prologue()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_PROLOGUE]));
+    counters->gc_finalize_sweep()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_SWEEP]));
+    DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
