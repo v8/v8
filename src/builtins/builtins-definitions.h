@@ -122,7 +122,7 @@ namespace internal {
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, ConstructTrampoline, 1)                                     \
   TFC(CompileLazyDeoptimizedCode, ConstructTrampoline, 1)                      \
-  ASM(DeserializeLazy)                                                         \
+  TFC(DeserializeLazy, ConstructTrampoline, 1)                                 \
   ASM(InstantiateAsmJs)                                                        \
   ASM(NotifyDeoptimized)                                                       \
                                                                                \
