@@ -460,6 +460,7 @@ class GcHistogram {
   }
 
   static void AddHistogramSample(void* histogram, int sample) {
+    if (histograms_.empty()) return;
     static_cast<GcHistogram*>(histogram)->samples_.push_back(sample);
   }
 
@@ -486,6 +487,7 @@ std::map<std::string, std::unique_ptr<GcHistogram>> GcHistogram::histograms_ =
     std::map<std::string, std::unique_ptr<GcHistogram>>();
 
 TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
+  if (FLAG_stress_incremental_marking) return;
   isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();
