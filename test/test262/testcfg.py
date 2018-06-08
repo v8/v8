@@ -50,13 +50,10 @@ FEATURE_FLAGS = {
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
+  'Intl.Locale': '--harmony-locale',
 }
 
-SKIPPED_FEATURES = set([
-  # `flatten` has been renamed to `flat`. TODO(mths): Remove this once
-  # https://github.com/tc39/test262/pull/1569 is rolled in.
-  'Array.prototype.flatten',
-])
+SKIPPED_FEATURES = set([])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
