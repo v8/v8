@@ -415,6 +415,7 @@ class MajorNonAtomicMarkingState final
 struct WeakObjects {
   Worklist<WeakCell*, 64> weak_cells;
   Worklist<TransitionArray*, 64> transition_arrays;
+  Worklist<EphemeronHashTable*, 64> ephemeron_hash_tables;
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
   Worklist<std::pair<HeapObject*, HeapObjectReference**>, 64> weak_references;
@@ -605,6 +606,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void AddTransitionArray(TransitionArray* array) {
     weak_objects_.transition_arrays.Push(kMainThread, array);
+  }
+
+  void AddEphemeronHashTable(EphemeronHashTable* table) {
+    weak_objects_.ephemeron_hash_tables.Push(kMainThread, table);
   }
 
   void AddWeakReference(HeapObject* host, HeapObjectReference** slot) {
@@ -826,7 +831,6 @@ class MarkingVisitor final
   V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
-  V8_INLINE int VisitJSWeakCollection(Map* map, JSWeakCollection* object);
   V8_INLINE int VisitMap(Map* map, Map* object);
   V8_INLINE int VisitNativeContext(Map* map, Context* object);
   V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);

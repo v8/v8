@@ -1854,71 +1854,43 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 
 void MarkCompactCollector::ProcessWeakCollections() {
   MarkCompactMarkingVisitor visitor(this, marking_state());
-  Object* weak_collection_obj = heap()->encountered_weak_collections();
-  while (weak_collection_obj != Smi::kZero) {
-    JSWeakCollection* weak_collection =
-        reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    DCHECK(non_atomic_marking_state()->IsBlackOrGrey(weak_collection));
-    if (weak_collection->table()->IsEphemeronHashTable()) {
-      EphemeronHashTable* table =
-          EphemeronHashTable::cast(weak_collection->table());
-      for (int i = 0; i < table->Capacity(); i++) {
-        HeapObject* heap_object = HeapObject::cast(table->KeyAt(i));
-        if (non_atomic_marking_state()->IsBlackOrGrey(heap_object)) {
-          Object** key_slot =
-              table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-          RecordSlot(table, key_slot, *key_slot);
-          Object** value_slot = table->RawFieldOfElementAt(
-              EphemeronHashTable::EntryToValueIndex(i));
-          if (V8_UNLIKELY(FLAG_track_retaining_path) &&
-              (*value_slot)->IsHeapObject()) {
-            heap()->AddEphemeralRetainer(heap_object,
-                                         HeapObject::cast(*value_slot));
-          }
-          visitor.VisitPointer(table, value_slot);
+
+  weak_objects_.ephemeron_hash_tables.Iterate([&](EphemeronHashTable* table) {
+    for (int i = 0; i < table->Capacity(); i++) {
+      HeapObject* heap_object = HeapObject::cast(table->KeyAt(i));
+      if (non_atomic_marking_state()->IsBlackOrGrey(heap_object)) {
+        Object** key_slot =
+            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+        RecordSlot(table, key_slot, *key_slot);
+        Object** value_slot = table->RawFieldOfElementAt(
+            EphemeronHashTable::EntryToValueIndex(i));
+        if (V8_UNLIKELY(FLAG_track_retaining_path) &&
+            (*value_slot)->IsHeapObject()) {
+          heap()->AddEphemeralRetainer(heap_object,
+                                       HeapObject::cast(*value_slot));
         }
+        visitor.VisitPointer(table, value_slot);
       }
-    } else {
-      DCHECK(weak_collection->table()->IsUndefined(isolate()));
     }
-    weak_collection_obj = weak_collection->next();
-  }
+  });
 }
 
 void MarkCompactCollector::ClearWeakCollections() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
-  Object* weak_collection_obj = heap()->encountered_weak_collections();
-  while (weak_collection_obj != Smi::kZero) {
-    JSWeakCollection* weak_collection =
-        reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    DCHECK(non_atomic_marking_state()->IsBlackOrGrey(weak_collection));
-    if (weak_collection->table()->IsEphemeronHashTable()) {
-      EphemeronHashTable* table =
-          EphemeronHashTable::cast(weak_collection->table());
-      for (int i = 0; i < table->Capacity(); i++) {
-        HeapObject* key = HeapObject::cast(table->KeyAt(i));
-        if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {
-          table->RemoveEntry(i);
-        }
+  EphemeronHashTable* table;
+
+  while (weak_objects_.ephemeron_hash_tables.Pop(kMainThread, &table)) {
+    for (int i = 0; i < table->Capacity(); i++) {
+      HeapObject* key = HeapObject::cast(table->KeyAt(i));
+      if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {
+        table->RemoveEntry(i);
       }
-    } else {
-      DCHECK(weak_collection->table()->IsUndefined(isolate()));
     }
-    weak_collection_obj = weak_collection->next();
-    weak_collection->set_next(heap()->undefined_value());
   }
-  heap()->set_encountered_weak_collections(Smi::kZero);
 }
 
 void MarkCompactCollector::AbortWeakCollections() {
-  Object* weak_collection_obj = heap()->encountered_weak_collections();
-  while (weak_collection_obj != Smi::kZero) {
-    JSWeakCollection* weak_collection =
-        reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    weak_collection_obj = weak_collection->next();
-    weak_collection->set_next(heap()->undefined_value());
-  }
-  heap()->set_encountered_weak_collections(Smi::kZero);
+  weak_objects_.ephemeron_hash_tables.Clear();
 }
 
 void MarkCompactCollector::ClearWeakCells() {
@@ -3634,7 +3606,6 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     // Update pointers from external string table.
     heap()->UpdateNewSpaceReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
-    heap()->IterateEncounteredWeakCollections(&updating_visitor);
   }
 }
 
@@ -4128,7 +4099,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   // Mark rest on the main thread.
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
-    heap()->IterateEncounteredWeakCollections(&root_visitor);
     ProcessMarkingWorklist();
   }
 

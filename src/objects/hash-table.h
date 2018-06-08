@@ -281,6 +281,9 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
   // Returns the value at entry.
   Object* ValueAt(int entry);
 
+  // Overwrite all keys and values with the hole value.
+  static void FillEntriesWithHoles(Handle<Derived>);
+
   // Adds (or overwrites) the value associated with the given key.
   static Handle<Derived> Put(Handle<Derived> table, Handle<Object> key,
                              Handle<Object> value);

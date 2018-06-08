@@ -241,7 +241,6 @@ Heap::Heap()
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   set_native_contexts_list(nullptr);
   set_allocation_sites_list(Smi::kZero);
-  set_encountered_weak_collections(Smi::kZero);
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(kNullAddress, false);
@@ -2182,11 +2181,6 @@ void Heap::Scavenge() {
       IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
     }
     {
-      // Weak collections are held strongly by the Scavenger.
-      TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK);
-      IterateEncounteredWeakCollections(&root_scavenge_visitor);
-    }
-    {
       // Parallel phase scavenging all copied and promoted objects.
       TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
       job.Run(isolate()->async_counters());
@@ -3943,11 +3937,6 @@ void Heap::IterateSmiRoots(RootVisitor* v) {
   v->VisitRootPointers(Root::kSmiRootList, nullptr, &roots_[kSmiRootsStart],
                        &roots_[kRootListLength]);
   v->Synchronize(VisitorSynchronization::kSmiRootList);
-}
-
-void Heap::IterateEncounteredWeakCollections(RootVisitor* visitor) {
-  visitor->VisitRootPointer(Root::kWeakCollections, nullptr,
-                            &encountered_weak_collections_);
 }
 
 // We cannot avoid stale handles to left-trimmed objects, but can only make

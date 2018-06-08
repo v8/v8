@@ -159,6 +159,20 @@ class Worklist {
     global_pool_.Update(callback);
   }
 
+  // Calls the specified callback on each element of the deques.
+  // The signature of the callback is:
+  //   void Callback(EntryType entry).
+  //
+  // Assumes that no other tasks are running.
+  template <typename Callback>
+  void Iterate(Callback callback) {
+    for (int i = 0; i < num_tasks_; i++) {
+      private_pop_segment(i)->Iterate(callback);
+      private_push_segment(i)->Iterate(callback);
+    }
+    global_pool_.Iterate(callback);
+  }
+
   template <typename Callback>
   void IterateGlobalPool(Callback callback) {
     global_pool_.Iterate(callback);

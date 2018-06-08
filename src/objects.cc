@@ -17985,6 +17985,15 @@ Object* Dictionary<Derived, Shape>::SlowReverseLookup(Object* value) {
 }
 
 template <typename Derived, typename Shape>
+void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
+    Handle<Derived> table) {
+  int length = table->length();
+  for (int i = Derived::EntryToIndex(0); i < length; i++) {
+    table->set_the_hole(i);
+  }
+}
+
+template <typename Derived, typename Shape>
 Object* ObjectHashTableBase<Derived, Shape>::Lookup(Isolate* isolate,
                                                     Handle<Object> key,
                                                     int32_t hash) {
@@ -18172,7 +18181,7 @@ void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
-    table->FillWithHoles(0, table->length());
+    EphemeronHashTable::FillEntriesWithHoles(table);
   }
 }
 
@@ -18189,7 +18198,7 @@ bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
-    table->FillWithHoles(0, table->length());
+    EphemeronHashTable::FillEntriesWithHoles(table);
   }
   return was_present;
 }

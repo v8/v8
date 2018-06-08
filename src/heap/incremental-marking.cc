@@ -694,6 +694,27 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         *slot_out = slot_in;
         return true;
       });
+  weak_objects_->ephemeron_hash_tables.Update(
+      [heap](EphemeronHashTable* slot_in,
+             EphemeronHashTable** slot_out) -> bool {
+        HeapObject* heap_obj = slot_in;
+        MapWord map_word = heap_obj->map_word();
+        if (map_word.IsForwardingAddress()) {
+          *slot_out = EphemeronHashTable::cast(map_word.ToForwardingAddress());
+          return true;
+        }
+
+        if (heap->InNewSpace(heap_obj)) {
+          // An object could die in scavenge even though an earlier full GC's
+          // concurrent marking has already marked it. In the case of an
+          // EphemeronHashTable it would have already been added to the
+          // worklist. If that happens the table needs to be removed again.
+          return false;
+        }
+
+        *slot_out = slot_in;
+        return true;
+      });
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(

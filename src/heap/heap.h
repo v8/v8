@@ -801,14 +801,6 @@ class Heap {
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
-  void set_encountered_weak_collections(Object* weak_collection) {
-    encountered_weak_collections_ = weak_collection;
-  }
-  Object* encountered_weak_collections() const {
-    return encountered_weak_collections_;
-  }
-  void IterateEncounteredWeakCollections(RootVisitor* visitor);
-
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
 
@@ -2336,11 +2328,6 @@ class Heap {
   // List heads are initialized lazily and contain the undefined_value at start.
   Object* native_contexts_list_;
   Object* allocation_sites_list_;
-
-  // List of encountered weak collections (JSWeakMap and JSWeakSet) during
-  // marking. It is initialized during marking, destroyed after marking and
-  // contains Smi(0) while marking is not active.
-  Object* encountered_weak_collections_;
 
   std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
   std::vector<GCCallbackTuple> gc_prologue_callbacks_;
