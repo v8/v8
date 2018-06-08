@@ -5,7 +5,8 @@
   "main": "index.html",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "deploy": "./deploy.sh"
   },
   "author": "The V8 team",
   "license": "MIT",
