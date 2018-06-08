@@ -278,7 +278,7 @@ var prettyPrinted;
           case "Object":
             break;
           default:
-            return objectClass + "()";
+            return objectClass + "(" + String(value) + ")";
         }
         // [[Class]] is "Object".
         var name = value.constructor.name;
