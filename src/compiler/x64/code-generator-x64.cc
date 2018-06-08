@@ -3260,6 +3260,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         break;
     }
   };
+  // Helper function to write the given constant to the stack.
+  auto MoveConstantToSlot = [&](Operand dst, Constant src) {
+    if (!RelocInfo::IsWasmPtrReference(src.rmode())) {
+      switch (src.type()) {
+        case Constant::kInt32:
+          __ movq(dst, Immediate(src.ToInt32()));
+          return;
+        case Constant::kInt64:
+          __ Set(dst, src.ToInt64());
+          return;
+        default:
+          break;
+      }
+    }
+    MoveConstantToRegister(kScratchRegister, src);
+    __ movq(dst, kScratchRegister);
+  };
   // Dispatch on the source and destination operand kinds.
   switch (MoveType::InferMove(source, destination)) {
     case MoveType::kRegisterToRegister:
@@ -3347,8 +3364,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Constant src = g.ToConstant(source);
       Operand dst = g.ToOperand(destination);
       if (destination->IsStackSlot()) {
-        MoveConstantToRegister(kScratchRegister, src);
-        __ movq(dst, kScratchRegister);
+        MoveConstantToSlot(dst, src);
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (src.type() == Constant::kFloat32) {
