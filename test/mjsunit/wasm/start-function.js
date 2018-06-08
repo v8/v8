@@ -139,6 +139,10 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   builder.addStart(func.index);
 
   assertThrowsEquals(() => builder.instantiate(ffi), error);
+  assertPromiseResult(builder.asyncInstantiate(ffi), assertUnreachable,
+    e => assertSame(e, error));
+  assertPromiseResult(WebAssembly.instantiate(builder.toModule(), ffi),
+    assertUnreachable, e => assertSame(e, error));
 })();
 
 (function testStartFunctionThrowsImplicitly() {
@@ -149,4 +153,9 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
   assertThrows(
       () => builder.instantiate(), WebAssembly.RuntimeError, /unreachable/);
+  assertPromiseResult(builder.asyncInstantiate(), assertUnreachable,
+    e => assertInstanceof(e, WebAssembly.RuntimeError));
+  assertPromiseResult(WebAssembly.instantiate(builder.toModule()),
+    assertUnreachable,
+    e => assertInstanceof(e, WebAssembly.RuntimeError));
 })();

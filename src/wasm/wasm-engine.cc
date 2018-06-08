@@ -64,14 +64,36 @@ void WasmEngine::AsyncInstantiate(
     Isolate* isolate, std::unique_ptr<InstantiationResultResolver> resolver,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports) {
   ErrorThrower thrower(isolate, nullptr);
+  // Instantiate a TryCatch so that caught exceptions won't progagate out.
+  // They will still be set as pending exceptions on the isolate.
+  // TODO(clemensh): Avoid TryCatch, use Execution::TryCall internally to invoke
+  // start function and report thrown exception explicitly via out argument.
+  v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
+  catcher.SetVerbose(false);
+  catcher.SetCaptureMessage(false);
+
   MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
       isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
-  if (thrower.error()) {
-    resolver->OnInstantiationFailed(thrower.Reify());
+
+  if (!instance_object.is_null()) {
+    resolver->OnInstantiationSucceeded(instance_object.ToHandleChecked());
     return;
   }
-  Handle<WasmInstanceObject> instance = instance_object.ToHandleChecked();
-  resolver->OnInstantiationSucceeded(instance);
+
+  // We either have a pending exception (if the start function threw), or an
+  // exception in the ErrorThrower.
+  DCHECK_EQ(1, isolate->has_pending_exception() + thrower.error());
+  if (thrower.error()) {
+    resolver->OnInstantiationFailed(thrower.Reify());
+  } else {
+    // The start function has thrown an exception. We have to move the
+    // exception to the promise chain.
+    Handle<Object> exception(isolate->pending_exception(), isolate);
+    isolate->clear_pending_exception();
+    DCHECK(*isolate->external_caught_exception_address());
+    *isolate->external_caught_exception_address() = false;
+    resolver->OnInstantiationFailed(exception);
+  }
 }
 
 void WasmEngine::AsyncCompile(
