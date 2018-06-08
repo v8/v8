@@ -315,11 +315,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     //    of the builtin itself (and not just the trampoline).
     case kInterpreterEntryTrampoline:
       return false;
-    // TODO(jgruber): WasmCompileLazy is copied off the heap during module
-    // compilation, which breaks pc-relative calls. It can be marked
-    // isolate-independent once copies are no longer generated for wasm.
-    case kWasmCompileLazy:
-      return false;
     default:
       return true;
   }
