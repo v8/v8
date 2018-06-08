@@ -91,91 +91,57 @@ void RelocateCode(WasmCode* code, const WasmCode* orig,
 
 }  // namespace
 
-DisjointAllocationPool::DisjointAllocationPool(Address start, Address end) {
-  ranges_.push_back({start, end});
-}
-
-void DisjointAllocationPool::Merge(DisjointAllocationPool&& other) {
+void DisjointAllocationPool::Merge(AddressRange range) {
   auto dest_it = ranges_.begin();
   auto dest_end = ranges_.end();
 
-  for (auto src_it = other.ranges_.begin(), src_end = other.ranges_.end();
-       src_it != src_end;) {
-    if (dest_it == dest_end) {
-      // everything else coming from src will be inserted
-      // at the back of ranges_ from now on.
-      ranges_.push_back(*src_it);
-      ++src_it;
-      continue;
-    }
-    // Before or adjacent to dest. Insert or merge, and advance
-    // just src.
-    if (dest_it->first >= src_it->second) {
-      if (dest_it->first == src_it->second) {
-        dest_it->first = src_it->first;
-      } else {
-        ranges_.insert(dest_it, {src_it->first, src_it->second});
-      }
-      ++src_it;
-      continue;
-    }
-    // Src is strictly after dest. Skip over this dest.
-    if (dest_it->second < src_it->first) {
-      ++dest_it;
-      continue;
-    }
-    // Src is adjacent from above. Merge and advance
-    // just src, because the next src, if any, is bound to be
-    // strictly above the newly-formed range.
-    DCHECK_EQ(dest_it->second, src_it->first);
-    dest_it->second = src_it->second;
-    ++src_it;
-    // Now that we merged, maybe this new range is adjacent to
-    // the next. Since we assume src to have come from the
-    // same original memory pool, it follows that the next src
-    // must be above or adjacent to the new bubble.
-    auto next_dest = dest_it;
-    ++next_dest;
-    if (next_dest != dest_end && dest_it->second == next_dest->first) {
-      dest_it->second = next_dest->second;
-      ranges_.erase(next_dest);
-    }
+  // Skip over dest ranges strictly before {range}.
+  while (dest_it != dest_end && dest_it->end < range.start) ++dest_it;
 
-    // src_it points now at the next, if any, src
-    DCHECK_IMPLIES(src_it != src_end, src_it->first >= dest_it->second);
+  // After last dest range: insert and done.
+  if (dest_it == dest_end) {
+    ranges_.push_back(range);
+    return;
+  }
+
+  // Adjacent (from below) to dest: merge and done.
+  if (dest_it->start == range.end) {
+    dest_it->start = range.start;
+    return;
+  }
+
+  // Before dest: insert and done.
+  if (dest_it->start > range.end) {
+    ranges_.insert(dest_it, range);
+    return;
+  }
+
+  // Src is adjacent from above. Merge and check whether the merged range is now
+  // adjacent to the next range.
+  DCHECK_EQ(dest_it->end, range.start);
+  dest_it->end = range.end;
+  auto next_dest = dest_it;
+  ++next_dest;
+  if (next_dest != dest_end && dest_it->end == next_dest->start) {
+    dest_it->end = next_dest->end;
+    ranges_.erase(next_dest);
   }
 }
 
-DisjointAllocationPool DisjointAllocationPool::Extract(size_t size,
-                                                       ExtractionMode mode) {
-  DisjointAllocationPool ret;
-  for (auto it = ranges_.begin(), end = ranges_.end(); it != end;) {
-    auto current = it;
-    ++it;
-    DCHECK_LT(current->first, current->second);
-    size_t current_size = static_cast<size_t>(current->second - current->first);
-    if (size == current_size) {
-      ret.ranges_.push_back(*current);
-      ranges_.erase(current);
-      return ret;
+AddressRange DisjointAllocationPool::Allocate(size_t size) {
+  for (auto it = ranges_.begin(), end = ranges_.end(); it != end; ++it) {
+    size_t range_size = it->size();
+    if (size > range_size) continue;
+    AddressRange ret{it->start, it->start + size};
+    if (size == range_size) {
+      ranges_.erase(it);
+    } else {
+      it->start += size;
+      DCHECK_LT(it->start, it->end);
     }
-    if (size < current_size) {
-      ret.ranges_.push_back({current->first, current->first + size});
-      current->first += size;
-      DCHECK(current->first < current->second);
-      return ret;
-    }
-    if (mode != kContiguous) {
-      size -= current_size;
-      ret.ranges_.push_back(*current);
-      ranges_.erase(current);
-    }
+    return ret;
   }
-  if (size > 0) {
-    Merge(std::move(ret));
-    return {};
-  }
-  return ret;
+  return {};
 }
 
 Address WasmCode::constant_pool() const {
@@ -367,7 +333,7 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
       num_imported_functions_(num_imports),
       compilation_state_(NewCompilationState(
           reinterpret_cast<Isolate*>(code_manager->isolate_), env)),
-      free_code_space_(code_space->address(), code_space->end()),
+      free_code_space_({code_space->address(), code_space->end()}),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
       use_trap_handler_(env.use_trap_handler) {
@@ -675,10 +641,10 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
 }
 
 Address NativeModule::AllocateForCode(size_t size) {
-  // this happens under a lock assumed by the caller.
+  // This happens under a lock assumed by the caller.
   size = RoundUp(size, kCodeAlignment);
-  DisjointAllocationPool mem = free_code_space_.Allocate(size);
-  if (mem.IsEmpty()) {
+  AddressRange mem = free_code_space_.Allocate(size);
+  if (mem.is_empty()) {
     if (!can_request_more_memory_) return kNullAddress;
 
     Address hint = owned_code_space_.empty() ? kNullAddress
@@ -689,18 +655,15 @@ Address NativeModule::AllocateForCode(size_t size) {
     wasm_code_manager_->TryAllocate(size, &new_mem,
                                     reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) return kNullAddress;
-    DisjointAllocationPool mem_pool(new_mem.address(), new_mem.end());
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
-    free_code_space_.Merge(std::move(mem_pool));
+    free_code_space_.Merge({new_mem.address(), new_mem.end()});
     mem = free_code_space_.Allocate(size);
-    if (mem.IsEmpty()) return kNullAddress;
+    if (mem.is_empty()) return kNullAddress;
   }
-  Address ret = mem.ranges().front().first;
-  Address end = ret + size;
-  Address commit_start = RoundUp(ret, AllocatePageSize());
-  Address commit_end = RoundUp(end, AllocatePageSize());
-  // {commit_start} will be either ret or the start of the next page.
+  Address commit_start = RoundUp(mem.start, AllocatePageSize());
+  Address commit_end = RoundUp(mem.end, AllocatePageSize());
+  // {commit_start} will be either mem.start or the start of the next page.
   // {commit_end} will be the start of the page after the one in which
   // the allocation ends.
   // We start from an aligned start, and we know we allocated vmem in
@@ -737,11 +700,11 @@ Address NativeModule::AllocateForCode(size_t size) {
     committed_code_space_ += commit_size;
 #endif
   }
-  DCHECK(IsAligned(ret, kCodeAlignment));
+  DCHECK(IsAligned(mem.start, kCodeAlignment));
   allocated_code_space_.Merge(std::move(mem));
   TRACE_HEAP("ID: %zu. Code alloc: %p,+%zu\n", instance_id,
-             reinterpret_cast<void*>(ret), size);
-  return ret;
+             reinterpret_cast<void*>(mem.start), size);
+  return mem.start;
 }
 
 WasmCode* NativeModule::Lookup(Address pc) {
@@ -1002,14 +965,13 @@ bool NativeModule::SetExecutable(bool executable) {
     for (auto& range : allocated_code_space_.ranges()) {
       // allocated_code_space_ is fine-grained, so we need to
       // page-align it.
-      size_t range_size = RoundUp(
-          static_cast<size_t>(range.second - range.first), AllocatePageSize());
-      if (!SetPermissions(range.first, range_size, permission)) {
+      size_t range_size = RoundUp(range.size(), AllocatePageSize());
+      if (!SetPermissions(range.start, range_size, permission)) {
         return false;
       }
       TRACE_HEAP("Set %p:%p to executable:%d\n",
-                 reinterpret_cast<void*>(range.first),
-                 reinterpret_cast<void*>(range.second), executable);
+                 reinterpret_cast<void*>(range.start),
+                 reinterpret_cast<void*>(range.end), executable);
     }
   }
   is_executable_ = executable;
