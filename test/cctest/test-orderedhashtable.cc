@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/objects-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -40,14 +41,14 @@ TEST(SmallOrderedHashSetInsertion) {
   // Add a new key.
   Handle<Smi> key1(Smi::FromInt(1), isolate);
   CHECK(!set->HasKey(isolate, key1));
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
   CHECK(set->HasKey(isolate, key1));
 
   // Add existing key.
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
@@ -55,14 +56,14 @@ TEST(SmallOrderedHashSetInsertion) {
 
   Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!set->HasKey(isolate, key2));
-  set = SmallOrderedHashSet::Add(set, key2);
+  set = SmallOrderedHashSet::Add(set, key2).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(2, set->NumberOfElements());
   CHECK(set->HasKey(isolate, key1));
   CHECK(set->HasKey(isolate, key2));
 
-  set = SmallOrderedHashSet::Add(set, key2);
+  set = SmallOrderedHashSet::Add(set, key2).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(2, set->NumberOfElements());
@@ -71,7 +72,7 @@ TEST(SmallOrderedHashSetInsertion) {
 
   Handle<Symbol> key3 = factory->NewSymbol();
   CHECK(!set->HasKey(isolate, key3));
-  set = SmallOrderedHashSet::Add(set, key3);
+  set = SmallOrderedHashSet::Add(set, key3).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(3, set->NumberOfElements());
@@ -79,7 +80,7 @@ TEST(SmallOrderedHashSetInsertion) {
   CHECK(set->HasKey(isolate, key2));
   CHECK(set->HasKey(isolate, key3));
 
-  set = SmallOrderedHashSet::Add(set, key3);
+  set = SmallOrderedHashSet::Add(set, key3).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(3, set->NumberOfElements());
@@ -89,7 +90,7 @@ TEST(SmallOrderedHashSetInsertion) {
 
   Handle<Object> key4 = factory->NewHeapNumber(42.0);
   CHECK(!set->HasKey(isolate, key4));
-  set = SmallOrderedHashSet::Add(set, key4);
+  set = SmallOrderedHashSet::Add(set, key4).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(4, set->NumberOfElements());
@@ -98,7 +99,7 @@ TEST(SmallOrderedHashSetInsertion) {
   CHECK(set->HasKey(isolate, key3));
   CHECK(set->HasKey(isolate, key4));
 
-  set = SmallOrderedHashSet::Add(set, key4);
+  set = SmallOrderedHashSet::Add(set, key4).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(4, set->NumberOfElements());
@@ -123,14 +124,14 @@ TEST(SmallOrderedHashMapInsertion) {
   Handle<Smi> key1(Smi::FromInt(1), isolate);
   Handle<Smi> value1(Smi::FromInt(1), isolate);
   CHECK(!map->HasKey(isolate, key1));
-  map = SmallOrderedHashMap::Add(map, key1, value1);
+  map = SmallOrderedHashMap::Add(map, key1, value1).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
   CHECK(map->HasKey(isolate, key1));
 
   // Add existing key.
-  map = SmallOrderedHashMap::Add(map, key1, value1);
+  map = SmallOrderedHashMap::Add(map, key1, value1).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
@@ -139,14 +140,14 @@ TEST(SmallOrderedHashMapInsertion) {
   Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   Handle<String> value = factory->NewStringFromAsciiChecked("foo");
   CHECK(!map->HasKey(isolate, key2));
-  map = SmallOrderedHashMap::Add(map, key2, value);
+  map = SmallOrderedHashMap::Add(map, key2, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(2, map->NumberOfElements());
   CHECK(map->HasKey(isolate, key1));
   CHECK(map->HasKey(isolate, key2));
 
-  map = SmallOrderedHashMap::Add(map, key2, value);
+  map = SmallOrderedHashMap::Add(map, key2, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(2, map->NumberOfElements());
@@ -155,7 +156,7 @@ TEST(SmallOrderedHashMapInsertion) {
 
   Handle<Symbol> key3 = factory->NewSymbol();
   CHECK(!map->HasKey(isolate, key3));
-  map = SmallOrderedHashMap::Add(map, key3, value);
+  map = SmallOrderedHashMap::Add(map, key3, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(3, map->NumberOfElements());
@@ -163,7 +164,7 @@ TEST(SmallOrderedHashMapInsertion) {
   CHECK(map->HasKey(isolate, key2));
   CHECK(map->HasKey(isolate, key3));
 
-  map = SmallOrderedHashMap::Add(map, key3, value);
+  map = SmallOrderedHashMap::Add(map, key3, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(3, map->NumberOfElements());
@@ -173,7 +174,7 @@ TEST(SmallOrderedHashMapInsertion) {
 
   Handle<Object> key4 = factory->NewHeapNumber(42.0);
   CHECK(!map->HasKey(isolate, key4));
-  map = SmallOrderedHashMap::Add(map, key4, value);
+  map = SmallOrderedHashMap::Add(map, key4, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(4, map->NumberOfElements());
@@ -182,7 +183,7 @@ TEST(SmallOrderedHashMapInsertion) {
   CHECK(map->HasKey(isolate, key3));
   CHECK(map->HasKey(isolate, key4));
 
-  map = SmallOrderedHashMap::Add(map, key4, value);
+  map = SmallOrderedHashMap::Add(map, key4, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(4, map->NumberOfElements());
@@ -200,7 +201,7 @@ TEST(SmallOrderedHashSetDuplicateHashCode) {
 
   Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
   Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
@@ -209,7 +210,7 @@ TEST(SmallOrderedHashSetDuplicateHashCode) {
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
-  set = SmallOrderedHashSet::Add(set, key2);
+  set = SmallOrderedHashSet::Add(set, key2).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(2, set->NumberOfElements());
@@ -226,7 +227,7 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   Handle<SmallOrderedHashMap> map = factory->NewSmallOrderedHashMap();
   Handle<JSObject> value = factory->NewJSObjectWithNullProto();
   Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
-  map = SmallOrderedHashMap::Add(map, key1, value);
+  map = SmallOrderedHashMap::Add(map, key1, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
@@ -240,7 +241,7 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   Object* hash2 = key2->GetHash();
   CHECK_EQ(hash1, hash2);
 
-  map = SmallOrderedHashMap::Add(map, key2, value);
+  map = SmallOrderedHashMap::Add(map, key2, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(2, map->NumberOfElements());
@@ -262,7 +263,7 @@ TEST(SmallOrderedHashSetGrow) {
   }
 
   for (size_t i = 0; i < 4; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -277,7 +278,7 @@ TEST(SmallOrderedHashSetGrow) {
   Verify(set);
 
   for (size_t i = 4; i < 8; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -292,7 +293,7 @@ TEST(SmallOrderedHashSetGrow) {
   Verify(set);
 
   for (size_t i = 8; i < 16; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -307,7 +308,7 @@ TEST(SmallOrderedHashSetGrow) {
   Verify(set);
 
   for (size_t i = 16; i < 32; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -322,7 +323,7 @@ TEST(SmallOrderedHashSetGrow) {
   Verify(set);
 
   for (size_t i = 32; i < 64; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -337,7 +338,7 @@ TEST(SmallOrderedHashSetGrow) {
   Verify(set);
 
   for (size_t i = 64; i < 128; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -352,7 +353,7 @@ TEST(SmallOrderedHashSetGrow) {
   Verify(set);
 
   for (size_t i = 128; i < 254; i++) {
-    set = SmallOrderedHashSet::Add(set, keys[i]);
+    set = SmallOrderedHashSet::Add(set, keys[i]).ToHandleChecked();
     Verify(set);
   }
 
@@ -381,7 +382,7 @@ TEST(SmallOrderedHashMapGrow) {
   }
 
   for (size_t i = 0; i < 4; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -396,7 +397,7 @@ TEST(SmallOrderedHashMapGrow) {
   Verify(map);
 
   for (size_t i = 4; i < 8; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -411,7 +412,7 @@ TEST(SmallOrderedHashMapGrow) {
   Verify(map);
 
   for (size_t i = 8; i < 16; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -426,7 +427,7 @@ TEST(SmallOrderedHashMapGrow) {
   Verify(map);
 
   for (size_t i = 16; i < 32; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -441,7 +442,7 @@ TEST(SmallOrderedHashMapGrow) {
   Verify(map);
 
   for (size_t i = 32; i < 64; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -456,7 +457,7 @@ TEST(SmallOrderedHashMapGrow) {
   Verify(map);
 
   for (size_t i = 64; i < 128; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -471,7 +472,7 @@ TEST(SmallOrderedHashMapGrow) {
   Verify(map);
 
   for (size_t i = 128; i < 254; i++) {
-    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]);
+    map = SmallOrderedHashMap::Add(map, keys[i], keys[i]).ToHandleChecked();
     Verify(map);
   }
 
@@ -742,7 +743,7 @@ TEST(SmallOrderedHashMapDeletion) {
   CHECK_EQ(0, map->NumberOfDeletedElements());
   CHECK(!map->HasKey(isolate, key1));
 
-  map = SmallOrderedHashMap::Add(map, key1, value1);
+  map = SmallOrderedHashMap::Add(map, key1, value1).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
@@ -757,7 +758,7 @@ TEST(SmallOrderedHashMapDeletion) {
   CHECK_EQ(1, map->NumberOfDeletedElements());
   CHECK(!map->HasKey(isolate, key1));
 
-  map = SmallOrderedHashMap::Add(map, key1, value1);
+  map = SmallOrderedHashMap::Add(map, key1, value1).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
@@ -766,7 +767,7 @@ TEST(SmallOrderedHashMapDeletion) {
 
   Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!map->HasKey(isolate, key2));
-  map = SmallOrderedHashMap::Add(map, key2, value);
+  map = SmallOrderedHashMap::Add(map, key2, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(2, map->NumberOfElements());
@@ -775,7 +776,7 @@ TEST(SmallOrderedHashMapDeletion) {
 
   Handle<Symbol> key3 = factory->NewSymbol();
   CHECK(!map->HasKey(isolate, key3));
-  map = SmallOrderedHashMap::Add(map, key3, value);
+  map = SmallOrderedHashMap::Add(map, key3, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(3, map->NumberOfElements());
@@ -823,7 +824,7 @@ TEST(SmallOrderedHashMapDeletion) {
   CHECK(!map->HasKey(isolate, key3));
 
   // Delete non existent key from non empty hash table
-  map = SmallOrderedHashMap::Add(map, key1, value);
+  map = SmallOrderedHashMap::Add(map, key1, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
@@ -879,7 +880,7 @@ TEST(SmallOrderedHashMapDuplicateHashCodeDeletion) {
   Handle<SmallOrderedHashMap> map = factory->NewSmallOrderedHashMap();
   Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
   Handle<JSObject> value = factory->NewJSObjectWithNullProto();
-  map = SmallOrderedHashMap::Add(map, key1, value);
+  map = SmallOrderedHashMap::Add(map, key1, value).ToHandleChecked();
   Verify(map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
@@ -1041,7 +1042,7 @@ TEST(SmallOrderedHashSetDeletion) {
   CHECK_EQ(0, set->NumberOfDeletedElements());
   CHECK(!set->HasKey(isolate, key1));
 
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
@@ -1056,7 +1057,7 @@ TEST(SmallOrderedHashSetDeletion) {
   CHECK_EQ(1, set->NumberOfDeletedElements());
   CHECK(!set->HasKey(isolate, key1));
 
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
@@ -1065,7 +1066,7 @@ TEST(SmallOrderedHashSetDeletion) {
 
   Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!set->HasKey(isolate, key2));
-  set = SmallOrderedHashSet::Add(set, key2);
+  set = SmallOrderedHashSet::Add(set, key2).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(2, set->NumberOfElements());
@@ -1074,7 +1075,7 @@ TEST(SmallOrderedHashSetDeletion) {
 
   Handle<Symbol> key3 = factory->NewSymbol();
   CHECK(!set->HasKey(isolate, key3));
-  set = SmallOrderedHashSet::Add(set, key3);
+  set = SmallOrderedHashSet::Add(set, key3).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(3, set->NumberOfElements());
@@ -1122,7 +1123,7 @@ TEST(SmallOrderedHashSetDeletion) {
   CHECK(!set->HasKey(isolate, key3));
 
   // Delete non existent key from non empty hash table
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
@@ -1176,7 +1177,7 @@ TEST(SmallOrderedHashSetDuplicateHashCodeDeletion) {
 
   Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
   Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
-  set = SmallOrderedHashSet::Add(set, key1);
+  set = SmallOrderedHashSet::Add(set, key1).ToHandleChecked();
   Verify(set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
@@ -1194,6 +1195,73 @@ TEST(SmallOrderedHashSetDuplicateHashCodeDeletion) {
   CHECK_EQ(0, set->NumberOfDeletedElements());
   CHECK(set->HasKey(isolate, key1));
   CHECK(!set->HasKey(isolate, key2));
+}
+
+TEST(OrderedHashSetHandlerInsertion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  HandleScope scope(isolate);
+
+  Handle<HeapObject> set = OrderedHashSetHandler::Allocate(isolate, 4);
+  Verify(set);
+
+  // Add a new key.
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  CHECK(!OrderedHashSetHandler::HasKey(isolate, set, key1));
+  set = OrderedHashSetHandler::Add(isolate, set, key1);
+  Verify(set);
+  CHECK(OrderedHashSetHandler::HasKey(isolate, set, key1));
+
+  // Add existing key.
+  set = OrderedHashSetHandler::Add(isolate, set, key1);
+  Verify(set);
+  CHECK(OrderedHashSetHandler::HasKey(isolate, set, key1));
+  CHECK(SmallOrderedHashSet::Is(set));
+
+  for (int i = 0; i < 1024; i++) {
+    Handle<Smi> key_i(Smi::FromInt(i), isolate);
+    set = OrderedHashSetHandler::Add(isolate, set, key_i);
+    Verify(set);
+    for (int j = 0; j <= i; j++) {
+      Handle<Smi> key_j(Smi::FromInt(j), isolate);
+      CHECK(OrderedHashSetHandler::HasKey(isolate, set, key_j));
+    }
+  }
+  CHECK(OrderedHashSet::Is(set));
+}
+
+TEST(OrderedHashMapHandlerInsertion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  HandleScope scope(isolate);
+
+  Handle<HeapObject> map = OrderedHashMapHandler::Allocate(isolate, 4);
+  Verify(map);
+
+  // Add a new key.
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  CHECK(!OrderedHashMapHandler::HasKey(isolate, map, key1));
+  map = OrderedHashMapHandler::Add(isolate, map, key1, value1);
+  Verify(map);
+  CHECK(OrderedHashMapHandler::HasKey(isolate, map, key1));
+
+  // Add existing key.
+  map = OrderedHashMapHandler::Add(isolate, map, key1, value1);
+  Verify(map);
+  CHECK(OrderedHashMapHandler::HasKey(isolate, map, key1));
+  CHECK(SmallOrderedHashMap::Is(map));
+  for (int i = 0; i < 1024; i++) {
+    Handle<Smi> key_i(Smi::FromInt(i), isolate);
+    Handle<Smi> value_i(Smi::FromInt(i), isolate);
+    map = OrderedHashMapHandler::Add(isolate, map, key_i, value_i);
+    Verify(map);
+    for (int j = 0; j <= i; j++) {
+      Handle<Smi> key_j(Smi::FromInt(j), isolate);
+      CHECK(OrderedHashMapHandler::HasKey(isolate, map, key_j));
+    }
+  }
+  CHECK(OrderedHashMap::Is(map));
 }
 
 }  // namespace test_orderedhashtable

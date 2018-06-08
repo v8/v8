@@ -362,13 +362,17 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 #endif  // DEBUG
 }
 
-Handle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
+MaybeHandle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
     Handle<SmallOrderedHashSet> table, Handle<Object> key) {
   Isolate* isolate = table->GetIsolate();
   if (table->HasKey(isolate, key)) return table;
 
   if (table->UsedCapacity() >= table->Capacity()) {
-    table = SmallOrderedHashSet::Grow(table);
+    MaybeHandle<SmallOrderedHashSet> new_table =
+        SmallOrderedHashSet::Grow(table);
+    if (!new_table.ToHandle(&table)) {
+      return MaybeHandle<SmallOrderedHashSet>();
+    }
   }
 
   int hash = key->GetOrCreateHash(table->GetIsolate())->value();
@@ -391,14 +395,18 @@ Handle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
   return table;
 }
 
-Handle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
+MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
     Handle<SmallOrderedHashMap> table, Handle<Object> key,
     Handle<Object> value) {
   Isolate* isolate = table->GetIsolate();
   if (table->HasKey(isolate, key)) return table;
 
   if (table->UsedCapacity() >= table->Capacity()) {
-    table = SmallOrderedHashMap::Grow(table);
+    MaybeHandle<SmallOrderedHashMap> new_table =
+        SmallOrderedHashMap::Grow(table);
+    if (!new_table.ToHandle(&table)) {
+      return MaybeHandle<SmallOrderedHashMap>();
+    }
   }
 
   int hash = key->GetOrCreateHash(table->GetIsolate())->value();
@@ -490,7 +498,8 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Handle<Derived> table,
 }
 
 template <class Derived>
-Handle<Derived> SmallOrderedHashTable<Derived>::Grow(Handle<Derived> table) {
+MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
+    Handle<Derived> table) {
   int capacity = table->Capacity();
   int new_capacity = capacity;
 
@@ -506,7 +515,10 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Grow(Handle<Derived> table) {
       new_capacity = kMaxCapacity;
     }
 
-    // TODO(gsathya): Transition to OrderedHashTable for size > kMaxCapacity.
+    // We need to migrate to a bigger hash table.
+    if (new_capacity > kMaxCapacity) {
+      return MaybeHandle<Derived>();
+    }
   }
 
   return Rehash(table, new_capacity);
@@ -517,7 +529,7 @@ template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
 template Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(
     Handle<SmallOrderedHashSet> table, int new_capacity);
-template Handle<SmallOrderedHashSet> SmallOrderedHashTable<
+template MaybeHandle<SmallOrderedHashSet> SmallOrderedHashTable<
     SmallOrderedHashSet>::Grow(Handle<SmallOrderedHashSet> table);
 template void SmallOrderedHashTable<SmallOrderedHashSet>::Initialize(
     Isolate* isolate, int capacity);
@@ -527,7 +539,7 @@ template bool SmallOrderedHashTable<SmallOrderedHashMap>::HasKey(
 template Handle<SmallOrderedHashMap>
 SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(
     Handle<SmallOrderedHashMap> table, int new_capacity);
-template Handle<SmallOrderedHashMap> SmallOrderedHashTable<
+template MaybeHandle<SmallOrderedHashMap> SmallOrderedHashTable<
     SmallOrderedHashMap>::Grow(Handle<SmallOrderedHashMap> table);
 template void SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(
     Isolate* isolate, int capacity);
@@ -536,6 +548,133 @@ template bool SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
     Isolate* isolate, SmallOrderedHashMap* table, Object* key);
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
     Isolate* isolate, SmallOrderedHashSet* table, Object* key);
+
+template <class SmallTable, class LargeTable>
+Handle<HeapObject> OrderedHashTableHandler<SmallTable, LargeTable>::Allocate(
+    Isolate* isolate, int capacity) {
+  if (capacity < SmallTable::kMaxCapacity) {
+    return SmallTable::Allocate(isolate, capacity);
+  }
+
+  return LargeTable::Allocate(isolate, capacity);
+}
+
+template Handle<HeapObject>
+OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::Allocate(
+    Isolate* isolate, int capacity);
+template Handle<HeapObject>
+OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::Allocate(
+    Isolate* isolate, int capacity);
+
+template <class SmallTable, class LargeTable>
+bool OrderedHashTableHandler<SmallTable, LargeTable>::Delete(
+    Handle<HeapObject> table, Handle<Object> key) {
+  if (SmallTable::Is(table)) {
+    return SmallTable::Delete(Handle<SmallTable>::cast(table), key);
+  }
+
+  DCHECK(LargeTable::Is(table));
+  // Note: Once we migrate to the a big hash table, we never migrate
+  // down to a smaller hash table.
+  return LargeTable::Delete(Handle<LargeTable>::cast(table), key);
+}
+
+template <class SmallTable, class LargeTable>
+bool OrderedHashTableHandler<SmallTable, LargeTable>::HasKey(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key) {
+  if (SmallTable::Is(table)) {
+    return Handle<SmallTable>::cast(table)->HasKey(isolate, key);
+  }
+
+  DCHECK(LargeTable::Is(table));
+  return LargeTable::HasKey(isolate, LargeTable::cast(*table), *key);
+}
+
+template bool
+OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::HasKey(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+template bool
+OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::HasKey(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+
+Handle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
+    Isolate* isolate, Handle<SmallOrderedHashMap> table) {
+  Handle<OrderedHashMap> new_table =
+      OrderedHashMap::Allocate(isolate, OrderedHashTableMinSize);
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+
+  // TODO(gsathya): Optimize the lookup to not re calc offsets. Also,
+  // unhandlify this code as we preallocate the new backing store with
+  // the proper capacity.
+  for (int entry = 0; entry < (nof + nod); ++entry) {
+    Handle<Object> key = handle(table->KeyAt(entry), isolate);
+    if (key->IsTheHole(isolate)) continue;
+    Handle<Object> value = handle(
+        table->GetDataEntry(entry, SmallOrderedHashMap::kValueIndex), isolate);
+    new_table = OrderedHashMap::Add(new_table, key, value);
+  }
+
+  return new_table;
+}
+
+Handle<OrderedHashSet> OrderedHashSetHandler::AdjustRepresentation(
+    Isolate* isolate, Handle<SmallOrderedHashSet> table) {
+  Handle<OrderedHashSet> new_table =
+      OrderedHashSet::Allocate(isolate, OrderedHashTableMinSize);
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+
+  // TODO(gsathya): Optimize the lookup to not re calc offsets. Also,
+  // unhandlify this code as we preallocate the new backing store with
+  // the proper capacity.
+  for (int entry = 0; entry < (nof + nod); ++entry) {
+    Handle<Object> key = handle(table->KeyAt(entry), isolate);
+    if (key->IsTheHole(isolate)) continue;
+    new_table = OrderedHashSet::Add(new_table, key);
+  }
+
+  return new_table;
+}
+
+Handle<HeapObject> OrderedHashMapHandler::Add(Isolate* isolate,
+                                              Handle<HeapObject> table,
+                                              Handle<Object> key,
+                                              Handle<Object> value) {
+  if (table->IsSmallOrderedHashMap()) {
+    Handle<SmallOrderedHashMap> small_map =
+        Handle<SmallOrderedHashMap>::cast(table);
+    MaybeHandle<SmallOrderedHashMap> new_map =
+        SmallOrderedHashMap::Add(small_map, key, value);
+    if (!new_map.is_null()) return new_map.ToHandleChecked();
+
+    // We couldn't add to the small table, let's migrate to the
+    // big table.
+    table = OrderedHashMapHandler::AdjustRepresentation(isolate, small_map);
+  }
+
+  DCHECK(table->IsOrderedHashMap());
+  return OrderedHashMap::Add(Handle<OrderedHashMap>::cast(table), key, value);
+}
+
+Handle<HeapObject> OrderedHashSetHandler::Add(Isolate* isolate,
+                                              Handle<HeapObject> table,
+                                              Handle<Object> key) {
+  if (table->IsSmallOrderedHashSet()) {
+    Handle<SmallOrderedHashSet> small_set =
+        Handle<SmallOrderedHashSet>::cast(table);
+    MaybeHandle<SmallOrderedHashSet> new_set =
+        SmallOrderedHashSet::Add(small_set, key);
+    if (!new_set.is_null()) return new_set.ToHandleChecked();
+
+    // We couldn't add to the small table, let's migrate to the
+    // big table.
+    table = OrderedHashSetHandler::AdjustRepresentation(isolate, small_set);
+  }
+
+  DCHECK(table->IsOrderedHashSet());
+  return OrderedHashSet::Add(Handle<OrderedHashSet>::cast(table), key);
+}
 
 template <class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {

@@ -228,6 +228,7 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
                                                GetKeysConversion convert);
   static HeapObject* GetEmpty(Isolate* isolate);
   static inline int GetMapRootIndex();
+  static inline bool Is(Handle<HeapObject> table);
 };
 
 class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
@@ -244,6 +245,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 
   static HeapObject* GetEmpty(Isolate* isolate);
   static inline int GetMapRootIndex();
+  static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
 };
@@ -309,8 +311,9 @@ class SmallOrderedHashTable : public HeapObject {
   static bool Delete(Isolate* isolate, Derived* table, Object* key);
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
-  // space to add at least one new element.
-  static Handle<Derived> Grow(Handle<Derived> table);
+  // space to add at least one new element. Returns empty handle if
+  // we've already reached MaxCapacity.
+  static MaybeHandle<Derived> Grow(Handle<Derived> table);
 
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
 
@@ -378,6 +381,13 @@ class SmallOrderedHashTable : public HeapObject {
   // decide to change kLoadFactor to something other than 2, capacity
   // should be stored as another field of this object.
   static const int kLoadFactor = 2;
+
+  // Our growth strategy involves doubling the capacity until we reach
+  // kMaxCapacity, but since the kMaxCapacity is always less than 256,
+  // we will never fully utilize this table. We special case for 256,
+  // by changing the new capacity to be kMaxCapacity in
+  // SmallOrderedHashTable::Grow.
+  static const int kGrowthHack = 256;
 
  protected:
   void SetDataEntry(int entry, int relative_index, Object* value);
@@ -490,13 +500,6 @@ class SmallOrderedHashTable : public HeapObject {
     return capacity * Derived::kEntrySize * kPointerSize;
   }
 
-  // Our growth strategy involves doubling the capacity until we reach
-  // kMaxCapacity, but since the kMaxCapacity is always less than 256,
-  // we will never fully utilize this table. We special case for 256,
-  // by changing the new capacity to be kMaxCapacity in
-  // SmallOrderedHashTable::Grow.
-  static const int kGrowthHack = 256;
-
   // This is used for accessing the non |DataTable| part of the
   // structure.
   byte getByte(Offset offset, ByteIndex index) const {
@@ -523,6 +526,10 @@ class SmallOrderedHashTable : public HeapObject {
 
     return used;
   }
+
+ private:
+  friend class OrderedHashMapHandler;
+  friend class OrderedHashSetHandler;
 };
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
@@ -537,8 +544,9 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is
   // capacity to store |value| otherwise the new table is returned.
-  static Handle<SmallOrderedHashSet> Add(Handle<SmallOrderedHashSet> table,
-                                         Handle<Object> key);
+  static MaybeHandle<SmallOrderedHashSet> Add(Handle<SmallOrderedHashSet> table,
+                                              Handle<Object> key);
+  static inline bool Is(Handle<HeapObject> table);
 };
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
@@ -554,9 +562,47 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is
   // capacity to store |value| otherwise the new table is returned.
-  static Handle<SmallOrderedHashMap> Add(Handle<SmallOrderedHashMap> table,
-                                         Handle<Object> key,
-                                         Handle<Object> value);
+  static MaybeHandle<SmallOrderedHashMap> Add(Handle<SmallOrderedHashMap> table,
+                                              Handle<Object> key,
+                                              Handle<Object> value);
+  static inline bool Is(Handle<HeapObject> table);
+};
+
+// TODO(gsathya): Rename this to OrderedHashTable, after we rename
+// OrderedHashTable to LargeOrderedHashTable. Also set up a
+// OrderedHashSetBase class as a base class for the two tables and use
+// that instead of a HeapObject here.
+template <class SmallTable, class LargeTable>
+class OrderedHashTableHandler {
+ public:
+  typedef int Entry;
+
+  static Handle<HeapObject> Allocate(Isolate* isolate, int capacity);
+  static bool Delete(Handle<HeapObject> table, Handle<Object> key);
+  static bool HasKey(Isolate* isolate, Handle<HeapObject> table,
+                     Handle<Object> key);
+
+  // TODO(gsathya): Move this to OrderedHashTable
+  static const int OrderedHashTableMinSize =
+      SmallOrderedHashTable<SmallTable>::kGrowthHack << 1;
+};
+
+class OrderedHashMapHandler
+    : public OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap> {
+ public:
+  static Handle<HeapObject> Add(Isolate* isolate, Handle<HeapObject> table,
+                                Handle<Object> key, Handle<Object> value);
+  static Handle<OrderedHashMap> AdjustRepresentation(
+      Isolate* isolate, Handle<SmallOrderedHashMap> table);
+};
+
+class OrderedHashSetHandler
+    : public OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet> {
+ public:
+  static Handle<HeapObject> Add(Isolate* isolate, Handle<HeapObject> table,
+                                Handle<Object> key);
+  static Handle<OrderedHashSet> AdjustRepresentation(
+      Isolate* isolate, Handle<SmallOrderedHashSet> table);
 };
 
 class JSCollectionIterator : public JSObject {
