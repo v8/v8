@@ -2524,6 +2524,8 @@ class Heap {
   // Used in cctest.
   friend class heap::HeapTester;
 
+  FRIEND_TEST(HeapControllerTest, OldGenerationAllocationLimit);
+
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
 

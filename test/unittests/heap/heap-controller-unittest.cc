@@ -13,12 +13,13 @@
 #include "src/handles.h"
 
 #include "src/heap/heap-controller.h"
-#include "src/heap/heap.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+typedef TestWithIsolate HeapControllerTest;
 
 double Round(double x) {
   // Round to three digits.
@@ -60,7 +61,38 @@ TEST(HeapController, MaxHeapGrowingFactor) {
           static_cast<size_t>(HeapController::kMaxOldGenerationSize) * MB));
 }
 
-TEST(HeapController, OldGenerationSize) {
+TEST_F(HeapControllerTest, OldGenerationAllocationLimit) {
+  Heap* heap = i_isolate()->heap();
+  size_t old_gen_size = 128 * MB;
+  size_t max_old_generation_size = 512 * MB;
+  double gc_speed = 100;
+  double mutator_speed = 1;
+  size_t new_space_capacity = 16 * MB;
+
+  double max_factor =
+      HeapController::MaxHeapGrowingFactor(max_old_generation_size);
+  double factor =
+      HeapController::HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
+
+  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
+                new_space_capacity, Heap::HeapGrowingMode::kDefault));
+
+  factor = Min(factor, HeapController::kConservativeHeapGrowingFactor);
+  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
+                new_space_capacity, Heap::HeapGrowingMode::kConservative));
+
+  factor = HeapController::kMinHeapGrowingFactor;
+  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
+                new_space_capacity, Heap::HeapGrowingMode::kMinimal));
+}
+
+TEST(HeapController, MaxOldGenerationSize) {
   uint64_t configurations[][2] = {
       {0, HeapController::kMinOldGenerationSize},
       {512, HeapController::kMinOldGenerationSize},

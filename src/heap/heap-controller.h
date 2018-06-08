@@ -18,7 +18,7 @@ class HeapController {
   explicit HeapController(Heap* heap) : heap_(heap) {}
 
   // Computes the allocation limit to trigger the next full garbage collection.
-  size_t CalculateOldGenerationAllocationLimit(
+  V8_EXPORT_PRIVATE size_t CalculateOldGenerationAllocationLimit(
       size_t old_gen_size, size_t max_old_generation_size, double gc_speed,
       double mutator_speed, size_t new_space_capacity,
       Heap::HeapGrowingMode growing_mode);
@@ -33,10 +33,11 @@ class HeapController {
  private:
   FRIEND_TEST(HeapController, HeapGrowingFactor);
   FRIEND_TEST(HeapController, MaxHeapGrowingFactor);
-  FRIEND_TEST(HeapController, OldGenerationSize);
+  FRIEND_TEST(HeapControllerTest, OldGenerationAllocationLimit);
 
   V8_EXPORT_PRIVATE static const double kMinHeapGrowingFactor;
   V8_EXPORT_PRIVATE static const double kMaxHeapGrowingFactor;
+  V8_EXPORT_PRIVATE static const double kConservativeHeapGrowingFactor;
   V8_EXPORT_PRIVATE static double MaxHeapGrowingFactor(
       size_t max_old_generation_size);
   V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
@@ -45,7 +46,6 @@ class HeapController {
 
   static const double kMaxHeapGrowingFactorMemoryConstrained;
   static const double kMaxHeapGrowingFactorIdle;
-  static const double kConservativeHeapGrowingFactor;
   static const double kTargetMutatorUtilization;
 
   Heap* heap_;
