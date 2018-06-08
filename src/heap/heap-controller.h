@@ -13,26 +13,17 @@
 namespace v8 {
 namespace internal {
 
-class Heap;
-
 class HeapController {
  public:
   explicit HeapController(Heap* heap) : heap_(heap) {}
 
   // Computes the allocation limit to trigger the next full garbage collection.
-  size_t ComputeOldGenerationAllocationLimit(size_t old_gen_size,
-                                             size_t max_old_generation_size,
-                                             double gc_speed,
-                                             double mutator_speed);
+  size_t CalculateOldGenerationAllocationLimit(
+      size_t old_gen_size, size_t max_old_generation_size, double gc_speed,
+      double mutator_speed, size_t new_space_capacity,
+      Heap::HeapGrowingMode growing_mode);
 
-  // Decrease the allocation limit if the new limit based on the given
-  // parameters is lower than the current limit.
-  size_t DampenOldGenerationAllocationLimit(size_t old_gen_size,
-                                            size_t max_old_generation_size,
-                                            double gc_speed,
-                                            double mutator_speed);
-
-  size_t MinimumAllocationLimitGrowingStep();
+  size_t MinimumAllocationLimitGrowingStep(Heap::HeapGrowingMode growing_mode);
 
   // The old space size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
@@ -52,18 +43,12 @@ class HeapController {
                                                     double mutator_speed,
                                                     double max_factor);
 
-  // Calculates the allocation limit based on a given growing factor and a
-  // given old generation size.
-  size_t CalculateOldGenerationAllocationLimit(double factor,
-                                               size_t old_gen_size,
-                                               size_t max_old_generation_size);
-
-  Heap* heap_;
-
   static const double kMaxHeapGrowingFactorMemoryConstrained;
   static const double kMaxHeapGrowingFactorIdle;
   static const double kConservativeHeapGrowingFactor;
   static const double kTargetMutatorUtilization;
+
+  Heap* heap_;
 };
 
 }  // namespace internal

@@ -2098,6 +2098,9 @@ class Heap {
 
   bool ShouldExpandOldGenerationOnSlowAllocation();
 
+  enum class HeapGrowingMode { kDefault, kConservative, kMinimal };
+  HeapGrowingMode CurrentHeapGrowingMode();
+
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();
 

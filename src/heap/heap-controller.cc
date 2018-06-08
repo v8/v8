@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/heap/heap-controller.h"
-#include "src/heap/heap.h"
-#include "src/heap/memory-reducer.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -102,12 +100,12 @@ double HeapController::MaxHeapGrowingFactor(size_t max_old_generation_size) {
   return factor;
 }
 
-size_t HeapController::ComputeOldGenerationAllocationLimit(
+size_t HeapController::CalculateOldGenerationAllocationLimit(
     size_t old_gen_size, size_t max_old_generation_size, double gc_speed,
-    double mutator_speed) {
+    double mutator_speed, size_t new_space_capacity,
+    Heap::HeapGrowingMode growing_mode) {
   double max_factor = MaxHeapGrowingFactor(max_old_generation_size);
   double factor = HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
-  size_t limit;
 
   if (FLAG_trace_gc_verbose) {
     heap_->isolate()->PrintWithTimestamp(
@@ -117,12 +115,12 @@ size_t HeapController::ComputeOldGenerationAllocationLimit(
         mutator_speed);
   }
 
-  if (heap_->memory_reducer()->ShouldGrowHeapSlowly() ||
-      heap_->ShouldOptimizeForMemoryUsage()) {
+  if (growing_mode == Heap::HeapGrowingMode::kConservative) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
-  if (FLAG_stress_compaction || heap_->ShouldReduceMemory()) {
+  if (FLAG_stress_compaction ||
+      growing_mode == Heap::HeapGrowingMode::kMinimal) {
     factor = kMinHeapGrowingFactor;
   }
 
@@ -130,57 +128,33 @@ size_t HeapController::ComputeOldGenerationAllocationLimit(
     factor = 1.0 + FLAG_heap_growing_percent / 100.0;
   }
 
-  limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size,
-                                                max_old_generation_size);
-
-  if (FLAG_trace_gc_verbose) {
-    heap_->isolate()->PrintWithTimestamp(
-        "Grow: old size: %" PRIuS " KB, new limit: %" PRIuS " KB (%.1f)\n",
-        old_gen_size / KB, limit / KB, factor);
-  }
-
-  return limit;
-}
-
-size_t HeapController::DampenOldGenerationAllocationLimit(
-    size_t old_gen_size, size_t max_old_generation_size, double gc_speed,
-    double mutator_speed) {
-  double max_factor = MaxHeapGrowingFactor(max_old_generation_size);
-  double factor = HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
-  size_t limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size,
-                                                       max_old_generation_size);
-  if (limit < heap_->old_generation_allocation_limit()) {
-    if (FLAG_trace_gc_verbose) {
-      heap_->isolate()->PrintWithTimestamp(
-          "Dampen: old size: %" PRIuS " KB, old limit: %" PRIuS
-          " KB, "
-          "new limit: %" PRIuS " KB (%.1f)\n",
-          old_gen_size / KB, heap_->old_generation_allocation_limit() / KB,
-          limit / KB, factor);
-    }
-    return limit;
-  }
-  return heap_->old_generation_allocation_limit();
-}
-
-size_t HeapController::CalculateOldGenerationAllocationLimit(
-    double factor, size_t old_gen_size, size_t max_old_generation_size) {
   CHECK_LT(1.0, factor);
   CHECK_LT(0, old_gen_size);
   uint64_t limit = static_cast<uint64_t>(old_gen_size * factor);
   limit = Max(limit, static_cast<uint64_t>(old_gen_size) +
-                         MinimumAllocationLimitGrowingStep());
-  limit += heap_->new_space()->Capacity();
+                         MinimumAllocationLimitGrowingStep(growing_mode));
+  limit += new_space_capacity;
   uint64_t halfway_to_the_max =
       (static_cast<uint64_t>(old_gen_size) + max_old_generation_size) / 2;
-  return static_cast<size_t>(Min(limit, halfway_to_the_max));
+  size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
+
+  if (FLAG_trace_gc_verbose) {
+    heap_->isolate()->PrintWithTimestamp(
+        "Heap Controller Limit: old size: %" PRIuS " KB, new limit: %" PRIuS
+        " KB (%.1f)\n",
+        old_gen_size / KB, result / KB, factor);
+  }
+
+  return result;
 }
 
-size_t HeapController::MinimumAllocationLimitGrowingStep() {
+size_t HeapController::MinimumAllocationLimitGrowingStep(
+    Heap::HeapGrowingMode growing_mode) {
   const size_t kRegularAllocationLimitGrowingStep = 8;
   const size_t kLowMemoryAllocationLimitGrowingStep = 2;
   size_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
-  return limit * (heap_->ShouldOptimizeForMemoryUsage()
+  return limit * (growing_mode == Heap::HeapGrowingMode::kConservative ||
+                          growing_mode == Heap::HeapGrowingMode::kMinimal
                       ? kLowMemoryAllocationLimitGrowingStep
                       : kRegularAllocationLimitGrowingStep);
 }
