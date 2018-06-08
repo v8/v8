@@ -200,6 +200,7 @@ extern operator '<=' macro IntPtrLessThanOrEqual(intptr, intptr): bool;
 extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
 
 extern operator '==' macro Float64Equal(float64, float64): bool;
+extern operator '!=' macro Float64NotEqual(float64, float64): bool;
 
 extern operator
 '<' macro BranchIfNumberLessThan(Number, Number): never labels Taken, NotTaken;
@@ -449,5 +450,12 @@ extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
+extern macro IsHeapNumber(HeapObject): bool;
 
-extern macro NumberIsNaN(Number): bool;
+// Return true iff number is NaN.
+macro NumberIsNaN(number: Number): bool {
+  if (TaggedIsSmi(number)) return false;
+
+  let value: float64 = convert<float64>(unsafe_cast<HeapNumber>(number));
+  return value != value;
+}

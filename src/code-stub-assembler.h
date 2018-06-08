@@ -290,10 +290,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return CAST(result);
   }
 
-  // Returns true iff number is NaN.
-  // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
-  TNode<BoolT> NumberIsNaN(TNode<Number> number);
-
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
