@@ -357,7 +357,7 @@ config("features") {
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
-  if (v8_enable_embedded_builtins) {
+  if (v8_enable_embedded_builtins && v8_use_snapshot) {
     defines += [ "V8_EMBEDDED_BUILTINS" ]
   }
   if (v8_use_multi_snapshots) {
