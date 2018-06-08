@@ -18,7 +18,6 @@ ACCESSORS(JSCollectionIterator, table, Object, kTableOffset)
 ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
 
 ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
-ACCESSORS(JSWeakCollection, next, Object, kNextOffset)
 
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
