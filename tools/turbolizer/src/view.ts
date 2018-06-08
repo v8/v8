@@ -31,3 +31,8 @@ abstract class View {
     this.container.removeChild(this.divNode);
   }
 }
+
+interface PhaseView {
+  onresize();
+  searchInputAction(searchInput: HTMLInputElement, e:Event);
+}

@@ -18,7 +18,7 @@ interface GraphState {
   hideDead: boolean
 }
 
-class GraphView extends View {
+class GraphView extends View implements PhaseView {
   divElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
   showPhaseByName: (string) => void;
@@ -474,7 +474,8 @@ class GraphView extends View {
     graph.toggleTypes();
   }
 
-  searchInputAction(graph, searchBar, e: KeyboardEvent) {
+  searchInputAction(searchBar, e: KeyboardEvent) {
+    const graph = this;
     if (e.keyCode == 13) {
       graph.selectionHandler.clear();
       var query = searchBar.value;
@@ -880,7 +881,7 @@ class GraphView extends View {
     return minScale;
   }
 
-  fitGraphViewToWindow() {
+  onresize() {
     const trans = d3.zoomTransform(this.svg.node());
     const ctrans = this.panZoom.constrain()(trans, this.getSvgExtent(), this.panZoom.translateExtent())
     this.panZoom.transform(this.svg, ctrans)

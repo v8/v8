@@ -499,4 +499,5 @@ function redetermineGraphBoundingBox(graph) {
     [graph.maxGraphX+width/2, graph.maxGraphY+height/2]
   ];
   graph.panZoom.translateExtent(extent);
+  graph.minScale();
 }

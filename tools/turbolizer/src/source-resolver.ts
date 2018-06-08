@@ -42,7 +42,9 @@ interface Phase {
   data: any;
 }
 
-interface Schedule {}
+interface Schedule {
+  nodes: Array<any>;
+}
 
 interface NodeOrigin {
   nodeId: number;

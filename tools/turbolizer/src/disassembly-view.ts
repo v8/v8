@@ -83,7 +83,7 @@ class DisassemblyView extends TextView {
     };
     const SOURCE_POSITION_HEADER_STYLE = {
       css: 'com',
-      currentSourcePosition: null,
+      currentSourcePosition: undefined,
       sourcePosition: function (text) {
         let matches = view.SOURCE_POSITION_HEADER_REGEX.exec(text);
         if (!matches) return undefined;

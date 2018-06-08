@@ -10,7 +10,7 @@ class GraphMultiView extends View {
   graph: GraphView;
   schedule: ScheduleView;
   selectMenu: HTMLSelectElement;
-  currentPhaseView: View;
+  currentPhaseView: View & PhaseView;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -23,10 +23,10 @@ class GraphMultiView extends View {
     const view = this;
     view.sourceResolver = sourceResolver;
     view.selectionBroker = selectionBroker;
-    const searchInput = document.getElementById("search-input");
+    const searchInput = document.getElementById("search-input") as HTMLInputElement;
     searchInput.addEventListener("keyup", e => {
       if (!view.currentPhaseView) return;
-      view.currentPhaseView.searchInputAction(this.currentPhaseView, searchInput, e)
+      view.currentPhaseView.searchInputAction(searchInput, e)
     });
     searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
     this.graph = new GraphView(id, selectionBroker,
@@ -92,7 +92,7 @@ class GraphMultiView extends View {
   }
 
   onresize() {
-    if (this.graph) this.graph.fitGraphViewToWindow();
+    if (this.currentPhaseView) this.currentPhaseView.onresize();
   }
 
   deleteContent() {

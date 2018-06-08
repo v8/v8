@@ -4,7 +4,7 @@
 
 "use strict";
 
-class ScheduleView extends TextView {
+class ScheduleView extends TextView implements PhaseView {
   schedule: Schedule;
 
   createViewElement() {
@@ -145,7 +145,7 @@ class ScheduleView extends TextView {
     return `${node.id}: ${node.label}(${node.inputs.join(", ")})`
   }
 
-  searchInputAction(view, searchBar, e) {
+  searchInputAction(searchBar, e) {
     e.stopPropagation();
     this.selectionHandler.clear();
     const query = searchBar.value;
@@ -161,4 +161,6 @@ class ScheduleView extends TextView {
     }
     this.selectionHandler.select(select, true);
   }
+
+  onresize() {}
 }
