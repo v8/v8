@@ -310,6 +310,7 @@ class ObjectHashTable
     : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
  public:
   DECL_CAST(ObjectHashTable)
+  DECL_PRINTER(ObjectHashTable)
 };
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
@@ -325,6 +326,7 @@ class EphemeronHashTable
     : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
  public:
   DECL_CAST(EphemeronHashTable)
+  DECL_PRINTER(EphemeronHashTable)
 
  protected:
   friend class MarkCompactCollector;

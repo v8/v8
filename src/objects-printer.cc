@@ -17,6 +17,7 @@
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/arguments-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
@@ -97,8 +98,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
-    case HASH_TABLE_TYPE:
-    case EPHEMERON_HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -110,6 +109,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
+      break;
+    case HASH_TABLE_TYPE:
+      ObjectHashTable::cast(this)->ObjectHashTablePrint(os);
+      break;
+    case EPHEMERON_HASH_TABLE_TYPE:
+      EphemeronHashTable::cast(this)->EphemeronHashTablePrint(os);
       break;
     case BOILERPLATE_DESCRIPTION_TYPE:
       BoilerplateDescription::cast(this)->BoilerplateDescriptionPrint(os);
@@ -823,6 +828,23 @@ void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
 }
 
 template <typename T>
+void PrintHashTableWithHeader(std::ostream& os, T* table, const char* type) {
+  table->PrintHeader(os, type);
+  os << "\n - length: " << table->length();
+  os << "\n - elements: " << table->NumberOfElements();
+  os << "\n - deleted: " << table->NumberOfDeletedElements();
+  os << "\n - capacity: " << table->Capacity();
+
+  os << "\n - elements: {";
+  for (int i = 0; i < table->Capacity(); i++) {
+    os << '\n'
+       << std::setw(12) << i << ": " << Brief(table->KeyAt(i)) << " -> "
+       << Brief(table->ValueAt(i));
+  }
+  os << "\n }\n";
+}
+
+template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   MaybeObject* previous_value = array->length() > 0 ? array->Get(0) : nullptr;
@@ -864,15 +886,15 @@ void PrintWeakArrayListWithHeader(std::ostream& os, WeakArrayList* array) {
 }  // namespace
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
-  const char* name = "FixedArray";
+  PrintFixedArrayWithHeader(os, this, "FixedArray");
+}
 
-  if (IsHashTable()) {
-    name = "HashTable";
-  } else if (IsEphemeronHashTable()) {
-    name = "EphemeronHashTable";
-  }
+void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
+  PrintHashTableWithHeader(os, this, "ObjectHashTable");
+}
 
-  PrintFixedArrayWithHeader(os, this, name);
+void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
+  PrintHashTableWithHeader(os, this, "EphemeronHashTable");
 }
 
 void BoilerplateDescription::BoilerplateDescriptionPrint(std::ostream& os) {
