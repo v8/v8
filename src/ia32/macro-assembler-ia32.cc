@@ -41,20 +41,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
   }
 }
 
-TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                               CodeObjectRequired create_code_object)
-    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ = Handle<HeapObject>::New(
-        isolate->heap()->self_reference_marker(), isolate);
-  }
-}
-
-TurboAssembler::TurboAssembler(IsolateData isolate_data, void* buffer,
-                               int buffer_size)
-    : Assembler(isolate_data, buffer, buffer_size) {}
-
-void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
+void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
     Handle<Object> object = isolate()->heap()->root_handle(index);
     if (object->IsHeapObject()) {

@@ -8,6 +8,7 @@
 #include "src/bailout-reason.h"
 #include "src/base/flags.h"
 #include "src/globals.h"
+#include "src/turbo-assembler.h"
 #include "src/x64/assembler-x64.h"
 
 namespace v8 {
@@ -122,21 +123,14 @@ class StackArgumentsAccessor BASE_EMBEDDED {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class TurboAssembler : public Assembler {
+class TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
-  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, buffer, buffer_size, create_code_object) {}
 
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() const { return has_frame_; }
-
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size)
+      : TurboAssemblerBase(isolate_data, buffer, buffer_size) {}
 
   template <typename Dst, typename... Args>
   struct AvxHelper {
@@ -233,7 +227,7 @@ class TurboAssembler : public Assembler {
   void Set(Operand dst, intptr_t x);
 
   // Operations on roots in the root-array.
-  void LoadRoot(Register destination, Heap::RootListIndex index);
+  void LoadRoot(Register destination, Heap::RootListIndex index) override;
   void LoadRoot(Operand destination, Heap::RootListIndex index) {
     LoadRoot(kScratchRegister, index);
     movp(destination, kScratchRegister);
@@ -367,10 +361,11 @@ class TurboAssembler : public Assembler {
   void LoadAddress(Register destination, ExternalReference source);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<HeapObject> object);
-  void LookupExternalReference(Register destination,
-                               ExternalReference reference);
-  void LoadBuiltin(Register destination, int builtin_index);
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadBuiltin(Register destination, int builtin_index) override;
+  void LoadExternalReference(Register destination,
+                             int reference_index) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Operand pointing to an external reference.
@@ -530,30 +525,16 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
-  void set_builtin_index(int builtin_index) {
-    maybe_builtin_index_ = builtin_index;
-  }
-
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   int smi_count = 0;
   int heap_object_count = 0;
-
-  bool root_array_available_ = true;
 
   int64_t RootRegisterDelta(ExternalReference other);
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi* value);
-
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-
- private:
-  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
-  bool has_frame_ = false;
-  Isolate* const isolate_ = nullptr;
 };
 
 // MacroAssembler implements a collection of frequently used macros.
@@ -902,9 +883,6 @@ class MacroAssembler : public TurboAssembler {
 
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
-  bool root_array_available() const { return root_array_available_; }
-  void set_root_array_available(bool v) { root_array_available_ = v; }
 
  private:
   // Order general registers are pushed by Pushad.

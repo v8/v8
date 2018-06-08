@@ -214,7 +214,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
     // This is basically an inlined version of Call(Handle<Code>) that loads the
     // code object into kScratchReg instead of t9.
     __ Move(t9, target);
-    __ LookupConstant(kScratchReg, GetCode());
+    __ IndirectLoadConstant(kScratchReg, GetCode());
     __ Call(kScratchReg, Code::kHeaderSize - kHeapObjectTag);
     return;
   }

@@ -2377,6 +2377,8 @@ v8_source_set("v8_base") {
     "src/trap-handler/handler-shared.cc",
     "src/trap-handler/trap-handler-internal.h",
     "src/trap-handler/trap-handler.h",
+    "src/turbo-assembler.cc",
+    "src/turbo-assembler.h",
     "src/type-hints.cc",
     "src/type-hints.h",
     "src/unicode-cache-inl.h",
