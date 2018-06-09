@@ -633,22 +633,25 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Tries to match a byte shuffle to a concatenate operation, formed by taking
   // 16 bytes from the 32 byte concatenation of the inputs.  If successful, it
   // writes the byte offset. E.g. [4 5 6 7 .. 16 17 18 19] concatenates both
-  // source vectors with offset 4.
-  static bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask,
-                             uint8_t* offset);
+  // source vectors with offset 4. The shuffle should be canonicalized.
+  static bool TryMatchConcat(const uint8_t* shuffle, uint8_t* offset);
 
   // Tries to match a byte shuffle to a blend operation, which is a shuffle
   // where no lanes change position. E.g. [0 9 2 11 .. 14 31] interleaves the
-  // even lanes of the first source with the odd lanes of the second.
+  // even lanes of the first source with the odd lanes of the second.  The
+  // shuffle should be canonicalized.
   static bool TryMatchBlend(const uint8_t* shuffle);
 
-  // Packs 4 bytes of shuffle into a 32 bit immediate, using a mask from
-  // CanonicalizeShuffle to convert unary shuffles.
-  static int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask);
+  // Packs 4 bytes of shuffle into a 32 bit immediate.
+  static int32_t Pack4Lanes(const uint8_t* shuffle);
 
-  // Canonicalize shuffles to make pattern matching simpler. Returns a mask that
-  // will clear the high bit of indices if shuffle is unary (a swizzle).
-  uint8_t CanonicalizeShuffle(Node* node);
+  // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
+  // indices, and a boolean indicating if the shuffle is a swizzle (one input).
+  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
+
+  // Swaps the two first input operands of the node, to help match shuffles
+  // to specific architectural instructions.
+  void SwapShuffleInputs(Node* node);
 
   // ===========================================================================
 

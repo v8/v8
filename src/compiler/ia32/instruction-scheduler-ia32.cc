@@ -287,7 +287,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32S32x4Shuffle:
     case kSSES16x8Blend:
     case kAVXS16x8Blend:
-    case kIA32S16x8ShuffleBlend:
+    case kIA32S16x8HalfShuffle1:
+    case kIA32S16x8HalfShuffle2:
     case kSSES8x16Alignr:
     case kAVXS8x16Alignr:
     case kIA32S1x4AnyTrue:

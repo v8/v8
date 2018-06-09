@@ -305,7 +305,8 @@ namespace compiler {
   V(IA32S32x4Shuffle)              \
   V(SSES16x8Blend)                 \
   V(AVXS16x8Blend)                 \
-  V(IA32S16x8ShuffleBlend)         \
+  V(IA32S16x8HalfShuffle1)         \
+  V(IA32S16x8HalfShuffle2)         \
   V(SSES8x16Alignr)                \
   V(AVXS8x16Alignr)                \
   V(IA32S1x4AnyTrue)               \
