@@ -832,9 +832,11 @@ void MarkCompactCollector::VerifyMarking() {
   }
 #endif
 #ifdef VERIFY_HEAP
-  heap()->old_space()->VerifyLiveBytes();
-  heap()->map_space()->VerifyLiveBytes();
-  heap()->code_space()->VerifyLiveBytes();
+  if (FLAG_verify_heap) {
+    heap()->old_space()->VerifyLiveBytes();
+    heap()->map_space()->VerifyLiveBytes();
+    heap()->code_space()->VerifyLiveBytes();
+  }
 #endif
 }
 
