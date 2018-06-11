@@ -1540,6 +1540,23 @@ class Object {
   // and length.
   bool IterationHasObservableEffects();
 
+  enum class OptionType : bool { String, Boolean };
+
+#ifdef V8_INTL_SUPPORT
+  // ECMA402 9.2.10. GetOption( options, property, type, type, values, fallback)
+  // ecma402/#sec-getoption
+  //
+  // Instead of passing undefined for the values argument as the spec
+  // defines, pass in an empty fixed array.
+  //
+  // service is a string denoting the type of Intl object; used when
+  // printing the error message.
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetOption(
+      Isolate* isolate, Handle<JSReceiver> options, Handle<Name> property,
+      Object::OptionType type, Handle<FixedArray> values,
+      Handle<Object> fallback, Handle<String> service);
+#endif  // V8_INTL_SUPPORT
+
   DECL_VERIFIER(Object)
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.

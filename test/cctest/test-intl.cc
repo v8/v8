@@ -5,6 +5,8 @@
 #ifdef V8_INTL_SUPPORT
 
 #include "src/builtins/builtins-intl.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -111,6 +113,82 @@ TEST(FlattenRegionsToParts) {
           NumberFormatSpan(-1, 7, 9), NumberFormatSpan(2, 9, 10),
           NumberFormatSpan(3, 10, 11), NumberFormatSpan(1, 11, 12),
       });
+}
+
+TEST(GetOptions) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  v8::Isolate* v8_isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(v8_isolate);
+
+  Handle<JSObject> options = isolate->factory()->NewJSObjectWithNullProto();
+  Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
+  Handle<String> service =
+      isolate->factory()->NewStringFromAsciiChecked("service");
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  Handle<FixedArray> empty_fixed_array =
+      isolate->factory()->empty_fixed_array();
+
+  // No value found
+  Handle<Object> result =
+      Object::GetOption(isolate, options, key, Object::OptionType::String,
+                        empty_fixed_array, undefined, service)
+          .ToHandleChecked();
+  CHECK(result->IsUndefined(isolate));
+
+  // Value found
+  v8::internal::LookupIterator it(options, key);
+  CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
+                            LanguageMode::kStrict,
+                            AllocationMemento::MAY_BE_STORE_FROM_KEYED)
+            .FromJust());
+  result = Object::GetOption(isolate, options, key, Object::OptionType::String,
+                             empty_fixed_array, undefined, service)
+               .ToHandleChecked();
+  CHECK(result->IsString());
+  Handle<String> expected_str =
+      isolate->factory()->NewStringFromAsciiChecked("42");
+  CHECK(String::Equals(expected_str, Handle<String>::cast(result)));
+
+  result = Object::GetOption(isolate, options, key, Object::OptionType::Boolean,
+                             empty_fixed_array, undefined, service)
+               .ToHandleChecked();
+  CHECK(result->IsBoolean());
+  CHECK(result->IsTrue(isolate));
+
+  // No expected value in values array
+  Handle<FixedArray> values = isolate->factory()->NewFixedArray(1);
+  {
+    CHECK(!Object::GetOption(isolate, options, key, Object::OptionType::String,
+                             values, undefined, service)
+               .ToHandle(&result));
+    CHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+  }
+
+  // Add expected value to values array
+  values->set(0, *expected_str);
+  result = Object::GetOption(isolate, options, key, Object::OptionType::String,
+                             values, undefined, service)
+               .ToHandleChecked();
+  CHECK(result->IsString());
+  CHECK(String::Equals(expected_str, Handle<String>::cast(result)));
+
+  // Test boolean values
+  CHECK(Object::SetProperty(&it, isolate->factory()->ToBoolean(false),
+                            LanguageMode::kStrict,
+                            AllocationMemento::MAY_BE_STORE_FROM_KEYED)
+            .FromJust());
+  result = Object::GetOption(isolate, options, key, Object::OptionType::String,
+                             empty_fixed_array, undefined, service)
+               .ToHandleChecked();
+  CHECK(result->IsString());
+
+  result = Object::GetOption(isolate, options, key, Object::OptionType::Boolean,
+                             empty_fixed_array, undefined, service)
+               .ToHandleChecked();
+  CHECK(result->IsBoolean());
+  CHECK(result->IsFalse(isolate));
 }
 
 }  // namespace internal
