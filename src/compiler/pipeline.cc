@@ -994,13 +994,14 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::PrepareJobImpl(
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::ExecuteJobImpl() {
   pipeline_.RunPrintAndVerify("Machine", true);
+
+  PipelineData* data = &data_;
+  PipelineRunScope scope(data, "wasm optimization");
   if (FLAG_wasm_opt || asmjs_origin_) {
-    // WASM compilations must *always* be independent of the isolate.
-    Isolate* isolate = nullptr;
-    PipelineData* data = &data_;
-    PipelineRunScope scope(data, "wasm optimization");
     GraphReducer graph_reducer(scope.zone(), data->graph(),
                                data->mcgraph()->Dead());
+    // WASM compilations must *always* be independent of the isolate.
+    Isolate* isolate = nullptr;
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), scope.zone());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
@@ -1013,8 +1014,14 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
-    pipeline_.RunPrintAndVerify("wasm optimization", true);
+  } else {
+    GraphReducer graph_reducer(scope.zone(), data->graph(),
+                               data->mcgraph()->Dead());
+    ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
+    AddReducer(data, &graph_reducer, &value_numbering);
+    graph_reducer.ReduceGraph();
   }
+  pipeline_.RunPrintAndVerify("wasm optimization", true);
 
   if (data_.node_origins()) {
     data_.node_origins()->RemoveDecorator();
