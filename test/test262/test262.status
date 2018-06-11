@@ -623,6 +623,9 @@
   'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [PASS, SLOW],
   'language/comments/S7.4_A5': [PASS, SLOW],
   'language/comments/S7.4_A6': [PASS, SLOW],
+
+  # https://crbug.com/v8/7841
+  'built-ins/Atomics/wake/wake-rewake-noop': [SKIP],
 }],  # ALWAYS
 
 ['no_i18n == True', {
