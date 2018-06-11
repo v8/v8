@@ -14272,24 +14272,24 @@ const char* AbstractCode::Kind2String(Kind kind) {
 bool Code::IsProcessIndependent(Isolate* isolate) {
   constexpr int all_real_modes_mask =
       (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
-  constexpr int mode_mask =
-      all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-      ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
-      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+  constexpr int mode_mask = all_real_modes_mask &
+                            ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
+                            ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+                            ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
+                            ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
   STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
   STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
                 (1 << RelocInfo::COMMENT));
   STATIC_ASSERT(mode_mask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                 RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-                 RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+                 RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                 RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                 RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                  RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-                 RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
+                 RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+                 RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
   bool is_process_independent = true;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
