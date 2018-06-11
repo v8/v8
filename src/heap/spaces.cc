@@ -94,13 +94,11 @@ PauseAllocationObserversScope::~PauseAllocationObserversScope() {
 // -----------------------------------------------------------------------------
 // CodeRange
 
-CodeRange::CodeRange(Isolate* isolate)
+CodeRange::CodeRange(Isolate* isolate, size_t requested)
     : isolate_(isolate),
       free_list_(0),
       allocation_list_(0),
-      current_allocation_block_index_(0) {}
-
-bool CodeRange::SetUp(size_t requested) {
+      current_allocation_block_index_(0) {
   DCHECK(!virtual_memory_.IsReserved());
 
   if (requested == 0) {
@@ -110,7 +108,7 @@ bool CodeRange::SetUp(size_t requested) {
     if (kRequiresCodeRange) {
       requested = kMaximalCodeRangeSize;
     } else {
-      return true;
+      return;
     }
   }
 
@@ -129,7 +127,8 @@ bool CodeRange::SetUp(size_t requested) {
   if (!AlignedAllocVirtualMemory(
           requested, Max(kCodeRangeAreaAlignment, AllocatePageSize()),
           GetRandomMmapAddr(), &reservation)) {
-    return false;
+    V8::FatalProcessOutOfMemory(isolate,
+                                "CodeRange setup: allocate virtual memory");
   }
 
   // We are sure that we have mapped a block of requested addresses.
@@ -141,7 +140,7 @@ bool CodeRange::SetUp(size_t requested) {
   if (reserved_area > 0) {
     if (!reservation.SetPermissions(base, reserved_area,
                                     PageAllocator::kReadWrite))
-      return false;
+      V8::FatalProcessOutOfMemory(isolate, "CodeRange setup: set permissions");
 
     base += reserved_area;
   }
@@ -154,7 +153,6 @@ bool CodeRange::SetUp(size_t requested) {
       NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
                requested));
   virtual_memory_.TakeControl(&reservation);
-  return true;
 }
 
 bool CodeRange::CompareFreeBlockAddress(const FreeBlock& left,
@@ -268,26 +266,17 @@ void CodeRange::ReleaseBlock(const FreeBlock* block) {
 // MemoryAllocator
 //
 
-MemoryAllocator::MemoryAllocator(Isolate* isolate)
+MemoryAllocator::MemoryAllocator(Isolate* isolate, size_t capacity,
+                                 size_t code_range_size)
     : isolate_(isolate),
       code_range_(nullptr),
-      capacity_(0),
+      capacity_(RoundUp(capacity, Page::kPageSize)),
       size_(0),
       size_executable_(0),
       lowest_ever_allocated_(static_cast<Address>(-1ll)),
       highest_ever_allocated_(kNullAddress),
-      unmapper_(isolate->heap(), this) {}
-
-bool MemoryAllocator::SetUp(size_t capacity, size_t code_range_size) {
-  capacity_ = ::RoundUp(capacity, Page::kPageSize);
-
-  size_ = 0;
-  size_executable_ = 0;
-
-  code_range_ = new CodeRange(isolate_);
-  if (!code_range_->SetUp(code_range_size)) return false;
-
-  return true;
+      unmapper_(isolate->heap(), this) {
+  code_range_ = new CodeRange(isolate_, code_range_size);
 }
 
 
@@ -1982,23 +1971,24 @@ void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-bool NewSpace::SetUp(size_t initial_semispace_capacity,
-                     size_t maximum_semispace_capacity) {
-  DCHECK(initial_semispace_capacity <= maximum_semispace_capacity);
-  DCHECK(base::bits::IsPowerOfTwo(
-      static_cast<uint32_t>(maximum_semispace_capacity)));
+NewSpace::NewSpace(Heap* heap, size_t initial_semispace_capacity,
+                   size_t max_semispace_capacity)
+    : SpaceWithLinearArea(heap, NEW_SPACE),
+      to_space_(heap, kToSpace),
+      from_space_(heap, kFromSpace),
+      reservation_() {
+  DCHECK(initial_semispace_capacity <= max_semispace_capacity);
+  DCHECK(
+      base::bits::IsPowerOfTwo(static_cast<uint32_t>(max_semispace_capacity)));
 
-  to_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);
-  from_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);
+  to_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
+  from_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
   if (!to_space_.Commit()) {
-    return false;
+    V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
   }
   DCHECK(!from_space_.is_committed());  // No need to use memory yet.
   ResetLinearAllocationArea();
-
-  return true;
 }
-
 
 void NewSpace::TearDown() {
   allocation_info_.Reset(kNullAddress, kNullAddress);
@@ -3134,9 +3124,8 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
 void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 #endif
 
-ReadOnlySpace::ReadOnlySpace(Heap* heap, AllocationSpace id,
-                             Executability executable)
-    : PagedSpace(heap, id, executable),
+ReadOnlySpace::ReadOnlySpace(Heap* heap)
+    : PagedSpace(heap, RO_SPACE, NOT_EXECUTABLE),
       is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()) {
 }
 
@@ -3235,8 +3224,8 @@ HeapObject* LargeObjectIterator::Next() {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id),  // Managed on a per-allocation basis
+LargeObjectSpace::LargeObjectSpace(Heap* heap)
+    : Space(heap, LO_SPACE),  // Managed on a per-allocation basis
       size_(0),
       page_count_(0),
       objects_size_(0),

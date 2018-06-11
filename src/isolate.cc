@@ -2991,10 +2991,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
-  if (!heap_.SetUp()) {
-    V8::FatalProcessOutOfMemory(this, "heap setup");
-    return false;
-  }
+  heap_.SetUp();
 
   // Setup the wasm engine. Currently, there's one per Isolate.
   wasm_engine_.reset(new wasm::WasmEngine(

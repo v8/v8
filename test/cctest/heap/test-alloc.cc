@@ -204,8 +204,8 @@ class Block {
 TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
-  CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
-  code_range.SetUp(code_range_size);
+  CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()),
+                       code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
   std::vector<Block> blocks;

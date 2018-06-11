@@ -964,15 +964,14 @@ class Heap {
   // max_semi_space_size_in_kb: maximum semi-space size in KB
   // max_old_generation_size_in_mb: maximum old generation size in MB
   // code_range_size_in_mb: code range size in MB
-  // Return false if the heap has been set up already.
-  bool ConfigureHeap(size_t max_semi_space_size_in_kb,
+  void ConfigureHeap(size_t max_semi_space_size_in_kb,
                      size_t max_old_generation_size_in_mb,
                      size_t code_range_size_in_mb);
-  bool ConfigureHeapDefault();
+  void ConfigureHeapDefault();
 
   // Prepares the heap, setting up memory areas that are needed in the isolate
   // without actually creating any objects.
-  bool SetUp();
+  void SetUp();
 
   // (Re-)Initialize hash seed from flag or RNG.
   void InitializeHashSeed();

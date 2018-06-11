@@ -4091,11 +4091,9 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
+void Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
                          size_t max_old_generation_size_in_mb,
                          size_t code_range_size_in_mb) {
-  if (HasBeenSetUp()) return false;
-
   // Overwrite default configuration.
   if (max_semi_space_size_in_kb != 0) {
     max_semi_space_size_ =
@@ -4183,7 +4181,6 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
   code_range_size_ = code_range_size_in_mb * MB;
 
   configured_ = true;
-  return true;
 }
 
 
@@ -4210,7 +4207,7 @@ void Heap::GetFromRingBuffer(char* buffer) {
   memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
 }
 
-bool Heap::ConfigureHeapDefault() { return ConfigureHeap(0, 0, 0); }
+void Heap::ConfigureHeapDefault() { ConfigureHeap(0, 0, 0); }
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->start_marker = HeapStats::kStartMarker;
@@ -4517,30 +4514,26 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   return nullptr;
 }
 
-bool Heap::SetUp() {
+void Heap::SetUp() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
 #endif
 
-  // Initialize heap spaces and initial maps and objects. Whenever something
-  // goes wrong, just return false. The caller should check the results and
-  // call Heap::TearDown() to release allocated memory.
+  // Initialize heap spaces and initial maps and objects.
   //
   // If the heap is not yet configured (e.g. through the API), configure it.
   // Configuration is based on the flags new-space-size (really the semispace
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.
-  if (!configured_) {
-    if (!ConfigureHeapDefault()) return false;
-  }
+  if (!configured_) ConfigureHeapDefault();
 
   mmap_region_base_ =
       reinterpret_cast<uintptr_t>(v8::internal::GetRandomMmapAddr()) &
       ~kMmapRegionMask;
 
   // Set up memory allocator.
-  memory_allocator_ = new MemoryAllocator(isolate_);
-  if (!memory_allocator_->SetUp(MaxReserved(), code_range_size_)) return false;
+  memory_allocator_ =
+      new MemoryAllocator(isolate_, MaxReserved(), code_range_size_);
 
   store_buffer_ = new StoreBuffer(this);
 
@@ -4562,26 +4555,17 @@ bool Heap::SetUp() {
         new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr);
   }
 
-  for (int i = 0; i <= LAST_SPACE; i++) {
+  for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
   }
 
-  space_[NEW_SPACE] = new_space_ = new NewSpace(this);
-  if (!new_space_->SetUp(initial_semispace_size_, max_semi_space_size_)) {
-    return false;
-  }
-
+  space_[RO_SPACE] = read_only_space_ = new ReadOnlySpace(this);
+  space_[NEW_SPACE] = new_space_ =
+      new NewSpace(this, initial_semispace_size_, max_semi_space_size_);
   space_[OLD_SPACE] = old_space_ = new OldSpace(this);
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
-  space_[MAP_SPACE] = map_space_ = new MapSpace(this, MAP_SPACE);
-
-  // The large object space may contain code or data.  We set the memory
-  // to be non-executable here for safety, but this means we need to enable it
-  // explicitly when allocating large code objects.
-  space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this, LO_SPACE);
-
-  space_[RO_SPACE] = read_only_space_ =
-      new ReadOnlySpace(this, RO_SPACE, NOT_EXECUTABLE);
+  space_[MAP_SPACE] = map_space_ = new MapSpace(this);
+  space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this);
 
   // Set up the seed that is used to randomize the string hash function.
   DCHECK_EQ(Smi::kZero, hash_seed());
@@ -4641,8 +4625,6 @@ bool Heap::SetUp() {
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
   external_reference_table_.Init(isolate_);
-
-  return true;
 }
 
 void Heap::InitializeHashSeed() {
