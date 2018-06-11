@@ -2448,7 +2448,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ LoadSmiLiteral(cp, Smi::kZero);
-    __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, r5;
+    __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, r5);
     // The entrypoint address is the return value.
     __ mr(r11, kReturnRegister0);
 
