@@ -209,6 +209,7 @@
   V(JSResolvePromise)                  \
   V(JSStackCheck)                      \
   V(JSObjectIsArray)                   \
+  V(JSRegExpTest)                      \
   V(JSDebugger)
 
 #define JS_OP_LIST(V)     \

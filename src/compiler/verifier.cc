@@ -645,12 +645,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Receiver());
       break;
     case IrOpcode::kJSParseInt:
-      // Type is Receiver.
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
-
+    case IrOpcode::kJSRegExpTest:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::String());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kJSCreate:
       // Type is Object.
       CheckTypeIs(node, Type::Object());

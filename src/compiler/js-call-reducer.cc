@@ -11,10 +11,12 @@
 #include "src/code-stubs.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/feedback-vector-inl.h"
@@ -3507,6 +3509,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceMapPrototypeGet(node);
     case Builtins::kMapPrototypeHas:
       return ReduceMapPrototypeHas(node);
+    case Builtins::kRegExpPrototypeTest:
+      return ReduceRegExpPrototypeTest(node);
     case Builtins::kReturnReceiver:
       return ReduceReturnReceiver(node);
     case Builtins::kStringPrototypeIndexOf:
@@ -6738,6 +6742,99 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
   node->ReplaceInput(5, control);
   node->TrimInputCount(6);
   NodeProperties::ChangeOp(node, javascript()->ParseInt());
+  return Changed(node);
+}
+
+Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
+  if (FLAG_force_slow_path) return NoChange();
+  if (node->op()->ValueInputCount() < 3) return NoChange();
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* regexp = NodeProperties::GetValueInput(node, 1);
+
+  // Check if we know something about the {regexp}.
+  ZoneHandleSet<Map> regexp_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(regexp, effect, &regexp_maps);
+
+  bool need_map_check = false;
+  switch (result) {
+    case NodeProperties::kNoReceiverMaps:
+      return NoChange();
+    case NodeProperties::kUnreliableReceiverMaps:
+      need_map_check = true;
+      break;
+    case NodeProperties::kReliableReceiverMaps:
+      break;
+  }
+
+  for (auto map : regexp_maps) {
+    if (map->instance_type() != JS_REGEXP_TYPE) return NoChange();
+  }
+
+  // Compute property access info for "exec" on {resolution}.
+  PropertyAccessInfo ai_exec;
+  AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
+                                        native_context(), graph()->zone());
+  if (!access_info_factory.ComputePropertyAccessInfo(
+          MapHandles(regexp_maps.begin(), regexp_maps.end()),
+          factory()->exec_string(), AccessMode::kLoad, &ai_exec)) {
+    return NoChange();
+  }
+  // If "exec" has been modified on {regexp}, we can't do anything.
+  if (!ai_exec.IsDataConstant()) return NoChange();
+  Handle<Object> exec_on_proto = ai_exec.constant();
+  if (*exec_on_proto != *isolate()->regexp_exec_function()) return NoChange();
+
+  PropertyAccessBuilder access_builder(jsgraph(), dependencies());
+
+  // Add proper dependencies on the {regexp}s [[Prototype]]s.
+  Handle<JSObject> holder;
+  if (ai_exec.holder().ToHandle(&holder)) {
+    access_builder.AssumePrototypesStable(native_context(),
+                                          ai_exec.receiver_maps(), holder);
+  }
+
+  if (need_map_check) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 regexp_maps, p.feedback()),
+                         regexp, effect, control);
+  }
+
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* search = NodeProperties::GetValueInput(node, 2);
+  Node* search_string = effect = graph()->NewNode(
+      simplified()->CheckString(p.feedback()), search, effect, control);
+
+  Node* lastIndex = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSRegExpLastIndex()), regexp,
+      effect, control);
+
+  Node* lastIndexSmi = effect = graph()->NewNode(
+      simplified()->CheckSmi(p.feedback()), lastIndex, effect, control);
+
+  Node* is_positive = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                                       jsgraph()->ZeroConstant(), lastIndexSmi);
+
+  effect = graph()->NewNode(
+      simplified()->CheckIf(DeoptimizeReason::kNotASmi, p.feedback()),
+      is_positive, effect, control);
+
+  node->ReplaceInput(0, regexp);
+  node->ReplaceInput(1, search_string);
+  node->ReplaceInput(2, context);
+  node->ReplaceInput(3, frame_state);
+  node->ReplaceInput(4, effect);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node, javascript()->RegExpTest());
   return Changed(node);
 }
 

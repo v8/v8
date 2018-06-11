@@ -816,6 +816,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* ObjectIsArray();
   const Operator* ParseInt();
+  const Operator* RegExpTest();
 
  private:
   Zone* zone() const { return zone_; }

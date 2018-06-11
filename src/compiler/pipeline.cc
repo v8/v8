@@ -1145,12 +1145,12 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(data->isolate(), &graph_reducer,
                                          data->graph(), data->common(),
                                          data->machine(), temp_zone);
-    JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               data->info()->is_bailout_on_uninitialized()
-                                   ? JSCallReducer::kBailoutOnUninitialized
-                                   : JSCallReducer::kNoFlags,
-                               data->native_context(),
-                               data->info()->dependencies());
+    JSCallReducer call_reducer(
+        &graph_reducer, data->jsgraph(), data->js_heap_broker(),
+        data->info()->is_bailout_on_uninitialized()
+            ? JSCallReducer::kBailoutOnUninitialized
+            : JSCallReducer::kNoFlags,
+        data->native_context(), data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         ChooseSpecializationContext(data->info()),

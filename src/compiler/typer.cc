@@ -1228,6 +1228,8 @@ Type Typer::Visitor::TypeJSLoadGlobal(Node* node) {
 
 Type Typer::Visitor::TypeJSParseInt(Node* node) { return Type::Number(); }
 
+Type Typer::Visitor::TypeJSRegExpTest(Node* node) { return Type::Boolean(); }
+
 // Returns a somewhat larger range if we previously assigned
 // a (smaller) range to this node. This is used  to speed up
 // the fixpoint calculation in case there appears to be a loop
