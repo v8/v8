@@ -673,8 +673,18 @@ class TestEnvironment : public HandleAndZoneScope {
     Handle<FixedArray> state_out = main_isolate()->factory()->NewFixedArray(
         static_cast<int>(layout_.size()));
     {
+#ifdef ENABLE_SLOW_DCHECKS
+      // The "setup" and "teardown" functions are relatively big, and with
+      // runtime assertions enabled they get so big that memory during register
+      // allocation becomes a problem. Temporarily disable such assertions.
+      bool old_enable_slow_asserts = FLAG_enable_slow_asserts;
+      FLAG_enable_slow_asserts = false;
+#endif
       Handle<Code> setup =
           BuildSetupFunction(main_isolate(), test_descriptor_, layout_);
+#ifdef ENABLE_SLOW_DCHECKS
+      FLAG_enable_slow_asserts = old_enable_slow_asserts;
+#endif
       // FunctionTester maintains its own HandleScope which means that its
       // return value will be freed along with it. Copy the result into
       // state_out.
