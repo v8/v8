@@ -840,11 +840,13 @@ class GraphView extends View implements PhaseView {
       }
     });
 
-    selNodes.select<SVGTextElement>('.type').each(function (d) {
+    const newAndOldNodes = newGs.merge(selNodes);
+
+    newAndOldNodes.select<SVGTextElement>('.type').each(function (d) {
       this.setAttribute('visibility', graph.state.showTypes ? 'visible' : 'hidden');
     });
 
-    selNodes
+    newAndOldNodes
       .classed("selected", function (n) {
         if (state.selection.isSelected(n)) return true;
         return false;
