@@ -76,6 +76,7 @@ load('from.js');
 load('of.js');
 load('join.js');
 load('to-string.js');
+load('slice.js');
 
 var success = true;
 

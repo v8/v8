@@ -614,7 +614,7 @@
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
         "reduce.js", "reduce-right.js", "to-string.js", "find.js",
-        "find-index.js", "from.js", "of.js", "for-each.js"
+        "find-index.js", "from.js", "of.js", "for-each.js", "slice.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -699,7 +699,17 @@
         {"name": "DoubleFrom"},
         {"name": "StringFrom"},
         {"name": "StringNoMapFrom"},
-        {"name": "MixedFrom"}
+        {"name": "MixedFrom"},
+        {"name": "Array.slice(500)"},
+        {"name": "Array.slice(500,999)"},
+        {"name": "Array.slice(-500)"},
+        {"name": "Array.slice(200,700)"},
+        {"name": "Array.slice(200,-300)"},
+        {"name": "Array.slice(4,1)"},
+        {"name": "Array.slice(500,999)-dict"},
+        {"name": "Array.slice(200,700)-dict"},
+        {"name": "Array.slice(200,-300)-dict"},
+        {"name": "Array.slice(4,1)-dict"}
       ]
     },
     {
