@@ -99,12 +99,13 @@ void CallOptimization::Initialize(
     Handle<FunctionTemplateInfo> function_template_info) {
   Isolate* isolate = function_template_info->GetIsolate();
   if (function_template_info->call_code()->IsUndefined(isolate)) return;
-  api_call_info_ =
-      handle(CallHandlerInfo::cast(function_template_info->call_code()));
+  api_call_info_ = handle(
+      CallHandlerInfo::cast(function_template_info->call_code()), isolate);
 
   if (!function_template_info->signature()->IsUndefined(isolate)) {
     expected_receiver_type_ =
-        handle(FunctionTemplateInfo::cast(function_template_info->signature()));
+        handle(FunctionTemplateInfo::cast(function_template_info->signature()),
+               isolate);
   }
   is_simple_api_call_ = true;
 }

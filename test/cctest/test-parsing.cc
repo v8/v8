@@ -3041,7 +3041,8 @@ TEST(InnerAssignment) {
           v8::Local<v8::Value> v = CompileRun(program.start());
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-          i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
+          i::Handle<i::SharedFunctionInfo> shared =
+              i::handle(f->shared(), isolate);
           info =
               std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, shared));
           CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
@@ -3156,7 +3157,7 @@ TEST(MaybeAssignedParameters) {
       v8::Local<v8::Value> v = CompileRun(program.start());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
       info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));

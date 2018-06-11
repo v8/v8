@@ -836,7 +836,7 @@ void LiveEdit::ReplaceFunctionCode(
     if (shared_info->HasBreakInfo()) {
       // Existing break points will be re-applied. Reset the debug info here.
       isolate->debug()->RemoveBreakInfoAndMaybeFree(
-          handle(shared_info->GetDebugInfo()));
+          handle(shared_info->GetDebugInfo(), isolate));
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
     shared_info->set_feedback_metadata(new_shared_info->feedback_metadata());
@@ -901,7 +901,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
   SharedFunctionInfo::SetScript(shared_info, script_handle);
   shared_info->DisableOptimization(BailoutReason::kLiveEdit);
 
-  function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);
+  isolate->compilation_cache()->Remove(shared_info);
 }
 
 namespace {

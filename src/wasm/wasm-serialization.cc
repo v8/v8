@@ -565,7 +565,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
 Address NativeModuleDeserializer::GetBuiltinTrampolineFromTag(uint32_t tag) {
   int builtin_id = static_cast<int>(tag);
   v8::internal::Code* builtin = isolate_->builtins()->builtin(builtin_id);
-  return native_module_->GetLocalAddressFor(handle(builtin));
+  return native_module_->GetLocalAddressFor(handle(builtin, isolate_));
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(

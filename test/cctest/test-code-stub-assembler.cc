@@ -396,9 +396,10 @@ TEST(ToString) {
   test_cases->set(4, *tostring_test);
 
   for (int i = 0; i < 5; ++i) {
-    Handle<FixedArray> test = handle(FixedArray::cast(test_cases->get(i)));
+    Handle<FixedArray> test =
+        handle(FixedArray::cast(test_cases->get(i)), isolate);
     Handle<Object> obj = handle(test->get(0), isolate);
-    Handle<String> expected = handle(String::cast(test->get(1)));
+    Handle<String> expected = handle(String::cast(test->get(1)), isolate);
     Handle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(result->IsString());
     CHECK(String::Equals(Handle<String>::cast(result), expected));
@@ -2549,8 +2550,8 @@ TEST(NewPromiseCapability) {
              JSFunction::cast(result->resolve())->shared());
 
     Handle<JSFunction> callbacks[] = {
-        handle(JSFunction::cast(result->resolve())),
-        handle(JSFunction::cast(result->reject()))};
+        handle(JSFunction::cast(result->resolve()), isolate),
+        handle(JSFunction::cast(result->reject()), isolate)};
 
     for (auto&& callback : callbacks) {
       Handle<Context> context(Context::cast(callback->context()));

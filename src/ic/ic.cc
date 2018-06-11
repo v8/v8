@@ -626,7 +626,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   Map* transitioned_map = nullptr;
   if (more_general_transition) {
     MapHandles map_list;
-    map_list.push_back(handle(target_map));
+    map_list.push_back(handle(target_map, isolate_));
     transitioned_map = source_map->FindElementsKindTransitionedMap(map_list);
   }
   return transitioned_map == target_map;
@@ -1914,7 +1914,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange();
           }
-          transition = handle(tmap);
+          transition = handle(tmap, tmap->GetIsolate());
         }
       }
 

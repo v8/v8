@@ -383,7 +383,7 @@ Handle<WeakFixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
   if (GetFeedback()->ToStrongHeapObject(&heap_object) &&
       heap_object->IsWeakFixedArray() &&
       WeakFixedArray::cast(heap_object)->length() == length) {
-    return handle(WeakFixedArray::cast(heap_object));
+    return handle(WeakFixedArray::cast(heap_object), isolate);
   }
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(length);
   SetFeedback(*array);
@@ -396,7 +396,7 @@ Handle<WeakFixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
   if (GetFeedbackExtra()->ToStrongHeapObject(&heap_object) &&
       heap_object->IsWeakFixedArray() &&
       WeakFixedArray::cast(heap_object)->length() == length) {
-    return handle(WeakFixedArray::cast(heap_object));
+    return handle(WeakFixedArray::cast(heap_object), isolate);
   }
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(length);
   SetFeedbackExtra(*array);
@@ -1059,8 +1059,8 @@ void FeedbackNexus::Collect(Handle<String> type, int position) {
                       *FeedbackVector::UninitializedSentinel(isolate))) {
     types = SimpleNumberDictionary::New(isolate, 1);
   } else {
-    types =
-        handle(SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()));
+    types = handle(SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()),
+                   isolate);
   }
 
   Handle<ArrayList> position_specific_types;
@@ -1072,7 +1072,8 @@ void FeedbackNexus::Collect(Handle<String> type, int position) {
         types, position, ArrayList::Add(position_specific_types, type));
   } else {
     DCHECK(types->ValueAt(entry)->IsArrayList());
-    position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
+    position_specific_types =
+        handle(ArrayList::cast(types->ValueAt(entry)), isolate);
     if (!InList(position_specific_types, type)) {  // Add type
       types = SimpleNumberDictionary::Set(
           types, position, ArrayList::Add(position_specific_types, type));
@@ -1182,7 +1183,8 @@ JSObject* FeedbackNexus::GetTypeProfile() const {
 
   return *ConvertToJSObject(
       isolate,
-      handle(SimpleNumberDictionary::cast(feedback->ToStrongHeapObject())));
+      handle(SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()),
+             isolate));
 }
 
 void FeedbackNexus::ResetTypeProfile() {

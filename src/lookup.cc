@@ -237,7 +237,7 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 
 bool LookupIterator::HasAccess() const {
   DCHECK_EQ(ACCESS_CHECK, state_);
-  return isolate_->MayAccess(handle(isolate_->context()),
+  return isolate_->MayAccess(handle(isolate_->context(), isolate_),
                              GetHolder<JSObject>());
 }
 

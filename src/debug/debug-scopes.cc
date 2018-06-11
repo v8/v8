@@ -81,7 +81,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   Handle<SharedFunctionInfo> shared_info(function_->shared());
   Handle<ScopeInfo> scope_info(shared_info->scope_info());
   if (shared_info->script()->IsUndefined(isolate_)) {
-    context_ = handle(function_->context());
+    context_ = handle(function_->context(), isolate_);
     function_ = Handle<JSFunction>();
     return;
   }
@@ -114,7 +114,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     if (scope_info->HasContext()) {
       context_ = Handle<Context>(context_->declaration_context(), isolate_);
     } else {
-      context_ = handle(function_->context());
+      context_ = handle(function_->context(), isolate_);
     }
     if (scope_info->scope_type() == FUNCTION_SCOPE) {
       nested_scope_chain_.emplace_back(scope_info, shared_info->StartPosition(),
@@ -133,7 +133,8 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     if (scope_info->scope_type() == EVAL_SCOPE) {
       info->set_eval();
       if (!function_->context()->IsNativeContext()) {
-        info->set_outer_scope_info(handle(function_->context()->scope_info()));
+        info->set_outer_scope_info(
+            handle(function_->context()->scope_info(), isolate_));
       }
       // Language mode may be inherited from the eval caller.
       // Retrieve it from shared function info.
@@ -562,7 +563,7 @@ void ScopeIterator::MaterializeStackLocals(Handle<JSObject> local_scope,
   }
 
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    Handle<String> name = handle(scope_info->StackLocalName(i));
+    Handle<String> name = handle(scope_info->StackLocalName(i), isolate_);
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     Handle<Object> value(parameters_and_registers->get(
                              parameter_count + scope_info->StackLocalIndex(i)),
@@ -638,7 +639,7 @@ Handle<JSObject> ScopeIterator::WithContextExtension() {
   if (context->extension_receiver()->IsJSProxy()) {
     return isolate_->factory()->NewJSObjectWithNullProto();
   }
-  return handle(JSObject::cast(context->extension_receiver()));
+  return handle(JSObject::cast(context->extension_receiver()), isolate_);
 }
 
 // Create a plain JSObject which materializes the block scope for the specified
@@ -685,7 +686,8 @@ bool ScopeIterator::SetParameterValue(Handle<ScopeInfo> scope_info,
   // Setting stack locals of optimized frames is not supported.
   HandleScope scope(isolate_);
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    if (String::Equals(handle(scope_info->ParameterName(i)), parameter_name)) {
+    if (String::Equals(handle(scope_info->ParameterName(i), isolate_),
+                       parameter_name)) {
       // Suspended generators should not get here because all parameters should
       // be context-allocated.
       DCHECK_NOT_NULL(frame_inspector_);
@@ -707,7 +709,8 @@ bool ScopeIterator::SetStackVariableValue(Handle<ScopeInfo> scope_info,
   // generators are supported.
   HandleScope scope(isolate_);
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
+    if (String::Equals(handle(scope_info->StackLocalName(i), isolate_),
+                       variable_name)) {
       int stack_local_index = scope_info->StackLocalIndex(i);
       if (frame_inspector_ != nullptr) {
         // Set the variable on the stack.
@@ -769,11 +772,11 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
                                           Handle<Object> new_value) {
   Handle<ScopeInfo> scope_info;
   if (HasNestedScopeChain()) {
-    scope_info = handle(function_->shared()->scope_info());
+    scope_info = handle(function_->shared()->scope_info(), isolate_);
     DCHECK_IMPLIES(scope_info->HasContext(),
                    context_->scope_info() == *scope_info);
   } else {
-    scope_info = handle(context_->scope_info());
+    scope_info = handle(context_->scope_info(), isolate_);
   }
 
   // Parameter might be shadowed in context. Don't stop here.
@@ -878,7 +881,7 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
 void ScopeIterator::CopyContextLocalsToScopeObject(
     Handle<ScopeInfo> scope_info, Handle<Context> context,
     Handle<JSObject> scope_object) {
-  Isolate* isolate = scope_info->GetIsolate();
+  Isolate* isolate = isolate_;
   int local_count = scope_info->ContextLocalCount();
   if (local_count == 0) return;
   // Fill all context locals to the context extension.
@@ -899,7 +902,7 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
 void ScopeIterator::CopyModuleVarsToScopeObject(Handle<ScopeInfo> scope_info,
                                                 Handle<Context> context,
                                                 Handle<JSObject> scope_object) {
-  Isolate* isolate = scope_info->GetIsolate();
+  Isolate* isolate = isolate_;
 
   int module_variable_count =
       Smi::cast(scope_info->get(scope_info->ModuleVariableCountIndex()))

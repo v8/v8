@@ -283,7 +283,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(Code* code,
       // scope limits their lifetime.
       HandleScope scope(isolate_);
       std::vector<SourcePositionInfo> stack =
-          last_position.InliningStack(handle(code));
+          last_position.InliningStack(handle(code, isolate_));
       CpuProfileDeoptFrame* deopt_frames =
           new CpuProfileDeoptFrame[stack.size()];
 

@@ -138,9 +138,8 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
-  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
-                                function);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
   if (flags_ & OptimizedCompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
@@ -151,8 +150,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureFeedbackVector(function);
 
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, function->GetIsolate());
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, isolate);
   CHECK(!code.is_null());
   info.dependencies()->Commit(code);
   info.context()->native_context()->AddOptimizedCode(*code);
@@ -164,12 +162,10 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
-  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
-                                function);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, function->GetIsolate(), graph);
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, isolate, graph);
   CHECK(!code.is_null());
   function->set_code(*code);
   return function;

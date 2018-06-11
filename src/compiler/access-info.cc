@@ -300,7 +300,8 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
       if (transition_target == nullptr) {
         receiver_maps.push_back(map);
       } else {
-        transitions.push_back(std::make_pair(map, handle(transition_target)));
+        transitions.push_back(
+            std::make_pair(map, handle(transition_target, isolate())));
       }
     }
   }
@@ -665,7 +666,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
   Map* transition =
-      TransitionsAccessor(isolate_, map).SearchTransition(*name, kData, NONE);
+      TransitionsAccessor(isolate(), map).SearchTransition(*name, kData, NONE);
   if (transition == nullptr) return false;
 
   Handle<Map> transition_map(transition);

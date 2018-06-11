@@ -129,7 +129,7 @@ void CompilationDependencies::AssumePrototypeMapsStable(
   for (PrototypeIterator i(map); !i.IsAtEnd(); i.Advance()) {
     Handle<JSReceiver> const current =
         PrototypeIterator::GetCurrent<JSReceiver>(i);
-    AssumeMapStable(handle(current->map()));
+    AssumeMapStable(handle(current->map(), isolate_));
     Handle<JSReceiver> last;
     if (prototype.ToHandle(&last) && last.is_identical_to(current)) {
       break;

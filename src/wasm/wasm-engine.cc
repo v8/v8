@@ -104,7 +104,7 @@ void WasmEngine::AsyncCompile(
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         isolate->wasm_engine()->StartStreamingCompilation(
-            isolate, handle(isolate->context()), std::move(resolver));
+            isolate, handle(isolate->context(), isolate), std::move(resolver));
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -114,9 +114,9 @@ void WasmEngine::AsyncCompile(
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
 
-  AsyncCompileJob* job =
-      CreateAsyncCompileJob(isolate, std::move(copy), bytes.length(),
-                            handle(isolate->context()), std::move(resolver));
+  AsyncCompileJob* job = CreateAsyncCompileJob(
+      isolate, std::move(copy), bytes.length(),
+      handle(isolate->context(), isolate), std::move(resolver));
   job->Start();
 }
 

@@ -282,7 +282,7 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   {
     Script::Iterator iterator(isolate_);
     while (Script* script = iterator.Next()) {
-      scripts[script->id()] = handle(script);
+      scripts[script->id()] = handle(script, isolate_);
     }
   }
   auto profile = new v8::internal::AllocationProfile();

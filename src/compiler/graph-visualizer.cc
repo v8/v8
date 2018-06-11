@@ -128,7 +128,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   Handle<Script> script =
       (info->shared_info().is_null() || !info->shared_info()->script())
           ? Handle<Script>()
-          : handle(Script::cast(info->shared_info()->script()));
+          : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
@@ -141,8 +141,8 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
     JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
-                            handle(Script::cast(shared->script())), isolate,
-                            shared, true);
+                            handle(Script::cast(shared->script()), isolate),
+                            isolate, shared, true);
   }
   os << "}, ";
   os << "\"inlinings\" : {";

@@ -505,8 +505,9 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
       Code* call_target =
           Code::GetCodeFromTargetAddress(orig_it.rinfo()->target_address());
-      it.rinfo()->set_target_address(GetLocalAddressFor(handle(call_target)),
-                                     SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+      it.rinfo()->set_target_address(
+          GetLocalAddressFor(handle(call_target, call_target->GetIsolate())),
+          SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
     }
@@ -572,8 +573,9 @@ WasmCode* NativeModule::AddCode(
       // code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
-      it.rinfo()->set_target_address(GetLocalAddressFor(handle(code)),
-                                     SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+      it.rinfo()->set_target_address(
+          GetLocalAddressFor(handle(code, code->GetIsolate())),
+          SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
     }

@@ -400,7 +400,7 @@ class Expectations {
     Map* target = TransitionsAccessor(isolate_, map)
                       .SearchTransition(*name, kData, attributes);
     CHECK_NOT_NULL(target);
-    return handle(target);
+    return handle(target, isolate_);
   }
 
   Handle<Map> AddAccessorConstant(Handle<Map> map,
@@ -2156,7 +2156,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       Map* target = TransitionsAccessor(isolate, map2)
                         .SearchTransition(*name, kData, NONE);
       CHECK_NOT_NULL(target);
-      map2 = handle(target);
+      map2 = handle(target, isolate);
     }
 
     map2 = Map::ReconfigureProperty(map2, kSplitProp, kData, NONE,

@@ -170,7 +170,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   Handle<JSFunction> local_function = frame_inspector.GetFunction();
   Handle<Context> outer_context(local_function->context());
   evaluation_context_ = outer_context;
-  outer_info_ = handle(local_function->shared());
+  outer_info_ = handle(local_function->shared(), isolate);
   Factory* factory = isolate->factory();
 
   // To evaluate as if we were running eval at the point of the debug break,

@@ -88,7 +88,7 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
       func_locals_names->get(local_index)->IsUndefined(isolate)) {
     return {};
   }
-  return handle(String::cast(func_locals_names->get(local_index)));
+  return handle(String::cast(func_locals_names->get(local_index)), isolate);
 }
 
 class InterpreterHandle {
@@ -144,7 +144,7 @@ class InterpreterHandle {
         module_(
             debug_info->wasm_instance()->module_object()->shared()->module()),
         interpreter_(isolate, module_, GetBytes(debug_info),
-                     handle(debug_info->wasm_instance())) {}
+                     handle(debug_info->wasm_instance(), isolate)) {}
 
   ~InterpreterHandle() { DCHECK_EQ(0, activations_.size()); }
 
@@ -410,7 +410,7 @@ class InterpreterHandle {
 
   Handle<JSObject> GetGlobalScopeObject(wasm::InterpretedFrame* frame,
                                         Handle<WasmDebugInfo> debug_info) {
-    Isolate* isolate = debug_info->GetIsolate();
+    Isolate* isolate = isolate_;
     Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
     // TODO(clemensh): Add globals to the global scope.
@@ -434,7 +434,7 @@ class InterpreterHandle {
 
   Handle<JSObject> GetLocalScopeObject(wasm::InterpretedFrame* frame,
                                        Handle<WasmDebugInfo> debug_info) {
-    Isolate* isolate = debug_info->GetIsolate();
+    Isolate* isolate = isolate_;
 
     Handle<JSObject> local_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
@@ -787,7 +787,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
         compiler::CWasmEntryParameters::kNumParameters);
     entries->set(index, *new_entry);
   }
-  return handle(JSFunction::cast(entries->get(index)));
+  return handle(JSFunction::cast(entries->get(index)), isolate);
 }
 
 }  // namespace internal

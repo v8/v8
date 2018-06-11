@@ -1673,9 +1673,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   Handle<WasmCompiledModule> new_compiled_module;
   {
     Handle<WasmCompiledModule> original =
-        handle(module_object_->compiled_module());
+        handle(module_object_->compiled_module(), isolate_);
     if (original->has_instance()) {
-      old_instance = handle(original->owning_instance());
+      old_instance = handle(original->owning_instance(), isolate_);
       // Clone, but don't insert yet the clone in the instances chain.
       // We do that last. Since we are holding on to the old instance,
       // the owner + original state used for cloning and patching
@@ -1848,7 +1848,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   code_specialization.ApplyToWholeModule(native_module, module_object_,
                                          SKIP_ICACHE_FLUSH);
   FlushICache(native_module);
-  FlushICache(handle(module_object_->export_wrappers()));
+  FlushICache(handle(module_object_->export_wrappers(), isolate_));
 
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.
@@ -2284,7 +2284,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           // so putting {-1} in the table will cause checks to always fail.
           auto target = Handle<WasmExportedFunction>::cast(val);
           Handle<WasmInstanceObject> imported_instance =
-              handle(target->instance());
+              handle(target->instance(), isolate_);
           Address exported_call_target = target->GetWasmCallTarget();
           FunctionSig* sig = imported_instance->module()
                                  ->functions[target->function_index()]

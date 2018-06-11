@@ -144,7 +144,7 @@ class IC {
     if (receiver->IsSmi()) {
       receiver_map_ = isolate_->factory()->heap_number_map();
     } else {
-      receiver_map_ = handle(HeapObject::cast(*receiver)->map());
+      receiver_map_ = handle(HeapObject::cast(*receiver)->map(), isolate_);
     }
   }
 

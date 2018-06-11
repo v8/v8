@@ -375,7 +375,7 @@ MaybeHandle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
     }
   }
 
-  int hash = key->GetOrCreateHash(table->GetIsolate())->value();
+  int hash = key->GetOrCreateHash(isolate)->value();
   int nof = table->NumberOfElements();
 
   // Read the existing bucket values.
@@ -409,7 +409,7 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
     }
   }
 
-  int hash = key->GetOrCreateHash(table->GetIsolate())->value();
+  int hash = key->GetOrCreateHash(isolate)->value();
   int nof = table->NumberOfElements();
 
   // Read the existing bucket values.

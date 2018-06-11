@@ -153,7 +153,7 @@ DeoptimizerData::~DeoptimizerData() {
 Code* Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_->IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
-    Isolate* isolate = function_->GetIsolate();
+    Isolate* isolate = isolate_;
     Context* native_context = function_->context()->native_context();
     Object* element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {

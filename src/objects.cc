@@ -705,7 +705,8 @@ bool Object::StrictEquals(Object* that) {
 // static
 Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
   if (object->IsNumber()) return isolate->factory()->number_string();
-  if (object->IsOddball()) return handle(Oddball::cast(*object)->type_of());
+  if (object->IsOddball())
+    return handle(Oddball::cast(*object)->type_of(), isolate);
   if (object->IsUndetectable()) {
     return isolate->factory()->undefined_string();
   }
@@ -1222,7 +1223,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   if (maybe_name.ToHandle(&name) && name->IsString()) {
     name_string = Handle<String>::cast(name);
   } else if (info->class_name()->IsString()) {
-    name_string = handle(String::cast(info->class_name()));
+    name_string = handle(String::cast(info->class_name()), isolate);
   } else {
     name_string = isolate->factory()->empty_string();
   }
@@ -3701,7 +3702,7 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
   if (maybe_tag->IsString()) return Handle<String>::cast(maybe_tag);
 
   PrototypeIterator iter(isolate, receiver);
-  if (iter.IsAtEnd()) return handle(receiver->class_name());
+  if (iter.IsAtEnd()) return handle(receiver->class_name(), isolate);
   Handle<JSReceiver> start = PrototypeIterator::GetCurrent<JSReceiver>(iter);
   LookupIterator it(receiver, isolate->factory()->constructor_string(), start,
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
@@ -3714,7 +3715,7 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
   }
 
   return result.is_identical_to(isolate->factory()->Object_string())
-             ? handle(receiver->class_name())
+             ? handle(receiver->class_name(), isolate)
              : result;
 }
 
@@ -4726,7 +4727,7 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
   }
   Map* new_map = root_map->TryReplayPropertyTransitions(*old_map);
   if (new_map == nullptr) return MaybeHandle<Map>();
-  return handle(new_map);
+  return handle(new_map, new_map->GetIsolate());
 }
 
 Map* Map::TryReplayPropertyTransitions(Map* old_map) {
@@ -5166,7 +5167,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     if (receiver->IsJSArray()) {
       Handle<JSArray> array = Handle<JSArray>::cast(receiver);
       if (JSArray::WouldChangeReadOnlyLength(array, it->index())) {
-        RETURN_FAILURE(array->GetIsolate(), should_throw,
+        RETURN_FAILURE(isolate, should_throw,
                        NewTypeError(MessageTemplate::kStrictReadOnlyProperty,
                                     isolate->factory()->length_string(),
                                     Object::TypeOf(isolate, array), array));
@@ -5490,12 +5491,12 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
   if (from_kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
     if (*map == native_context->fast_aliased_arguments_map()) {
       DCHECK_EQ(SLOW_SLOPPY_ARGUMENTS_ELEMENTS, to_kind);
-      return handle(native_context->slow_aliased_arguments_map());
+      return handle(native_context->slow_aliased_arguments_map(), isolate);
     }
   } else if (from_kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS) {
     if (*map == native_context->slow_aliased_arguments_map()) {
       DCHECK_EQ(FAST_SLOPPY_ARGUMENTS_ELEMENTS, to_kind);
-      return handle(native_context->fast_aliased_arguments_map());
+      return handle(native_context->fast_aliased_arguments_map(), isolate);
     }
   } else if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
     // Reuse map transitions for JSArrays.
@@ -5515,7 +5516,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
       to_kind == GetPackedElementsKind(from_kind) &&
       map->GetBackPointer()->IsMap() &&
       Map::cast(map->GetBackPointer())->elements_kind() == to_kind) {
-    return handle(Map::cast(map->GetBackPointer()));
+    return handle(Map::cast(map->GetBackPointer()), isolate);
   }
 
   bool allow_store_transition = IsTransitionElementsKind(from_kind);
@@ -6240,7 +6241,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
   if (!normalized_map->EquivalentToForNormalization(*fast_map, mode)) {
     return MaybeHandle<Map>();
   }
-  return handle(normalized_map);
+  return handle(normalized_map, normalized_map->GetIsolate());
 }
 
 void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map,
@@ -8311,7 +8312,7 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
   }
 
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), object)) {
+      !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     RETURN_FAILURE(isolate, should_throw,
@@ -8347,7 +8348,8 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
   // Do a map transition, other objects with this map may still
   // be extensible.
   // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-  Handle<Map> new_map = Map::Copy(handle(object->map()), "PreventExtensions");
+  Handle<Map> new_map =
+      Map::Copy(handle(object->map(), isolate), "PreventExtensions");
 
   new_map->set_is_extensible(false);
   JSObject::MigrateToMap(object, new_map);
@@ -8409,7 +8411,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
 bool JSObject::IsExtensible(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), object)) {
+      !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
     return true;
   }
   if (object->IsJSGlobalProxy()) {
@@ -8458,7 +8460,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), object)) {
+      !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     RETURN_FAILURE(isolate, should_throw,
@@ -8539,8 +8541,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
     // Create a new map, since other objects with this map may be extensible.
     // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-    Handle<Map> new_map =
-        Map::Copy(handle(object->map()), "SlowCopyForPreventExtensions");
+    Handle<Map> new_map = Map::Copy(handle(object->map(), isolate),
+                                    "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
     if (!new_element_dictionary.is_null()) {
       ElementsKind new_kind =
@@ -9640,8 +9642,8 @@ Handle<Map> Map::Copy(Handle<Map> map, const char* reason) {
 
 
 Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
-  Handle<Map> copy =
-      Copy(handle(isolate->object_function()->initial_map()), "MapCreate");
+  Handle<Map> copy = Copy(
+      handle(isolate->object_function()->initial_map(), isolate), "MapCreate");
 
   // Check that we do not overflow the instance size when adding the extra
   // inobject properties. If the instance size overflows, we allocate as many
@@ -9794,7 +9796,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
 
   Handle<Map> result;
   if (!maybe_map.ToHandle(&result)) {
-    Isolate* isolate = name->GetIsolate();
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
     std::unique_ptr<ScopedVector<char>> buffer;
@@ -9989,7 +9990,7 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   Handle<LayoutDescriptor> new_layout_descriptor =
       FLAG_unbox_double_fields
           ? LayoutDescriptor::New(map, new_descriptors, nof + 1)
-          : handle(LayoutDescriptor::FastPointerLayout(), map->GetIsolate());
+          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
 
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
                                 flag, descriptor->GetKey(), "CopyAddDescriptor",
@@ -12767,7 +12768,8 @@ Handle<Object> CacheInitialJSArrayMaps(
     Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
     if (Map* maybe_elements_transition = current_map->ElementsTransitionMap()) {
-      new_map = handle(maybe_elements_transition);
+      new_map = handle(maybe_elements_transition,
+                       maybe_elements_transition->GetIsolate());
     } else {
       new_map = Map::CopyAsElementsKind(
           current_map, next_kind, INSERT_TRANSITION);
@@ -12794,7 +12796,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
     Handle<Map> initial_map(function->initial_map(), isolate);
 
-    if (!initial_map->GetIsolate()->bootstrapper()->IsActive() &&
+    if (!isolate->bootstrapper()->IsActive() &&
         initial_map->instance_type() == JS_OBJECT_TYPE) {
       // Put the value in the initial map field until an initial map is needed.
       // At that point, a new initial map is created and the prototype is put
@@ -12848,7 +12850,8 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
-    Handle<Map> new_map = Map::Copy(handle(function->map()), "SetPrototype");
+    Handle<Map> new_map =
+        Map::Copy(handle(function->map(), isolate), "SetPrototype");
 
     JSObject::MigrateToMap(function, new_map);
     new_map->SetConstructor(*value);
@@ -13508,7 +13511,7 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
     Handle<WeakCell> cell(WeakCell::cast(script->wrapper()));
     if (!cell->cleared()) {
       // Return a handle for the existing script wrapper from the cache.
-      return handle(JSObject::cast(cell->value()));
+      return handle(JSObject::cast(cell->value()), isolate);
     }
     // If we found an empty WeakCell, that means the script wrapper was
     // GCed.  We are not notified directly of that, so we decrement here
@@ -13541,7 +13544,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
       heap_object->IsUndefined(isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
-  return handle(SharedFunctionInfo::cast(heap_object));
+  return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
 
 Script::Iterator::Iterator(Isolate* isolate)
@@ -13575,7 +13578,7 @@ SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
 }
 
 void SharedFunctionInfo::ScriptIterator::Reset(Handle<Script> script) {
-  shared_function_infos_ = handle(script->shared_function_infos());
+  shared_function_infos_ = handle(script->shared_function_infos(), isolate_);
   index_ = 0;
 }
 
@@ -13592,7 +13595,7 @@ SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
     if (next != nullptr) return next;
     Script* next_script = script_iterator_.Next();
     if (next_script == nullptr) return nullptr;
-    sfi_iterator_.Reset(handle(next_script));
+    sfi_iterator_.Reset(handle(next_script, next_script->GetIsolate()));
   }
 }
 
@@ -14753,7 +14756,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
 
-  interpreter::BytecodeArrayIterator iterator(handle(this));
+  interpreter::BytecodeArrayIterator iterator(handle(this, this->GetIsolate()));
   while (!iterator.done()) {
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {
@@ -15250,7 +15253,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
   if (from_javascript) {
     if (object->IsAccessCheckNeeded() &&
-        !isolate->MayAccess(handle(isolate->context()), object)) {
+        !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
       isolate->ReportFailedAccessCheck(object);
       RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
       RETURN_FAILURE(isolate, should_throw,
@@ -16854,7 +16857,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
   Handle<PropertyCell> cell;
   if (entry != GlobalDictionary::kNotFound) {
     if (entry_out) *entry_out = entry;
-    cell = handle(dictionary->CellAt(entry));
+    cell = handle(dictionary->CellAt(entry), isolate);
     PropertyCellType original_cell_type = cell->property_details().cell_type();
     DCHECK(original_cell_type == PropertyCellType::kInvalidated ||
            original_cell_type == PropertyCellType::kUninitialized);
@@ -18850,7 +18853,7 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
         Handle<FunctionTemplateInfo>::cast(getter);
     // Check if the accessor uses a cached property.
     if (!fti->cached_property_name()->IsTheHole(isolate)) {
-      return handle(Name::cast(fti->cached_property_name()));
+      return handle(Name::cast(fti->cached_property_name()), isolate);
     }
   }
   return MaybeHandle<Name>();

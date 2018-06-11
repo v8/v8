@@ -406,7 +406,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   DCHECK_NOT_NULL(wasm_function->sig);
   Address call_target = exported_function->GetWasmCallTarget();
   UpdateDispatchTables(isolate, table, table_index, wasm_function->sig,
-                       handle(exported_function->instance()), call_target);
+                       handle(exported_function->instance(), isolate),
+                       call_target);
   array->set(table_index, *function);
 }
 
@@ -893,8 +894,9 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   // the next GC cycle, so we need to manually break some links (such as
   // the weak references from {WasmMemoryObject::instances}.
   if (instance->has_memory_object()) {
-    WasmMemoryObject::RemoveInstance(isolate, handle(instance->memory_object()),
-                                     handle(instance));
+    WasmMemoryObject::RemoveInstance(isolate,
+                                     handle(instance->memory_object(), isolate),
+                                     handle(instance, isolate));
   }
 
   // We want to maintain a link from the {WasmModuleObject} to the first link

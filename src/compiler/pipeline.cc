@@ -1113,7 +1113,8 @@ Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
   size_t distance = 0;
   while (!current->IsNativeContext()) {
     if (current->IsModuleContext()) {
-      return Just(OuterContext(handle(current), distance));
+      return Just(
+          OuterContext(handle(current, current->GetIsolate()), distance));
     }
     current = current->previous();
     distance++;

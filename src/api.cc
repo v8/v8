@@ -304,8 +304,7 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
   i::Handle<i::FixedArray> host_defined_options(script->host_defined_options(),
                                                 isolate);
-  v8::Isolate* v8_isolate =
-      reinterpret_cast<v8::Isolate*>(script->GetIsolate());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   ScriptOriginOptions options(script->origin_options());
   v8::ScriptOrigin origin(
       Utils::ToLocal(scriptName),
@@ -4805,7 +4804,7 @@ static Maybe<bool> ObjectSetAccessor(
       !i::JSObject::SetAccessor(obj, accessor_name, info, attrs)
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  if (result->IsUndefined(obj->GetIsolate())) return Just(false);
+  if (result->IsUndefined(isolate)) return Just(false);
   if (fast) {
     i::JSObject::MigrateSlowToFast(obj, 0, "APISetAccessor");
   }
@@ -7582,7 +7581,7 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
-      i_isolate, handle(i_isolate->context()),
+      i_isolate, handle(i_isolate->context(), i_isolate),
       base::make_unique<AsyncCompilationResolver>(isolate, GetPromise()));
 }
 
@@ -7614,7 +7613,8 @@ void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::HandleScope scope(i_isolate);
-  Local<Context> context = Utils::ToLocal(handle(i_isolate->context()));
+  Local<Context> context =
+      Utils::ToLocal(handle(i_isolate->context(), i_isolate));
   auto maybe = resolver->Reject(context, exception.ToLocalChecked());
   CHECK_IMPLIES(!maybe.FromMaybe(false), i_isolate->has_scheduled_exception());
 }
@@ -9781,7 +9781,7 @@ void debug::GlobalLexicalScopeNames(
     for (int j = 0; j < local_count; ++j) {
       i::String* name = scope_info->ContextLocalName(j);
       if (i::ScopeInfo::VariableIsSynthetic(name)) continue;
-      names->Append(Utils::ToLocal(handle(name)));
+      names->Append(Utils::ToLocal(handle(name, isolate)));
     }
   }
 }

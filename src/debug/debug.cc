@@ -311,8 +311,8 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
     BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
-    interpreter::BytecodeArrayAccessor accessor(handle(bytecode_array),
-                                                code_offset());
+    interpreter::BytecodeArrayAccessor accessor(
+        handle(bytecode_array, bytecode_array->GetIsolate()), code_offset());
 
     DCHECK_EQ(accessor.current_bytecode(),
               interpreter::Bytecode::kSuspendGenerator);
@@ -1317,7 +1317,7 @@ void Debug::InstallDebugBreakTrampoline() {
         if (!shared->HasDebugInfo()) continue;
         if (!shared->GetDebugInfo()->CanBreakAtEntry()) continue;
         if (!fun->is_compiled()) {
-          needs_compile.push_back(handle(fun));
+          needs_compile.push_back(handle(fun, isolate_));
         } else {
           fun->set_code(*trampoline);
         }
@@ -1384,7 +1384,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       }
       if (!info->IsSubjectToDebugging()) continue;
       if (!info->is_compiled() && !info->allows_lazy_compilation()) continue;
-      candidates.push_back(i::handle(info));
+      candidates.push_back(i::handle(info, isolate_));
     }
 
     bool was_compiled = false;
@@ -1507,7 +1507,8 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     HandleScope scope(isolate_);
     // Code that cannot be compiled lazily are internal and not debuggable.
     DCHECK(shared->allows_lazy_compilation());
-    if (!Compiler::Compile(handle(shared), Compiler::CLEAR_EXCEPTION)) break;
+    if (!Compiler::Compile(handle(shared, isolate_), Compiler::CLEAR_EXCEPTION))
+      break;
   }
   return isolate_->factory()->undefined_value();
 }
@@ -1553,7 +1554,7 @@ void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
 
 Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
     Handle<SharedFunctionInfo> shared) {
-  if (shared->HasDebugInfo()) return handle(shared->GetDebugInfo());
+  if (shared->HasDebugInfo()) return handle(shared->GetDebugInfo(), isolate_);
 
   // Create debug info and add it to the list.
   Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
@@ -1734,7 +1735,7 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
 
 namespace {
 v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
-  Handle<Context> context = handle(isolate->context());
+  Handle<Context> context = handle(isolate->context(), isolate);
   // Isolate::context() may have been nullptr when "script collected" event
   // occurred.
   if (context.is_null()) return v8::Local<v8::Context>();
@@ -2223,7 +2224,8 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
     return false;
   }
   SharedFunctionInfo::SideEffectState side_effect_state =
-      SharedFunctionInfo::GetSideEffectState(handle(function->shared()));
+      SharedFunctionInfo::GetSideEffectState(
+          handle(function->shared(), isolate_));
   switch (side_effect_state) {
     case SharedFunctionInfo::kHasSideEffects:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -2285,8 +2287,8 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   SharedFunctionInfo* shared = frame->function()->shared();
   BytecodeArray* bytecode_array = shared->GetBytecodeArray();
   int offset = frame->GetBytecodeOffset();
-  interpreter::BytecodeArrayAccessor bytecode_accessor(handle(bytecode_array),
-                                                       offset);
+  interpreter::BytecodeArrayAccessor bytecode_accessor(
+      handle(bytecode_array, isolate_), offset);
 
   Bytecode bytecode = bytecode_accessor.current_bytecode();
   interpreter::Register reg;

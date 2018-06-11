@@ -141,7 +141,7 @@ Handle<Code> CodeStub::GetCode() {
   Code* code;
   if (FindCodeInCache(&code)) {
     DCHECK(code->is_stub());
-    return handle(code);
+    return handle(code, isolate_);
   }
 
   {
@@ -167,7 +167,7 @@ Handle<Code> CodeStub::GetCode() {
 
     // Update the dictionary and the root in Heap.
     Handle<SimpleNumberDictionary> dict = SimpleNumberDictionary::Set(
-        handle(heap->code_stubs()), GetKey(), new_object);
+        handle(heap->code_stubs(), isolate_), GetKey(), new_object);
     heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }

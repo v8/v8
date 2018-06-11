@@ -88,7 +88,7 @@ class PrototypeIterator {
     // PrototypeIterator.
     DCHECK(!handle_.is_null());
     if (handle_->IsAccessCheckNeeded()) {
-      return isolate_->MayAccess(handle(isolate_->context()),
+      return isolate_->MayAccess(handle(isolate_->context(), isolate_),
                                  Handle<JSObject>::cast(handle_));
     }
     return true;

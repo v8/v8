@@ -5119,7 +5119,7 @@ HEAP_TEST(Regress589413) {
       byte_array->set(j, 0x31);
     }
     // Add the array in root set.
-    handle(byte_array);
+    handle(byte_array, isolate);
   }
   // Make sure the byte arrays will be promoted on the next GC.
   CcTest::CollectGarbage(NEW_SPACE);
@@ -5135,7 +5135,7 @@ HEAP_TEST(Regress589413) {
       arrays.push_back(array);
       pages.insert(Page::FromAddress(array->address()));
       // Add the array in root set.
-      handle(array);
+      handle(array, isolate);
     }
     // Expand and full one complete page with fixed arrays.
     heap->set_force_oom(false);
@@ -5143,7 +5143,7 @@ HEAP_TEST(Regress589413) {
       arrays.push_back(array);
       pages.insert(Page::FromAddress(array->address()));
       // Add the array in root set.
-      handle(array);
+      handle(array, isolate);
       // Do not expand anymore.
       heap->set_force_oom(true);
     }
