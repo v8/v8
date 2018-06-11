@@ -1635,29 +1635,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       TRACE("Recompiling module without bounds checks\n");
       constexpr bool allow_trap_handler = false;
       ModuleEnv env = CreateDefaultModuleEnv(module_, allow_trap_handler);
-      Handle<WasmCompiledModule> compiled_module(
-          module_object_->compiled_module(), isolate_);
-      // Create a new native module...
-      auto native_module =
-          isolate_->wasm_engine()->code_manager()->NewNativeModule(*module_,
-                                                                   env);
-      Handle<Foreign> native_module_wrapper =
-          Managed<wasm::NativeModule>::FromUniquePtr(
-              isolate_,
-              0,  // TODO(eholk): estimate size
-              std::move(native_module));
-      compiled_module->set_native_module(*native_module_wrapper);
-      compiled_module->GetNativeModule()->SetRuntimeStubs(isolate_);
+      // Disable trap handlers on this native module.
+      NativeModule* native_module =
+          module_object_->compiled_module()->GetNativeModule();
+      native_module->DisableTrapHandler();
 
-      // ...and then compile it.
+      // Recompile all functions in this native module.
       ErrorThrower thrower(isolate_, "recompile");
       CompileNativeModule(isolate_, &thrower, module_object_, module_, &env);
       if (thrower.error()) {
         return {};
       }
-      DCHECK(!module_object_->compiled_module()
-                  ->GetNativeModule()
-                  ->use_trap_handler());
+      DCHECK(!native_module->use_trap_handler());
     }
   }
 

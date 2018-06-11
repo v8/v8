@@ -801,6 +801,20 @@ void NativeModule::ReleaseProtectedInstructions() {
   }
 }
 
+void NativeModule::DisableTrapHandler() {
+  // Switch {use_trap_handler_} from true to false.
+  DCHECK(use_trap_handler_);
+  use_trap_handler_ = false;
+
+  // Clear the code table (just to increase the chances to hit an error if we
+  // forget to re-add all code).
+  uint32_t num_wasm_functions = num_functions_ - num_imported_functions_;
+  memset(code_table_.get(), 0, num_wasm_functions * sizeof(WasmCode*));
+
+  // TODO(clemensh): Actually free the owned code, such that the memory can be
+  // recycled.
+}
+
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
   // Clear the handle at the beginning of destructor to make it robust against

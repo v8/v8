@@ -291,6 +291,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void UnpackAndRegisterProtectedInstructions();
   void ReleaseProtectedInstructions();
 
+  // Transition this module from code relying on trap handlers (i.e. without
+  // explicit memory bounds checks) to code that does not require trap handlers
+  // (i.e. code with explicit bounds checks).
+  // This method must only be called if {use_trap_handler()} is true (it will be
+  // false afterwards). All code in this {NativeModule} needs to be re-added
+  // after calling this method.
+  void DisableTrapHandler();
+
   // Returns the instruction start of code suitable for indirect or import calls
   // for the given function index. If the code at the given index is the lazy
   // compile stub, it will clone a non-anonymous lazy compile stub for the
@@ -395,7 +403,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t committed_code_space_ = 0;
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
-  bool use_trap_handler_;
+  bool use_trap_handler_ = false;
   bool is_executable_ = false;
   bool lazy_compile_frozen_ = false;
 
