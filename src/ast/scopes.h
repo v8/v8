@@ -134,7 +134,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
-  static Scope* DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
+  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
+                                      ScopeInfo* scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
                                       DeserializationMode deserialization_mode);
@@ -1031,7 +1032,8 @@ class ModuleScope final : public DeclarationScope {
   // The generated ModuleDescriptor does not preserve all information.  In
   // particular, its module_requests map will be empty because we no longer need
   // the map after parsing.
-  ModuleScope(Handle<ScopeInfo> scope_info, AstValueFactory* ast_value_factory);
+  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
+              AstValueFactory* ast_value_factory);
 
   ModuleDescriptor* module() const {
     DCHECK_NOT_NULL(module_descriptor_);

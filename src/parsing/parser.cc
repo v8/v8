@@ -468,7 +468,7 @@ void Parser::DeserializeScopeChain(
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
     DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
     scope = Scope::DeserializeScopeChain(
-        zone(), *outer_scope_info, script_scope, ast_value_factory(),
+        isolate, zone(), *outer_scope_info, script_scope, ast_value_factory(),
         Scope::DeserializationMode::kScopesOnly);
   }
   original_scope_ = scope;
