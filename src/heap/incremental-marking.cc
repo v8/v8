@@ -98,7 +98,8 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
                                          Object* value) {
   if (BaseRecordWrite(obj, value) && slot != nullptr) {
     // Object is not going to be rescanned we need to record the slot.
-    heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
+    heap_->mark_compact_collector()->RecordSlot(obj, slot,
+                                                HeapObject::cast(value));
   }
 }
 

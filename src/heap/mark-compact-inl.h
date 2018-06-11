@@ -145,7 +145,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
       // Weak cells with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-      collector_->RecordSlot(weak_cell, slot, *slot);
+      collector_->RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     } else {
       // If we do not know about liveness of values of weak cells, we have to
       // process them when we know the liveness of the whole transitive
@@ -383,13 +383,13 @@ void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
 }
 
 void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
-                                      Object* target) {
+                                      HeapObject* target) {
   RecordSlot(object, reinterpret_cast<HeapObjectReference**>(slot), target);
 }
 
 void MarkCompactCollector::RecordSlot(HeapObject* object,
                                       HeapObjectReference** slot,
-                                      Object* target) {
+                                      HeapObject* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&

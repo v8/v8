@@ -157,8 +157,9 @@ class ConcurrentMarkingVisitor final
       Object* object = snapshot.value(i);
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
-      MarkObject(HeapObject::cast(object));
-      MarkCompactCollector::RecordSlot(host, slot, object);
+      HeapObject* heap_object = HeapObject::cast(object);
+      MarkObject(heap_object);
+      MarkCompactCollector::RecordSlot(host, slot, heap_object);
     }
   }
 
@@ -368,7 +369,7 @@ class ConcurrentMarkingVisitor final
       Object** value_slot =
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-      MarkCompactCollector::RecordSlot(table, key_slot, *key_slot);
+      MarkCompactCollector::RecordSlot(table, key_slot, key);
 
       if (marking_state_.IsBlackOrGrey(key)) {
         VisitPointer(table, value_slot);
@@ -376,7 +377,8 @@ class ConcurrentMarkingVisitor final
         Object* value = *value_slot;
 
         if (value->IsHeapObject()) {
-          MarkCompactCollector::RecordSlot(table, value_slot, value);
+          MarkCompactCollector::RecordSlot(table, value_slot,
+                                           HeapObject::cast(value));
         }
       }
     }

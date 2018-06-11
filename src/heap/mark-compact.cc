@@ -959,7 +959,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
         } else {
           // StringTable contains only old space strings.
           DCHECK(!heap_->InNewSpace(o));
-          MarkCompactCollector::RecordSlot(table_, p, o);
+          MarkCompactCollector::RecordSlot(table_, p, heap_object);
         }
       }
     }
@@ -1912,9 +1912,9 @@ void MarkCompactCollector::ClearWeakCells() {
           // Resurrect the cell.
           non_atomic_marking_state()->WhiteToBlack(value);
           Object** slot = HeapObject::RawField(value, Cell::kValueOffset);
-          RecordSlot(value, slot, *slot);
+          RecordSlot(value, slot, HeapObject::cast(*slot));
           slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-          RecordSlot(weak_cell, slot, *slot);
+          RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
         } else {
           weak_cell->clear();
         }
@@ -1925,7 +1925,7 @@ void MarkCompactCollector::ClearWeakCells() {
     } else {
       // The value of the weak cell is alive.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-      RecordSlot(weak_cell, slot, *slot);
+      RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
   }
 }
@@ -1957,7 +1957,6 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.transition_arrays.Clear();
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
-  weak_objects_.ephemeron_hash_tables.Clear();
 }
 
 void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
