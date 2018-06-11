@@ -839,11 +839,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   int parent_;
 };
 
-
-bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
-  if (obj->IsFixedArray() || obj->IsEphemeronHashTable())
-    return false;  // FixedArrays & EphemeronHashTables are processed on pass 2
-
+void V8HeapExplorer::ExtractReferences(int entry, HeapObject* obj) {
   if (obj->IsJSGlobalProxy()) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSArrayBuffer()) {
@@ -895,22 +891,13 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
   } else if (obj->IsWeakArrayList()) {
     ExtractWeakArrayReferences(WeakArrayList::kHeaderSize, entry,
                                WeakArrayList::cast(obj));
-  }
-  return true;
-}
-
-
-bool V8HeapExplorer::ExtractReferencesPass2(int entry, HeapObject* obj) {
-  if (!obj->IsFixedArray() && !obj->IsEphemeronHashTable()) return false;
-
-  if (obj->IsContext()) {
+  } else if (obj->IsContext()) {
     ExtractContextReferences(entry, Context::cast(obj));
   } else if (obj->IsEphemeronHashTable()) {
     ExtractEphemeronHashTableReferences(entry, EphemeronHashTable::cast(obj));
-  } else {
+  } else if (obj->IsFixedArray()) {
     ExtractFixedArrayReferences(entry, FixedArray::cast(obj));
   }
-  return true;
 }
 
 
@@ -1581,27 +1568,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   extractor.SetVisitingWeakRoots();
   heap_->IterateWeakGlobalHandles(&extractor);
 
-  // We have to do two passes as sometimes FixedArrays are used
-  // to weakly hold their items, and it's impossible to distinguish
-  // between these cases without processing the array owner first.
-  bool interrupted =
-      IterateAndExtractSinglePass<&V8HeapExplorer::ExtractReferencesPass1>() ||
-      IterateAndExtractSinglePass<&V8HeapExplorer::ExtractReferencesPass2>();
-
-  if (interrupted) {
-    filler_ = nullptr;
-    return false;
-  }
-
-  filler_ = nullptr;
-  return progress_->ProgressReport(true);
-}
-
-
-template<V8HeapExplorer::ExtractReferencesMethod extractor>
-bool V8HeapExplorer::IterateAndExtractSinglePass() {
-  // Now iterate the whole heap.
   bool interrupted = false;
+
   HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject *obj = iterator.next(); obj != nullptr;
@@ -1618,14 +1586,13 @@ bool V8HeapExplorer::IterateAndExtractSinglePass() {
 
     HeapEntry* heap_entry = GetEntry(obj);
     int entry = heap_entry->index();
-    if ((this->*extractor)(entry, obj)) {
-      SetInternalReference(obj, entry,
-                           "map", obj->map(), HeapObject::kMapOffset);
-      // Extract unvisited fields as hidden references and restore tags
-      // of visited fields.
-      IndexedReferencesExtractor refs_extractor(this, obj, entry);
-      obj->Iterate(&refs_extractor);
-    }
+    ExtractReferences(entry, obj);
+    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
+    // Extract unvisited fields as hidden references and restore tags
+    // of visited fields.
+    IndexedReferencesExtractor refs_extractor(this, obj, entry);
+    obj->Iterate(&refs_extractor);
+
     // Ensure visited_fields_ doesn't leak to the next object.
     for (size_t i = 0; i < max_pointer; ++i) {
       DCHECK(!visited_fields_[i]);
@@ -1633,7 +1600,14 @@ bool V8HeapExplorer::IterateAndExtractSinglePass() {
 
     if (!progress_->ProgressReport(false)) interrupted = true;
   }
-  return interrupted;
+
+  if (interrupted) {
+    filler_ = nullptr;
+    return false;
+  }
+
+  filler_ = nullptr;
+  return progress_->ProgressReport(true);
 }
 
 
@@ -1924,12 +1898,6 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
       entry->set_name(tag);
     }
   }
-}
-
-void V8HeapExplorer::TagFixedArraySubType(const FixedArray* array,
-                                          FixedArraySubInstanceType type) {
-  DCHECK(array_types_.find(array) == array_types_.end());
-  array_types_[array] = type;
 }
 
 class GlobalObjectsEnumerator : public RootVisitor {

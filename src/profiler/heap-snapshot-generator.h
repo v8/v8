@@ -355,9 +355,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   static String* GetConstructorName(JSObject* object);
 
  private:
-  typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
-                                                          HeapObject* object);
-
   void MarkVisitedField(int offset);
 
   HeapEntry* AddEntry(HeapObject* object);
@@ -367,11 +364,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   const char* GetSystemEntryName(HeapObject* object);
 
-  template<V8HeapExplorer::ExtractReferencesMethod extractor>
-  bool IterateAndExtractSinglePass();
-
-  bool ExtractReferencesPass1(int entry, HeapObject* obj);
-  bool ExtractReferencesPass2(int entry, HeapObject* obj);
+  void ExtractReferences(int entry, HeapObject* obj);
   void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
@@ -461,8 +454,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                              Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
-  void TagFixedArraySubType(const FixedArray* array,
-                            FixedArraySubInstanceType type);
 
   HeapEntry* GetEntry(Object* obj);
 
@@ -475,7 +466,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
-  std::unordered_map<const FixedArray*, FixedArraySubInstanceType> array_types_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;
