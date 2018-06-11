@@ -86,7 +86,7 @@ class CodeView extends View {
     return this.sourcePositionToHtmlElement.get(key);
   }
 
-  updateSelection(scrollIntoView: boolean = false) : void {
+  updateSelection(scrollIntoView: boolean = false): void {
     const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
     for (const [sp, el] of this.sourcePositionToHtmlElement.entries()) {
       const isSelected = this.selection.isKeySelected(sp);
@@ -112,12 +112,12 @@ class CodeView extends View {
     return ordereList.childNodes as NodeListOf<HTMLElement>;
   }
 
-  onSelectLine(lineNumber:number, doClear:boolean) {
+  onSelectLine(lineNumber: number, doClear: boolean) {
     const key = anyToString(lineNumber);
     if (doClear) {
       this.selectionHandler.clear();
     }
-   const positions = this.sourceResolver.linetoSourcePositions(lineNumber - 1);
+    const positions = this.sourceResolver.linetoSourcePositions(lineNumber - 1);
     if (positions !== undefined) {
       this.selectionHandler.select(positions, undefined);
     }
@@ -182,7 +182,7 @@ class CodeView extends View {
         view.selectionHandler.clear();
       }
 
-      const base:number = source.startPosition;
+      const base: number = source.startPosition;
       let current = 0;
       const lineListDiv = this.getHtmlCodeLines();
       let newlineAdjust = 0;

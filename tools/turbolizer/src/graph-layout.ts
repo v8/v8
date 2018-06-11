@@ -6,7 +6,7 @@ var DEFAULT_NODE_ROW_SEPARATION = 130
 
 var traceLayout = false;
 
-function newGraphOccupation(graph){
+function newGraphOccupation(graph) {
   var isSlotFilled = [];
   var maxSlot = 0;
   var minSlot = 0;
@@ -42,7 +42,7 @@ function newGraphOccupation(graph){
 
   function findSpace(pos, width, direction) {
     var widthSlots = Math.floor((width + NODE_INPUT_WIDTH - 1) /
-                                NODE_INPUT_WIDTH);
+      NODE_INPUT_WIDTH);
     var currentSlot = positionToSlot(pos + width / 2);
     var currentScanSlot = currentSlot;
     var widthSlotsRemainingLeft = widthSlots;
@@ -53,14 +53,14 @@ function newGraphOccupation(graph){
       currentScanSlot = currentSlot + (mod ? -1 : 1) * (slotsChecked >> 1);
       if (!isSlotFilled[slotToIndex(currentScanSlot)]) {
         if (mod) {
-          if (direction <= 0) --widthSlotsRemainingLeft
+          if (direction <= 0)--widthSlotsRemainingLeft
         } else {
-          if (direction >= 0) --widthSlotsRemainingRight
+          if (direction >= 0)--widthSlotsRemainingRight
         }
         if (widthSlotsRemainingLeft == 0 ||
-            widthSlotsRemainingRight == 0 ||
-            (widthSlotsRemainingLeft + widthSlotsRemainingRight) == widthSlots &&
-            (widthSlots == slotsChecked)) {
+          widthSlotsRemainingRight == 0 ||
+          (widthSlotsRemainingLeft + widthSlotsRemainingRight) == widthSlots &&
+          (widthSlots == slotsChecked)) {
           if (mod) {
             return [currentScanSlot, widthSlots];
           } else {
@@ -79,7 +79,7 @@ function newGraphOccupation(graph){
 
   function setIndexRange(from, to, value) {
     if (to < from) {
-      throw("illegal slot range");
+      throw ("illegal slot range");
     }
     while (from <= to) {
       if (from > maxSlot) {
@@ -127,7 +127,7 @@ function newGraphOccupation(graph){
   }
 
   var occupation = {
-    occupyNodeInputs: function(node) {
+    occupyNodeInputs: function (node) {
       for (var i = 0; i < node.inputs.length; ++i) {
         if (node.inputs[i].isVisible()) {
           var edge = node.inputs[i];
@@ -138,14 +138,14 @@ function newGraphOccupation(graph){
               console.log("Occupying input " + i + " of " + node.id + " at " + horizontalPos);
             }
             occupyPositionRangeWithMargin(horizontalPos,
-                                          horizontalPos,
-                                          NODE_INPUT_WIDTH / 2);
+              horizontalPos,
+              NODE_INPUT_WIDTH / 2);
           }
         }
       }
     },
-    occupyNode: function(node) {
-      var getPlacementHint = function(n) {
+    occupyNode: function (node) {
+      var getPlacementHint = function (n) {
         var pos = 0;
         var direction = -1;
         var outputEdges = 0;
@@ -201,28 +201,28 @@ function newGraphOccupation(graph){
         return slotToLeftPosition(firstSlot + slotWidth / 2) - (width / 2);
       }
     },
-    clearOccupiedNodes: function() {
-      nodeOccupation.forEach(function(o) {
+    clearOccupiedNodes: function () {
+      nodeOccupation.forEach(function (o) {
         clearSlotRange(o[0], o[1]);
       });
       nodeOccupation = [];
     },
-    clearNodeOutputs: function(source) {
-      source.outputs.forEach(function(edge) {
+    clearNodeOutputs: function (source) {
+      source.outputs.forEach(function (edge) {
         if (edge.isVisible()) {
           var target = edge.target;
           for (var i = 0; i < target.inputs.length; ++i) {
             if (target.inputs[i].source === source) {
               var horizontalPos = edge.getInputHorizontalPosition(graph);
               clearPositionRangeWithMargin(horizontalPos,
-                                           horizontalPos,
-                                           NODE_INPUT_WIDTH / 2);
+                horizontalPos,
+                NODE_INPUT_WIDTH / 2);
             }
           }
         }
       });
     },
-    print: function() {
+    print: function () {
       var s = "";
       for (var currentSlot = -40; currentSlot < 40; ++currentSlot) {
         if (currentSlot != 0) {
@@ -251,11 +251,11 @@ function layoutNodeGraph(graph) {
   // basis for bottom-up DFS to determine rank and node placement.
   var endNodesHasNoOutputs = [];
   var startNodesHasNoInputs = [];
-  graph.nodes.forEach(function(n, i){
+  graph.nodes.forEach(function (n, i) {
     endNodesHasNoOutputs[n.id] = true;
     startNodesHasNoInputs[n.id] = true;
   });
-  graph.edges.forEach(function(e, i){
+  graph.edges.forEach(function (e, i) {
     endNodesHasNoOutputs[e.source.id] = false;
     startNodesHasNoInputs[e.target.id] = false;
   });
@@ -265,7 +265,7 @@ function layoutNodeGraph(graph) {
   var startNodes = [];
   var visited = [];
   var rank = [];
-  graph.nodes.forEach(function(n, i){
+  graph.nodes.forEach(function (n, i) {
     if (endNodesHasNoOutputs[n.id]) {
       endNodes.push(n);
     }
@@ -323,7 +323,7 @@ function layoutNodeGraph(graph) {
     }
   }
 
-   visited = [];
+  visited = [];
   function dfsFindRankLate(n) {
     if (visited[n.id]) return;
     visited[n.id] = true;
@@ -335,7 +335,7 @@ function layoutNodeGraph(graph) {
       dfsFindRankLate(output);
       var outputRank = output.rank;
       if (output.visible && (firstInput || outputRank <= newRank) &&
-          (outputRank > originalRank)) {
+        (outputRank > originalRank)) {
         newRank = outputRank - 1;
       }
       firstInput = false;
@@ -364,15 +364,15 @@ function layoutNodeGraph(graph) {
   }
   startNodes.forEach(dfsRankOrder);
 
-  endNodes.forEach(function(n) {
+  endNodes.forEach(function (n) {
     n.rank = maxRank + 1;
   });
 
   var rankSets = [];
   // Collect sets for each rank.
-  graph.nodes.forEach(function(n, i){
+  graph.nodes.forEach(function (n, i) {
     n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + graph.getNodeHeight(n) +
-                    2 * DEFAULT_NODE_BUBBLE_RADIUS);
+      2 * DEFAULT_NODE_BUBBLE_RADIUS);
     if (n.visible) {
       if (rankSets[n.rank] === undefined) {
         rankSets[n.rank] = [n];
@@ -388,7 +388,7 @@ function layoutNodeGraph(graph) {
   var occupation = newGraphOccupation(graph);
   var rankCount = 0;
 
-  rankSets.reverse().forEach(function(rankSet) {
+  rankSets.reverse().forEach(function (rankSet) {
 
     for (var i = 0; i < rankSet.length; ++i) {
       occupation.clearNodeOutputs(rankSet[i]);
@@ -400,7 +400,7 @@ function layoutNodeGraph(graph) {
     }
 
     var placedCount = 0;
-    rankSet = rankSet.sort(function(a,b) {
+    rankSet = rankSet.sort(function (a, b) {
       return a.visitOrderWithinRank < b.visitOrderWithinRank;
     });
     for (var i = 0; i < rankSet.length; ++i) {
@@ -495,8 +495,8 @@ function redetermineGraphBoundingBox(graph) {
   graph.height = height;
 
   const extent = [
-    [graph.minGraphX-width/2, graph.minGraphY-height/2],
-    [graph.maxGraphX+width/2, graph.maxGraphY+height/2]
+    [graph.minGraphX - width / 2, graph.minGraphY - height / 2],
+    [graph.maxGraphX + width / 2, graph.maxGraphY + height / 2]
   ];
   graph.panZoom.translateExtent(extent);
   graph.minScale();

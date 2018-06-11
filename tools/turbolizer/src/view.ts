@@ -34,5 +34,5 @@ abstract class View {
 
 interface PhaseView {
   onresize();
-  searchInputAction(searchInput: HTMLInputElement, e:Event);
+  searchInputAction(searchInput: HTMLInputElement, e: Event);
 }

@@ -25,7 +25,7 @@ function sourcePositionToStringKey(sourcePosition): string {
 
 function sourcePositionValid(l) {
   return (typeof l.scriptOffset !== undefined
-          && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
+    && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
 }
 
 interface SourcePosition {
@@ -285,8 +285,8 @@ class SourceResolver {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
       if (node.origin != undefined &&
-          node.origin.bytecodePosition != undefined) {
-        const position = {bytecodePosition: node.origin.bytecodePosition};
+        node.origin.bytecodePosition != undefined) {
+        const position = { bytecodePosition: node.origin.bytecodePosition };
         this.nodePositionMap[node.id] = position;
         let key = sourcePositionToStringKey(position);
         if (!this.positionToNodes.has(key)) {
@@ -329,7 +329,7 @@ class SourceResolver {
     this.phases.forEach(f);
   }
 
-  addAnyPositionToLine(lineNumber:number|String, sourcePosition:AnyPosition) {
+  addAnyPositionToLine(lineNumber: number | String, sourcePosition: AnyPosition) {
     const lineNumberString = anyToString(lineNumber);
     if (!this.lineToSourcePositions.has(lineNumberString)) {
       this.lineToSourcePositions.set(lineNumberString, []);
@@ -338,14 +338,14 @@ class SourceResolver {
     if (!A.includes(sourcePosition)) A.push(sourcePosition);
   }
 
-  setSourceLineToBytecodePosition(sourceLineToBytecodePosition:Array<number>|undefined) {
+  setSourceLineToBytecodePosition(sourceLineToBytecodePosition: Array<number> | undefined) {
     if (!sourceLineToBytecodePosition) return;
     sourceLineToBytecodePosition.forEach((pos, i) => {
-      this.addAnyPositionToLine(i, {bytecodePosition: pos});
+      this.addAnyPositionToLine(i, { bytecodePosition: pos });
     });
   }
 
-  linetoSourcePositions(lineNumber:number|String) {
+  linetoSourcePositions(lineNumber: number | String) {
     const positions = this.lineToSourcePositions.get(anyToString(lineNumber));
     if (positions === undefined) return [];
     return positions;
@@ -359,11 +359,13 @@ class SourceResolver {
         const nodeIdStrings = nodeIdsString.split(',');
         inputs = nodeIdStrings.map((n) => Number.parseInt(n, 10));
       }
-      const node = {id: Number.parseInt(match.groups.id, 10),
-                    label: match.groups.label,
-                    inputs: inputs};
+      const node = {
+        id: Number.parseInt(match.groups.id, 10),
+        label: match.groups.label,
+        inputs: inputs
+      };
       if (match.groups.blocks) {
-        const nodeIdsString = match.groups.blocks.replace(/\s/g, '').replace(/B/g,'');
+        const nodeIdsString = match.groups.blocks.replace(/\s/g, '').replace(/B/g, '');
         const nodeIdStrings = nodeIdsString.split(',');
         const successors = nodeIdStrings.map((n) => Number.parseInt(n, 10));
         state.currentBlock.succ = successors;
@@ -378,11 +380,13 @@ class SourceResolver {
         const blockIdStrings = blockIdsString.split(',');
         predecessors = blockIdStrings.map((n) => Number.parseInt(n, 10));
       }
-      const block = {id: Number.parseInt(match.groups.id, 10),
-                     isDeferred: match.groups.deferred != undefined,
-                     pred: predecessors.sort(),
-                     succ: [],
-                     nodes: []};
+      const block = {
+        id: Number.parseInt(match.groups.id, 10),
+        isDeferred: match.groups.deferred != undefined,
+        pred: predecessors.sort(),
+        succ: [],
+        nodes: []
+      };
       state.blocks[block.id] = block;
       state.currentBlock = block;
     }
@@ -392,7 +396,7 @@ class SourceResolver {
     const rules = [
       {
         lineRegexps:
-          [ /^\s*(?<id>\d+):\ (?<label>.*)\((?<args>.*)\)$/,
+          [/^\s*(?<id>\d+):\ (?<label>.*)\((?<args>.*)\)$/,
             /^\s*(?<id>\d+):\ (?<label>.*)\((?<args>.*)\)\ ->\ (?<blocks>.*)$/,
             /^\s*(?<id>\d+):\ (?<label>.*)$/
           ],

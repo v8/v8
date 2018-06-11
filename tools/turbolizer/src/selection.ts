@@ -4,18 +4,18 @@
 
 class MySelection {
   selection: any;
-  stringKey: (o:any) => string;
+  stringKey: (o: any) => string;
 
   constructor(stringKeyFnc) {
     this.selection = new Map();
     this.stringKey = stringKeyFnc;
   }
 
-  isEmpty() : boolean {
+  isEmpty(): boolean {
     return this.selection.size == 0;
   }
 
-  clear() : void {
+  clear(): void {
     this.selection = new Map();
   }
 
@@ -38,7 +38,7 @@ class MySelection {
     return this.selection.has(this.stringKey(i));
   }
 
-  isKeySelected(key:string): boolean {
+  isKeySelected(key: string): boolean {
     return this.selection.has(key);
   }
 

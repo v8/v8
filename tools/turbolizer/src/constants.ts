@@ -21,9 +21,9 @@ const COLLAPSE_PANE_BUTTON_VISIBLE = 'button-input';
 const COLLAPSE_PANE_BUTTON_INVISIBLE = 'button-input-invisible';
 const UNICODE_BLOCK = '&#9611;';
 const PROF_COLS = [
-  { perc:   0, col: { r: 255, g: 255, b: 255 } },
+  { perc: 0, col: { r: 255, g: 255, b: 255 } },
   { perc: 0.5, col: { r: 255, g: 255, b: 128 } },
-  { perc:   5, col: { r: 255, g: 128, b:   0 } },
-  { perc:  15, col: { r: 255, g:   0, b:   0 } },
-  { perc: 100, col: { r:   0, g:   0, b:   0 } }
+  { perc: 5, col: { r: 255, g: 128, b: 0 } },
+  { perc: 15, col: { r: 255, g: 0, b: 0 } },
+  { perc: 100, col: { r: 0, g: 0, b: 0 } }
 ];

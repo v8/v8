@@ -11,7 +11,7 @@ class ScheduleView extends TextView implements PhaseView {
     const pane = document.createElement('div');
     pane.setAttribute('id', "schedule");
     pane.innerHTML =
-    `<pre id='schedule-text-pre' class='prettyprint prettyprinted'>
+      `<pre id='schedule-text-pre' class='prettyprint prettyprinted'>
        <ul id='schedule-list' class='nolinenums noindent'>
        </ul>
      </pre>`;
@@ -42,7 +42,7 @@ class ScheduleView extends TextView implements PhaseView {
 
   elementForBlock(block) {
     const view = this;
-    function createElement(tag:string, cls: string|Array<string>, content?:string) {
+    function createElement(tag: string, cls: string | Array<string>, content?: string) {
       const el = document.createElement(tag);
       if (isIterable(cls)) {
         for (const c of cls) el.classList.add(c);
@@ -162,5 +162,5 @@ class ScheduleView extends TextView implements PhaseView {
     this.selectionHandler.select(select, true);
   }
 
-  onresize() {}
+  onresize() { }
 }

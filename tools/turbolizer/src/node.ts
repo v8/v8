@@ -41,7 +41,7 @@ class GNode {
   visible: boolean;
   rank: number;
   opinfo: string;
-  labelbbox: {width: number, height: number};
+  labelbbox: { width: number, height: number };
 
   isControl() {
     return this.control;
@@ -177,4 +177,4 @@ class GNode {
   }
 };
 
-const nodeToStr = (n:GNode) => "N" + n.id;
+const nodeToStr = (n: GNode) => "N" + n.id;

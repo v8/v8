@@ -4,7 +4,7 @@
 
 "use strict";
 
-function anyToString(x:any): string {
+function anyToString(x: any): string {
   return "" + x;
 }
 
@@ -118,7 +118,7 @@ abstract class TextView extends View {
     broker.addSourcePositionHandler(sourcePositionSelectionHandler);
   }
 
-  addHtmlElementForNodeId(anyNodeId:any, htmlElement: HTMLElement) {
+  addHtmlElementForNodeId(anyNodeId: any, htmlElement: HTMLElement) {
     const nodeId = anyToString(anyNodeId);
     if (!this.nodeIdToHtmlElementsMap.has(nodeId)) {
       this.nodeIdToHtmlElementsMap.set(nodeId, []);
@@ -247,7 +247,7 @@ abstract class TextView extends View {
       this.addNodeIdToBlockId(fragment.nodeId, fragment.blockId);
     }
 
-      if (typeof style.linkHandler == 'function') {
+    if (typeof style.linkHandler == 'function') {
       const handler = style.linkHandler(text, fragment)
       if (handler !== undefined) {
         fragment.classList.add('linkable-text');

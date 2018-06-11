@@ -3,22 +3,22 @@
 // found in the LICENSE file.
 
 interface SelectionHandler {
-    clear() : void;
-    select(nodeIds:any, selected:any) : void;
-    brokeredClear(): void;
-    brokeredSourcePositionSelect(sourcePositions:any, selected:any): void;
+  clear(): void;
+  select(nodeIds: any, selected: any): void;
+  brokeredClear(): void;
+  brokeredSourcePositionSelect(sourcePositions: any, selected: any): void;
 };
 
 interface NodeSelectionHandler {
-    clear() : void;
-    select(nodeIds:any, selected:any) : void;
-    brokeredClear(): void;
-    brokeredNodeSelect(nodeIds:any, selected:any): void;
+  clear(): void;
+  select(nodeIds: any, selected: any): void;
+  brokeredClear(): void;
+  brokeredNodeSelect(nodeIds: any, selected: any): void;
 };
 
 interface BlockSelectionHandler {
-    clear() : void;
-    select(nodeIds:any, selected:any) : void;
-    brokeredClear(): void;
-    brokeredBlockSelect(blockIds:any, selected:any): void;
+  clear(): void;
+  select(nodeIds: any, selected: any): void;
+  brokeredClear(): void;
+  brokeredBlockSelect(blockIds: any, selected: any): void;
 };

@@ -43,7 +43,7 @@ class GraphMultiView extends View {
       optionElement.text = phase.name;
       view.selectMenu.add(optionElement);
     });
-    this.selectMenu.onchange = function (this:HTMLSelectElement) {
+    this.selectMenu.onchange = function (this: HTMLSelectElement) {
       window.sessionStorage.setItem("lastSelectedPhase", this.selectedIndex.toString());
       view.displayPhase(view.sourceResolver.getPhase(this.selectedIndex));
     }
@@ -58,7 +58,7 @@ class GraphMultiView extends View {
     this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
   }
 
-  initializeContent() {}
+  initializeContent() { }
 
   displayPhase(phase) {
     if (phase.type == 'graph') {

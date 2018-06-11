@@ -104,7 +104,7 @@ function partial(f, ...arguments1) {
   }
 }
 
-function isIterable(obj:any): obj is Iterable<any> {
+function isIterable(obj: any): obj is Iterable<any> {
   return obj != null && obj != undefined
     && typeof obj != 'string' && typeof obj[Symbol.iterator] === 'function';
 }

@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 PR.registerLangHandler(
-    PR.createSimpleLexer(
-      [
-        [PR.PR_STRING,        /^(?:\'(?:[^\\\'\r\n]|\\.)*(?:\'|$))/, null, '\''],
-        [PR.PR_PLAIN,         /^\s+/, null, ' \r\n\t\xA0']
-      ],
-      [ // fallthroughStylePatterns
-        [PR.PR_COMMENT,       /;; debug: position \d+/, null],
-      ]),
-    ['disassembly']);
+  PR.createSimpleLexer(
+    [
+      [PR.PR_STRING, /^(?:\'(?:[^\\\'\r\n]|\\.)*(?:\'|$))/, null, '\''],
+      [PR.PR_PLAIN, /^\s+/, null, ' \r\n\t\xA0']
+    ],
+    [ // fallthroughStylePatterns
+      [PR.PR_COMMENT, /;; debug: position \d+/, null],
+    ]),
+  ['disassembly']);

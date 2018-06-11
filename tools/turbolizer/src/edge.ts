@@ -89,4 +89,4 @@ class Edge {
 
 }
 
-const edgeToStr = (e:Edge) => e.stringID();
+const edgeToStr = (e: Edge) => e.stringID();
