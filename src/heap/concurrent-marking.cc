@@ -19,6 +19,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
 #include "src/isolate.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -352,14 +353,35 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
-    return 0;
+    return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitEphemeronHashTable(Map* map, EphemeronHashTable* object) {
-    bailout_.Push(object);
-    return 0;
+  int VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
+    if (!ShouldVisit(table)) return 0;
+    weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
+
+    for (int i = 0; i < table->Capacity(); i++) {
+      HeapObject* key = HeapObject::cast(table->KeyAt(i));
+
+      Object** key_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+      Object** value_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+
+      MarkCompactCollector::RecordSlot(table, key_slot, *key_slot);
+
+      if (marking_state_.IsBlackOrGrey(key)) {
+        VisitPointer(table, value_slot);
+      } else {
+        Object* value = *value_slot;
+
+        if (value->IsHeapObject()) {
+          MarkCompactCollector::RecordSlot(table, value_slot, value);
+        }
+      }
+    }
+
+    return table->SizeFromMap(map);
   }
 
   void MarkObject(HeapObject* object) {
@@ -580,6 +602,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
+    weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
