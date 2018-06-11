@@ -7626,7 +7626,9 @@ class V8_EXPORT Isolate {
     /** `Atomics.wait()` was interrupted through |TerminateExecution()|. */
     kTerminatedExecution,
     /** `Atomics.wait()` was stopped through |AtomicsWaitWakeHandle|. */
-    kAPIStopped
+    kAPIStopped,
+    /** `Atomics.wait()` did not wait, as the initial condition was not met. */
+    kNotEqual
   };
 
   /**
@@ -7674,10 +7676,6 @@ class V8_EXPORT Isolate {
    *
    * This callback may schedule exceptions, *unless* |event| is equal to
    * |kTerminatedExecution|.
-   *
-   * This callback is not called if |value| did not match the expected value
-   * inside the SharedArrayBuffer and `Atomics.wait()` returns immediately
-   * because of that.
    */
   typedef void (*AtomicsWaitCallback)(AtomicsWaitEvent event,
                                       Local<SharedArrayBuffer> array_buffer,

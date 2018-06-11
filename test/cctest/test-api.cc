@@ -28175,6 +28175,12 @@ TEST(AtomicsWaitCallback) {
 
   {
     v8::TryCatch try_catch(isolate);
+    info.expected_offset = 8;
+    info.expected_timeout = std::numeric_limits<double>::infinity();
+    info.expected_value = 1;
+    info.expected_event = v8::Isolate::AtomicsWaitEvent::kNotEqual;
+    info.action = AtomicsWaitCallbackAction::KeepWaiting;
+    info.ncalls = 0;
     CompileRun("Atomics.wait(int32arr, 1, 1);");  // real value is 0 != 1
     CHECK_EQ(info.ncalls, 2);
     CHECK(!try_catch.HasCaught());

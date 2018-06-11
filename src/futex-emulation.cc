@@ -87,12 +87,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   int32_t* p =
       reinterpret_cast<int32_t*>(static_cast<int8_t*>(backing_store) + addr);
 
-  if (*p != value) {
-    return isolate->heap()->not_equal();
-  }
-
   FutexWaitListNode* node = isolate->futex_wait_list_node();
-
   node->backing_store_ = backing_store;
   node->wait_addr_ = addr;
   node->waiting_ = true;
@@ -116,24 +111,36 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     }
   }
 
-  base::TimeTicks start_time = base::TimeTicks::Now();
-  base::TimeTicks timeout_time = start_time + rel_timeout;
-  base::TimeTicks current_time = start_time;
-
   AtomicsWaitWakeHandle stop_handle(isolate);
 
   isolate->RunAtomicsWaitCallback(AtomicsWaitEvent::kStartWait, array_buffer,
                                   addr, value, rel_timeout_ms, &stop_handle);
 
   if (isolate->has_scheduled_exception()) {
+    node->waiting_ = false;
     return isolate->PromoteScheduledException();
   }
 
   Object* result;
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
-  {
+  do {  // Not really a loop, just makes it easier to break out early.
     base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
+
+    if (*p != value) {
+      result = isolate->heap()->not_equal();
+      callback_result = AtomicsWaitEvent::kNotEqual;
+      break;
+    }
+
+    base::TimeTicks timeout_time;
+    base::TimeTicks current_time;
+
+    if (use_timeout) {
+      current_time = base::TimeTicks::Now();
+      timeout_time = current_time + rel_timeout;
+    }
+
     wait_list_.Pointer()->AddNode(node);
 
     while (true) {
@@ -205,12 +212,12 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     }
 
     wait_list_.Pointer()->RemoveNode(node);
-  }
+  } while (0);
+
+  node->waiting_ = false;
 
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
                                   rel_timeout_ms, nullptr);
-
-  node->waiting_ = false;
 
   if (isolate->has_scheduled_exception()) {
     CHECK_NE(callback_result, AtomicsWaitEvent::kTerminatedExecution);
