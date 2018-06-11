@@ -194,7 +194,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
     // This is basically an inlined version of Call(Handle<Code>) that loads the
     // code object into lr instead of ip.
     DCHECK_NE(ip, target);
-    __ LookupConstant(ip, GetCode());
+    __ IndirectLoadConstant(ip, GetCode());
     __ addi(r0, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
     __ Move(ip, target);
     __ Call(r0);

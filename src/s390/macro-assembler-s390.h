@@ -9,6 +9,7 @@
 #include "src/bailout-reason.h"
 #include "src/globals.h"
 #include "src/s390/assembler-s390.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -167,24 +168,20 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 
 #endif
 
-class TurboAssembler : public Assembler {
+class TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
-  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
-
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, buffer, buffer_size, create_code_object) {}
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size)
+      : TurboAssemblerBase(isolate_data, buffer, buffer_size) {}
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<HeapObject> object);
-  void LookupExternalReference(Register destination,
-                               ExternalReference reference);
-  void LoadBuiltin(Register destination, int builtin_index);
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadExternalReference(Register destination,
+                             int reference_index) override;
+  void LoadBuiltin(Register destination, int builtin_index) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions.
@@ -278,8 +275,11 @@ class TurboAssembler : public Assembler {
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
+  void LoadRoot(Register destination, Heap::RootListIndex index) override {
+    LoadRoot(destination, index, al);
+  }
   void LoadRoot(Register destination, Heap::RootListIndex index,
-                Condition cond = al);
+                Condition cond);
   //--------------------------------------------------------------------------
   // S390 Macro Assemblers for Instructions
   //--------------------------------------------------------------------------
@@ -910,8 +910,6 @@ class TurboAssembler : public Assembler {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
 
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
 
   // ---------------------------------------------------------------------------
@@ -1039,19 +1037,7 @@ class TurboAssembler : public Assembler {
   void ResetSpeculationPoisonRegister();
   void ComputeCodeStartAddress(Register dst);
 
-  bool root_array_available() const { return root_array_available_; }
-  void set_root_array_available(bool v) { root_array_available_ = v; }
-
-  void set_builtin_index(int builtin_index) {
-    maybe_builtin_index_ = builtin_index;
-  }
-
- protected:
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-
  private:
-  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   void CallCFunctionHelper(Register function, int num_reg_arguments,
@@ -1060,10 +1046,6 @@ class TurboAssembler : public Assembler {
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
-
-  bool has_frame_ = false;
-  bool root_array_available_ = true;
-  Isolate* const isolate_ = nullptr;
 };
 
 // MacroAssembler implements a collection of frequently used macros.

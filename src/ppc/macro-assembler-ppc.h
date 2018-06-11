@@ -10,6 +10,7 @@
 #include "src/double.h"
 #include "src/globals.h"
 #include "src/ppc/assembler-ppc.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -110,21 +111,14 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 #define Div divw
 #endif
 
-class TurboAssembler : public Assembler {
+class TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
-  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size);
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, buffer, buffer_size, create_code_object) {}
+  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size)
+      : TurboAssemblerBase(isolate_data, buffer, buffer_size) {}
 
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
-
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
   // Converts the integer (untagged smi) in |src| to a double, storing
   // the result to |dst|
   void ConvertIntToDouble(Register src, DoubleRegister dst);
@@ -220,13 +214,6 @@ class TurboAssembler : public Assembler {
                    Register scratch = no_reg);
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
-
-  bool root_array_available() const { return root_array_available_; }
-  void set_root_array_available(bool v) { root_array_available_ = v; }
-
-  void set_builtin_index(int builtin_index) {
-    maybe_builtin_index_ = builtin_index;
-  }
 
   void StoreDouble(DoubleRegister src, const MemOperand& mem,
                    Register scratch = no_reg);
@@ -354,8 +341,11 @@ class TurboAssembler : public Assembler {
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
+  void LoadRoot(Register destination, Heap::RootListIndex index) override {
+    LoadRoot(destination, index, al);
+  }
   void LoadRoot(Register destination, Heap::RootListIndex index,
-                Condition cond = al);
+                Condition cond);
 
   void SwapP(Register src, Register dst, Register scratch);
   void SwapP(Register src, MemOperand dst, Register scratch);
@@ -444,10 +434,11 @@ class TurboAssembler : public Assembler {
 #endif
 
 #ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<HeapObject> object);
-  void LookupExternalReference(Register destination,
-                               ExternalReference reference);
-  void LoadBuiltin(Register destination, int builtin_index);
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadExternalReference(Register destination,
+                             int reference_index) override;
+  void LoadBuiltin(Register destination, int builtin_index) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions. Note, the value returned is
@@ -461,6 +452,8 @@ class TurboAssembler : public Assembler {
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al,
+            CRegister cr = cr7);
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
@@ -684,20 +677,9 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
- protected:
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-
  private:
-  int maybe_builtin_index_ = -1;  // May be set while generating builtins.
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
-  bool has_frame_ = false;
-  bool root_array_available_ = true;
-  Isolate* const isolate_ = nullptr;
-
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
-            CRegister cr = cr7);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
   void CallCFunctionHelper(Register function, int num_reg_arguments,
