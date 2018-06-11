@@ -641,7 +641,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ Jump(reg, reg, Code::kHeaderSize - kHeapObjectTag);
+        __ Addu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(reg);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
