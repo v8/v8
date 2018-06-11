@@ -516,16 +516,16 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
   HeapObject* object = target;
   std::vector<std::pair<HeapObject*, bool>> retaining_path;
   Root root = Root::kUnknown;
-  bool ephemeral = false;
+  bool ephemeron = false;
   while (true) {
-    retaining_path.push_back(std::make_pair(object, ephemeral));
-    if (option == RetainingPathOption::kTrackEphemeralPath &&
-        ephemeral_retainer_.count(object)) {
-      object = ephemeral_retainer_[object];
-      ephemeral = true;
+    retaining_path.push_back(std::make_pair(object, ephemeron));
+    if (option == RetainingPathOption::kTrackEphemeronPath &&
+        ephemeron_retainer_.count(object)) {
+      object = ephemeron_retainer_[object];
+      ephemeron = true;
     } else if (retainer_.count(object)) {
       object = retainer_[object];
-      ephemeral = false;
+      ephemeron = false;
     } else {
       if (retaining_root_.count(object)) {
         root = retaining_root_[object];
@@ -536,11 +536,11 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
   int distance = static_cast<int>(retaining_path.size());
   for (auto node : retaining_path) {
     HeapObject* object = node.first;
-    bool ephemeral = node.second;
+    bool ephemeron = node.second;
     PrintF("\n");
     PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
     PrintF("Distance from root %d%s: ", distance,
-           ephemeral ? " (ephemeral)" : "");
+           ephemeron ? " (ephemeron)" : "");
     object->ShortPrint();
     PrintF("\n");
 #ifdef OBJECT_PRINT
@@ -561,20 +561,20 @@ void Heap::AddRetainer(HeapObject* retainer, HeapObject* object) {
   RetainingPathOption option = RetainingPathOption::kDefault;
   if (IsRetainingPathTarget(object, &option)) {
     // Check if the retaining path was already printed in
-    // AddEphemeralRetainer().
-    if (ephemeral_retainer_.count(object) == 0 ||
+    // AddEphemeronRetainer().
+    if (ephemeron_retainer_.count(object) == 0 ||
         option == RetainingPathOption::kDefault) {
       PrintRetainingPath(object, option);
     }
   }
 }
 
-void Heap::AddEphemeralRetainer(HeapObject* retainer, HeapObject* object) {
-  if (ephemeral_retainer_.count(object)) return;
-  ephemeral_retainer_[object] = retainer;
+void Heap::AddEphemeronRetainer(HeapObject* retainer, HeapObject* object) {
+  if (ephemeron_retainer_.count(object)) return;
+  ephemeron_retainer_[object] = retainer;
   RetainingPathOption option = RetainingPathOption::kDefault;
   if (IsRetainingPathTarget(object, &option) &&
-      option == RetainingPathOption::kTrackEphemeralPath) {
+      option == RetainingPathOption::kTrackEphemeronPath) {
     // Check if the retaining path was already printed in AddRetainer().
     if (retainer_.count(object) == 0) {
       PrintRetainingPath(object, option);
@@ -635,7 +635,7 @@ void Heap::GarbageCollectionPrologue() {
   UpdateNewSpaceAllocationCounter();
   if (FLAG_track_retaining_path) {
     retainer_.clear();
-    ephemeral_retainer_.clear();
+    ephemeron_retainer_.clear();
     retaining_root_.clear();
   }
 }

@@ -620,13 +620,13 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
     RetainingPathOption option = RetainingPathOption::kDefault;
     if (args.length() == 2) {
       CONVERT_ARG_HANDLE_CHECKED(String, str, 1);
-      const char track_ephemeral_path[] = "track-ephemeral-path";
-      if (str->IsOneByteEqualTo(STATIC_CHAR_VECTOR(track_ephemeral_path))) {
-        option = RetainingPathOption::kTrackEphemeralPath;
+      const char track_ephemeron_path[] = "track-ephemeron-path";
+      if (str->IsOneByteEqualTo(STATIC_CHAR_VECTOR(track_ephemeron_path))) {
+        option = RetainingPathOption::kTrackEphemeronPath;
       } else if (str->length() != 0) {
         PrintF("Unexpected second argument of DebugTrackRetainingPath.\n");
         PrintF("Expected an empty string or '%s', got '%s'.\n",
-               track_ephemeral_path, str->ToCString().get());
+               track_ephemeron_path, str->ToCString().get());
       }
     }
     isolate->heap()->AddRetainingPathTarget(object, option);

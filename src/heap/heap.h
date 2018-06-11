@@ -474,7 +474,7 @@ enum class FixedArrayVisitationMode { kRegular, kIncremental };
 
 enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
-enum class RetainingPathOption { kDefault, kTrackEphemeralPath };
+enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
 
 enum class GarbageCollectionReason {
   kUnknown = 0,
@@ -2177,7 +2177,7 @@ class Heap {
   // ===========================================================================
 
   void AddRetainer(HeapObject* retainer, HeapObject* object);
-  void AddEphemeralRetainer(HeapObject* retainer, HeapObject* object);
+  void AddEphemeronRetainer(HeapObject* retainer, HeapObject* object);
   void AddRetainingRoot(Root root, HeapObject* object);
   // Returns true if the given object is a target of retaining path tracking.
   // Stores the option corresponding to the object in the provided *option.
@@ -2469,7 +2469,7 @@ class Heap {
   std::map<HeapObject*, Root> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  std::map<HeapObject*, HeapObject*> ephemeral_retainer_;
+  std::map<HeapObject*, HeapObject*> ephemeron_retainer_;
   // For each index inthe retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::map<int, RetainingPathOption> retaining_path_target_option_;

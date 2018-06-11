@@ -1472,7 +1472,7 @@ void MarkCompactCollector::ProcessMarkingWorklist() {
   DCHECK(marking_worklist()->IsBailoutEmpty());
 }
 
-void MarkCompactCollector::ProcessEphemeralMarking() {
+void MarkCompactCollector::ProcessEphemeronMarking() {
   DCHECK(marking_worklist()->IsEmpty());
   bool work_to_do = true;
   while (work_to_do) {
@@ -1587,8 +1587,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     // harmony weak maps.
     {
       TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
-      ProcessEphemeralMarking();
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON);
+      ProcessEphemeronMarking();
       DCHECK(marking_worklist()->IsEmpty());
     }
 
@@ -1617,10 +1617,10 @@ void MarkCompactCollector::MarkLiveObjects() {
       ProcessMarkingWorklist();
     }
 
-    // Repeat ephemeral processing from the newly marked objects.
+    // Repeat ephemeron processing from the newly marked objects.
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
-      ProcessEphemeralMarking();
+      ProcessEphemeronMarking();
       {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
         heap()->local_embedder_heap_tracer()->TraceEpilogue();
@@ -1866,7 +1866,7 @@ void MarkCompactCollector::ProcessWeakCollections() {
             EphemeronHashTable::EntryToValueIndex(i));
         if (V8_UNLIKELY(FLAG_track_retaining_path) &&
             (*value_slot)->IsHeapObject()) {
-          heap()->AddEphemeralRetainer(heap_object,
+          heap()->AddEphemeronRetainer(heap_object,
                                        HeapObject::cast(*value_slot));
         }
         visitor.VisitPointer(table, value_slot);
