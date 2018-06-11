@@ -22,6 +22,9 @@ declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
+  # Dynamically set an additional dependency from v8/custom_deps.
+  v8_custom_deps = ""
+
   # Turns on deprecation warnings for HeapObject::GetIsolate,
   # HeapObject::GetHeap, Handle(T* obj) and handle(T* obj).
   v8_deprecate_get_isolate = false
@@ -3194,6 +3197,11 @@ group("gn_all") {
     "test:gn_all",
     "tools:gn_all",
   ]
+
+  if (v8_custom_deps != "") {
+    # Custom dependency from directory under v8/custom_deps.
+    deps += [ v8_custom_deps ]
+  }
 
   if (want_v8_shell) {
     deps += [ ":v8_shell" ]
