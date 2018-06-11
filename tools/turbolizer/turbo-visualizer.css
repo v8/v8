@@ -45,7 +45,6 @@
     display: none;
 }
 
-
 .selected {
     background-color: #FFFF33;
 }
@@ -64,19 +63,29 @@ ol.linenums {
     display:inline-block;
     min-width: 3ex;
     text-align: right;
-    color: gray;
-    padding-right:1ex;
-    font-size: 10px;
+    color: #444444;
+    margin-right: 0.5ex;
+    padding-right: 0.5ex;
+    background: #EEEEEE;
+    /* font-size: 80%; */
     user-select: none;
+    height: 120%;
 }
 
 .line-number:hover {
     background-color: #CCCCCC;
 }
 
+.prettyprint ol.linenums > li.selected {
+    background-color: #FFFF33 !important;
+}
+
+li.selected .line-number {
+    background-color: #FFFF33;
+}
+
 .prettyprint ol.linenums > li {
     list-style-type: decimal;
-    padding-top: 3px;
     display: block;
 }
 

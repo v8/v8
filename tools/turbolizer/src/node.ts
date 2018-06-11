@@ -12,6 +12,16 @@ function isNodeInitiallyVisible(node) {
   return node.cfg;
 }
 
+function formatOrigin(origin) {
+  if (origin.nodeId) {
+    return `#${origin.nodeId} in phase ${origin.phase}/${origin.reducer}`;
+  }
+  if (origin.bytecodePosition) {
+    return `Bytecode line ${origin.bytecodePosition} in phase ${origin.phase}/${origin.reducer}`;
+  }
+  return "unknown origin";
+}
+
 class GNode {
   control: boolean;
   opcode: string;
@@ -79,7 +89,7 @@ class GNode {
     }
     let title = this.title + "\n" + propsString + "\n" + this.opinfo;
     if (this.origin) {
-      title += `\nOrigin: #${this.origin.nodeId} in phase ${this.origin.phase}/${this.origin.reducer}`;
+      title += `\nOrigin: ${formatOrigin(this.origin)}`;
     }
     return title;
   }

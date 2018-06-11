@@ -226,11 +226,13 @@ window.onload = function () {
           sourceId: -1,
           startPosition: jsonObj.sourcePosition,
           endPosition: jsonObj.sourcePosition + jsonObj.source.length,
-          sourceText: jsonObj.source
+          sourceText: jsonObj.source,
+          backwardsCompatibility: true
         };
       }
 
       sourceResolver.setInlinings(jsonObj.inlinings);
+      sourceResolver.setSourceLineToBytecodePosition(jsonObj.sourceLineToBytecodePosition);
       sourceResolver.setSources(jsonObj.sources, fnc)
       sourceResolver.setNodePositionMap(jsonObj.nodePositions);
       sourceResolver.parsePhases(jsonObj.phases);

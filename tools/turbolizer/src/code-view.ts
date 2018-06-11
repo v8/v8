@@ -14,7 +14,6 @@ class CodeView extends View {
   source: Source;
   sourceResolver: SourceResolver;
   codeMode: CodeMode;
-  lineToSourcePositions: Map<string, Array<SourcePosition>>;
   sourcePositionToHtmlElement: Map<string, HTMLElement>;
   showAdditionalInliningPosition: boolean;
   selectionHandler: SelectionHandler;
@@ -34,7 +33,6 @@ class CodeView extends View {
     view.sourceResolver = sourceResolver;
     view.source = sourceFunction;
     view.codeMode = codeMode;
-    this.lineToSourcePositions = new Map();
     this.sourcePositionToHtmlElement = new Map();
     this.showAdditionalInliningPosition = false;
 
@@ -73,14 +71,6 @@ class CodeView extends View {
     broker.addSourcePositionHandler(selectionHandler);
     this.selectionHandler = selectionHandler;
     this.initializeCode();
-  }
-
-  addSourcePositionToLine(lineNumber, sourcePosition) {
-    const lineNumberString = anyToString(lineNumber);
-    if (!this.lineToSourcePositions.has(lineNumberString)) {
-      this.lineToSourcePositions.set(lineNumberString, []);
-    }
-    this.lineToSourcePositions.get(lineNumberString).push(sourcePosition);
   }
 
   addHtmlElementToSourcePosition(sourcePosition, element) {
@@ -122,13 +112,15 @@ class CodeView extends View {
     return ordereList.childNodes as NodeListOf<HTMLElement>;
   }
 
-  onSelectLine(lineNumber, doClear) {
-    const sourcePositions = this.lineToSourcePositions.get(anyToString(lineNumber));
+  onSelectLine(lineNumber:number, doClear:boolean) {
+    const key = anyToString(lineNumber);
     if (doClear) {
       this.selectionHandler.clear();
     }
-    if (!sourcePositions) return;
-    this.selectionHandler.select(sourcePositions, undefined);
+   const positions = this.sourceResolver.linetoSourcePositions(lineNumber - 1);
+    if (positions !== undefined) {
+      this.selectionHandler.select(positions, undefined);
+    }
   }
 
   onSelectSourcePosition(sourcePosition, doClear) {
@@ -225,7 +217,7 @@ class CodeView extends View {
     const view = this;
     const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
     for (const sourcePosition of sps) {
-      view.addSourcePositionToLine(lineNumber, sourcePosition);
+      this.sourceResolver.addAnyPositionToLine(lineNumber, sourcePosition);
       const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.firstChild : currentSpan;
       const replacementNode = textnode.splitText(Math.max(0, sourcePosition.scriptOffset - pos));
       const span = document.createElement('span');
@@ -255,12 +247,18 @@ class CodeView extends View {
     const view = this;
     const lineNumberElement = document.createElement("div");
     lineNumberElement.classList.add("line-number");
+    lineNumberElement.dataset.lineNumber = lineNumber;
     lineNumberElement.innerText = lineNumber;
     lineNumberElement.onclick = function (e) {
       e.stopPropagation();
       view.onSelectLine(lineNumber, !e.shiftKey);
     }
     lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
+    // Don't add lines to source positions of not in backwardsCompatibility mode.
+    if (typeof this.source['backwardsCompatibility'] === undefined) return;
+    for (const sourcePosition of this.sourceResolver.linetoSourcePositions(lineNumber - 1)) {
+      view.addHtmlElementToSourcePosition(sourcePosition, lineElement);
+    }
   }
 
   deleteContent() { }

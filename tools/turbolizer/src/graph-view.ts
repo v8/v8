@@ -91,6 +91,9 @@ class GraphView extends View implements PhaseView {
           if (node.sourcePosition) {
             locations.push(node.sourcePosition);
           }
+          if (node.origin && node.origin.bytecodePosition) {
+            locations.push({bytecodePosition: node.origin.bytecodePosition});
+          }
         }
         graph.state.selection.select(nodes, selected);
         broker.broadcastSourcePositionSelect(this, locations, selected);

@@ -30,8 +30,7 @@ class SelectionBroker {
   broadcastSourcePositionSelect(from, sourcePositions, selected) {
     let broker = this;
     sourcePositions = sourcePositions.filter((l) => {
-      if (typeof l.scriptOffset == 'undefined'
-        || typeof l.inliningId == 'undefined') {
+      if (!sourcePositionValid(l)) {
         console.log("Warning: invalid source position");
         return false;
       }

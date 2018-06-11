@@ -14,15 +14,43 @@ function sourcePositionEq(a, b) {
     a.scriptOffset == b.scriptOffset;
 }
 
-function sourcePositionToStringKey(sourcePosition) {
+function sourcePositionToStringKey(sourcePosition): string {
   if (!sourcePosition) return "undefined";
-  return "" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
+  if (sourcePosition.inliningId && sourcePosition.scriptOffset)
+    return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
+  if (sourcePosition.bytecodePosition)
+    return "BCP:" + sourcePosition.bytecodePosition;
+  return "undefined";
+}
+
+function sourcePositionValid(l) {
+  return (typeof l.scriptOffset !== undefined
+          && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
 }
 
 interface SourcePosition {
   scriptOffset: number;
   inliningId: number;
 }
+
+interface TurboFanOrigin {
+  phase: string;
+  reducer: string;
+}
+
+interface NodeOrigin {
+  nodeId: number;
+}
+
+interface BytecodePosition {
+  bytecodePosition: number;
+}
+
+type Origin = NodeOrigin | BytecodePosition;
+type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
+type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
+
+type AnyPosition = SourcePosition | BytecodePosition;
 
 interface Source {
   sourcePositions: Array<SourcePosition>;
@@ -46,14 +74,8 @@ interface Schedule {
   nodes: Array<any>;
 }
 
-interface NodeOrigin {
-  nodeId: number;
-  phase: string;
-  reducer: string;
-}
-
 class SourceResolver {
-  nodePositionMap: Array<SourcePosition>;
+  nodePositionMap: Array<AnyPosition>;
   sources: Array<Source>;
   inlinings: Array<Inlining>;
   inliningsMap: Map<string, Inlining>;
@@ -61,6 +83,8 @@ class SourceResolver {
   phases: Array<Phase>;
   phaseNames: Map<string, number>;
   disassemblyPhase: Phase;
+  lineToSourcePositions: Map<string, Array<AnyPosition>>;
+
 
   constructor() {
     // Maps node ids to source positions.
@@ -79,6 +103,8 @@ class SourceResolver {
     this.phaseNames = new Map();
     // The disassembly phase is stored separately.
     this.disassemblyPhase = undefined;
+    // Maps line numbers to source positions
+    this.lineToSourcePositions = new Map();
   }
 
   setSources(sources, mainBackup) {
@@ -153,7 +179,7 @@ class SourceResolver {
     return nodeIds;
   }
 
-  nodeIdsToSourcePositions(nodeIds) {
+  nodeIdsToSourcePositions(nodeIds): Array<AnyPosition> {
     const sourcePositions = new Map();
     for (const nodeId of nodeIds) {
       let sp = this.nodePositionMap[nodeId];
@@ -255,6 +281,23 @@ class SourceResolver {
     return inliningStack;
   }
 
+  recordOrigins(phase) {
+    if (phase.type != "graph") return;
+    for (const node of phase.data.nodes) {
+      if (node.origin != undefined &&
+          node.origin.bytecodePosition != undefined) {
+        const position = {bytecodePosition: node.origin.bytecodePosition};
+        this.nodePositionMap[node.id] = position;
+        let key = sourcePositionToStringKey(position);
+        if (!this.positionToNodes.has(key)) {
+          this.positionToNodes.set(key, []);
+        }
+        const A = this.positionToNodes.get(key);
+        if (!A.includes(node.id)) A.push("" + node.id);
+      }
+    }
+  }
+
   parsePhases(phases) {
     for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
       if (phase.type == 'disassembly') {
@@ -264,6 +307,7 @@ class SourceResolver {
         this.phaseNames.set(phase.name, this.phases.length);
       } else {
         this.phases.push(phase);
+        this.recordOrigins(phase);
         this.phaseNames.set(phase.name, this.phases.length);
       }
     }
@@ -283,6 +327,28 @@ class SourceResolver {
 
   forEachPhase(f) {
     this.phases.forEach(f);
+  }
+
+  addAnyPositionToLine(lineNumber:number|String, sourcePosition:AnyPosition) {
+    const lineNumberString = anyToString(lineNumber);
+    if (!this.lineToSourcePositions.has(lineNumberString)) {
+      this.lineToSourcePositions.set(lineNumberString, []);
+    }
+    const A = this.lineToSourcePositions.get(lineNumberString);
+    if (!A.includes(sourcePosition)) A.push(sourcePosition);
+  }
+
+  setSourceLineToBytecodePosition(sourceLineToBytecodePosition:Array<number>|undefined) {
+    if (!sourceLineToBytecodePosition) return;
+    sourceLineToBytecodePosition.forEach((pos, i) => {
+      this.addAnyPositionToLine(i, {bytecodePosition: pos});
+    });
+  }
+
+  linetoSourcePositions(lineNumber:number|String) {
+    const positions = this.lineToSourcePositions.get(anyToString(lineNumber));
+    if (positions === undefined) return [];
+    return positions;
   }
 
   parseSchedule(phase) {
