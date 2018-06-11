@@ -4284,7 +4284,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Object properties have been normalized:\n";
     object->Print(os);
   }
@@ -6499,7 +6499,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Object elements have been normalized:\n";
     object->Print(os);
   }
@@ -15842,7 +15842,7 @@ void Dictionary<Derived, Shape>::Print(std::ostream& os) {
 }
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::Print() {
-  OFStream os(stdout);
+  StdoutStream os;
   Print(os);
   os << std::endl;
 }

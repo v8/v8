@@ -531,7 +531,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   // MaybeObject*.
   MaybeObject* maybe_object = reinterpret_cast<MaybeObject*>(args[0]);
 
-  std::ostringstream os;
+  StdoutStream os;
   if (maybe_object->IsClearedWeakHeapObject()) {
     os << "[weak cleared]";
   } else {
@@ -576,9 +576,6 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 #endif
   }
   os << std::endl;
-
-  // TODO(clemensh): Introduce an output stream which outputs to android log.
-  PrintF("%s", os.str().c_str());
 
   return args[0];  // return TOS
 }
@@ -727,7 +724,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
       !Compiler::Compile(func, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
-  OFStream os(stdout);
+  StdoutStream os;
   func->code()->Print(os);
   os << std::endl;
 #endif  // DEBUG

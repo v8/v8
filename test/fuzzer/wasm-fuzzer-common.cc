@@ -155,7 +155,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   WasmModule* module = module_res.val.get();
   CHECK_NOT_NULL(module);
 
-  OFStream os(stdout);
+  StdoutStream os;
 
   os << "// Copyright 2018 the V8 project authors. All rights reserved.\n"
         "// Use of this source code is governed by a BSD-style license that "

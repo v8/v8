@@ -92,7 +92,7 @@ void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
 
 #ifdef OBJECT_PRINT
 void PropertyDetails::Print(bool dictionary_mode) {
-  OFStream os(stdout);
+  StdoutStream os;
   if (dictionary_mode) {
     PrintAsSlowTo(os);
   } else {

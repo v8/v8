@@ -180,7 +180,7 @@ void Module::StoreVariable(Handle<Module> module, int cell_index,
 #ifdef DEBUG
 void Module::PrintStatusTransition(Status new_status) {
   if (FLAG_trace_module_status) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Changing module status from " << status() << " to " << new_status
        << " for ";
     script()->GetNameOrSourceURL()->Print(os);
@@ -448,7 +448,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
                          v8::Module::ResolveCallback callback) {
 #ifdef DEBUG
   if (FLAG_trace_module_status) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Instantiating module ";
     module->script()->GetNameOrSourceURL()->Print(os);
 #ifndef OBJECT_PRINT
@@ -679,7 +679,7 @@ bool Module::FinishInstantiate(Handle<Module> module,
 MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
 #ifdef DEBUG
   if (FLAG_trace_module_status) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Evaluating module ";
     module->script()->GetNameOrSourceURL()->Print(os);
 #ifndef OBJECT_PRINT

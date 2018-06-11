@@ -253,7 +253,7 @@ void WasmCode::Validate() const {
 }
 
 void WasmCode::Print(Isolate* isolate) const {
-  OFStream os(stdout);
+  StdoutStream os;
   os << "--- WebAssembly code ---\n";
   Disassemble(nullptr, isolate, os);
   os << "--- End code ---\n";

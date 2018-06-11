@@ -117,11 +117,10 @@ bool LocationOperand::IsCompatible(LocationOperand* op) {
 }
 
 void InstructionOperand::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
   PrintableInstructionOperand wrapper;
   wrapper.register_configuration_ = config;
   wrapper.op_ = *this;
-  os << wrapper << std::endl;
+  StdoutStream{} << wrapper << std::endl;
 }
 
 void InstructionOperand::Print() const { Print(GetRegConfig()); }
@@ -249,7 +248,7 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 void MoveOperands::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
+  StdoutStream os;
   PrintableInstructionOperand wrapper;
   wrapper.register_configuration_ = config;
   wrapper.op_ = destination();
@@ -367,11 +366,10 @@ bool Instruction::AreMovesRedundant() const {
 }
 
 void Instruction::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
   PrintableInstruction wrapper;
   wrapper.instr_ = this;
   wrapper.register_configuration_ = config;
-  os << wrapper << std::endl;
+  StdoutStream{} << wrapper << std::endl;
 }
 
 void Instruction::Print() const { Print(GetRegConfig()); }
@@ -986,23 +984,21 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 }
 
 void InstructionSequence::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
   PrintableInstructionSequence wrapper;
   wrapper.register_configuration_ = config;
   wrapper.sequence_ = this;
-  os << wrapper << std::endl;
+  StdoutStream{} << wrapper << std::endl;
 }
 
 void InstructionSequence::Print() const { Print(GetRegConfig()); }
 
 void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
                                      int block_id) const {
-  OFStream os(stdout);
   RpoNumber rpo = RpoNumber::FromInt(block_id);
   const InstructionBlock* block = InstructionBlockAt(rpo);
   CHECK(block->rpo_number() == rpo);
   PrintableInstructionBlock printable_block = {config, block, this};
-  os << printable_block << std::endl;
+  StdoutStream{} << printable_block << std::endl;
 }
 
 void InstructionSequence::PrintBlock(int block_id) const {

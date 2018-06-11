@@ -55,17 +55,16 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
-  OFStream os(stdout);
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- RAW SCHEDULE -------------------------------------------\n");
-    os << *schedule_;
+    StdoutStream{} << *schedule_;
   }
   schedule_->EnsureCFGWellFormedness();
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
   schedule_->PropagateDeferredMark();
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
-    os << *schedule_;
+    StdoutStream{} << *schedule_;
   }
   // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;

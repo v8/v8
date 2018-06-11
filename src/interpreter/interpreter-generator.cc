@@ -3132,7 +3132,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
                        Bytecodes::ToString(bytecode, operand_scale).c_str()));
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_trace_ignition_codegen) {
-    OFStream os(stdout);
+    StdoutStream os;
     code->Disassemble(Bytecodes::ToString(bytecode), os);
     os << std::flush;
   }
@@ -3199,7 +3199,7 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_trace_ignition_codegen) {
-    OFStream os(stdout);
+    StdoutStream os;
     code->Disassemble(debug_name.c_str(), os);
     os << std::flush;
   }

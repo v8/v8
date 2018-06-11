@@ -63,7 +63,7 @@ TEST(0) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -99,7 +99,7 @@ TEST(1) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -144,7 +144,7 @@ TEST(2) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -191,7 +191,7 @@ TEST(3) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -322,7 +322,7 @@ TEST(4) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -384,7 +384,7 @@ TEST(5) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -415,7 +415,7 @@ TEST(6) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -483,7 +483,7 @@ static void TestRoundingMode(VCVTTypes types,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -665,7 +665,7 @@ TEST(8) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -774,7 +774,7 @@ TEST(9) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -879,7 +879,7 @@ TEST(10) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -973,7 +973,7 @@ TEST(11) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -1099,7 +1099,7 @@ TEST(13) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -1171,7 +1171,7 @@ TEST(14) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -2051,7 +2051,7 @@ TEST(15) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -2327,7 +2327,7 @@ TEST(16) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -2405,7 +2405,7 @@ TEST(sdiv) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -2465,7 +2465,7 @@ TEST(udiv) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -2880,7 +2880,7 @@ TEST(msr_mrs) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_ippii>::FromCode(*code);
@@ -2978,7 +2978,7 @@ TEST(ARMv8_float32_vrintX) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -3080,7 +3080,7 @@ TEST(ARMv8_vrintX) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -3217,7 +3217,7 @@ TEST(ARMv8_vsel) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_ippii>::FromCode(*code);
@@ -3308,7 +3308,7 @@ TEST(ARMv8_vminmax_f64) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -3388,7 +3388,7 @@ TEST(ARMv8_vminmax_f32) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -3518,7 +3518,7 @@ static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(MacroAssembler& assm) {
   Handle<Code> code =
       assm.isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   return GeneratedCode<F_ppiii>::FromCode(*code);
@@ -3681,7 +3681,7 @@ TEST(unaligned_loads) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -3724,7 +3724,7 @@ TEST(unaligned_stores) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_ppiii>::FromCode(*code);
@@ -3824,7 +3824,7 @@ TEST(vswp) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -4036,7 +4036,7 @@ TEST(split_add_immediate) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -4056,7 +4056,7 @@ TEST(split_add_immediate) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -4079,7 +4079,7 @@ TEST(split_add_immediate) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
+    StdoutStream os;
     code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
