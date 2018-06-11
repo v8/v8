@@ -149,6 +149,7 @@ class PipelineData {
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
+        graph_zone_(graph_zone_scope_.zone()),
         graph_(mcgraph->graph()),
         source_positions_(source_positions),
         node_origins_(node_origins),
