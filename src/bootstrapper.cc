@@ -3111,7 +3111,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Builtins::kDataViewConstructor);
     InstallWithIntrinsicDefaultProto(isolate_, data_view_fun,
                                      Context::DATA_VIEW_FUN_INDEX);
-    data_view_fun->shared()->set_length(3);
+    data_view_fun->shared()->set_length(1);
     data_view_fun->shared()->DontAdaptArguments();
 
     // Setup %DataViewPrototype%.
