@@ -467,16 +467,15 @@ void TurboAssembler::CheckStackAlignment() {
 void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG
   const char* msg = GetAbortReason(reason);
-  if (msg != nullptr) {
-    RecordComment("Abort message: ");
-    RecordComment(msg);
-  }
+  RecordComment("Abort message: ");
+  RecordComment(msg);
+#endif
 
-  if (FLAG_trap_on_abort) {
+  // Avoid emitting call to builtin if requested.
+  if (trap_on_abort()) {
     int3();
     return;
   }
-#endif
 
   Move(rdx, Smi::FromInt(static_cast<int>(reason)));
 

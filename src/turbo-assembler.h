@@ -25,6 +25,9 @@ class TurboAssemblerBase : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
+  bool trap_on_abort() const { return trap_on_abort_; }
+  void set_trap_on_abort(bool v) { trap_on_abort_ = v; }
+
   void set_builtin_index(int i) { maybe_builtin_index_ = i; }
 
   void set_has_frame(bool v) { has_frame_ = v; }
@@ -59,12 +62,31 @@ class TurboAssemblerBase : public Assembler {
   // Whether kRootRegister has been initialized.
   bool root_array_available_ = true;
 
+  // Immediately trap instead of calling {Abort} when debug code fails.
+  bool trap_on_abort_ = FLAG_trap_on_abort;
+
   // May be set while generating builtins.
   int maybe_builtin_index_ = Builtins::kNoBuiltinId;
 
   bool has_frame_ = false;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TurboAssemblerBase);
+};
+
+// Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
+// code during the lifetime of this scope object. For disabling debug code
+// entirely use the {DontEmitDebugCodeScope} instead.
+class TrapOnAbortScope BASE_EMBEDDED {
+ public:
+  explicit TrapOnAbortScope(TurboAssemblerBase* assembler)
+      : assembler_(assembler), old_value_(assembler->trap_on_abort()) {
+    assembler_->set_trap_on_abort(true);
+  }
+  ~TrapOnAbortScope() { assembler_->set_trap_on_abort(old_value_); }
+
+ private:
+  TurboAssemblerBase* assembler_;
+  bool old_value_;
 };
 
 }  // namespace internal
