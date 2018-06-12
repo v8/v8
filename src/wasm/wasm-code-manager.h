@@ -439,6 +439,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void SetModuleCodeSizeHistogram(Histogram* histogram) {
     module_code_size_mb_ = histogram;
   }
+  static size_t EstimateNativeModuleSize(const WasmModule* module);
 
  private:
   friend class NativeModule;
@@ -452,7 +453,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void FreeNativeModule(NativeModule*);
   void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
-  size_t GetAllocationChunk(const WasmModule& module);
   bool WouldGCHelp() const;
 
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;

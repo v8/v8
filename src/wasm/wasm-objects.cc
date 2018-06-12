@@ -127,6 +127,16 @@ class WasmInstanceNativeAllocations {
 #undef SET
 };
 
+size_t EstimateNativeAllocationsSize(const WasmModule* module) {
+  size_t estimate = sizeof(WasmInstanceNativeAllocations) +
+                    (1 * kPointerSize * module->num_imported_mutable_globals) +
+                    (2 * kPointerSize * module->num_imported_functions);
+  for (auto& table : module->function_tables) {
+    estimate += 3 * kPointerSize * table.initial_size;
+  }
+  return estimate;
+}
+
 WasmInstanceNativeAllocations* GetNativeAllocations(
     WasmInstanceObject* instance) {
   return reinterpret_cast<Managed<WasmInstanceNativeAllocations>*>(
@@ -811,11 +821,10 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
   // Initialize the imported function arrays.
-  auto num_imported_functions =
-      module_object->shared()->module()->num_imported_functions;
-  auto num_imported_mutable_globals =
-      module_object->shared()->module()->num_imported_mutable_globals;
-  size_t native_allocations_size = 0;  // TODO(titzer): estimate properly.
+  auto module = module_object->shared()->module();
+  auto num_imported_functions = module->num_imported_functions;
+  auto num_imported_mutable_globals = module->num_imported_mutable_globals;
+  size_t native_allocations_size = EstimateNativeAllocationsSize(module);
   auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
       isolate, native_allocations_size, instance, num_imported_functions,
       num_imported_mutable_globals);
@@ -1388,12 +1397,13 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   compiled_module->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
   {
+    size_t memory_estimate =
+        isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
+            module);
     auto native_module =
         isolate->wasm_engine()->code_manager()->NewNativeModule(*module, env);
-    size_t native_module_size =
-        0;  // TODO(titzer): estimate native module size.
     Handle<Foreign> native_module_wrapper =
-        Managed<wasm::NativeModule>::FromUniquePtr(isolate, native_module_size,
+        Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
                                                    std::move(native_module));
     compiled_module->set_native_module(*native_module_wrapper);
   }

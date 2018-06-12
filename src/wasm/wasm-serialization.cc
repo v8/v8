@@ -591,8 +591,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
   // The {managed_module} will take ownership of the {WasmModule} object,
-  // and it will be destroyed when the GC reclaims the wrapper object.
-  size_t module_size = 0;  // TODO(titzer): estimate size properly.
+  // and it will be destroyed when the GC reclaims it.
+  size_t module_size = EstimateWasmModuleSize(decode_result.val.get());
   Handle<Managed<WasmModule>> managed_module =
       Managed<WasmModule>::FromUniquePtr(isolate, module_size,
                                          std::move(decode_result.val));

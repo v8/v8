@@ -180,6 +180,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   void AddNameForTesting(int function_index, WireBytesRef name);
 };
 
+size_t EstimateWasmModuleSize(const WasmModule* module);
+
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as

@@ -341,6 +341,24 @@ Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
   }
   return locals_names;
 }
+
+namespace {
+template <typename T>
+inline size_t VectorSize(const std::vector<T>& vector) {
+  return sizeof(T) * vector.size();
+}
+}  // namespace
+
+size_t EstimateWasmModuleSize(const WasmModule* module) {
+  size_t estimate =
+      sizeof(WasmModule) + VectorSize(module->signatures) +
+      VectorSize(module->signature_ids) + VectorSize(module->functions) +
+      VectorSize(module->data_segments) + VectorSize(module->function_tables) +
+      VectorSize(module->import_table) + VectorSize(module->export_table) +
+      VectorSize(module->exceptions) + VectorSize(module->table_inits);
+  // TODO(wasm): include names table and wire bytes in size estimate
+  return estimate;
+}
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

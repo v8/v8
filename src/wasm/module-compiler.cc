@@ -1370,7 +1370,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
 
   // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
-  size_t module_size = 0;  // TODO(titzer): estimate size of decoded module.
+  size_t module_size = EstimateWasmModuleSize(module.get());
   Handle<Managed<WasmModule>> managed_module =
       Managed<WasmModule>::FromUniquePtr(isolate, module_size,
                                          std::move(module));
@@ -2901,7 +2901,7 @@ void AsyncCompileJob::FinishCompile() {
 
   // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
-  size_t module_size = 0;  // TODO(titzer): estimate size of decoded module.
+  size_t module_size = EstimateWasmModuleSize(module_.get());
   Handle<Managed<WasmModule>> managed_module =
       Managed<WasmModule>::FromUniquePtr(isolate_, module_size,
                                          std::move(module_));

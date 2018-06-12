@@ -885,8 +885,6 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     remaining_uncommitted_code_space_.fetch_add(size);
     return false;
   }
-  // This API assumes main thread
-  isolate_->AdjustAmountOfExternalAllocatedMemory(size);
   if (WouldGCHelp()) {
     // This API does not assume main thread, and would schedule
     // a GC if called from a different thread, instead of synchronously
@@ -927,34 +925,39 @@ void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
              reinterpret_cast<void*>(ret->end()), ret->size());
 }
 
-size_t WasmCodeManager::GetAllocationChunk(const WasmModule& module) {
-  // TODO(mtrofin): this should pick up its 'maximal code range size'
-  // from something embedder-provided
-  if (kRequiresCodeRange) return kMaxWasmCodeMemory;
-  DCHECK(kModuleCanAllocateMoreMemory);
-  size_t ret = AllocatePageSize();
-  // a ballpark guesstimate on native inflation factor.
-  constexpr size_t kMultiplier = 4;
+size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
+  constexpr size_t kCodeSizeMultiplier = 4;
+  constexpr size_t kImportSize = 32 * kPointerSize;
 
-  for (auto& function : module.functions) {
-    ret += kMultiplier * function.code.length();
+  size_t estimate =
+      AllocatePageSize() /* TODO(titzer): 1 page spot bonus */ +
+      sizeof(NativeModule) +
+      (sizeof(WasmCode*) * module->functions.size() /* code table size */) +
+      (sizeof(WasmCode) * module->functions.size() /* code object size */) +
+      (kImportSize * module->num_imported_functions /* import size */);
+
+  for (auto& function : module->functions) {
+    estimate += kCodeSizeMultiplier * function.code.length();
   }
-  return ret;
+
+  return estimate;
 }
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     const WasmModule& module, ModuleEnv& env) {
-  size_t code_size = GetAllocationChunk(module);
+  size_t memory_estimate = EstimateNativeModuleSize(&module);
   return NewNativeModule(
-      code_size, static_cast<uint32_t>(module.functions.size()),
+      memory_estimate, static_cast<uint32_t>(module.functions.size()),
       module.num_imported_functions, kModuleCanAllocateMoreMemory, env);
 }
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    size_t size_estimate, uint32_t num_functions,
+    size_t memory_estimate, uint32_t num_functions,
     uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env) {
   VirtualMemory mem;
-  TryAllocate(size_estimate, &mem);
+  // If the code must be contiguous, reserve enough address space up front.
+  size_t vmem_size = kRequiresCodeRange ? kMaxWasmCodeMemory : memory_estimate;
+  TryAllocate(vmem_size, &mem);
   if (mem.IsReserved()) {
     Address start = mem.address();
     size_t size = mem.size();
@@ -1041,8 +1044,6 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   // which we currently indicate by having the isolate_ as null
   if (isolate_ == nullptr) return;
   remaining_uncommitted_code_space_.fetch_add(code_size);
-  isolate_->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<int64_t>(code_size));
 }
 
 // TODO(wasm): We can make this more efficient if needed. For

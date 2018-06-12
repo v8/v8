@@ -255,7 +255,7 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
   WasmCodeManager manager(v8_isolate(), 3 * page());
   NativeModulePtr nm = AllocModule(&manager, 1 * page(), GetParam());
   if (GetParam() == Fixed) {
-    ASSERT_DEATH_IF_SUPPORTED(AddCode(nm.get(), 0, 1 * page() + kCodeAlignment),
+    ASSERT_DEATH_IF_SUPPORTED(AddCode(nm.get(), 0, kMaxWasmCodeMemory + 1),
                               "OOM in NativeModule::AddOwnedCode");
   } else {
     CHECK_NOT_NULL(AddCode(nm.get(), 0, 1 * page() + kCodeAlignment));
