@@ -506,11 +506,18 @@ void ArrayConstructorDescriptor::InitializePlatformIndependent(
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kAllocationSite, kActualArgumentsCount, kFunctionParameter
-  MachineType machine_types[] = {MachineType::TaggedPointer(),
+  MachineType machine_types[] = {MachineType::AnyTagged(),
                                  MachineType::AnyTagged(), MachineType::Int32(),
                                  MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
+}
+
+void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // This descriptor must use the same set of registers as the
+  // ArrayNArgumentsConstructorDescriptor.
+  ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(data);
 }
 
 void ArraySingleArgumentConstructorDescriptor::InitializePlatformIndependent(
@@ -518,10 +525,17 @@ void ArraySingleArgumentConstructorDescriptor::InitializePlatformIndependent(
   // kFunction, kAllocationSite, kActualArgumentsCount, kFunctionParameter,
   // kArraySizeSmiParameter
   MachineType machine_types[] = {
-      MachineType::TaggedPointer(), MachineType::AnyTagged(),
-      MachineType::Int32(), MachineType::AnyTagged(), MachineType::AnyTagged()};
+      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32(),
+      MachineType::AnyTagged(), MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
+}
+
+void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // This descriptor must use the same set of registers as the
+  // ArrayNArgumentsConstructorDescriptor.
+  ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(data);
 }
 
 void ArrayNArgumentsConstructorDescriptor::InitializePlatformIndependent(
