@@ -395,17 +395,14 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   return true;
 }
 
-size_t GetSerializedNativeModuleSize(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  NativeModule* native_module = compiled_module->GetNativeModule();
+size_t GetSerializedNativeModuleSize(Isolate* isolate,
+                                     NativeModule* native_module) {
   NativeModuleSerializer serializer(isolate, native_module);
   return kVersionSize + serializer.Measure();
 }
 
-bool SerializeNativeModule(Isolate* isolate,
-                           Handle<WasmCompiledModule> compiled_module,
+bool SerializeNativeModule(Isolate* isolate, NativeModule* native_module,
                            Vector<byte> buffer) {
-  NativeModule* native_module = compiled_module->GetNativeModule();
   NativeModuleSerializer serializer(isolate, native_module);
   size_t measured_size = kVersionSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;

@@ -912,16 +912,16 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
-  Handle<WasmCompiledModule> compiled_module(module_obj->compiled_module(),
-                                             isolate);
+  wasm::NativeModule* native_module =
+      module_obj->compiled_module()->GetNativeModule();
   size_t compiled_size =
-      wasm::GetSerializedNativeModuleSize(isolate, compiled_module);
+      wasm::GetSerializedNativeModuleSize(isolate, native_module);
   void* array_data = isolate->array_buffer_allocator()->Allocate(compiled_size);
   Handle<JSArrayBuffer> array_buffer = isolate->factory()->NewJSArrayBuffer();
   JSArrayBuffer::Setup(array_buffer, isolate, false, array_data, compiled_size);
   if (!array_data ||
       !wasm::SerializeNativeModule(
-          isolate, compiled_module,
+          isolate, native_module,
           {reinterpret_cast<uint8_t*>(array_data), compiled_size})) {
     return isolate->heap()->undefined_value();
   }
