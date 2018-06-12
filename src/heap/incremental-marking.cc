@@ -16,6 +16,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/sweeper.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 #include "src/visitors.h"

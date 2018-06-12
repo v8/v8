@@ -92,8 +92,16 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
   collector_->AddEphemeronHashTable(table);
 
-  // TODO(dinfuehr): Account size of the backing store.
-  return 0;
+  for (int i = 0; i < table->Capacity(); i++) {
+    HeapObject* key = HeapObject::cast(table->KeyAt(i));
+    if (marking_state()->IsBlackOrGrey(key)) {
+      Object** value_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+      VisitPointer(table, value_slot);
+    }
+  }
+
+  return table->SizeFromMap(map);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
