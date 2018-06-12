@@ -214,6 +214,26 @@ bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
   return this == heap->null_value() || this == heap->undefined_value();
 }
 
+#ifdef DEBUG
+#define IS_TYPE_FUNCTION_DEF(Type, Value)                                  \
+  bool Object::Is##Type() const {                                          \
+    return IsHeapObject() && HeapObject::cast(this)->Is##Type();           \
+  }                                                                        \
+  bool HeapObject::Is##Type() const {                                      \
+    return IsOddball() && Oddball::cast(this)->kind() == Oddball::k##Type; \
+  }
+ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
+#undef IS_TYPE_FUNCTION_DEF
+
+bool Object::IsNullOrUndefined() const {
+  return this->IsNull() || this->IsUndefined();
+}
+
+bool HeapObject::IsNullOrUndefined() const {
+  return this->IsNull() || this->IsUndefined();
+}
+#endif
+
 bool HeapObject::IsString() const {
   return map()->instance_type() < FIRST_NONSTRING_TYPE;
 }
@@ -2562,7 +2582,7 @@ Context* JSFunction::native_context() { return context()->native_context(); }
 
 
 void JSFunction::set_context(Object* value) {
-  DCHECK(value->IsUndefined(GetIsolate()) || value->IsContext());
+  DCHECK(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
   WRITE_BARRIER(GetHeap(), this, kContextOffset, value);
 }
@@ -3199,8 +3219,7 @@ int SimpleNumberDictionaryShape::GetMapRootIndex() {
 }
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
-  DCHECK(other->IsTheHole(key->GetIsolate()) ||
-         Name::cast(other)->IsUniqueName());
+  DCHECK(other->IsTheHole() || Name::cast(other)->IsUniqueName());
   DCHECK(key->IsUniqueName());
   return *key == other;
 }
@@ -3331,7 +3350,7 @@ Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   TableType* table(TableType::cast(this->table()));
   int index = Smi::ToInt(this->index());
   Object* key = table->KeyAt(index);
-  DCHECK(!key->IsTheHole(table->GetIsolate()));
+  DCHECK(!key->IsTheHole());
   return key;
 }
 

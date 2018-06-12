@@ -1241,6 +1241,16 @@ class Object {
 
   INLINE(bool IsNullOrUndefined(Isolate* isolate) const);
 
+// Non-isolate version of oddball check. This is slower than the above check,
+// so it should only be used for DCHECKS.
+#ifdef DEBUG
+#define IS_TYPE_FUNCTION_DECL(Type, Value) INLINE(bool Is##Type() const);
+  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+
+  INLINE(bool IsNullOrUndefined() const);
+#endif
+
   // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
   // a keyed store is of the form a[expression] = foo.
   enum StoreFromKeyed {
@@ -1819,6 +1829,16 @@ class HeapObject: public Object {
 #undef IS_TYPE_FUNCTION_DECL
 
   INLINE(bool IsNullOrUndefined(Isolate* isolate) const);
+
+// Non-isolate version of oddball check. This is slower than the above check,
+// so it should only be used for DCHECKS.
+#ifdef DEBUG
+#define IS_TYPE_FUNCTION_DECL(Type, Value) INLINE(bool Is##Type() const);
+  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+
+  INLINE(bool IsNullOrUndefined() const);
+#endif
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) INLINE(bool Is##Name() const);
   STRUCT_LIST(DECL_STRUCT_PREDICATE)

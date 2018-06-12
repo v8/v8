@@ -335,7 +335,7 @@ void ArrayList::Set(int index, Object* obj, WriteBarrierMode mode) {
 }
 
 void ArrayList::Clear(int index, Object* undefined) {
-  DCHECK(undefined->IsUndefined(GetIsolate()));
+  DCHECK(undefined->IsUndefined());
   FixedArray::cast(this)->set(kFirstIndex + index, undefined,
                               SKIP_WRITE_BARRIER);
 }
@@ -690,7 +690,7 @@ void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   } else {
     // Clamp undefined to the default value. All other types have been
     // converted to a number type further up in the call chain.
-    DCHECK(value->IsUndefined(GetIsolate()));
+    DCHECK(value->IsUndefined());
   }
   set(index, cast_value);
 }

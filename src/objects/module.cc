@@ -274,7 +274,7 @@ void Module::RecordError() {
 Object* Module::GetException() {
   DisallowHeapAllocation no_alloc;
   DCHECK_EQ(status(), Module::kErrored);
-  DCHECK(!exception()->IsTheHole(GetIsolate()));
+  DCHECK(!exception()->IsTheHole());
   return exception();
 }
 

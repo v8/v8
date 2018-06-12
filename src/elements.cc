@@ -364,7 +364,7 @@ static void CopyPackedSmiToDoubleElements(FixedArrayBase* from_base,
   for (uint32_t from_end = from_start + static_cast<uint32_t>(packed_size);
        from_start < from_end; from_start++, to_start++) {
     Object* smi = from->get(from_start);
-    DCHECK(!smi->IsTheHole(from->GetIsolate()));
+    DCHECK(!smi->IsTheHole());
     to->set(to_start, Smi::ToInt(smi));
   }
 }
@@ -2582,7 +2582,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     WriteBarrierMode mode = raw_backing_store->GetWriteBarrierMode(no_gc);
     for (uint32_t i = 0; i < copy_size; i++) {
       Object* argument = (*args)[src_index + i];
-      DCHECK(!argument->IsTheHole(raw_backing_store->GetIsolate()));
+      DCHECK(!argument->IsTheHole());
       Subclass::SetImpl(raw_backing_store, dst_index + i, argument, mode);
     }
   }
@@ -3632,10 +3632,10 @@ class SloppyArgumentsElementsAccessor
       // Store context mapped entry.
       DisallowHeapAllocation no_gc;
       Object* probe = elements->get_mapped_entry(entry);
-      DCHECK(!probe->IsTheHole(store->GetIsolate()));
+      DCHECK(!probe->IsTheHole());
       Context* context = elements->context();
       int context_entry = Smi::ToInt(probe);
-      DCHECK(!context->get(context_entry)->IsTheHole(store->GetIsolate()));
+      DCHECK(!context->get(context_entry)->IsTheHole());
       context->set(context_entry, value);
     } else {
       //  Entry is not context mapped defer to arguments.
@@ -3645,7 +3645,7 @@ class SloppyArgumentsElementsAccessor
         AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(current);
         Context* context = elements->context();
         int context_entry = alias->aliased_context_slot();
-        DCHECK(!context->get(context_entry)->IsTheHole(store->GetIsolate()));
+        DCHECK(!context->get(context_entry)->IsTheHole());
         context->set(context_entry, value);
       } else {
         ArgumentsAccessor::SetImpl(arguments, entry - length, value);

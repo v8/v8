@@ -407,7 +407,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 void Context::AddOptimizedCode(Code* code) {
   DCHECK(IsNativeContext());
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK(code->next_code_link()->IsUndefined(GetIsolate()));
+  DCHECK(code->next_code_link()->IsUndefined());
   code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
   set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
 }

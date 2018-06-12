@@ -529,7 +529,7 @@ bool Map::IsJSDataViewMap() const {
 Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
-  DCHECK(value->IsNull(GetIsolate()) || value->IsJSReceiver());
+  DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
 }
@@ -711,7 +711,7 @@ bool Map::IsInobjectSlackTrackingInProgress() const {
 
 void Map::InobjectSlackTrackingStep() {
   // Slack tracking should only be performed on an initial map.
-  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  DCHECK(GetBackPointer()->IsUndefined());
   if (!IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
   set_construction_counter(counter - 1);

@@ -4336,7 +4336,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
       // Ensure that no transition was inserted for prototype migrations.
       DCHECK_EQ(0, TransitionsAccessor(old_map->GetIsolate(), old_map)
                        .NumberOfTransitions());
-      DCHECK(new_map->GetBackPointer()->IsUndefined(old_map->GetIsolate()));
+      DCHECK(new_map->GetBackPointer()->IsUndefined());
       DCHECK(object->map() != *old_map);
     }
   } else {
@@ -6160,7 +6160,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
     PropertyAttributes attributes) {
-  DCHECK(!value->IsTheHole(object->GetIsolate()));
+  DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
@@ -13946,7 +13946,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
       lit->requires_instance_fields_initializer());
 
   shared_info->set_is_toplevel(is_toplevel);
-  DCHECK(shared_info->outer_scope_info()->IsTheHole(shared_info->GetIsolate()));
+  DCHECK(shared_info->outer_scope_info()->IsTheHole());
   if (!is_toplevel) {
     Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
     if (outer_scope) {
