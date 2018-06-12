@@ -391,11 +391,10 @@ struct AddMatcher : public BinopMatcher {
       return;
     }
 
-    if (this->right().opcode() == kAddOpcode &&
-        this->left().opcode() != kAddOpcode) {
-      this->SwapInputs();
-    } else if (this->right().opcode() == kSubOpcode &&
-               this->left().opcode() != kSubOpcode) {
+    if ((this->left().opcode() != kSubOpcode &&
+         this->left().opcode() != kAddOpcode) &&
+        (this->right().opcode() == kAddOpcode ||
+         this->right().opcode() == kSubOpcode)) {
       this->SwapInputs();
     }
   }
