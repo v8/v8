@@ -4132,6 +4132,15 @@ void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
       Heap::roots_to_builtins_offset() + builtin_index * kPointerSize;
   Ld(destination, MemOperand(kRootRegister, roots_to_builtins_offset));
 }
+
+void TurboAssembler::LoadRootRegisterOffset(Register destination,
+                                            intptr_t offset) {
+  if (offset == 0) {
+    Move(destination, kRootRegister);
+  } else {
+    Daddu(destination, kRootRegister, Operand(offset));
+  }
+}
 #endif  // V8_EMBEDDED_BUILTINS
 
 void TurboAssembler::Jump(Register target, Condition cond, Register rs,

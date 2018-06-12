@@ -172,6 +172,16 @@ void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
 
   movp(destination, Operand(kRootRegister, roots_to_builtins_offset));
 }
+
+void TurboAssembler::LoadRootRegisterOffset(Register destination,
+                                            intptr_t offset) {
+  DCHECK(is_int32(offset));
+  if (offset == 0) {
+    Move(destination, kRootRegister);
+  } else {
+    leap(destination, Operand(kRootRegister, static_cast<int32_t>(offset)));
+  }
+}
 #endif  // V8_EMBEDDED_BUILTINS
 
 void TurboAssembler::LoadAddress(Register destination,

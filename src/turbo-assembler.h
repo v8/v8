@@ -45,6 +45,8 @@ class TurboAssemblerBase : public Assembler {
   virtual void LoadExternalReference(Register destination,
                                      int reference_index) = 0;
   virtual void LoadBuiltin(Register destination, int builtin_index) = 0;
+  virtual void LoadRootRegisterOffset(Register destination,
+                                      intptr_t offset) = 0;
 #endif  // V8_EMBEDDED_BUILTINS
 
   virtual void LoadRoot(Register destination, Heap::RootListIndex index) = 0;

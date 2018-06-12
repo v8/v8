@@ -67,16 +67,22 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
-  // Encode as an index into the external reference table stored on the isolate.
+  if (reference.IsAddressableThroughRootRegister(isolate())) {
+    // Some external references can be efficiently loaded as an offset from
+    // kRootRegister.
+    intptr_t offset = reference.OffsetFromRootRegister(isolate());
+    LoadRootRegisterOffset(destination, offset);
+  } else {
+    // Otherwise, do a memory load from the external reference table.
 
-  ExternalReferenceEncoder encoder(isolate());
-  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-  CHECK(!v.is_from_api());
+    // Encode as an index into the external reference table stored on the
+    // isolate.
+    ExternalReferenceEncoder encoder(isolate());
+    ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
+    CHECK(!v.is_from_api());
 
-  // TODO(jgruber, v8:6666): Addresses within the isolate can be loaded through
-  // an offset from the roots pointer, skipping one level of indirection.
-
-  LoadExternalReference(destination, v.index());
+    LoadExternalReference(destination, v.index());
+  }
 }
 #endif  // V8_EMBEDDED_BUILTINS
 

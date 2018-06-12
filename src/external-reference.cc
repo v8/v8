@@ -834,6 +834,24 @@ ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
   return ExternalReference(entry);
 }
 
+bool ExternalReference::IsAddressableThroughRootRegister(
+    Isolate* isolate) const {
+  Address start = reinterpret_cast<Address>(isolate);
+  Address end = isolate->heap()->root_register_addressable_end();
+  return start <= address_ && address_ < end;
+}
+
+intptr_t ExternalReference::OffsetFromRootRegister(Isolate* isolate) const {
+  DCHECK(IsAddressableThroughRootRegister(isolate));
+#ifdef V8_TARGET_ARCH_X64
+  return static_cast<intptr_t>(address_) - kRootRegisterBias -
+         reinterpret_cast<intptr_t>(isolate->heap()->roots_array_start());
+#else
+  return static_cast<intptr_t>(address_) -
+         reinterpret_cast<intptr_t>(isolate->heap()->roots_array_start());
+#endif
+}
+
 ExternalReference ExternalReference::cpu_features() {
   DCHECK(CpuFeatures::initialized_);
   return ExternalReference(&CpuFeatures::supported_);
