@@ -268,19 +268,18 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
 }
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
-  return code->instructions().size() + code->reloc_info().size() +
-         code->source_positions().size() +
+  if (code->kind() == WasmCode::kLazyStub) return sizeof(size_t);
+  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  return kCodeHeaderSize + code->instructions().size() +
+         code->reloc_info().size() + code->source_positions().size() +
          code->protected_instructions().size() *
              sizeof(trap_handler::ProtectedInstructionData);
 }
 
 size_t NativeModuleSerializer::Measure() const {
   size_t size = kHeaderSize;
-  uint32_t first_wasm_fn = native_module_->num_imported_functions();
-  uint32_t total_fns = native_module_->num_functions();
-  for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
-    size += kCodeHeaderSize;
-    size += MeasureCode(native_module_->code(i));
+  for (WasmCode* code : native_module_->code_table()) {
+    size += MeasureCode(code);
   }
   return size;
 }
@@ -291,6 +290,11 @@ void NativeModuleSerializer::WriteHeader(Writer* writer) {
 }
 
 void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
+  if (code->kind() == WasmCode::kLazyStub) {
+    writer->Write(size_t{0});
+    return;
+  }
+  DCHECK_EQ(WasmCode::kFunction, code->kind());
   // Write the size of the entire code section, followed by the code header.
   writer->Write(MeasureCode(code));
   writer->Write(code->constant_pool_offset());
@@ -385,10 +389,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
 
   WriteHeader(writer);
 
-  uint32_t total_fns = native_module_->num_functions();
-  uint32_t first_wasm_fn = native_module_->num_imported_functions();
-  for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
-    const WasmCode* code = native_module_->code(i);
+  for (WasmCode* code : native_module_->code_table()) {
     WriteCode(code, writer);
   }
   return true;
@@ -462,7 +463,7 @@ bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
 
 bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t code_section_size = reader->Read<size_t>();
-  USE(code_section_size);
+  if (code_section_size == 0) return true;
   size_t constant_pool_offset = reader->Read<size_t>();
   size_t safepoint_table_offset = reader->Read<size_t>();
   size_t handler_table_offset = reader->Read<size_t>();
@@ -613,9 +614,12 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
   Handle<WasmCompiledModule> compiled_module =
       WasmCompiledModule::New(isolate, shared->module(), env);
-  compiled_module->GetNativeModule()->SetSharedModuleData(shared);
-  NativeModuleDeserializer deserializer(isolate,
-                                        compiled_module->GetNativeModule());
+  NativeModule* native_module = compiled_module->GetNativeModule();
+  native_module->SetSharedModuleData(shared);
+  if (FLAG_wasm_lazy_compilation) {
+    native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
+  }
+  NativeModuleDeserializer deserializer(isolate, native_module);
 
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
