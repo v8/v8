@@ -252,8 +252,6 @@ class V8_EXPORT_PRIVATE BitsetType {
 
   static bitset Glb(double min, double max);
   static bitset Lub(HeapReferenceType const& type);
-  static bitset Lub(const JSHeapBroker* js_heap_broker,
-                    Handle<HeapObject> value);
   static bitset Lub(double value);
   static bitset Lub(double min, double max);
   static bitset ExpandInternals(bitset bits);
@@ -315,7 +313,7 @@ class RangeType : public TypeBase {
   double Max() const { return limits_.max; }
 
   static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
+    return nearbyint(x) == x && !IsMinusZero(x);  // Allows for infinities.
   }
 
  private:
@@ -364,7 +362,7 @@ class V8_EXPORT_PRIVATE Type {
 
   static Type OtherNumberConstant(double value, Zone* zone);
   static Type HeapConstant(const JSHeapBroker* js_heap_broker,
-                           Handle<HeapObject> value, Zone* zone);
+                           Handle<i::Object> value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
@@ -536,25 +534,27 @@ class OtherNumberConstantType : public TypeBase {
 
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
-  i::Handle<i::HeapObject> Value() const { return object_; }
+  Handle<HeapObject> Value() const { return heap_ref_.value(); }
+  const HeapReference& Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
 
-  static HeapConstantType* New(const JSHeapBroker* js_heap_broker,
-                               i::Handle<i::HeapObject> value, Zone* zone) {
-    BitsetType::bitset bitset = BitsetType::Lub(js_heap_broker, value);
+  static HeapConstantType* New(const HeapReference& heap_ref, Zone* zone) {
+    DCHECK(!heap_ref.IsNumber());
+    DCHECK_IMPLIES(heap_ref.IsString(), heap_ref.IsInternalizedString());
+    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type());
     return new (zone->New(sizeof(HeapConstantType)))
-        HeapConstantType(bitset, value);
+        HeapConstantType(bitset, heap_ref);
   }
 
-  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::HeapObject> object);
+  HeapConstantType(BitsetType::bitset bitset, const HeapReference& heap_ref);
 
   BitsetType::bitset Lub() const { return bitset_; }
 
   BitsetType::bitset bitset_;
-  Handle<i::HeapObject> object_;
+  HeapReference heap_ref_;
 };
 
 // -----------------------------------------------------------------------------
@@ -583,7 +583,7 @@ class StructuralType : public TypeBase {
     length_ = length;
   }
 
-  StructuralType(Kind kind, int length, i::Zone* zone)
+  StructuralType(Kind kind, int length, Zone* zone)
       : TypeBase(kind), length_(length) {
     elements_ = reinterpret_cast<Type*>(zone->New(sizeof(Type) * length));
   }

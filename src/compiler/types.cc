@@ -331,18 +331,9 @@ Type::bitset BitsetType::Lub(HeapReferenceType const& type) {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(const JSHeapBroker* js_heap_broker,
-                             Handle<HeapObject> value) {
-  DisallowHeapAllocation no_allocation;
-  if (value->IsNumber()) {
-    return Lub(value->Number());
-  }
-  return Lub(js_heap_broker->HeapReferenceTypeForObject(value));
-}
-
 Type::bitset BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;
-  if (i::IsMinusZero(value)) return kMinusZero;
+  if (IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
   return kOtherNumber;
@@ -450,15 +441,12 @@ double BitsetType::Max(bitset bits) {
 bool OtherNumberConstantType::IsOtherNumberConstant(double value) {
   // Not an integer, not NaN, and not -0.
   return !std::isnan(value) && !RangeType::IsInteger(value) &&
-         !i::IsMinusZero(value);
+         !IsMinusZero(value);
 }
 
 HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
-                                   i::Handle<i::HeapObject> object)
-    : TypeBase(kHeapConstant), bitset_(bitset), object_(object) {
-  DCHECK(!object->IsHeapNumber());
-  DCHECK_IMPLIES(object->IsString(), object->IsInternalizedString());
-}
+                                   const HeapReference& heap_ref)
+    : TypeBase(kHeapConstant), bitset_(bitset), heap_ref_(heap_ref) {}
 
 // -----------------------------------------------------------------------------
 // Predicates.
@@ -804,7 +792,7 @@ Type Type::NormalizeRangeAndBitset(Type range, bitset* bits, Zone* zone) {
 Type Type::NewConstant(double value, Zone* zone) {
   if (RangeType::IsInteger(value)) {
     return Range(value, value, zone);
-  } else if (i::IsMinusZero(value)) {
+  } else if (IsMinusZero(value)) {
     return Type::MinusZero();
   } else if (std::isnan(value)) {
     return Type::NaN();
@@ -816,12 +804,20 @@ Type Type::NewConstant(double value, Zone* zone) {
 
 Type Type::NewConstant(const JSHeapBroker* js_heap_broker,
                        Handle<i::Object> value, Zone* zone) {
-  if (value->IsNumber()) {
-    return NewConstant(value->Number(), zone);
-  } else if (value->IsString() && !value->IsInternalizedString()) {
+  auto maybe_smi = JSHeapBroker::TryGetSmi(value);
+  if (maybe_smi.has_value()) {
+    return NewConstant(static_cast<double>(maybe_smi.value()), zone);
+  }
+
+  HeapReference heap_ref = js_heap_broker->HeapReferenceForObject(value);
+  if (heap_ref.IsNumber()) {
+    return NewConstant(heap_ref.AsNumber().value(), zone);
+  }
+
+  if (heap_ref.IsString() && !heap_ref.IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(js_heap_broker, Handle<HeapObject>::cast(value), zone);
+  return HeapConstant(js_heap_broker, value, zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1025,11 +1021,11 @@ void BitsetType::Print(bitset bits) {
 #endif
 
 BitsetType::bitset BitsetType::SignedSmall() {
-  return i::SmiValuesAre31Bits() ? kSigned31 : kSigned32;
+  return SmiValuesAre31Bits() ? kSigned31 : kSigned32;
 }
 
 BitsetType::bitset BitsetType::UnsignedSmall() {
-  return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
+  return SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
 
 // static
@@ -1048,8 +1044,9 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 
 // static
 Type Type::HeapConstant(const JSHeapBroker* js_heap_broker,
-                        Handle<HeapObject> value, Zone* zone) {
-  return FromTypeBase(HeapConstantType::New(js_heap_broker, value, zone));
+                        Handle<i::Object> value, Zone* zone) {
+  return FromTypeBase(HeapConstantType::New(
+      js_heap_broker->HeapReferenceForObject(value), zone));
 }
 
 // static

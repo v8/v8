@@ -87,7 +87,9 @@ namespace {
 
 MaybeHandle<Map> GetStableMapFromObjectType(Type object_type) {
   if (object_type.IsHeapConstant()) {
-    Handle<Map> object_map(object_type.AsHeapConstant()->Value()->map());
+    Handle<HeapObject> object =
+        Handle<HeapObject>::cast(object_type.AsHeapConstant()->Value());
+    Handle<Map> object_map(object->map());
     if (object_map->is_stable()) return object_map;
   }
   return MaybeHandle<Map>();

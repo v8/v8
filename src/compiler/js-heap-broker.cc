@@ -39,10 +39,47 @@ HeapReferenceType JSHeapBroker::HeapReferenceTypeFromMap(Map* map) const {
   return HeapReferenceType(map->instance_type(), flags, oddball_type);
 }
 
-HeapReferenceType JSHeapBroker::HeapReferenceTypeForObject(
-    Handle<HeapObject> object) const {
+HeapReference JSHeapBroker::HeapReferenceForObject(
+    Handle<Object> object) const {
   AllowHandleDereference allow_handle_dereference;
-  return HeapReferenceTypeFromMap(object->map());
+  Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+  HeapReferenceType type = HeapReferenceTypeFromMap(heap_object->map());
+  return HeapReference(heap_object, type);
+}
+
+// static
+base::Optional<int> JSHeapBroker::TryGetSmi(Handle<Object> object) {
+  AllowHandleDereference allow_handle_dereference;
+  if (!object->IsSmi()) return base::Optional<int>();
+  return Smi::cast(*object)->value();
+}
+
+#define HEAP_KIND_FUNCTIONS_DEF(Name)                \
+  bool HeapReference::Is##Name() const {             \
+    AllowHandleDereference allow_handle_dereference; \
+    return object_->Is##Name();                      \
+  }
+HEAP_BROKER_KIND_LIST(HEAP_KIND_FUNCTIONS_DEF)
+#undef HEAP_KIND_FUNCTIONS_DEF
+
+NumberHeapData HeapReference::AsNumber() const {
+  AllowHandleDereference allow_handle_dereference;
+  return NumberHeapData(object_->Number());
+}
+
+JSFunctionHeapData HeapReference::AsJSFunction() const {
+  AllowHandleDereference allow_handle_dereference;
+  return JSFunctionHeapData(Handle<JSFunction>::cast(object_));
+}
+
+bool JSFunctionHeapData::HasBuiltinFunctionId() const {
+  AllowHandleDereference allow_handle_dereference;
+  return function_->shared()->HasBuiltinFunctionId();
+}
+
+BuiltinFunctionId JSFunctionHeapData::GetBuiltinFunctionId() const {
+  AllowHandleDereference allow_handle_dereference;
+  return function_->shared()->builtin_function_id();
 }
 
 }  // namespace compiler
