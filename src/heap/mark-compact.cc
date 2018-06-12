@@ -1485,9 +1485,18 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
           0, EmbedderHeapTracer::AdvanceTracingActions(
                  EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
     }
-    ProcessWeakCollections();
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_VISITING);
+      ProcessWeakCollections();
+    }
     work_to_do = !marking_worklist()->IsEmpty();
-    ProcessMarkingWorklist();
+
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
+      ProcessMarkingWorklist();
+    }
   }
   CHECK(marking_worklist()->IsEmpty());
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
