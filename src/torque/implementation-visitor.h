@@ -140,6 +140,9 @@ class ImplementationVisitor : public FileVisitor {
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
 
+  void BeginModuleFile(Module* module);
+  void EndModuleFile(Module* module);
+
   void GenerateImplementation(const std::string& dir, Module* module);
 
  private:

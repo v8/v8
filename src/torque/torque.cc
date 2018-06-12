@@ -115,9 +115,14 @@ int WrappedMain(int argc, const char** argv) {
     }
 
     ImplementationVisitor visitor(global_context);
+    for (auto& module : global_context.GetModules()) {
+      visitor.BeginModuleFile(module.second.get());
+    }
+
     visitor.Visit(global_context.ast());
 
     for (auto& module : global_context.GetModules()) {
+      visitor.EndModuleFile(module.second.get());
       visitor.GenerateImplementation(output_directory, module.second.get());
     }
   }

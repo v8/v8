@@ -66,13 +66,11 @@ void ImplementationVisitor::Visit(CallableNode* decl,
   }
 }
 
-void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
-  Module* module = decl->GetModule();
-
+void ImplementationVisitor::BeginModuleFile(Module* module) {
   std::ostream& source = module->source_stream();
   std::ostream& header = module->header_stream();
 
-  if (decl->IsDefault()) {
+  if (module->IsDefault()) {
     source << "#include \"src/code-stub-assembler.h\"";
   } else {
     source << "#include \"src/builtins/builtins-" +
@@ -103,7 +101,7 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
       std::string("V8_TORQUE_") + upper_name + "_FROM_DSL_BASE_H__";
   header << "#ifndef " << headerDefine << std::endl;
   header << "#define " << headerDefine << std::endl << std::endl;
-  if (decl->IsDefault()) {
+  if (module->IsDefault()) {
     header << "#include \"src/code-stub-assembler.h\"";
   } else {
     header << "#include \"src/builtins/builtins-" +
@@ -130,14 +128,19 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   header << "  template <class T>" << std::endl;
   header << "  using SloppyTNode = compiler::SloppyTNode<T>;" << std::endl
          << std::endl;
+}
 
-  Module* saved_module = module_;
-  module_ = module;
-  Declarations::NodeScopeActivator scope(declarations(), decl);
-  for (auto& child : decl->declarations) Visit(child);
-  module_ = saved_module;
+void ImplementationVisitor::EndModuleFile(Module* module) {
+  std::ostream& source = module->source_stream();
+  std::ostream& header = module->header_stream();
 
   DrainSpecializationQueue();
+
+  std::string upper_name(module->name());
+  transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
+            ::toupper);
+  std::string headerDefine =
+      std::string("V8_TORQUE_") + upper_name + "_FROM_DSL_BASE_H__";
 
   source << "}  // namepsace internal" << std::endl
          << "}  // namespace v8" << std::endl
@@ -148,6 +151,15 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
          << "}  // namespace v8" << std::endl
          << "" << std::endl;
   header << "#endif  // " << headerDefine << std::endl;
+}
+
+void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
+  Module* module = decl->GetModule();
+  Module* saved_module = module_;
+  module_ = module;
+  Declarations::NodeScopeActivator scope(declarations(), decl);
+  for (auto& child : decl->declarations) Visit(child);
+  module_ = saved_module;
 }
 
 void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
