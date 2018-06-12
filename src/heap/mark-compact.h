@@ -520,8 +520,19 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // Prints the stats about the global pool of the worklist.
     void PrintWorklist(const char* worklist_name,
                        ConcurrentMarkingWorklist* worklist);
+
+    // Worklist used for most objects.
     ConcurrentMarkingWorklist shared_;
+
+    // Concurrent marking uses this worklist to bail out of concurrently
+    // marking certain object types. These objects are handled later in a STW
+    // pause after concurrent marking has finished.
     ConcurrentMarkingWorklist bailout_;
+
+    // Concurrent marking uses this worklist to bail out of marking objects
+    // in new space's linear allocation area. Used to avoid black allocation
+    // for new space. This allow the compiler to remove write barriers
+    // for freshly allocatd objects.
     ConcurrentMarkingWorklist on_hold_;
   };
 
