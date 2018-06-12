@@ -15,7 +15,7 @@ typedef compiler::Node Node;
 TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {
   TNode<Object> instance = UncheckedCast<Object>(
       LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
-  TNode<Object> centry = UncheckedCast<Object>(Load(
+  TNode<Code> centry = UncheckedCast<Code>(Load(
       MachineType::AnyTagged(), instance,
       IntPtrConstant(WasmInstanceObject::kCEntryStubOffset - kHeapObjectTag)));
   TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry,
@@ -26,7 +26,7 @@ TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {
   TF_BUILTIN(ThrowWasm##name, CodeStubAssembler) {                             \
     TNode<Object> instance = UncheckedCast<Object>(                            \
         LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset)); \
-    TNode<Object> centry = UncheckedCast<Object>(                              \
+    TNode<Code> centry = UncheckedCast<Code>(                                  \
         Load(MachineType::AnyTagged(), instance,                               \
              IntPtrConstant(WasmInstanceObject::kCEntryStubOffset -            \
                             kHeapObjectTag)));                                 \

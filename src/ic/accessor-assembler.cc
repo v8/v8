@@ -886,8 +886,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     BIND(&call_handler);
     {
       StoreWithVectorDescriptor descriptor(isolate());
-      TailCallStub(descriptor, strong_handler, p->context, p->receiver, p->name,
-                   p->value, p->slot, p->vector);
+      TailCallStub(descriptor, CAST(strong_handler), CAST(p->context),
+                   p->receiver, p->name, p->value, p->slot, p->vector);
     }
   }
 
@@ -3077,8 +3077,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       Label if_transitioning_element_store(this);
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
       StoreWithVectorDescriptor descriptor(isolate());
-      TailCallStub(descriptor, handler, p->context, p->receiver, p->name,
-                   p->value, p->slot, p->vector);
+      TailCallStub(descriptor, CAST(handler), CAST(p->context), p->receiver,
+                   p->name, p->value, p->slot, p->vector);
 
       BIND(&if_transitioning_element_store);
       {

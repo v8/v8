@@ -2158,9 +2158,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Object> GetProperty(SloppyTNode<Context> context,
                             SloppyTNode<Object> receiver,
                             SloppyTNode<Object> name) {
-    return UncheckedCast<Object>(
-        CallStub(Builtins::CallableFor(isolate(), Builtins::kGetProperty),
-                 context, receiver, name));
+    return CallStub(Builtins::CallableFor(isolate(), Builtins::kGetProperty),
+                    context, receiver, name);
   }
 
   Node* GetMethod(Node* context, Node* object, Handle<Name> name,
@@ -2171,17 +2170,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             TArgs... args) {
     DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
                    !Builtins::IsLazy(id));
-    return UncheckedCast<Object>(
-        CallStub(Builtins::CallableFor(isolate(), id), context, args...));
+    return CallStub<Object>(Builtins::CallableFor(isolate(), id), context,
+                            args...);
   }
 
   template <class... TArgs>
-  TNode<Object> TailCallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
-                                TArgs... args) {
+  void TailCallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
+                       TArgs... args) {
     DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
                    !Builtins::IsLazy(id));
-    return UncheckedCast<Object>(
-        TailCallStub(Builtins::CallableFor(isolate(), id), context, args...));
+    return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 
   void LoadPropertyFromFastObject(Node* object, Node* map,
