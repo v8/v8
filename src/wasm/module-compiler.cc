@@ -2633,13 +2633,35 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       case kExternalGlobal: {
         WasmGlobal& global = module_->globals[exp.index];
         if (FLAG_experimental_wasm_mut_global) {
-          Handle<JSArrayBuffer> globals_buffer(instance->globals_buffer(),
-                                               isolate_);
+          Handle<JSArrayBuffer> buffer;
+          uint32_t offset;
+
+          if (global.mutability && global.imported) {
+            Handle<FixedArray> buffers_array(
+                instance->imported_mutable_globals_buffers(), isolate_);
+            buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
+                isolate_, global.index);
+            Address global_addr =
+                instance->imported_mutable_globals()[global.index];
+
+            uint32_t buffer_size = 0;
+            CHECK(buffer->byte_length()->ToUint32(&buffer_size));
+
+            Address backing_store =
+                reinterpret_cast<Address>(buffer->backing_store());
+            CHECK(global_addr >= backing_store &&
+                  global_addr < backing_store + buffer_size);
+            offset = static_cast<uint32_t>(global_addr - backing_store);
+          } else {
+            buffer = handle(instance->globals_buffer(), isolate_);
+            offset = global.offset;
+          }
+
           // Since the global's array buffer is always provided, allocation
           // should never fail.
           Handle<WasmGlobalObject> global_obj =
-              WasmGlobalObject::New(isolate_, globals_buffer, global.type,
-                                    global.offset, global.mutability)
+              WasmGlobalObject::New(isolate_, buffer, global.type, offset,
+                                    global.mutability)
                   .ToHandleChecked();
           desc.set_value(global_obj);
         } else {

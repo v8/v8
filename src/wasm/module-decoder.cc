@@ -503,8 +503,12 @@ class ModuleDecoderImpl : public Decoder {
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
           global->mutability = consume_mutability();
-          if (!FLAG_experimental_wasm_mut_global && global->mutability) {
-            error("mutable globals cannot be imported");
+          if (global->mutability) {
+            if (FLAG_experimental_wasm_mut_global) {
+              module_->num_imported_mutable_globals++;
+            } else {
+              error("mutable globals cannot be imported");
+            }
           }
           break;
         }
@@ -984,16 +988,16 @@ class ModuleDecoderImpl : public Decoder {
   // Calculate individual global offsets and total size of globals table.
   void CalculateGlobalOffsets(WasmModule* module) {
     uint32_t offset = 0;
+    uint32_t num_imported_mutable_globals = 0;
     if (module->globals.size() == 0) {
       module->globals_buffer_size = 0;
-      module->num_imported_mutable_globals = 0;
       return;
     }
     for (WasmGlobal& global : module->globals) {
       byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
       if (global.mutability && global.imported) {
         DCHECK(FLAG_experimental_wasm_mut_global);
-        global.index = module->num_imported_mutable_globals++;
+        global.index = num_imported_mutable_globals++;
       } else {
         offset = (offset + size - 1) & ~(size - 1);  // align
         global.offset = offset;
