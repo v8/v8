@@ -2753,6 +2753,10 @@ class CodeStubArguments {
                     ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
 
   TNode<Object> GetReceiver() const;
+  // Replaces receiver argument on the expression stack. Should be used only
+  // for manipulating arguments in trampoline builtins before tail calling
+  // further with passing all the JS arguments as is.
+  void SetReceiver(TNode<Object> object) const;
 
   TNode<RawPtr<Object>> AtIndexPtr(
       Node* index, CodeStubAssembler::ParameterMode mode =

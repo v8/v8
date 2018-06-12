@@ -3510,14 +3510,6 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
 }
 
-void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {
-  __ Mov(x5, Operand(x0, LSL, kPointerSizeLog2));
-  __ Poke(x1, Operand(x5));
-  __ Push(x1, x2);
-  __ Add(x0, x0, Operand(3));
-  __ TailCallRuntime(Runtime::kNewArray);
-}
-
 #undef __
 
 }  // namespace internal

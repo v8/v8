@@ -2857,15 +2857,6 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ Ret();
 }
 
-void Builtins::Generate_ArrayNArgumentsConstructor(MacroAssembler* masm) {
-  __ ShiftLeftP(r1, r2, Operand(kPointerSizeLog2));
-  __ StoreP(r3, MemOperand(sp, r1));
-  __ push(r3);
-  __ push(r4);
-  __ AddP(r2, r2, Operand(3));
-  __ TailCallRuntime(Runtime::kNewArray);
-}
-
 namespace {
 
 void CreateArrayDispatchNoArgument(MacroAssembler* masm,

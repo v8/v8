@@ -11480,6 +11480,13 @@ TNode<Object> CodeStubArguments::GetReceiver() const {
                        assembler_->IntPtrConstant(kPointerSize)));
 }
 
+void CodeStubArguments::SetReceiver(TNode<Object> object) const {
+  DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
+  assembler_->StoreNoWriteBarrier(MachineRepresentation::kTagged, arguments_,
+                                  assembler_->IntPtrConstant(kPointerSize),
+                                  object);
+}
+
 TNode<RawPtr<Object>> CodeStubArguments::AtIndexPtr(
     Node* index, CodeStubAssembler::ParameterMode mode) const {
   typedef compiler::Node Node;

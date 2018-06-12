@@ -269,7 +269,7 @@ namespace internal {
       ArraySingleArgumentConstructor, 1)                                       \
   TFC(ArraySingleArgumentConstructor_HoleyDouble_DisableAllocationSites,       \
       ArraySingleArgumentConstructor, 1)                                       \
-  ASM(ArrayNArgumentsConstructor)                                              \
+  TFC(ArrayNArgumentsConstructor, ArrayNArgumentsConstructor, 1)               \
   ASM(InternalArrayConstructor)                                                \
   ASM(InternalArrayConstructorImpl)                                            \
   TFC(InternalArrayNoArgumentConstructor_Packed, ArrayNoArgumentConstructor,   \

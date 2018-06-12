@@ -4096,6 +4096,34 @@ void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
                       kind, allocation_site_mode);
 }
 
+void ArrayBuiltinsAssembler::GenerateArrayNArgumentsConstructor(
+    TNode<Context> context, TNode<JSFunction> target, TNode<Object> new_target,
+    TNode<Int32T> argc, TNode<HeapObject> maybe_allocation_site) {
+  // Replace incoming JS receiver argument with the target.
+  // TODO(ishell): Avoid replacing the target on the stack and just add it
+  // as another additional parameter for Runtime::kNewArray.
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  args.SetReceiver(target);
+
+  // Adjust arguments count for the runtime call: +1 for implicit receiver
+  // and +2 for new_target and maybe_allocation_site.
+  argc = Int32Add(argc, Int32Constant(3));
+  TailCallRuntime(Runtime::kNewArray, argc, context, new_target,
+                  maybe_allocation_site);
+}
+
+TF_BUILTIN(ArrayNArgumentsConstructor, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kFunction));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<HeapObject> maybe_allocation_site =
+      CAST(Parameter(Descriptor::kAllocationSite));
+
+  GenerateArrayNArgumentsConstructor(context, target, target, argc,
+                                     maybe_allocation_site);
+}
+
 void ArrayBuiltinsAssembler::GenerateInternalArrayNoArgumentConstructor(
     ElementsKind kind) {
   typedef ArrayNoArgumentConstructorDescriptor Descriptor;

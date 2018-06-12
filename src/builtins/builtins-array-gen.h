@@ -122,6 +122,11 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
                                           AllocationSiteOverrideMode mode);
   void GenerateArraySingleArgumentConstructor(ElementsKind kind,
                                               AllocationSiteOverrideMode mode);
+  void GenerateArrayNArgumentsConstructor(
+      TNode<Context> context, TNode<JSFunction> target,
+      TNode<Object> new_target, TNode<Int32T> argc,
+      TNode<HeapObject> maybe_allocation_site);
+
   void GenerateInternalArrayNoArgumentConstructor(ElementsKind kind);
   void GenerateInternalArraySingleArgumentConstructor(ElementsKind kind);
 
