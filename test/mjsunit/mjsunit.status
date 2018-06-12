@@ -716,7 +716,7 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
+['simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
@@ -725,7 +725,7 @@
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
-}],  # 'arch == ppc and simulator_run'
+}],  # 'simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)'
 
 ##############################################################################
 ['arch == ppc64', {
