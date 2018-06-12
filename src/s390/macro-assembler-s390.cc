@@ -151,6 +151,18 @@ void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
 
   LoadP(destination, MemOperand(kRootRegister, roots_to_builtins_offset));
 }
+
+void TurboAssembler::LoadRootRegisterOffset(Register destination,
+                                            intptr_t offset) {
+  if (offset == 0) {
+    LoadRR(destination, kRootRegister);
+  } else if (is_uint12(offset)) {
+    la(destination, MemOperand(kRootRegister, offset));
+  } else {
+    DCHECK(is_int20(offset));
+    lay(destination, MemOperand(kRootRegister, offset));
+  }
+}
 #endif  // V8_EMBEDDED_BUILTINS
 
 void TurboAssembler::Jump(Register target, Condition cond) { b(cond, target); }

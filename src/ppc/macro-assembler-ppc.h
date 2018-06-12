@@ -439,6 +439,7 @@ class TurboAssembler : public TurboAssemblerBase {
   void LoadExternalReference(Register destination,
                              int reference_index) override;
   void LoadBuiltin(Register destination, int builtin_index) override;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions. Note, the value returned is

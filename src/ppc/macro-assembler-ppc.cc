@@ -156,6 +156,15 @@ void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
 
   LoadP(destination, MemOperand(kRootRegister, roots_to_builtins_offset), r0);
 }
+
+void TurboAssembler::LoadRootRegisterOffset(Register destination,
+                                            intptr_t offset) {
+  if (offset == 0) {
+    mr(destination, kRootRegister);
+  } else {
+    addi(destination, kRootRegister, Operand(offset));
+  }
+}
 #endif  // V8_EMBEDDED_BUILTINS
 
 void MacroAssembler::JumpToJSEntry(Register target) {
