@@ -493,9 +493,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7815
   'built-ins/AsyncGeneratorPrototype/constructor': [FAIL],
 
-  # https://bugs.chromxoium.org/p/v8/issues/detail?id=7816
-  'built-ins/DataView/length': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7817
   'language/expressions/async-arrow-function/await-as-param-ident-nested-arrow-parameter-position': [FAIL],
   'language/expressions/async-arrow-function/await-as-param-nested-arrow-parameter-position': [FAIL],
