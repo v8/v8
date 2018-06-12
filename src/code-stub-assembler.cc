@@ -11902,9 +11902,7 @@ void CodeStubAssembler::PerformStackCheck(Node* context) {
   Label ok(this), stack_check_interrupt(this, Label::kDeferred);
 
   Node* sp = LoadStackPointer();
-  Node* stack_limit = Load(
-      MachineType::Pointer(),
-      ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
+  Node* stack_limit = BitcastTaggedToWord(LoadRoot(Heap::kStackLimitRootIndex));
   Node* interrupt = UintPtrLessThan(sp, stack_limit);
 
   Branch(interrupt, &stack_check_interrupt, &ok);
