@@ -192,7 +192,7 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 
 constexpr size_t kHeaderSize =
     sizeof(uint32_t) +  // total wasm function count
-    sizeof(uint32_t);  // imported functions - i.e. index of first wasm function
+    sizeof(uint32_t);   // imported functions (index of first wasm function)
 
 constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +         // size of code section
@@ -406,13 +406,15 @@ bool SerializeNativeModule(Isolate* isolate,
                            Vector<byte> buffer) {
   NativeModule* native_module = compiled_module->GetNativeModule();
   NativeModuleSerializer serializer(isolate, native_module);
-  size_t measured_size = serializer.Measure();
+  size_t measured_size = kVersionSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
   WriteVersion(isolate, &writer);
 
-  return serializer.Write(&writer);
+  if (!serializer.Write(&writer)) return false;
+  DCHECK_EQ(measured_size, writer.bytes_written());
+  return true;
 }
 
 class V8_EXPORT_PRIVATE NativeModuleDeserializer {
