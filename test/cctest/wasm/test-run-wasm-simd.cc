@@ -1090,17 +1090,17 @@ void RunI32x4ShiftOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4Shl) {
+WASM_SIMD_TEST(I32x4Shl) {
   RunI32x4ShiftOpTest(execution_mode, lower_simd, kExprI32x4Shl,
                       LogicalShiftLeft, 1);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ShrS) {
+WASM_SIMD_TEST(I32x4ShrS) {
   RunI32x4ShiftOpTest(execution_mode, lower_simd, kExprI32x4ShrS,
                       ArithmeticShiftRight, 1);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ShrU) {
+WASM_SIMD_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(execution_mode, lower_simd, kExprI32x4ShrU,
                       LogicalShiftRight, 1);
 }
@@ -1350,17 +1350,17 @@ void RunI16x8ShiftOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8Shl) {
+WASM_SIMD_TEST(I16x8Shl) {
   RunI16x8ShiftOpTest(execution_mode, lower_simd, kExprI16x8Shl,
                       LogicalShiftLeft, 1);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8ShrS) {
+WASM_SIMD_TEST(I16x8ShrS) {
   RunI16x8ShiftOpTest(execution_mode, lower_simd, kExprI16x8ShrS,
                       ArithmeticShiftRight, 1);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8ShrU) {
+WASM_SIMD_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_mode, lower_simd, kExprI16x8ShrU,
                       LogicalShiftRight, 1);
 }
@@ -1569,17 +1569,17 @@ void RunI8x16ShiftOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16Shl) {
+WASM_SIMD_TEST(I8x16Shl) {
   RunI8x16ShiftOpTest(execution_mode, lower_simd, kExprI8x16Shl,
                       LogicalShiftLeft, 1);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16ShrS) {
+WASM_SIMD_TEST(I8x16ShrS) {
   RunI8x16ShiftOpTest(execution_mode, lower_simd, kExprI8x16ShrS,
                       ArithmeticShiftRight, 1);
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16ShrU) {
+WASM_SIMD_TEST(I8x16ShrU) {
   RunI8x16ShiftOpTest(execution_mode, lower_simd, kExprI8x16ShrU,
                       LogicalShiftRight, 1);
 }
@@ -2280,7 +2280,7 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 
-WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
+WASM_SIMD_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(execution_mode, lower_simd);
   int32_t* memory =
       r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));

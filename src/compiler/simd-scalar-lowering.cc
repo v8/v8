@@ -354,8 +354,22 @@ void SimdScalarLowering::GetIndexNodes(Node* index, Node** new_indices,
   }
 }
 
-void SimdScalarLowering::LowerLoadOp(MachineRepresentation rep, Node* node,
-                                     const Operator* load_op, SimdType type) {
+void SimdScalarLowering::LowerLoadOp(Node* node, SimdType type) {
+  MachineRepresentation rep = LoadRepresentationOf(node->op()).representation();
+  const Operator* load_op;
+  switch (node->opcode()) {
+    case IrOpcode::kLoad:
+      load_op = machine()->Load(MachineTypeFrom(type));
+      break;
+    case IrOpcode::kUnalignedLoad:
+      load_op = machine()->UnalignedLoad(MachineTypeFrom(type));
+      break;
+    case IrOpcode::kProtectedLoad:
+      load_op = machine()->ProtectedLoad(MachineTypeFrom(type));
+      break;
+    default:
+      UNREACHABLE();
+  }
   if (rep == MachineRepresentation::kSimd128) {
     Node* base = node->InputAt(0);
     Node* index = node->InputAt(1);
@@ -387,9 +401,38 @@ void SimdScalarLowering::LowerLoadOp(MachineRepresentation rep, Node* node,
   }
 }
 
-void SimdScalarLowering::LowerStoreOp(MachineRepresentation rep, Node* node,
-                                      const Operator* store_op,
-                                      SimdType rep_type) {
+void SimdScalarLowering::LowerStoreOp(Node* node) {
+  // For store operation, use replacement type of its input instead of the
+  // one of its effected node.
+  DCHECK_LT(2, node->InputCount());
+  SimdType rep_type = ReplacementType(node->InputAt(2));
+  replacements_[node->id()].type = rep_type;
+  const Operator* store_op;
+  MachineRepresentation rep;
+  switch (node->opcode()) {
+    case IrOpcode::kStore: {
+      rep = StoreRepresentationOf(node->op()).representation();
+      WriteBarrierKind write_barrier_kind =
+          StoreRepresentationOf(node->op()).write_barrier_kind();
+      store_op = machine()->Store(StoreRepresentation(
+          MachineTypeFrom(rep_type).representation(), write_barrier_kind));
+      break;
+    }
+    case IrOpcode::kUnalignedStore: {
+      rep = UnalignedStoreRepresentationOf(node->op());
+      store_op =
+          machine()->UnalignedStore(MachineTypeFrom(rep_type).representation());
+      break;
+    }
+    case IrOpcode::kProtectedStore: {
+      rep = StoreRepresentationOf(node->op()).representation();
+      store_op =
+          machine()->ProtectedStore(MachineTypeFrom(rep_type).representation());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
   if (rep == MachineRepresentation::kSimd128) {
     Node* base = node->InputAt(0);
     Node* index = node->InputAt(1);
@@ -899,52 +942,16 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       break;
     }
-    case IrOpcode::kLoad: {
-      MachineRepresentation rep =
-          LoadRepresentationOf(node->op()).representation();
-      const Operator* load_op;
-      load_op = machine()->Load(MachineTypeFrom(rep_type));
-      LowerLoadOp(rep, node, load_op, rep_type);
+    case IrOpcode::kLoad:
+    case IrOpcode::kUnalignedLoad:
+    case IrOpcode::kProtectedLoad: {
+      LowerLoadOp(node, rep_type);
       break;
     }
-    case IrOpcode::kUnalignedLoad: {
-      MachineRepresentation rep =
-          LoadRepresentationOf(node->op()).representation();
-      const Operator* load_op;
-      load_op = machine()->UnalignedLoad(MachineTypeFrom(rep_type));
-      LowerLoadOp(rep, node, load_op, rep_type);
-      break;
-    }
-    case IrOpcode::kStore: {
-      // For store operation, use replacement type of its input instead of the
-      // one of its effected node.
-      DCHECK_LT(2, node->InputCount());
-      SimdType input_rep_type = ReplacementType(node->InputAt(2));
-      if (input_rep_type != rep_type)
-        replacements_[node->id()].type = input_rep_type;
-      MachineRepresentation rep =
-          StoreRepresentationOf(node->op()).representation();
-      WriteBarrierKind write_barrier_kind =
-          StoreRepresentationOf(node->op()).write_barrier_kind();
-      const Operator* store_op;
-      store_op = machine()->Store(
-          StoreRepresentation(MachineTypeFrom(input_rep_type).representation(),
-                              write_barrier_kind));
-      LowerStoreOp(rep, node, store_op, input_rep_type);
-      break;
-    }
-    case IrOpcode::kUnalignedStore: {
-      // For store operation, use replacement type of its input instead of the
-      // one of its effected node.
-      DCHECK_LT(2, node->InputCount());
-      SimdType input_rep_type = ReplacementType(node->InputAt(2));
-      if (input_rep_type != rep_type)
-        replacements_[node->id()].type = input_rep_type;
-      MachineRepresentation rep = UnalignedStoreRepresentationOf(node->op());
-      const Operator* store_op;
-      store_op = machine()->UnalignedStore(
-          MachineTypeFrom(input_rep_type).representation());
-      LowerStoreOp(rep, node, store_op, input_rep_type);
+    case IrOpcode::kStore:
+    case IrOpcode::kUnalignedStore:
+    case IrOpcode::kProtectedStore: {
+      LowerStoreOp(node);
       break;
     }
     case IrOpcode::kReturn: {

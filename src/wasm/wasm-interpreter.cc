@@ -1815,6 +1815,39 @@ class ThreadImpl {
       REPLACE_LANE_CASE(I16x8, i16x8, int8, int32_t)
       REPLACE_LANE_CASE(I8x16, i8x16, int16, int32_t)
 #undef REPLACE_LANE_CASE
+      case kExprS128LoadMem:
+        return ExecuteLoad<Simd128, Simd128>(decoder, code, pc, len,
+                                             MachineRepresentation::kSimd128);
+      case kExprS128StoreMem:
+        return ExecuteStore<Simd128, Simd128>(decoder, code, pc, len,
+                                              MachineRepresentation::kSimd128);
+#define SHIFT_CASE(op, name, stype, count, expr)                         \
+  case kExpr##op: {                                                      \
+    SimdShiftImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
+    ++len;                                                               \
+    WasmValue v = Pop();                                                 \
+    stype s = v.to_s128().to_##name();                                   \
+    stype res;                                                           \
+    for (size_t i = 0; i < count; ++i) {                                 \
+      auto a = s.val[i];                                                 \
+      res.val[i] = expr;                                                 \
+    }                                                                    \
+    Push(WasmValue(Simd128(res)));                                       \
+    return true;                                                         \
+  }
+        SHIFT_CASE(I32x4Shl, i32x4, int4, 4, a << imm.shift)
+        SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> imm.shift)
+        SHIFT_CASE(I32x4ShrU, i32x4, int4, 4,
+                   static_cast<uint32_t>(a) >> imm.shift)
+        SHIFT_CASE(I16x8Shl, i16x8, int8, 8, a << imm.shift)
+        SHIFT_CASE(I16x8ShrS, i16x8, int8, 8, a >> imm.shift)
+        SHIFT_CASE(I16x8ShrU, i16x8, int8, 8,
+                   static_cast<uint16_t>(a) >> imm.shift)
+        SHIFT_CASE(I8x16Shl, i8x16, int16, 16, a << imm.shift)
+        SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> imm.shift)
+        SHIFT_CASE(I8x16ShrU, i8x16, int16, 16,
+                   static_cast<uint8_t>(a) >> imm.shift)
+#undef SHIFT_CASE
       default:
         return false;
     }

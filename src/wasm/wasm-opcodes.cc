@@ -428,7 +428,8 @@ struct GetAsmJsOpcodeSigIndex {
 struct GetSimdOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
-    return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) kSigEnum_None;
+    return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
+        kSigEnum_None;
 #undef CASE
   }
 };
