@@ -3612,7 +3612,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
         case Constant::kExternalReference:
-          __ li(dst, Operand(src.ToExternalReference()));
+          __ li(dst, src.ToExternalReference());
           break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();

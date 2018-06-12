@@ -6,7 +6,6 @@
 
 #include <ostream>
 
-#include "src/builtins/constants-table-builder.h"
 #include "src/code-factory.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
@@ -22,7 +21,6 @@
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/snapshot/serializer-common.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
@@ -259,34 +257,6 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
 }
 #endif
 
-#ifdef V8_EMBEDDED_BUILTINS
-// External references are stored in the external reference table.
-TNode<ExternalReference> CodeAssembler::LookupExternalReference(
-    ExternalReference reference) {
-  DCHECK(isolate()->ShouldLoadConstantsFromRootList());
-
-  // Encode as an index into the external reference table stored on the isolate.
-
-  ExternalReferenceEncoder encoder(isolate());
-  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-  CHECK(!v.is_from_api());
-  uint32_t index = v.index();
-
-  // Generate code to load from the external reference table.
-
-  const intptr_t roots_to_external_reference_offset =
-      Heap::roots_to_external_reference_table_offset()
-#ifdef V8_TARGET_ARCH_X64
-      - kRootRegisterBias
-#endif
-      + ExternalReferenceTable::OffsetOfEntry(index);
-
-  return UncheckedCast<ExternalReference>(
-      Load(MachineType::Pointer(), LoadRootsPointer(),
-           IntPtrConstant(roots_to_external_reference_offset)));
-}
-#endif  // V8_EMBEDDED_BUILTINS
-
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(raw_assembler()->Int32Constant(value));
 }
@@ -339,11 +309,6 @@ TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (isolate()->ShouldLoadConstantsFromRootList()) {
-    return LookupExternalReference(address);
-  }
-#endif  // V8_EMBEDDED_BUILTINS
   return UncheckedCast<ExternalReference>(
       raw_assembler()->ExternalConstant(address));
 }
@@ -504,6 +469,7 @@ Node* CodeAssembler::LoadParentFramePointer() {
   return raw_assembler()->LoadParentFramePointer();
 }
 
+// TODO(jgruber): This can be removed.
 TNode<IntPtrT> CodeAssembler::LoadRootsPointer() {
   return UncheckedCast<IntPtrT>(raw_assembler()->LoadRootsPointer());
 }
@@ -981,6 +947,9 @@ TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
     }
   }
 
+  // TODO(jgruber): In theory we could generate better code for this by
+  // letting the macro assembler decide how to load from the roots list. In most
+  // cases, it would boil down to loading from a fixed kRootRegister offset.
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), roots_array_start,

@@ -2592,6 +2592,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         __ Move(dst, src_object);
       }
+    } else if (src.type() == Constant::kExternalReference) {
+      __ Mov(dst, src.ToExternalReference());
     } else {
       __ Mov(dst, g.ToImmediate(source));
     }

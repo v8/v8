@@ -1069,9 +1069,7 @@ void TurboAssembler::Move(Register dst, Smi* source) {
 
 void TurboAssembler::Move(Register dst, ExternalReference ext) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
-      ext.address() !=
-          ExternalReference::roots_array_start(isolate()).address()) {
+  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
     IndirectLoadExternalReference(dst, ext);
     return;
   }

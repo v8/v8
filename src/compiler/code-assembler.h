@@ -694,10 +694,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void GenerateCheckMaybeObjectIsObject(Node* node, const char* location);
 #endif
 
-#ifdef V8_EMBEDDED_BUILTINS
-  TNode<ExternalReference> LookupExternalReference(ExternalReference reference);
-#endif
-
   // Constants.
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);

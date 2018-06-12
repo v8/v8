@@ -62,8 +62,6 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
 
 void TurboAssemblerBase::IndirectLoadExternalReference(
     Register destination, ExternalReference reference) {
-  CHECK(reference.address() !=
-        ExternalReference::roots_array_start(isolate()).address());
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
