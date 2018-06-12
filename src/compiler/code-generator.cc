@@ -90,6 +90,11 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       code_kind == Code::WASM_FUNCTION) {
     tasm_.enable_serializer();
   }
+  if (code_kind == Code::WASM_FUNCTION ||
+      code_kind == Code::WASM_TO_JS_FUNCTION ||
+      code_kind == Code::WASM_INTERPRETER_ENTRY) {
+    tasm_.set_trap_on_abort(true);
+  }
 }
 
 bool CodeGenerator::wasm_runtime_exception_support() const {
