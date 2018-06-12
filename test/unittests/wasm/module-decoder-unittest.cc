@@ -346,7 +346,7 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
         kExternalGlobal,            // global
         0,                          // global index
     };
-    EXPECT_FAILURE(data);
+    EXPECT_VERIFIES(data);
   }
 }
 
@@ -1309,7 +1309,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
         kLocalI32,           // type
         1,                   // mutability
     };
-    EXPECT_FAILURE(data);
+    EXPECT_VERIFIES(data);
   }
 }
 

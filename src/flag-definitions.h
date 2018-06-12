@@ -584,7 +584,7 @@ DEFINE_BOOL(experimental_wasm_se, true,
             "enable prototype sign extension opcodes for wasm")
 DEFINE_BOOL(experimental_wasm_anyref, false,
             "enable prototype anyref support for wasm")
-DEFINE_BOOL(experimental_wasm_mut_global, false,
+DEFINE_BOOL(experimental_wasm_mut_global, true,
             "enable prototype import/export mutable global support for wasm")
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")

@@ -49,4 +49,11 @@
   'tests/f64_cmp': [SKIP],
 }],  # variant == stress
 
+[ALWAYS, {
+  # TODO(v8:7846): These tests will pass when the wasm-spec-tests repo is updated.
+  'tests/linking': [SKIP],
+  'tests/exports': [SKIP],
+  'tests/globals': [SKIP],
+}],
+
 ]
