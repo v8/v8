@@ -1104,7 +1104,11 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   // We're done with the block.
   InstructionBlock* instruction_block =
       sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
-  instruction_block->set_code_start(static_cast<int>(instructions_.size()));
+  if (current_num_instructions() == current_block_end) {
+    // Avoid empty block: insert a {kArchNop} instruction.
+    Emit(Instruction::New(sequence()->zone(), kArchNop));
+  }
+  instruction_block->set_code_start(current_num_instructions());
   instruction_block->set_code_end(current_block_end);
 
   current_block_ = nullptr;

@@ -869,12 +869,8 @@ void InstructionSequence::StartBlock(RpoNumber rpo) {
 void InstructionSequence::EndBlock(RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
   DCHECK_EQ(current_block_->rpo_number(), rpo);
-  if (current_block_->code_start() == end) {  // Empty block.  Insert a nop.
-    AddInstruction(Instruction::New(zone(), kArchNop));
-    end = static_cast<int>(instructions_.size());
-  }
-  DCHECK(current_block_->code_start() >= 0 &&
-         current_block_->code_start() < end);
+  CHECK(current_block_->code_start() >= 0 &&
+        current_block_->code_start() < end);
   current_block_->set_code_end(end);
   current_block_ = nullptr;
 }
