@@ -218,8 +218,21 @@ void WasmCode::Validate() const {
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::CODE_TARGET:
-      // TODO(mstarzinger): Validate that we go through a trampoline.
+      case RelocInfo::CODE_TARGET: {
+        Address target = it.rinfo()->target_address();
+        Code* code = native_module_->ReverseTrampolineLookup(target);
+        // TODO(7424): This is by now limited to only contain references to a
+        // limited set of builtins. This code will eventually be completely free
+        // of {RelocInfo::CODE_TARGET} relocation entries altogether.
+        int builtin_index = code->builtin_index();
+        CHECK(builtin_index == Builtins::kAbort ||
+              builtin_index == Builtins::kAllocateHeapNumber ||
+              builtin_index == Builtins::kArgumentsAdaptorTrampoline ||
+              builtin_index == Builtins::kCall_ReceiverIsAny ||
+              builtin_index == Builtins::kDoubleToI ||
+              builtin_index == Builtins::kToNumber);
+        break;
+      }
       case RelocInfo::WASM_CODE_TABLE_ENTRY:
       case RelocInfo::WASM_CALL:
       case RelocInfo::WASM_STUB_CALL:
@@ -407,7 +420,6 @@ WasmCode* NativeModule::AddOwnedCode(
     Assembler::FlushICache(ret->instructions().start(),
                            ret->instructions().size());
   }
-  ret->Validate();
   return ret;
 }
 
@@ -521,6 +533,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     // TODO(mstarzinger): don't need the isolate here.
     ret->Print(code->GetIsolate());
   }
+  ret->Validate();
   return ret;
 }
 
@@ -589,6 +602,7 @@ WasmCode* NativeModule::AddCode(
     // TODO(mstarzinger): don't need the isolate here.
     ret->Print(source_pos_table->GetIsolate());
   }
+  ret->Validate();
   return ret;
 }
 
@@ -641,6 +655,17 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
   } else {
     return trampoline_iter->second;
   }
+}
+
+Code* NativeModule::ReverseTrampolineLookup(Address target) {
+  // Uses sub-optimal linear search, but is only used for debugging.
+  for (auto pair : trampolines_) {
+    if (pair.second == target) {
+      return Code::GetCodeFromTargetAddress(pair.first);
+    }
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
 Address NativeModule::AllocateForCode(size_t size) {

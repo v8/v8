@@ -307,6 +307,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   bool SetExecutable(bool executable);
 
+  // TODO(7424): Only used for debugging in {WasmCode::Validate}. Remove.
+  Code* ReverseTrampolineLookup(Address target);
+
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
