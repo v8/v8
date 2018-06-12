@@ -338,14 +338,14 @@ WasmCode::~WasmCode() {
 
 base::AtomicNumber<size_t> NativeModule::next_id_;
 
-NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
-                           bool can_request_more, VirtualMemory* code_space,
+NativeModule::NativeModule(Isolate* isolate, uint32_t num_functions,
+                           uint32_t num_imports, bool can_request_more,
+                           VirtualMemory* code_space,
                            WasmCodeManager* code_manager, ModuleEnv& env)
     : instance_id(next_id_.Increment(1)),
       num_functions_(num_functions),
       num_imported_functions_(num_imports),
-      compilation_state_(NewCompilationState(
-          reinterpret_cast<Isolate*>(code_manager->isolate_), env)),
+      compilation_state_(NewCompilationState(isolate, env)),
       free_code_space_({code_space->address(), code_space->end()}),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
@@ -842,7 +842,7 @@ void NativeModule::DisableTrapHandler() {
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
   // Clear the handle at the beginning of destructor to make it robust against
-  // potential GCs in the rest of the desctructor.
+  // potential GCs in the rest of the destructor.
   if (shared_module_data_ != nullptr) {
     Isolate* isolate = shared_module_data()->GetIsolate();
     isolate->global_handles()->Destroy(
@@ -852,8 +852,7 @@ NativeModule::~NativeModule() {
   wasm_code_manager_->FreeNativeModule(this);
 }
 
-WasmCodeManager::WasmCodeManager(v8::Isolate* isolate, size_t max_committed)
-    : isolate_(isolate) {
+WasmCodeManager::WasmCodeManager(size_t max_committed) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
   remaining_uncommitted_code_space_.store(max_committed);
 }
@@ -884,12 +883,6 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     // Highly unlikely.
     remaining_uncommitted_code_space_.fetch_add(size);
     return false;
-  }
-  if (WouldGCHelp()) {
-    // This API does not assume main thread, and would schedule
-    // a GC if called from a different thread, instead of synchronously
-    // doing one.
-    isolate_->MemoryPressureNotification(MemoryPressureLevel::kCritical);
   }
   return ret;
 }
@@ -944,15 +937,15 @@ size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
 }
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    const WasmModule& module, ModuleEnv& env) {
+    Isolate* isolate, const WasmModule& module, ModuleEnv& env) {
   size_t memory_estimate = EstimateNativeModuleSize(&module);
   return NewNativeModule(
-      memory_estimate, static_cast<uint32_t>(module.functions.size()),
+      isolate, memory_estimate, static_cast<uint32_t>(module.functions.size()),
       module.num_imported_functions, kModuleCanAllocateMoreMemory, env);
 }
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    size_t memory_estimate, uint32_t num_functions,
+    Isolate* isolate, size_t memory_estimate, uint32_t num_functions,
     uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env) {
   VirtualMemory mem;
   // If the code must be contiguous, reserve enough address space up front.
@@ -963,7 +956,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     size_t size = mem.size();
     Address end = mem.end();
     std::unique_ptr<NativeModule> ret(
-        new NativeModule(num_functions, num_imported_functions,
+        new NativeModule(isolate, num_functions, num_imported_functions,
                          can_request_more, &mem, this, env));
     TRACE_HEAP("New Module: ID:%zu. Mem: %p,+%zu\n", ret->instance_id,
                reinterpret_cast<void*>(start), size);
@@ -972,8 +965,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     return ret;
   }
 
-  V8::FatalProcessOutOfMemory(reinterpret_cast<Isolate*>(isolate_),
-                              "WasmCodeManager::NewNativeModule");
+  V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");
   return nullptr;
 }
 
@@ -1040,9 +1032,6 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
     module_code_size_mb_->AddSample(static_cast<int>(code_size / MB));
   }
 
-  // No need to tell the GC anything if we're destroying the heap,
-  // which we currently indicate by having the isolate_ as null
-  if (isolate_ == nullptr) return;
   remaining_uncommitted_code_space_.fetch_add(code_size);
 }
 

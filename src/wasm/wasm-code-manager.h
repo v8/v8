@@ -17,7 +17,6 @@
 #include "src/wasm/module-compiler.h"
 
 namespace v8 {
-class Isolate;
 namespace internal {
 
 struct CodeDesc;
@@ -342,7 +341,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class NativeModuleModificationScope;
 
   static base::AtomicNumber<size_t> next_id_;
-  NativeModule(uint32_t num_functions, uint32_t num_imports,
+  NativeModule(Isolate* isolate, uint32_t num_functions, uint32_t num_imports,
                bool can_request_more, VirtualMemory* code_space,
                WasmCodeManager* code_manager, ModuleEnv& env);
 
@@ -415,22 +414,20 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
  public:
-  // The only reason we depend on Isolate is to report native memory used
-  // and held by a GC-ed object. We'll need to mitigate that when we
-  // start sharing wasm heaps.
-  WasmCodeManager(v8::Isolate*, size_t max_committed);
+  explicit WasmCodeManager(size_t max_committed);
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory
   // is determined with a heuristic based on the total size of wasm
   // code. The native module may later request more memory.
-  std::unique_ptr<NativeModule> NewNativeModule(const WasmModule& module,
+  // TODO(titzer): isolate is only required here for CompilationState.
+  std::unique_ptr<NativeModule> NewNativeModule(Isolate* isolate,
+                                                const WasmModule& module,
                                                 ModuleEnv& env);
-  std::unique_ptr<NativeModule> NewNativeModule(size_t memory_estimate,
-                                                uint32_t num_functions,
-                                                uint32_t num_imported_functions,
-                                                bool can_request_more,
-                                                ModuleEnv& env);
+  // TODO(titzer): isolate is only required here for CompilationState.
+  std::unique_ptr<NativeModule> NewNativeModule(
+      Isolate* isolate, size_t memory_estimate, uint32_t num_functions,
+      uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env);
 
   WasmCode* LookupCode(Address pc) const;
   WasmCode* GetCodeFromStartAddress(Address pc) const;
@@ -460,9 +457,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // worth requesting a GC on memory pressure.
   size_t active_ = 0;
   std::atomic<size_t> remaining_uncommitted_code_space_;
-
-  // TODO(mtrofin): remove the dependency on isolate.
-  v8::Isolate* isolate_;
 
   // Histogram to update with the maximum used code space for each NativeModule.
   Histogram* module_code_size_mb_ = nullptr;

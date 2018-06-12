@@ -1401,7 +1401,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
         isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
             module);
     auto native_module =
-        isolate->wasm_engine()->code_manager()->NewNativeModule(*module, env);
+        isolate->wasm_engine()->code_manager()->NewNativeModule(isolate,
+                                                                *module, env);
     Handle<Foreign> native_module_wrapper =
         Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
                                                    std::move(native_module));

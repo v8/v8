@@ -158,8 +158,8 @@ std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   std::unique_ptr<wasm::NativeModule> module =
-      isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
-                                                              false, env);
+      isolate->wasm_engine()->code_manager()->NewNativeModule(
+          isolate, code_size, 1, 0, false, env);
   return module;
 }
 
