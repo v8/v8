@@ -72,9 +72,6 @@ class FileVisitor {
 
   Signature MakeSignature(const CallableNodeSignature* signature);
 
-  std::string GetGeneratedCallableName(const std::string& name,
-                                       const TypeVector& specialized_types);
-
   struct PendingSpecialization {
     SpecializationKey key;
     CallableNode* callable;

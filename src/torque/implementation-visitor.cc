@@ -160,67 +160,69 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
 
   CurrentCallableActivator activator(global_context_, macro, decl);
 
-  header_out() << "  ";
-  GenerateMacroFunctionDeclaration(header_out(), "", macro);
-  header_out() << ";" << std::endl;
+  if (body != nullptr) {
+    header_out() << "  ";
+    GenerateMacroFunctionDeclaration(header_out(), "", macro);
+    header_out() << ";" << std::endl;
 
-  GenerateMacroFunctionDeclaration(
-      source_out(), GetDSLAssemblerName(CurrentModule()) + "::", macro);
-  source_out() << " {" << std::endl;
+    GenerateMacroFunctionDeclaration(
+        source_out(), GetDSLAssemblerName(CurrentModule()) + "::", macro);
+    source_out() << " {" << std::endl;
 
-  const Variable* result_var = nullptr;
-  if (macro->HasReturnValue()) {
-    const Type* return_type = macro->signature().return_type;
-    if (!return_type->IsConstexpr()) {
+    const Variable* result_var = nullptr;
+    if (macro->HasReturnValue()) {
+      const Type* return_type = macro->signature().return_type;
+      if (!return_type->IsConstexpr()) {
+        GenerateIndent();
+        source_out() << "Node* return_default = &*SmiConstant(0);" << std::endl;
+      }
+      VisitResult init = {return_type,
+                          return_type->IsConstexpr()
+                              ? (return_type->GetGeneratedTypeName() + "()")
+                              : (std::string("UncheckedCast<") +
+                                 return_type->GetGeneratedTNodeTypeName() +
+                                 ">(return_default)")};
+      result_var =
+          GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
+    }
+    Label* macro_end = declarations()->DeclareLabel("macro_end");
+    GenerateLabelDefinition(macro_end, decl);
+
+    const Type* result = Visit(body);
+    if (result->IsNever()) {
+      if (!macro->signature().return_type->IsNever() && !macro->HasReturns()) {
+        std::stringstream s;
+        s << "macro " << decl->name
+          << " that never returns must have return type never";
+        ReportError(s.str());
+      }
+    } else {
+      if (macro->signature().return_type->IsNever()) {
+        std::stringstream s;
+        s << "macro " << decl->name
+          << " has implicit return at end of its declartion but return type "
+             "never";
+        ReportError(s.str());
+      } else if (!macro->signature().return_type->IsVoid()) {
+        std::stringstream s;
+        s << "macro " << decl->name
+          << " expects to return a value but doesn't on all paths";
+        ReportError(s.str());
+      }
+    }
+    if (macro->HasReturns()) {
+      if (!result->IsNever()) {
+        GenerateLabelGoto(macro_end);
+      }
+      GenerateLabelBind(macro_end);
+    }
+    if (result_var != nullptr) {
       GenerateIndent();
-      source_out() << "Node* return_default = &*SmiConstant(0);" << std::endl;
+      source_out() << "return " << result_var->GetValueForRead() << ";"
+                   << std::endl;
     }
-    VisitResult init = {
-        return_type,
-        return_type->IsConstexpr()
-            ? (return_type->GetGeneratedTypeName() + "()")
-            : (std::string("UncheckedCast<") +
-               return_type->GetGeneratedTNodeTypeName() + ">(return_default)")};
-    result_var =
-        GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
+    source_out() << "}" << std::endl << std::endl;
   }
-  Label* macro_end = declarations()->DeclareLabel("macro_end");
-  GenerateLabelDefinition(macro_end, decl);
-
-  const Type* result = Visit(body);
-  if (result->IsNever()) {
-    if (!macro->signature().return_type->IsNever() && !macro->HasReturns()) {
-      std::stringstream s;
-      s << "macro " << decl->name
-        << " that never returns must have return type never";
-      ReportError(s.str());
-    }
-  } else {
-    if (macro->signature().return_type->IsNever()) {
-      std::stringstream s;
-      s << "macro " << decl->name
-        << " has implicit return at end of its declartion but return type "
-           "never";
-      ReportError(s.str());
-    } else if (!macro->signature().return_type->IsVoid()) {
-      std::stringstream s;
-      s << "macro " << decl->name
-        << " expects to return a value but doesn't on all paths";
-      ReportError(s.str());
-    }
-  }
-  if (macro->HasReturns()) {
-    if (!result->IsNever()) {
-      GenerateLabelGoto(macro_end);
-    }
-    GenerateLabelBind(macro_end);
-  }
-  if (result_var != nullptr) {
-    GenerateIndent();
-    source_out() << "return " << result_var->GetValueForRead() << ";"
-                 << std::endl;
-  }
-  source_out() << "}" << std::endl << std::endl;
 }
 
 void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
@@ -518,28 +520,6 @@ VisitResult ImplementationVisitor::Visit(IdentifierExpression* expr) {
   }
 
   return GenerateFetchFromLocation(expr, GetLocationReference(expr));
-}
-
-VisitResult ImplementationVisitor::Visit(UnsafeCastExpression* expr) {
-  const Type* type = declarations()->GetType(expr->type);
-  if (type->IsConstexpr()) {
-    ReportError("unsafe_cast can only be used for non constexpr types.");
-  }
-
-  VisitResult result = Visit(expr->value);
-
-  std::string result_variable_name = GenerateNewTempVariable(type);
-  source_out() << "CAST(";
-  source_out() << result.variable();
-  source_out() << ");\n";
-  return VisitResult{type, result_variable_name};
-}
-
-VisitResult ImplementationVisitor::Visit(ConvertExpression* expr) {
-  Arguments args;
-  args.parameters = {Visit(expr->value)};
-  return GenerateOperation("convert<>", args,
-                           declarations()->GetType(expr->type));
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
@@ -1632,11 +1612,11 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
   if (destination_type == source.type()) {
     return source;
   }
+
   if (TypeOracle::IsImplicitlyConverableFrom(destination_type, source.type())) {
-    VisitResult result(source.type(), source.variable());
-    Arguments args;
-    args.parameters = {result};
-    return GenerateOperation("convert<>", args, destination_type);
+    std::string name =
+        GetGeneratedCallableName(kFromConstexprMacroName, {destination_type});
+    return GenerateCall(name, {{source}, {}}, false);
   } else if (IsAssignableFrom(destination_type, source.type())) {
     return VisitResult(destination_type, source.variable());
   } else {

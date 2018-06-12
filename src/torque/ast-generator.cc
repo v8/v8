@@ -222,7 +222,6 @@ antlrcpp::Any AstGenerator::visitExternalMacro(
   MacroDeclaration* macro = RegisterNode(new ExternalMacroDeclaration{
       Pos(context),
       context->IDENTIFIER()->getSymbol()->getText(),
-      context->IMPLICIT() != nullptr,
       {},
       std::move(
           context->typeListMaybeVarArgs()->accept(this).as<ParameterList>()),
@@ -281,12 +280,12 @@ antlrcpp::Any AstGenerator::visitGenericSpecialization(
   auto name = context->IDENTIFIER()->getSymbol()->getText();
   auto specialization_parameters =
       GetTypeVector(context->genericSpecializationTypeList()->typeList());
-  Statement* body = context->helperBody()->accept(this).as<Statement*>();
   return implicit_cast<Declaration*>(RegisterNode(new SpecializationDeclaration{
-      Pos(context), name, specialization_parameters,
+      Pos(context), name, false, specialization_parameters,
       GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
-      GetOptionalLabelAndTypeList(context->optionalLabelList()), body}));
+      GetOptionalLabelAndTypeList(context->optionalLabelList()),
+      context->helperBody()->accept(this).as<Statement*>()}));
 }
 
 antlrcpp::Any AstGenerator::visitConstDeclaration(
@@ -538,14 +537,6 @@ antlrcpp::Any AstGenerator::visitPrimaryExpression(
   if (auto* e = context->STRING_LITERAL())
     return implicit_cast<Expression*>(RegisterNode(
         new StringLiteralExpression{Pos(context), e->getSymbol()->getText()}));
-  if (context->CONVERT_KEYWORD())
-    return implicit_cast<Expression*>(RegisterNode(new ConvertExpression{
-        Pos(context), GetType(context->type()),
-        context->expression()->accept(this).as<Expression*>()}));
-  if (context->UNSAFE_CAST_KEYWORD())
-    return implicit_cast<Expression*>(RegisterNode(new UnsafeCastExpression{
-        Pos(context), GetType(context->type()),
-        context->expression()->accept(this).as<Expression*>()}));
   return context->expression()->accept(this);
 }
 

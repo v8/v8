@@ -83,9 +83,6 @@ class ImplementationVisitor : public FileVisitor {
     return GenerateFetchFromLocation(expr, GetLocationReference(expr));
   }
 
-  VisitResult Visit(UnsafeCastExpression* expr);
-  VisitResult Visit(ConvertExpression* expr);
-
   void Visit(ModuleDeclaration* decl);
   void Visit(DefaultModuleDeclaration* decl) {
     Visit(implicit_cast<ModuleDeclaration*>(decl));

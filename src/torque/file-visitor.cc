@@ -25,16 +25,6 @@ Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
   return result;
 }
 
-std::string FileVisitor::GetGeneratedCallableName(
-    const std::string& name, const TypeVector& specialized_types) {
-  std::string result = name;
-  for (auto type : specialized_types) {
-    std::string type_string = type->MangledName();
-    result += std::to_string(type_string.size()) + type_string;
-  }
-  return result;
-}
-
 Callable* FileVisitor::LookupCall(const std::string& name,
                                   const TypeVector& parameter_types) {
   Callable* result = nullptr;

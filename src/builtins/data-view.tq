@@ -193,7 +193,7 @@ module data_view {
   extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Number;
 
   extern macro ToSmiIndex(Object, Context): Smi labels RangeError;
-  extern macro DataViewElementSize(constexpr ElementsKind): constexpr int32;
+  extern macro DataViewElementSize(constexpr ElementsKind): constexpr int31;
 
   macro DataViewGet(context: Context,
                     receiver: Object,
@@ -223,7 +223,7 @@ module data_view {
 
     let viewOffset: Smi = data_view.byte_offset;
     let viewSize: Smi = data_view.byte_length;
-    let elementSize: Smi = convert<Smi>(DataViewElementSize(kind));
+    let elementSize: Smi = DataViewElementSize(kind);
 
     if (getIndex + elementSize > viewSize ||
         getIndex + elementSize < getIndex) {

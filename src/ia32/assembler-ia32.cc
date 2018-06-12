@@ -364,7 +364,10 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
         }
       }
       if (can_opt) {
-        jump_opt->set_optimizable();
+        // Disable for now due to bug flushed out by unrelated CSA/Torque
+        // changes
+        // TODO(7839): reenable when fixed
+        // jump_opt->set_optimizable();
       }
     }
   }

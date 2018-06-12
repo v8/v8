@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_TYPES_H_
 #define V8_TORQUE_TYPES_H_
 
+#include <algorithm>
 #include <set>
 #include <string>
 #include <vector>
@@ -175,6 +176,13 @@ class FunctionPointerType final : public Type {
   const Type* const return_type_;
 };
 
+bool operator<(const Type& a, const Type& b);
+struct TypeLess {
+  bool operator()(const Type* const a, const Type* const b) const {
+    return *a < *b;
+  }
+};
+
 class UnionType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(UnionType);
@@ -257,7 +265,7 @@ class UnionType final : public Type {
  private:
   explicit UnionType(const Type* t) : Type(Kind::kUnionType, t), types_({t}) {}
 
-  std::set<const Type*> types_;
+  std::set<const Type*, TypeLess> types_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Type* t) {

@@ -145,9 +145,9 @@ Label* Declarations::LookupLabel(const std::string& name) {
   return Label::cast(d);
 }
 
-Macro* Declarations::LookupMacro(const std::string& name,
-                                 const TypeVector& types) {
-  Declarable* declarable = Lookup(name);
+Macro* Declarations::TryLookupMacro(const std::string& name,
+                                    const TypeVector& types) {
+  Declarable* declarable = TryLookup(name);
   if (declarable != nullptr) {
     if (declarable->IsMacroList()) {
       for (auto& m : MacroList::cast(declarable)->list()) {
@@ -158,6 +158,13 @@ Macro* Declarations::LookupMacro(const std::string& name,
       }
     }
   }
+  return nullptr;
+}
+
+Macro* Declarations::LookupMacro(const std::string& name,
+                                 const TypeVector& types) {
+  Macro* result = TryLookupMacro(name, types);
+  if (result != nullptr) return result;
   std::stringstream stream;
   stream << "macro " << name << " with parameter types " << types
          << " is not defined";
@@ -333,6 +340,16 @@ TypeVector Declarations::GetCurrentSpecializationTypeNamesVector() {
   TypeVector result;
   if (current_generic_specialization_ != nullptr) {
     result = current_generic_specialization_->second;
+  }
+  return result;
+}
+
+std::string GetGeneratedCallableName(const std::string& name,
+                                     const TypeVector& specialized_types) {
+  std::string result = name;
+  for (auto type : specialized_types) {
+    std::string type_string = type->MangledName();
+    result += std::to_string(type_string.size()) + type_string;
   }
   return result;
 }

@@ -20,10 +20,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   explicit TypeOracle(Declarations* declarations)
       : declarations_(declarations) {}
 
-  static void RegisterImplicitConversion(const Type* to, const Type* from) {
-    Get().implicit_conversions_.push_back(std::make_pair(to, from));
-  }
-
   static const Type* GetArgumentsType() {
     return Get().GetBuiltinType(ARGUMENTS_TYPE_STRING);
   }
@@ -61,12 +57,8 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   static bool IsImplicitlyConverableFrom(const Type* to, const Type* from) {
-    for (auto& conversion : Get().implicit_conversions_) {
-      if (conversion.first == to && conversion.second == from) {
-        return true;
-      }
-    }
-    return false;
+    std::string name = GetGeneratedCallableName(kFromConstexprMacroName, {to});
+    return Get().declarations_->TryLookupMacro(name, {from}) != nullptr;
   }
 
  private:
@@ -75,7 +67,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   Declarations* declarations_;
-  std::vector<std::pair<const Type*, const Type*>> implicit_conversions_;
 };
 
 }  // namespace torque

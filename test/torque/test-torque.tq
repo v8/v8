@@ -36,7 +36,7 @@ module test {
   }
 
   macro TestConstexpr1() {
-    check(convert<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+    check(from_constexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
   }
 
   macro TestConstexprIf() {
@@ -46,10 +46,10 @@ module test {
   }
 
   macro TestConstexprReturn() {
-    check(convert<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
-    check(convert<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
-    check(!convert<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
-    check(convert<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
+    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
+    check(!from_constexpr<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(from_constexpr<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
   }
 
   macro TestGotoLabel(): Boolean {

@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+static constexpr const char* const kFromConstexprMacroName = "from_constexpr";
+
 class Declarations {
  public:
   Declarations()
@@ -58,6 +60,7 @@ class Declarations {
 
   Value* LookupValue(const std::string& name);
 
+  Macro* TryLookupMacro(const std::string& name, const TypeVector& types);
   Macro* LookupMacro(const std::string& name, const TypeVector& types);
 
   Builtin* LookupBuiltin(const std::string& name);
@@ -198,6 +201,9 @@ class Declarations::ScopedGenericScopeChainSnapshot {
  private:
   ScopeChain::ScopedSnapshotRestorer restorer_;
 };
+
+std::string GetGeneratedCallableName(const std::string& name,
+                                     const TypeVector& specialized_types);
 
 }  // namespace torque
 }  // namespace internal

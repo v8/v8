@@ -38,9 +38,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(FieldAccessExpression)               \
   V(ElementAccessExpression)             \
   V(AssignmentExpression)                \
-  V(IncrementDecrementExpression)        \
-  V(UnsafeCastExpression)                \
-  V(ConvertExpression)
+  V(IncrementDecrementExpression)
 
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
@@ -299,22 +297,6 @@ struct NumberLiteralExpression : Expression {
   NumberLiteralExpression(SourcePosition p, std::string n)
       : Expression(kKind, p), number(std::move(n)) {}
   std::string number;
-};
-
-struct ConvertExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ConvertExpression)
-  ConvertExpression(SourcePosition p, TypeExpression* t, Expression* v)
-      : Expression(kKind, p), type(t), value(v) {}
-  TypeExpression* type;
-  Expression* value;
-};
-
-struct UnsafeCastExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(UnsafeCastExpression)
-  UnsafeCastExpression(SourcePosition p, TypeExpression* t, Expression* v)
-      : Expression(kKind, p), type(t), value(v) {}
-  TypeExpression* type;
-  Expression* value;
 };
 
 struct ElementAccessExpression : LocationExpression {
@@ -591,27 +573,26 @@ struct CallableNode : AstNode {
 
 struct MacroDeclaration : CallableNode {
   DEFINE_AST_NODE_INNER_BOILERPLATE(MacroDeclaration)
-  MacroDeclaration(AstNode::Kind kind, SourcePosition p, std::string n, bool i,
+  MacroDeclaration(AstNode::Kind kind, SourcePosition p, std::string n,
                    base::Optional<std::string> o, ParameterList pl,
                    TypeExpression* r, const LabelAndTypesVector& l)
-      : CallableNode(kind, p, n, pl, r, l), implicit(i), op(std::move(o)) {}
-  bool implicit;
+      : CallableNode(kind, p, n, pl, r, l), op(std::move(o)) {}
   base::Optional<std::string> op;
 };
 
 struct ExternalMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalMacroDeclaration)
-  ExternalMacroDeclaration(SourcePosition p, std::string n, bool i,
+  ExternalMacroDeclaration(SourcePosition p, std::string n,
                            base::Optional<std::string> o, ParameterList pl,
                            TypeExpression* r, const LabelAndTypesVector& l)
-      : MacroDeclaration(kKind, p, n, i, o, pl, r, l) {}
+      : MacroDeclaration(kKind, p, n, o, pl, r, l) {}
 };
 
 struct TorqueMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueMacroDeclaration)
   TorqueMacroDeclaration(SourcePosition p, std::string n, ParameterList pl,
                          TypeExpression* r, const LabelAndTypesVector& l)
-      : MacroDeclaration(kKind, p, n, false, {}, pl, r, l) {}
+      : MacroDeclaration(kKind, p, n, {}, pl, r, l) {}
 };
 
 struct BuiltinDeclaration : CallableNode {
@@ -666,16 +647,18 @@ struct GenericDeclaration : Declaration {
 
 struct SpecializationDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(SpecializationDeclaration)
-  SpecializationDeclaration(SourcePosition p, std::string n,
+  SpecializationDeclaration(SourcePosition p, std::string n, bool e,
                             std::vector<TypeExpression*> gp, ParameterList pl,
                             TypeExpression* r, LabelAndTypesVector l,
                             Statement* b)
       : Declaration(kKind, p),
         name(std::move(n)),
+        external(e),
         generic_parameters(gp),
         signature(new CallableNodeSignature{pl, r, l}),
         body(b) {}
   std::string name;
+  bool external;
   std::vector<TypeExpression*> generic_parameters;
   std::unique_ptr<CallableNodeSignature> signature;
   Statement* body;

@@ -290,42 +290,41 @@ module typed_array {
       let elements_kind: ElementsKind = array.elements_kind;
 
       if (IsElementsKindGreaterThan(elements_kind, UINT32_ELEMENTS)) {
-        if (elements_kind == convert<ElementsKind>(INT32_ELEMENTS)) {
+        if (elements_kind == INT32_ELEMENTS) {
           loadfn = LoadFixedElement<FixedInt32Array>;
           storefn = StoreFixedElement<FixedInt32Array>;
-        } else if (elements_kind == convert<ElementsKind>(FLOAT32_ELEMENTS)) {
+        } else if (elements_kind == FLOAT32_ELEMENTS) {
           loadfn = LoadFixedElement<FixedFloat32Array>;
           storefn = StoreFixedElement<FixedFloat32Array>;
-        } else if (elements_kind == convert<ElementsKind>(FLOAT64_ELEMENTS)) {
+        } else if (elements_kind == FLOAT64_ELEMENTS) {
           loadfn = LoadFixedElement<FixedFloat64Array>;
           storefn = StoreFixedElement<FixedFloat64Array>;
-        } else if (
-            elements_kind == convert<ElementsKind>(UINT8_CLAMPED_ELEMENTS)) {
+        } else if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
           loadfn = LoadFixedElement<FixedUint8ClampedArray>;
           storefn = StoreFixedElement<FixedUint8ClampedArray>;
-        } else if (elements_kind == convert<ElementsKind>(BIGUINT64_ELEMENTS)) {
+        } else if (elements_kind == BIGUINT64_ELEMENTS) {
           loadfn = LoadFixedElement<FixedBigUint64Array>;
           storefn = StoreFixedElement<FixedBigUint64Array>;
-        } else if (elements_kind == convert<ElementsKind>(BIGINT64_ELEMENTS)) {
+        } else if (elements_kind == BIGINT64_ELEMENTS) {
           loadfn = LoadFixedElement<FixedBigInt64Array>;
           storefn = StoreFixedElement<FixedBigInt64Array>;
         } else {
           unreachable;
         }
       } else {
-        if (elements_kind == convert<ElementsKind>(UINT8_ELEMENTS)) {
+        if (elements_kind == UINT8_ELEMENTS) {
           loadfn = LoadFixedElement<FixedUint8Array>;
           storefn = StoreFixedElement<FixedUint8Array>;
-        } else if (elements_kind == convert<ElementsKind>(INT8_ELEMENTS)) {
+        } else if (elements_kind == INT8_ELEMENTS) {
           loadfn = LoadFixedElement<FixedInt8Array>;
           storefn = StoreFixedElement<FixedInt8Array>;
-        } else if (elements_kind == convert<ElementsKind>(UINT16_ELEMENTS)) {
+        } else if (elements_kind == UINT16_ELEMENTS) {
           loadfn = LoadFixedElement<FixedUint16Array>;
           storefn = StoreFixedElement<FixedUint16Array>;
-        } else if (elements_kind == convert<ElementsKind>(INT16_ELEMENTS)) {
+        } else if (elements_kind == INT16_ELEMENTS) {
           loadfn = LoadFixedElement<FixedInt16Array>;
           storefn = StoreFixedElement<FixedInt16Array>;
-        } else if (elements_kind == convert<ElementsKind>(UINT32_ELEMENTS)) {
+        } else if (elements_kind == UINT32_ELEMENTS) {
           loadfn = LoadFixedElement<FixedUint32Array>;
           storefn = StoreFixedElement<FixedUint32Array>;
         } else {

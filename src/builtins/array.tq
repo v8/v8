@@ -529,6 +529,10 @@ module array {
   }
 
   type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
+  extern macro UnsafeCastObjectToCompareBuiltinFn(Object): CompareBuiltinFn;
+  unsafe_cast<CompareBuiltinFn>(o: Object): CompareBuiltinFn {
+    return UnsafeCastObjectToCompareBuiltinFn(o);
+  }
 
   builtin SortCompareDefault(
       context: Context, comparefn: Object, x: Object, y: Object): Number {
@@ -928,14 +932,11 @@ module array {
       sort_state[kElementsIdx()] = a.elements;
       sort_state[kRandomStateIdx()] = nofNonUndefined;
 
-      // TODO(szuend): Extract into IsDoubleElementsKind when bool types are
-      //               fixed in Torque.
-      if (elementsKind == convert<ElementsKind>(PACKED_DOUBLE_ELEMENTS) ||
-          elementsKind == convert<ElementsKind>(HOLEY_DOUBLE_ELEMENTS)) {
+      if (IsDoubleElementsKind(elementsKind)) {
         ArrayQuickSort<FastDoubleElements>(
             context, sort_state, 0, nofNonUndefined);
       } else {
-        if (elementsKind == convert<ElementsKind>(PACKED_SMI_ELEMENTS)) {
+        if (elementsKind == PACKED_SMI_ELEMENTS) {
           ArrayQuickSort<FastPackedSmiElements>(
               context, sort_state, 0, nofNonUndefined);
         } else {

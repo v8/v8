@@ -3311,6 +3311,55 @@ TEST(SingleInputPhiElimination) {
   // single-input phi is properly eliminated.
 }
 
+TEST(IsDoubleElementsKind) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 2;
+  CodeAssemblerTester ft_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(ft_tester.state());
+    m.Return(m.SmiFromInt32(m.UncheckedCast<Int32T>(
+        m.IsDoubleElementsKind(m.SmiToInt32(m.Parameter(0))))));
+  }
+  FunctionTester ft(ft_tester.GenerateCode(), kNumParams);
+  CHECK_EQ(
+      (*Handle<Smi>::cast(
+           ft.Call(Handle<Smi>(Smi::FromInt(PACKED_DOUBLE_ELEMENTS), isolate))
+               .ToHandleChecked()))
+          ->value(),
+      1);
+  CHECK_EQ(
+      (*Handle<Smi>::cast(
+           ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_DOUBLE_ELEMENTS), isolate))
+               .ToHandleChecked()))
+          ->value(),
+      1);
+  CHECK_EQ((*Handle<Smi>::cast(
+                ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_ELEMENTS), isolate))
+                    .ToHandleChecked()))
+               ->value(),
+           0);
+  CHECK_EQ((*Handle<Smi>::cast(
+                ft.Call(Handle<Smi>(Smi::FromInt(PACKED_ELEMENTS), isolate))
+                    .ToHandleChecked()))
+               ->value(),
+           0);
+  CHECK_EQ((*Handle<Smi>::cast(
+                ft.Call(Handle<Smi>(Smi::FromInt(PACKED_SMI_ELEMENTS), isolate))
+                    .ToHandleChecked()))
+               ->value(),
+           0);
+  CHECK_EQ((*Handle<Smi>::cast(
+                ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_SMI_ELEMENTS), isolate))
+                    .ToHandleChecked()))
+               ->value(),
+           0);
+  CHECK_EQ((*Handle<Smi>::cast(
+                ft.Call(Handle<Smi>(Smi::FromInt(DICTIONARY_ELEMENTS), isolate))
+                    .ToHandleChecked()))
+               ->value(),
+           0);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

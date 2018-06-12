@@ -180,6 +180,24 @@ struct IteratorRecord {
 #define CSA_SLOW_ASSERT(csa, ...) ((void)0)
 #endif
 
+class int31_t {
+ public:
+  int31_t() : value_(0) {}
+  int31_t(int value) : value_(value) {  // NOLINT(runtime/explicit)
+    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
+  }
+  int31_t& operator=(int value) {
+    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
+    value_ = value;
+    return *this;
+  }
+  int32_t value() const { return value_; }
+  operator int32_t() const { return value_; }
+
+ private:
+  int32_t value_;
+};
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -288,6 +306,50 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     TNode<HeapObject> result = UncheckedCast<HeapObject>(value);
     GotoIfNot(IsCallable(result), fail);
     return CAST(result);
+  }
+
+  TNode<HeapNumber> UnsafeCastNumberToHeapNumber(TNode<Number> p_n) {
+    return CAST(p_n);
+  }
+
+  TNode<FixedArray> UnsafeCastObjectToFixedArray(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<FixedDoubleArray> UnsafeCastObjectToFixedDoubleArray(
+      TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<HeapNumber> UnsafeCastObjectToHeapNumber(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<HeapObject> UnsafeCastObjectToCallable(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<Smi> UnsafeCastObjectToSmi(TNode<Object> p_o) { return CAST(p_o); }
+
+  TNode<Number> UnsafeCastObjectToNumber(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<HeapObject> UnsafeCastObjectToHeapObject(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<JSArray> UnsafeCastObjectToJSArray(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<FixedTypedArrayBase> UnsafeCastObjectToFixedTypedArrayBase(
+      TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<Object> UnsafeCastObjectToCompareBuiltinFn(TNode<Object> p_o) {
+    return p_o;
   }
 
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
@@ -1638,9 +1700,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode mode = INTPTR_PARAMETERS);
 
   // ElementsKind helpers:
+  TNode<BoolT> ElementsKindEqual(TNode<Int32T> a, TNode<Int32T> b) {
+    return Word32Equal(a, b);
+  }
+  bool ElementsKindEqual(ElementsKind a, ElementsKind b) { return a == b; }
   Node* IsFastElementsKind(Node* elements_kind);
   bool IsFastElementsKind(ElementsKind kind) {
     return v8::internal::IsFastElementsKind(kind);
+  }
+  TNode<BoolT> IsDoubleElementsKind(TNode<Int32T> elements_kind);
+  bool IsDoubleElementsKind(ElementsKind kind) {
+    return v8::internal::IsDoubleElementsKind(kind);
   }
   Node* IsFastSmiOrTaggedElementsKind(Node* elements_kind);
   Node* IsFastSmiElementsKind(Node* elements_kind);

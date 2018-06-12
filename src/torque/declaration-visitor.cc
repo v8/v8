@@ -140,20 +140,6 @@ void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
     }
     i->second.push_back(handler);
   }
-
-  if (decl->implicit) {
-    if (!decl->op || *decl->op != "convert<>") {
-      ReportError("implicit can only be used with cast<> operator");
-    }
-
-    const TypeVector& parameter_types = signature.parameter_types.types;
-    if (parameter_types.size() != 1 || signature.parameter_types.var_args) {
-      ReportError(
-          "implicit cast operators doesn't only have a single parameter");
-    }
-    TypeOracle::RegisterImplicitConversion(signature.return_type,
-                                           parameter_types[0]);
-  }
 }
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
@@ -185,7 +171,9 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
   }
 
   PushControlSplit();
-  Visit(body);
+  if (body != nullptr) {
+    Visit(body);
+  }
   auto changed_vars = PopControlSplit();
   global_context_.AddControlSplitChangedVariables(
       decl, declarations()->GetCurrentSpecializationTypeNamesVector(),
@@ -202,8 +190,14 @@ void DeclarationVisitor::Visit(GenericDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
-  GenericList* generic_list = declarations()->LookupGeneric(decl->name);
+  if ((decl->body != nullptr) == decl->external) {
+    std::stringstream stream;
+    stream << "specialization of " << decl->name
+           << " must either be marked 'extern' or have a body";
+    ReportError(stream.str());
+  }
 
+  GenericList* generic_list = declarations()->LookupGeneric(decl->name);
   // Find the matching generic specialization based on the concrete parameter
   // list.
   CallableNode* matching_callable = nullptr;

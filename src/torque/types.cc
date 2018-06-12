@@ -223,6 +223,10 @@ bool IsCompatibleSignature(const ParameterTypes& to, const TypeVector& from) {
   return true;
 }
 
+bool operator<(const Type& a, const Type& b) {
+  return a.MangledName() < b.MangledName();
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
