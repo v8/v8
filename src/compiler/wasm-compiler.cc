@@ -4009,32 +4009,25 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
-    // The AllocateHeapNumber builtin does not use the js_context, so we can
-    // safely pass in Smi zero here.
     Callable callable =
         Builtins::CallableFor(isolate_, Builtins::kAllocateHeapNumber);
     Node* target = jsgraph()->HeapConstant(callable.code());
-    Node* js_context = jsgraph()->NoContextConstant();
-    Node* begin_region = graph()->NewNode(
-        common->BeginRegion(RegionObservability::kNotObservable), *effect_);
     if (!allocate_heap_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           isolate_, mcgraph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoThrow);
+          CallDescriptor::kNoFlags, Operator::kNoThrow,
+          MachineType::AnyTagged(), 1, Linkage::kNoContext);
       allocate_heap_number_operator_.set(common->Call(call_descriptor));
     }
-    Node* heap_number =
-        graph()->NewNode(allocate_heap_number_operator_.get(), target,
-                         js_context, begin_region, control);
+    Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
+                                         target, *effect_, control);
     Node* store =
         graph()->NewNode(machine->Store(StoreRepresentation(
                              MachineRepresentation::kFloat64, kNoWriteBarrier)),
                          heap_number, BuildHeapNumberValueIndexConstant(),
                          value, heap_number, control);
-    Node* finish_region =
-        graph()->NewNode(common->FinishRegion(), heap_number, store);
-    *effect_ = finish_region;
-    return finish_region;
+    *effect_ = store;
+    return heap_number;
   }
 
   Node* BuildChangeSmiToFloat64(Node* value) {
@@ -4273,7 +4266,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* num = BuildJavaScriptToNumber(node, js_context);
 
     // Change representation.
-    SimplifiedOperatorBuilder simplified(mcgraph()->zone());
     num = BuildChangeTaggedToFloat64(num);
 
     switch (type) {
