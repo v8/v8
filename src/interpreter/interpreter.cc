@@ -233,7 +233,7 @@ bool Interpreter::IsDispatchTableInitialized() const {
   return dispatch_table_[0] != kNullAddress;
 }
 
-const char* Interpreter::LookupNameOfBytecodeHandler(Code* code) {
+const char* Interpreter::LookupNameOfBytecodeHandler(const Code* code) {
 #ifdef ENABLE_DISASSEMBLER
 #define RETURN_NAME(Name, ...)                                 \
   if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == \

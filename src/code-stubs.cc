@@ -177,7 +177,7 @@ Handle<Code> CodeStub::GetCode() {
   return Handle<Code>(code, isolate());
 }
 
-CodeStub::Major CodeStub::GetMajorKey(Code* code_stub) {
+CodeStub::Major CodeStub::GetMajorKey(const Code* code_stub) {
   return MajorKeyFromKey(code_stub->stub_key());
 }
 

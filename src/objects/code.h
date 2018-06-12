@@ -52,6 +52,8 @@ class Code : public HeapObject {
   static const char* Kind2String(Kind kind);
 
 #ifdef ENABLE_DISASSEMBLER
+  const char* GetName(Isolate* isolate) const;
+  void PrintBuiltinCode(Isolate* isolate, const char* name);
   void Disassemble(const char* name, std::ostream& os,
                    Address current_pc = kNullAddress);
 #endif

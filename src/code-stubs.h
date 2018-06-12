@@ -107,7 +107,7 @@ class CodeStub : public ZoneObject {
   }
 
   // Gets the major key from a code object that is a code stub or binary op IC.
-  static Major GetMajorKey(Code* code_stub);
+  static Major GetMajorKey(const Code* code_stub);
 
   static uint32_t NoCacheKey() { return MajorKeyBits::encode(NoCache); }
 

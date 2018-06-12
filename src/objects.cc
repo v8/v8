@@ -14609,27 +14609,46 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   }
 }
 
+const char* Code::GetName(Isolate* isolate) const {
+  if (is_stub()) {
+    return CodeStub::MajorName(CodeStub::GetMajorKey(this));
+  } else if (kind() == BYTECODE_HANDLER) {
+    return isolate->interpreter()->LookupNameOfBytecodeHandler(this);
+  } else {
+    // There are some handlers and ICs that we can also find names for with
+    // Builtins::Lookup.
+    return isolate->builtins()->Lookup(raw_instruction_start());
+  }
+}
+
+void Code::PrintBuiltinCode(Isolate* isolate, const char* name) {
+  DCHECK(FLAG_print_builtin_code);
+  if (name == nullptr) {
+    name = GetName(isolate);
+  }
+  if (name != nullptr &&
+      PassesFilter(CStrVector(name),
+                   CStrVector(FLAG_print_builtin_code_filter))) {
+    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+    OFStream os(trace_scope.file());
+    Disassemble(name, os);
+    os << "\n";
+  }
+}
+
 void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
+  Isolate* isolate = GetIsolate();
   os << "kind = " << Kind2String(kind()) << "\n";
   if (is_stub()) {
     const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this));
     os << "major_key = " << (n == nullptr ? "null" : n) << "\n";
     os << "minor_key = " << CodeStub::MinorKeyFromKey(this->stub_key()) << "\n";
   }
+  if (name == nullptr) {
+    name = GetName(isolate);
+  }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
-  } else if (kind() == BYTECODE_HANDLER) {
-    name = GetIsolate()->interpreter()->LookupNameOfBytecodeHandler(this);
-    if (name != nullptr) {
-      os << "name = " << name << "\n";
-    }
-  } else {
-    // There are some handlers and ICs that we can also find names for with
-    // Builtins::Lookup.
-    name = GetIsolate()->builtins()->Lookup(raw_instruction_start());
-    if (name != nullptr) {
-      os << "name = " << name << "\n";
-    }
   }
   if (kind() == OPTIMIZED_FUNCTION) {
     os << "stack_slots = " << stack_slots() << "\n";
@@ -14639,7 +14658,6 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
 
   os << "Body (size = " << InstructionSize() << ")\n";
   {
-    Isolate* isolate = GetIsolate();
     int size = InstructionSize();
     int safepoint_offset =
         has_safepoint_info() ? safepoint_table_offset() : size;

@@ -30,11 +30,7 @@ void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
                                    AbstractCode::cast(code), name));
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_builtin_code) {
-    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-    OFStream os(trace_scope.file());
-    os << "Builtin: " << name << "\n";
-    code->Disassemble(name, os);
-    os << "\n";
+    code->PrintBuiltinCode(isolate, name);
   }
 #endif
 }
