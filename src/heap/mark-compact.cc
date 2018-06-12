@@ -1861,6 +1861,9 @@ void MarkCompactCollector::ProcessWeakCollections() {
     for (int i = 0; i < table->Capacity(); i++) {
       HeapObject* heap_object = HeapObject::cast(table->KeyAt(i));
       if (non_atomic_marking_state()->IsBlackOrGrey(heap_object)) {
+        Object** key_slot =
+            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+        RecordSlot(table, key_slot, heap_object);
         Object** value_slot = table->RawFieldOfElementAt(
             EphemeronHashTable::EntryToValueIndex(i));
         if (V8_UNLIKELY(FLAG_track_retaining_path) &&
