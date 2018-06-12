@@ -3184,7 +3184,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         body, expected_property_count, parameter_count, parameter_count,
         FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kShouldLazyCompile, 0, true,
+        FunctionLiteral::kShouldLazyCompile, 0, /* has_braces */ false,
         FunctionLiteral::kIdTypeTopLevel);
   }
 

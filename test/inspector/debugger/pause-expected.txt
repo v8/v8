@@ -20,7 +20,7 @@ paused at:
 var a = #239;
 
 paused at:
-var a = 239#;
+var a = 239;#
 
 
 Running test: testWithNativeBreakpoint
