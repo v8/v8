@@ -2885,9 +2885,9 @@ void CreateArrayDispatchOneArgument(MacroAssembler* masm,
 
     if (FLAG_debug_code) {
       __ Ld(a5, FieldMemOperand(a2, 0));
-      __ LoadRoot(kScratchReg, Heap::kAllocationSiteMapRootIndex);
-      __ Assert(eq, AbortReason::kExpectedAllocationSite, a5,
-                Operand(kScratchReg));
+      __ Lhu(kScratchReg, FieldMemOperand(a5, Map::kInstanceTypeOffset));
+      __ Assert(eq, AbortReason::kExpectedAllocationSite, kScratchReg,
+                Operand(ALLOCATION_SITE_TYPE));
     }
 
     // Save the resulting elements kind in type info. We can't just store a3

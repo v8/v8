@@ -55,6 +55,13 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
+  Map* Heap::name##_map() {                                  \
+    return Map::cast(roots_[k##Name##Size##MapRootIndex]);   \
+  }
+ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
+#undef ALLOCATION_SITE_MAP_ACCESSOR
+
 #define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)  \
   Map* Heap::name##_map() {                                \
     return Map::cast(roots_[k##Name##Size##MapRootIndex]); \

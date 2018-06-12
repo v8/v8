@@ -286,6 +286,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
+    case ALLOCATION_SITE_TYPE:
+      AllocationSite::cast(this)->AllocationSitePrint(os);
+      break;
     case LOAD_HANDLER_TYPE:
       LoadHandler::cast(this)->LoadHandlerPrint(os);
       break;

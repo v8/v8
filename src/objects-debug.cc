@@ -338,6 +338,10 @@ void HeapObject::HeapObjectVerify() {
     STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
+    case ALLOCATION_SITE_TYPE:
+      AllocationSite::cast(this)->AllocationSiteVerify();
+      break;
+
     case LOAD_HANDLER_TYPE:
       LoadHandler::cast(this)->LoadHandlerVerify();
       break;

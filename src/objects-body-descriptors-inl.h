@@ -728,14 +728,13 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<SharedFunctionInfo::BodyDescriptor>(p1, p2, p3,
                                                                     p4);
     }
+    case ALLOCATION_SITE_TYPE:
+      return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-      if (type == ALLOCATION_SITE_TYPE) {
-        return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3,
-                                                                  p4);
-      } else if (type == PROTOTYPE_INFO_TYPE) {
+      if (type == PROTOTYPE_INFO_TYPE) {
         return Op::template apply<PrototypeInfo::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
       } else {

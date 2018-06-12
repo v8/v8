@@ -2882,7 +2882,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     __ AddP(r5, r5, Operand(1));
     if (FLAG_debug_code) {
       __ LoadP(r7, FieldMemOperand(r4, 0));
-      __ CompareRoot(r7, Heap::kAllocationSiteMapRootIndex);
+      __ CompareInstanceType(r7, r8, ALLOCATION_SITE_TYPE);
       __ Assert(eq, AbortReason::kExpectedAllocationSite);
     }
 

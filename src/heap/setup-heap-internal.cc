@@ -74,9 +74,14 @@ const Heap::StructTable Heap::struct_table[] = {
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
 
+#define ALLOCATION_SITE_ELEMENT(NAME, Name, Size, name) \
+  {NAME##_TYPE, Name::kSize##Size, k##Name##Size##MapRootIndex},
+        ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT)
+#undef ALLOCATION_SITE_ELEMENT
+
 #define DATA_HANDLER_ELEMENT(NAME, Name, Size, name) \
   {NAME##_TYPE, Name::kSizeWithData##Size, k##Name##Size##MapRootIndex},
-        DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT)
+            DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT)
 #undef DATA_HANDLER_ELEMENT
 };
 

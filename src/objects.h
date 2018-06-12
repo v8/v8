@@ -386,7 +386,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ACCESSOR_PAIR_TYPE)                                         \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(ALLOCATION_MEMENTO_TYPE)                                    \
-  V(ALLOCATION_SITE_TYPE)                                       \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
   V(DEBUG_INFO_TYPE)                                            \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
@@ -412,6 +411,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                     \
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                      \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                     \
+                                                                \
+  V(ALLOCATION_SITE_TYPE)                                       \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(BOILERPLATE_DESCRIPTION_TYPE)                               \
@@ -573,7 +574,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
   V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry) \
   V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
-  V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
   V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
@@ -602,6 +602,11 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
     promise_reject_reaction_job_task)                                        \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK, PromiseResolveThenableJobTask,        \
     promise_resolve_thenable_job_task)
+
+#define ALLOCATION_SITE_LIST(V)                                     \
+  V(ALLOCATION_SITE, AllocationSite, WithWeakNext, allocation_site) \
+  V(ALLOCATION_SITE, AllocationSite, WithoutWeakNext,               \
+    allocation_site_without_weaknext)
 
 #define DATA_HANDLER_LIST(V)                        \
   V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
@@ -769,7 +774,6 @@ enum InstanceType : uint16_t {
   ACCESSOR_PAIR_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   ALLOCATION_MEMENTO_TYPE,
-  ALLOCATION_SITE_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
@@ -796,6 +800,7 @@ enum InstanceType : uint16_t {
   PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
   PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
 
+  ALLOCATION_SITE_TYPE,
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   BOILERPLATE_DESCRIPTION_TYPE,
@@ -1030,6 +1035,7 @@ template <class C> inline bool Is(Object* obj);
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V) \
   V(AbstractCode)                              \
   V(AccessCheckNeeded)                         \
+  V(AllocationSite)                            \
   V(ArrayList)                                 \
   V(BigInt)                                    \
   V(BigIntWrapper)                             \
@@ -3990,16 +3996,23 @@ class AllocationSite: public Struct {
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
 
-  static const int kTransitionInfoOrBoilerplateOffset = HeapObject::kHeaderSize;
-  static const int kNestedSiteOffset =
-      kTransitionInfoOrBoilerplateOffset + kPointerSize;
-  static const int kPretenureDataOffset = kNestedSiteOffset + kPointerSize;
-  static const int kPretenureCreateCountOffset =
-      kPretenureDataOffset + kPointerSize;
-  static const int kDependentCodeOffset =
-      kPretenureCreateCountOffset + kPointerSize;
-  static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
-  static const int kSize = kWeakNextOffset + kPointerSize;
+// Layout description.
+#define ALLOCATION_SITE_FIELDS(V)                     \
+  V(kTransitionInfoOrBoilerplateOffset, kPointerSize) \
+  V(kNestedSiteOffset, kPointerSize)                  \
+  V(kPretenureDataOffset, kPointerSize)               \
+  V(kPretenureCreateCountOffset, kPointerSize)        \
+  V(kDependentCodeOffset, kPointerSize)               \
+  /* Size of AllocationSite without WeakNext field */ \
+  V(kSizeWithoutWeakNext, 0)                          \
+  V(kWeakNextOffset, kPointerSize)                    \
+  /* Size of AllocationSite with WeakNext field */    \
+  V(kSizeWithWeakNext, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ALLOCATION_SITE_FIELDS)
+
+  // Need KSize to statisfy Struct Macro gen machineary
+  static const int kSize = kSizeWithWeakNext;
 
   // During mark compact we need to take special care for the dependent code
   // field.

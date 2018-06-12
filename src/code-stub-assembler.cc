@@ -9295,7 +9295,7 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
     Node* feedback_vector, Node* slot) {
   Node* size = IntPtrConstant(AllocationSite::kSize);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
-  StoreMapNoWriteBarrier(site, Heap::kAllocationSiteMapRootIndex);
+  StoreMapNoWriteBarrier(site, Heap::kAllocationSiteWithWeakNextMapRootIndex);
   // Should match AllocationSite::Initialize.
   Node* field = UpdateWord<AllocationSite::ElementsKindBits>(
       IntPtrConstant(0), IntPtrConstant(GetInitialFastElementsKind()));

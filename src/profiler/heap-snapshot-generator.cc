@@ -775,6 +775,8 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
     case PROPERTY_CELL_TYPE: return "system / PropertyCell";
     case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
+    case ALLOCATION_SITE_TYPE:
+      return "system / AllocationSite";
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
     case NAME##_TYPE: return "system / "#Name;
   STRUCT_LIST(MAKE_STRUCT_CASE)
@@ -1868,6 +1870,9 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #define STRUCT_MAP_NAME(NAME, Name, name) NAME_ENTRY(name##_map)
     STRUCT_LIST(STRUCT_MAP_NAME)
 #undef STRUCT_MAP_NAME
+#define ALLOCATION_SITE_MAP_NAME(NAME, Name, Size, name) NAME_ENTRY(name##_map)
+    ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_NAME)
+#undef ALLOCATION_SITE_MAP_NAME
 #define DATA_HANDLER_MAP_NAME(NAME, Name, Size, name) NAME_ENTRY(name##_map)
     DATA_HANDLER_LIST(DATA_HANDLER_MAP_NAME)
 #undef DATA_HANDLER_MAP_NAME

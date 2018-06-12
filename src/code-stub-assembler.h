@@ -26,7 +26,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define HEAP_CONSTANT_LIST(V)                                               \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                    \
   V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                    \
-  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)              \
+  V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)  \
+  V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map, \
+    AllocationSiteWithoutWeakNextMap)                                       \
   V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)  \
   V(BooleanMap, boolean_map, BooleanMap)                                    \
   V(CodeMap, code_map, CodeMap)                                             \

@@ -3260,8 +3260,7 @@ void CreateArrayDispatchOneArgument(MacroAssembler* masm,
 
     if (FLAG_debug_code) {
       __ Ldr(x10, FieldMemOperand(allocation_site, 0));
-      __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex,
-                       &normal_sequence);
+      __ CompareInstanceType(x10, x11, ALLOCATION_SITE_TYPE);
       __ Assert(eq, AbortReason::kExpectedAllocationSite);
     }
 
