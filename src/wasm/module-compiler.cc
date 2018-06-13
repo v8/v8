@@ -657,8 +657,7 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
   uint32_t num_non_compiled_callees = 0;  // For stats.
   {
     DisallowHeapAllocation no_gc;
-    Handle<WasmModuleObject> module_object(
-        wasm_caller->native_module()->module_object(), isolate);
+    WasmModuleObject* module_object = instance->module_object();
     SeqOneByteString* module_bytes = module_object->module_bytes();
     uint32_t caller_func_index = wasm_caller->index();
     SourcePositionTableIterator source_pos_iterator(
@@ -3734,7 +3733,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
       module_object->compiled_module()->GetNativeModule();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  WasmModule* module = native_module->module_object()->module();
+  WasmModule* module = module_object->module();
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Address call_target =
