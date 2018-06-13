@@ -417,6 +417,9 @@
   'test-run-wasm-simd/RunWasm_SimdI32x4SetGlobal_interpreter': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdF32x4GetGlobal_interpreter': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdF32x4SetGlobal_interpreter': [SKIP],
+  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_simd_turbofan': [SKIP],
+  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_interpreter': [SKIP],
+  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_simd_lowered': [SKIP],
 
 }],  # 'arch == mips or arch == mips64'
 

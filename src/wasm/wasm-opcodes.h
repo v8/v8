@@ -545,6 +545,7 @@ using WasmName = Vector<const char>;
   V(s_i, kWasmS128, kWasmI32)              \
   V(s_si, kWasmS128, kWasmS128, kWasmI32)  \
   V(i_s, kWasmI32, kWasmS128)              \
+  V(v_is, kWasmStmt, kWasmI32, kWasmS128)  \
   V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128)
 
 #define FOREACH_PREFIX(V) \

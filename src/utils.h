@@ -1635,7 +1635,7 @@ static inline V ReadLittleEndianValue(Address p) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   return ReadUnalignedValue<V>(p);
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  V ret = 0;
+  V ret{};
   const byte* src = reinterpret_cast<const byte*>(p);
   byte* dst = reinterpret_cast<byte*>(&ret);
   for (size_t i = 0; i < sizeof(V); i++) {
