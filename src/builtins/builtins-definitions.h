@@ -1192,15 +1192,15 @@ namespace internal {
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
-  TFC(WasmStackGuard, WasmRuntimeCall, 1)                                      \
-  TFC(ThrowWasmTrapUnreachable, WasmRuntimeCall, 1)                            \
-  TFC(ThrowWasmTrapMemOutOfBounds, WasmRuntimeCall, 1)                         \
-  TFC(ThrowWasmTrapDivByZero, WasmRuntimeCall, 1)                              \
-  TFC(ThrowWasmTrapDivUnrepresentable, WasmRuntimeCall, 1)                     \
-  TFC(ThrowWasmTrapRemByZero, WasmRuntimeCall, 1)                              \
-  TFC(ThrowWasmTrapFloatUnrepresentable, WasmRuntimeCall, 1)                   \
-  TFC(ThrowWasmTrapFuncInvalid, WasmRuntimeCall, 1)                            \
-  TFC(ThrowWasmTrapFuncSigMismatch, WasmRuntimeCall, 1)                        \
+  TFS(WasmStackGuard)                                                          \
+  TFS(ThrowWasmTrapUnreachable)                                                \
+  TFS(ThrowWasmTrapMemOutOfBounds)                                             \
+  TFS(ThrowWasmTrapDivByZero)                                                  \
+  TFS(ThrowWasmTrapDivUnrepresentable)                                         \
+  TFS(ThrowWasmTrapRemByZero)                                                  \
+  TFS(ThrowWasmTrapFloatUnrepresentable)                                       \
+  TFS(ThrowWasmTrapFuncInvalid)                                                \
+  TFS(ThrowWasmTrapFuncSigMismatch)                                            \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \

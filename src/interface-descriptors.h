@@ -70,7 +70,6 @@ class PlatformInterfaceDescriptor;
   V(InterpreterCEntry)                \
   V(ResumeGenerator)                  \
   V(FrameDropperTrampoline)           \
-  V(WasmRuntimeCall)                  \
   V(RunMicrotasks)                    \
   BUILTIN_LIST_TFS(V)
 
@@ -286,18 +285,13 @@ static const int kMaxBuiltinRegisterParams = 5;
                                                                         \
  public:
 
-#define DEFINE_EMPTY_PARAMETERS()                       \
-  enum ParameterIndices {                               \
-    kParameterCount,                                    \
-    kContext = kParameterCount /* implicit parameter */ \
-  };
-
-#define DEFINE_PARAMETERS(...)                          \
-  enum ParameterIndices {                               \
-    __VA_ARGS__,                                        \
-                                                        \
-    kParameterCount,                                    \
-    kContext = kParameterCount /* implicit parameter */ \
+#define DEFINE_PARAMETERS(...)                            \
+  enum ParameterIndices {                                 \
+    __dummy = -1, /* to be able to pass zero arguments */ \
+    ##__VA_ARGS__,                                        \
+                                                          \
+    kParameterCount,                                      \
+    kContext = kParameterCount /* implicit parameter */   \
   };
 
 #define DECLARE_BUILTIN_DESCRIPTOR(name)                                      \
@@ -629,7 +623,7 @@ class AbortJSDescriptor : public CallInterfaceDescriptor {
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_EMPTY_PARAMETERS()
+  DEFINE_PARAMETERS()
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
 
@@ -802,16 +796,9 @@ class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-class WasmRuntimeCallDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_EMPTY_PARAMETERS()
-  DECLARE_DEFAULT_DESCRIPTOR(WasmRuntimeCallDescriptor, CallInterfaceDescriptor,
-                             0)
-};
-
 class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
  public:
-  DEFINE_EMPTY_PARAMETERS()
+  DEFINE_PARAMETERS()
   DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor,
                              0)
 };
