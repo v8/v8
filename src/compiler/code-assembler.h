@@ -447,7 +447,6 @@ class SloppyTNode : public TNode<T> {
   V(IntPtrLessThanOrEqual, BoolT, WordT, WordT)           \
   V(IntPtrGreaterThan, BoolT, WordT, WordT)               \
   V(IntPtrGreaterThanOrEqual, BoolT, WordT, WordT)        \
-  V(IntPtrEqual, BoolT, WordT, WordT)                     \
   V(Uint32LessThan, BoolT, Word32T, Word32T)              \
   V(Uint32LessThanOrEqual, BoolT, Word32T, Word32T)       \
   V(Uint32GreaterThan, BoolT, Word32T, Word32T)           \
@@ -455,13 +454,7 @@ class SloppyTNode : public TNode<T> {
   V(UintPtrLessThan, BoolT, WordT, WordT)                 \
   V(UintPtrLessThanOrEqual, BoolT, WordT, WordT)          \
   V(UintPtrGreaterThan, BoolT, WordT, WordT)              \
-  V(UintPtrGreaterThanOrEqual, BoolT, WordT, WordT)       \
-  V(WordEqual, BoolT, WordT, WordT)                       \
-  V(WordNotEqual, BoolT, WordT, WordT)                    \
-  V(Word32Equal, BoolT, Word32T, Word32T)                 \
-  V(Word32NotEqual, BoolT, Word32T, Word32T)              \
-  V(Word64Equal, BoolT, Word64T, Word64T)                 \
-  V(Word64NotEqual, BoolT, Word64T, Word64T)
+  V(UintPtrGreaterThanOrEqual, BoolT, WordT, WordT)
 
 #define CODE_ASSEMBLER_BINARY_OP_LIST(V)                                \
   CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V)                              \
@@ -723,6 +716,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<BoolT> Int32FalseConstant() {
     return ReinterpretCast<BoolT>(Int32Constant(0));
   }
+  TNode<BoolT> BoolConstant(bool value) {
+    return value ? Int32TrueConstant() : Int32FalseConstant();
+  }
 
   bool ToInt32Constant(Node* node, int32_t& out_value);
   bool ToInt64Constant(Node* node, int64_t& out_value);
@@ -878,6 +874,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return WordNotEqual(ReinterpretCast<WordT>(left),
                         ReinterpretCast<WordT>(right));
   }
+
+  TNode<BoolT> IntPtrEqual(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<BoolT> WordEqual(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<BoolT> WordNotEqual(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<BoolT> Word32Equal(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<BoolT> Word32NotEqual(SloppyTNode<Word32T> left,
+                              SloppyTNode<Word32T> right);
+  TNode<BoolT> Word64Equal(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<BoolT> Word64NotEqual(SloppyTNode<Word64T> left,
+                              SloppyTNode<Word64T> right);
 
   TNode<Int32T> Int32Add(TNode<Int32T> left, TNode<Int32T> right) {
     return Signed(

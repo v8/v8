@@ -396,9 +396,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Int32T> HashSeed();
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
-  TNode<BoolT> BoolConstant(bool value) {
-    return value ? Int32TrueConstant() : Int32FalseConstant();
-  }
   TNode<Smi> LanguageModeConstant(LanguageMode mode) {
     return SmiConstant(static_cast<int>(mode));
   }

@@ -887,6 +887,25 @@ TNode<Word64T> CodeAssembler::Word64Sar(SloppyTNode<Word64T> left,
   return UncheckedCast<Word64T>(raw_assembler()->Word64Sar(left, right));
 }
 
+#define CODE_ASSEMBLER_COMPARE(Name, ArgT, VarT, ToConstant, op)     \
+  TNode<BoolT> CodeAssembler::Name(SloppyTNode<ArgT> left,           \
+                                   SloppyTNode<ArgT> right) {        \
+    VarT lhs, rhs;                                                   \
+    if (ToConstant(left, lhs) && ToConstant(right, rhs)) {           \
+      return BoolConstant(lhs op rhs);                               \
+    }                                                                \
+    return UncheckedCast<BoolT>(raw_assembler()->Name(left, right)); \
+  }
+
+CODE_ASSEMBLER_COMPARE(IntPtrEqual, WordT, intptr_t, ToIntPtrConstant, ==)
+CODE_ASSEMBLER_COMPARE(WordEqual, WordT, intptr_t, ToIntPtrConstant, ==)
+CODE_ASSEMBLER_COMPARE(WordNotEqual, WordT, intptr_t, ToIntPtrConstant, !=)
+CODE_ASSEMBLER_COMPARE(Word32Equal, Word32T, int32_t, ToInt32Constant, ==)
+CODE_ASSEMBLER_COMPARE(Word32NotEqual, Word32T, int32_t, ToInt32Constant, !=)
+CODE_ASSEMBLER_COMPARE(Word64Equal, Word64T, int64_t, ToInt64Constant, ==)
+CODE_ASSEMBLER_COMPARE(Word64NotEqual, Word64T, int64_t, ToInt64Constant, !=)
+#undef CODE_ASSEMBLER_COMPARE
+
 TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return UncheckedCast<UintPtrT>(
