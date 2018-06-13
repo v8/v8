@@ -83,12 +83,6 @@ void Builtins::Generate_AdaptorWithBuiltinExitFrame(MacroAssembler* masm) {
   AdaptorWithExitFrameType(masm, BUILTIN_EXIT);
 }
 
-// Load the built-in Array function from the current context.
-static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the Array function from the current native context.
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, result);
-}
-
 void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2     : number of arguments
