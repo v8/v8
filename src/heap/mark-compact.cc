@@ -781,7 +781,6 @@ void MarkCompactCollector::Prepare() {
     FinishConcurrentMarking(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
     heap()->incremental_marking()->Deactivate();
     ClearMarkbits();
-    AbortWeakCollections();
     AbortWeakObjects();
     AbortCompaction();
     heap_->local_embedder_heap_tracer()->AbortTracing();
@@ -1912,10 +1911,6 @@ void MarkCompactCollector::ClearWeakCollections() {
   }
 }
 
-void MarkCompactCollector::AbortWeakCollections() {
-  weak_objects_.ephemeron_hash_tables.Clear();
-}
-
 void MarkCompactCollector::ClearWeakCells() {
   Heap* heap = this->heap();
   TRACE_GC(heap->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_CELLS);
@@ -1981,6 +1976,7 @@ void MarkCompactCollector::ClearWeakReferences() {
 void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.weak_cells.Clear();
   weak_objects_.transition_arrays.Clear();
+  weak_objects_.ephemeron_hash_tables.Clear();
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
 }

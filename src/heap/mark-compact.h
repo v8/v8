@@ -736,10 +736,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // The linked list of all encountered weak maps is destroyed.
   void ClearWeakCollections();
 
-  // We have to remove all encountered weak maps from the list of weak
-  // collections when incremental marking is aborted.
-  void AbortWeakCollections();
-
   // Goes through the list of encountered weak cells and clears those with
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map

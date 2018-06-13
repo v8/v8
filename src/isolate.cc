@@ -2675,6 +2675,7 @@ void Isolate::Deinit() {
   delete compiler_dispatcher_;
   compiler_dispatcher_ = nullptr;
 
+  // This stops cancelable tasks (i.e. concurrent masking tasks)
   cancelable_task_manager()->CancelAndWait();
 
   heap_.TearDown();
