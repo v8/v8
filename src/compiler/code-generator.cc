@@ -116,26 +116,10 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     int deoptimization_id, SourcePosition pos) {
   DeoptimizeKind deopt_kind = GetDeoptimizationKind(deoptimization_id);
-  Deoptimizer::BailoutType bailout_type;
-  switch (deopt_kind) {
-    case DeoptimizeKind::kSoft: {
-      bailout_type = Deoptimizer::SOFT;
-      break;
-    }
-    case DeoptimizeKind::kEager: {
-      bailout_type = Deoptimizer::EAGER;
-      break;
-    }
-    case DeoptimizeKind::kLazy: {
-      bailout_type = Deoptimizer::LAZY;
-      break;
-    }
-    default: { UNREACHABLE(); }
-  }
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      tasm()->isolate(), deoptimization_id, bailout_type);
+      tasm()->isolate(), deoptimization_id, deopt_kind);
   if (deopt_entry == kNullAddress) return kTooManyDeoptimizationBailouts;
   if (info()->is_source_positions_enabled()) {
     tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);

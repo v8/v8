@@ -373,8 +373,20 @@ constexpr int kNoSourcePosition = -1;
 // This constant is used to indicate missing deoptimization information.
 constexpr int kNoDeoptimizationId = -1;
 
-// Deoptimize bailout kind.
-enum class DeoptimizeKind : uint8_t { kEager, kSoft, kLazy };
+// Deoptimize bailout kind:
+// - Eager: a check failed in the optimized code and deoptimization happens
+//   immediately.
+// - Lazy: the code has been marked as dependent on some assumption which
+//   is checked elsewhere and can trigger deoptimization the next time the
+//   code is executed.
+// - Soft: similar to lazy deoptimization, but does not contribute to the
+//   total deopt count which can lead to disabling optimization for a function.
+enum class DeoptimizeKind : uint8_t {
+  kEager,
+  kSoft,
+  kLazy,
+  kLastDeoptimizeKind = kLazy
+};
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }

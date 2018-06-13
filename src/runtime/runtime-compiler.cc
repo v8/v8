@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Handle<JSFunction> function = deoptimizer->function();
-  Deoptimizer::BailoutType type = deoptimizer->bailout_type();
+  DeoptimizeKind type = deoptimizer->deopt_kind();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -169,7 +169,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   isolate->set_context(Context::cast(top_frame->context()));
 
   // Invalidate the underlying optimized code on non-lazy deopts.
-  if (type != Deoptimizer::LAZY) {
+  if (type != DeoptimizeKind::kLazy) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 

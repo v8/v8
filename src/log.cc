@@ -1045,7 +1045,7 @@ void Logger::SharedLibraryEvent(const std::string& library_path,
   msg.WriteToLogFile();
 }
 
-void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+void Logger::CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                             int fp_to_sp_delta) {
   if (!log_->IsEnabled()) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
@@ -1066,17 +1066,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
     deopt_location << "<unknown>";
   }
   msg << kNext << inlining_id << kNext << script_offset << kNext;
-  switch (kind) {
-    case kLazy:
-      msg << "lazy" << kNext;
-      break;
-    case kSoft:
-      msg << "soft" << kNext;
-      break;
-    case kEager:
-      msg << "eager" << kNext;
-      break;
-  }
+  msg << Deoptimizer::MessageFor(kind) << kNext;
   msg << deopt_location.str().c_str() << kNext
       << DeoptimizeReasonToString(info.deopt_reason);
   msg.WriteToLogFile();

@@ -155,7 +155,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Tst(x1, kSmiTagMask);
   __ CzeroX(x0, eq);
 
-  __ Mov(x1, type());
+  __ Mov(x1, static_cast<int>(deopt_kind()));
   // Following arguments are already loaded:
   //  - x2: bailout id
   //  - x3: code object address
