@@ -4770,35 +4770,6 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   return code;
 }
 
-namespace {
-
-void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
-#ifdef DEBUG
-  // We expect the only embedded objects to be those originating from
-  // a snapshot, which are immovable.
-  DisallowHeapAllocation no_gc;
-  if (wrapper.is_null()) return;
-  static constexpr int kAllGCRefs = (1 << (RelocInfo::LAST_GCED_ENUM + 1)) - 1;
-  for (RelocIterator it(*wrapper, kAllGCRefs); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    Object* target = nullptr;
-    switch (mode) {
-      case RelocInfo::CODE_TARGET:
-        // this would be either one of the stubs or builtins, because
-        // we didn't link yet.
-        target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-        break;
-      default:
-        UNREACHABLE();
-    }
-    DCHECK_NOT_NULL(target);
-    DCHECK(target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target)));
-  }
-#endif
-}
-
-}  // namespace
-
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     wasm::ModuleOrigin origin,
@@ -4854,8 +4825,6 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
       &info, isolate, incoming, &graph, nullptr, source_position_table);
-  ValidateImportWrapperReferencesImmovables(code);
-
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
