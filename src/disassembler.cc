@@ -45,7 +45,8 @@ class V8NameConverter: public disasm::NameConverter {
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
   if (!code_.is_null()) {
     const char* name =
-        isolate_->builtins()->Lookup(reinterpret_cast<Address>(pc));
+        isolate_ ? isolate_->builtins()->Lookup(reinterpret_cast<Address>(pc))
+                 : nullptr;
 
     if (name != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
@@ -61,8 +62,9 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     }
 
     wasm::WasmCode* wasm_code =
-        isolate_->wasm_engine()->code_manager()->LookupCode(
-            reinterpret_cast<Address>(pc));
+        isolate_ ? isolate_->wasm_engine()->code_manager()->LookupCode(
+                       reinterpret_cast<Address>(pc))
+                 : nullptr;
     if (wasm_code != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));
@@ -91,7 +93,7 @@ static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
 
 static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
-                           const ExternalReferenceEncoder& ref_encoder,
+                           const ExternalReferenceEncoder* ref_encoder,
                            std::ostream* os, RelocInfo* relocinfo,
                            bool first_reloc_info = true) {
   // Indent the printing of the reloc info.
@@ -125,15 +127,19 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
     out->AddFormatted("    ;; object: %s", obj_name.get());
   } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-    const char* reference_name = ref_encoder.NameOfAddress(
-        isolate, relocinfo->target_external_reference());
+    const char* reference_name =
+        ref_encoder ? ref_encoder->NameOfAddress(
+                          isolate, relocinfo->target_external_reference())
+                    : "unknown";
     out->AddFormatted("    ;; external reference (%s)", reference_name);
   } else if (RelocInfo::IsCodeTarget(rmode)) {
     out->AddFormatted("    ;; code:");
-    wasm::WasmCode* wasmCode =
-        isolate->wasm_engine()->code_manager()->LookupCode(
-            relocinfo->target_address());
-    if (wasmCode) {
+    if (isolate == nullptr) {
+      // TODO(mstarzinger): get a useful WASM name if the isolate is null
+      out->AddFormatted(" (unknown)");
+    } else if (wasm::WasmCode* wasmCode =
+                   isolate->wasm_engine()->code_manager()->LookupCode(
+                       relocinfo->target_address())) {
       out->AddFormatted(" wasm(%s)",
                         wasm::GetWasmCodeKindAsString(wasmCode->kind()));
     } else {
@@ -155,7 +161,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
         out->AddFormatted(" %s", Code::Kind2String(kind));
       }
     }
-  } else if (RelocInfo::IsRuntimeEntry(rmode) &&
+  } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
              isolate->deoptimizer_data() != nullptr) {
     // A runtime entry reloinfo might be a deoptimization bailout->
     Address addr = relocinfo->target_address();
@@ -183,13 +189,9 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
   }
 }
 
-static int DecodeIt(Isolate* isolate, std::ostream* os,
-                    const V8NameConverter& converter, byte* begin, byte* end,
-                    Address current_pc) {
-  SealHandleScope shs(isolate);
-  DisallowHeapAllocation no_alloc;
-  ExternalReferenceEncoder ref_encoder(isolate);
-
+static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
+                    std::ostream* os, const V8NameConverter& converter,
+                    byte* begin, byte* end, Address current_pc) {
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.start(), out_buffer.length());
@@ -333,7 +335,18 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, CodeReference code, Address current_pc) {
   V8NameConverter v8NameConverter(isolate, code);
-  return DecodeIt(isolate, os, v8NameConverter, begin, end, current_pc);
+  if (isolate) {
+    // We have an isolate, so support external reference names.
+    SealHandleScope shs(isolate);
+    DisallowHeapAllocation no_alloc;
+    ExternalReferenceEncoder ref_encoder(isolate);
+    return DecodeIt(isolate, &ref_encoder, os, v8NameConverter, begin, end,
+                    current_pc);
+  } else {
+    // No isolate => isolate-independent code. No external reference names.
+    return DecodeIt(nullptr, nullptr, os, v8NameConverter, begin, end,
+                    current_pc);
+  }
 }
 
 #else  // ENABLE_DISASSEMBLER
