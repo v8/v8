@@ -1451,6 +1451,10 @@ class Heap {
   // Returns the capacity of the old generation.
   size_t OldGenerationCapacity();
 
+  // Returns the amount of memory currently committed for the heap and memory
+  // held alive by the unmapper.
+  size_t CommittedMemoryOfHeapAndUnmapper();
+
   // Returns the amount of memory currently committed for the heap.
   size_t CommittedMemory();
 

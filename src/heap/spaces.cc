@@ -439,6 +439,21 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
   return static_cast<int>(result);
 }
 
+size_t MemoryAllocator::Unmapper::CommittedBufferedMemory() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+
+  size_t sum = 0;
+  // kPooled chunks are already uncommited. We only have to account for
+  // kRegular and kNonRegular chunks.
+  for (auto& chunk : chunks_[kRegular]) {
+    sum += chunk->size();
+  }
+  for (auto& chunk : chunks_[kNonRegular]) {
+    sum += chunk->size();
+  }
+  return sum;
+}
+
 bool MemoryAllocator::CommitMemory(Address base, size_t size) {
   if (!SetPermissions(base, size, PageAllocator::kReadWrite)) {
     return false;

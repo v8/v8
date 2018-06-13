@@ -290,6 +290,13 @@ size_t Heap::CommittedOldGenerationMemory() {
   return total + lo_space_->Size();
 }
 
+size_t Heap::CommittedMemoryOfHeapAndUnmapper() {
+  if (!HasBeenSetUp()) return 0;
+
+  return CommittedMemory() +
+         memory_allocator()->unmapper()->CommittedBufferedMemory();
+}
+
 size_t Heap::CommittedMemory() {
   if (!HasBeenSetUp()) return 0;
 
@@ -439,6 +446,10 @@ void Heap::PrintShortHeapStatistics() {
                          ", committed: %6" PRIuS " KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
+  PrintIsolate(isolate_,
+               "Unmapper buffering %d chunks of committed: %6" PRIuS " KB\n",
+               memory_allocator()->unmapper()->NumberOfChunks(),
+               CommittedMemoryOfHeapAndUnmapper() / KB);
   PrintIsolate(isolate_, "All spaces,         used: %6" PRIuS
                          " KB"
                          ", available: %6" PRIuS

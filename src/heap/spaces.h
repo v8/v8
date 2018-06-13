@@ -1210,6 +1210,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     void EnsureUnmappingCompleted();
     void TearDown();
     int NumberOfChunks();
+    size_t CommittedBufferedMemory();
 
    private:
     static const int kReservedQueueingSlots = 64;
