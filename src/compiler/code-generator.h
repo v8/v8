@@ -123,6 +123,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
   size_t GetHandlerTableOffset() const { return handler_table_offset_; }
 
+  const ZoneVector<int>& block_starts() const { return block_starts_; }
+  const ZoneVector<int>& instr_starts() const { return instr_starts_; }
+
  private:
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
@@ -419,6 +422,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   WasmCompilationData* wasm_compilation_data_;
   CodeGenResult result_;
   PoisoningMitigationLevel poisoning_level_;
+  ZoneVector<int> block_starts_;
+  ZoneVector<int> instr_starts_;
 };
 
 }  // namespace compiler

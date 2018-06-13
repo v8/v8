@@ -266,6 +266,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   StackFrame::Type GetOutputStackFrameType() const;
 
+  const char* trace_turbo_filename() const {
+    return trace_turbo_filename_.get();
+  }
+
+  void set_trace_turbo_filename(std::unique_ptr<char[]> filename) {
+    trace_turbo_filename_ = std::move(filename);
+  }
+
  private:
   OptimizedCompilationInfo(Vector<const char> debug_name,
                            AbstractCode::Kind code_kind, Zone* zone);
@@ -313,6 +321,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   JavaScriptFrame* osr_frame_ = nullptr;
 
   Vector<const char> debug_name_;
+  std::unique_ptr<char[]> trace_turbo_filename_;
 
   DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };

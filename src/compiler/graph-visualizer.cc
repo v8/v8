@@ -32,12 +32,19 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+const char* get_cached_trace_turbo_filename(OptimizedCompilationInfo* info) {
+  if (!info->trace_turbo_filename()) {
+    info->set_trace_turbo_filename(
+        GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json"));
+  }
+  return info->trace_turbo_filename();
+}
+
 TurboJsonFile::TurboJsonFile(OptimizedCompilationInfo* info,
                              std::ios_base::openmode mode)
-    : std::ofstream(
-          GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json")
-              .get(),
-          mode) {}
+    : std::ofstream(get_cached_trace_turbo_filename(info), mode) {}
+
+TurboJsonFile::~TurboJsonFile() { flush(); }
 
 std::ostream& operator<<(std::ostream& out,
                          const SourcePositionAsJSON& asJSON) {

@@ -1592,6 +1592,37 @@ struct ComputeSchedulePhase {
   }
 };
 
+struct InstructionRangesAsJSON {
+  const InstructionSequence* sequence;
+  const ZoneVector<std::pair<int, int>>* instr_origins;
+};
+
+std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
+  const int max = static_cast<int>(s.sequence->LastInstructionIndex());
+
+  out << ", \"nodeIdToInstructionRange\": {";
+  bool need_comma = false;
+  for (size_t i = 0; i < s.instr_origins->size(); ++i) {
+    std::pair<int, int> offset = (*s.instr_origins)[i];
+    if (offset.first == -1) continue;
+    const int first = max - offset.first + 1;
+    const int second = max - offset.second + 1;
+    if (need_comma) out << ", ";
+    out << "\"" << i << "\": [" << first << ", " << second << "]";
+    need_comma = true;
+  }
+  out << "}";
+  out << ", \"blockIdtoInstructionRange\": {";
+  need_comma = false;
+  for (auto block : s.sequence->instruction_blocks()) {
+    if (need_comma) out << ", ";
+    out << "\"" << block->rpo_number() << "\": [" << block->code_start() << ", "
+        << block->code_end() << "]";
+    need_comma = true;
+  }
+  out << "}";
+  return out;
+}
 
 struct InstructionSelectionPhase {
   static const char* phase_name() { return "select instructions"; }
@@ -1613,9 +1644,20 @@ struct InstructionSelectionPhase {
         data->isolate()->serializer_enabled()
             ? InstructionSelector::kEnableSerialization
             : InstructionSelector::kDisableSerialization,
-        data->info()->GetPoisoningMitigationLevel());
+        data->info()->GetPoisoningMitigationLevel(),
+        data->info()->trace_turbo_json_enabled()
+            ? InstructionSelector::kEnableTraceTurboJson
+            : InstructionSelector::kDisableTraceTurboJson);
     if (!selector.SelectInstructions()) {
       data->set_compilation_failed();
+    }
+    if (data->info()->trace_turbo_json_enabled()) {
+      TurboJsonFile json_of(data->info(), std::ios_base::app);
+      json_of << "{\"name\":\"" << phase_name()
+              << "\",\"type\":\"instructions\""
+              << InstructionRangesAsJSON{data->sequence(),
+                                         &selector.instr_origins()}
+              << "},\n";
     }
   }
 };
@@ -2316,12 +2358,53 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   return true;
 }
 
+struct InstructionStartsAsJSON {
+  const ZoneVector<int>* instr_starts;
+};
+
+std::ostream& operator<<(std::ostream& out, const InstructionStartsAsJSON& s) {
+  out << ", \"instructionOffsetToPCOffset\": {";
+  bool need_comma = false;
+  for (size_t i = 0; i < s.instr_starts->size(); ++i) {
+    if (need_comma) out << ", ";
+    int offset = (*s.instr_starts)[i];
+    out << "\"" << i << "\":" << offset;
+    need_comma = true;
+  }
+  out << "}";
+  return out;
+}
+
 void PipelineImpl::AssembleCode(Linkage* linkage) {
   PipelineData* data = this->data_;
   data->BeginPhaseKind("code generation");
   data->InitializeCodeGenerator(linkage);
   Run<AssembleCodePhase>();
+  if (data->info()->trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(data->info(), std::ios_base::app);
+    json_of << "{\"name\":\"code generation\""
+            << ", \"type\":\"instructions\""
+            << InstructionStartsAsJSON{&data->code_generator()->instr_starts()};
+    json_of << "},\n";
+  }
   data->DeleteInstructionZone();
+}
+
+struct BlockStartsAsJSON {
+  const ZoneVector<int>* block_starts;
+};
+
+std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
+  out << ", \"blockIdToOffset\": {";
+  bool need_comma = false;
+  for (size_t i = 0; i < s.block_starts->size(); ++i) {
+    if (need_comma) out << ", ";
+    int offset = (*s.block_starts)[i];
+    out << "\"" << i << "\":" << offset;
+    need_comma = true;
+  }
+  out << "},";
+  return out;
 }
 
 Handle<Code> PipelineImpl::FinalizeCode() {
@@ -2344,7 +2427,10 @@ Handle<Code> PipelineImpl::FinalizeCode() {
 
   if (info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(info(), std::ios_base::app);
-    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
+            << BlockStartsAsJSON{&data->code_generator()->block_starts()}
+            << "\"data\":\"";
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembly_stream;
     code->Disassemble(nullptr, disassembly_stream);

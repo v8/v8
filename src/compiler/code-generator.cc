@@ -78,7 +78,9 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
       wasm_compilation_data_(wasm_compilation_data),
       result_(kSuccess),
-      poisoning_level_(poisoning_level) {
+      poisoning_level_(poisoning_level),
+      block_starts_(zone()),
+      instr_starts_(zone()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -179,6 +181,10 @@ void CodeGenerator::AssembleCode() {
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
       code()->InstructionBlockCount());
 
+  if (info->trace_turbo_json_enabled()) {
+    block_starts_.assign(code()->instruction_blocks().size(), -1);
+    instr_starts_.assign(code()->instructions().size(), -1);
+  }
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
     for (const InstructionBlock* block : code()->instruction_blocks()) {
@@ -189,6 +195,9 @@ void CodeGenerator::AssembleCode() {
       // Align loop headers on 16-byte boundaries.
       if (block->IsLoopHeader() && !tasm()->jump_optimization_info()) {
         tasm()->Align(16);
+      }
+      if (info->trace_turbo_json_enabled()) {
+        block_starts_[block->rpo_number().ToInt()] = tasm()->pc_offset();
       }
       // Bind a label for a block.
       current_block_ = block->rpo_number();
@@ -436,6 +445,9 @@ bool CodeGenerator::IsMaterializableFromRoot(
 CodeGenerator::CodeGenResult CodeGenerator::AssembleBlock(
     const InstructionBlock* block) {
   for (int i = block->code_start(); i < block->code_end(); ++i) {
+    if (info()->trace_turbo_json_enabled()) {
+      instr_starts_[i] = tasm()->pc_offset();
+    }
     Instruction* instr = code()->InstructionAt(i);
     CodeGenResult result = AssembleInstruction(instr, block);
     if (result != kSuccess) return result;

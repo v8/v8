@@ -28,7 +28,7 @@ InstructionSelector::InstructionSelector(
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
     EnableSerialization enable_serialization,
-    PoisoningMitigationLevel poisoning_level)
+    PoisoningMitigationLevel poisoning_level, EnableTraceTurboJson trace_turbo)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -52,10 +52,16 @@ InstructionSelector::InstructionSelector(
       enable_switch_jump_table_(enable_switch_jump_table),
       poisoning_level_(poisoning_level),
       frame_(frame),
-      instruction_selection_failed_(false) {
+      instruction_selection_failed_(false),
+      instr_origins_(sequence->zone()),
+      trace_turbo_(trace_turbo) {
   instructions_.reserve(node_count);
   continuation_inputs_.reserve(5);
   continuation_outputs_.reserve(2);
+
+  if (trace_turbo_ == kEnableTraceTurboJson) {
+    instr_origins_.assign(node_count, {-1, 0});
+  }
 }
 
 bool InstructionSelector::SelectInstructions() {
@@ -1092,13 +1098,18 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   // Visit code in reverse control flow order, because architecture-specific
   // matching may cover more than one node at a time.
   for (auto node : base::Reversed(*block)) {
-    // Skip nodes that are unused or already defined.
-    if (!IsUsed(node) || IsDefined(node)) continue;
-    // Generate code for this node "top down", but schedule the code "bottom
-    // up".
     int current_node_end = current_num_instructions();
-    VisitNode(node);
-    if (!FinishEmittedInstructions(node, current_node_end)) return;
+    // Skip nodes that are unused or already defined.
+    if (IsUsed(node) && !IsDefined(node)) {
+      // Generate code for this node "top down", but schedule the code "bottom
+      // up".
+      VisitNode(node);
+      if (!FinishEmittedInstructions(node, current_node_end)) return;
+    }
+    if (trace_turbo_ == kEnableTraceTurboJson) {
+      instr_origins_[node->id()] = {current_num_instructions(),
+                                    current_node_end};
+    }
   }
 
   // We're done with the block.
@@ -1110,7 +1121,6 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   }
   instruction_block->set_code_start(current_num_instructions());
   instruction_block->set_code_end(current_block_end);
-
   current_block_ = nullptr;
 }
 
@@ -1136,25 +1146,34 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
 #endif
 
   Node* input = block->control_input();
+  int instruction_end = static_cast<int>(instructions_.size());
   switch (block->control()) {
     case BasicBlock::kGoto:
-      return VisitGoto(block->SuccessorAt(0));
+      VisitGoto(block->SuccessorAt(0));
+      break;
     case BasicBlock::kCall: {
       DCHECK_EQ(IrOpcode::kCall, input->opcode());
       BasicBlock* success = block->SuccessorAt(0);
       BasicBlock* exception = block->SuccessorAt(1);
-      return VisitCall(input, exception), VisitGoto(success);
+      VisitCall(input, exception);
+      VisitGoto(success);
+      break;
     }
     case BasicBlock::kTailCall: {
       DCHECK_EQ(IrOpcode::kTailCall, input->opcode());
-      return VisitTailCall(input);
+      VisitTailCall(input);
+      break;
     }
     case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
-      if (tbranch == fbranch) return VisitGoto(tbranch);
-      return VisitBranch(input, tbranch, fbranch);
+      if (tbranch == fbranch) {
+        VisitGoto(tbranch);
+      } else {
+        VisitBranch(input, tbranch, fbranch);
+      }
+      break;
     }
     case BasicBlock::kSwitch: {
       DCHECK_EQ(IrOpcode::kSwitch, input->opcode());
@@ -1176,20 +1195,24 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       // Ensure that comparison order of if-cascades is preserved.
       std::stable_sort(cases.begin(), cases.end());
       SwitchInfo sw(cases, min_value, max_value, default_branch);
-      return VisitSwitch(input, sw);
+      VisitSwitch(input, sw);
+      break;
     }
     case BasicBlock::kReturn: {
       DCHECK_EQ(IrOpcode::kReturn, input->opcode());
-      return VisitReturn(input);
+      VisitReturn(input);
+      break;
     }
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
       Node* value = input->InputAt(0);
-      return VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
+      VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
+      break;
     }
     case BasicBlock::kThrow:
       DCHECK_EQ(IrOpcode::kThrow, input->opcode());
-      return VisitThrow(input);
+      VisitThrow(input);
+      break;
     case BasicBlock::kNone: {
       // Exit block doesn't have control.
       DCHECK_NULL(input);
@@ -1198,6 +1221,10 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     default:
       UNREACHABLE();
       break;
+  }
+  if (trace_turbo_ == kEnableTraceTurboJson && input) {
+    int instruction_start = static_cast<int>(instructions_.size());
+    instr_origins_[input->id()] = {instruction_start, instruction_end};
   }
 }
 
