@@ -5415,43 +5415,95 @@ TNode<BoolT> CodeStubAssembler::IsNumberNormalized(SloppyTNode<Number> number) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsNumberPositive(SloppyTNode<Number> number) {
-  TNode<Float64T> float_zero = Float64Constant(0.);
   return Select<BoolT>(TaggedIsSmi(number),
                        [=] { return TaggedIsPositiveSmi(number); },
-                       [=] {
-                         TNode<Float64T> v = LoadHeapNumberValue(CAST(number));
-                         return Float64GreaterThanOrEqual(v, float_zero);
-                       });
+                       [=] { return IsHeapNumberPositive(CAST(number)); });
 }
 
-TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(SloppyTNode<Number> number) {
-  TVARIABLE(BoolT, var_result, Int32TrueConstant());
+// TODO(cbruni): Use TNode<HeapNumber> instead of custom name.
+TNode<BoolT> CodeStubAssembler::IsHeapNumberPositive(TNode<HeapNumber> number) {
+  TNode<Float64T> value = LoadHeapNumberValue(number);
+  TNode<Float64T> float_zero = Float64Constant(0.);
+  return Float64GreaterThanOrEqual(value, float_zero);
+}
 
-  Label check_upper_bound(this), check_is_integer(this), out(this),
-      return_false(this);
+TNode<BoolT> CodeStubAssembler::IsNumberNonNegativeSafeInteger(
+    TNode<Number> number) {
+  return Select<BoolT>(
+      // TODO(cbruni): Introduce TaggedIsNonNegateSmi to avoid confusion.
+      TaggedIsSmi(number), [=] { return TaggedIsPositiveSmi(number); },
+      [=] {
+        TNode<HeapNumber> heap_number = CAST(number);
+        return Select<BoolT>(IsInteger(heap_number),
+                             [=] { return IsHeapNumberPositive(heap_number); },
+                             [=] { return Int32FalseConstant(); });
+      });
+}
 
-  GotoIfNumberGreaterThanOrEqual(number, NumberConstant(0), &check_upper_bound);
-  Goto(&return_false);
+TNode<BoolT> CodeStubAssembler::IsSafeInteger(TNode<Object> number) {
+  return Select<BoolT>(
+      TaggedIsSmi(number), [=] { return Int32TrueConstant(); },
+      [=] {
+        return Select<BoolT>(
+            IsHeapNumber(CAST(number)),
+            [=] { return IsSafeInteger(UncheckedCast<HeapNumber>(number)); },
+            [=] { return Int32FalseConstant(); });
+      });
+}
 
-  BIND(&check_upper_bound);
-  GotoIfNumberGreaterThanOrEqual(number, NumberConstant(kMaxUInt32),
-                                 &return_false);
-  Goto(&check_is_integer);
+TNode<BoolT> CodeStubAssembler::IsSafeInteger(TNode<HeapNumber> number) {
+  // Load the actual value of {number}.
+  TNode<Float64T> number_value = LoadHeapNumberValue(number);
+  // Truncate the value of {number} to an integer (or an infinity).
+  TNode<Float64T> integer = Float64Trunc(number_value);
 
-  BIND(&check_is_integer);
-  GotoIf(TaggedIsSmi(number), &out);
+  return Select<BoolT>(
+      // Check if {number}s value matches the integer (ruling out the
+      // infinities).
+      Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
+      [=] {
+        // Check if the {integer} value is in safe integer range.
+        return Float64LessThanOrEqual(Float64Abs(integer),
+                                      Float64Constant(kMaxSafeInteger));
+      },
+      [=] { return Int32FalseConstant(); });
+}
+
+TNode<BoolT> CodeStubAssembler::IsInteger(TNode<Object> number) {
+  return Select<BoolT>(
+      TaggedIsSmi(number), [=] { return Int32TrueConstant(); },
+      [=] {
+        return Select<BoolT>(
+            IsHeapNumber(CAST(number)),
+            [=] { return IsInteger(UncheckedCast<HeapNumber>(number)); },
+            [=] { return Int32FalseConstant(); });
+      });
+}
+
+TNode<BoolT> CodeStubAssembler::IsInteger(TNode<HeapNumber> number) {
+  TNode<Float64T> number_value = LoadHeapNumberValue(number);
+  // Truncate the value of {number} to an integer (or an infinity).
+  TNode<Float64T> integer = Float64Trunc(number_value);
+  // Check if {number}s value matches the integer (ruling out the infinities).
+  return Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0));
+}
+
+TNode<BoolT> CodeStubAssembler::IsHeapNumberUint32(TNode<HeapNumber> number) {
   // Check that the HeapNumber is a valid uint32
-  TNode<Float64T> value = LoadHeapNumberValue(CAST(number));
-  TNode<Uint32T> int_value = ChangeFloat64ToUint32(value);
-  GotoIf(Float64Equal(value, ChangeUint32ToFloat64(int_value)), &out);
-  Goto(&return_false);
+  return Select<BoolT>(
+      IsHeapNumberPositive(number),
+      [=] {
+        TNode<Float64T> value = LoadHeapNumberValue(number);
+        TNode<Uint32T> int_value = ChangeFloat64ToUint32(value);
+        return Float64Equal(value, ChangeUint32ToFloat64(int_value));
+      },
+      [=] { return Int32FalseConstant(); });
+}
 
-  BIND(&return_false);
-  var_result = Int32FalseConstant();
-  Goto(&out);
-
-  BIND(&out);
-  return var_result.value();
+TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
+  return Select<BoolT>(TaggedIsSmi(number),
+                       [=] { return TaggedIsPositiveSmi(number); },
+                       [=] { return IsHeapNumberUint32(CAST(number)); });
 }
 
 Node* CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(Node* element_count,

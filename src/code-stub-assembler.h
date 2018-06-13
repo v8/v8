@@ -1693,9 +1693,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // within Smi range.
   TNode<BoolT> IsNumberNormalized(SloppyTNode<Number> number);
   TNode<BoolT> IsNumberPositive(SloppyTNode<Number> number);
+  TNode<BoolT> IsHeapNumberPositive(TNode<HeapNumber> number);
+
+  // True iff {number} is non-negative and less or equal than 2**53-1.
+  TNode<BoolT> IsNumberNonNegativeSafeInteger(TNode<Number> number);
+
+  // True iff {number} represents an integer value.
+  TNode<BoolT> IsInteger(TNode<Object> number);
+  TNode<BoolT> IsInteger(TNode<HeapNumber> number);
+
+  // True iff abs({number}) <= 2**53 -1
+  TNode<BoolT> IsSafeInteger(TNode<Object> number);
+  TNode<BoolT> IsSafeInteger(TNode<HeapNumber> number);
+
+  // True iff {number} represents a valid uint32t value.
+  TNode<BoolT> IsHeapNumberUint32(TNode<HeapNumber> number);
+
   // True iff {number} is a positive number and a valid array index in the range
   // [0, 2^32-1).
-  TNode<BoolT> IsNumberArrayIndex(SloppyTNode<Number> number);
+  TNode<BoolT> IsNumberArrayIndex(TNode<Number> number);
 
   Node* FixedArraySizeDoesntFitInNewSpace(
       Node* element_count, int base_size = FixedArray::kHeaderSize,

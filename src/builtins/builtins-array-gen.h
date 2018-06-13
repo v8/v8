@@ -85,7 +85,7 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   TNode<Number> len() { return len_; }
   Node* callbackfn() { return callbackfn_; }
   Node* this_arg() { return this_arg_; }
-  Node* k() { return k_.value(); }
+  TNode<Number> k() { return CAST(k_.value()); }
   Node* a() { return a_.value(); }
 
   void ReturnFromBuiltin(Node* value);

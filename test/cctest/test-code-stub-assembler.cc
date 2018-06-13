@@ -2922,8 +2922,9 @@ TEST(IsNumberArrayIndex) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.SmiFromInt32(
-        m.UncheckedCast<Int32T>(m.IsNumberArrayIndex(m.Parameter(0)))));
+    TNode<Number> number = m.CAST(m.Parameter(0));
+    m.Return(
+        m.SmiFromInt32(m.UncheckedCast<Int32T>(m.IsNumberArrayIndex(number))));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

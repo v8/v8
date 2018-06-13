@@ -426,28 +426,34 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIf(DoesntHaveInstanceType(o(), JS_ARRAY_TYPE), &not_js_array);
     merged_length = LoadJSArrayLength(CAST(o()));
     Goto(&has_length);
+
     BIND(&not_js_array);
-    Node* len_property =
-        GetProperty(context(), o(), isolate()->factory()->length_string());
-    merged_length = ToLength_Inline(context(), len_property);
-    Goto(&has_length);
+    {
+      Node* len_property =
+          GetProperty(context(), o(), isolate()->factory()->length_string());
+      merged_length = ToLength_Inline(context(), len_property);
+      Goto(&has_length);
+    }
     BIND(&has_length);
-    len_ = merged_length.value();
+    {
+      len_ = merged_length.value();
 
-    // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    Label type_exception(this, Label::kDeferred);
-    Label done(this);
-    GotoIf(TaggedIsSmi(callbackfn()), &type_exception);
-    Branch(IsCallableMap(LoadMap(callbackfn())), &done, &type_exception);
+      // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
+      Label type_exception(this, Label::kDeferred);
+      Label done(this);
+      GotoIf(TaggedIsSmi(callbackfn()), &type_exception);
+      Branch(IsCallableMap(LoadMap(callbackfn())), &done, &type_exception);
 
-    BIND(&throw_null_undefined_exception);
-    ThrowTypeError(context(), MessageTemplate::kCalledOnNullOrUndefined, name);
+      BIND(&throw_null_undefined_exception);
+      ThrowTypeError(context(), MessageTemplate::kCalledOnNullOrUndefined,
+                     name);
 
-    BIND(&type_exception);
-    ThrowTypeError(context(), MessageTemplate::kCalledNonCallable,
-                   callbackfn());
+      BIND(&type_exception);
+      ThrowTypeError(context(), MessageTemplate::kCalledNonCallable,
+                     callbackfn());
 
-    BIND(&done);
+      BIND(&done);
+    }
 
     // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
     // [Already done by the arguments adapter]
@@ -552,6 +558,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     } else {
       k_.Bind(NumberDec(len()));
     }
+    CSA_ASSERT(this, IsSafeInteger(k()));
     Node* instance_type = LoadInstanceType(LoadElements(typed_array));
     Switch(instance_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
@@ -593,10 +600,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
       Label done_element(this, &to_);
       // a. Let Pk be ToString(k).
-      // We never have to perform a ToString conversion as the above guards
-      // guarantee that we have a positive {k} which also is a valid array
-      // index in the range [0, 2^32-1).
-      CSA_ASSERT(this, IsNumberArrayIndex(k()));
+      // k() is guaranteed to be a positive integer, hence ToString is
+      // side-effect free and HasProperty/GetProperty do the conversion inline.
+      CSA_ASSERT(this, IsSafeInteger(k()));
 
       if (missing_property_mode == MissingPropertyMode::kSkip) {
         // b. Let kPresent be HasProperty(O, Pk).
