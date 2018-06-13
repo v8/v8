@@ -79,7 +79,8 @@ declare_args() {
   # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
   # TODO(jgruber,v8:6666): Enable for remaining architectures once performance
   #                        regressions are addressed.
-  v8_enable_embedded_builtins = v8_current_cpu == "x64" && (!is_win || is_clang)
+  v8_enable_embedded_builtins =
+      v8_use_snapshot && v8_current_cpu == "x64" && (!is_win || is_clang)
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
@@ -186,6 +187,9 @@ if (v8_check_microtasks_scopes_consistency == "") {
   v8_check_microtasks_scopes_consistency =
       v8_enable_debugging_features || dcheck_always_on
 }
+
+assert(!v8_enable_embedded_builtins || v8_use_snapshot,
+       "Embedded builtins only work with snapshots")
 
 # Specifies if the target build is a simulator build. Comparing target cpu
 # with v8 target cpu to not affect simulator builds for making cross-compile
@@ -360,7 +364,7 @@ config("features") {
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
-  if (v8_enable_embedded_builtins && v8_use_snapshot) {
+  if (v8_enable_embedded_builtins) {
     defines += [ "V8_EMBEDDED_BUILTINS" ]
   }
   if (v8_use_multi_snapshots) {
