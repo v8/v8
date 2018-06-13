@@ -3318,6 +3318,12 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
 
 Node* WasmGraphBuilder::Uint32ToUintptr(Node* node) {
   if (mcgraph()->machine()->Is32()) return node;
+  // Fold instances of ChangeUint32ToUint64(IntConstant) directly.
+  UintPtrMatcher matcher(node);
+  if (matcher.HasValue()) {
+    uintptr_t value = matcher.Value();
+    return mcgraph()->IntPtrConstant(bit_cast<intptr_t>(value));
+  }
   return graph()->NewNode(mcgraph()->machine()->ChangeUint32ToUint64(), node);
 }
 
