@@ -622,9 +622,8 @@ module array {
       let element: Object = Load<E>(context, elements, i) otherwise Bailout;
       let j: Smi = i - 1;
       for (; j >= from; --j) {
-        // TODO(szuend): Introduce line breaks when multi-line asserts are
-        //               fixed in Torque.
-        assert(CanUseSameAccessor<E>(context, receiver, initialReceiverMap, initialReceiverLength));
+        assert(CanUseSameAccessor<E>(
+            context, receiver, initialReceiverMap, initialReceiverLength));
 
         let tmp: Object = Load<E>(context, elements, j) otherwise Bailout;
         let order: Number = CallCompareFn<E>(
@@ -783,9 +782,8 @@ module array {
       // From low_end to idx are elements equal to pivot.
       // From idx to high_start are elements that haven"t been compared yet.
       for (let idx: Smi = low_end + 1; idx < high_start; idx++) {
-        // TODO(szuend): Introduce line breaks when multi-line asserts are
-        //               fixed in Torque.
-        assert(CanUseSameAccessor<E>(context, receiver, initialReceiverMap, initialReceiverLength));
+        assert(CanUseSameAccessor<E>(
+            context, receiver, initialReceiverMap, initialReceiverLength));
 
         let element: Object = Load<E>(context, elements, idx) otherwise Bailout;
         let order: Number = CallCompareFn<E>(

@@ -679,6 +679,24 @@ const Type* ImplementationVisitor::Visit(DebugStatement* stmt) {
   }
 }
 
+namespace {
+
+std::string FormatAssertSource(const std::string& str) {
+  // Replace all whitespace characters with a space character.
+  std::string str_no_newlines = str;
+  std::replace_if(str_no_newlines.begin(), str_no_newlines.end(),
+                  [](unsigned char c) { return isspace(c); }, ' ');
+
+  // str might include indentation, squash multiple space characters into one.
+  std::string result;
+  std::unique_copy(str_no_newlines.begin(), str_no_newlines.end(),
+                   std::back_inserter(result),
+                   [](char a, char b) { return a == ' ' && b == ' '; });
+  return result;
+}
+
+}  // namespace
+
 const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
   bool do_check = !stmt->debug_only;
 #if defined(DEBUG)
@@ -717,8 +735,9 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
     GenerateLabelBind(false_label);
     GenerateIndent();
     source_out() << "Print(\""
-                 << "assert '" << stmt->source << "' failed at "
-                 << PositionAsString(stmt->pos) << "\");" << std::endl;
+                 << "assert '" << FormatAssertSource(stmt->source)
+                 << "' failed at " << PositionAsString(stmt->pos) << "\");"
+                 << std::endl;
     GenerateIndent();
     source_out() << "Unreachable();" << std::endl;
 

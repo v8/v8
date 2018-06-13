@@ -213,4 +213,10 @@ module test {
     let x: int32 = 0x40000000;
     let y: int32 = 0x7fffffff;
   }
+
+  macro TestMultilineAssert() {
+    let someVeryLongVariableNameThatWillCauseLineBreaks: Smi = 5;
+    check(someVeryLongVariableNameThatWillCauseLineBreaks > 0
+           && someVeryLongVariableNameThatWillCauseLineBreaks < 10);
+  }
 }
