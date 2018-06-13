@@ -894,7 +894,7 @@ class TurboAssembler : public TurboAssemblerBase {
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DoubleRegister double_input);
+                         DoubleRegister double_input, StubCallMode stub_mode);
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister double_input,
                                   Label* done);
 

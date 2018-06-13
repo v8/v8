@@ -2624,6 +2624,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done, fastpath_done;
   Register result_reg = r3;
 
+  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
+
   // Immediate values for this stub fit in instructions, so it's safe to use ip.
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);
   Register scratch_low = GetRegisterThatIsNotOneOf(result_reg, scratch);

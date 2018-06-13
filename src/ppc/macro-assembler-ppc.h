@@ -659,7 +659,7 @@ class TurboAssembler : public TurboAssemblerBase {
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DoubleRegister double_input);
+                         DoubleRegister double_input, StubCallMode stub_mode);
 
   // Call a code stub.
   void CallStubDelayed(CodeStub* stub);

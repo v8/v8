@@ -1583,7 +1583,8 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
 
 void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        Register result,
-                                       DoubleRegister double_input) {
+                                       DoubleRegister double_input,
+                                       StubCallMode stub_mode) {
   Label done;
 
   TryInlineTruncateDoubleToI(result, double_input, &done);
@@ -1594,7 +1595,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   lay(sp, MemOperand(sp, -kDoubleSize));
   StoreDouble(double_input, MemOperand(sp));
 
-  Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+  if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
+    Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+  } else {
+    Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+  }
 
   LoadP(result, MemOperand(sp, 0));
   la(sp, MemOperand(sp, kDoubleSize));
