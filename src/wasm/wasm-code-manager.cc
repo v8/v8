@@ -881,24 +881,13 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
   TRACE_HEAP("Setting rw permissions for %p:%p\n",
              reinterpret_cast<void*>(start),
              reinterpret_cast<void*>(start + size));
+
   if (!ret) {
     // Highly unlikely.
     remaining_uncommitted_code_space_.fetch_add(size);
     return false;
   }
   return ret;
-}
-
-bool WasmCodeManager::WouldGCHelp() const {
-  // If all we have is one module, or none, no GC would help.
-  // GC would help if there's some remaining native modules that
-  // would be collected.
-  if (active_ <= 1) return false;
-  // We have an expectation on the largest size a native function
-  // may have.
-  constexpr size_t kMaxNativeFunction = 32 * MB;
-  size_t remaining = remaining_uncommitted_code_space_.load();
-  return remaining < kMaxNativeFunction;
 }
 
 void WasmCodeManager::AssignRanges(Address start, Address end,
@@ -949,6 +938,20 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, size_t memory_estimate, uint32_t num_functions,
     uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env) {
+  // TODO(titzer): we force a critical memory pressure notification
+  // when the code space is almost exhausted, but only upon the next module
+  // creation. This is only for one isolate, and it should really do this for
+  // all isolates, at the point of commit.
+  constexpr size_t kCriticalThreshold = 32 * 1024 * 1024;
+  bool force_critical_notification =
+      (active_ > 1) &&
+      (remaining_uncommitted_code_space_.load() < kCriticalThreshold);
+
+  if (force_critical_notification) {
+    (reinterpret_cast<v8::Isolate*>(isolate))
+        ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
+  }
+
   VirtualMemory mem;
   // If the code must be contiguous, reserve enough address space up front.
   size_t vmem_size = kRequiresCodeRange ? kMaxWasmCodeMemory : memory_estimate;

@@ -230,11 +230,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 // Return a textual description of the kind.
 const char* GetWasmCodeKindAsString(WasmCode::Kind);
 
-// Note that we currently need to add code on the main thread, because we may
-// trigger a GC if we believe there's a chance the GC would clear up native
-// modules. The code is ready for concurrency otherwise, we just need to be
-// careful about this GC consideration. See WouldGCHelp and
-// WasmCodeManager::Commit.
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
@@ -450,7 +445,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void FreeNativeModule(NativeModule*);
   void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
-  bool WouldGCHelp() const;
 
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
   // Count of NativeModules not yet collected. Helps determine if it's

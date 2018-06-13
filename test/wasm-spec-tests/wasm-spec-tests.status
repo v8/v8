@@ -43,12 +43,6 @@
   'tests/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
-['variant == stress', {
-  # TODO(v8:7845): Some spec tests currently fail with OOM. Reenable after fixing.
-  'tests/f32_cmp': [SKIP],
-  'tests/f64_cmp': [SKIP],
-}],  # variant == stress
-
 [ALWAYS, {
   # TODO(v8:7846): These tests will pass when the wasm-spec-tests repo is updated.
   'tests/linking': [SKIP],
