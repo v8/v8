@@ -115,3 +115,62 @@ assertDoesNotThrow(
       }
     }),
     Error);
+
+// Preserve the order of getter initialization.
+let getCount = 0;
+let calendar = -1;
+let collation = -1;
+let hourCycle = -1;
+let caseFirst = -1;
+let numeric = -1;
+let numberingSystem = -1;
+
+
+new Intl.Locale('en-US', {
+  get calendar() {
+    calendar = ++getCount;
+  },
+  get collation() {
+    collation = ++getCount;
+  },
+  get hourCycle() {
+    hourCycle = ++getCount;
+  },
+  get caseFirst() {
+    caseFirst = ++getCount;
+  },
+  get numeric() {
+    numeric = ++getCount;
+  },
+  get numberingSystem() {
+    numberingSystem = ++getCount;
+  },
+});
+
+assertEquals(1, calendar);
+assertEquals(2, collation);
+assertEquals(3, hourCycle);
+assertEquals(4, caseFirst);
+assertEquals(5, numeric);
+assertEquals(6, numberingSystem);
+
+// Check getter properties against the spec.
+function checkProperties(property) {
+  let desc = Object.getOwnPropertyDescriptor(Intl.Locale.prototype, property);
+  assertEquals(`get ${property}`, desc.get.name);
+  assertEquals('function', typeof desc.get)
+  assertEquals(undefined, desc.set);
+  assertFalse(desc.enumerable);
+  assertTrue(desc.configurable);
+}
+
+checkProperties('language');
+checkProperties('script');
+checkProperties('region');
+checkProperties('baseName');
+checkProperties('calendar');
+checkProperties('collation');
+checkProperties('hourCycle');
+checkProperties('caseFirst');
+checkProperties('numeric');
+checkProperties('numberingSystem');
