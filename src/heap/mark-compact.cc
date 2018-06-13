@@ -1458,6 +1458,18 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   ProcessTopOptimizedFrame(custom_root_body_visitor);
 }
 
+void MarkCompactCollector::ProcessMarkingWorklistInParallel() {
+  if (FLAG_parallel_marking) {
+    DCHECK(FLAG_concurrent_marking);
+    heap_->concurrent_marking()->RescheduleTasksIfNeeded();
+  }
+  ProcessMarkingWorklist();
+
+  FinishConcurrentMarking(
+      ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
+  ProcessMarkingWorklist();
+}
+
 void MarkCompactCollector::ProcessMarkingWorklist() {
   HeapObject* object;
   MarkCompactMarkingVisitor visitor(this, marking_state());
@@ -1495,7 +1507,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
-      ProcessMarkingWorklist();
+      ProcessMarkingWorklistInParallel();
     }
   }
   CHECK(marking_worklist()->IsEmpty());

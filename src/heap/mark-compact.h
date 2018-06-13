@@ -701,6 +701,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // if no concurrent threads are running.
   void ProcessMarkingWorklist() override;
 
+  // Drains the main thread marking work list. Will mark all pending objects
+  // if no concurrent threads are running.
+  void ProcessMarkingWorklistInParallel();
+
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, Object** p);
