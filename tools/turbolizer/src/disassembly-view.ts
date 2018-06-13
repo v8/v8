@@ -22,23 +22,33 @@ class DisassemblyView extends TextView {
     return pane;
   }
 
-  constructor(parentId, broker) {
+  constructor(parentId, broker: SelectionBroker) {
     super(parentId, broker, null);
     let view = this;
+    const sourceResolver = broker.sourceResolver;
     let ADDRESS_STYLE = {
       css: 'tag',
-      assignSourcePosition: function (text) {
-        return SOURCE_POSITION_HEADER_STYLE.currentSourcePosition;
-      },
       linkHandler: function (text, fragment) {
-        if (fragment.sourcePosition === undefined) return undefined;
-        return (e) => {
-          e.stopPropagation();
-          if (!e.shiftKey) {
-            view.sourcePositionSelectionHandler.clear();
+        const matches = text.match(/0x[0-9a-f]{8,16}\s*(?<offset>[0-9a-f]+)/);
+        const offset = Number.parseInt(matches.groups["offset"], 16);
+        if (!Number.isNaN(offset)) {
+          const [nodes, blockId] = sourceResolver.nodesForPCOffset(offset)
+          console.log("nodes for", offset, offset.toString(16), " are ", nodes);
+          if (nodes.length > 0) {
+            for (const nodeId of nodes) {
+              view.addHtmlElementForNodeId(nodeId, fragment);
+            }
+            return (e) => {
+              console.log(offset, nodes);
+              e.stopPropagation();
+              if (!e.shiftKey) {
+                view.selectionHandler.clear();
+              }
+              view.selectionHandler.select(nodes, true);
+            };
           }
-          view.sourcePositionSelectionHandler.select([fragment.sourcePosition], true);
-        };
+        }
+        return undefined;
       }
     };
     let ADDRESS_LINK_STYLE = {
@@ -82,27 +92,18 @@ class DisassemblyView extends TextView {
       }
     };
     const SOURCE_POSITION_HEADER_STYLE = {
-      css: 'com',
-      currentSourcePosition: undefined,
-      sourcePosition: function (text) {
-        let matches = view.SOURCE_POSITION_HEADER_REGEX.exec(text);
-        if (!matches) return undefined;
-        const scriptOffset = Number(matches[3]);
-        const inliningId = matches[1] === 'not inlined' ? -1 : Number(matches[2]);
-        const sp = { scriptOffset: scriptOffset, inliningId: inliningId };
-        SOURCE_POSITION_HEADER_STYLE.currentSourcePosition = sp;
-        return sp;
-      },
+      css: 'com'
     };
     view.SOURCE_POSITION_HEADER_REGEX = /^\s*--[^<]*<.*(not inlined|inlined\((\d+)\)):(\d+)>\s*--/;
     let patterns = [
       [
-        [/^0x[0-9a-f]{8,16}/, ADDRESS_STYLE, 1],
+        [/^0x[0-9a-f]{8,16}\s*[0-9a-f]+\ /, ADDRESS_STYLE, 1],
         [view.SOURCE_POSITION_HEADER_REGEX, SOURCE_POSITION_HEADER_STYLE, -1],
         [/^\s+-- B\d+ start.*/, BLOCK_HEADER_STYLE, -1],
         [/^.*/, UNCLASSIFIED_STYLE, -1]
       ],
       [
+        [/^\s+[0-9a-f]+\s+/, NUMBER_STYLE, 2],
         [/^\s+[0-9a-f]+\s+[0-9a-f]+\s+/, NUMBER_STYLE, 2],
         [/^.*/, null, -1]
       ],

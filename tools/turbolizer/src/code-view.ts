@@ -255,9 +255,10 @@ class CodeView extends View {
     }
     lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
     // Don't add lines to source positions of not in backwardsCompatibility mode.
-    if (typeof this.source['backwardsCompatibility'] === undefined) return;
-    for (const sourcePosition of this.sourceResolver.linetoSourcePositions(lineNumber - 1)) {
-      view.addHtmlElementToSourcePosition(sourcePosition, lineElement);
+    if (this.source.backwardsCompatibility === true) {
+      for (const sourcePosition of this.sourceResolver.linetoSourcePositions(lineNumber - 1)) {
+        view.addHtmlElementToSourcePosition(sourcePosition, lineElement);
+      }
     }
   }
 

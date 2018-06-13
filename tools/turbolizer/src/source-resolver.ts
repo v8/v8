@@ -84,6 +84,10 @@ class SourceResolver {
   phaseNames: Map<string, number>;
   disassemblyPhase: Phase;
   lineToSourcePositions: Map<string, Array<AnyPosition>>;
+  nodeIdToInstructionRange: Array<[number, number]>;
+  blockIdToInstructionRange: Array<[number, number]>;
+  instructionToPCOffset: Array<number>;
+  pcOffsetToInstructions: Map<number, Array<number>>;
 
 
   constructor() {
@@ -105,6 +109,14 @@ class SourceResolver {
     this.disassemblyPhase = undefined;
     // Maps line numbers to source positions
     this.lineToSourcePositions = new Map();
+    // Maps node ids to instruction ranges.
+    this.nodeIdToInstructionRange = [];
+    // Maps block ids to instruction ranges.
+    this.blockIdToInstructionRange = [];
+    // Maps instruction numbers to PC offsets.
+    this.instructionToPCOffset = [];
+    // Maps PC offsets to instructions.
+    this.pcOffsetToInstructions = new Map();
   }
 
   setSources(sources, mainBackup) {
@@ -298,6 +310,72 @@ class SourceResolver {
     }
   }
 
+  readNodeIdToInstructionRange(nodeIdToInstructionRange) {
+    for (const [nodeId, range] of Object.entries<[number, number]>(nodeIdToInstructionRange)) {
+      this.nodeIdToInstructionRange[nodeId] = range;
+    }
+  }
+
+  readBlockIdToInstructionRange(blockIdToInstructionRange) {
+    for (const [blockId, range] of Object.entries<[number, number]>(blockIdToInstructionRange)) {
+      this.blockIdToInstructionRange[blockId] = range;
+    }
+  }
+
+  getInstruction(nodeId):[number, number] {
+    const X = this.nodeIdToInstructionRange[nodeId];
+    if (X === undefined) return [-1, -1];
+    return X;
+  }
+
+  getInstructionRangeForBlock(blockId):[number, number] {
+    const X = this.blockIdToInstructionRange[blockId];
+    if (X === undefined) return [-1, -1];
+    return X;
+  }
+
+  readInstructionOffsetToPCOffset(instructionToPCOffset) {
+    for (const [instruction, offset] of Object.entries<number>(instructionToPCOffset)) {
+      this.instructionToPCOffset[instruction] = offset;
+      if (!this.pcOffsetToInstructions.has(offset)) {
+        this.pcOffsetToInstructions.set(offset, []);
+      }
+      this.pcOffsetToInstructions.get(offset).push(instruction);
+    }
+    console.log(this.pcOffsetToInstructions);
+  }
+
+  hasPCOffsets() {
+    return this.pcOffsetToInstructions.size > 0;
+  }
+
+
+  nodesForPCOffset(offset): [Array<String>, Array<String>] {
+    const keys = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
+    if (keys.length === 0) return [[],[]];
+    for (const key of keys) {
+      if (key <= offset) {
+        const instrs = this.pcOffsetToInstructions.get(key);
+        const nodes = [];
+        const blocks = [];
+        for (const instr of instrs) {
+          for (const [nodeId, range] of this.nodeIdToInstructionRange.entries()) {
+            if (!range) continue;
+            const [start, end] = range;
+            if (start == end && instr == start) {
+              nodes.push("" + nodeId);
+            }
+            if (start <= instr && instr < end) {
+              nodes.push("" + nodeId);
+            }
+          }
+        }
+        return [nodes, blocks];
+      }
+    }
+    return [[],[]];
+  }
+
   parsePhases(phases) {
     for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
       if (phase.type == 'disassembly') {
@@ -305,6 +383,16 @@ class SourceResolver {
       } else if (phase.type == 'schedule') {
         this.phases.push(this.parseSchedule(phase))
         this.phaseNames.set(phase.name, this.phases.length);
+      } else if (phase.type == 'instructions') {
+        if (phase.nodeIdToInstructionRange) {
+          this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
+        }
+        if (phase.blockIdtoInstructionRange) {
+          this.readBlockIdToInstructionRange(phase.blockIdtoInstructionRange);
+        }
+        if (phase.instructionOffsetToPCOffset) {
+          this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
+        }
       } else {
         this.phases.push(phase);
         this.recordOrigins(phase);

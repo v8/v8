@@ -6,20 +6,17 @@
 
 class ScheduleView extends TextView implements PhaseView {
   schedule: Schedule;
+  sourceResolver: SourceResolver;
 
   createViewElement() {
     const pane = document.createElement('div');
     pane.setAttribute('id', "schedule");
-    pane.innerHTML =
-      `<pre id='schedule-text-pre' class='prettyprint prettyprinted'>
-       <ul id='schedule-list' class='nolinenums noindent'>
-       </ul>
-     </pre>`;
     return pane;
   }
 
   constructor(parentId, broker) {
     super(parentId, broker, null);
+    this.sourceResolver = broker.sourceResolver;
   }
 
   attachSelection(s) {
@@ -27,10 +24,21 @@ class ScheduleView extends TextView implements PhaseView {
     if (!(s instanceof Set)) return;
     view.selectionHandler.clear();
     view.blockSelectionHandler.clear();
-    view.sourcePositionSelectionHandler.clear();
     const selected = new Array();
     for (const key of s) selected.push(key);
     view.selectionHandler.select(selected, true);
+  }
+
+  detachSelection() {
+    this.blockSelection.clear();
+    return this.selection.detachSelection();
+  }
+
+  initializeContent(data, rememberedSelection) {
+    this.divNode.innerHTML = '';
+    this.schedule = data.schedule
+    this.addBlocks(data.schedule.blocks);
+    this.attachSelection(rememberedSelection);
   }
 
   createElementFromString(htmlString) {
@@ -38,7 +46,6 @@ class ScheduleView extends TextView implements PhaseView {
     div.innerHTML = htmlString.trim();
     return div.firstChild;
   }
-
 
   elementForBlock(block) {
     const view = this;
@@ -63,8 +70,31 @@ class ScheduleView extends TextView implements PhaseView {
       };
     }
 
+    function getMarker(start, end) {
+      if (start != end) {
+        return ["&#8857;", `This node generated instructions in range [${start},${end}). ` +
+                           `This is currently unreliable for constants.`];
+      }
+      if (start != -1) {
+        return ["&#183;", `The instruction selector did not generate instructions ` +
+                          `for this node, but processed the node at instruction ${start}. ` +
+                          `This usually means that this node was folded into another node; ` +
+                          `the highlighted machine code is a guess.`];
+      }
+      return ["", `This not is not in the final schedule.`]
+    }
+
     function createElementForNode(node) {
       const nodeEl = createElement("div", "node");
+
+      const [start, end] = view.sourceResolver.getInstruction(node.id);
+      const [marker, tooltip] = getMarker(start, end);
+      const instrMarker = createElement("div", ["instr-marker", "com"], marker);
+      instrMarker.setAttribute("title", tooltip);
+      instrMarker.onclick = mkNodeLinkHandler(node.id);
+      nodeEl.appendChild(instrMarker);
+
+
       const node_id = createElement("div", ["node-id", "tag", "clickable"], node.id);
       node_id.onclick = mkNodeLinkHandler(node.id);
       view.addHtmlElementForNodeId(node.id, node_id);
@@ -81,6 +111,7 @@ class ScheduleView extends TextView implements PhaseView {
         }
         nodeEl.appendChild(node_parameters);
       }
+
       return nodeEl;
     }
 
@@ -95,6 +126,13 @@ class ScheduleView extends TextView implements PhaseView {
     }
 
     const schedule_block = createElement("div", "schedule-block");
+
+    const [start, end] = view.sourceResolver.getInstructionRangeForBlock(block.id);
+    const instrMarker = createElement("div", ["instr-marker", "com"], "&#8857;");
+    instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`)
+    instrMarker.onclick = mkBlockLinkHandler(block.id);
+    schedule_block.appendChild(instrMarker);
+
     const block_id = createElement("div", ["block-id", "com", "clickable"], block.id);
     block_id.onclick = mkBlockLinkHandler(block.id);
     schedule_block.appendChild(block_id);
@@ -126,19 +164,6 @@ class ScheduleView extends TextView implements PhaseView {
       const blockEl = this.elementForBlock(block);
       this.divNode.appendChild(blockEl);
     }
-  }
-
-  initializeContent(data, rememberedSelection) {
-    this.clearText();
-    this.schedule = data.schedule
-    this.addBlocks(data.schedule.blocks);
-    this.attachSelection(rememberedSelection);
-  }
-
-  detachSelection() {
-    this.blockSelection.clear();
-    this.sourcePositionSelection.clear();
-    return this.selection.detachSelection();
   }
 
   lineString(node) {

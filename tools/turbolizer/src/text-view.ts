@@ -12,14 +12,11 @@ abstract class TextView extends View {
   selectionHandler: NodeSelectionHandler;
   blockSelectionHandler: BlockSelectionHandler;
   nodeSelectionHandler: NodeSelectionHandler;
-  sourcePositionSelectionHandler: SelectionHandler;
   selection: MySelection;
   blockSelection: MySelection;
-  sourcePositionSelection: MySelection;
   textListNode: HTMLUListElement;
   nodeIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
   blockIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
-  sourcePositionToHtmlElementsMap: Map<string, Array<HTMLElement>>;
   blockIdtoNodeIds: Map<string, Array<string>>;
   nodeIdToBlockId: Array<string>;
   patterns: any;
@@ -31,12 +28,10 @@ abstract class TextView extends View {
     view.patterns = patterns;
     view.nodeIdToHtmlElementsMap = new Map();
     view.blockIdToHtmlElementsMap = new Map();
-    view.sourcePositionToHtmlElementsMap = new Map();
     view.blockIdtoNodeIds = new Map();
     view.nodeIdToBlockId = [];
     view.selection = new MySelection(anyToString);
     view.blockSelection = new MySelection(anyToString);
-    view.sourcePositionSelection = new MySelection(sourcePositionToStringKey);
     const selectionHandler = {
       clear: function () {
         view.selection.clear();
@@ -45,17 +40,12 @@ abstract class TextView extends View {
       },
       select: function (nodeIds, selected) {
         view.selection.select(nodeIds, selected);
-        const blockIds = view.blockIdsForNodeIds(nodeIds);
-        view.blockSelection.select(blockIds, selected);
         view.updateSelection();
         broker.broadcastNodeSelect(selectionHandler, view.selection.selectedKeys(), selected);
-        broker.broadcastBlockSelect(view.blockSelectionHandler, blockIds, selected);
       },
       brokeredNodeSelect: function (nodeIds, selected) {
         const firstSelect = view.blockSelection.isEmpty();
         view.selection.select(nodeIds, selected);
-        const blockIds = view.blockIdsForNodeIds(nodeIds);
-        view.blockSelection.select(blockIds, selected);
         view.updateSelection(firstSelect);
       },
       brokeredClear: function () {
@@ -93,29 +83,6 @@ abstract class TextView extends View {
     };
     this.blockSelectionHandler = blockSelectionHandler;
     broker.addBlockHandler(blockSelectionHandler);
-    const sourcePositionSelectionHandler = {
-      clear: function () {
-        view.sourcePositionSelection.clear();
-        view.updateSelection();
-        broker.broadcastClear(sourcePositionSelectionHandler);
-      },
-      select: function (sourcePositions, selected) {
-        view.sourcePositionSelection.select(sourcePositions, selected);
-        view.updateSelection();
-        broker.broadcastSourcePositionSelect(sourcePositionSelectionHandler, sourcePositions, selected);
-      },
-      brokeredSourcePositionSelect: function (sourcePositions, selected) {
-        const firstSelect = view.sourcePositionSelection.isEmpty();
-        view.sourcePositionSelection.select(sourcePositions, selected);
-        view.updateSelection(firstSelect);
-      },
-      brokeredClear: function () {
-        view.sourcePositionSelection.clear();
-        view.updateSelection();
-      }
-    };
-    view.sourcePositionSelectionHandler = sourcePositionSelectionHandler;
-    broker.addSourcePositionHandler(sourcePositionSelectionHandler);
   }
 
   addHtmlElementForNodeId(anyNodeId: any, htmlElement: HTMLElement) {
@@ -124,14 +91,6 @@ abstract class TextView extends View {
       this.nodeIdToHtmlElementsMap.set(nodeId, []);
     }
     this.nodeIdToHtmlElementsMap.get(nodeId).push(htmlElement);
-  }
-
-  addHtmlElementForSourcePosition(sourcePosition, htmlElement) {
-    const key = sourcePositionToStringKey(sourcePosition);
-    if (!this.sourcePositionToHtmlElementsMap.has(key)) {
-      this.sourcePositionToHtmlElementsMap.set(key, []);
-    }
-    this.sourcePositionToHtmlElementsMap.get(key).push(htmlElement);
   }
 
   addHtmlElementForBlockId(anyBlockId, htmlElement) {
@@ -165,13 +124,6 @@ abstract class TextView extends View {
     if (this.divNode.parentNode == null) return;
     const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
     const view = this;
-    for (const [nodeId, elements] of this.nodeIdToHtmlElementsMap.entries()) {
-      const isSelected = view.selection.isSelected(nodeId);
-      for (const element of elements) {
-        mkVisible.consider(element, isSelected);
-        element.classList.toggle("selected", isSelected);
-      }
-    }
     for (const [blockId, elements] of this.blockIdToHtmlElementsMap.entries()) {
       const isSelected = view.blockSelection.isSelected(blockId);
       for (const element of elements) {
@@ -179,11 +131,17 @@ abstract class TextView extends View {
         element.classList.toggle("selected", isSelected);
       }
     }
-    for (const [sourcePositionKey, elements] of this.sourcePositionToHtmlElementsMap.entries()) {
-      const isSelected = view.sourcePositionSelection.isKeySelected(sourcePositionKey);
+    for (const key of this.nodeIdToHtmlElementsMap.keys()) {
+      for (const element of this.nodeIdToHtmlElementsMap.get(key)) {
+        element.classList.toggle("selected", false);
+      }
+    }
+    for (const nodeId of view.selection.selectedKeys()) {
+      const elements = this.nodeIdToHtmlElementsMap.get(nodeId);
+      if (!elements) continue;
       for (const element of elements) {
-        mkVisible.consider(element, isSelected);
-        element.classList.toggle("selected", isSelected);
+        mkVisible.consider(element, true);
+        element.classList.toggle("selected", true);
       }
     }
     mkVisible.apply(scrollIntoView);
@@ -227,19 +185,6 @@ abstract class TextView extends View {
         fragment.nodeId = nodeId;
         this.addHtmlElementForNodeId(nodeId, fragment);
       }
-    }
-
-    if (typeof style.sourcePosition === 'function') {
-      const sourcePosition = style.sourcePosition(text);
-      if (sourcePosition != undefined) {
-        fragment.sourcePosition = sourcePosition;
-        //this.addHtmlElementForNodeId(nodeId, fragment);
-      }
-    }
-
-    if (typeof style.assignSourcePosition === 'function') {
-      fragment.sourcePosition = style.assignSourcePosition();
-      this.addHtmlElementForSourcePosition(fragment.sourcePosition, fragment)
     }
 
     if (typeof style.assignBlockId === 'function') {
@@ -310,7 +255,7 @@ abstract class TextView extends View {
     for (let line of textLines) {
       let li = document.createElement("LI");
       li.className = "nolinenums";
-      li.lineNo = lineNo++;
+      li.dataset.lineNo = "" + lineNo++;
       let fragments = view.processLine(line);
       for (let fragment of fragments) {
         li.appendChild(fragment);
