@@ -7445,8 +7445,7 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::String> wire_bytes(obj->shared()->module_bytes(),
-                                  obj->GetIsolate());
+  i::Handle<i::String> wire_bytes(obj->module_bytes(), obj->GetIsolate());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
@@ -9319,9 +9318,9 @@ bool debug::Script::GetPossibleBreakpoints(
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    i::WasmSharedModuleData* shared =
-        i::WasmModuleObject::cast(script->wasm_module_object())->shared();
-    return shared->GetPossibleBreakpoints(start, end, locations);
+    i::WasmModuleObject* module_object =
+        i::WasmModuleObject::cast(script->wasm_module_object());
+    return module_object->GetPossibleBreakpoints(start, end, locations);
   }
 
   i::Script::InitLineEnds(script);
@@ -9370,7 +9369,6 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     return i::WasmModuleObject::cast(script->wasm_module_object())
-               ->shared()
                ->GetFunctionOffset(location.GetLineNumber()) +
            location.GetColumnNumber();
   }
@@ -9444,7 +9442,7 @@ int debug::WasmScript::NumFunctions() const {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->shared()->module();
+  i::wasm::WasmModule* module = module_object->module();
   DCHECK_GE(i::kMaxInt, module->functions.size());
   return static_cast<int>(module->functions.size());
 }
@@ -9455,7 +9453,7 @@ int debug::WasmScript::NumImportedFunctions() const {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->shared()->module();
+  i::wasm::WasmModule* module = module_object->module();
   DCHECK_GE(i::kMaxInt, module->num_imported_functions);
   return static_cast<int>(module->num_imported_functions);
 }
@@ -9467,7 +9465,7 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->shared()->module();
+  i::wasm::WasmModule* module = module_object->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
   i::wasm::WasmFunction& func = module->functions[function_index];
@@ -9483,11 +9481,11 @@ uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->shared()->module();
+  i::wasm::WasmModule* module = module_object->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
   i::wasm::WasmFunction& func = module->functions[function_index];
-  i::SeqOneByteString* module_bytes = module_object->shared()->module_bytes();
+  i::SeqOneByteString* module_bytes = module_object->module_bytes();
   i::wasm::ModuleWireBytes wire_bytes(
       module_bytes->GetFlatContent().ToOneByteVector());
   i::Vector<const i::byte> function_bytes = wire_bytes.GetFunctionBytes(&func);
@@ -9503,7 +9501,7 @@ debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  return module_object->shared()->DisassembleFunction(function_index);
+  return module_object->DisassembleFunction(function_index);
 }
 
 debug::Location::Location(int line_number, int column_number)

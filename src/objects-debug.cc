@@ -1631,8 +1631,10 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify() {
   VerifySmiField(kFunctionIndexOffset);
 }
 
-void WasmSharedModuleData::WasmSharedModuleDataVerify() {
-  CHECK(IsWasmSharedModuleData());
+void WasmModuleObject::WasmModuleObjectVerify() {
+  CHECK(IsWasmModuleObject());
+  VerifyObjectField(kCompiledModuleOffset);
+  VerifyObjectField(kExportWrappersOffset);
   VerifyObjectField(kManagedModuleOffset);
   CHECK(managed_module()->IsForeign());
   VerifyObjectField(kModuleBytesOffset);

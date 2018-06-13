@@ -1316,21 +1316,22 @@ WASM_SUMMARY_DISPATCH(int, byte_offset)
 #undef WASM_SUMMARY_DISPATCH
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
-  Handle<WasmSharedModuleData> shared(
-      wasm_instance()->module_object()->shared(), isolate());
-  return WasmSharedModuleData::GetSourcePosition(
-      shared, function_index(), byte_offset(), at_to_number_conversion());
+  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
+                                         isolate());
+  return WasmModuleObject::GetSourcePosition(module_object, function_index(),
+                                             byte_offset(),
+                                             at_to_number_conversion());
 }
 
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
-  return handle(wasm_instance()->module_object()->shared()->script());
+  return handle(wasm_instance()->module_object()->script());
 }
 
 Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  Handle<WasmSharedModuleData> shared(
-      wasm_instance()->module_object()->shared(), isolate());
-  return WasmSharedModuleData::GetFunctionName(isolate(), shared,
-                                               function_index());
+  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
+                                         isolate());
+  return WasmModuleObject::GetFunctionName(isolate(), module_object,
+                                           function_index());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
@@ -1763,7 +1764,7 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                                   ->instruction_start();
   int pc = static_cast<int>(this->pc() - instruction_start);
   Vector<const uint8_t> raw_func_name =
-      shared()->GetRawFunctionName(this->function_index());
+      module_object()->GetRawFunctionName(this->function_index());
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
@@ -1796,8 +1797,8 @@ WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
   return WasmInstanceObject::cast(instance);
 }
 
-WasmSharedModuleData* WasmCompiledFrame::shared() const {
-  return wasm_instance()->module_object()->shared();
+WasmModuleObject* WasmCompiledFrame::module_object() const {
+  return wasm_instance()->module_object();
 }
 
 WasmCompiledModule* WasmCompiledFrame::compiled_module() const {
@@ -1808,7 +1809,7 @@ uint32_t WasmCompiledFrame::function_index() const {
   return FrameSummary::GetSingle(this).AsWasmCompiled().function_index();
 }
 
-Script* WasmCompiledFrame::script() const { return shared()->script(); }
+Script* WasmCompiledFrame::script() const { return module_object()->script(); }
 
 int WasmCompiledFrame::position() const {
   return FrameSummary::GetSingle(this).SourcePosition();
@@ -1892,15 +1893,17 @@ WasmDebugInfo* WasmInterpreterEntryFrame::debug_info() const {
   return wasm_instance()->debug_info();
 }
 
-WasmSharedModuleData* WasmInterpreterEntryFrame::shared() const {
-  return wasm_instance()->module_object()->shared();
+WasmModuleObject* WasmInterpreterEntryFrame::module_object() const {
+  return wasm_instance()->module_object();
 }
 
 WasmCompiledModule* WasmInterpreterEntryFrame::compiled_module() const {
   return wasm_instance()->compiled_module();
 }
 
-Script* WasmInterpreterEntryFrame::script() const { return shared()->script(); }
+Script* WasmInterpreterEntryFrame::script() const {
+  return module_object()->script();
+}
 
 int WasmInterpreterEntryFrame::position() const {
   return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();

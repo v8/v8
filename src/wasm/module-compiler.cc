@@ -487,7 +487,7 @@ class IndirectPatcher {
 
 ModuleEnv CreateModuleEnvFromModuleObject(
     Isolate* isolate, Handle<WasmModuleObject> module_object) {
-  WasmModule* module = module_object->shared()->module();
+  WasmModule* module = module_object->module();
   wasm::UseTrapHandler use_trap_handler =
       module_object->compiled_module()->GetNativeModule()->use_trap_handler()
           ? kUseTrapHandler
@@ -513,8 +513,8 @@ const wasm::WasmCode* LazyCompileFunction(
   // tracing / debugging.
   std::string func_name;
   {
-    WasmName name = Vector<const char>::cast(
-        module_object->shared()->GetRawFunctionName(func_index));
+    WasmName name =
+        Vector<const char>::cast(module_object->GetRawFunctionName(func_index));
     // Copy to std::string, because the underlying string object might move on
     // the heap.
     func_name.assign(name.start(), static_cast<size_t>(name.length()));
@@ -525,8 +525,7 @@ const wasm::WasmCode* LazyCompileFunction(
   ModuleEnv module_env =
       CreateModuleEnvFromModuleObject(isolate, module_object);
 
-  const uint8_t* module_start =
-      module_object->shared()->module_bytes()->GetChars();
+  const uint8_t* module_start = module_object->module_bytes()->GetChars();
 
   const WasmFunction* func = &module_env.module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(),
@@ -658,16 +657,16 @@ const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
   uint32_t num_non_compiled_callees = 0;  // For stats.
   {
     DisallowHeapAllocation no_gc;
-    Handle<WasmSharedModuleData> shared(
-        wasm_caller->native_module()->shared_module_data(), isolate);
-    SeqOneByteString* module_bytes = shared->module_bytes();
+    Handle<WasmModuleObject> module_object(
+        wasm_caller->native_module()->module_object(), isolate);
+    SeqOneByteString* module_bytes = module_object->module_bytes();
     uint32_t caller_func_index = wasm_caller->index();
     SourcePositionTableIterator source_pos_iterator(
         wasm_caller->source_positions());
 
     const byte* func_bytes =
         module_bytes->GetChars() +
-        shared->module()->functions[caller_func_index].code.offset();
+        module_object->module()->functions[caller_func_index].code.offset();
     for (RelocIterator it(wasm_caller->instructions(),
                           wasm_caller->reloc_info(),
                           wasm_caller->constant_pool(),
@@ -1094,7 +1093,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 
 void UpdateAllCompiledModulesWithTopTierCode(
     Handle<WasmModuleObject> module_object) {
-  WasmModule* module = module_object->shared()->module();
+  WasmModule* module = module_object->module();
   DCHECK_GT(module->functions.size() - module->num_imported_functions, 0);
   USE(module);
 
@@ -1295,7 +1294,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          const WasmModule* wasm_module, ModuleEnv* env) {
   WasmCompiledModule* compiled_module = module_object->compiled_module();
   NativeModule* const native_module = compiled_module->GetNativeModule();
-  auto* byte_string = module_object->shared()->module_bytes();
+  auto* byte_string = module_object->module_bytes();
   const ModuleWireBytes wire_bytes(
       byte_string->GetChars(), byte_string->GetChars() + byte_string->length());
 
@@ -1347,7 +1346,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
 
   Factory* factory = isolate->factory();
   // Create heap objects for script, module bytes and asm.js offset table to
-  // be stored in the shared module data.
+  // be stored in the module object.
   Handle<Script> script;
   Handle<ByteArray> asm_js_offset_table;
   if (asm_js_script.is_null()) {
@@ -1375,14 +1374,10 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
       Managed<WasmModule>::FromUniquePtr(isolate, module_size,
                                          std::move(module));
 
-  // Create the shared module data.
+  // Create the module object.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
-  // only have one WasmSharedModuleData. Otherwise, we might only set
+  // only have one WasmModuleObject. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
-
-  Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
-      script, asm_js_offset_table);
 
   int export_wrappers_size =
       static_cast<int>(wasm_module->num_exported_functions);
@@ -1400,9 +1395,11 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   // object.
   Handle<WasmCompiledModule> compiled_module =
       NewCompiledModule(isolate, wasm_module, env);
-  compiled_module->GetNativeModule()->SetSharedModuleData(shared);
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, compiled_module, export_wrappers, shared);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, compiled_module, export_wrappers, managed_module,
+      Handle<SeqOneByteString>::cast(module_bytes), script,
+      asm_js_offset_table);
+  compiled_module->GetNativeModule()->SetModuleObject(module_object);
   CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
   if (thrower->error()) return {};
 
@@ -1553,7 +1550,7 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                                  MaybeHandle<JSReceiver> ffi,
                                  MaybeHandle<JSArrayBuffer> memory)
     : isolate_(isolate),
-      module_(module_object->shared()->module()),
+      module_(module_object->module()),
       async_counters_(isolate->async_counters()),
       thrower_(thrower),
       module_object_(module_object),
@@ -1864,8 +1861,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Debugging support.
   //--------------------------------------------------------------------------
   // Set all breakpoints that were set on the shared module.
-  WasmSharedModuleData::SetBreakpointsOnNewInstance(
-      handle(module_object_->shared(), isolate_), instance);
+  WasmModuleObject::SetBreakpointsOnNewInstance(module_object_, instance);
 
   if (FLAG_wasm_interpret_all && module_->origin == kWasmOrigin) {
     Handle<WasmDebugInfo> debug_info =
@@ -2010,8 +2006,8 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
 
 // Load data segments into the memory.
 void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
-  Handle<SeqOneByteString> module_bytes(
-      module_object_->shared()->module_bytes(), isolate_);
+  Handle<SeqOneByteString> module_bytes(module_object_->module_bytes(),
+                                        isolate_);
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t source_size = segment.source.length();
     // Segments of size == 0 are just nops.
@@ -2085,14 +2081,13 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
 }
 
 void InstanceBuilder::SanitizeImports() {
-  Handle<SeqOneByteString> module_bytes(
-      module_object_->shared()->module_bytes());
+  Handle<SeqOneByteString> module_bytes(module_object_->module_bytes());
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     WasmImport& import = module_->import_table[index];
 
     Handle<String> module_name;
     MaybeHandle<String> maybe_module_name =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate_, module_bytes, import.module_name);
     if (!maybe_module_name.ToHandle(&module_name)) {
       thrower_->LinkError("Could not resolve module name for import %zu",
@@ -2102,7 +2097,7 @@ void InstanceBuilder::SanitizeImports() {
 
     Handle<String> import_name;
     MaybeHandle<String> maybe_import_name =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate_, module_bytes, import.field_name);
     if (!maybe_import_name.ToHandle(&import_name)) {
       thrower_->LinkError("Could not resolve import name for import %zu",
@@ -2566,10 +2561,9 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   // Process each export in the export table.
   int export_index = 0;  // Index into {export_wrappers}.
   for (WasmExport& exp : module_->export_table) {
-    Handle<String> name =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-            isolate_, handle(module_object_->shared(), isolate_), exp.name)
-            .ToHandleChecked();
+    Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+                              isolate_, module_object_, exp.name)
+                              .ToHandleChecked();
     Handle<JSObject> export_to;
     if (is_asm_js && exp.kind == kExternalFunction &&
         String::Equals(name, single_function_name)) {
@@ -2591,12 +2585,10 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           if (is_asm_js) {
             // For modules arising from asm.js, honor the names section.
             WireBytesRef func_name_ref = module_->LookupName(
-                module_object_->shared()->module_bytes(), function.func_index);
-            func_name =
-                WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-                    isolate_, handle(module_object_->shared(), isolate_),
-                    func_name_ref)
-                    .ToHandleChecked();
+                module_object_->module_bytes(), function.func_index);
+            func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+                            isolate_, module_object_, func_name_ref)
+                            .ToHandleChecked();
           }
           js_function = WasmExportedFunction::New(
               isolate_, instance, func_name, function.func_index,
@@ -2777,12 +2769,10 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             if (module_->origin == kAsmJsOrigin) {
               // For modules arising from asm.js, honor the names section.
               WireBytesRef func_name_ref = module_->LookupName(
-                  module_object_->shared()->module_bytes(), func_index);
-              func_name =
-                  WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-                      isolate_, handle(module_object_->shared(), isolate_),
-                      func_name_ref)
-                      .ToHandleChecked();
+                  module_object_->module_bytes(), func_index);
+              func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+                              isolate_, module_object_, func_name_ref)
+                              .ToHandleChecked();
             }
             Handle<WasmExportedFunction> js_function =
                 WasmExportedFunction::New(
@@ -2903,7 +2893,7 @@ void AsyncCompileJob::FinishCompile() {
   RecordStats(compiled_module_->GetNativeModule(), counters());
 
   // Create heap objects for script and module bytes to be stored in the
-  // shared module data. Asm.js is not compiled asynchronously.
+  // module object. Asm.js is not compiled asynchronously.
   Handle<Script> script = CreateWasmScript(isolate_, wire_bytes_);
   Handle<ByteArray> asm_js_offset_table;
   // TODO(wasm): Improve efficiency of storing module wire bytes.
@@ -2928,18 +2918,17 @@ void AsyncCompileJob::FinishCompile() {
       Managed<WasmModule>::FromUniquePtr(isolate_, module_size,
                                          std::move(module_));
 
-  // Create the shared module data.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
-  // only have one WasmSharedModuleData. Otherwise, we might only set
-  // breakpoints on a (potentially empty) subset of the instances.
-  Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate_, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
-      script, asm_js_offset_table);
-  compiled_module_->GetNativeModule()->SetSharedModuleData(shared);
-
   // Create the module object.
-  module_object_ = WasmModuleObject::New(isolate_, compiled_module_,
-                                         export_wrappers, shared);
+  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // only have one {WasmModuleObject}. Otherwise, we might only set
+  // breakpoints on a (potentially empty) subset of the instances.
+  // Create the module object.
+  module_object_ = WasmModuleObject::New(
+      isolate_, compiled_module_, export_wrappers, managed_module,
+      Handle<SeqOneByteString>::cast(module_bytes), script,
+      asm_js_offset_table);
+  compiled_module_->GetNativeModule()->SetModuleObject(module_object_);
+
   {
     DeferredHandleScope deferred(isolate_);
     module_object_ = handle(*module_object_, isolate_);
@@ -3265,7 +3254,7 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     TRACE_COMPILE("(6) Finish module...\n");
     job_->AsyncCompileSucceeded(job_->module_object_);
 
-    WasmModule* module = job_->module_object_->shared()->module();
+    WasmModule* module = job_->module_object_->module();
     size_t num_functions =
         module->functions.size() - module->num_imported_functions;
     if (job_->compiled_module_->GetNativeModule()
@@ -3745,7 +3734,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
       module_object->compiled_module()->GetNativeModule();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  WasmModule* module = native_module->shared_module_data()->module();
+  WasmModule* module = native_module->module_object()->module();
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Address call_target =

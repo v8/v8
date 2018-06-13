@@ -317,10 +317,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
-  // TODO(mstarzinger): The link to the {shared_module_data} is deprecated and
+  // TODO(mstarzinger): The link to the {WasmModuleObject} is deprecated and
   // all uses should vanish to make {NativeModule} independent of the Isolate.
-  WasmSharedModuleData* shared_module_data() const;
-  void SetSharedModuleData(Handle<WasmSharedModuleData>);
+  WasmModuleObject* module_object() const;
+  void SetModuleObject(Handle<WasmModuleObject>);
 
   uint32_t num_functions() const { return num_functions_; }
   uint32_t num_imported_functions() const { return num_imported_functions_; }
@@ -391,10 +391,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
-  // A phantom reference to the {WasmSharedModuleData}. It is intentionally not
-  // typed {Handle<WasmSharedModuleData>} because this location will be cleared
+  // A phantom reference to the {WasmModuleObject}. It is intentionally not
+  // typed {Handle<WasmModuleObject>} because this location will be cleared
   // when the phantom reference is cleared.
-  WasmSharedModuleData** shared_module_data_ = nullptr;
+  WasmModuleObject** module_object_ = nullptr;
 
   DisjointAllocationPool free_code_space_;
   DisjointAllocationPool allocated_code_space_;

@@ -103,7 +103,6 @@
 //         - ModuleInfo
 //         - ScriptContextTable
 //         - FixedArrayOfWeakCells
-//         - WasmSharedModuleData
 //         - WasmCompiledModule
 //       - FixedDoubleArray
 //     - Name
@@ -404,7 +403,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(WASM_COMPILED_MODULE_TYPE)                                  \
   V(WASM_DEBUG_INFO_TYPE)                                       \
   V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                           \
-  V(WASM_SHARED_MODULE_DATA_TYPE)                               \
                                                                 \
   V(CALLABLE_TASK_TYPE)                                         \
   V(CALLBACK_TASK_TYPE)                                         \
@@ -593,7 +591,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(WASM_DEBUG_INFO, WasmDebugInfo, wasm_debug_info)                         \
   V(WASM_EXPORTED_FUNCTION_DATA, WasmExportedFunctionData,                   \
     wasm_exported_function_data)                                             \
-  V(WASM_SHARED_MODULE_DATA, WasmSharedModuleData, wasm_shared_module_data)  \
   V(CALLABLE_TASK, CallableTask, callable_task)                              \
   V(CALLBACK_TASK, CallbackTask, callback_task)                              \
   V(PROMISE_FULFILL_REACTION_JOB_TASK, PromiseFulfillReactionJobTask,        \
@@ -792,7 +789,6 @@ enum InstanceType : uint16_t {
   WASM_COMPILED_MODULE_TYPE,
   WASM_DEBUG_INFO_TYPE,
   WASM_EXPORTED_FUNCTION_DATA_TYPE,
-  WASM_SHARED_MODULE_DATA_TYPE,
 
   CALLABLE_TASK_TYPE,  // FIRST_MICROTASK_TYPE
   CALLBACK_TASK_TYPE,

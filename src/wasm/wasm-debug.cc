@@ -70,9 +70,10 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
   DCHECK_LE(0, func_index);
   DCHECK_LE(0, local_index);
   if (!debug_info->has_locals_names()) {
-    Handle<WasmSharedModuleData> shared(
-        debug_info->wasm_instance()->module_object()->shared(), isolate);
-    Handle<FixedArray> locals_names = wasm::DecodeLocalNames(isolate, shared);
+    Handle<WasmModuleObject> module_object(
+        debug_info->wasm_instance()->module_object(), isolate);
+    Handle<FixedArray> locals_names =
+        wasm::DecodeLocalNames(isolate, module_object);
     debug_info->set_locals_names(*locals_names);
   }
 
@@ -133,7 +134,7 @@ class InterpreterHandle {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
     SeqOneByteString* bytes_str =
-        debug_info->wasm_instance()->module_object()->shared()->module_bytes();
+        debug_info->wasm_instance()->module_object()->module_bytes();
     return {bytes_str->GetChars(), static_cast<size_t>(bytes_str->length())};
   }
 
@@ -141,8 +142,7 @@ class InterpreterHandle {
   // TODO(wasm): properly handlify this constructor.
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : isolate_(isolate),
-        module_(
-            debug_info->wasm_instance()->module_object()->shared()->module()),
+        module_(debug_info->wasm_instance()->module_object()->module()),
         interpreter_(isolate, module_, GetBytes(debug_info),
                      handle(debug_info->wasm_instance(), isolate)) {}
 
@@ -306,11 +306,11 @@ class InterpreterHandle {
 
     // Check whether we hit a breakpoint.
     if (isolate_->debug()->break_points_active()) {
-      Handle<WasmSharedModuleData> shared(
-          GetInstanceObject()->module_object()->shared(), isolate_);
-      int position = GetTopPosition(shared);
+      Handle<WasmModuleObject> module_object(
+          GetInstanceObject()->module_object(), isolate_);
+      int position = GetTopPosition(module_object);
       Handle<FixedArray> breakpoints;
-      if (WasmSharedModuleData::CheckBreakPoints(isolate_, shared, position)
+      if (WasmModuleObject::CheckBreakPoints(isolate_, module_object, position)
               .ToHandle(&breakpoints)) {
         // We hit one or several breakpoints. Clear stepping, notify the
         // listeners and return.
@@ -343,13 +343,13 @@ class InterpreterHandle {
     isolate_->debug()->OnDebugBreak(isolate_->factory()->empty_fixed_array());
   }
 
-  int GetTopPosition(Handle<WasmSharedModuleData> shared) {
+  int GetTopPosition(Handle<WasmModuleObject> module_object) {
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
     DCHECK_LT(0, thread->GetFrameCount());
 
     auto frame = thread->GetFrame(thread->GetFrameCount() - 1);
-    return shared->GetFunctionOffset(frame->function()->func_index) +
+    return module_object->GetFunctionOffset(frame->function()->func_index) +
            frame->pc();
   }
 

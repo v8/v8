@@ -29,7 +29,7 @@ class ThreadLocalTop;
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
-class WasmSharedModuleData;
+class WasmModuleObject;
 
 class InnerPointerToCodeCache {
  public:
@@ -999,7 +999,7 @@ class WasmCompiledFrame final : public StandardFrame {
  private:
   friend class StackFrameIteratorBase;
   WasmCompiledModule* compiled_module() const;
-  WasmSharedModuleData* shared() const;
+  WasmModuleObject* module_object() const;
 };
 
 class WasmInterpreterEntryFrame final : public StandardFrame {
@@ -1039,7 +1039,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
  private:
   friend class StackFrameIteratorBase;
   WasmCompiledModule* compiled_module() const;
-  WasmSharedModuleData* shared() const;
+  WasmModuleObject* module_object() const;
 };
 
 class WasmToJsFrame : public StubFrame {

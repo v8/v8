@@ -539,7 +539,6 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
   if (script->type() == Script::TYPE_WASM) {
     return WasmModuleObject::cast(script->wasm_module_object())
-        ->shared()
         ->GetFunctionOffset(line);
   }
 

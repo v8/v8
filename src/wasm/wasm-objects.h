@@ -108,13 +108,27 @@ class WasmModuleObject : public JSObject {
   // Shared compiled code between multiple WebAssembly.Module objects.
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(shared, WasmSharedModuleData)
+  DECL_ACCESSORS(managed_module, Object)
+  wasm::WasmModule* module() const;
+  DECL_ACCESSORS(module_bytes, SeqOneByteString)
+  DECL_ACCESSORS(script, Script)
+  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
+  inline void reset_breakpoint_infos();
+
+  // Dispatched behavior.
+  DECL_PRINTER(WasmModuleObject)
+  DECL_VERIFIER(WasmModuleObject)
 
 // Layout description.
-#define WASM_MODULE_OBJECT_FIELDS(V)     \
-  V(kCompiledModuleOffset, kPointerSize) \
-  V(kExportWrappersOffset, kPointerSize) \
-  V(kSharedOffset, kPointerSize)         \
+#define WASM_MODULE_OBJECT_FIELDS(V)       \
+  V(kCompiledModuleOffset, kPointerSize)   \
+  V(kExportWrappersOffset, kPointerSize)   \
+  V(kManagedModuleOffset, kPointerSize)    \
+  V(kModuleBytesOffset, kPointerSize)      \
+  V(kScriptOffset, kPointerSize)           \
+  V(kAsmJsOffsetTableOffset, kPointerSize) \
+  V(kBreakPointInfosOffset, kPointerSize)  \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -123,7 +137,9 @@ class WasmModuleObject : public JSObject {
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-      Handle<FixedArray> export_wrappers, Handle<WasmSharedModuleData> shared);
+      Handle<FixedArray> export_wrappers, Handle<Foreign> managed_module,
+      Handle<SeqOneByteString> module_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
@@ -136,6 +152,86 @@ class WasmModuleObject : public JSObject {
 
   static void ValidateStateForTesting(Isolate* isolate,
                                       Handle<WasmModuleObject> module);
+
+  // Check whether this module was generated from asm.js source.
+  bool is_asm_js();
+
+  static void AddBreakpoint(Handle<WasmModuleObject>, int position,
+                            Handle<BreakPoint> break_point);
+
+  static void SetBreakpointsOnNewInstance(Handle<WasmModuleObject>,
+                                          Handle<WasmInstanceObject>);
+
+  // Get the module name, if set. Returns an empty handle otherwise.
+  static MaybeHandle<String> GetModuleNameOrNull(Isolate*,
+                                                 Handle<WasmModuleObject>);
+
+  // Get the function name of the function identified by the given index.
+  // Returns a null handle if the function is unnamed or the name is not a valid
+  // UTF-8 string.
+  static MaybeHandle<String> GetFunctionNameOrNull(Isolate*,
+                                                   Handle<WasmModuleObject>,
+                                                   uint32_t func_index);
+
+  // Get the function name of the function identified by the given index.
+  // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
+  // valid UTF-8 string.
+  static Handle<String> GetFunctionName(Isolate*, Handle<WasmModuleObject>,
+                                        uint32_t func_index);
+
+  // Get the raw bytes of the function name of the function identified by the
+  // given index.
+  // Meant to be used for debugging or frame printing.
+  // Does not allocate, hence gc-safe.
+  Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
+
+  // Return the byte offset of the function identified by the given index.
+  // The offset will be relative to the start of the module bytes.
+  // Returns -1 if the function index is invalid.
+  int GetFunctionOffset(uint32_t func_index);
+
+  // Returns the function containing the given byte offset.
+  // Returns -1 if the byte offset is not contained in any function of this
+  // module.
+  int GetContainingFunction(uint32_t byte_offset);
+
+  // Translate from byte offset in the module to function number and byte offset
+  // within that function, encoded as line and column in the position info.
+  // Returns true if the position is valid inside this module, false otherwise.
+  bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
+
+  // Get the source position from a given function index and byte offset,
+  // for either asm.js or pure WASM modules.
+  static int GetSourcePosition(Handle<WasmModuleObject>, uint32_t func_index,
+                               uint32_t byte_offset,
+                               bool is_at_number_conversion);
+
+  // Compute the disassembly of a wasm function.
+  // Returns the disassembly string and a list of <byte_offset, line, column>
+  // entries, mapping wasm byte offsets to line and column in the disassembly.
+  // The list is guaranteed to be ordered by the byte_offset.
+  // Returns an empty string and empty vector if the function index is invalid.
+  debug::WasmDisassembly DisassembleFunction(int func_index);
+
+  // Extract a portion of the wire bytes as UTF-8 string.
+  // Returns a null handle if the respective bytes do not form a valid UTF-8
+  // string.
+  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate* isolate, Handle<WasmModuleObject>, wasm::WireBytesRef ref);
+  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate* isolate, Handle<SeqOneByteString> module_bytes,
+      wasm::WireBytesRef ref);
+
+  // Get a list of all possible breakpoints within a given range of this module.
+  bool GetPossibleBreakpoints(const debug::Location& start,
+                              const debug::Location& end,
+                              std::vector<debug::BreakLocation>* locations);
+
+  // Return an empty handle if no breakpoint is hit at that location, or a
+  // FixedArray with all hit breakpoint objects.
+  static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*,
+                                                  Handle<WasmModuleObject>,
+                                                  int position);
 };
 
 // Representation of a WebAssembly.Table JavaScript-level object.
@@ -421,122 +517,6 @@ class WasmExportedFunctionData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 #undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
-};
-
-// Information shared by all WasmCompiledModule objects for the same module.
-class WasmSharedModuleData : public Struct {
- public:
-  DECL_ACCESSORS(managed_module, Object)
-  wasm::WasmModule* module() const;
-  DECL_ACCESSORS(module_bytes, SeqOneByteString)
-  DECL_ACCESSORS(script, Script)
-  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
-  DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
-  inline void reset_breakpoint_infos();
-
-  DECL_CAST(WasmSharedModuleData)
-
-  // Dispatched behavior.
-  DECL_PRINTER(WasmSharedModuleData)
-  DECL_VERIFIER(WasmSharedModuleData)
-
-// Layout description.
-#define WASM_SHARED_MODULE_DATA_FIELDS(V)  \
-  V(kManagedModuleOffset, kPointerSize)    \
-  V(kModuleBytesOffset, kPointerSize)      \
-  V(kScriptOffset, kPointerSize)           \
-  V(kAsmJsOffsetTableOffset, kPointerSize) \
-  V(kBreakPointInfosOffset, kPointerSize)  \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                WASM_SHARED_MODULE_DATA_FIELDS)
-#undef WASM_SHARED_MODULE_DATA_FIELDS
-
-  // Check whether this module was generated from asm.js source.
-  bool is_asm_js();
-
-  static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
-                            Handle<BreakPoint> break_point);
-
-  static void SetBreakpointsOnNewInstance(Handle<WasmSharedModuleData>,
-                                          Handle<WasmInstanceObject>);
-
-  static Handle<WasmSharedModuleData> New(
-      Isolate* isolate, Handle<Foreign> managed_module,
-      Handle<SeqOneByteString> module_bytes, Handle<Script> script,
-      Handle<ByteArray> asm_js_offset_table);
-
-  // Get the module name, if set. Returns an empty handle otherwise.
-  static MaybeHandle<String> GetModuleNameOrNull(Isolate*,
-                                                 Handle<WasmSharedModuleData>);
-
-  // Get the function name of the function identified by the given index.
-  // Returns a null handle if the function is unnamed or the name is not a valid
-  // UTF-8 string.
-  static MaybeHandle<String> GetFunctionNameOrNull(Isolate*,
-                                                   Handle<WasmSharedModuleData>,
-                                                   uint32_t func_index);
-
-  // Get the function name of the function identified by the given index.
-  // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
-  // valid UTF-8 string.
-  static Handle<String> GetFunctionName(Isolate*, Handle<WasmSharedModuleData>,
-                                        uint32_t func_index);
-
-  // Get the raw bytes of the function name of the function identified by the
-  // given index.
-  // Meant to be used for debugging or frame printing.
-  // Does not allocate, hence gc-safe.
-  Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
-
-  // Return the byte offset of the function identified by the given index.
-  // The offset will be relative to the start of the module bytes.
-  // Returns -1 if the function index is invalid.
-  int GetFunctionOffset(uint32_t func_index);
-
-  // Returns the function containing the given byte offset.
-  // Returns -1 if the byte offset is not contained in any function of this
-  // module.
-  int GetContainingFunction(uint32_t byte_offset);
-
-  // Translate from byte offset in the module to function number and byte offset
-  // within that function, encoded as line and column in the position info.
-  // Returns true if the position is valid inside this module, false otherwise.
-  bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
-
-  // Get the source position from a given function index and byte offset,
-  // for either asm.js or pure WASM modules.
-  static int GetSourcePosition(Handle<WasmSharedModuleData>,
-                               uint32_t func_index, uint32_t byte_offset,
-                               bool is_at_number_conversion);
-
-  // Compute the disassembly of a wasm function.
-  // Returns the disassembly string and a list of <byte_offset, line, column>
-  // entries, mapping wasm byte offsets to line and column in the disassembly.
-  // The list is guaranteed to be ordered by the byte_offset.
-  // Returns an empty string and empty vector if the function index is invalid.
-  debug::WasmDisassembly DisassembleFunction(int func_index);
-
-  // Extract a portion of the wire bytes as UTF-8 string.
-  // Returns a null handle if the respective bytes do not form a valid UTF-8
-  // string.
-  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Handle<WasmSharedModuleData>, wasm::WireBytesRef ref);
-  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Handle<SeqOneByteString> module_bytes,
-      wasm::WireBytesRef ref);
-
-  // Get a list of all possible breakpoints within a given range of this module.
-  bool GetPossibleBreakpoints(const debug::Location& start,
-                              const debug::Location& end,
-                              std::vector<debug::BreakLocation>* locations);
-
-  // Return an empty handle if no breakpoint is hit at that location, or a
-  // FixedArray with all hit breakpoint objects.
-  static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*,
-                                                  Handle<WasmSharedModuleData>,
-                                                  int position);
 };
 
 // This represents the set of wasm compiled functions, together

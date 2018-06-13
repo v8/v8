@@ -277,12 +277,10 @@ class WasmSerializationTest {
         v8::Utils::OpenHandle(*deserialized_module));
     {
       DisallowHeapAllocation assume_no_gc;
-      CHECK_EQ(
-          memcmp(
-              reinterpret_cast<const uint8_t*>(
-                  module_object->shared()->module_bytes()->GetCharsAddress()),
-              wire_bytes().first, wire_bytes().second),
-          0);
+      CHECK_EQ(memcmp(reinterpret_cast<const uint8_t*>(
+                          module_object->module_bytes()->GetCharsAddress()),
+                      wire_bytes().first, wire_bytes().second),
+               0);
     }
     Handle<WasmInstanceObject> instance =
         current_isolate()
@@ -343,10 +341,8 @@ class WasmSerializationTest {
       Handle<WasmCompiledModule> compiled_module(
           module_object->compiled_module());
       Handle<FixedArray> export_wrappers(module_object->export_wrappers());
-      Handle<WasmSharedModuleData> shared(module_object->shared());
-      Handle<JSObject> module_obj = WasmModuleObject::New(
-          serialization_isolate, compiled_module, export_wrappers, shared);
-      v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
+      v8::Local<v8::Object> v8_module_obj =
+          v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
       CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 
       v8::Local<v8::WasmCompiledModule> v8_compiled_module =
@@ -1180,7 +1176,7 @@ TEST(AtomicOpDisassembly) {
         isolate->wasm_engine()->SyncCompile(
             isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
 
-    module_object.ToHandleChecked()->shared()->DisassembleFunction(0);
+    module_object.ToHandleChecked()->DisassembleFunction(0);
   }
   Cleanup();
 }

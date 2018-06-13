@@ -173,9 +173,9 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
 }
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
-  Handle<WasmSharedModuleData> shared(
-      instance_object_->module_object()->shared(), isolate_);
-  Handle<SeqOneByteString> old_bytes(shared->module_bytes(), isolate_);
+  Handle<WasmModuleObject> module_object(instance_object_->module_object(),
+                                         isolate_);
+  Handle<SeqOneByteString> old_bytes(module_object->module_bytes(), isolate_);
   uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
   // Avoid placing strings at offset 0, this might be interpreted as "not
   // set", e.g. for function names.
@@ -185,7 +185,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
   Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
       isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
-  shared->set_module_bytes(*new_bytes_str);
+  module_object->set_module_bytes(*new_bytes_str);
   return bytes_offset;
 }
 
@@ -217,16 +217,14 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
-  Handle<WasmSharedModuleData> shared_module_data =
-      WasmSharedModuleData::New(isolate_, managed_module, empty_string, script,
-                                Handle<ByteArray>::null());
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   ModuleEnv env = CreateModuleEnv();
   Handle<WasmCompiledModule> compiled_module =
       WasmCompiledModule::New(isolate_, test_module_ptr_, env);
-  compiled_module->GetNativeModule()->SetSharedModuleData(shared_module_data);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate_, compiled_module, export_wrappers, shared_module_data);
+      isolate_, compiled_module, export_wrappers, managed_module, empty_string,
+      script, Handle<ByteArray>::null());
+  compiled_module->GetNativeModule()->SetModuleObject(module_object);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
@@ -412,8 +410,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       builder_->instance_object()->compiled_module(), isolate());
   NativeModule* native_module = compiled_module->GetNativeModule();
   Handle<SeqOneByteString> wire_bytes(
-      builder_->instance_object()->module_object()->shared()->module_bytes(),
-      isolate());
+      builder_->instance_object()->module_object()->module_bytes(), isolate());
 
   ModuleEnv module_env = builder_->CreateModuleEnv();
   ErrorThrower thrower(isolate(), "WasmFunctionCompiler::Build");

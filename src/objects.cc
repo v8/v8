@@ -13407,7 +13407,6 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   if (type() == Script::TYPE_WASM) {
     DCHECK_LE(0, position);
     return WasmModuleObject::cast(wasm_module_object())
-        ->shared()
         ->GetPositionInfo(static_cast<uint32_t>(position), info);
   }
 

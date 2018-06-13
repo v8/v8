@@ -22,10 +22,10 @@ namespace wasm {
 namespace {
 
 void CheckLocations(
-    WasmSharedModuleData* shared, debug::Location start, debug::Location end,
+    WasmModuleObject* module_object, debug::Location start, debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
-  bool success = shared->GetPossibleBreakpoints(start, end, &locations);
+  bool success = module_object->GetPossibleBreakpoints(start, end, &locations);
   CHECK(success);
 
   printf("got %d locations: ", static_cast<int>(locations.size()));
@@ -45,10 +45,10 @@ void CheckLocations(
   }
 }
 
-void CheckLocationsFail(WasmSharedModuleData* shared, debug::Location start,
+void CheckLocationsFail(WasmModuleObject* module_object, debug::Location start,
                         debug::Location end) {
   std::vector<debug::BreakLocation> locations;
-  bool success = shared->GetPossibleBreakpoints(start, end, &locations);
+  bool success = module_object->GetPossibleBreakpoints(start, end, &locations);
   CHECK(!success);
 }
 
@@ -247,25 +247,25 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
   WasmInstanceObject* instance = *runner.builder().instance_object();
-  WasmSharedModuleData* shared = instance->module_object()->shared();
+  WasmModuleObject* module_object = instance->module_object();
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
-  CheckLocations(shared, {0, 0}, {1, 0},
+  CheckLocations(module_object, {0, 0}, {1, 0},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
   // Check a range ending at an instruction.
-  CheckLocations(shared, {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(module_object, {0, 2}, {0, 4}, {{0, 2}});
   // Check a range ending one behind an instruction.
-  CheckLocations(shared, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(module_object, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
   // Check a range starting at an instruction.
-  CheckLocations(shared, {0, 7}, {0, 8}, {{0, 7}});
+  CheckLocations(module_object, {0, 7}, {0, 8}, {{0, 7}});
   // Check from an instruction to beginning of next function.
-  CheckLocations(shared, {0, 7}, {1, 0}, {{0, 7}});
+  CheckLocations(module_object, {0, 7}, {1, 0}, {{0, 7}});
   // Check from end of one function (no valid instruction position) to beginning
   // of next function. Must be empty, but not fail.
-  CheckLocations(shared, {0, 8}, {1, 0}, {});
+  CheckLocations(module_object, {0, 8}, {1, 0}, {});
   // Check from one after the end of the function. Must fail.
-  CheckLocationsFail(shared, {0, 9}, {1, 0});
+  CheckLocationsFail(module_object, {0, 9}, {1, 0});
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {

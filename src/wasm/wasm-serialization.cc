@@ -590,16 +590,13 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   DCHECK(module_bytes->IsSeqOneByteString());
   // The {managed_module} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims it.
-  size_t module_size = EstimateWasmModuleSize(decode_result.val.get());
+  WasmModule* module = decode_result.val.get();
+  size_t module_size = EstimateWasmModuleSize(module);
   Handle<Managed<WasmModule>> managed_module =
       Managed<WasmModule>::FromUniquePtr(isolate, module_size,
                                          std::move(decode_result.val));
   Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
-  Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate, managed_module, Handle<SeqOneByteString>::cast(module_bytes),
-      script, Handle<ByteArray>::null());
-  int export_wrappers_size =
-      static_cast<int>(shared->module()->num_exported_functions);
+  int export_wrappers_size = static_cast<int>(module->num_exported_functions);
   Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
       static_cast<int>(export_wrappers_size), TENURED);
 
@@ -607,12 +604,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // handler was used or not when serializing.
   UseTrapHandler use_trap_handler =
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
-  wasm::ModuleEnv env(shared->module(), use_trap_handler,
+  wasm::ModuleEnv env(module, use_trap_handler,
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, shared->module(), env);
+      WasmCompiledModule::New(isolate, module, env);
   NativeModule* native_module = compiled_module->GetNativeModule();
-  native_module->SetSharedModuleData(shared);
   if (FLAG_wasm_lazy_compilation) {
     native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
   }
@@ -621,8 +617,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
 
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, compiled_module, export_wrappers, shared);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, compiled_module, export_wrappers, managed_module,
+      Handle<SeqOneByteString>::cast(module_bytes), script,
+      Handle<ByteArray>::null());
+  native_module->SetModuleObject(module_object);
 
   // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
   // requires unlocking the code space here. This should eventually be moved

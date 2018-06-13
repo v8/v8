@@ -472,7 +472,7 @@ class FrameArrayBuilder {
         }
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = 0;
-        if (instance->module_object()->shared()->is_asm_js()) {
+        if (instance->module_object()->is_asm_js()) {
           flags |= FrameArray::kIsAsmJsWasmFrame;
           if (WasmCompiledFrame::cast(frame)->at_to_number_conversion()) {
             flags |= FrameArray::kAsmJsAtNumberConversion;
@@ -491,7 +491,7 @@ class FrameArrayBuilder {
         const auto& summary = summ.AsWasmInterpreted();
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = FrameArray::kIsWasmInterpretedFrame;
-        DCHECK(!instance->module_object()->shared()->is_asm_js());
+        DCHECK(!instance->module_object()->is_asm_js());
         elements_ = FrameArray::AppendWasmFrame(elements_, instance,
                                                 summary.function_index(), {},
                                                 summary.byte_offset(), flags);
@@ -804,10 +804,10 @@ class CaptureStackTraceHelper {
       const FrameSummary::WasmFrameSummary& summ) {
     Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
 
-    Handle<WasmSharedModuleData> shared(
-        summ.wasm_instance()->module_object()->shared(), isolate_);
-    Handle<String> name = WasmSharedModuleData::GetFunctionName(
-        isolate_, shared, summ.function_index());
+    Handle<WasmModuleObject> module_object(
+        summ.wasm_instance()->module_object(), isolate_);
+    Handle<String> name = WasmModuleObject::GetFunctionName(
+        isolate_, module_object, summ.function_index());
     info->set_function_name(*name);
     // Encode the function index as line number (1-based).
     info->set_line_number(summ.function_index() + 1);
@@ -1750,10 +1750,10 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
-      int pos = WasmSharedModuleData::GetSourcePosition(
-          handle(instance->module_object()->shared(), this), func_index,
-          byte_offset, is_at_number_conversion);
-      Handle<Script> script(instance->module_object()->shared()->script());
+      int pos = WasmModuleObject::GetSourcePosition(
+          handle(instance->module_object(), this), func_index, byte_offset,
+          is_at_number_conversion);
+      Handle<Script> script(instance->module_object()->script());
 
       *target = MessageLocation(script, pos, pos + 1);
       return true;

@@ -46,9 +46,9 @@ class PatchDirectCallsHelper {
   PatchDirectCallsHelper(NativeModule* native_module, const WasmCode* code)
       : source_pos_it(code->source_positions()), decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
-    WasmSharedModuleData* shared = native_module->shared_module_data();
-    func_bytes = shared->module_bytes()->GetChars() +
-                 shared->module()->functions[func_index].code.offset();
+    WasmModuleObject* module_object = native_module->module_object();
+    func_bytes = module_object->module_bytes()->GetChars() +
+                 module_object->module()->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;
@@ -72,9 +72,9 @@ bool CodeSpecialization::ApplyToWholeModule(
     NativeModule* native_module, Handle<WasmModuleObject> module_object,
     ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmSharedModuleData* shared = module_object->shared();
-  WasmModule* module = shared->module();
-  std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
+  WasmModule* module = module_object->module();
+  std::vector<WasmFunction>* wasm_functions =
+      &module_object->module()->functions;
   FixedArray* export_wrappers = module_object->export_wrappers();
   DCHECK_EQ(export_wrappers->length(), module->num_exported_functions);
 

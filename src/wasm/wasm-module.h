@@ -26,7 +26,6 @@ class WasmGlobalObject;
 class WasmInstanceObject;
 class WasmMemoryObject;
 class WasmModuleObject;
-class WasmSharedModuleData;
 class WasmTableObject;
 
 namespace compiler {
@@ -262,7 +261,7 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
 // Decode local variable names from the names section. Return FixedArray of
 // FixedArray of <undefined|String>. The outer fixed array is indexed by the
 // function index, the inner one by the local index.
-Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmSharedModuleData>);
+Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmModuleObject>);
 
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.

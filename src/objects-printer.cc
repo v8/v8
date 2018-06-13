@@ -1767,9 +1767,9 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
   os << "\n";
 }
 
-void WasmSharedModuleData::WasmSharedModuleDataPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WasmSharedModuleData");
+void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "WasmModuleObject");
+  JSObjectPrintBody(os, this);
   os << "\n - module: " << module();
   os << "\n";
 }
