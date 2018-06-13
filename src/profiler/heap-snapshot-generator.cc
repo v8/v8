@@ -785,16 +785,12 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
   }
 }
 
-
-int V8HeapExplorer::EstimateObjectsCount(HeapIterator* iterator) {
+int V8HeapExplorer::EstimateObjectsCount() {
+  HeapIterator it(heap_, HeapIterator::kFilterUnreachable);
   int objects_count = 0;
-  for (HeapObject* obj = iterator->next(); obj != nullptr;
-       obj = iterator->next()) {
-    objects_count++;
-  }
+  while (it.next()) ++objects_count;
   return objects_count;
 }
-
 
 class IndexedReferencesExtractor : public ObjectVisitor {
  public:
@@ -1551,9 +1547,7 @@ class RootsReferencesExtractor : public RootVisitor {
   bool visiting_weak_roots_;
 };
 
-
-bool V8HeapExplorer::IterateAndExtractReferences(
-    SnapshotFiller* filler) {
+bool V8HeapExplorer::IterateAndExtractReferences(SnapshotFiller* filler) {
   filler_ = filler;
 
   // Create references to the synthetic roots.
@@ -1603,13 +1597,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     if (!progress_->ProgressReport(false)) interrupted = true;
   }
 
-  if (interrupted) {
-    filler_ = nullptr;
-    return false;
-  }
-
   filler_ = nullptr;
-  return progress_->ProgressReport(true);
+  return interrupted ? false : progress_->ProgressReport(true);
 }
 
 
@@ -2419,7 +2408,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   }
 #endif
 
-  SetProgressTotal(2);  // 2 passes.
+  InitProgressCounter();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -2439,11 +2428,9 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   return true;
 }
 
-
 void HeapSnapshotGenerator::ProgressStep() {
   ++progress_counter_;
 }
-
 
 bool HeapSnapshotGenerator::ProgressReport(bool force) {
   const int kProgressReportGranularity = 10000;
@@ -2455,27 +2442,22 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
   return true;
 }
 
-
-void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
+void HeapSnapshotGenerator::InitProgressCounter() {
   if (control_ == nullptr) return;
-  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
   // The +1 ensures that intermediate ProgressReport calls will never signal
   // that the work is finished (i.e. progress_counter_ == progress_total_).
   // Only the forced ProgressReport() at the end of GenerateSnapshot()
   // should signal that the work is finished because signalling finished twice
   // breaks the DevTools frontend.
-  progress_total_ =
-      iterations_count * (v8_heap_explorer_.EstimateObjectsCount(&iterator) +
-                          dom_explorer_.EstimateObjectsCount()) +
-      1;
+  progress_total_ = v8_heap_explorer_.EstimateObjectsCount() +
+                    dom_explorer_.EstimateObjectsCount() + 1;
   progress_counter_ = 0;
 }
 
-
 bool HeapSnapshotGenerator::FillReferences() {
   SnapshotFiller filler(snapshot_, &entries_);
-  return v8_heap_explorer_.IterateAndExtractReferences(&filler)
-      && dom_explorer_.IterateAndExtractReferences(&filler);
+  return v8_heap_explorer_.IterateAndExtractReferences(&filler) &&
+         dom_explorer_.IterateAndExtractReferences(&filler);
 }
 
 
