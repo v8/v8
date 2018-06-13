@@ -1138,6 +1138,11 @@ class WasmDecoder : public Decoder {
       case kSimdPrefix: {
         opcode = static_cast<WasmOpcode>(opcode << 8 | *(pc + 1));
         switch (opcode) {
+          case kExprI32AtomicStore:
+          case kExprI32AtomicStore8U:
+          case kExprI32AtomicStore16U:
+          case kExprS128StoreMem:
+            return {2, 0};
           FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(DECLARE_OPCODE_CASE)
             return {1, 1};
           FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(DECLARE_OPCODE_CASE)
