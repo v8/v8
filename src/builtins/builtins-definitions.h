@@ -235,7 +235,7 @@ namespace internal {
   TFJ(ReturnReceiver, 0)                                                       \
                                                                                \
   /* Array */                                                                  \
-  ASM(ArrayConstructor)                                                        \
+  TFC(ArrayConstructor, ConstructTrampoline, 1)                                \
   ASM(ArrayConstructorImpl)                                                    \
   TFC(ArrayNoArgumentConstructor_PackedSmi_DontOverride,                       \
       ArrayNoArgumentConstructor, 1)                                           \

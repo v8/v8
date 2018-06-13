@@ -1718,40 +1718,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax : argc
-  //  -- edi    : array function
-  //  -- esp[0] : return address
-  //  -- esp[4] : last argument
-  // -----------------------------------
-  Label generic_array_code;
-
-  if (FLAG_debug_code) {
-    // Initial map for the builtin Array function should be a map.
-    __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a nullptr and a Smi.
-    __ test(ebx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, AbortReason::kUnexpectedInitialMapForArrayFunction);
-    __ CmpObjectType(ebx, MAP_TYPE, ecx);
-    __ Assert(equal, AbortReason::kUnexpectedInitialMapForArrayFunction);
-  }
-
-  // ebx is the AllocationSite - here undefined.
-  __ mov(ebx, masm->isolate()->factory()->undefined_value());
-  // If edx (new target) is undefined, then this is the 'Call' case, so move
-  // edi (the constructor) to rdx.
-  Label call;
-  __ cmp(edx, ebx);
-  __ j(not_equal, &call);
-  __ mov(edx, edi);
-
-  // Run the native code for the Array function called as a normal function.
-  __ bind(&call);
-  Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ push(ebp);
   __ mov(ebp, esp);

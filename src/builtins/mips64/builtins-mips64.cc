@@ -111,40 +111,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0     : number of arguments
-  //  -- a1     : array function
-  //  -- ra     : return address
-  //  -- sp[...]: constructor arguments
-  // -----------------------------------
-  Label generic_array_code;
-
-  if (FLAG_debug_code) {
-    // Initial map for the builtin Array functions should be maps.
-    __ Ld(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ SmiTst(a2, a4);
-    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction1, a4,
-              Operand(zero_reg));
-    __ GetObjectType(a2, t0, a4);
-    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction2, a4,
-              Operand(MAP_TYPE));
-  }
-
-  // a2 is the AllocationSite - here undefined.
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-  // If a3 (new target) is undefined, then this is the 'Call' case, so move
-  // a1 (the constructor) to a3.
-  Label call;
-  __ Branch(&call, ne, a3, Operand(a2));
-  __ mov(a3, a1);
-
-  // Run the native code for the Array function called as a normal function.
-  __ bind(&call);
-  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl),
-          RelocInfo::CODE_TARGET);
-}
-
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------

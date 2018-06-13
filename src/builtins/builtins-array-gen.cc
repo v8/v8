@@ -4011,6 +4011,30 @@ TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
   { ThrowTypeError(context, MessageTemplate::kMapperFunctionNonCallable); }
 }
 
+TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
+  // This is a trampoline to ArrayConstructorImpl which just adds
+  // allocation_site parameter value and sets new_target if necessary.
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kFunction));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+
+  // If new_target is undefined, then this is the 'Call' case, so set new_target
+  // to function.
+  new_target =
+      SelectConstant<Object>(IsUndefined(new_target), function, new_target);
+
+  // Run the native code for the Array function called as a normal function.
+  TNode<Code> code =
+      HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl));
+  ArrayConstructorDescriptor descriptor(isolate());
+  TNode<Object> no_allocation_site = UndefinedConstant();
+  // TODO(ishell): Use TailCallBuiltin once ArrayConstructorImpl is ported.
+  TailCallStub(descriptor, code, context, function, new_target, argc,
+               no_allocation_site);
+}
+
 void ArrayBuiltinsAssembler::GenerateConstructor(
     Node* context, Node* array_function, Node* array_map, Node* array_size,
     Node* allocation_site, ElementsKind elements_kind,
