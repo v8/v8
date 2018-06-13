@@ -1757,25 +1757,13 @@ class Assembler : public AssemblerBase {
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
   void ConstantPoolAddEntry(int position, Double value);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   friend class RelocInfo;
   friend class BlockConstPoolScope;
   friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
   friend class UseScratchRegisterScope;
-
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
-  void RequestHeapObject(HeapObjectRequest request);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 class EnsureSpace BASE_EMBEDDED {

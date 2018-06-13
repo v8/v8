@@ -1593,22 +1593,13 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   void bind_to(Label* L, int pos);
   void next(Label* L);
 
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
   friend class RegExpMacroAssemblerS390;
   friend class RelocInfo;
+  friend class EnsureSpace;
 
   std::vector<Handle<Code>> code_targets_;
-  friend class EnsureSpace;
 };
 
 class EnsureSpace BASE_EMBEDDED {

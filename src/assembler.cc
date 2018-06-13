@@ -902,7 +902,7 @@ void Assembler::DataAlign(int m) {
   }
 }
 
-void Assembler::RequestHeapObject(HeapObjectRequest request) {
+void AssemblerBase::RequestHeapObject(HeapObjectRequest request) {
   request.set_offset(pc_offset());
   heap_object_requests_.push_front(request);
 }

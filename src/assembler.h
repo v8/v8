@@ -87,6 +87,46 @@ class JumpOptimizationInfo {
   std::vector<uint32_t> farjmp_bitmap_;
 };
 
+class HeapObjectRequest {
+ public:
+  explicit HeapObjectRequest(double heap_number, int offset = -1);
+  explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
+
+  enum Kind { kHeapNumber, kCodeStub };
+  Kind kind() const { return kind_; }
+
+  double heap_number() const {
+    DCHECK_EQ(kind(), kHeapNumber);
+    return value_.heap_number;
+  }
+
+  CodeStub* code_stub() const {
+    DCHECK_EQ(kind(), kCodeStub);
+    return value_.code_stub;
+  }
+
+  // The code buffer offset at the time of the request.
+  int offset() const {
+    DCHECK_GE(offset_, 0);
+    return offset_;
+  }
+  void set_offset(int offset) {
+    DCHECK_LT(offset_, 0);
+    offset_ = offset;
+    DCHECK_GE(offset_, 0);
+  }
+
+ private:
+  Kind kind_;
+
+  union {
+    double heap_number;
+    CodeStub* code_stub;
+  } value_;
+
+  int offset_;
+};
+
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
@@ -172,6 +212,10 @@ class AssemblerBase : public Malloced {
   byte* buffer_;
   int buffer_size_;
   bool own_buffer_;
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
+  // The program counter, which points into the buffer above and moves forward.
+  // TODO(jkummerow): This should probably have type {Address}.
+  byte* pc_;
 
   void set_constant_pool_available(bool available) {
     if (FLAG_enable_embedded_constant_pool) {
@@ -182,9 +226,12 @@ class AssemblerBase : public Malloced {
     }
   }
 
-  // The program counter, which points into the buffer above and moves forward.
-  // TODO(jkummerow): This should probably have type {Address}.
-  byte* pc_;
+  // {RequestHeapObject} records the need for a future heap number allocation or
+  // code stub generation. After code assembly, each platform's
+  // {Assembler::AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request).
+  void RequestHeapObject(HeapObjectRequest request);
 
  private:
   IsolateData isolate_data_;
@@ -883,46 +930,6 @@ class ConstantPoolBuilder BASE_EMBEDDED {
 
   Label emitted_label_;  // Records pc_offset of emitted pool
   PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
-};
-
-class HeapObjectRequest {
- public:
-  explicit HeapObjectRequest(double heap_number, int offset = -1);
-  explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
-
-  enum Kind { kHeapNumber, kCodeStub };
-  Kind kind() const { return kind_; }
-
-  double heap_number() const {
-    DCHECK_EQ(kind(), kHeapNumber);
-    return value_.heap_number;
-  }
-
-  CodeStub* code_stub() const {
-    DCHECK_EQ(kind(), kCodeStub);
-    return value_.code_stub;
-  }
-
-  // The code buffer offset at the time of the request.
-  int offset() const {
-    DCHECK_GE(offset_, 0);
-    return offset_;
-  }
-  void set_offset(int offset) {
-    DCHECK_LT(offset_, 0);
-    offset_ = offset;
-    DCHECK_GE(offset_, 0);
-  }
-
- private:
-  Kind kind_;
-
-  union {
-    double heap_number;
-    CodeStub* code_stub;
-  } value_;
-
-  int offset_;
 };
 
 // Base type for CPU Registers.
