@@ -1771,7 +1771,8 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
 
 void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        Register result,
-                                       DwVfpRegister double_input) {
+                                       DwVfpRegister double_input,
+                                       StubCallMode stub_mode) {
   Label done;
 
   TryInlineTruncateDoubleToI(result, double_input, &done);
@@ -1781,7 +1782,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   sub(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   vstr(double_input, MemOperand(sp, 0));
 
-  Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+  if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
+    Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+  } else {
+    Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+  }
   ldr(result, MemOperand(sp, 0));
 
   add(sp, sp, Operand(kDoubleSize));

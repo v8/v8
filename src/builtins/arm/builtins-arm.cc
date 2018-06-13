@@ -2515,6 +2515,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label negate, done;
 
+  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
   UseScratchRegisterScope temps(masm);
   Register result_reg = r7;
   Register double_low = GetRegisterThatIsNotOneOf(result_reg);

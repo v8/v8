@@ -206,17 +206,24 @@ class OutOfLineLoadFloat64NaN final : public OutOfLineCode {
 class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
-                             XMMRegister input)
+                             XMMRegister input, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         result_(result),
         input_(input),
+        stub_mode_(stub_mode),
         isolate_(gen->isolate()),
         zone_(gen->zone()) {}
 
   void Generate() final {
     __ sub(esp, Immediate(kDoubleSize));
     __ movsd(MemOperand(esp, 0), input_);
-    __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched at relocation.
+      __ wasm_call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+    } else {
+      __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
+    }
     __ mov(result_, MemOperand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
   }
@@ -224,6 +231,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  private:
   Register const result_;
   XMMRegister const input_;
+  StubCallMode stub_mode_;
   Isolate* isolate_;
   Zone* zone_;
 };
@@ -830,7 +838,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
-      auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
+      auto ool = new (zone()) OutOfLineTruncateDoubleToI(
+          this, result, input, DetermineStubCallMode());
       __ cvttsd2si(result, Operand(input));
       __ cmp(result, 1);
       __ j(overflow, ool->entry());

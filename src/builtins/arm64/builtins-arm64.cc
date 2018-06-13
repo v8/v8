@@ -3035,6 +3035,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   DCHECK(result.Is64Bits());
 
+  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
   UseScratchRegisterScope temps(masm);
   Register scratch1 = temps.AcquireX();
   Register scratch2 = temps.AcquireX();

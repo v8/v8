@@ -176,6 +176,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   // adjusted stack pointer is returned in |slot|.
   bool GetSlotAboveSPBeforeTailCall(Instruction* instr, int* slot);
 
+  // Determines how to call helper stubs depending on the code kind.
+  StubCallMode DetermineStubCallMode() const;
+
   CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
                                         SourcePosition pos);
 

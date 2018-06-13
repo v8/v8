@@ -532,7 +532,7 @@ class TurboAssembler : public TurboAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DwVfpRegister double_input);
+                         DwVfpRegister double_input, StubCallMode stub_mode);
 
   // EABI variant for double arguments in use.
   bool use_eabi_hardfloat() {

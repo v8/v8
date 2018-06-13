@@ -721,6 +721,14 @@ bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
   }
 }
 
+StubCallMode CodeGenerator::DetermineStubCallMode() const {
+  Code::Kind code_kind = info()->code_kind();
+  return (code_kind == Code::WASM_FUNCTION ||
+          code_kind == Code::WASM_TO_JS_FUNCTION)
+             ? StubCallMode::kCallWasmRuntimeStub
+             : StubCallMode::kCallOnHeapBuiltin;
+}
+
 void CodeGenerator::AssembleGaps(Instruction* instr) {
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {

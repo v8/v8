@@ -228,13 +228,18 @@ void WasmCode::Validate() const {
         CHECK(builtin_index == Builtins::kAllocateHeapNumber ||
               builtin_index == Builtins::kArgumentsAdaptorTrampoline ||
               builtin_index == Builtins::kCall_ReceiverIsAny ||
-              builtin_index == Builtins::kDoubleToI ||
               builtin_index == Builtins::kToNumber);
+        break;
+      }
+      case RelocInfo::WASM_STUB_CALL: {
+        Address target = it.rinfo()->wasm_stub_call_address();
+        WasmCode* code = native_module_->Lookup(target);
+        CHECK(code && code->kind() == WasmCode::kRuntimeStub);
+        CHECK_EQ(target, code->instruction_start());
         break;
       }
       case RelocInfo::WASM_CODE_TABLE_ENTRY:
       case RelocInfo::WASM_CALL:
-      case RelocInfo::WASM_STUB_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE:
@@ -510,12 +515,21 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instruction_start() - code->InstructionStart();
-  int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask;
-  RelocIterator orig_it(*code, mask);
+  int mode_mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
+                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+  RelocIterator orig_it(*code, mode_mask);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
-                        ret->constant_pool(), mask);
+                        ret->constant_pool(), mode_mask);
        !it.done(); it.next(), orig_it.next()) {
-    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (RelocInfo::IsWasmStubCall(mode)) {
+      uint32_t stub_call_tag = it.rinfo()->wasm_stub_call_tag();
+      DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
+      WasmCode* code =
+          runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
+      it.rinfo()->set_wasm_stub_call_address(code->instruction_start(),
+                                             SKIP_ICACHE_FLUSH);
+    } else if (RelocInfo::IsCodeTarget(mode)) {
       Code* call_target =
           Code::GetCodeFromTargetAddress(orig_it.rinfo()->target_address());
       it.rinfo()->set_target_address(

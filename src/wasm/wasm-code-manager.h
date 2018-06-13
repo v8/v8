@@ -33,7 +33,8 @@ struct WasmModule;
 // elements of the list coincide with {compiler::TrapId}, order matters.
 #define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
   FOREACH_WASM_TRAPREASON(VTRAP)         \
-  V(WasmStackGuard)
+  V(WasmStackGuard)                      \
+  V(DoubleToI)
 
 struct AddressRange {
   Address start;
@@ -301,9 +302,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   bool SetExecutable(bool executable);
 
-  // TODO(7424): Only used for debugging in {WasmCode::Validate}. Remove.
-  Code* ReverseTrampolineLookup(Address target);
-
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
@@ -330,6 +328,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   ~NativeModule();
 
  private:
+  friend class WasmCode;
   friend class WasmCodeManager;
   friend class NativeModuleSerializer;
   friend class NativeModuleDeserializer;
@@ -361,6 +360,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
+  // TODO(7424): Only used for debugging in {WasmCode::Validate}. Remove.
+  Code* ReverseTrampolineLookup(Address target);
 
   void set_code(uint32_t index, WasmCode* code) {
     DCHECK_LT(index, num_functions_);
