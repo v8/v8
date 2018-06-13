@@ -2415,7 +2415,7 @@ bool SemiSpace::Commit() {
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
             Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
-      RewindPages(pages_added);
+      if (pages_added) RewindPages(pages_added);
       return false;
     }
     memory_chunk_list_.PushBack(new_page);
@@ -2472,7 +2472,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
             Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
-      RewindPages(pages_added);
+      if (pages_added) RewindPages(pages_added);
       return false;
     }
     memory_chunk_list_.PushBack(new_page);
