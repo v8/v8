@@ -2369,8 +2369,21 @@ void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
   }
 }
 
+void Scope::AllocateDebuggerScopeInfos(Isolate* isolate,
+                                       MaybeHandle<ScopeInfo> outer_scope) {
+  if (scope_info_.is_null()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+  }
+  MaybeHandle<ScopeInfo> outer = NeedsContext() ? scope_info_ : outer_scope;
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (scope->is_function_scope()) continue;
+    scope->AllocateDebuggerScopeInfos(isolate, outer);
+  }
+}
+
 // static
-void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
+void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate,
+                                          AnalyzeMode mode) {
   DeclarationScope* scope = info->literal()->scope();
   if (!scope->scope_info_.is_null()) return;  // Allocated by outer function.
 
@@ -2380,6 +2393,9 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   }
 
   scope->AllocateScopeInfosRecursively(isolate, outer_scope);
+  if (mode == AnalyzeMode::kDebugger) {
+    scope->AllocateDebuggerScopeInfos(isolate, outer_scope);
+  }
 
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure

@@ -288,7 +288,8 @@ void UnoptimizedCompileJob::FinalizeOnMainThread(Isolate* isolate) {
     // Internalize ast values onto the heap.
     parse_info_->ast_value_factory()->Internalize(isolate);
     // Allocate scope infos for the literal.
-    DeclarationScope::AllocateScopeInfos(parse_info_.get(), isolate);
+    DeclarationScope::AllocateScopeInfos(parse_info_.get(), isolate,
+                                         AnalyzeMode::kRegular);
     if (compilation_job_->state() == CompilationJob::State::kFailed ||
         !Compiler::FinalizeCompilationJob(compilation_job_.release(), shared_,
                                           isolate)) {
