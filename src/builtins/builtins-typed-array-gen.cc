@@ -1365,15 +1365,24 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
     TNode<IntPtrT> count_bytes = IntPtrMul(SmiToIntPtr(count), source_el_size);
 
 #ifdef DEBUG
-    TNode<IntPtrT> target_byte_length =
-        LoadAndUntagObjectField(result_array, JSTypedArray::kByteLengthOffset);
+    Label done(this), to_intptr_failed(this, Label::kDeferred);
+    TNode<IntPtrT> target_byte_length = TryToIntptr(
+        LoadObjectField<Number>(result_array, JSTypedArray::kByteLengthOffset),
+        &to_intptr_failed);
     CSA_ASSERT(this, IntPtrLessThanOrEqual(count_bytes, target_byte_length));
 
-    TNode<IntPtrT> source_byte_length =
-        LoadAndUntagObjectField(source, JSTypedArray::kByteLengthOffset);
+    TNode<IntPtrT> source_byte_length = TryToIntptr(
+        LoadObjectField<Number>(source, JSTypedArray::kByteLengthOffset),
+        &to_intptr_failed);
     TNode<IntPtrT> source_size_in_bytes =
         IntPtrSub(source_byte_length, source_start_bytes);
     CSA_ASSERT(this, IntPtrLessThanOrEqual(count_bytes, source_size_in_bytes));
+    Goto(&done);
+
+    BIND(&to_intptr_failed);
+    Unreachable();
+
+    BIND(&done);
 #endif  // DEBUG
 
     CallCMemmove(target_data_ptr, source_start, count_bytes);
