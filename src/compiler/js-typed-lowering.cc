@@ -360,6 +360,7 @@ class JSBinopReduction final {
   SimplifiedOperatorBuilder* simplified() { return lowering_->simplified(); }
   Graph* graph() const { return lowering_->graph(); }
   JSGraph* jsgraph() { return lowering_->jsgraph(); }
+  Isolate* isolate() { return jsgraph()->isolate(); }
   JSOperatorBuilder* javascript() { return lowering_->javascript(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   Zone* zone() const { return graph()->zone(); }
@@ -1673,7 +1674,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     if (is_sloppy(shared->language_mode()) && !shared->native() &&
         !receiver_type.Is(Type::Receiver())) {
       Node* global_proxy =
-          jsgraph()->HeapConstant(handle(function->global_proxy()));
+          jsgraph()->HeapConstant(handle(function->global_proxy(), isolate()));
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);

@@ -711,7 +711,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
   std::unique_ptr<OptimizedCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(function, has_script));
+      compiler::Pipeline::NewCompilationJob(isolate, function, has_script));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
   compilation_info->SetOptimizingForOsr(osr_offset, osr_frame);

@@ -521,7 +521,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
-      bytecode_array_(handle(shared_info->GetBytecodeArray())),
+      bytecode_array_(
+          handle(shared_info->GetBytecodeArray(), jsgraph->isolate())),
       feedback_vector_(feedback_vector),
       type_hint_lowering_(jsgraph, feedback_vector, flags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
@@ -878,7 +879,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   set_bytecode_iterator(&iterator);
   SourcePositionTableIterator source_position_iterator(
-      handle(bytecode_array()->SourcePositionTable()));
+      handle(bytecode_array()->SourcePositionTable(), isolate()));
 
   if (analyze_environment_liveness() && FLAG_trace_environment_liveness) {
     StdoutStream of;
@@ -1471,7 +1472,8 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           : NOT_TENURED;
   const Operator* op = javascript()->CreateClosure(
       shared_info, nexus.GetFeedbackCell(),
-      handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy)),
+      handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy),
+             isolate()),
       tenured);
   Node* closure = NewNode(op);
   environment()->BindAccumulator(closure);
@@ -1625,8 +1627,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
     cached_value = TemplateObjectDescription::CreateTemplateObject(description);
     nexus.vector()->Set(slot, *cached_value);
   } else {
-    cached_value =
-        handle(JSArray::cast(nexus.GetFeedback()->ToStrongHeapObject()));
+    cached_value = handle(
+        JSArray::cast(nexus.GetFeedback()->ToStrongHeapObject()), isolate());
   }
 
   Node* template_object = jsgraph()->HeapConstant(cached_value);

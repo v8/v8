@@ -1147,7 +1147,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
   Node* array_map = jsgraph()->HeapConstant(
-      handle(native_context()->js_array_fast_elements_map_index()));
+      handle(native_context()->js_array_fast_elements_map_index(), isolate()));
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   Node* length = jsgraph()->Constant(2);
 

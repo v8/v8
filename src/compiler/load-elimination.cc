@@ -1369,6 +1369,8 @@ CommonOperatorBuilder* LoadElimination::common() const {
 
 Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
 
+Isolate* LoadElimination::isolate() const { return jsgraph()->isolate(); }
+
 Factory* LoadElimination::factory() const { return jsgraph()->factory(); }
 
 }  // namespace compiler

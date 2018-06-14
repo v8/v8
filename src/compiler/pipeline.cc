@@ -568,8 +568,8 @@ void PrintParticipatingSource(OptimizedCompilationInfo* info,
 }
 
 // Print the code after compiling it.
-void PrintCode(Handle<Code> code, OptimizedCompilationInfo* info) {
-  Isolate* isolate = code->GetIsolate();
+void PrintCode(Isolate* isolate, Handle<Code> code,
+               OptimizedCompilationInfo* info) {
   if (FLAG_print_opt_source && info->IsOptimizing()) {
     PrintParticipatingSource(info, isolate);
   }
@@ -800,7 +800,8 @@ PipelineStatistics* CreatePipelineStatistics(wasm::FunctionBody function_body,
 
 class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
-  PipelineCompilationJob(Handle<SharedFunctionInfo> shared_info,
+  PipelineCompilationJob(Isolate* isolate,
+                         Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function)
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
@@ -813,8 +814,8 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
         compilation_info_(&zone_, function->GetIsolate(), shared_info,
                           function),
         pipeline_statistics_(CreatePipelineStatistics(
-            handle(Script::cast(shared_info->script())), compilation_info(),
-            function->GetIsolate(), &zone_stats_)),
+            handle(Script::cast(shared_info->script()), isolate),
+            compilation_info(), function->GetIsolate(), &zone_stats_)),
         data_(&zone_stats_, function->GetIsolate(), compilation_info(),
               pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -1106,7 +1107,7 @@ struct GraphBuilderPhase {
     }
     BytecodeGraphBuilder graph_builder(
         temp_zone, data->info()->shared_info(),
-        handle(data->info()->closure()->feedback_vector()),
+        handle(data->info()->closure()->feedback_vector(), data->isolate()),
         data->info()->osr_offset(), data->jsgraph(), CallFrequency(1.0f),
         data->source_positions(), data->native_context(),
         SourcePosition::kNotInlined, flags, true,
@@ -1132,10 +1133,10 @@ Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
 }
 
 Maybe<OuterContext> ChooseSpecializationContext(
-    OptimizedCompilationInfo* info) {
+    Isolate* isolate, OptimizedCompilationInfo* info) {
   if (info->is_function_context_specializing()) {
     DCHECK(info->has_context());
-    return Just(OuterContext(handle(info->context()), 0));
+    return Just(OuterContext(handle(info->context(), isolate), 0));
   }
   return GetModuleContext(info->closure());
 }
@@ -1146,14 +1147,15 @@ struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    Isolate* isolate = data->isolate();
     GraphReducer graph_reducer(temp_zone, data->graph(),
                                data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);
-    CommonOperatorReducer common_reducer(data->isolate(), &graph_reducer,
-                                         data->graph(), data->common(),
-                                         data->machine(), temp_zone);
+    CommonOperatorReducer common_reducer(isolate, &graph_reducer, data->graph(),
+                                         data->common(), data->machine(),
+                                         temp_zone);
     JSCallReducer call_reducer(
         &graph_reducer, data->jsgraph(), data->js_heap_broker(),
         data->info()->is_bailout_on_uninitialized()
@@ -1162,7 +1164,7 @@ struct InliningPhase {
         data->native_context(), data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
-        ChooseSpecializationContext(data->info()),
+        ChooseSpecializationContext(isolate, data->info()),
         data->info()->is_function_context_specializing()
             ? data->info()->closure()
             : MaybeHandle<JSFunction>());
@@ -2199,9 +2201,10 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 
 // static
 OptimizedCompilationJob* Pipeline::NewCompilationJob(
-    Handle<JSFunction> function, bool has_script) {
-  Handle<SharedFunctionInfo> shared = handle(function->shared());
-  return new PipelineCompilationJob(shared, function);
+    Isolate* isolate, Handle<JSFunction> function, bool has_script) {
+  Handle<SharedFunctionInfo> shared =
+      handle(function->shared(), function->GetIsolate());
+  return new PipelineCompilationJob(isolate, shared, function);
 }
 
 // static
@@ -2423,7 +2426,7 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   }
 
   info()->SetCode(code);
-  PrintCode(code, info());
+  PrintCode(isolate(), code, info());
 
   if (info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(info(), std::ios_base::app);

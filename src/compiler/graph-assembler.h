@@ -258,6 +258,7 @@ class GraphAssembler {
   Operator const* ToNumberOperator();
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   Graph* graph() const { return jsgraph_->graph(); }
   Zone* temp_zone() const { return temp_zone_; }
   CommonOperatorBuilder* common() const { return jsgraph()->common(); }
