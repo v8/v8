@@ -17,6 +17,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -42,38 +43,13 @@ struct WasmCodeUniquePtrComparator {
   }
 };
 
-#if V8_TARGET_ARCH_X64
-#define __ masm->
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
 constexpr bool kModuleCanAllocateMoreMemory = false;
-
-void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
-  __ movq(kScratchRegister, static_cast<uint64_t>(target));
-  __ jmp(kScratchRegister);
-}
-#undef __
-#elif V8_TARGET_ARCH_S390X
-#define __ masm->
-constexpr bool kModuleCanAllocateMoreMemory = false;
-
-void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
-  __ mov(ip, Operand(bit_cast<intptr_t, Address>(target)));
-  __ b(ip);
-}
-#undef __
-#elif V8_TARGET_ARCH_ARM64
-#define __ masm->
-constexpr bool kModuleCanAllocateMoreMemory = false;
-
-void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
-  __ Mov(scratch, static_cast<uint64_t>(target));
-  __ Br(scratch);
-}
-#undef __
 #else
-const bool kModuleCanAllocateMoreMemory = true;
+constexpr bool kModuleCanAllocateMoreMemory = true;
 #endif
+
+constexpr bool kNeedsTrampoline = !kModuleCanAllocateMoreMemory;
 
 void RelocateCode(WasmCode* code, const WasmCode* orig,
                   WasmCode::FlushICache flush_icache) {
@@ -621,40 +597,36 @@ WasmCode* NativeModule::AddCode(
   return ret;
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
 Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
-  MacroAssembler masm(code->GetIsolate(), nullptr, 0, CodeObjectRequired::kNo);
   Address dest = code->raw_instruction_start();
-  GenerateJumpTrampoline(&masm, dest);
-  CodeDesc code_desc;
-  masm.GetCode(nullptr, &code_desc);
-  Vector<const byte> instructions(code_desc.buffer,
-                                  static_cast<size_t>(code_desc.instr_size));
-  WasmCode* wasm_code = AddOwnedCode(instructions,           // instructions
-                                     nullptr,                // reloc_info
-                                     0,                      // reloc_size
-                                     nullptr,                // source_pos
-                                     0,                      // source_pos_size
-                                     Nothing<uint32_t>(),    // index
-                                     WasmCode::kTrampoline,  // kind
-                                     0,   // constant_pool_offset
-                                     0,   // stack_slots
-                                     0,   // safepoint_table_offset
-                                     0,   // handler_table_offset
-                                     {},  // protected_instructions
-                                     WasmCode::kOther,         // tier
-                                     WasmCode::kFlushICache);  // flush_icache
-  Address ret = wasm_code->instruction_start();
+  Address ret = dest;
+  if (kNeedsTrampoline) {
+    JumpTableAssembler jtasm;
+    jtasm.EmitJumpTrampoline(dest);
+    CodeDesc code_desc;
+    jtasm.GetCode(nullptr, &code_desc);
+    Vector<const byte> instructions(code_desc.buffer,
+                                    static_cast<size_t>(code_desc.instr_size));
+    WasmCode* wasm_code = AddOwnedCode(instructions,         // instructions
+                                       nullptr,              // reloc_info
+                                       0,                    // reloc_size
+                                       nullptr,              // source_pos
+                                       0,                    // source_pos_size
+                                       Nothing<uint32_t>(),  // index
+                                       WasmCode::kTrampoline,  // kind
+                                       0,   // constant_pool_offset
+                                       0,   // stack_slots
+                                       0,   // safepoint_table_offset
+                                       0,   // handler_table_offset
+                                       {},  // protected_instructions
+                                       WasmCode::kOther,         // tier
+                                       WasmCode::kFlushICache);  // flush_icache
+    ret = wasm_code->instruction_start();
+  }
+  DCHECK_EQ(0, trampolines_.count(dest));
   trampolines_.emplace(std::make_pair(dest, ret));
   return ret;
 }
-#else
-Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
-  Address ret = code->raw_instruction_start();
-  trampolines_.insert(std::make_pair(ret, ret));
-  return ret;
-}
-#endif
 
 Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
   DCHECK(Heap::IsImmovable(*code));

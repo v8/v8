@@ -134,10 +134,24 @@ enum class CodeObjectRequired { kNo, kYes };
 
 class AssemblerBase : public Malloced {
  public:
+  enum SerializerEnabled : bool {
+    kSerializerEnabled = true,
+    kSerializerDisabled = false
+  };
   struct IsolateData {
     explicit IsolateData(Isolate* isolate);
 
-    bool serializer_enabled;
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+    constexpr IsolateData(SerializerEnabled serializer_enabled,
+                          Address code_range_start)
+        : serializer_enabled(serializer_enabled),
+          code_range_start(code_range_start) {}
+#else
+    explicit constexpr IsolateData(SerializerEnabled serializer_enabled)
+        : serializer_enabled(serializer_enabled) {}
+#endif
+
+    SerializerEnabled serializer_enabled;
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
     Address code_range_start;
 #endif
@@ -149,7 +163,9 @@ class AssemblerBase : public Malloced {
   IsolateData isolate_data() const { return isolate_data_; }
 
   bool serializer_enabled() const { return isolate_data_.serializer_enabled; }
-  void enable_serializer() { isolate_data_.serializer_enabled = true; }
+  void enable_serializer() {
+    isolate_data_.serializer_enabled = kSerializerEnabled;
+  }
 
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
