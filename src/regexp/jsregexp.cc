@@ -4689,7 +4689,7 @@ void DispatchTable::Dump() {
 void RegExpEngine::DotPrint(const char* label,
                             RegExpNode* node,
                             bool ignore_case) {
-  StdoutStream os;
+  OFStream os(stdout);
   DotPrinter printer(os, ignore_case);
   printer.PrintNode(label, node);
 }

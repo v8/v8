@@ -1005,7 +1005,7 @@ class SpecialRPONumberer : public ZoneObject {
 
 #if DEBUG
   void PrintRPO() {
-    StdoutStream os;
+    OFStream os(stdout);
     os << "RPO with " << loops_.size() << " loops";
     if (loops_.size() > 0) {
       os << " (";
@@ -1732,7 +1732,8 @@ void Scheduler::SealFinalSchedule() {
 void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   TRACE("--- FUSE FLOATING CONTROL ----------------------------------\n");
   if (FLAG_trace_turbo_scheduler) {
-    StdoutStream{} << "Schedule before control flow fusion:\n" << *schedule_;
+    OFStream os(stdout);
+    os << "Schedule before control flow fusion:\n" << *schedule_;
   }
 
   // Iterate on phase 1: Build control-flow graph.
@@ -1775,7 +1776,8 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   MovePlannedNodes(block, schedule_->block(node));
 
   if (FLAG_trace_turbo_scheduler) {
-    StdoutStream{} << "Schedule after control flow fusion:\n" << *schedule_;
+    OFStream os(stdout);
+    os << "Schedule after control flow fusion:\n" << *schedule_;
   }
 }
 

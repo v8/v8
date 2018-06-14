@@ -376,7 +376,12 @@ UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
   return after;
 }
 
-void LifetimePosition::Print() const { StdoutStream{} << *this << std::endl; }
+
+void LifetimePosition::Print() const {
+  OFStream os(stdout);
+  os << *this << std::endl;
+}
+
 
 std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
   os << '@' << pos.ToInstructionIndex();
@@ -802,7 +807,7 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
 
 void LiveRange::Print(const RegisterConfiguration* config,
                       bool with_children) const {
-  StdoutStream os;
+  OFStream os(stdout);
   PrintableLiveRange wrapper;
   wrapper.register_configuration_ = config;
   for (const LiveRange* i = this; i != nullptr; i = i->next()) {
@@ -1311,7 +1316,7 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
 
 
 void SpillRange::Print() const {
-  StdoutStream os;
+  OFStream os(stdout);
   os << "{" << std::endl;
   for (TopLevelLiveRange* range : live_ranges()) {
     os << range->vreg() << " ";

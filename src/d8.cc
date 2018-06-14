@@ -2061,7 +2061,8 @@ void Shell::OnExit(v8::Isolate* isolate) {
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
           reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
-    i::StdoutStream{} << *profiler;
+    i::OFStream os(stdout);
+    os << *profiler;
   }
   isolate->Dispose();
 

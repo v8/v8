@@ -1885,7 +1885,7 @@ extern "C" {
 
 #ifdef OBJECT_PRINT
   void __gdb_print_v8_object(Object* object) {
-    StdoutStream os;
+    OFStream os(stdout);
     object->Print(os);
     os << std::flush;
   }

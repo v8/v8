@@ -4742,8 +4742,9 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   OptimizedCompilationInfo info(func_name, &zone, Code::JS_TO_WASM_FUNCTION);
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- Graph after change lowering -- " << std::endl
-                   << AsRPO(graph);
+    OFStream os(stdout);
+    os << "-- Graph after change lowering -- " << std::endl;
+    os << AsRPO(graph);
   }
 
   // Schedule and compile to machine code.
@@ -4842,8 +4843,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   OptimizedCompilationInfo info(func_name, &zone, Code::WASM_TO_JS_FUNCTION);
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- Graph after change lowering -- " << std::endl
-                   << AsRPO(graph);
+    OFStream os(stdout);
+    os << "-- Graph after change lowering -- " << std::endl;
+    os << AsRPO(graph);
   }
 
   // Schedule and compile to machine code.
@@ -4913,8 +4915,9 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                                   Code::WASM_INTERPRETER_ENTRY);
 
     if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-      StdoutStream{} << "-- Wasm interpreter entry graph -- " << std::endl
-                     << AsRPO(graph);
+      OFStream os(stdout);
+      os << "-- Wasm interpreter entry graph -- " << std::endl;
+      os << AsRPO(graph);
     }
 
     code = Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph,
@@ -4979,7 +4982,9 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   OptimizedCompilationInfo info(debug_name_vec, &zone, Code::C_WASM_ENTRY);
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- C Wasm entry graph -- " << std::endl << AsRPO(graph);
+    OFStream os(stdout);
+    os << "-- C Wasm entry graph -- " << std::endl;
+    os << AsRPO(graph);
   }
 
   Handle<Code> code =
@@ -5032,8 +5037,9 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
                          wasm_unit_->func_body_, node_origins);
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
-      StdoutStream{} << "Compilation failed: "
-                     << graph_construction_result_.error_msg() << std::endl;
+      OFStream os(stdout);
+      os << "Compilation failed: " << graph_construction_result_.error_msg()
+         << std::endl;
     }
     return nullptr;
   }

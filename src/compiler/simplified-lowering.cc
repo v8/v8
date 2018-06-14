@@ -537,7 +537,7 @@ class RepresentationSelector {
   }
 
   void PrintNodeFeedbackType(Node* n) {
-    StdoutStream os;
+    OFStream os(stdout);
     os << "#" << n->id() << ":" << *n->op() << "(";
     int j = 0;
     for (Node* const i : n->inputs()) {
@@ -3188,26 +3188,29 @@ class RepresentationSelector {
 
   void PrintOutputInfo(NodeInfo* info) {
     if (FLAG_trace_representation) {
-      StdoutStream{} << info->representation();
+      OFStream os(stdout);
+      os << info->representation();
     }
   }
 
   void PrintRepresentation(MachineRepresentation rep) {
     if (FLAG_trace_representation) {
-      StdoutStream{} << rep;
+      OFStream os(stdout);
+      os << rep;
     }
   }
 
   void PrintTruncation(Truncation truncation) {
     if (FLAG_trace_representation) {
-      StdoutStream{} << truncation.description() << std::endl;
+      OFStream os(stdout);
+      os << truncation.description() << std::endl;
     }
   }
 
   void PrintUseInfo(UseInfo info) {
     if (FLAG_trace_representation) {
-      StdoutStream{} << info.representation() << ":"
-                     << info.truncation().description();
+      OFStream os(stdout);
+      os << info.representation() << ":" << info.truncation().description();
     }
   }
 

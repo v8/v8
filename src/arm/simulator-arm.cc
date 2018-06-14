@@ -285,7 +285,7 @@ void ArmDebugger::Debug() {
                  || (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           int32_t value;
-          StdoutStream os;
+          OFStream os(stdout);
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";

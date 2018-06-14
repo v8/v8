@@ -334,7 +334,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
   if (FLAG_trace_feedback_updates) {
     int slot_count = vector->metadata()->slot_count();
 
-    StdoutStream os;
+    OFStream os(stdout);
     if (slot.IsInvalid()) {
       os << "[Feedback slots in ";
     } else {

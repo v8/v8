@@ -96,7 +96,7 @@ void AssemblerBase::FlushICache(void* start, size_t size) {
 }
 
 void AssemblerBase::Print(Isolate* isolate) {
-  StdoutStream os;
+  OFStream os(stdout);
   v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_);
 }
 

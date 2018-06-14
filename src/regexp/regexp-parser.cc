@@ -1687,7 +1687,7 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
     DCHECK(tree != nullptr);
     DCHECK(result->error.is_null());
     if (FLAG_trace_regexp_parser) {
-      StdoutStream os;
+      OFStream os(stdout);
       tree->Print(os, zone);
       os << "\n";
     }

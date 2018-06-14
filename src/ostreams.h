@@ -18,6 +18,7 @@
 namespace v8 {
 namespace internal {
 
+
 class OFStreamBase : public std::streambuf {
  public:
   explicit OFStreamBase(FILE* f);
@@ -26,10 +27,11 @@ class OFStreamBase : public std::streambuf {
  protected:
   FILE* const f_;
 
-  int sync() override;
-  int_type overflow(int_type c) override;
-  std::streamsize xsputn(const char* s, std::streamsize n) override;
+  virtual int sync();
+  virtual int_type overflow(int_type c);
+  virtual std::streamsize xsputn(const char* s, std::streamsize n);
 };
+
 
 // An output stream writing to a file.
 class V8_EXPORT_PRIVATE OFStream : public std::ostream {
@@ -41,31 +43,6 @@ class V8_EXPORT_PRIVATE OFStream : public std::ostream {
   OFStreamBase buf_;
 };
 
-#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-class AndroidLogStream : public std::streambuf {
- public:
-  virtual ~AndroidLogStream();
-
- protected:
-  std::streamsize xsputn(const char* s, std::streamsize n) override;
-
- private:
-  std::string line_buffer_;
-};
-
-class StdoutStream : public std::ostream {
- public:
-  StdoutStream() : std::ostream(&stream_) {}
-
- private:
-  AndroidLogStream stream_;
-};
-#else
-class StdoutStream : public OFStream {
- public:
-  StdoutStream() : OFStream(stdout) {}
-};
-#endif
 
 // Wrappers to disambiguate uint16_t and uc16.
 struct AsUC16 {

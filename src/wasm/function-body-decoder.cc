@@ -908,7 +908,7 @@ const char* RawOpcodeName(WasmOpcode opcode) {
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module,
                       PrintLocals print_locals) {
-  StdoutStream os;
+  OFStream os(stdout);
   return PrintRawWasmCode(allocator, body, module, print_locals, os);
 }
 
