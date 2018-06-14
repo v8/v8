@@ -42,9 +42,7 @@ HeapReferenceType JSHeapBroker::HeapReferenceTypeFromMap(Map* map) const {
 HeapReference JSHeapBroker::HeapReferenceForObject(
     Handle<Object> object) const {
   AllowHandleDereference allow_handle_dereference;
-  Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
-  HeapReferenceType type = HeapReferenceTypeFromMap(heap_object->map());
-  return HeapReference(heap_object, type);
+  return HeapReference(Handle<HeapObject>::cast(object));
 }
 
 // static
@@ -62,24 +60,33 @@ base::Optional<int> JSHeapBroker::TryGetSmi(Handle<Object> object) {
 HEAP_BROKER_KIND_LIST(HEAP_KIND_FUNCTIONS_DEF)
 #undef HEAP_KIND_FUNCTIONS_DEF
 
-NumberHeapData HeapReference::AsNumber() const {
+#define HEAP_DATA_FUNCTIONS_DEF(Name)                   \
+  Name##HeapReference HeapReference::As##Name() const { \
+    AllowHandleDereference allow_handle_dereference;    \
+    SLOW_DCHECK(object_->Is##Name());                   \
+    return Name##HeapReference(object_);                \
+  }
+HEAP_BROKER_DATA_LIST(HEAP_DATA_FUNCTIONS_DEF)
+#undef HEAP_DATA_FUNCTIONS_DEF
+
+HeapReferenceType HeapReference::type(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
-  return NumberHeapData(object_->Number());
+  return broker->HeapReferenceTypeFromMap(object_->map());
 }
 
-JSFunctionHeapData HeapReference::AsJSFunction() const {
+double NumberHeapReference::value() const {
   AllowHandleDereference allow_handle_dereference;
-  return JSFunctionHeapData(Handle<JSFunction>::cast(object_));
+  return object()->Number();
 }
 
-bool JSFunctionHeapData::HasBuiltinFunctionId() const {
+bool JSFunctionHeapReference::HasBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
-  return function_->shared()->HasBuiltinFunctionId();
+  return JSFunction::cast(*object())->shared()->HasBuiltinFunctionId();
 }
 
-BuiltinFunctionId JSFunctionHeapData::GetBuiltinFunctionId() const {
+BuiltinFunctionId JSFunctionHeapReference::GetBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
-  return function_->shared()->builtin_function_id();
+  return JSFunction::cast(*object())->shared()->builtin_function_id();
 }
 
 }  // namespace compiler

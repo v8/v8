@@ -534,17 +534,18 @@ class OtherNumberConstantType : public TypeBase {
 
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
-  Handle<HeapObject> Value() const { return heap_ref_.value(); }
+  Handle<HeapObject> Value() const { return heap_ref_.object(); }
   const HeapReference& Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
 
-  static HeapConstantType* New(const HeapReference& heap_ref, Zone* zone) {
+  static HeapConstantType* New(const JSHeapBroker* broker,
+                               const HeapReference& heap_ref, Zone* zone) {
     DCHECK(!heap_ref.IsNumber());
     DCHECK_IMPLIES(heap_ref.IsString(), heap_ref.IsInternalizedString());
-    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type());
+    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type(broker));
     return new (zone->New(sizeof(HeapConstantType)))
         HeapConstantType(bitset, heap_ref);
   }

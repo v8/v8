@@ -14,32 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSFunctionHeapData {
- public:
-  bool HasBuiltinFunctionId() const;
-  BuiltinFunctionId GetBuiltinFunctionId() const;
-
- private:
-  friend class HeapReference;
-
-  explicit JSFunctionHeapData(Handle<JSFunction> function)
-      : function_(function) {}
-
-  Handle<JSFunction> const function_;
-};
-
-class NumberHeapData {
- public:
-  double value() const { return value_; }
-
- private:
-  friend class HeapReference;
-
-  explicit NumberHeapData(double value) : value_(value) {}
-
-  double const value_;
-};
-
 class HeapReferenceType {
  public:
   enum OddballType : uint8_t { kUnknown, kBoolean, kUndefined, kNull, kHole };
@@ -72,30 +46,33 @@ class HeapReferenceType {
 
 #define HEAP_BROKER_KIND_LIST(V) \
   HEAP_BROKER_DATA_LIST(V)       \
-  V(String)                      \
-  V(InternalizedString)
+  V(InternalizedString)          \
+  V(String)
+
+#define FORWARD_DECL(Name) class Name##HeapReference;
+HEAP_BROKER_DATA_LIST(FORWARD_DECL)
+#undef FORWARD_DECL
+
+class JSHeapBroker;
 
 class HeapReference {
  public:
+  explicit HeapReference(Handle<HeapObject> object) : object_(object) {}
+
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_KIND_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
-#define HEAP_AS_METHOD_DECL(Name) Name##HeapData As##Name() const;
+#define HEAP_AS_METHOD_DECL(Name) Name##HeapReference As##Name() const;
   HEAP_BROKER_DATA_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
-  const HeapReferenceType& type() const { return type_; }
-  Handle<HeapObject> value() const { return object_; }
+  HeapReferenceType type(const JSHeapBroker* broker) const;
+  Handle<HeapObject> object() const { return object_; }
 
  private:
   friend class JSHeapBroker;
-
-  HeapReference(Handle<HeapObject> object, const HeapReferenceType& type)
-      : object_(object), type_(type) {}
-
   Handle<HeapObject> const object_;
-  HeapReferenceType const type_;
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
@@ -111,9 +88,26 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   static base::Optional<int> TryGetSmi(Handle<Object> object);
 
  private:
+  friend class HeapReference;
   HeapReferenceType HeapReferenceTypeFromMap(Map* map) const;
 
   Isolate* const isolate_;
+  Isolate* isolate() const { return isolate_; }
+};
+
+class JSFunctionHeapReference : public HeapReference {
+ public:
+  explicit JSFunctionHeapReference(Handle<HeapObject> object)
+      : HeapReference(object) {}
+  bool HasBuiltinFunctionId() const;
+  BuiltinFunctionId GetBuiltinFunctionId() const;
+};
+
+class NumberHeapReference : public HeapReference {
+ public:
+  explicit NumberHeapReference(Handle<HeapObject> object)
+      : HeapReference(object) {}
+  double value() const;
 };
 
 }  // namespace compiler
