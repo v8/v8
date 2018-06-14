@@ -253,9 +253,6 @@ void GCTracer::Start(GarbageCollector collector,
     current_.scopes[i] = 0;
   }
 
-  size_t committed_memory = heap_->CommittedMemory() / KB;
-  size_t used_memory = current_.start_object_size / KB;
-
   Counters* counters = heap_->isolate()->counters();
 
   if (Heap::IsYoungGenerationCollector(collector)) {
@@ -263,9 +260,6 @@ void GCTracer::Start(GarbageCollector collector,
   } else {
     counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
   }
-  counters->aggregated_memory_heap_committed()->AddSample(start_time,
-                                                          committed_memory);
-  counters->aggregated_memory_heap_used()->AddSample(start_time, used_memory);
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {
@@ -304,13 +298,6 @@ void GCTracer::Stop(GarbageCollector collector) {
   current_.survived_new_space_object_size = heap_->SurvivedNewSpaceObjectSize();
 
   AddAllocation(current_.end_time);
-
-  size_t committed_memory = heap_->CommittedMemory() / KB;
-  size_t used_memory = current_.end_object_size / KB;
-  heap_->isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
-      current_.end_time, committed_memory);
-  heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
-      current_.end_time, used_memory);
 
   double duration = current_.end_time - current_.start_time;
 

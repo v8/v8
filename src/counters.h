@@ -1290,12 +1290,6 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-// Note: These define both Histogram and AggregatedMemoryHistogram<Histogram>
-// histograms with options (min=4000, max=2000000, buckets=100).
-#define HISTOGRAM_MEMORY_LIST(HM)                   \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted) \
-  HM(memory_heap_used, V8.MemoryHeapUsed)
-
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
 // lines) rather than one macro (of length about 80 lines) to work around
@@ -1476,14 +1470,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #define HM(name, caption) \
   Histogram* name() { return &name##_; }
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
-  HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
-
-#define HM(name, caption)                                     \
-  AggregatedMemoryHistogram<Histogram>* aggregated_##name() { \
-    return &aggregated_##name##_;                             \
-  }
-  HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
 #define SC(name, caption) \
@@ -1511,7 +1497,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #undef PERCENTAGE_ID
 #define MEMORY_ID(name, caption) k_##name,
     HISTOGRAM_LEGACY_MEMORY_LIST(MEMORY_ID)
-    HISTOGRAM_MEMORY_LIST(MEMORY_ID)
 #undef MEMORY_ID
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
@@ -1583,12 +1568,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #define HM(name, caption) \
   Histogram name##_;
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
-  HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
-
-#define HM(name, caption) \
-  AggregatedMemoryHistogram<Histogram> aggregated_##name##_;
-  HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
 #define SC(name, caption) \

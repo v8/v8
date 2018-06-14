@@ -3389,16 +3389,6 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
 
   contexts_disposed_ = 0;
 
-  if (deadline_in_ms - start_ms >
-      GCIdleTimeHandler::kMaxFrameRenderingIdleTime) {
-    int committed_memory = static_cast<int>(CommittedMemory() / KB);
-    int used_memory = static_cast<int>(heap_state.size_of_objects / KB);
-    isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
-        start_ms, committed_memory);
-    isolate()->counters()->aggregated_memory_heap_used()->AddSample(
-        start_ms, used_memory);
-  }
-
   if ((FLAG_trace_idle_notification && action.type > DO_NOTHING) ||
       FLAG_trace_idle_notification_verbose) {
     isolate_->PrintWithTimestamp(
