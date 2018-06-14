@@ -1008,12 +1008,12 @@ void Type::PrintTo(std::ostream& os) const {
 
 #ifdef DEBUG
 void Type::Print() const {
-  StdoutStream os;
+  OFStream os(stdout);
   PrintTo(os);
   os << std::endl;
 }
 void BitsetType::Print(bitset bits) {
-  StdoutStream os;
+  OFStream os(stdout);
   Print(os, bits);
   os << std::endl;
 }

@@ -3233,7 +3233,7 @@ void Isolate::DumpAndResetStats() {
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
 
-    StdoutStream os;
+    OFStream os(stdout);
     if (FLAG_turbo_stats) {
       AsPrintableStatistics ps = {*turbo_statistics(), false};
       os << ps << std::endl;

@@ -297,7 +297,7 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
 }
 
 void Node::Print() const {
-  StdoutStream os;
+  OFStream os(stdout);
   os << *this << std::endl;
   for (Node* input : this->inputs()) {
     os << "  " << *input << std::endl;

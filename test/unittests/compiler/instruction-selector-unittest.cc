@@ -29,9 +29,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::SourcePositionMode source_position_mode) {
   Schedule* schedule = Export();
   if (FLAG_trace_turbo) {
-    StdoutStream{} << "=== Schedule before instruction selection ==="
-                   << std::endl
-                   << *schedule;
+    OFStream out(stdout);
+    out << "=== Schedule before instruction selection ===" << std::endl
+        << *schedule;
   }
   size_t const node_count = graph()->NodeCount();
   EXPECT_NE(0u, node_count);
@@ -50,11 +50,11 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
+    OFStream out(stdout);
     PrintableInstructionSequence printable = {RegisterConfiguration::Default(),
                                               &sequence};
-    StdoutStream{} << "=== Code sequence after instruction selection ==="
-                   << std::endl
-                   << printable;
+    out << "=== Code sequence after instruction selection ===" << std::endl
+        << printable;
   }
   Stream s;
   s.virtual_registers_ = selector.GetVirtualRegistersForTesting();

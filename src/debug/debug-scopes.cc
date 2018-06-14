@@ -422,7 +422,7 @@ Handle<StringSet> ScopeIterator::GetNonLocals() { return non_locals_; }
 #ifdef DEBUG
 // Debug print of the content of the current scope.
 void ScopeIterator::DebugPrint() {
-  StdoutStream os;
+  OFStream os(stdout);
   DCHECK(!Done());
   switch (Type()) {
     case ScopeIterator::ScopeTypeGlobal:

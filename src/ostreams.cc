@@ -12,11 +12,6 @@
 #endif
 #endif
 
-#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-#define LOG_TAG "v8"
-#include <android/log.h>  // NOLINT
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -42,6 +37,7 @@ std::streamsize OFStreamBase::xsputn(const char* s, std::streamsize n) {
       std::fwrite(s, 1, static_cast<size_t>(n), f_));
 }
 
+
 OFStream::OFStream(FILE* f) : std::ostream(nullptr), buf_(f) {
   DCHECK_NOT_NULL(f);
   rdbuf(&buf_);
@@ -50,32 +46,6 @@ OFStream::OFStream(FILE* f) : std::ostream(nullptr), buf_(f) {
 
 OFStream::~OFStream() {}
 
-#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-AndroidLogStream::~AndroidLogStream() {
-  // If there is anything left in the line buffer, print it now, even though it
-  // was not terminated by a newline.
-  if (!line_buffer_.empty()) {
-    __android_log_write(ANDROID_LOG_INFO, LOG_TAG, line_buffer_.c_str());
-  }
-}
-
-std::streamsize AndroidLogStream::xsputn(const char* s, std::streamsize n) {
-  const char* const e = s + n;
-  while (s < e) {
-    const char* newline = reinterpret_cast<const char*>(memchr(s, '\n', e - s));
-    size_t line_chars = (newline ? newline : e) - s;
-    line_buffer_.append(s, line_chars);
-    // Without terminating newline, keep the characters in the buffer for the
-    // next invocation.
-    if (!newline) break;
-    // Otherwise, write out the first line, then continue.
-    __android_log_write(ANDROID_LOG_INFO, LOG_TAG, line_buffer_.c_str());
-    line_buffer_.clear();
-    s = newline + 1;
-  }
-  return n;
-}
-#endif
 
 namespace {
 
@@ -161,6 +131,3 @@ std::ostream& operator<<(std::ostream& os, const AsHexBytes& hex) {
 
 }  // namespace internal
 }  // namespace v8
-
-#undef snprintf
-#undef LOG_TAG

@@ -34,8 +34,9 @@ void GraphTrimmer::TrimGraph() {
       Node* const user = edge.from();
       if (!IsLive(user)) {
         if (FLAG_trace_turbo_trimming) {
-          StdoutStream{} << "DeadLink: " << *user << "(" << edge.index()
-                         << ") -> " << *live << std::endl;
+          OFStream os(stdout);
+          os << "DeadLink: " << *user << "(" << edge.index() << ") -> " << *live
+             << std::endl;
         }
         edge.UpdateTo(nullptr);
       }

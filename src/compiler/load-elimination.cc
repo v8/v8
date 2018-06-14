@@ -445,13 +445,12 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
 }
 
 void LoadElimination::AbstractMaps::Print() const {
-  StdoutStream os;
   for (auto pair : info_for_node_) {
-    os << "    #" << pair.first->id() << ":" << pair.first->op()->mnemonic()
-       << std::endl;
+    PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
+    OFStream os(stdout);
     ZoneHandleSet<Map> const& maps = pair.second;
     for (size_t i = 0; i < maps.size(); ++i) {
-      os << "     - " << Brief(*maps[i]) << std::endl;
+      os << "     - " << Brief(*maps[i]) << "\n";
     }
   }
 }

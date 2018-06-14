@@ -96,7 +96,7 @@ BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   return b1;
 }
 
-void BasicBlock::Print() { StdoutStream{} << this; }
+void BasicBlock::Print() { OFStream(stdout) << this; }
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock& block) {
   os << "B" << block.id();
@@ -194,9 +194,9 @@ BasicBlock* Schedule::NewBasicBlock() {
 
 void Schedule::PlanNode(BasicBlock* block, Node* node) {
   if (FLAG_trace_turbo_scheduler) {
-    StdoutStream{} << "Planning #" << node->id() << ":"
-                   << node->op()->mnemonic() << " for future add to B"
-                   << block->id() << "\n";
+    OFStream os(stdout);
+    os << "Planning #" << node->id() << ":" << node->op()->mnemonic()
+       << " for future add to B" << block->id() << "\n";
   }
   DCHECK_NULL(this->block(node));
   SetBlockForNode(block, node);
@@ -205,8 +205,9 @@ void Schedule::PlanNode(BasicBlock* block, Node* node) {
 
 void Schedule::AddNode(BasicBlock* block, Node* node) {
   if (FLAG_trace_turbo_scheduler) {
-    StdoutStream{} << "Adding #" << node->id() << ":" << node->op()->mnemonic()
-                   << " to B" << block->id() << "\n";
+    OFStream os(stdout);
+    os << "Adding #" << node->id() << ":" << node->op()->mnemonic() << " to B"
+       << block->id() << "\n";
   }
   DCHECK(this->block(node) == nullptr || this->block(node) == block);
   block->AddNode(node);

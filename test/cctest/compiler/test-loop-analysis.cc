@@ -125,7 +125,8 @@ class LoopFinderTester : HandleAndZoneScope {
   LoopTree* GetLoopTree() {
     if (loop_tree == nullptr) {
       if (FLAG_trace_turbo_graph) {
-        StdoutStream{} << AsRPO(graph);
+        OFStream os(stdout);
+        os << AsRPO(graph);
       }
       Zone zone(main_isolate()->allocator(), ZONE_NAME);
       loop_tree = LoopFinder::BuildLoopTree(&graph, &zone);

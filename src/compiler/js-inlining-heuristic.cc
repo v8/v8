@@ -709,7 +709,7 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
 }
 
 void JSInliningHeuristic::PrintCandidates() {
-  StdoutStream os;
+  OFStream os(stdout);
   os << "Candidates for inlining (size=" << candidates_.size() << "):\n";
   for (const Candidate& candidate : candidates_) {
     os << "  #" << candidate.node->id() << ":"

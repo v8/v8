@@ -964,7 +964,7 @@ TEST(DisasmX64) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  StdoutStream os;
+  OFStream os(stdout);
   code->Print(os);
   Address begin = code->raw_instruction_start();
   Address end = code->raw_instruction_end();
