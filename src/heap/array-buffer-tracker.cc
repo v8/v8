@@ -20,8 +20,7 @@ LocalArrayBufferTracker::~LocalArrayBufferTracker() {
 
 template <typename Callback>
 void LocalArrayBufferTracker::Process(Callback callback) {
-  std::vector<JSArrayBuffer::Allocation>* backing_stores_to_free =
-      new std::vector<JSArrayBuffer::Allocation>();
+  std::vector<JSArrayBuffer::Allocation> backing_stores_to_free;
 
   JSArrayBuffer* new_buffer = nullptr;
   JSArrayBuffer* old_buffer = nullptr;
@@ -54,7 +53,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       // We pass backing_store() and stored length to the collector for freeing
       // the backing store. Wasm allocations will go through their own tracker
       // based on the backing store.
-      backing_stores_to_free->emplace_back(
+      backing_stores_to_free.emplace_back(
           old_buffer->backing_store(), it->second, old_buffer->backing_store(),
           old_buffer->allocation_mode(), old_buffer->is_wasm_memory());
       it = array_buffers_.erase(it);
@@ -73,9 +72,8 @@ void LocalArrayBufferTracker::Process(Callback callback) {
 
   // Pass the backing stores that need to be freed to the main thread for later
   // distribution.
-  // ArrayBufferCollector takes ownership of this pointer.
   space_->heap()->array_buffer_collector()->AddGarbageAllocations(
-      backing_stores_to_free);
+      std::move(backing_stores_to_free));
 }
 
 void ArrayBufferTracker::PrepareToFreeDeadInNewSpace(Heap* heap) {
