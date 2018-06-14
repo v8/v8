@@ -405,29 +405,19 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       descriptor.DebugName(isolate), descriptor.allocatable_registers());
 }
 
+// TODO(ishell): remove this once CallInterfaceDescriptors support
+// Linkage::kNoContext and Operator::kNoThrow flags.
 // static
-CallDescriptor* Linkage::GetAllocateCallDescriptor(Zone* zone) {
-  LocationSignature::Builder locations(zone, 1, 1);
-
-  locations.AddParam(regloc(kAllocateSizeRegister, MachineType::Int32()));
-
-  locations.AddReturn(regloc(kReturnRegister0, MachineType::AnyTagged()));
-
-  // The target for allocate calls is a code object.
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc =
-      LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
-  return new (zone) CallDescriptor(     // --
-      CallDescriptor::kCallCodeObject,  // kind
-      target_type,                      // target MachineType
-      target_loc,                       // target location
-      locations.Build(),                // location_sig
-      0,                                // stack_parameter_count
-      Operator::kNoThrow,               // properties
-      kNoCalleeSaved,                   // callee-saved registers
-      kNoCalleeSaved,                   // callee-saved fp
-      CallDescriptor::kCanUseRoots,     // flags
-      "Allocate");
+CallDescriptor* Linkage::GetAllocateCallDescriptor(Isolate* isolate,
+                                                   Zone* zone) {
+  return GetStubCallDescriptor(isolate, zone,
+                               AllocateDescriptor(isolate),  // descriptor
+                               0,  // stack_parameter_count
+                               CallDescriptor::kCanUseRoots,  // flags
+                               Operator::kNoThrow,            // properties
+                               MachineType::AnyTagged(),      // return_type
+                               1,                             // return_count
+                               Linkage::kNoContext);          // context_spec
 }
 
 // static

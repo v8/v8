@@ -2205,31 +2205,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : requested object size (untagged)
-  //  -- ra : return address
-  // -----------------------------------
-  __ SmiTag(a0);
-  __ Push(a0);
-  __ Move(cp, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAllocateInNewSpace);
-}
-
-// static
-void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : requested object size (untagged)
-  //  -- ra : return address
-  // -----------------------------------
-  __ SmiTag(a0);
-  __ Move(a1, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
-  __ Push(a0, a1);
-  __ Move(cp, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
-}
-
-// static
 void Builtins::Generate_Abort(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : message_id as Smi

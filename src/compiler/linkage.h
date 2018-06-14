@@ -397,7 +397,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       size_t return_count = 1,
       ContextSpecification context_spec = kPassContext);
 
-  static CallDescriptor* GetAllocateCallDescriptor(Zone* zone);
+  static CallDescriptor* GetAllocateCallDescriptor(Isolate* isolate,
+                                                   Zone* zone);
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count);

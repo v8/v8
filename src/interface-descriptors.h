@@ -18,6 +18,7 @@ namespace internal {
 class PlatformInterfaceDescriptor;
 
 #define INTERFACE_DESCRIPTOR_LIST(V)  \
+  V(Allocate)                         \
   V(Void)                             \
   V(ContextOnly)                      \
   V(Load)                             \
@@ -331,6 +332,14 @@ static const int kMaxBuiltinRegisterParams = 5;
 class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
+};
+
+class AllocateDescriptor : public CallInterfaceDescriptor {
+ public:
+  // No context parameter
+  enum ParameterIndices { kRequestedSize, kParameterCount };
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(AllocateDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class ContextOnlyDescriptor : public CallInterfaceDescriptor {

@@ -1088,6 +1088,23 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(AllocateInNewSpace, CodeStubAssembler) {
+  TNode<Int32T> requested_size =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+
+  TailCallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
+                  SmiFromInt32(requested_size));
+}
+
+TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
+  TNode<Int32T> requested_size =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+
+  int flags = AllocateTargetSpace::encode(OLD_SPACE);
+  TailCallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                  SmiFromInt32(requested_size), SmiConstant(flags));
+}
+
 TF_BUILTIN(AbortJS, CodeStubAssembler) {
   Node* message = Parameter(Descriptor::kObject);
   Node* reason = SmiConstant(0);
