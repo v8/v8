@@ -36,9 +36,7 @@ CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(kNullAddress),
       miss_handler_(),
-      has_miss_handler_(false) {
-  stub->InitializeDescriptor(this);
-}
+      has_miss_handler_(false) {}
 
 CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
     : isolate_(isolate),
@@ -231,7 +229,6 @@ static void InitializeDescriptorDispatchedCall(CodeStub* stub,
                                                void** value_out) {
   CodeStubDescriptor* descriptor_out =
       reinterpret_cast<CodeStubDescriptor*>(value_out);
-  stub->InitializeDescriptor(descriptor_out);
   descriptor_out->set_call_descriptor(stub->GetCallInterfaceDescriptor());
 }
 

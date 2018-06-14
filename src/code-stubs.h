@@ -135,8 +135,6 @@ class CodeStub : public ZoneObject {
     return GetCallInterfaceDescriptor().GetStackParameterCount();
   }
 
-  virtual void InitializeDescriptor(CodeStubDescriptor* descriptor) {}
-
   static void InitializeDescriptor(Isolate* isolate, uint32_t key,
                                    CodeStubDescriptor* desc);
 
