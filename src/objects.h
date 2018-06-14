@@ -2101,6 +2101,8 @@ class JSReceiver: public HeapObject {
   // Returns true if there is no slow (ie, dictionary) backing store.
   inline bool HasFastProperties() const;
 
+  inline Isolate* GetIsolate() const;
+
   // Returns the properties array backing store if it
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties

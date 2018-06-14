@@ -439,6 +439,8 @@ class Context : public FixedArray {
   // Conversions.
   static inline Context* cast(Object* context);
 
+  inline Isolate* GetIsolate() const;
+
   // The default context slot layout; indices are FixedArray slot indices.
   enum Field {
     // These slots are in all contexts.

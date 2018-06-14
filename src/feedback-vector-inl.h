@@ -55,6 +55,8 @@ FeedbackVector* FeedbackVector::cast(Object* obj) {
   return reinterpret_cast<FeedbackVector*>(obj);
 }
 
+Isolate* FeedbackVector::GetIsolate() const { return GetHeap()->isolate(); }
+
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
     case FeedbackSlotKind::kForIn:

@@ -1016,6 +1016,8 @@ Isolate* HeapObject::GetIsolate() const {
   return GetHeap()->isolate();
 }
 
+Isolate* JSReceiver::GetIsolate() const { return GetHeap()->isolate(); }
+
 Map* HeapObject::map() const {
   return map_word().ToMap();
 }

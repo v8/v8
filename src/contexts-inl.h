@@ -39,12 +39,13 @@ Handle<Context> ScriptContextTable::GetContext(Handle<ScriptContextTable> table,
       FixedArray::get(*table, i + kFirstContextSlotIndex, table->GetIsolate()));
 }
 
-
 // static
 Context* Context::cast(Object* context) {
   DCHECK(context->IsContext());
   return reinterpret_cast<Context*>(context);
 }
+
+Isolate* Context::GetIsolate() const { return GetHeap()->isolate(); }
 
 void Context::set_scope_info(ScopeInfo* scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);

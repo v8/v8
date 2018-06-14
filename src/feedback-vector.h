@@ -145,6 +145,8 @@ class FeedbackVector : public HeapObject {
   // Casting.
   static inline FeedbackVector* cast(Object* obj);
 
+  inline Isolate* GetIsolate() const;
+
   inline void ComputeCounts(int* with_type_info, int* generic,
                             int* vector_ic_count);
 
