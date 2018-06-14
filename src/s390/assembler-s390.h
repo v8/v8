@@ -1486,7 +1486,6 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
 
  public:
   byte* buffer_pos() const { return buffer_; }
-  void RequestHeapObject(HeapObjectRequest request);
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
