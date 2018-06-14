@@ -131,7 +131,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
   AdvanceToOffsetForTracing(bytecode_iterator, offset);
   if (offset == bytecode_iterator.current_offset()) {
-    OFStream os(stdout);
+    StdoutStream os;
 
     // Print bytecode.
     const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
@@ -170,7 +170,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   if (bytecode_iterator.current_operand_scale() ==
           interpreter::OperandScale::kSingle ||
       offset > bytecode_iterator.current_offset()) {
-    OFStream os(stdout);
+    StdoutStream os;
     // Print all output registers and accumulator.
     PrintRegisters(isolate, os, false, bytecode_iterator, accumulator);
     os << std::flush;
@@ -195,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
 
   int slot_count = function->feedback_vector()->metadata()->slot_count();
 
-  OFStream os(stdout);
+  StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
   function->shared()->ShortPrint(os);
   os << " updated to ";

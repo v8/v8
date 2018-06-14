@@ -604,7 +604,7 @@ void FlagList::PrintHelp() {
   CpuFeatures::PrintTarget();
   CpuFeatures::PrintFeatures();
 
-  OFStream os(stdout);
+  StdoutStream os;
   os << "Synopsis:\n"
         "  shell [options] [--shell] [<file>...]\n"
         "  d8 [options] [-e <string>] [--shell] [[--module] <file>...]\n\n"

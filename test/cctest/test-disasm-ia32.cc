@@ -892,7 +892,7 @@ TEST(DisasmIa320) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
   Address begin = code->raw_instruction_start();
   Address end = code->raw_instruction_end();

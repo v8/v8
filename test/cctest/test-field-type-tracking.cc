@@ -131,7 +131,7 @@ class Expectations {
   }
 
   void Print() const {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Expectations: #" << number_of_properties_ << "\n";
     for (int i = 0; i < number_of_properties_; i++) {
       os << " " << i << ": ";

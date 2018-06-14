@@ -47,8 +47,8 @@ class Writer {
     WriteUnalignedValue(reinterpret_cast<Address>(current_location()), value);
     pos_ += sizeof(T);
     if (FLAG_wasm_trace_serialization) {
-      OFStream os(stdout);
-      os << "wrote: " << (size_t)value << " sized: " << sizeof(T) << std::endl;
+      StdoutStream{} << "wrote: " << (size_t)value << " sized: " << sizeof(T)
+                     << std::endl;
     }
   }
 
@@ -59,8 +59,8 @@ class Writer {
       pos_ += v.size();
     }
     if (FLAG_wasm_trace_serialization) {
-      OFStream os(stdout);
-      os << "wrote vector of " << v.size() << " elements" << std::endl;
+      StdoutStream{} << "wrote vector of " << v.size() << " elements"
+                     << std::endl;
     }
   }
 
@@ -91,8 +91,8 @@ class Reader {
         ReadUnalignedValue<T>(reinterpret_cast<Address>(current_location()));
     pos_ += sizeof(T);
     if (FLAG_wasm_trace_serialization) {
-      OFStream os(stdout);
-      os << "read: " << (size_t)value << " sized: " << sizeof(T) << std::endl;
+      StdoutStream{} << "read: " << (size_t)value << " sized: " << sizeof(T)
+                     << std::endl;
     }
     return value;
   }
@@ -104,8 +104,8 @@ class Reader {
       pos_ += v.size();
     }
     if (FLAG_wasm_trace_serialization) {
-      OFStream os(stdout);
-      os << "read vector of " << v.size() << " elements" << std::endl;
+      StdoutStream{} << "read vector of " << v.size() << " elements"
+                     << std::endl;
     }
   }
 

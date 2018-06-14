@@ -198,7 +198,7 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   DisallowJavascriptExecution no_js(isolate);
 
   if (FLAG_trace_opt && compilation_info()->IsOptimizing()) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "[compiling method " << Brief(*compilation_info()->closure())
        << " using " << compiler_name_;
     if (compilation_info()->is_osr()) os << " OSR";

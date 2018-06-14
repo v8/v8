@@ -2981,7 +2981,7 @@ TEST(PrintSharedFunctionInfo) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("g")).ToLocalChecked())));
 
-  OFStream os(stdout);
+  StdoutStream os;
   g->shared()->Print(os);
   os << std::endl;
 }

@@ -830,14 +830,15 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     return typer_->cache_.kInteger;
   }
   if (FLAG_trace_turbo_loop) {
-    OFStream os(stdout);
-    os << std::setprecision(10);
-    os << "Loop (" << NodeProperties::GetControlInput(node)->id()
-       << ") variable bounds in "
-       << (arithmetic_type == InductionVariable::ArithmeticType::kAddition
-               ? "addition"
-               : "subtraction")
-       << " for phi " << node->id() << ": (" << min << ", " << max << ")\n";
+    StdoutStream{} << std::setprecision(10) << "Loop ("
+                   << NodeProperties::GetControlInput(node)->id()
+                   << ") variable bounds in "
+                   << (arithmetic_type ==
+                               InductionVariable::ArithmeticType::kAddition
+                           ? "addition"
+                           : "subtraction")
+                   << " for phi " << node->id() << ": (" << min << ", " << max
+                   << ")\n";
   }
   return Type::Range(min, max, typer_->zone());
 }

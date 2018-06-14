@@ -252,7 +252,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
                                                call_descriptor, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
-        OFStream os(stdout);
+        StdoutStream os;
         code_.ToHandleChecked()->Disassemble("test code", os);
       }
 #endif

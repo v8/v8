@@ -355,7 +355,7 @@ void CoverageInfo::Print(std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
   DisallowHeapAllocation no_gc;
 
-  OFStream os(stdout);
+  StdoutStream os;
   os << "Coverage info (";
   if (strlen(function_name.get()) > 0) {
     os << function_name.get();

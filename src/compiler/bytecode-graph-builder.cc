@@ -881,8 +881,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
       handle(bytecode_array()->SourcePositionTable()));
 
   if (analyze_environment_liveness() && FLAG_trace_environment_liveness) {
-    OFStream of(stdout);
-
+    StdoutStream of;
     bytecode_analysis.PrintLivenessTo(of);
   }
 

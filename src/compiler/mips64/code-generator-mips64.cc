@@ -2989,12 +2989,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   return kSuccess;
 }  // NOLINT(readability/fn_size)
 
-
-#define UNSUPPORTED_COND(opcode, condition)                                  \
-  OFStream out(stdout);                                                      \
-  out << "Unsupported " << #opcode << " condition: \"" << condition << "\""; \
+#define UNSUPPORTED_COND(opcode, condition)                                    \
+  StdoutStream{} << "Unsupported " << #opcode << " condition: \"" << condition \
+                 << "\"";                                                      \
   UNIMPLEMENTED();
-
 
 void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Instruction* instr, FlagsCondition condition,
