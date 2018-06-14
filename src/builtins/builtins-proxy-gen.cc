@@ -289,7 +289,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   CSA_ASSERT(this, IsJSProxy(proxy));
   CSA_ASSERT(this, IsCallable(proxy));
 
-  PerformStackCheck(context);
+  PerformStackCheck(CAST(context));
 
   Label throw_proxy_handler_revoked(this, Label::kDeferred),
       trap_undefined(this);
@@ -408,7 +408,7 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
-  PerformStackCheck(context);
+  PerformStackCheck(CAST(context));
 
   // 1. Assert: IsPropertyKey(P) is true.
   CSA_ASSERT(this, IsName(name));

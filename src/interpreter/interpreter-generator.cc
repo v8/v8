@@ -2646,7 +2646,7 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 //
 // Performs a stack guard check.
 IGNITION_HANDLER(StackCheck, InterpreterAssembler) {
-  Node* context = GetContext();
+  TNode<Context> context = CAST(GetContext());
   PerformStackCheck(context);
   Dispatch();
 }

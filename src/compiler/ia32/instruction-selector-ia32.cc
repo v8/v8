@@ -1244,20 +1244,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {
-  IA32OperandGenerator g(selector);
-  Int32BinopMatcher m(node);
-  if (m.left().IsLoad() && m.right().IsLoadStackPointer()) {
-    LoadMatcher<ExternalReferenceMatcher> mleft(m.left().node());
-    ExternalReference js_stack_limit =
-        ExternalReference::address_of_stack_limit(selector->isolate());
-    if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) {
-      // Compare(Load(js_stack_limit), LoadStackPointer)
-      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-      InstructionCode opcode = cont->Encode(kIA32StackCheck);
-      CHECK(cont->IsBranch());
-      selector->EmitWithContinuation(opcode, cont);
-      return;
-    }
+  StackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> m(
+      selector->isolate(), node);
+  if (m.Matched()) {
+    // Compare(Load(js_stack_limit), LoadStackPointer)
+    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+    InstructionCode opcode = cont->Encode(kIA32StackCheck);
+    CHECK(cont->IsBranch());
+    selector->EmitWithContinuation(opcode, cont);
+    return;
   }
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }

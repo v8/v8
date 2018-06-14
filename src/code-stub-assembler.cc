@@ -11970,20 +11970,24 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
   CallRuntime(Runtime::kDebugPrint, NoContextConstant(), tagged_value);
 }
 
-void CodeStubAssembler::PerformStackCheck(Node* context) {
+void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   Label ok(this), stack_check_interrupt(this, Label::kDeferred);
 
-  Node* sp = LoadStackPointer();
-  Node* stack_limit = BitcastTaggedToWord(LoadRoot(Heap::kStackLimitRootIndex));
-  Node* interrupt = UintPtrLessThan(sp, stack_limit);
+  // The instruction sequence below is carefully crafted to hit our pattern
+  // matcher for stack checks within instruction selection.
+  // See StackCheckMatcher::Matched and JSGenericLowering::LowerJSStackCheck.
 
-  Branch(interrupt, &stack_check_interrupt, &ok);
+  TNode<UintPtrT> sp = UncheckedCast<UintPtrT>(LoadStackPointer());
+  TNode<UintPtrT> stack_limit = UncheckedCast<UintPtrT>(Load(
+      MachineType::Pointer(),
+      ExternalConstant(ExternalReference::address_of_stack_limit(isolate()))));
+  TNode<BoolT> sp_within_limit = UintPtrLessThan(stack_limit, sp);
+
+  Branch(sp_within_limit, &ok, &stack_check_interrupt);
 
   BIND(&stack_check_interrupt);
-  {
-    CallRuntime(Runtime::kStackGuard, context);
-    Goto(&ok);
-  }
+  CallRuntime(Runtime::kStackGuard, context);
+  Goto(&ok);
 
   BIND(&ok);
 }

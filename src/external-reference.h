@@ -262,7 +262,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static ExternalReference Create(Runtime::FunctionId id);
-  static ExternalReference Create(Address address);
+  static V8_EXPORT_PRIVATE ExternalReference Create(Address address);
 
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();

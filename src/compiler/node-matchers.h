@@ -7,12 +7,11 @@
 
 #include <cmath>
 
-// TODO(turbofan): Move ExternalReference out of assembler.h
-#include "src/assembler.h"
 #include "src/base/compiler-specific.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/double.h"
+#include "src/external-reference.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -742,6 +741,36 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
   Node* branch_;
   Node* if_true_;
   Node* if_false_;
+};
+
+template <class BinopMatcher, IrOpcode::Value expected_opcode>
+struct StackCheckMatcher {
+  StackCheckMatcher(Isolate* isolate, Node* compare)
+      : isolate_(isolate), compare_(compare) {}
+  bool Matched() {
+    // TODO(jgruber): Ideally, we could be more flexible here and also match the
+    // same pattern with switched operands (i.e.: left is LoadStackPointer and
+    // right is the js_stack_limit load). But to be correct in all cases, we'd
+    // then have to invert the outcome of the stack check comparison.
+    if (compare_->opcode() != expected_opcode) return false;
+    BinopMatcher m(compare_);
+    return MatchedInternal(m.left(), m.right());
+  }
+
+ private:
+  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
+                       const typename BinopMatcher::RightMatcher& r) {
+    if (l.IsLoad() && r.IsLoadStackPointer()) {
+      LoadMatcher<ExternalReferenceMatcher> mleft(l.node());
+      ExternalReference js_stack_limit =
+          ExternalReference::address_of_stack_limit(isolate_);
+      if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) return true;
+    }
+    return false;
+  }
+
+  Isolate* isolate_;
+  Node* compare_;
 };
 
 }  // namespace compiler
