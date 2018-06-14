@@ -1874,27 +1874,114 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
   heap_->RightTrimFixedArray(indices, to_trim);
 }
 
-void MarkCompactCollector::ProcessWeakCollections() {
-  MarkCompactMarkingVisitor visitor(this, marking_state());
+class EphemeronHashTableMarkingItem : public ItemParallelJob::Item {
+ public:
+  explicit EphemeronHashTableMarkingItem(EphemeronHashTable* table, int offset)
+      : table_(table), offset_(offset) {}
+  virtual ~EphemeronHashTableMarkingItem() {}
+  EphemeronHashTable* table() const { return table_; }
+  int offset() const { return offset_; }
 
-  weak_objects_.ephemeron_hash_tables.Iterate([&](EphemeronHashTable* table) {
-    for (int i = 0; i < table->Capacity(); i++) {
-      HeapObject* heap_object = HeapObject::cast(table->KeyAt(i));
-      if (non_atomic_marking_state()->IsBlackOrGrey(heap_object)) {
-        Object** key_slot =
-            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-        RecordSlot(table, key_slot, heap_object);
-        Object** value_slot = table->RawFieldOfElementAt(
-            EphemeronHashTable::EntryToValueIndex(i));
-        if (V8_UNLIKELY(FLAG_track_retaining_path) &&
-            (*value_slot)->IsHeapObject()) {
-          heap()->AddEphemeronRetainer(heap_object,
-                                       HeapObject::cast(*value_slot));
+ private:
+  EphemeronHashTable* table_;
+  int offset_;
+};
+
+class EphemeronHashTableMarkingTask : public ItemParallelJob::Task {
+ public:
+  EphemeronHashTableMarkingTask(
+      Isolate* isolate, MarkCompactCollector* collector,
+      MarkCompactCollector::MarkingWorklist::ConcurrentMarkingWorklist*
+          worklist,
+      int task_id)
+      : ItemParallelJob::Task(isolate),
+        collector_(collector),
+        worklist_(worklist),
+        task_id_(task_id) {}
+
+  void RunInParallel() override {
+    EphemeronHashTableMarkingItem* item = nullptr;
+    while ((item = GetItem<EphemeronHashTableMarkingItem>()) != nullptr) {
+      EphemeronHashTable* table = item->table();
+      int start = item->offset();
+      int limit = Min(start + MarkCompactCollector::kEphemeronChunkSize,
+                      table->Capacity());
+
+      for (int i = start; i < limit; i++) {
+        HeapObject* key = HeapObject::cast(table->KeyAt(i));
+        if (collector_->marking_state()->IsBlackOrGrey(key)) {
+          Object** key_slot =
+              table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+          collector_->RecordSlot(table, key_slot, key);
+          Object** value_slot = table->RawFieldOfElementAt(
+              EphemeronHashTable::EntryToValueIndex(i));
+          Object* value_obj = *value_slot;
+
+          if (value_obj->IsHeapObject()) {
+            HeapObject* value = HeapObject::cast(value_obj);
+            collector_->RecordSlot(table, value_slot, value);
+
+            if (collector_->marking_state()->WhiteToGrey(value)) {
+              worklist_->Push(task_id_, value);
+
+              if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+                collector_->heap()->AddEphemeronRetainer(key, value);
+                collector_->heap()->AddRetainer(table, value);
+              }
+            }
+          }
         }
-        visitor.VisitPointer(table, value_slot);
       }
+
+      item->MarkFinished();
+    }
+
+    worklist_->FlushToGlobal(task_id_);
+  }
+
+ private:
+  MarkCompactCollector* collector_;
+  MarkCompactCollector::MarkingWorklist::ConcurrentMarkingWorklist* worklist_;
+  int task_id_;
+};
+
+void MarkCompactCollector::ProcessWeakCollections() {
+  CHECK(heap()->concurrent_marking()->IsStopped());
+  ItemParallelJob marking_job(isolate()->cancelable_task_manager(),
+                              &page_parallel_job_semaphore_);
+  size_t elements = 0;
+
+  // Split EphemeronHashTables into chunks such that we can divide work more
+  // equally between tasks
+  weak_objects_.ephemeron_hash_tables.Iterate([&](EphemeronHashTable* table) {
+    int capacity = table->Capacity();
+    int chunks = (capacity + kEphemeronChunkSize - 1) / kEphemeronChunkSize;
+    elements += static_cast<size_t>(capacity);
+
+    for (int i = 0; i < chunks; i++) {
+      marking_job.AddItem(
+          new EphemeronHashTableMarkingItem(table, i * kEphemeronChunkSize));
     }
   });
+
+  int num_tasks = NumberOfParallelEphemeronVisitingTasks(elements);
+  for (int i = 0; i < num_tasks; i++) {
+    marking_job.AddTask(new EphemeronHashTableMarkingTask(
+        isolate(), this, marking_worklist_.shared(), i));
+  }
+
+  marking_job.Run(isolate()->async_counters());
+}
+
+int MarkCompactCollector::NumberOfParallelEphemeronVisitingTasks(
+    size_t elements) {
+  DCHECK_GE(elements, 0);
+  if (!FLAG_parallel_ephemeron_visiting || elements == 0) return 1;
+  size_t chunks = (elements + kEphemeronChunkSize - 1) / kEphemeronChunkSize;
+  const size_t kMaxNumTasks =
+      MarkingWorklist::ConcurrentMarkingWorklist::kMaxNumTasks;
+  return Min(NumberOfAvailableCores(),
+             static_cast<int>(Min(chunks, kMaxNumTasks)));
 }
 
 void MarkCompactCollector::ClearWeakCollections() {
@@ -3494,7 +3581,9 @@ int MinorMarkCompactCollector::NumberOfParallelMarkingTasks(int pages) {
   // amount of marking that is required.
   const int kPagesPerTask = 2;
   const int wanted_tasks = Max(1, pages / kPagesPerTask);
-  return Min(NumberOfAvailableCores(), Min(wanted_tasks, kNumMarkers));
+  return Min(NumberOfAvailableCores(),
+             Min(wanted_tasks,
+                 MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks));
 }
 
 void MinorMarkCompactCollector::CleanupSweepToIteratePages() {

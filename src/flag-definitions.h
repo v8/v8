@@ -689,6 +689,8 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_IMPLICATION(parallel_marking, concurrent_marking)
+DEFINE_BOOL(parallel_ephemeron_visiting, true,
+            "use parallel visiting of ephemerons in atomic pause")
 DEFINE_BOOL(
     parallel_ephemeron_marking, true,
     "use parallel marking of objects after visiting ephemerons in atomic pause")

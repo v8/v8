@@ -81,6 +81,9 @@ class ConcurrentMarking {
 
   int TaskCount() { return task_count_; }
 
+  // Checks if all threads are stopped.
+  bool IsStopped();
+
   size_t TotalMarkedBytes();
 
  private:

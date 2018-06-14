@@ -690,6 +690,13 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
   return true;
 }
 
+bool ConcurrentMarking::IsStopped() {
+  if (!FLAG_concurrent_marking) return true;
+
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  return pending_task_count_ == 0;
+}
+
 void ConcurrentMarking::FlushLiveBytes(
     MajorNonAtomicMarkingState* marking_state) {
   DCHECK_EQ(pending_task_count_, 0);

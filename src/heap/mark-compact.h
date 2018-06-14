@@ -770,6 +770,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void ClearMarkbitsInPagedSpace(PagedSpace* space);
   void ClearMarkbitsInNewSpace(NewSpace* space);
 
+  static const int kEphemeronChunkSize = 8 * KB;
+
+  int NumberOfParallelEphemeronVisitingTasks(size_t elements);
+
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_;
 
@@ -815,6 +819,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
+  friend class EphemeronHashTableMarkingTask;
   friend class FullEvacuator;
   friend class Heap;
   friend class RecordMigratedSlotVisitor;
