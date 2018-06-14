@@ -347,7 +347,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
     Operator::Properties properties, MachineType return_type,
-    size_t return_count, Linkage::ContextSpecification context_spec) {
+    size_t return_count, Linkage::ContextSpecification context_spec,
+    StubCallMode stub_mode) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
       register_parameter_count + stack_parameter_count;
@@ -387,21 +388,25 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
   }
 
-  // The target for stub calls is a code object.
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc =
-      LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
-  return new (zone) CallDescriptor(     // --
-      CallDescriptor::kCallCodeObject,  // kind
-      target_type,                      // target MachineType
-      target_loc,                       // target location
-      locations.Build(),                // location_sig
-      stack_parameter_count,            // stack_parameter_count
-      properties,                       // properties
-      kNoCalleeSaved,                   // callee-saved registers
-      kNoCalleeSaved,                   // callee-saved fp
-      CallDescriptor::kCanUseRoots |    // flags
-          flags,                        // flags
+  // The target for stub calls depends on the requested mode.
+  CallDescriptor::Kind kind = stub_mode == StubCallMode::kCallWasmRuntimeStub
+                                  ? CallDescriptor::kCallWasmFunction
+                                  : CallDescriptor::kCallCodeObject;
+  MachineType target_type = stub_mode == StubCallMode::kCallWasmRuntimeStub
+                                ? MachineType::Pointer()
+                                : MachineType::AnyTagged();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+  return new (zone) CallDescriptor(   // --
+      kind,                           // kind
+      target_type,                    // target MachineType
+      target_loc,                     // target location
+      locations.Build(),              // location_sig
+      stack_parameter_count,          // stack_parameter_count
+      properties,                     // properties
+      kNoCalleeSaved,                 // callee-saved registers
+      kNoCalleeSaved,                 // callee-saved fp
+      CallDescriptor::kCanUseRoots |  // flags
+          flags,                      // flags
       descriptor.DebugName(isolate), descriptor.allocatable_registers());
 }
 

@@ -12,6 +12,52 @@ namespace internal {
 
 typedef compiler::Node Node;
 
+TF_BUILTIN(WasmArgumentsAdaptor, CodeStubAssembler) {
+  TNode<Object> context =
+      UncheckedCast<Object>(Parameter(Descriptor::kContext));
+  TNode<Object> function =
+      UncheckedCast<Object>(Parameter(Descriptor::kFunction));
+  TNode<Object> new_target =
+      UncheckedCast<Object>(Parameter(Descriptor::kNewTarget));
+  TNode<Object> argc1 =
+      UncheckedCast<Object>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Object> argc2 =
+      UncheckedCast<Object>(Parameter(Descriptor::kExpectedArgumentsCount));
+  TNode<Object> instance = UncheckedCast<Object>(
+      LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
+  TNode<IntPtrT> roots = UncheckedCast<IntPtrT>(
+      Load(MachineType::Pointer(), instance,
+           IntPtrConstant(WasmInstanceObject::kRootsArrayAddressOffset -
+                          kHeapObjectTag)));
+  TNode<Code> target = UncheckedCast<Code>(Load(
+      MachineType::TaggedPointer(), roots,
+      IntPtrConstant(Heap::roots_to_builtins_offset() +
+                     Builtins::kArgumentsAdaptorTrampoline * kPointerSize)));
+  TailCallStub(ArgumentAdaptorDescriptor(isolate()), target, context, function,
+               new_target, argc1, argc2);
+}
+
+TF_BUILTIN(WasmCallJavaScript, CodeStubAssembler) {
+  TNode<Object> context =
+      UncheckedCast<Object>(Parameter(Descriptor::kContext));
+  TNode<Object> function =
+      UncheckedCast<Object>(Parameter(Descriptor::kFunction));
+  TNode<Object> argc =
+      UncheckedCast<Object>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Object> instance = UncheckedCast<Object>(
+      LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
+  TNode<IntPtrT> roots = UncheckedCast<IntPtrT>(
+      Load(MachineType::Pointer(), instance,
+           IntPtrConstant(WasmInstanceObject::kRootsArrayAddressOffset -
+                          kHeapObjectTag)));
+  TNode<Code> target = UncheckedCast<Code>(
+      Load(MachineType::TaggedPointer(), roots,
+           IntPtrConstant(Heap::roots_to_builtins_offset() +
+                          Builtins::kCall_ReceiverIsAny * kPointerSize)));
+  TailCallStub(CallTrampolineDescriptor(isolate()), target, context, function,
+               argc);
+}
+
 TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {
   TNode<Object> instance = UncheckedCast<Object>(
       LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));

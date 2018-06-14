@@ -699,7 +699,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 0)) {
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
-        if (info()->IsWasm()) {
+        if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
           __ near_call(wasm_code, constant.rmode());
         } else {
           if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
@@ -751,7 +751,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 0)) {
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
-        if (info()->IsWasm()) {
+        if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
           __ near_jmp(wasm_code, constant.rmode());
         } else {
           __ Move(kScratchRegister, wasm_code, constant.rmode());

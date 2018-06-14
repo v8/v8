@@ -4479,9 +4479,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
                                   pos, args);
         } else if (function->shared()->internal_formal_parameter_count() >= 0) {
-          Callable callable = CodeFactory::ArgumentAdaptor(isolate_);
           int pos = 0;
-          args[pos++] = jsgraph()->HeapConstant(callable.code());
+          args[pos++] = mcgraph()->RelocatableIntPtrConstant(
+              wasm::WasmCode::kWasmArgumentsAdaptor, RelocInfo::WASM_STUB_CALL);
           args[pos++] = callable_node;   // target callable
           args[pos++] = undefined_node;  // new target
           args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
@@ -4497,16 +4497,19 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             args[pos++] = undefined_node;
           }
 
+          call_descriptor = Linkage::GetStubCallDescriptor(
+              isolate_, mcgraph()->zone(), ArgumentAdaptorDescriptor(isolate_),
+              1 + wasm_count, CallDescriptor::kNoFlags, Operator::kNoProperties,
+              MachineType::AnyTagged(), 1, Linkage::kPassContext,
+              StubCallMode::kCallWasmRuntimeStub);
+
           // Convert wasm numbers to JS values.
           pos = AddArgumentNodes(args, pos, wasm_count, sig_);
           args[pos++] = function_context;
           args[pos++] = *effect_;
           args[pos++] = *control_;
-          call = graph()->NewNode(
-              mcgraph()->common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate_, mcgraph()->zone(), callable.descriptor(),
-                  1 + wasm_count, CallDescriptor::kNoFlags)),
-              pos, args);
+          call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
+                                  pos, args);
         }
       }
     }
@@ -4514,16 +4517,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // We cannot call the target directly, we have to use the Call builtin.
     if (!call) {
       int pos = 0;
-      // We cannot call the target directly, we have to use the Call builtin.
-      Callable callable = CodeFactory::Call(isolate_);
-      args[pos++] = jsgraph()->HeapConstant(callable.code());
+      args[pos++] = mcgraph()->RelocatableIntPtrConstant(
+          wasm::WasmCode::kWasmCallJavaScript, RelocInfo::WASM_STUB_CALL);
       args[pos++] = callable_node;
       args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
       args[pos++] = undefined_node;                        // receiver
 
       call_descriptor = Linkage::GetStubCallDescriptor(
-          isolate_, graph()->zone(), callable.descriptor(), wasm_count + 1,
-          CallDescriptor::kNoFlags);
+          isolate_, graph()->zone(), CallTrampolineDescriptor(isolate_),
+          wasm_count + 1, CallDescriptor::kNoFlags, Operator::kNoProperties,
+          MachineType::AnyTagged(), 1, Linkage::kPassContext,
+          StubCallMode::kCallWasmRuntimeStub);
 
       // Convert wasm numbers to JS values.
       pos = AddArgumentNodes(args, pos, wasm_count, sig_);

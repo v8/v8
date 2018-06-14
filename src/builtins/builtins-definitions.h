@@ -1192,6 +1192,8 @@ namespace internal {
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
+  TFC(WasmArgumentsAdaptor, ArgumentAdaptor, 1)                                \
+  TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
   TFS(WasmStackGuard)                                                          \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \

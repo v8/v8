@@ -1327,6 +1327,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_centry_stub(*centry_stub);
 
   instance->SetRawMemory(nullptr, 0);
+  instance->set_roots_array_address(
+      reinterpret_cast<Address>(isolate->heap()->roots_array_start()));
   instance->set_stack_limit_address(
       isolate->stack_guard()->address_of_jslimit());
   instance->set_globals_start(nullptr);

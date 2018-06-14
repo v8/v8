@@ -124,6 +124,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, uint32_t,
                     kMemorySizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, uint32_t,
                     kMemoryMaskOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, roots_array_address, Address,
+                    kRootsArrayAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,
                     kStackLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
