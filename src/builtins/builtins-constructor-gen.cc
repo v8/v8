@@ -63,16 +63,6 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
 
 typedef compiler::Node Node;
 
-Node* ConstructorBuiltinsAssembler::NotHasBoilerplate(Node* literal_site) {
-  return TaggedIsSmi(literal_site);
-}
-
-Node* ConstructorBuiltinsAssembler::LoadAllocationSiteBoilerplate(Node* site) {
-  CSA_ASSERT(this, IsAllocationSite(site));
-  return LoadObjectField(site,
-                         AllocationSite::kTransitionInfoOrBoilerplateOffset);
-}
-
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared_function_info = Parameter(Descriptor::kSharedFunctionInfo);
   Node* feedback_cell = Parameter(Descriptor::kFeedbackCell);
@@ -361,13 +351,13 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
       return_result(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  TNode<Object> allocation_site =
+  TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
-  GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
+  GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
 
-  Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
+  TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
+  TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
 
-  CSA_ASSERT(this, IsJSArrayMap(LoadMap(boilerplate)));
   ParameterMode mode = OptimalParameterMode();
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     return CloneFastJSArray(context, boilerplate, mode, allocation_site);
@@ -400,15 +390,17 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
     Node* feedback_vector, Node* slot, Node* context) {
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
-  TVARIABLE(Object, allocation_site,
-            CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0,
-                                        INTPTR_PARAMETERS)));
+  TNode<Object> maybe_allocation_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TVARIABLE(AllocationSite, allocation_site);
 
   Label create_empty_array(this),
       initialize_allocation_site(this, Label::kDeferred), done(this);
-  Branch(TaggedIsSmi(allocation_site.value()), &initialize_allocation_site,
-         &create_empty_array);
-
+  GotoIf(TaggedIsSmi(maybe_allocation_site), &initialize_allocation_site);
+  {
+    allocation_site = CAST(maybe_allocation_site);
+    Goto(&create_empty_array);
+  }
   // TODO(cbruni): create the AllocationSite in CSA.
   BIND(&initialize_allocation_site);
   {
@@ -418,12 +410,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   }
 
   BIND(&create_empty_array);
-  CSA_ASSERT(this, IsAllocationSite(CAST(allocation_site.value())));
-  Node* kind = SmiToInt32(CAST(
-      LoadObjectField(CAST(allocation_site.value()),
-                      AllocationSite::kTransitionInfoOrBoilerplateOffset)));
-  CSA_ASSERT(this, IsFastElementsKind(kind));
-  Node* native_context = LoadNativeContext(context);
+  TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
+  TNode<Context> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
   Node* array_map = LoadJSArrayElementsMap(kind, native_context);
   Node* zero = SmiConstant(0);
@@ -448,12 +436,13 @@ TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     Node* feedback_vector, Node* slot, Label* call_runtime) {
-  TNode<Object> allocation_site =
+  TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
-  GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
+  GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
 
-  Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
-  Node* boilerplate_map = LoadMap(boilerplate);
+  TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
+  TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);
+  TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
 
   VARIABLE(var_properties, MachineRepresentation::kTagged);

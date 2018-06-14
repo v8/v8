@@ -9400,6 +9400,35 @@ TNode<MaybeObject> CodeStubAssembler::StoreWeakReferenceInFeedbackVector(
   return weak_value;
 }
 
+TNode<BoolT> CodeStubAssembler::NotHasBoilerplate(
+    TNode<Object> maybe_literal_site) {
+  return TaggedIsSmi(maybe_literal_site);
+}
+
+TNode<Smi> CodeStubAssembler::LoadTransitionInfo(
+    TNode<AllocationSite> allocation_site) {
+  TNode<Smi> transition_info = CAST(LoadObjectField(
+      allocation_site, AllocationSite::kTransitionInfoOrBoilerplateOffset));
+  return transition_info;
+}
+
+TNode<JSObject> CodeStubAssembler::LoadBoilerplate(
+    TNode<AllocationSite> allocation_site) {
+  TNode<JSObject> boilerplate = CAST(LoadObjectField(
+      allocation_site, AllocationSite::kTransitionInfoOrBoilerplateOffset));
+  return boilerplate;
+}
+
+TNode<Int32T> CodeStubAssembler::LoadElementsKind(
+    TNode<AllocationSite> allocation_site) {
+  TNode<Smi> transition_info = LoadTransitionInfo(allocation_site);
+  TNode<Int32T> elements_kind =
+      Signed(DecodeWord32<AllocationSite::ElementsKindBits>(
+          SmiToInt32(transition_info)));
+  CSA_ASSERT(this, IsFastElementsKind(elements_kind));
+  return elements_kind;
+}
+
 Node* CodeStubAssembler::BuildFastLoop(
     const CodeStubAssembler::VariableList& vars, Node* start_index,
     Node* end_index, const FastLoopBody& body, int increment,

@@ -4032,13 +4032,194 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
       SelectConstant<Object>(IsUndefined(new_target), function, new_target);
 
   // Run the native code for the Array function called as a normal function.
-  TNode<Code> code =
-      HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl));
-  ArrayConstructorDescriptor descriptor(isolate());
   TNode<Object> no_allocation_site = UndefinedConstant();
-  // TODO(ishell): Use TailCallBuiltin once ArrayConstructorImpl is ported.
-  TailCallStub(descriptor, code, context, function, new_target, argc,
-               no_allocation_site);
+  TailCallBuiltin(Builtins::kArrayConstructorImpl, context, function,
+                  new_target, argc, no_allocation_site);
+}
+
+void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
+    const Callable& callable, TNode<Context> context, TNode<JSFunction> target,
+    TNode<HeapObject> allocation_site_or_undefined, TNode<Int32T> argc) {
+  TNode<Code> code = HeapConstant(callable.code());
+
+  // We are going to call here ArrayNoArgumentsConstructor or
+  // ArraySingleArgumentsConstructor which in addition to the register arguments
+  // also expect some number of arguments on the expression stack.
+  // Since
+  // 1) incoming JS arguments are still on the stack,
+  // 2) the ArrayNoArgumentsConstructor, ArraySingleArgumentsConstructor and
+  //    ArrayNArgumentsConstructor are defined so that the register arguments
+  //    are passed on the same registers,
+  // in order to be able to generate a tail call to those builtins we do the
+  // following trick here: we tail call to the constructor builtin using
+  // ArrayNArgumentsConstructorDescriptor, so the tail call instruction
+  // pops the current frame but leaves all the incoming JS arguments on the
+  // expression stack so that the target builtin can still find them where it
+  // expects.
+  ArrayNArgumentsConstructorDescriptor descriptor(isolate());
+  TailCallStub(descriptor, code, context, target, allocation_site_or_undefined,
+               argc);
+}
+
+void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
+    TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
+    AllocationSiteOverrideMode mode, TNode<AllocationSite> allocation_site) {
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    Callable callable = CodeFactory::ArrayNoArgumentConstructor(
+        isolate(), GetInitialFastElementsKind(), mode);
+
+    TailCallArrayConstructorStub(callable, context, target, UndefinedConstant(),
+                                 argc);
+  } else {
+    DCHECK_EQ(mode, DONT_OVERRIDE);
+    TNode<Int32T> elements_kind = LoadElementsKind(allocation_site);
+
+    // TODO(ishell): Compute the builtin index dynamically instead of
+    // iterating over all expected elements kinds.
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next(this);
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      GotoIfNot(Word32Equal(elements_kind, Int32Constant(kind)), &next);
+
+      Callable callable =
+          CodeFactory::ArrayNoArgumentConstructor(isolate(), kind, mode);
+
+      TailCallArrayConstructorStub(callable, context, target, allocation_site,
+                                   argc);
+
+      BIND(&next);
+    }
+
+    // If we reached this point there is a problem.
+    Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
+  }
+}
+
+void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
+    TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
+    AllocationSiteOverrideMode mode, TNode<AllocationSite> allocation_site) {
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    ElementsKind initial = GetInitialFastElementsKind();
+    ElementsKind holey_initial = GetHoleyElementsKind(initial);
+    Callable callable = CodeFactory::ArraySingleArgumentConstructor(
+        isolate(), holey_initial, mode);
+
+    TailCallArrayConstructorStub(callable, context, target, UndefinedConstant(),
+                                 argc);
+  } else {
+    DCHECK_EQ(mode, DONT_OVERRIDE);
+    TNode<Smi> transition_info = LoadTransitionInfo(allocation_site);
+
+    // Least significant bit in fast array elements kind means holeyness.
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
+    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+    STATIC_ASSERT(PACKED_ELEMENTS == 2);
+    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
+    STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
+
+    Label normal_sequence(this);
+    TVARIABLE(Int32T, var_elements_kind,
+              Signed(DecodeWord32<AllocationSite::ElementsKindBits>(
+                  SmiToInt32(transition_info))));
+    // Is the low bit set? If so, we are holey and that is good.
+    int fast_elements_kind_holey_mask =
+        AllocationSite::ElementsKindBits::encode(static_cast<ElementsKind>(1));
+    GotoIf(IsSetSmi(transition_info, fast_elements_kind_holey_mask),
+           &normal_sequence);
+    {
+      // Make elements kind holey and update elements kind in the type info.
+      var_elements_kind =
+          Signed(Word32Or(var_elements_kind.value(), Int32Constant(1)));
+      StoreObjectFieldNoWriteBarrier(
+          allocation_site, AllocationSite::kTransitionInfoOrBoilerplateOffset,
+          SmiOr(transition_info, SmiConstant(fast_elements_kind_holey_mask)));
+      Goto(&normal_sequence);
+    }
+    BIND(&normal_sequence);
+
+    // TODO(ishell): Compute the builtin index dynamically instead of
+    // iterating over all expected elements kinds.
+    // TODO(ishell): Given that the code above ensures that the elements kind
+    // is holey we can skip checking with non-holey elements kinds.
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next(this);
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      GotoIfNot(Word32Equal(var_elements_kind.value(), Int32Constant(kind)),
+                &next);
+
+      Callable callable =
+          CodeFactory::ArraySingleArgumentConstructor(isolate(), kind, mode);
+
+      TailCallArrayConstructorStub(callable, context, target, allocation_site,
+                                   argc);
+
+      BIND(&next);
+    }
+
+    // If we reached this point there is a problem.
+    Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
+  }
+}
+
+void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
+    TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
+    AllocationSiteOverrideMode mode, TNode<AllocationSite> allocation_site) {
+  Label check_one_case(this), fallthrough(this);
+  GotoIfNot(Word32Equal(argc, Int32Constant(0)), &check_one_case);
+  CreateArrayDispatchNoArgument(context, target, argc, mode, allocation_site);
+
+  BIND(&check_one_case);
+  GotoIfNot(Word32Equal(argc, Int32Constant(1)), &fallthrough);
+  CreateArrayDispatchSingleArgument(context, target, argc, mode,
+                                    allocation_site);
+
+  BIND(&fallthrough);
+}
+
+TF_BUILTIN(ArrayConstructorImpl, ArrayBuiltinsAssembler) {
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<HeapObject> maybe_allocation_site =
+      CAST(Parameter(Descriptor::kAllocationSite));
+
+  // Initial map for the builtin Array functions should be Map.
+  CSA_ASSERT(this, IsMap(CAST(LoadObjectField(
+                       target, JSFunction::kPrototypeOrInitialMapOffset))));
+
+  // We should either have undefined or a valid AllocationSite
+  CSA_ASSERT(this, Word32Or(IsUndefined(maybe_allocation_site),
+                            IsAllocationSite(maybe_allocation_site)));
+
+  // "Enter" the context of the Array function.
+  TNode<Context> context =
+      CAST(LoadObjectField(target, JSFunction::kContextOffset));
+
+  Label runtime(this, Label::kDeferred);
+  GotoIf(WordNotEqual(target, new_target), &runtime);
+
+  Label no_info(this);
+  // If the feedback vector is the undefined value call an array constructor
+  // that doesn't use AllocationSites.
+  GotoIf(IsUndefined(maybe_allocation_site), &no_info);
+
+  GenerateDispatchToArrayStub(context, target, argc, DONT_OVERRIDE,
+                              CAST(maybe_allocation_site));
+  Goto(&runtime);
+
+  BIND(&no_info);
+  GenerateDispatchToArrayStub(context, target, argc, DISABLE_ALLOCATION_SITES);
+  Goto(&runtime);
+
+  BIND(&runtime);
+  GenerateArrayNArgumentsConstructor(context, target, new_target, argc,
+                                     maybe_allocation_site);
 }
 
 void ArrayBuiltinsAssembler::GenerateConstructor(

@@ -236,7 +236,7 @@ namespace internal {
                                                                                \
   /* Array */                                                                  \
   TFC(ArrayConstructor, ConstructTrampoline, 1)                                \
-  ASM(ArrayConstructorImpl)                                                    \
+  TFC(ArrayConstructorImpl, ArrayConstructor, 1)                               \
   TFC(ArrayNoArgumentConstructor_PackedSmi_DontOverride,                       \
       ArrayNoArgumentConstructor, 1)                                           \
   TFC(ArrayNoArgumentConstructor_HoleySmi_DontOverride,                        \

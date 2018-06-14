@@ -115,6 +115,26 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
       MissingPropertyMode missing_property_mode,
       ForEachDirection direction = ForEachDirection::kForward);
 
+  void TailCallArrayConstructorStub(
+      const Callable& callable, TNode<Context> context,
+      TNode<JSFunction> target, TNode<HeapObject> allocation_site_or_undefined,
+      TNode<Int32T> argc);
+
+  void GenerateDispatchToArrayStub(
+      TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
+      AllocationSiteOverrideMode mode,
+      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+
+  void CreateArrayDispatchNoArgument(
+      TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
+      AllocationSiteOverrideMode mode,
+      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+
+  void CreateArrayDispatchSingleArgument(
+      TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
+      AllocationSiteOverrideMode mode,
+      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+
   void GenerateConstructor(Node* context, Node* array_function, Node* array_map,
                            Node* array_size, Node* allocation_site,
                            ElementsKind elements_kind, AllocationSiteMode mode);

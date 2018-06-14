@@ -2395,6 +2395,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<AllocationSite> CreateAllocationSiteInFeedbackVector(
       SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot);
 
+  // TODO(ishell, cbruni): Change to HasBoilerplate.
+  TNode<BoolT> NotHasBoilerplate(TNode<Object> maybe_literal_site);
+  TNode<Smi> LoadTransitionInfo(TNode<AllocationSite> allocation_site);
+  TNode<JSObject> LoadBoilerplate(TNode<AllocationSite> allocation_site);
+  TNode<Int32T> LoadElementsKind(TNode<AllocationSite> allocation_site);
+
   enum class IndexAdvanceMode { kPre, kPost };
 
   typedef std::function<void(Node* index)> FastLoopBody;
