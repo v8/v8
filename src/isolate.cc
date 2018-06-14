@@ -66,6 +66,18 @@
 namespace v8 {
 namespace internal {
 
+#ifdef DEBUG
+#define TRACE_ISOLATE(tag)                                                  \
+  do {                                                                      \
+    if (FLAG_trace_isolates) {                                              \
+      PrintF("Isolate %p (id %d)" #tag "\n", reinterpret_cast<void*>(this), \
+             id());                                                         \
+    }                                                                       \
+  } while (false)
+#else
+#define TRACE_ISOLATE(tag)
+#endif
+
 base::Atomic32 ThreadId::highest_thread_id_ = 0;
 
 #ifdef V8_EMBEDDED_BUILTINS
@@ -2366,19 +2378,6 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
   table_.clear();
 }
 
-
-#ifdef DEBUG
-#define TRACE_ISOLATE(tag)                                              \
-  do {                                                                  \
-    if (FLAG_trace_isolates) {                                          \
-      PrintF("Isolate %p (id %d)" #tag "\n",                            \
-             reinterpret_cast<void*>(this), id());                      \
-    }                                                                   \
-  } while (false)
-#else
-#define TRACE_ISOLATE(tag)
-#endif
-
 class VerboseAccountingAllocator : public AccountingAllocator {
  public:
   VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes,
@@ -4198,5 +4197,8 @@ bool InterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
   last_postpone_scope->intercepted_flags_ |= flag;
   return true;
 }
+
+#undef TRACE_ISOLATE
+
 }  // namespace internal
 }  // namespace v8
