@@ -541,7 +541,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   next_buffer_check_ = 0;
-  code_target_sharing_blocked_nesting_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -564,7 +563,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   DCHECK_EQ(const_pool_blocked_nesting_, 0);
-  DCHECK_EQ(code_target_sharing_blocked_nesting_, 0);
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -5153,10 +5151,8 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
   }
-  ConstantPoolEntry entry(position, value,
-                          sharing_ok || (rmode == RelocInfo::CODE_TARGET &&
-                                         IsCodeTargetSharingAllowed()),
-                          rmode);
+  ConstantPoolEntry entry(
+      position, value, sharing_ok || (rmode == RelocInfo::CODE_TARGET), rmode);
 
   bool shared = false;
   if (sharing_ok) {
@@ -5175,8 +5171,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
 
   // Share entries if allowed and possible.
   // Null-values are placeholders and must be ignored.
-  if (rmode == RelocInfo::CODE_TARGET && IsCodeTargetSharingAllowed() &&
-      value != 0) {
+  if (rmode == RelocInfo::CODE_TARGET && value != 0) {
     // Sharing entries here relies on canonicalized handles - without them, we
     // will miss the optimisation opportunity.
     Address handle_address = static_cast<Address>(value);

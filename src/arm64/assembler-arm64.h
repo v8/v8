@@ -3229,34 +3229,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
-  // Class for blocking sharing of code targets in constant pool.
-  class BlockCodeTargetSharingScope {
-   public:
-    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
-      Open(assem);
-    }
-    // This constructor does not initialize the scope. The user needs to
-    // explicitly call Open() before using it.
-    BlockCodeTargetSharingScope() : assem_(nullptr) {}
-    ~BlockCodeTargetSharingScope() { Close(); }
-    void Open(Assembler* assem) {
-      DCHECK_NULL(assem_);
-      DCHECK_NOT_NULL(assem);
-      assem_ = assem;
-      assem_->StartBlockCodeTargetSharing();
-    }
-
-   private:
-    void Close() {
-      if (assem_ != nullptr) {
-        assem_->EndBlockCodeTargetSharing();
-      }
-    }
-    Assembler* assem_;
-
-    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
-  };
-
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
@@ -3340,16 +3312,6 @@ class Assembler : public AssemblerBase {
   // chain if the link chain cannot be fixed up without this branch.
   void RemoveBranchFromLabelLinkChain(Instruction* branch, Label* label,
                                       Instruction* label_veneer = nullptr);
-
-  // Prevent sharing of code target constant pool entries until
-  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
-  // but must be followed by an equal number of call to
-  // EndBlockCodeTargetSharing.
-  void StartBlockCodeTargetSharing() { ++code_target_sharing_blocked_nesting_; }
-
-  // Resume sharing of constant pool code target entries. Needs to be called
-  // as many times as StartBlockCodeTargetSharing to have an effect.
-  void EndBlockCodeTargetSharing() { --code_target_sharing_blocked_nesting_; }
 
  private:
   static uint32_t FPToImm8(double imm);
@@ -3529,12 +3491,6 @@ class Assembler : public AssemblerBase {
 
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
-
-  // Sharing of code target entries may be blocked in some code sequences.
-  int code_target_sharing_blocked_nesting_;
-  bool IsCodeTargetSharingAllowed() const {
-    return code_target_sharing_blocked_nesting_ == 0;
-  }
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
