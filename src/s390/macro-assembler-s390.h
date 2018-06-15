@@ -244,6 +244,8 @@ class TurboAssembler : public TurboAssemblerBase {
                      const Operand& startBit, const Operand& endBit,
                      const Operand& shiftAmt, bool zeroBits);
 
+  void BranchRelativeOnIdxHighP(Register dst, Register inc, Label* L);
+
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 

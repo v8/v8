@@ -415,6 +415,15 @@ void TurboAssembler::RotateInsertSelectBits(Register dst, Register src,
     risbg(dst, src, startBit, endBit, shiftAmt);
 }
 
+void TurboAssembler::BranchRelativeOnIdxHighP(Register dst, Register inc,
+                                              Label* L) {
+#if V8_TARGET_ARCH_S390X
+  brxhg(dst, inc, L);
+#else
+  brxh(dst, inc, L);
+#endif // V8_TARGET_ARCH_S390X
+}
+
 void TurboAssembler::MultiPush(RegList regs, Register location) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kPointerSize;

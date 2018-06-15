@@ -1198,6 +1198,25 @@ inline void rie_d_format(Opcode opcode, int f1, int f2, int f3, int f4) {
 #undef DECLARE_S390_RIE_D_INSTRUCTIONS
 
 
+inline void rie_e_format(Opcode opcode, int f1, int f2, int f3) {
+  uint32_t op1 = opcode >> 8;
+  uint32_t op2 = opcode & 0xff;
+  uint64_t code = getfield<uint64_t, 6, 0, 8>(op1) |
+                  getfield<uint64_t, 6, 8, 12>(f1) |
+                  getfield<uint64_t, 6, 12, 16>(f2) |
+                  getfield<uint64_t, 6, 16, 32>(f3) |
+                  getfield<uint64_t, 6, 40, 48>(op2);
+  emit6bytes(code);
+}
+
+#define DECLARE_S390_RIE_E_INSTRUCTIONS(name, op_name, op_value)         \
+  void name(Register r1, Register r3, const Operand& i2) {               \
+    rie_e_format(op_name, r1.code(), r3.code(), i2.immediate());         \
+  }
+  S390_RIE_E_OPCODE_LIST(DECLARE_S390_RIE_E_INSTRUCTIONS)
+#undef DECLARE_S390_RIE_E_INSTRUCTIONS
+
+
 inline void rie_f_format(Opcode opcode, int f1, int f2, int f3, int f4,
                          int f5) {
   uint32_t op1 = opcode >> 8;
@@ -1302,6 +1321,19 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   void jmp(Register r) { b(al, r); }
   void bunordered(Register r) { b(unordered, r); }
   void bordered(Register r) { b(ordered, r); }
+
+  // wrappers around asm instr
+  void brxh(Register dst, Register inc, Label* L) {
+    int offset_halfwords = branch_offset(L) / 2;
+    CHECK(is_int16(offset_halfwords));
+    brxh(dst, inc, Operand(offset_halfwords));
+  }
+
+  void brxhg(Register dst, Register inc, Label* L) {
+    int offset_halfwords = branch_offset(L) / 2;
+    CHECK(is_int16(offset_halfwords));
+    brxhg(dst, inc, Operand(offset_halfwords));
+  }
 
   // ---------------------------------------------------------------------------
   // Code generation

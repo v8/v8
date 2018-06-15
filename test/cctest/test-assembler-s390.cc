@@ -496,6 +496,129 @@ TEST(10) {
   CHECK_EQ(0, static_cast<int>(res));
 }
 
+
+// brxh
+TEST(11) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  Label ok, failed, continue1, continue2;
+  // r1 - operand; r3 - inc / test val
+  __ lgfi(r1, Operand(1));
+  __ lgfi(r3, Operand(1));
+  __ brxh(r1, r3, &continue1);
+  __ b(&failed);
+
+  __ bind(&continue1);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r3, Operand(1));
+  __ brxh(r1, r3, &failed);
+  __ brxh(r1, r3, &failed);
+  __ brxh(r1, r3, &failed);
+  __ brxh(r1, r3, &continue2);
+  __ b(&failed);
+
+  //r1 - operand; r4 - inc; r5 - test val
+  __ bind(&continue2);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r4, Operand(1));
+  __ lgfi(r5, Operand(-1));
+  __ brxh(r1, r4, &failed);
+  __ brxh(r1, r4, &ok);
+  __ b(&failed);
+
+  __ bind(&ok);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);  // test done.
+
+  __ bind(&failed);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);  // test done.
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIdPTR  "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+
+// brxhg
+TEST(12) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  Label ok, failed, continue1, continue2;
+  // r1 - operand; r3 - inc / test val
+  __ lgfi(r1, Operand(1));
+  __ lgfi(r3, Operand(1));
+  __ brxhg(r1, r3, &continue1);
+  __ b(&failed);
+
+  __ bind(&continue1);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r3, Operand(1));
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &continue2);
+  __ b(&failed);
+
+  __ lgfi(r1, Operand(1));
+  __ lgfi(r3, Operand(1));
+  __ brxhg(r1, r3, &continue1);
+  __ b(&failed);
+
+  __ bind(&continue1);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r3, Operand(1));
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &continue2);
+  __ b(&failed);
+
+  //r1 - operand; r4 - inc; r5 - test val
+  __ bind(&continue2);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r4, Operand(1));
+  __ lgfi(r5, Operand(-1));
+  __ brxhg(r1, r4, &failed);
+  __ brxhg(r1, r4, &ok);
+  __ b(&failed);
+
+  __ bind(&ok);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);  // test done.
+
+  __ bind(&failed);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);  // test done.
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIdPTR  "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+
 #undef __
 
 }  // namespace internal

@@ -1069,6 +1069,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case LPGFR:
       Format(instr, "lpgfr\t'r5,'r6");
       break;
+    case BRXH:
+      Format(instr, "brxh\t'r1,'r2,'i4");
+      break;
     default:
       return false;
   }
@@ -1480,6 +1483,9 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
       break;
     case PFD:
       Format(instr, "pfd\t'm1,'d2('r2d,'r3)");
+      break;
+    case BRXHG:
+      Format(instr, "brxhg\t'r1,'r2,'i4");
       break;
     default:
       return false;

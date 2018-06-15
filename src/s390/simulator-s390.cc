@@ -2680,6 +2680,12 @@ uintptr_t Simulator::PopAddress() {
   int d2 = AS(RSInstruction)->D2Value();          \
   int length = 4;
 
+#define DECODE_RSI_INSTRUCTION(r1, r3, i2)        \
+  int r1 = AS(RSIInstruction)->R1Value();         \
+  int r3 = AS(RSIInstruction)->R3Value();         \
+  int32_t i2 = AS(RSIInstruction)->I2Value();     \
+  int length = 4;
+
 #define DECODE_SI_INSTRUCTION_I_UINT8(b1, d1_val, imm_val) \
   int b1 = AS(SIInstruction)->B1Value();                   \
   intptr_t d1_val = AS(SIInstruction)->D1Value();          \
@@ -2744,6 +2750,12 @@ uintptr_t Simulator::PopAddress() {
   int length = 2;
 
 #define DECODE_RIE_D_INSTRUCTION(r1, r2, i2)  \
+  int r1 = AS(RIEInstruction)->R1Value();     \
+  int r2 = AS(RIEInstruction)->R2Value();     \
+  int32_t i2 = AS(RIEInstruction)->I6Value(); \
+  int length = 6;
+
+#define DECODE_RIE_E_INSTRUCTION(r1, r2, i2)  \
   int r1 = AS(RIEInstruction)->R1Value();     \
   int r2 = AS(RIEInstruction)->R2Value();     \
   int32_t i2 = AS(RIEInstruction)->I6Value(); \
@@ -3866,9 +3878,19 @@ EVALUATE(LE) {
 }
 
 EVALUATE(BRXH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(BRXH);
+  DECODE_RSI_INSTRUCTION(r1, r3, i2);
+  int32_t r1_val = (r1 == 0) ? 0 : get_low_register<int32_t>(r1);
+  int32_t r3_val = (r3 == 0) ? 0 : get_low_register<int32_t>(r3);
+  intptr_t branch_address = get_pc() + (2 * i2);
+  r1_val += r3_val;
+  int32_t compare_val = r3 % 2 == 0 ?
+          get_low_register<int32_t>(r3 + 1) : r3_val;
+  if (r1_val > compare_val) {
+    set_pc(branch_address);
+  }
+  set_low_register(r1, r1_val);
+  return length;
 }
 
 EVALUATE(BRXLE) {
@@ -9212,7 +9234,7 @@ EVALUATE(LAN) {
 
 EVALUATE(LAO) {
   DCHECK_OPCODE(LAO);
-    ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_or);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_or);
   return length;
 }
 
@@ -9237,9 +9259,18 @@ EVALUATE(LAAL) {
 #undef ATOMIC_LOAD_AND_UPDATE_WORD32
 
 EVALUATE(BRXHG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(BRXHG);
+  DECODE_RIE_E_INSTRUCTION(r1, r3, i2);
+  int64_t r1_val = (r1 == 0) ? 0 : get_register(r1);
+  int64_t r3_val = (r3 == 0) ? 0 : get_register(r3);
+  intptr_t branch_address = get_pc() + (2 * i2);
+  r1_val += r3_val;
+  int64_t compare_val = r3 % 2 == 0 ? get_register(r3 + 1) : r3_val;
+  if (r1_val > compare_val) {
+    set_pc(branch_address);
+  }
+  set_register(r1, r1_val);
+  return length;
 }
 
 EVALUATE(BRXLG) {

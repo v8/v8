@@ -421,9 +421,9 @@ int Assembler::target_at(int pos) {
   // check which type of branch this is 16 or 26 bit offset
   Opcode opcode = Instruction::S390OpcodeValue(buffer_ + pos);
 
-  if (BRC == opcode || BRCT == opcode || BRCTG == opcode) {
+  if (BRC == opcode || BRCT == opcode || BRCTG == opcode || BRXH == opcode) {
     int16_t imm16 = SIGN_EXT_IMM16((instr & kImm16Mask));
-    imm16 <<= 1;  // BRC immediate is in # of halfwords
+    imm16 <<= 1;  // immediate is in # of halfwords
     if (imm16 == 0) return kEndOfChain;
     return pos + imm16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
@@ -434,6 +434,13 @@ int Assembler::target_at(int pos) {
       imm32 <<= 1;  // BR* + LARL treat immediate in # of halfwords
     if (imm32 == 0) return kEndOfChain;
     return pos + imm32;
+  } else if (BRXHG == opcode) {
+    // offset is in bits 16-31 of 48 bit instruction
+    instr = instr >> 16;
+    int16_t imm16 = SIGN_EXT_IMM16((instr & kImm16Mask));
+    imm16 <<= 1;  // immediate is in # of halfwords
+    if (imm16 == 0) return kEndOfChain;
+    return pos + imm16;
   }
 
   // Unknown condition
@@ -448,10 +455,11 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
 
   if (is_branch != nullptr) {
     *is_branch = (opcode == BRC || opcode == BRCT || opcode == BRCTG ||
-                  opcode == BRCL || opcode == BRASL);
+                  opcode == BRCL || opcode == BRASL || opcode == BRXH ||
+                  opcode == BRXHG);
   }
 
-  if (BRC == opcode || BRCT == opcode || BRCTG == opcode) {
+  if (BRC == opcode || BRCT == opcode || BRCTG == opcode || BRXH == opcode) {
     int16_t imm16 = target_pos - pos;
     instr &= (~0xFFFF);
     DCHECK(is_int16(imm16));
@@ -471,6 +479,15 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | imm32);
     return;
+  } else if (BRXHG == opcode) {
+    // Immediate is in bits 16-31 of 48 bit instruction
+    int32_t imm16 = target_pos - pos;
+    instr &= (0xFFFF0000FFFF); // clear bits 16-31
+    imm16 &= 0xFFFF;           // clear high halfword
+    imm16 <<= 16;
+    // Immediate is in # of halfwords
+    instr_at_put<SixByteInstr>(pos, instr | (imm16 >> 1));
+    return;
   }
   DCHECK(false);
 }
@@ -478,10 +495,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
 // Returns the maximum number of bits given instruction can address.
 int Assembler::max_reach_from(int pos) {
   Opcode opcode = Instruction::S390OpcodeValue(buffer_ + pos);
-
   // Check which type of instr.  In theory, we can return
   // the values below + 1, given offset is # of halfwords
-  if (BRC == opcode || BRCT == opcode || BRCTG == opcode) {
+  if (BRC == opcode || BRCT == opcode || BRCTG == opcode|| BRXH == opcode ||
+      BRXHG == opcode) {
     return 16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
              BRASL == opcode) {

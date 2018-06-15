@@ -2231,6 +2231,17 @@ class RSInstruction : Instruction {
   inline int size() const { return 4; }
 };
 
+// RSI Instruction
+class RSIInstruction : Instruction {
+ public:
+  inline int R1Value() const { return Bits<FourByteInstr, int>(23, 20); }
+  inline int R3Value() const { return Bits<FourByteInstr, int>(19, 16); }
+  inline int I2Value() const {
+    return static_cast<int32_t>(Bits<FourByteInstr, int16_t>(15, 0));
+  }
+  inline int size() const { return 4; }
+};
+
 // RSY Instruction
 class RSYInstruction : Instruction {
  public:
