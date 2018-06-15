@@ -1162,11 +1162,11 @@ bool Isolate::is_catchable_by_wasm(Object* exception) {
       .IsJust();
 }
 
-Object* Isolate::Throw(Object* exception, MessageLocation* location) {
+Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
   HandleScope scope(this);
-  Handle<Object> exception_handle(exception, this);
+  Handle<Object> exception(raw_exception, this);
 
   if (FLAG_print_all_exceptions) {
     printf("=========================================================\n");
@@ -1191,11 +1191,13 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
                Script::GetColumnNumber(script, location->start_pos()),
                Script::GetLineNumber(script, location->end_pos()) + 1,
                Script::GetColumnNumber(script, location->end_pos()));
+        // Make sure to update the raw exception pointer in case it moved.
+        raw_exception = *exception;
       } else {
         printf(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
       }
     }
-    exception->Print();
+    raw_exception->Print();
     printf("Stack Trace:\n");
     PrintStack(stdout);
     printf("=========================================================\n");
@@ -1217,8 +1219,8 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   thread_local_top()->rethrowing_message_ = false;
 
   // Notify debugger of exception.
-  if (is_catchable_by_javascript(exception)) {
-    debug()->OnThrow(exception_handle);
+  if (is_catchable_by_javascript(raw_exception)) {
+    debug()->OnThrow(exception);
   }
 
   // Generate the message if required.
@@ -1233,9 +1235,9 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
       // It's not safe to try to make message objects or collect stack traces
       // while the bootstrapper is active since the infrastructure may not have
       // been properly initialized.
-      ReportBootstrappingException(exception_handle, location);
+      ReportBootstrappingException(exception, location);
     } else {
-      Handle<Object> message_obj = CreateMessage(exception_handle, location);
+      Handle<Object> message_obj = CreateMessage(exception, location);
       thread_local_top()->pending_message_obj_ = *message_obj;
 
       // For any exception not caught by JavaScript, even when an external
@@ -1264,7 +1266,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   }
 
   // Set the exception being thrown.
-  set_pending_exception(*exception_handle);
+  set_pending_exception(*exception);
   return heap()->exception();
 }
 
