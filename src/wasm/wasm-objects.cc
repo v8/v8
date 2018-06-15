@@ -273,7 +273,8 @@ enum DispatchTableElements : int {
 
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    Handle<FixedArray> export_wrappers, Handle<Foreign> managed_module,
+    Handle<FixedArray> export_wrappers,
+    Handle<Managed<wasm::WasmModule>> managed_module,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
   Handle<JSFunction> module_cons(
@@ -335,10 +336,6 @@ void WasmModuleObject::ValidateStateForTesting(
   CHECK(!compiled_module->has_prev_instance());
   CHECK(!compiled_module->has_next_instance());
   CHECK(!compiled_module->has_instance());
-}
-
-WasmModule* WasmModuleObject::module() const {
-  return Managed<WasmModule>::cast(managed_module())->raw();
 }
 
 bool WasmModuleObject::is_asm_js() {

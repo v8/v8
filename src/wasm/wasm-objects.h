@@ -108,8 +108,8 @@ class WasmModuleObject : public JSObject {
   // Shared compiled code between multiple WebAssembly.Module objects.
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(managed_module, Object)
-  wasm::WasmModule* module() const;
+  DECL_ACCESSORS(managed_module, Managed<wasm::WasmModule>)
+  inline wasm::WasmModule* module() const;
   DECL_ACCESSORS(module_bytes, SeqOneByteString)
   DECL_ACCESSORS(script, Script)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
@@ -137,7 +137,8 @@ class WasmModuleObject : public JSObject {
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-      Handle<FixedArray> export_wrappers, Handle<Foreign> managed_module,
+      Handle<FixedArray> export_wrappers,
+      Handle<Managed<wasm::WasmModule>> managed_module,
       Handle<SeqOneByteString> module_bytes, Handle<Script> script,
       Handle<ByteArray> asm_js_offset_table);
 
