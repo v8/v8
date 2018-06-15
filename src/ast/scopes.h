@@ -78,8 +78,6 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
   int count_;
 };
 
-enum class AnalyzeMode { kRegular, kDebugger };
-
 // Global invariants after AST construction: Each reference (i.e. identifier)
 // to a JavaScript variable (including global properties) is represented by a
 // VariableProxy node. Immediately after AST construction and before variable
@@ -367,7 +365,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Whether this needs to be represented by a runtime context.
   bool NeedsContext() const {
     // Catch scopes always have heap slots.
-    DCHECK(!is_catch_scope() || num_heap_slots() > 0);
+    DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
+    DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     return num_heap_slots() > 0;
   }
 
@@ -813,7 +812,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // The local variable 'arguments' if we need to allocate it; nullptr
   // otherwise.
   Variable* arguments() const {
-    DCHECK(!is_arrow_scope() || arguments_ == nullptr);
+    DCHECK_IMPLIES(is_arrow_scope(), arguments_ == nullptr);
     return arguments_;
   }
 
@@ -868,8 +867,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.
-  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate,
-                                 AnalyzeMode mode);
+  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);

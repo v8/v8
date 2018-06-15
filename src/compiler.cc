@@ -509,8 +509,7 @@ bool FinalizeUnoptimizedCode(
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   // Allocate scope infos for the literal.
-  DeclarationScope::AllocateScopeInfos(parse_info, isolate,
-                                       AnalyzeMode::kRegular);
+  DeclarationScope::AllocateScopeInfos(parse_info, isolate);
 
   // Finalize the outer-most function's compilation job.
   if (FinalizeUnoptimizedCompilationJob(outer_function_job, shared_info,
