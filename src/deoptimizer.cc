@@ -2198,28 +2198,52 @@ Handle<Object> GetValueForDebugger(TranslatedFrame::iterator it,
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
                                            TranslatedState::iterator frame_it,
                                            Isolate* isolate) {
-  int parameter_count =
-      frame_it->shared_info()->internal_formal_parameter_count();
-  TranslatedFrame::iterator stack_it = frame_it->begin();
+  // If the previous frame is an adaptor frame, we will take the parameters
+  // from there.
+  TranslatedState::iterator parameter_frame = frame_it;
+  if (parameter_frame != state->begin()) {
+    parameter_frame--;
+  }
+  int parameter_count;
+  if (parameter_frame->kind() == TranslatedFrame::kArgumentsAdaptor) {
+    parameter_count = parameter_frame->height() - 1;  // Ignore the receiver.
+  } else {
+    parameter_frame = frame_it;
+    parameter_count =
+        frame_it->shared_info()->internal_formal_parameter_count();
+  }
+  TranslatedFrame::iterator parameter_it = parameter_frame->begin();
+  parameter_it++;  // Skip the function.
+  parameter_it++;  // Skip the receiver.
 
-  // Get the function. Note that this might materialize the function.
-  // In case the debugger mutates this value, we should deoptimize
-  // the function and remember the value in the materialized value store.
-  function_ = Handle<JSFunction>::cast(stack_it->GetValue());
-  stack_it++;  // Skip the function.
-  stack_it++;  // Skip the receiver.
+  // Figure out whether there is a construct stub frame on top of
+  // the parameter frame.
+  has_construct_stub_ =
+      parameter_frame != state->begin() &&
+      (parameter_frame - 1)->kind() == TranslatedFrame::kConstructStub;
 
   DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
   source_position_ = Deoptimizer::ComputeSourcePositionFromBytecodeArray(
       *frame_it->shared_info(), frame_it->node_id());
 
-  DCHECK_EQ(parameter_count,
-            function_->shared()->internal_formal_parameter_count());
+  TranslatedFrame::iterator value_it = frame_it->begin();
+  // Get the function. Note that this might materialize the function.
+  // In case the debugger mutates this value, we should deoptimize
+  // the function and remember the value in the materialized value store.
+  function_ = Handle<JSFunction>::cast(value_it->GetValue());
 
   parameters_.resize(static_cast<size_t>(parameter_count));
   for (int i = 0; i < parameter_count; i++) {
-    Handle<Object> parameter = GetValueForDebugger(stack_it, isolate);
+    Handle<Object> parameter = GetValueForDebugger(parameter_it, isolate);
     SetParameter(i, parameter);
+    parameter_it++;
+  }
+
+  // Skip the function, the receiver and the arguments.
+  int skip_count =
+      frame_it->shared_info()->internal_formal_parameter_count() + 2;
+  TranslatedFrame::iterator stack_it = frame_it->begin();
+  for (int i = 0; i < skip_count; i++) {
     stack_it++;
   }
 

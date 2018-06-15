@@ -648,7 +648,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK(i::Rewriter::Rewrite(&info));
       info.ast_value_factory()->Internalize(isolate);
       CHECK(i::DeclarationScope::Analyze(&info));
-      i::DeclarationScope::AllocateScopeInfos(&info, isolate);
+      i::DeclarationScope::AllocateScopeInfos(&info, isolate,
+                                              i::AnalyzeMode::kRegular);
       CHECK_NOT_NULL(info.literal());
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -10125,7 +10126,8 @@ TEST(LexicalLoopVariable) {
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info));
     CHECK(i::DeclarationScope::Analyze(&info));
-    i::DeclarationScope::AllocateScopeInfos(&info, isolate);
+    i::DeclarationScope::AllocateScopeInfos(&info, isolate,
+                                            i::AnalyzeMode::kRegular);
     CHECK_NOT_NULL(info.literal());
 
     i::DeclarationScope* script_scope = info.literal()->scope();

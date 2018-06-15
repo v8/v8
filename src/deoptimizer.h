@@ -1025,6 +1025,12 @@ class DeoptimizedFrameInfo : public Malloced {
   // Get the frame context.
   Handle<Object> GetContext() { return context_; }
 
+  // Check if this frame is preceded by construct stub frame.  The bottom-most
+  // inlined frame might still be called by an uninlined construct stub.
+  bool HasConstructStub() {
+    return has_construct_stub_;
+  }
+
   // Get an incoming argument.
   Handle<Object> GetParameter(int index) {
     DCHECK(0 <= index && index < parameters_count());
@@ -1056,6 +1062,7 @@ class DeoptimizedFrameInfo : public Malloced {
 
   Handle<JSFunction> function_;
   Handle<Object> context_;
+  bool has_construct_stub_;
   std::vector<Handle<Object> > parameters_;
   std::vector<Handle<Object> > expression_stack_;
   int source_position_;
