@@ -10,6 +10,7 @@
 #include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/instruction-stream.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -2399,9 +2400,11 @@ extern void _v8_internal_Print_Code(void* object) {
   }
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
-      !isolate->heap()->InSpaceSlow(address, i::LO_SPACE)) {
+      !isolate->heap()->InSpaceSlow(address, i::LO_SPACE) &&
+      !i::InstructionStream::PcIsOffHeap(isolate, address)) {
     i::PrintF(
-        "%p is not within the current isolate's large object or code spaces\n",
+        "%p is not within the current isolate's large object, code or embedded "
+        "spaces\n",
         object);
     return;
   }
