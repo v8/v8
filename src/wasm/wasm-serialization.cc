@@ -581,6 +581,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
                            i::wasm::kWasmOrigin);
   if (!decode_result.ok()) return {};
   CHECK_NOT_NULL(decode_result.val);
+  WasmModule* module = decode_result.val.get();
   Handle<String> module_bytes =
       isolate->factory()
           ->NewStringFromOneByte(
@@ -588,13 +589,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
               TENURED)
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
-  // The {managed_module} will take ownership of the {WasmModule} object,
-  // and it will be destroyed when the GC reclaims it.
-  WasmModule* module = decode_result.val.get();
-  size_t module_size = EstimateWasmModuleSize(module);
-  Handle<Managed<WasmModule>> managed_module =
-      Managed<WasmModule>::FromUniquePtr(isolate, module_size,
-                                         std::move(decode_result.val));
   Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
   int export_wrappers_size = static_cast<int>(module->num_exported_functions);
   Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
@@ -618,7 +612,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!deserializer.Read(&reader)) return {};
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, compiled_module, export_wrappers, managed_module,
+      isolate, compiled_module, export_wrappers, std::move(decode_result.val),
       Handle<SeqOneByteString>::cast(module_bytes), script,
       Handle<ByteArray>::null());
   native_module->SetModuleObject(module_object);

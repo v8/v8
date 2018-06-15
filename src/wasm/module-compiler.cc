@@ -1366,13 +1366,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
 
-  // The {managed_module} will take ownership of the {WasmModule} object,
-  // and it will be destroyed when the GC reclaims the wrapper object.
-  size_t module_size = EstimateWasmModuleSize(module.get());
-  Handle<Managed<WasmModule>> managed_module =
-      Managed<WasmModule>::FromUniquePtr(isolate, module_size,
-                                         std::move(module));
-
   // Create the module object.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
   // only have one WasmModuleObject. Otherwise, we might only set
@@ -1395,7 +1388,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   Handle<WasmCompiledModule> compiled_module =
       NewCompiledModule(isolate, wasm_module, env);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, compiled_module, export_wrappers, managed_module,
+      isolate, compiled_module, export_wrappers, std::move(module),
       Handle<SeqOneByteString>::cast(module_bytes), script,
       asm_js_offset_table);
   compiled_module->GetNativeModule()->SetModuleObject(module_object);
@@ -2910,20 +2903,13 @@ void AsyncCompileJob::FinishCompile() {
   Handle<FixedArray> export_wrappers =
       isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
 
-  // The {managed_module} will take ownership of the {WasmModule} object,
-  // and it will be destroyed when the GC reclaims the wrapper object.
-  size_t module_size = EstimateWasmModuleSize(module_.get());
-  Handle<Managed<WasmModule>> managed_module =
-      Managed<WasmModule>::FromUniquePtr(isolate_, module_size,
-                                         std::move(module_));
-
   // Create the module object.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
   // only have one {WasmModuleObject}. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.
   module_object_ = WasmModuleObject::New(
-      isolate_, compiled_module_, export_wrappers, managed_module,
+      isolate_, compiled_module_, export_wrappers, std::move(module_),
       Handle<SeqOneByteString>::cast(module_bytes), script,
       asm_js_offset_table);
   compiled_module_->GetNativeModule()->SetModuleObject(module_object_);

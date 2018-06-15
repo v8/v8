@@ -138,7 +138,7 @@ class WasmModuleObject : public JSObject {
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
       Handle<FixedArray> export_wrappers,
-      Handle<Managed<wasm::WasmModule>> managed_module,
+      std::shared_ptr<wasm::WasmModule> module,
       Handle<SeqOneByteString> module_bytes, Handle<Script> script,
       Handle<ByteArray> asm_js_offset_table);
 

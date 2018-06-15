@@ -274,9 +274,16 @@ enum DispatchTableElements : int {
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
     Handle<FixedArray> export_wrappers,
-    Handle<Managed<wasm::WasmModule>> managed_module,
+    std::shared_ptr<wasm::WasmModule> module,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
+  // The {managed_module} will take shared ownership of the {WasmModule} object,
+  // and release it when the GC reclaim the managed.
+  size_t module_size = EstimateWasmModuleSize(module.get());
+  Handle<Managed<WasmModule>> managed_module =
+      Managed<WasmModule>::FromSharedPtr(isolate, module_size,
+                                         std::move(module));
+
   Handle<JSFunction> module_cons(
       isolate->native_context()->wasm_module_constructor());
   auto module_object = Handle<WasmModuleObject>::cast(

@@ -210,10 +210,6 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
       isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
-  size_t module_size = 0;
-  auto managed_module =
-      Managed<WasmModule>::FromSharedPtr(isolate_, module_size, test_module_);
-  DCHECK_EQ(test_module_ptr_, managed_module->raw());
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
@@ -222,7 +218,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<WasmCompiledModule> compiled_module =
       WasmCompiledModule::New(isolate_, test_module_ptr_, env);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate_, compiled_module, export_wrappers, managed_module, empty_string,
+      isolate_, compiled_module, export_wrappers, test_module_, empty_string,
       script, Handle<ByteArray>::null());
   compiled_module->GetNativeModule()->SetModuleObject(module_object);
   // This method is called when we initialize TestEnvironment. We don't
