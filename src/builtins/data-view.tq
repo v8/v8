@@ -73,9 +73,9 @@ module data_view {
     }
   }
 
-  extern macro BitcastInt32ToFloat32(int32): float32;
-  extern macro Float64InsertLowWord32(float64, int32): float64;
-  extern macro Float64InsertHighWord32(float64, int32): float64;
+  extern macro BitcastInt32ToFloat32(word32): float32;
+  extern macro Float64InsertLowWord32(float64, word32): float64;
+  extern macro Float64InsertHighWord32(float64, word32): float64;
 
   extern macro LoadUint8(RawPtr, intptr): int32;
   extern macro LoadInt8(RawPtr, intptr): int32;
@@ -95,15 +95,16 @@ module data_view {
     let b1: int32;
     let result: int32;
 
+
     // Sign-extend the most significant byte by loading it as an Int8.
     if (requested_little_endian) {
       b0 = LoadUint8(data_pointer, offset);
       b1 = LoadInt8(data_pointer, offset + 1);
-      result = (b1 << 8) + b0;
+      result = convert<int32>(b1 << 8) + b0;
     } else {
       b0 = LoadInt8(data_pointer, offset);
       b1 = LoadUint8(data_pointer, offset + 1);
-      result = (b0 << 8) + b1;
+      result = convert<int32>(b0 << 8) + b1;
     }
     if constexpr (signed) {
       return convert<Smi>(result);
@@ -116,44 +117,44 @@ module data_view {
   macro LoadDataView32(data_pointer: RawPtr, offset: intptr,
                        requested_little_endian: bool,
                        signed: constexpr bool): Number {
-    let b0: int32 = LoadUint8(data_pointer, offset);
-    let b1: int32 = LoadUint8(data_pointer, offset + 1);
-    let b2: int32 = LoadUint8(data_pointer, offset + 2);
-    let b3: int32 = LoadUint8(data_pointer, offset + 3);
-    let result: int32;
+    let b0: word32 = LoadUint8(data_pointer, offset);
+    let b1: word32 = LoadUint8(data_pointer, offset + 1);
+    let b2: word32 = LoadUint8(data_pointer, offset + 2);
+    let b3: word32 = LoadUint8(data_pointer, offset + 3);
+    let result: word32;
 
     if (requested_little_endian) {
-      let low_part: int32 = (b1 << 8) + b0;
-      let high_part: int32 = (b3 << 8) + b2;
-      result = (high_part << 16) + low_part;
+      let low_part: word32 = (b1 << 8) | b0;
+      let high_part: word32 = (b3 << 8) | b2;
+      result = (high_part << 16) | low_part;
     } else {
-      let high_part: int32 = (b0 << 8) + b1;
-      let low_part: int32 = (b2 << 8) + b3;
-      result = (high_part << 16) + low_part;
+      let high_part: word32 = (b0 << 8) | b1;
+      let low_part: word32 = (b2 << 8) | b3;
+      result = (high_part << 16) | low_part;
     }
     if constexpr (signed) {
-      return convert<Number>(result);
+      return convert<Number>(convert<int32>(result));
     } else {
       return convert<Number>(convert<uint32>(result));
     }
   }
 
   macro LoadDataViewFloat32(data_pointer: RawPtr, offset: intptr,
-                            requested_little_endian: bool): Number {
-    let b0: int32 = LoadUint8(data_pointer, offset);
-    let b1: int32 = LoadUint8(data_pointer, offset + 1);
-    let b2: int32 = LoadUint8(data_pointer, offset + 2);
-    let b3: int32 = LoadUint8(data_pointer, offset + 3);
-    let result: int32;
+                            requested_little_endian: bool): HeapNumber {
+    let b0: word32 = LoadUint8(data_pointer, offset);
+    let b1: word32 = LoadUint8(data_pointer, offset + 1);
+    let b2: word32 = LoadUint8(data_pointer, offset + 2);
+    let b3: word32 = LoadUint8(data_pointer, offset + 3);
+    let result: word32;
 
     if (requested_little_endian) {
-      let low_part: int32 = (b1 << 8) + b0;
-      let high_part: int32 = (b3 << 8) + b2;
-      result = (high_part << 16) + low_part;
+      let low_part: word32 = (b1 << 8) | b0;
+      let high_part: word32 = (b3 << 8) | b2;
+      result = (high_part << 16) | low_part;
     } else {
-      let high_part: int32 = (b0 << 8) + b1;
-      let low_part: int32 = (b2 << 8) + b3;
-      result = (high_part << 16) + low_part;
+      let high_part: word32 = (b0 << 8) | b1;
+      let low_part: word32 = (b2 << 8) | b3;
+      result = (high_part << 16) | low_part;
     }
 
     let float_res: float64 = convert<float64>(BitcastInt32ToFloat32(result));
@@ -161,26 +162,25 @@ module data_view {
   }
 
   macro LoadDataViewFloat64(data_pointer: RawPtr, offset: intptr,
-                            requested_little_endian: bool): Number {
-    let b0: int32 = LoadUint8(data_pointer, offset);
-    let b1: int32 = LoadUint8(data_pointer, offset + 1);
-    let b2: int32 = LoadUint8(data_pointer, offset + 2);
-    let b3: int32 = LoadUint8(data_pointer, offset + 3);
-    let b4: int32 = LoadUint8(data_pointer, offset + 4);
-    let b5: int32 = LoadUint8(data_pointer, offset + 5);
-    let b6: int32 = LoadUint8(data_pointer, offset + 6);
-    let b7: int32 = LoadUint8(data_pointer, offset + 7);
+                            requested_little_endian: bool): HeapNumber {
+    let b0: word32 = LoadUint8(data_pointer, offset);
+    let b1: word32 = LoadUint8(data_pointer, offset + 1);
+    let b2: word32 = LoadUint8(data_pointer, offset + 2);
+    let b3: word32 = LoadUint8(data_pointer, offset + 3);
+    let b4: word32 = LoadUint8(data_pointer, offset + 4);
+    let b5: word32 = LoadUint8(data_pointer, offset + 5);
+    let b6: word32 = LoadUint8(data_pointer, offset + 6);
+    let b7: word32 = LoadUint8(data_pointer, offset + 7);
     let result: float64 = convert<float64>(0);
 
     if (requested_little_endian) {
-      let low_part: int32 = (b3 << 24) + (b2 << 16) + (b1 << 8) + b0;
-      let high_part: int32 = (b7 << 24) + (b6 << 16) + (b5 << 8) + b4;
+      let low_part: word32 = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+      let high_part: word32 = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
       result = Float64InsertLowWord32(result, low_part);
       result = Float64InsertHighWord32(result, high_part);
-    }
-    else {
-      let high_part: int32 = (b0 << 24) + (b1 << 16) + (b2 << 8) + b3;
-      let low_part: int32 = (b4 << 24) + (b5 << 16) + (b6 << 8) + b7;
+    } else {
+      let high_part: word32 = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      let low_part: word32 = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
       result = Float64InsertLowWord32(result, low_part);
       result = Float64InsertHighWord32(result, high_part);
     }
@@ -188,9 +188,148 @@ module data_view {
     return AllocateHeapNumberWithValue(result);
   }
 
-  // Context, receiver, byteOffset, littleEndian
-  extern runtime DataViewGetBigInt64(Context, Object, Object, Object): Number;
-  extern runtime DataViewGetBigUint64(Context, Object, Object, Object): Number;
+  extern macro AllocateBigInt(intptr): BigInt;
+  extern macro AllocateRawBigInt(intptr): BigInt;
+  extern macro StoreBigIntBitfield(BigInt, intptr): void;
+  extern macro StoreBigIntDigit(BigInt, constexpr int31, uintptr): void;
+  extern macro DataViewEncodeBigIntBits(constexpr bool,
+      constexpr int31): intptr;
+
+  // Create a BigInt on a 64-bit architecture from two 32-bit values.
+  macro MakeBigIntOn64Bit(low_word: word32, high_word: word32,
+                          signed: constexpr bool): BigInt {
+    // TODO(theotime): Replace magic numbers for the number of digits in
+    // AllocateRawBigInt and DataViewEncodeBigIntBits with constants.
+    let result: BigInt = AllocateRawBigInt(1);
+    let high_part: intptr = convert<intptr>(convert<uintptr>(high_word));
+    let low_part: intptr = convert<intptr>(convert<uintptr>(low_word));
+    let value: intptr = (high_part << 32) + low_part;
+
+    if constexpr (signed) {
+      if (value < 0) {
+        StoreBigIntBitfield(result, DataViewEncodeBigIntBits(true, 1));
+        // We have to store the absolute value in the digits.
+        value = 0 - value;
+      } else {
+        StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 1));
+      }
+    } else {
+      StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 1));
+    }
+
+    StoreBigIntDigit(result, 0, convert<uintptr>(value));
+
+    return result;
+  }
+
+  // Create a BigInt on a 32-bit architecture from two 32-bit values.
+  macro MakeBigIntOn32Bit(low_word: word32, high_word: word32,
+                          signed: constexpr bool): BigInt {
+    // TODO(theotime): Replace magic numbers for the number of digits in
+    // AllocateRawBigInt and DataViewEncodeBigIntBits with constants.
+
+    let result: BigInt;
+
+    // On a 32-bit platform, we might need 1 or 2 digits to store the number.
+    let two_digits: bool = false;
+
+    // We need to do some math on low_word and high_word,
+    // so convert them to int32.
+    let low_part: int32 = convert<int32>(low_word);
+    let high_part: int32 = convert<int32>(high_word);
+
+    // If high_word == 0, the number is positive, so we only need 1 digit.
+    if (high_word == 0) {
+      result = AllocateRawBigInt(1);
+      StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 1));
+    } else {
+
+      if constexpr (signed) {
+        // If high_part < 0, the number is always negative.
+        if (high_part < 0) {
+          // We have to compute the absolute value by hand.
+          // There will be a negative carry from the low word
+          // to the high word iff low != 0.
+          high_part = 0 - high_part;
+          if (low_part != 0) {
+            high_part = high_part - 1;
+          }
+          low_part = 0 - low_part;
+
+          // Here, high_part can be 0 again so we might have 1 or 2 digits.
+          if (high_part == 0) {
+            result = AllocateRawBigInt(1);
+            StoreBigIntBitfield(result, DataViewEncodeBigIntBits(true, 1));
+          } else {
+            result = AllocateRawBigInt(2);
+            StoreBigIntBitfield(result, DataViewEncodeBigIntBits(true, 2));
+            two_digits = true;
+          }
+
+        } else {
+          // In this case, the number is positive, and we need 2 digits.
+          result = AllocateRawBigInt(2);
+          StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 2));
+          two_digits = true;
+        }
+
+      } else {
+        // In this case, the number is positive (unsigned),
+        // and we need 2 digits.
+        result = AllocateRawBigInt(2);
+        StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 2));
+        two_digits = true;
+      }
+    }
+
+    // Finally, write the digit(s) to the BigInt.
+    let low_intptr: intptr = convert<intptr>(low_part);
+    StoreBigIntDigit(result, 0, convert<uintptr>(low_intptr));
+    if (two_digits) {
+      let high_intptr: intptr = convert<intptr>(high_part);
+      StoreBigIntDigit(result, 1, convert<uintptr>(high_intptr));
+    }
+
+    return result;
+  }
+
+  macro LoadDataViewBigInt(data_pointer: RawPtr, offset: intptr,
+                           requested_little_endian: bool,
+                           signed: constexpr bool): BigInt {
+    let b0: word32 = LoadUint8(data_pointer, offset);
+    let b1: word32 = LoadUint8(data_pointer, offset + 1);
+    let b2: word32 = LoadUint8(data_pointer, offset + 2);
+    let b3: word32 = LoadUint8(data_pointer, offset + 3);
+    let b4: word32 = LoadUint8(data_pointer, offset + 4);
+    let b5: word32 = LoadUint8(data_pointer, offset + 5);
+    let b6: word32 = LoadUint8(data_pointer, offset + 6);
+    let b7: word32 = LoadUint8(data_pointer, offset + 7);
+    let low_word: word32;
+    let high_word: word32;
+    let result: BigInt;
+
+    if (requested_little_endian) {
+      low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+      high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
+    } else {
+      high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+    }
+
+    // 0 is a special case (0 BigInt digits), we handle it separately here.
+    if (low_word == 0 && high_word == 0) {
+      result = AllocateBigInt(0);
+    } else {
+      // A BigInt digit has the platform word size, so we only need one digit
+      // on 64-bit platforms but may need two on 32-bit.
+      if constexpr (Is64()) {
+        result = MakeBigIntOn64Bit(low_word, high_word, signed);
+      } else {
+        result = MakeBigIntOn32Bit(low_word, high_word, signed);
+      }
+    }
+    return result;
+  }
 
   extern macro ToSmiIndex(Object, Context): Smi labels RangeError;
   extern macro DataViewElementSize(constexpr ElementsKind): constexpr int31;
@@ -199,7 +338,7 @@ module data_view {
                     receiver: Object,
                     offset: Object,
                     requested_little_endian: Object,
-                    kind: constexpr ElementsKind): Number {
+                    kind: constexpr ElementsKind): Numeric {
 
     // TODO(theotime): add more specific method name to match
     // the former implementation.
@@ -250,6 +389,10 @@ module data_view {
       return LoadDataViewFloat32(data_pointer, bufferIndex, littleEndian);
     } else if constexpr (kind == FLOAT64_ELEMENTS) {
       return LoadDataViewFloat64(data_pointer, bufferIndex, littleEndian);
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return LoadDataViewBigInt(data_pointer, bufferIndex, littleEndian, true);
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return LoadDataViewBigInt(data_pointer, bufferIndex, littleEndian, false);
     } else {
       unreachable;
     }
@@ -351,7 +494,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetBigInt64(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         BIGINT64_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetBigUint64(
@@ -362,7 +506,8 @@ module data_view {
       let is_little_endian : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      return DataViewGetBigUint64(context, receiver, offset, is_little_endian);
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         BIGUINT64_ELEMENTS);
     }
 
   // Context, receiver, byteOffset, value, littleEndian

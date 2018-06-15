@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 
 #include "src/elements-kind.h"
+#include "src/objects/bigint.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
@@ -24,8 +25,8 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
     return LoadObjectField<Smi>(data_view, JSDataView::kByteLengthOffset);
   }
 
-  TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
-    return UncheckedCast<Int32T>(
+  TNode<Uint32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
+    return UncheckedCast<Uint32T>(
         Load(MachineType::Uint8(), data_pointer, offset));
   }
 
@@ -33,11 +34,16 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
     return UncheckedCast<Int32T>(
         Load(MachineType::Int8(), data_pointer, offset));
   }
-};
 
-int32_t DataViewElementSize(ElementsKind elements_kind) {
-  return ElementsKindToByteSize(elements_kind);
-}
+  int32_t DataViewElementSize(ElementsKind elements_kind) {
+    return ElementsKindToByteSize(elements_kind);
+  }
+
+  TNode<IntPtrT> DataViewEncodeBigIntBits(bool sign, int32_t digits) {
+    return IntPtrConstant(BigInt::SignBits::encode(sign) |
+                          BigInt::LengthBits::encode(digits));
+  }
+};
 
 }  // namespace internal
 }  // namespace v8

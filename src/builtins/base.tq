@@ -10,10 +10,12 @@ type Tagged generates 'TNode<Object>';
 type Smi extends Tagged generates 'TNode<Smi>';
 type HeapObject extends Tagged generates 'TNode<HeapObject>';
 type Object = Smi|HeapObject;
-type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
-type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
+type word32 generates 'TNode<Word32T>' constexpr 'uint32_t';
+type int32 extends word32 generates 'TNode<Int32T>' constexpr 'int32_t';
+type uint32 extends word32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
+type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
 type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
@@ -27,7 +29,9 @@ type Context extends HeapObject generates 'TNode<Context>';
 type String extends HeapObject generates 'TNode<String>';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
-type Number = Smi|HeapNumber;
+type Number = Smi | HeapNumber;
+type BigInt extends HeapObject generates 'TNode<BigInt>';
+type Numeric = Number | BigInt;
 type Boolean extends Oddball generates 'TNode<Oddball>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 type JSObject extends JSReceiver generates 'TNode<JSObject>';
@@ -137,6 +141,8 @@ const kSloppy: constexpr LanguageMode = 'LanguageMode::kSloppy';
 const SMI_PARAMETERS: constexpr ParameterMode = 'SMI_PARAMETERS';
 const INTPTR_PARAMETERS: constexpr ParameterMode = 'INTPTR_PARAMETERS';
 
+extern macro Is64(): constexpr bool;
+
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
@@ -172,8 +178,6 @@ extern builtin StringLessThan(Context, String, String): Boolean;
 extern macro StrictEqual(Object, Object): Boolean;
 extern runtime SmiLexicographicCompare(Context, Object, Object): Number;
 
-extern operator '==' macro Word32Equal(int32, int32): bool;
-extern operator '!=' macro Word32NotEqual(int32, int32): bool;
 extern operator '<' macro Int32LessThan(int32, int32): bool;
 extern operator '>' macro Int32GreaterThan(int32, int32): bool;
 extern operator '<=' macro Int32LessThanOrEqual(int32, int32): bool;
@@ -227,12 +231,19 @@ extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '>>>' macro WordShr(intptr, intptr): intptr;
+extern operator '<<' macro WordShl(intptr, intptr): intptr;
+extern operator '&' macro WordAnd(intptr, intptr): intptr;
 
 extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
 extern operator '&' macro Word32And(int32, int32): int32;
-extern operator '<<' macro Word32Shl(int32, int32): int32;
+
+extern operator '==' macro Word32Equal(word32, word32): bool;
+extern operator '!=' macro Word32NotEqual(word32, word32): bool;
+extern operator '<<' macro Word32Shl(word32, word32): word32;
+extern operator '|' macro Word32Or(word32, word32): word32;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -298,7 +309,10 @@ cast<FixedDoubleArray>(o: FixedArrayBase): FixedDoubleArray labels CastError {
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
-extern macro Unsigned(int32): uint32;
+extern macro Unsigned(word32): uint32;
+extern macro Unsigned(intptr): uintptr;
+extern macro Signed(word32): int32;
+extern macro Signed(uintptr): intptr;
 extern macro TruncateIntPtrToInt32(intptr): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
@@ -307,6 +321,8 @@ extern macro SmiToInt32(Smi): int32;
 extern macro LoadHeapNumberValue(HeapNumber): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
+extern macro ChangeInt32ToIntPtr(word32): intptr; // Sign-extends.
+extern macro ChangeUint32ToWord(word32): uintptr; // Doesn't sign-extend.
 
 extern macro NumberConstant(constexpr float64): Number;
 extern macro NumberConstant(constexpr int32): Number;
@@ -326,6 +342,9 @@ from_constexpr<intptr>(i: constexpr int31): intptr {
 from_constexpr<int32>(i: constexpr int31): int32 {
   return Int32Constant(i);
 }
+from_constexpr<word32>(i: constexpr int31): word32 {
+  return from_constexpr<int32>(i);
+}
 from_constexpr<Smi>(i: constexpr int31): Smi {
   return SmiConstant(i);
 }
@@ -338,6 +357,9 @@ from_constexpr<intptr>(i: constexpr int32): intptr {
 }
 from_constexpr<int32>(i: constexpr int32): int32 {
   return Int32Constant(2);
+}
+from_constexpr<word32>(i: constexpr int32): word32 {
+  return from_constexpr<int32>(i);
 }
 from_constexpr<Number>(i: constexpr int32): Number {
   return NumberConstant(i);
@@ -366,6 +388,9 @@ convert<Number>(i: int32): Number {
 convert<uint32>(i: int32): uint32 {
   return Unsigned(i);
 }
+convert<intptr>(i: int32): intptr {
+  return ChangeInt32ToIntPtr(i);
+}
 convert<Smi>(i: int32): Smi {
   return SmiFromInt32(i);
 }
@@ -373,12 +398,29 @@ macro convert<A: type>(ui: uint32): A;
 convert<Number>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
+macro convert<A: type>(word: word32): A;
+convert<int32>(word: word32): int32 {
+  return Signed(word);
+}
+convert<uint32>(word: word32): uint32 {
+  return Unsigned(word);
+}
+convert<uintptr>(word: word32): uintptr {
+  return ChangeUint32ToWord(word);
+}
 macro convert<A: type>(i: intptr): A;
 convert<int32>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
 }
+convert<uintptr>(i: intptr): uintptr {
+  return Unsigned(i);
+}
 convert<Smi>(i: intptr): Smi {
   return SmiTag(i);
+}
+macro convert<A: type>(ui: uintptr): A;
+convert<intptr>(ui: uintptr): intptr {
+  return Signed(ui);
 }
 macro convert<A: type>(s: Smi): A;
 convert<intptr>(s: Smi): intptr {

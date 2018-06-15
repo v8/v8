@@ -570,8 +570,6 @@ namespace internal {
   F(TypedArraySortFast, 1, 1)
 
 #define FOR_EACH_INTRINSIC_DATAVIEW(F) \
-  F(DataViewGetBigInt64, 2, 1)         \
-  F(DataViewGetBigUint64, 2, 1)        \
   F(DataViewSetInt8, 2, 1)             \
   F(DataViewSetUint8, 2, 1)            \
   F(DataViewSetInt16, 3, 1)            \

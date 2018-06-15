@@ -40,70 +40,6 @@ void FlipBytes(uint8_t* target, uint8_t const* source) {
 }
 
 template <typename T>
-MaybeHandle<Object> AllocateResult(Isolate* isolate, T value) {
-  return isolate->factory()->NewNumber(value);
-}
-
-template <>
-MaybeHandle<Object> AllocateResult(Isolate* isolate, int64_t value) {
-  return BigInt::FromInt64(isolate, value);
-}
-
-template <>
-MaybeHandle<Object> AllocateResult(Isolate* isolate, uint64_t value) {
-  return BigInt::FromUint64(isolate, value);
-}
-
-// ES6 section 24.2.1.1 GetViewValue (view, requestIndex, isLittleEndian, type)
-template <typename T>
-MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
-                                 Handle<Object> request_index,
-                                 bool is_little_endian, const char* method) {
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, request_index,
-      Object::ToIndex(isolate, request_index,
-                      MessageTemplate::kInvalidDataViewAccessorOffset),
-      Object);
-  size_t get_index = 0;
-  if (!TryNumberToSize(*request_index, &get_index)) {
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset),
-        Object);
-  }
-  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
-                               isolate);
-  if (buffer->was_neutered()) {
-    Handle<String> operation =
-        isolate->factory()->NewStringFromAsciiChecked(method);
-    THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kDetachedOperation, operation),
-        Object);
-  }
-  size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
-  size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
-  if (get_index + sizeof(T) > data_view_byte_length ||
-      get_index + sizeof(T) < get_index) {  // overflow
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset),
-        Object);
-  }
-  union {
-    T data;
-    uint8_t bytes[sizeof(T)];
-  } v;
-  size_t const buffer_offset = data_view_byte_offset + get_index;
-  DCHECK_GE(NumberToSize(buffer->byte_length()), buffer_offset + sizeof(T));
-  uint8_t const* const source =
-      static_cast<uint8_t*>(buffer->backing_store()) + buffer_offset;
-  if (NeedToFlipBytes(is_little_endian)) {
-    FlipBytes<sizeof(T)>(v.bytes, source);
-  } else {
-    CopyBytes<sizeof(T)>(v.bytes, source);
-  }
-  return AllocateResult<T>(isolate, v.data);
-}
-
-template <typename T>
 MaybeHandle<Object> DataViewConvertInput(Isolate* isolate,
                                          Handle<Object> input) {
   return Object::ToNumber(input);
@@ -240,25 +176,6 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
                      receiver));                                            \
   }                                                                         \
   Handle<JSDataView> data_view = Handle<JSDataView>::cast(receiver);
-
-#define DATA_VIEW_PROTOTYPE_GET(Type, type)                         \
-  RUNTIME_FUNCTION(Runtime_DataViewGet##Type) {                     \
-    HandleScope scope(isolate);                                     \
-    CHECK_RECEIVER_OBJECT("DataView.prototype.get" #Type);          \
-    Handle<Object> byte_offset = args.at<Object>(1);                \
-    Handle<Object> is_little_endian = args.at<Object>(2);           \
-    Handle<Object> result;                                          \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                             \
-        isolate, result,                                            \
-        GetViewValue<type>(isolate, data_view, byte_offset,         \
-                           is_little_endian->BooleanValue(isolate), \
-                           "DataView.prototype.get" #Type));        \
-    return *result;                                                 \
-  }
-
-DATA_VIEW_PROTOTYPE_GET(BigInt64, int64_t)
-DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
-#undef DATA_VIEW_PROTOTYPE_GET
 
 #define DATA_VIEW_PROTOTYPE_SET(Type, type)                                \
   RUNTIME_FUNCTION(Runtime_DataViewSet##Type) {                            \
