@@ -487,6 +487,7 @@ class PipelineImpl final {
   // Step D. Run the code finalization pass.
   Handle<Code> FinalizeCode();
 
+  void VerifyGeneratedCodeIsIdempotent();
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
@@ -2340,6 +2341,9 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
                       run_verifier);
   }
 
+  // Verify the instruction sequence has the same hash in two stages.
+  VerifyGeneratedCodeIsIdempotent();
+
   Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
     info()->AbortOptimization(
@@ -2359,6 +2363,29 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   data->EndPhaseKind();
 
   return true;
+}
+
+void PipelineImpl::VerifyGeneratedCodeIsIdempotent() {
+  PipelineData* data = this->data_;
+  JumpOptimizationInfo* jump_opt = data->jump_optimization_info();
+  if (jump_opt == nullptr) return;
+
+  InstructionSequence* code = data->sequence();
+  int instruction_blocks = code->InstructionBlockCount();
+  int virtual_registers = code->VirtualRegisterCount();
+  size_t hash_code = base::hash_combine(instruction_blocks, virtual_registers);
+  for (auto instr : *code) {
+    hash_code = base::hash_combine(hash_code, instr->opcode(),
+                                   instr->InputCount(), instr->OutputCount());
+  }
+  for (int i = 0; i < virtual_registers; i++) {
+    hash_code = base::hash_combine(hash_code, code->GetRepresentation(i));
+  }
+  if (jump_opt->is_collecting()) {
+    jump_opt->set_hash_code(hash_code);
+  } else {
+    CHECK_EQ(hash_code, jump_opt->hash_code());
+  }
 }
 
 struct InstructionStartsAsJSON {

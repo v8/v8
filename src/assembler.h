@@ -79,12 +79,17 @@ class JumpOptimizationInfo {
   bool is_optimizable() const { return optimizable_; }
   void set_optimizable() { optimizable_ = true; }
 
+  // Used to verify the instruction sequence is always the same in two stages.
+  size_t hash_code() const { return hash_code_; }
+  void set_hash_code(size_t hash_code) { hash_code_ = hash_code; }
+
   std::vector<uint32_t>& farjmp_bitmap() { return farjmp_bitmap_; }
 
  private:
   enum { kCollection, kOptimization } stage_ = kCollection;
   bool optimizable_ = false;
   std::vector<uint32_t> farjmp_bitmap_;
+  size_t hash_code_ = 0u;
 };
 
 class HeapObjectRequest {
