@@ -16,16 +16,26 @@ namespace compiler {
 
 class HeapReferenceType {
  public:
-  enum OddballType : uint8_t { kUnknown, kBoolean, kUndefined, kNull, kHole };
+  enum OddballType : uint8_t {
+    kNone,     // Not an Oddball.
+    kBoolean,  // True or False.
+    kUndefined,
+    kNull,
+    kHole,
+    kOther,  // Oddball, but none of the above.
+    kAny     // Any Oddball.
+  };
   enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };
 
   typedef base::Flags<Flag> Flags;
 
   HeapReferenceType(InstanceType instance_type, Flags flags,
-                    OddballType oddball_type = kUnknown)
+                    OddballType oddball_type)
       : instance_type_(instance_type),
         oddball_type_(oddball_type),
-        flags_(flags) {}
+        flags_(flags) {
+    DCHECK_EQ(instance_type == ODDBALL_TYPE, oddball_type != kNone);
+  }
 
   OddballType oddball_type() const { return oddball_type_; }
   InstanceType instance_type() const { return instance_type_; }
@@ -41,6 +51,7 @@ class HeapReferenceType {
 };
 
 #define HEAP_BROKER_DATA_LIST(V) \
+  V(Context)                     \
   V(JSFunction)                  \
   V(Number)
 
@@ -54,6 +65,20 @@ HEAP_BROKER_DATA_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
 class JSHeapBroker;
+class HeapReference;
+
+class ObjectReference {
+ public:
+  explicit ObjectReference(Handle<Object> object) : object_(object) {}
+
+  Handle<Object> object() const { return object_; }
+  bool IsSmi() const;
+  int AsSmi() const;
+  HeapReference AsHeapReference() const;
+
+ private:
+  Handle<Object> object_;
+};
 
 class HeapReference {
  public:
@@ -72,7 +97,7 @@ class HeapReference {
 
  private:
   friend class JSHeapBroker;
-  Handle<HeapObject> const object_;
+  Handle<HeapObject> object_;
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
@@ -87,12 +112,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 
   static base::Optional<int> TryGetSmi(Handle<Object> object);
 
+  Isolate* isolate() const { return isolate_; }
+
  private:
   friend class HeapReference;
   HeapReferenceType HeapReferenceTypeFromMap(Map* map) const;
 
   Isolate* const isolate_;
-  Isolate* isolate() const { return isolate_; }
 };
 
 class JSFunctionHeapReference : public HeapReference {
@@ -108,6 +134,16 @@ class NumberHeapReference : public HeapReference {
   explicit NumberHeapReference(Handle<HeapObject> object)
       : HeapReference(object) {}
   double value() const;
+};
+
+class ContextHeapReference : public HeapReference {
+ public:
+  explicit ContextHeapReference(Handle<HeapObject> object)
+      : HeapReference(object) {}
+  base::Optional<ContextHeapReference> previous(
+      const JSHeapBroker* broker) const;
+  base::Optional<ObjectReference> get(const JSHeapBroker* broker,
+                                      int index) const;
 };
 
 }  // namespace compiler

@@ -30,7 +30,9 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
         reducer_(main_zone(), graph()),
-        spec_(&reducer_, jsgraph(), context, MaybeHandle<JSFunction>()) {}
+        js_heap_broker_(main_isolate()),
+        spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
+              MaybeHandle<JSFunction>()) {}
 
   JSContextSpecialization* spec() { return &spec_; }
   Factory* factory() { return main_isolate()->factory(); }
@@ -55,6 +57,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
   GraphReducer reducer_;
+  JSHeapBroker js_heap_broker_;
   JSContextSpecialization spec_;
 };
 

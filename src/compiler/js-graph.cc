@@ -47,6 +47,7 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
 }
 
 Node* JSGraph::Constant(Handle<Object> value) {
+  AllowHandleDereference handle_dereference;
   // Dereference the handle to determine if a number constant or other
   // canonicalized node can be used.
   if (value->IsNumber()) {

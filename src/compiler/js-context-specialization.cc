@@ -17,6 +17,11 @@ namespace internal {
 namespace compiler {
 
 Reduction JSContextSpecialization::Reduce(Node* node) {
+  DisallowHeapAllocation no_heap_allocation;
+  DisallowHandleAllocation no_handle_allocation;
+  DisallowHandleDereference no_handle_dereference;
+  DisallowCodeDependencyChange no_dependency_change;
+
   switch (node->opcode()) {
     case IrOpcode::kParameter:
       return ReduceParameter(node);
@@ -99,12 +104,14 @@ bool IsContextParameter(Node* node) {
 // context (which we want to read from or store to), try to return a
 // specialization context.  If successful, update {distance} to whatever
 // distance remains from the specialization context.
-MaybeHandle<Context> GetSpecializationContext(Node* node, size_t* distance,
-                                              Maybe<OuterContext> maybe_outer) {
+base::Optional<ContextHeapReference> GetSpecializationContext(
+    const JSHeapBroker* broker, Node* node, size_t* distance,
+    Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      Handle<Object> object = HeapConstantOf(node->op());
-      if (object->IsContext()) return Handle<Context>::cast(object);
+      HeapReference object =
+          broker->HeapReferenceForObject(HeapConstantOf(node->op()));
+      if (object.IsContext()) return object.AsContext();
       break;
     }
     case IrOpcode::kParameter: {
@@ -112,14 +119,14 @@ MaybeHandle<Context> GetSpecializationContext(Node* node, size_t* distance,
       if (maybe_outer.To(&outer) && IsContextParameter(node) &&
           *distance >= outer.distance) {
         *distance -= outer.distance;
-        return outer.context;
+        return broker->HeapReferenceForObject(outer.context).AsContext();
       }
       break;
     }
     default:
       break;
   }
-  return MaybeHandle<Context>();
+  return base::Optional<ContextHeapReference>();
 }
 
 }  // anonymous namespace
@@ -133,39 +140,57 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // First walk up the context chain in the graph as far as possible.
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
-  Handle<Context> concrete;
-  if (!GetSpecializationContext(context, &depth, outer()).ToHandle(&concrete)) {
+  base::Optional<ContextHeapReference> maybe_concrete =
+      GetSpecializationContext(js_heap_broker(), context, &depth, outer());
+  if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
     return SimplifyJSLoadContext(node, context, depth);
   }
 
   // Now walk up the concrete context chain for the remaining depth.
+  ContextHeapReference concrete = maybe_concrete.value();
   for (; depth > 0; --depth) {
-    concrete = handle(concrete->previous(), isolate());
+    concrete = concrete.previous(js_heap_broker()).value();
   }
 
   if (!access.immutable()) {
     // We found the requested context object but since the context slot is
     // mutable we can only partially reduce the load.
-    return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete), depth);
+    return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete.object()),
+                                 depth);
   }
 
-  // Even though the context slot is immutable, the context might have escaped
-  // before the function to which it belongs has initialized the slot.
-  // We must be conservative and check if the value in the slot is currently
-  // the hole or undefined. Only if it is neither of these, can we be sure that
-  // it won't change anymore.
-  Handle<Object> value(concrete->get(static_cast<int>(access.index())),
-                       isolate());
-  if (value->IsUndefined(isolate()) || value->IsTheHole(isolate())) {
-    return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete), depth);
+  // This will hold the final value, if we can figure it out.
+  base::Optional<ObjectReference> maybe_value;
+
+  maybe_value =
+      concrete.get(js_heap_broker(), static_cast<int>(access.index()));
+  if (maybe_value.has_value() && !maybe_value->IsSmi()) {
+    // Even though the context slot is immutable, the context might have escaped
+    // before the function to which it belongs has initialized the slot.
+    // We must be conservative and check if the value in the slot is currently
+    // the hole or undefined. Only if it is neither of these, can we be sure
+    // that it won't change anymore.
+    HeapReferenceType type =
+        maybe_value->AsHeapReference().type(js_heap_broker());
+    if (type.oddball_type() == HeapReferenceType::kAny ||
+        type.oddball_type() == HeapReferenceType::kUndefined ||
+        type.oddball_type() == HeapReferenceType::kHole) {
+      maybe_value.reset();
+    }
+  }
+
+  if (!maybe_value.has_value()) {
+    return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete.object()),
+                                 depth);
   }
 
   // Success. The context load can be replaced with the constant.
-  // TODO(titzer): record the specialization for sharing code across multiple
-  // contexts that have the same value in the corresponding context slot.
-  Node* constant = jsgraph_->Constant(value);
+  // TODO(titzer): record the specialization for sharing code across
+  // multiple contexts that have the same value in the corresponding context
+  // slot.
+  Node* constant = jsgraph_->Constant(maybe_value->object());
   ReplaceWithValue(node, constant);
   return Replace(constant);
 }
@@ -181,19 +206,22 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   // or hit a node that does not have a CreateXYZContext operator.
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
-  Handle<Context> concrete;
-  if (!GetSpecializationContext(context, &depth, outer()).ToHandle(&concrete)) {
+  base::Optional<ContextHeapReference> maybe_concrete =
+      GetSpecializationContext(js_heap_broker(), context, &depth, outer());
+  if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
     return SimplifyJSStoreContext(node, context, depth);
   }
 
   // Now walk up the concrete context chain for the remaining depth.
+  ContextHeapReference concrete = maybe_concrete.value();
   for (; depth > 0; --depth) {
-    concrete = handle(concrete->previous(), isolate());
+    concrete = concrete.previous(js_heap_broker()).value();
   }
 
-  return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete), depth);
+  return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete.object()),
+                                depth);
 }
 
 

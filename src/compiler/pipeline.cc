@@ -1163,7 +1163,7 @@ struct InliningPhase {
             : JSCallReducer::kNoFlags,
         data->native_context(), data->info()->dependencies());
     JSContextSpecialization context_specialization(
-        &graph_reducer, data->jsgraph(),
+        &graph_reducer, data->jsgraph(), data->js_heap_broker(),
         ChooseSpecializationContext(isolate, data->info()),
         data->info()->is_function_context_specializing()
             ? data->info()->closure()
