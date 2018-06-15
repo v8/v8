@@ -499,7 +499,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instruction_start() - code->InstructionStart();
-  int mode_mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
+  int mode_mask = RelocInfo::kApplyMask |
+                  RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   RelocIterator orig_it(*code, mode_mask);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
@@ -567,7 +568,8 @@ WasmCode* NativeModule::AddCode(
   // Apply the relocation delta by iterating over the RelocInfo.
   AllowDeferredHandleDereference embedding_raw_address;
   intptr_t delta = ret->instructions().start() - desc.buffer;
-  int mode_mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
+  int mode_mask = RelocInfo::kApplyMask |
+                  RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
                         ret->constant_pool(), mode_mask);

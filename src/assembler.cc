@@ -511,7 +511,7 @@ bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
   // Ensure there are no code targets or embedded objects present in the
   // deoptimization entries, they would require relocation after code
   // generation.
-  int mode_mask = RelocInfo::kCodeTargetMask |
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
   RelocIterator it(desc, mode_mask);

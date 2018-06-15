@@ -433,7 +433,7 @@ class RelocInfo {
     // Please note the order is important (see IsRealRelocMode, IsCodeTarget,
     // IsGCRelocMode, and IsShareableRelocMode predicates below).
 
-    CODE_TARGET,      // LAST_CODE_ENUM
+    CODE_TARGET,
     EMBEDDED_OBJECT,  // LAST_GCED_ENUM
 
     JS_TO_WASM_CALL,
@@ -476,7 +476,6 @@ class RelocInfo {
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
-    LAST_CODE_ENUM = CODE_TARGET,
     LAST_GCED_ENUM = EMBEDDED_OBJECT,
     FIRST_SHAREABLE_RELOC_MODE = WASM_STUB_CALL,
   };
@@ -496,9 +495,7 @@ class RelocInfo {
   static inline bool IsRealRelocMode(Mode mode) {
     return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
   }
-  static inline bool IsCodeTarget(Mode mode) {
-    return mode <= LAST_CODE_ENUM;
-  }
+  static inline bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) { return mode <= LAST_GCED_ENUM; }
   static inline bool IsShareableRelocMode(Mode mode) {
@@ -680,7 +677,6 @@ class RelocInfo {
   void Verify(Isolate* isolate);
 #endif
 
-  static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:

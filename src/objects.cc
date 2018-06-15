@@ -14081,7 +14081,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
             static_cast<size_t>(desc.reloc_size));
 
   // unbox handles and relocate
-  int mode_mask = RelocInfo::kCodeTargetMask |
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::kApplyMask;

@@ -443,7 +443,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, ObjectVisitor* v) {
-    int mode_mask = RelocInfo::kCodeTargetMask |
+    int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                     RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |

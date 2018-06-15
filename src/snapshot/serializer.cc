@@ -993,7 +993,7 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputCode(int size) {
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
   code = serializer_->CopyCode(code);
-  int mode_mask = RelocInfo::kCodeTargetMask |
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
