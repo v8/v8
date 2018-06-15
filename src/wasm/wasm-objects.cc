@@ -1595,19 +1595,6 @@ void WasmCompiledModule::RemoveFromChain() {
   }
 }
 
-void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
-  if (!wasm::WasmCode::ShouldBeLogged(isolate)) return;
-
-  wasm::NativeModule* native_module = GetNativeModule();
-  if (native_module == nullptr) return;
-  // TODO(titzer): we skip the logging of the import wrappers
-  // here, but they should be included somehow.
-  for (wasm::WasmCode* code : native_module->code_table()) {
-    if (code == nullptr) continue;
-    code->LogCode(isolate);
-  }
-}
-
 #undef TRACE
 #undef TRACE_IFT
 }  // namespace internal

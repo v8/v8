@@ -2095,7 +2095,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   ScopedVector<Handle<WasmCompiledModule>> modules(compiled_wasm_modules_count);
   EnumerateWasmModules(heap, modules.start());
   for (int i = 0; i < compiled_wasm_modules_count; ++i) {
-    modules[i]->LogWasmCodes(isolate_);
+    modules[i]->GetNativeModule()->LogWasmCodes(isolate_);
   }
 }
 

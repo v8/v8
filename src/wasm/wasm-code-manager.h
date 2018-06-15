@@ -310,6 +310,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void SetNumFunctionsForTesting(uint32_t num_functions);
   void SetCodeForTesting(uint32_t index, WasmCode* code);
 
+  void LogWasmCodes(Isolate* isolate);
+
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
   // TODO(mstarzinger): The link to the {WasmModuleObject} is deprecated and

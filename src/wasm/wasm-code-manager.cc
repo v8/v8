@@ -360,6 +360,16 @@ void NativeModule::SetCodeForTesting(uint32_t index, WasmCode* code) {
   code_table_[index - num_imported_functions_] = code;
 }
 
+void NativeModule::LogWasmCodes(Isolate* isolate) {
+  if (!wasm::WasmCode::ShouldBeLogged(isolate)) return;
+
+  // TODO(titzer): we skip the logging of the import wrappers
+  // here, but they should be included somehow.
+  for (wasm::WasmCode* code : code_table()) {
+    if (code != nullptr) code->LogCode(isolate);
+  }
+}
+
 WasmCode* NativeModule::AddOwnedCode(
     Vector<const byte> orig_instructions,
     std::unique_ptr<const byte[]> reloc_info, size_t reloc_size,

@@ -593,8 +593,6 @@ class WasmCompiledModule : public Struct {
 
   void PrintInstancesChain();
 
-  void LogWasmCodes(Isolate* isolate);
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };

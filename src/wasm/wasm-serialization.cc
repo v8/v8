@@ -628,7 +628,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   WasmCompiledModule::Reset(isolate, *compiled_module);
 
   // Log the code within the generated module for profiling.
-  compiled_module->LogWasmCodes(isolate);
+  native_module->LogWasmCodes(isolate);
 
   return module_object;
 }

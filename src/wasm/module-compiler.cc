@@ -1409,7 +1409,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
   }
 
   // Log the code within the generated module for profiling.
-  compiled_module->LogWasmCodes(isolate);
+  compiled_module->GetNativeModule()->LogWasmCodes(isolate);
 
   return module_object;
 }
@@ -2924,7 +2924,7 @@ void AsyncCompileJob::FinishCompile() {
   isolate_->debug()->OnAfterCompile(script);
 
   // Log the code within the generated module for profiling.
-  compiled_module_->LogWasmCodes(isolate_);
+  compiled_module_->GetNativeModule()->LogWasmCodes(isolate_);
 
   // TODO(wasm): compiling wrappers should be made async as well.
   DoSync<CompileWrappers>();
