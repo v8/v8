@@ -330,6 +330,16 @@ void DeclarationVisitor::Visit(CallExpression* expr) {
 void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
   size_t i = 0;
   Generic* generic = key.first;
+  const std::size_t generic_parameter_count =
+      generic->declaration()->generic_parameters.size();
+  if (generic_parameter_count != key.second.size()) {
+    std::stringstream stream;
+    stream << "Wrong generic argument count for specialization of \""
+           << generic->name() << "\", expected: " << generic_parameter_count
+           << ", actual: " << key.second.size();
+    ReportError(stream.str());
+  }
+
   for (auto type : key.second) {
     std::string generic_type_name =
         generic->declaration()->generic_parameters[i++];
