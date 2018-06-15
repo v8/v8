@@ -873,6 +873,7 @@ torque_files = [
   "src/builtins/base.tq",
   "src/builtins/array.tq",
   "src/builtins/array-foreach.tq",
+  "src/builtins/array-sort.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "test/torque/test-torque.tq",
