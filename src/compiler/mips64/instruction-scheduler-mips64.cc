@@ -1249,8 +1249,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArchParentFramePointer:
       // Estimated max.
       return AlignedMemoryLatency();
-    case kArchRootsPointer:
-      return 1;
     case kArchTruncateDoubleToI:
       return TruncateDoubleToIDelayedLatency();
     case kArchStoreWithWriteBarrier:

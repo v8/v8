@@ -917,10 +917,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), fp);
       }
       break;
-    case kArchRootsPointer:
-      __ mov(i.OutputRegister(), kRootRegister);
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());

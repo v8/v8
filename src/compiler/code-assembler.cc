@@ -472,11 +472,6 @@ Node* CodeAssembler::LoadParentFramePointer() {
   return raw_assembler()->LoadParentFramePointer();
 }
 
-// TODO(jgruber): This can be removed.
-TNode<IntPtrT> CodeAssembler::LoadRootsPointer() {
-  return UncheckedCast<IntPtrT>(raw_assembler()->LoadRootsPointer());
-}
-
 Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler()->LoadStackPointer();
 }

@@ -770,9 +770,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadFramePointer();
   Node* LoadParentFramePointer();
 
-  // Access to the roots pointer.
-  TNode<IntPtrT> LoadRootsPointer();
-
   // Access to the stack pointer
   Node* LoadStackPointer();
 
