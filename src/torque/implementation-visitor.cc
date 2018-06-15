@@ -448,7 +448,7 @@ VisitResult ImplementationVisitor::Visit(IncrementDecrementExpression* expr) {
   VisitResult one = {TypeOracle::GetConstInt31Type(), "1"};
   Arguments args;
   args.parameters = {current_value, one};
-  VisitResult assignment_value = GenerateOperation(
+  VisitResult assignment_value = GenerateCall(
       expr->op == IncrementDecrementOperator::kIncrement ? "+" : "-", args);
   GenerateAssignToLocation(expr->location, location_ref, assignment_value);
   return expr->postfix ? value_copy : assignment_value;
@@ -463,7 +463,7 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
     assignment_value = Visit(expr->value);
     Arguments args;
     args.parameters = {assignment_value, assignment_value};
-    assignment_value = GenerateOperation(*expr->op, args);
+    assignment_value = GenerateCall(*expr->op, args);
     GenerateAssignToLocation(expr->location, location_ref, assignment_value);
   } else {
     assignment_value = Visit(expr->value);
@@ -822,9 +822,9 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
                           ? Visit(*stmt->begin)
                           : VisitResult(TypeOracle::GetConstInt31Type(), "0");
 
-  VisitResult end =
-      stmt->end ? Visit(*stmt->end)
-                : GenerateOperation(".length", {{expression_result}, {}});
+  VisitResult end = stmt->end
+                        ? Visit(*stmt->end)
+                        : GenerateCall(".length", {{expression_result}, {}});
 
   Label* body_label = declarations()->DeclarePrivateLabel("body");
   GenerateLabelDefinition(body_label);
@@ -851,12 +851,12 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   BreakContinueActivator activator(global_context_, exit_label,
                                    increment_label);
 
-  VisitResult result = GenerateOperation("<", {{index_for_read, end}, {}});
+  VisitResult result = GenerateCall("<", {{index_for_read, end}, {}});
   GenerateBranch(result, body_label, exit_label);
 
   GenerateLabelBind(body_label);
   VisitResult element_result =
-      GenerateOperation("[]", {{expression_result, index_for_read}, {}});
+      GenerateCall("[]", {{expression_result, index_for_read}, {}});
   GenerateVariableDeclaration(stmt->var_declaration,
                               stmt->var_declaration->name, {}, element_result);
   Visit(stmt->body);
@@ -866,7 +866,7 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   Arguments increment_args;
   increment_args.parameters = {index_for_read,
                                {TypeOracle::GetConstInt31Type(), "1"}};
-  VisitResult increment_result = GenerateOperation("+", increment_args);
+  VisitResult increment_result = GenerateCall("+", increment_args);
 
   GenerateAssignToVariable(index_var, increment_result);
 
@@ -1090,61 +1090,6 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
   o << ")";
 }
 
-
-VisitResult ImplementationVisitor::GenerateOperation(
-    const std::string& operation, Arguments arguments,
-    base::Optional<const Type*> return_type) {
-  TypeVector parameter_types(arguments.parameters.GetTypeVector());
-
-  auto i = global_context_.op_handlers_.find(operation);
-  if (i != global_context_.op_handlers_.end()) {
-    std::vector<OperationHandler*> candidates;
-    for (OperationHandler& handler : i->second) {
-      if (IsCompatibleSignature(handler.parameter_types, parameter_types)) {
-        if (!return_type || *return_type == handler.result_type) {
-          candidates.push_back(&handler);
-        }
-      }
-    }
-    auto is_better_candidate = [&](OperationHandler* a, OperationHandler* b) {
-      return ParameterDifference(a->parameter_types.types, parameter_types)
-          .StrictlyBetterThan(
-              ParameterDifference(b->parameter_types.types, parameter_types));
-    };
-    if (!candidates.empty()) {
-      OperationHandler* best = *std::min_element(
-          candidates.begin(), candidates.end(), is_better_candidate);
-      for (OperationHandler* candidate : candidates) {
-        if (candidate != best && !is_better_candidate(best, candidate)) {
-          std::stringstream s;
-          s << "ambiguous operation \"" << operation << "\" with types ("
-            << parameter_types << "), candidates:";
-          for (OperationHandler* handler : candidates) {
-            s << "\n    (" << handler->parameter_types << ") => "
-              << handler->result_type;
-          }
-          ReportError(s.str());
-        }
-      }
-      // Operators used in a bit context can also be function calls that never
-      // return but have a True and False label
-      if (!return_type && best->result_type->IsNever()) {
-        if (arguments.labels.size() == 0) {
-          Label* true_label = declarations()->LookupLabel(kTrueLabelName);
-          arguments.labels.push_back(true_label);
-          Label* false_label = declarations()->LookupLabel(kFalseLabelName);
-          arguments.labels.push_back(false_label);
-        }
-      }
-      return GenerateCall(best->macro_name, arguments, false);
-    }
-  }
-  std::stringstream s;
-  s << "cannot find implementation of operation \"" << operation
-    << "\" with types " << parameter_types;
-  ReportError(s.str());
-}
-
 void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
   const std::set<const Variable*>& changed_vars =
       global_context_.GetControlSplitChangedVariables(
@@ -1242,12 +1187,12 @@ void ImplementationVisitor::GenerateAssignToLocation(
     Variable* var = Variable::cast(value);
     GenerateAssignToVariable(var, assignment_value);
   } else if (auto access = FieldAccessExpression::cast(location)) {
-    GenerateOperation(std::string(".") + access->field + "=",
-                      {{reference.base, assignment_value}, {}});
+    GenerateCall(std::string(".") + access->field + "=",
+                 {{reference.base, assignment_value}, {}});
   } else {
     DCHECK_NOT_NULL(ElementAccessExpression::cast(location));
-    GenerateOperation(
-        "[]=", {{reference.base, reference.index, assignment_value}, {}});
+    GenerateCall("[]=",
+                 {{reference.base, reference.index, assignment_value}, {}});
   }
 }
 
@@ -1341,7 +1286,9 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   }
 
   ParameterTypes types{type->parameter_types(), false};
-  if (!IsCompatibleSignature(types, parameter_types)) {
+  Signature sig;
+  sig.parameter_types = types;
+  if (!IsCompatibleSignature(sig, parameter_types, {})) {
     std::stringstream stream;
     stream << "parameters do not match function pointer signature. Expected: ("
            << type->parameter_types() << ") but got: (" << parameter_types
@@ -1395,10 +1342,29 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 }
 
 VisitResult ImplementationVisitor::GenerateCall(
-    const std::string& callable_name, const Arguments& arguments,
-    bool is_tailcall) {
-  TypeVector parameter_types(arguments.parameters.GetTypeVector());
-  Callable* callable = LookupCall(callable_name, parameter_types);
+    const std::string& callable_name, Arguments arguments, bool is_tailcall) {
+  Callable* callable = LookupCall(callable_name, arguments);
+  // Operators used in a bit context can also be function calls that never
+  // return but have a True and False label
+  if (callable == nullptr && arguments.labels.size() == 0) {
+    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+    arguments.labels.push_back(true_label);
+    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+    arguments.labels.push_back(false_label);
+    callable = LookupCall(callable_name, arguments);
+    if (callable == nullptr) {
+      std::stringstream stream;
+      stream << "no matching declaration found for callable " << callable_name;
+      ReportError(stream.str());
+    }
+    if (!callable->signature().return_type->IsNever()) {
+      std::stringstream stream;
+      stream << "macthing macro declaration for " << callable_name
+             << " matches if-branch protocol but isn't of type 'never'";
+      ReportError(stream.str());
+    }
+  }
+
   const Type* result_type = callable->signature().return_type;
 
   std::vector<std::string> variables;
@@ -1562,14 +1528,6 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
   for (Expression* arg : expr->arguments)
     arguments.parameters.push_back(Visit(arg));
   arguments.labels = LabelsFromIdentifiers(expr->labels);
-  if (expr->is_operator) {
-    if (is_tailcall) {
-      std::stringstream s;
-      s << "can't tail call an operator";
-      ReportError(s.str());
-    }
-    return GenerateOperation(name, arguments);
-  }
   VisitResult result;
   if (!has_template_arguments &&
       declarations()->Lookup(expr->callee.name)->IsValue()) {

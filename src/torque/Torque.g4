@@ -276,7 +276,7 @@ externalMacro : EXTERN ('operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGen
 externalRuntime : EXTERN RUNTIME IDENTIFIER typeListMaybeVarArgs optionalType ';';
 builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList parameterList optionalType (helperBody | ';');
 genericSpecialization: IDENTIFIER genericSpecializationTypeList parameterList optionalType optionalLabelList helperBody;
-macroDeclaration : MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList (helperBody | ';');
+macroDeclaration : ('operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList (helperBody | ';');
 constDeclaration : 'const' IDENTIFIER ':' type '=' STRING_LITERAL ';';
 
 declaration

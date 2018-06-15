@@ -77,7 +77,8 @@ class Declarations {
 
   Label* DeclareLabel(const std::string& name);
 
-  Macro* DeclareMacro(const std::string& name, const Signature& signature);
+  Macro* DeclareMacro(const std::string& name, const Signature& signature,
+                      base::Optional<std::string> op = {});
 
   Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
                           bool external, const Signature& signature);
@@ -127,6 +128,9 @@ class Declarations {
     declarables_.push_back(std::move(d));
     return ptr;
   }
+
+  MacroList* GetMacroListForName(const std::string& name,
+                                 const Signature& signature);
 
   void Declare(const std::string& name, std::unique_ptr<Declarable> d) {
     chain_.Declare(name, RegisterDeclarable(std::move(d)));

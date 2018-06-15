@@ -234,8 +234,8 @@ Label* Declarations::DeclareLabel(const std::string& name) {
   return result;
 }
 
-Macro* Declarations::DeclareMacro(const std::string& name,
-                                  const Signature& signature) {
+MacroList* Declarations::GetMacroListForName(const std::string& name,
+                                             const Signature& signature) {
   auto previous = chain_.Lookup(name);
   MacroList* macro_list = nullptr;
   if (previous == nullptr) {
@@ -260,8 +260,17 @@ Macro* Declarations::DeclareMacro(const std::string& name,
       ReportError(s.str());
     }
   }
-  return macro_list->AddMacro(
-      RegisterDeclarable(std::unique_ptr<Macro>(new Macro(name, signature))));
+  return macro_list;
+}
+
+Macro* Declarations::DeclareMacro(const std::string& name,
+                                  const Signature& signature,
+                                  base::Optional<std::string> op) {
+  Macro* macro =
+      RegisterDeclarable(std::unique_ptr<Macro>(new Macro(name, signature)));
+  GetMacroListForName(name, signature)->AddMacro(macro);
+  if (op) GetMacroListForName(*op, signature)->AddMacro(macro);
+  return macro;
 }
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,

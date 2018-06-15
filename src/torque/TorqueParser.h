@@ -1387,6 +1387,7 @@ class TorqueParser : public antlr4::Parser {
     OptionalTypeContext* optionalType();
     OptionalLabelListContext* optionalLabelList();
     HelperBodyContext* helperBody();
+    antlr4::tree::TerminalNode* STRING_LITERAL();
 
     void enterRule(antlr4::tree::ParseTreeListener* listener) override;
     void exitRule(antlr4::tree::ParseTreeListener* listener) override;

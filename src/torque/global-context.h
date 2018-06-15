@@ -38,13 +38,6 @@ class Module {
   std::stringstream source_stream_;
 };
 
-class OperationHandler {
- public:
-  std::string macro_name;
-  ParameterTypes parameter_types;
-  const Type* result_type;
-};
-
 struct SourceFileContext {
   std::string name;
   std::unique_ptr<antlr4::ANTLRFileStream> stream;
@@ -111,8 +104,6 @@ class GlobalContext {
   Label* GetCurrentContinue() const {
     return break_continue_stack_.back().second;
   }
-
-  std::map<std::string, std::vector<OperationHandler>> op_handlers_;
 
   Declarations* declarations() { return &declarations_; }
   Ast* ast() { return &ast_; }

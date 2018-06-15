@@ -175,6 +175,9 @@ antlrcpp::Any AstGenerator::visitMacroDeclaration(
       GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
       GetOptionalLabelAndTypeList(context->optionalLabelList())});
+  if (auto* op = context->STRING_LITERAL()) {
+    macro->op = StringLiteralUnquote(op->getSymbol()->getText());
+  }
   base::Optional<Statement*> body;
   if (context->helperBody())
     body = context->helperBody()->accept(this).as<Statement*>();

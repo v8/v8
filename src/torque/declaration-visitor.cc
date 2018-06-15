@@ -129,17 +129,7 @@ void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
 
   std::string generated_name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
-  declarations()->DeclareMacro(generated_name, signature);
-  if (decl->op) {
-    OperationHandler handler(
-        {decl->name, signature.parameter_types, signature.return_type});
-    auto i = global_context_.op_handlers_.find(*decl->op);
-    if (i == global_context_.op_handlers_.end()) {
-      global_context_.op_handlers_[*decl->op] = std::vector<OperationHandler>();
-      i = global_context_.op_handlers_.find(*decl->op);
-    }
-    i->second.push_back(handler);
-  }
+  declarations()->DeclareMacro(generated_name, signature, decl->op);
 }
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
@@ -160,7 +150,8 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
                                const Signature& signature, Statement* body) {
   std::string generated_name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
-  Macro* macro = declarations()->DeclareMacro(generated_name, signature);
+  Macro* macro =
+      declarations()->DeclareMacro(generated_name, signature, decl->op);
 
   CurrentCallableActivator activator(global_context_, macro, decl);
 

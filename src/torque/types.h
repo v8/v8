@@ -347,7 +347,8 @@ struct Arguments {
 std::ostream& operator<<(std::ostream& os, const Signature& sig);
 
 bool IsAssignableFrom(const Type* to, const Type* from);
-bool IsCompatibleSignature(const ParameterTypes& to, const TypeVector& from);
+bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
+                           const std::vector<Label*>& labels);
 
 }  // namespace torque
 }  // namespace internal

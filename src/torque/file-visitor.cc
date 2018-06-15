@@ -26,8 +26,9 @@ Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
 }
 
 Callable* FileVisitor::LookupCall(const std::string& name,
-                                  const TypeVector& parameter_types) {
+                                  const Arguments& arguments) {
   Callable* result = nullptr;
+  TypeVector parameter_types(arguments.parameters.GetTypeVector());
   Declarable* declarable = declarations()->Lookup(name);
   if (declarable->IsBuiltin()) {
     result = Builtin::cast(declarable);
@@ -36,8 +37,8 @@ Callable* FileVisitor::LookupCall(const std::string& name,
   } else if (declarable->IsMacroList()) {
     std::vector<Macro*> candidates;
     for (Macro* m : MacroList::cast(declarable)->list()) {
-      if (IsCompatibleSignature(m->signature().parameter_types,
-                                parameter_types)) {
+      if (IsCompatibleSignature(m->signature(), parameter_types,
+                                arguments.labels)) {
         candidates.push_back(m);
       }
     }
@@ -48,26 +49,24 @@ Callable* FileVisitor::LookupCall(const std::string& name,
           .StrictlyBetterThan(ParameterDifference(
               b->signature().parameter_types.types, parameter_types));
     };
-    if (!candidates.empty()) {
-      Macro* best = *std::min_element(candidates.begin(), candidates.end(),
-                                      is_better_candidate);
-      for (Macro* candidate : candidates) {
-        if (candidate != best && !is_better_candidate(best, candidate)) {
-          std::stringstream s;
-          s << "ambiguous macro \"" << name << "\" with types ("
-            << parameter_types << "), candidates:";
-          for (Macro* m : candidates) {
-            s << "\n    (" << m->signature().parameter_types << ") => "
-              << m->signature().return_type;
-          }
-          ReportError(s.str());
-        }
-      }
-      return best;
+    if (candidates.empty()) {
+      return nullptr;
     }
-    std::stringstream stream;
-    stream << "cannot find macro with name \"" << name << "\"";
-    ReportError(stream.str());
+    Macro* best = *std::min_element(candidates.begin(), candidates.end(),
+                                    is_better_candidate);
+    for (Macro* candidate : candidates) {
+      if (candidate != best && !is_better_candidate(best, candidate)) {
+        std::stringstream s;
+        s << "ambiguous macro \"" << name << "\" with types ("
+          << parameter_types << "), candidates:";
+        for (Macro* m : candidates) {
+          s << "\n    (" << m->signature().parameter_types << ") => "
+            << m->signature().return_type;
+        }
+        ReportError(s.str());
+      }
+    }
+    result = best;
   } else {
     std::stringstream stream;
     stream << "can't call " << declarable->type_name() << " " << name
