@@ -209,6 +209,9 @@
 
   # https://crbug.com/v8/7697
   'array-literal-feedback': [PASS, FAIL],
+
+  # https://crbug.com/v8/7775
+  'allocation-site-info': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
