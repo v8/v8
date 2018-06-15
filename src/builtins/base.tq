@@ -356,7 +356,7 @@ from_constexpr<intptr>(i: constexpr int32): intptr {
   return IntPtrConstant(i);
 }
 from_constexpr<int32>(i: constexpr int32): int32 {
-  return Int32Constant(2);
+  return Int32Constant(i);
 }
 from_constexpr<word32>(i: constexpr int32): word32 {
   return from_constexpr<int32>(i);
