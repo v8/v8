@@ -53,6 +53,7 @@
   V(OTHER_CONTEXT_TYPE)                     \
   V(PROTOTYPE_USERS_TYPE)                   \
   V(REGEXP_MULTIPLE_CACHE_TYPE)             \
+  V(RELOC_INFO_TYPE)                        \
   V(RETAINED_MAPS_TYPE)                     \
   V(SCRIPT_LIST_TYPE)                       \
   V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)      \
@@ -62,6 +63,7 @@
   V(SINGLE_CHARACTER_STRING_CACHE_TYPE)     \
   V(STRING_SPLIT_CACHE_TYPE)                \
   V(STRING_TABLE_TYPE)                      \
+  V(SOURCE_POSITION_TABLE_TYPE)             \
   V(UNCOMPILED_JS_FUNCTION_TYPE)            \
   V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)   \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
