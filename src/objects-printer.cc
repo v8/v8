@@ -1993,7 +1993,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   int flags = Flags();
 
   os << "\n - parameters: " << ParameterCount();
-  os << "\n - stack locals: " << StackLocalCount();
   os << "\n - context locals : " << ContextLocalCount();
 
   os << "\n - scope type: " << scope_type();
@@ -2030,8 +2029,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (length() > 0) {
     PrintScopeInfoList(this, os, "parameters", 0, ParameterNamesIndex(),
                        ParameterCount());
-    PrintScopeInfoList(this, os, "stack slots", 0, StackLocalNamesIndex(),
-                       StackLocalCount());
     PrintScopeInfoList(this, os, "context slots", Context::MIN_CONTEXT_SLOTS,
                        ContextLocalNamesIndex(), ContextLocalCount());
     // TODO(neis): Print module stuff if present.

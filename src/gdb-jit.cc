@@ -1171,11 +1171,9 @@ class DebugInfoSection : public DebugSection {
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
       int params = scope->ParameterCount();
-      int slots = scope->StackLocalCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope->StackLocalCount();
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
@@ -1194,13 +1192,6 @@ class DebugInfoSection : public DebugSection {
 
       EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.start(), buffer.length());
-
-      for (int slot = 0; slot < slots; ++slot) {
-        w->WriteULEB128(current_abbreviation++);
-        builder.Reset();
-        builder.AddFormatted("slot%d", slot);
-        w->WriteString(builder.Finalize());
-      }
 
       // See contexts.h for more information.
       DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
@@ -1224,20 +1215,6 @@ class DebugInfoSection : public DebugSection {
         builder.Reset();
         builder.AddFormatted("context_slot%d", context_slot + internal_slots);
         w->WriteString(builder.Finalize());
-      }
-
-      for (int local = 0; local < locals; ++local) {
-        w->WriteULEB128(current_abbreviation++);
-        w->WriteString(
-            scope->StackLocalName(local)->ToCString(DISALLOW_NULLS).get());
-        w->Write<uint32_t>(ty_offset);
-        Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
-        uintptr_t block_start = w->position();
-        w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(
-          JavaScriptFrameConstants::kLocal0Offset -
-              kPointerSize * local);
-        block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
       {
@@ -1370,13 +1347,11 @@ class DebugAbbrevSection : public DebugSection {
     if (extra_info) {
       ScopeInfo* scope = desc_->scope_info();
       int params = scope->ParameterCount();
-      int slots = scope->StackLocalCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope->StackLocalCount();
-      // Total children is params + slots + context_slots + internal_slots +
-      // locals + 2 (__function and __context).
+      // Total children is params + context_slots + internal_slots + 2
+      // (__function and __context).
 
       // The extra duplication below seems to be necessary to keep
       // gdb from getting upset on OSX.
@@ -1408,10 +1383,6 @@ class DebugAbbrevSection : public DebugSection {
         WriteVariableAbbreviation(w, current_abbreviation++, true, true);
       }
 
-      for (int slot = 0; slot < slots; ++slot) {
-        WriteVariableAbbreviation(w, current_abbreviation++, false, false);
-      }
-
       for (int internal_slot = 0;
            internal_slot < internal_slots;
            ++internal_slot) {
@@ -1422,10 +1393,6 @@ class DebugAbbrevSection : public DebugSection {
            context_slot < context_slots;
            ++context_slot) {
         WriteVariableAbbreviation(w, current_abbreviation++, false, false);
-      }
-
-      for (int local = 0; local < locals; ++local) {
-        WriteVariableAbbreviation(w, current_abbreviation++, true, false);
       }
 
       // The function.

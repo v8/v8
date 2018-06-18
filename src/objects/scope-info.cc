@@ -63,20 +63,14 @@ bool ScopeInfo::Equals(ScopeInfo* other) const {
 Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
                                     MaybeHandle<ScopeInfo> outer_scope) {
   // Collect variables.
-  int stack_local_count = 0;
   int context_local_count = 0;
   int module_vars_count = 0;
   // Stack allocated block scope variables are allocated in the parent
   // declaration scope, but are recorded in the block scope's scope info. First
   // slot index indicates at which offset a particular scope starts in the
   // parent declaration scope.
-  int first_slot_index = 0;
   for (Variable* var : *scope->locals()) {
     switch (var->location()) {
-      case VariableLocation::LOCAL:
-        if (stack_local_count == 0) first_slot_index = var->index();
-        stack_local_count++;
-        break;
       case VariableLocation::CONTEXT:
         context_local_count++;
         break;
@@ -146,8 +140,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   const int parameter_count = scope->num_parameters();
   const bool has_outer_scope_info = !outer_scope.is_null();
   const int length = kVariablePartIndex + parameter_count +
-                     (1 + stack_local_count) + 2 * context_local_count +
-                     (has_receiver ? 1 : 0) +
+                     2 * context_local_count + (has_receiver ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
                      (has_position_info ? kPositionInfoEntries : 0) +
@@ -191,7 +184,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(parameter_count);
-  scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
 
   int index = kVariablePartIndex;
@@ -204,28 +196,14 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     }
   }
 
-  // Add stack locals' names, context locals' names and info, module variables'
-  // names and info. We are assuming that the stack locals' slots are allocated
-  // in increasing order, so we can simply add them to the ScopeInfo object.
+  // Add context locals' names and info, module variables' names and info.
   // Context locals are added using their index.
-  DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
-  scope_info->set(index++, Smi::FromInt(first_slot_index));
-  DCHECK_EQ(index, scope_info->StackLocalNamesIndex());
-
-  int stack_local_base = index;
-  int context_local_base = stack_local_base + stack_local_count;
+  int context_local_base = index;
   int context_local_info_base = context_local_base + context_local_count;
   int module_var_entry = scope_info->ModuleVariablesIndex();
 
   for (Variable* var : *scope->locals()) {
     switch (var->location()) {
-      case VariableLocation::LOCAL: {
-        int local_index = var->index() - first_slot_index;
-        DCHECK_LE(0, local_index);
-        DCHECK_LT(local_index, stack_local_count);
-        scope_info->set(stack_local_base + local_index, *var->name());
-        break;
-      }
       case VariableLocation::CONTEXT: {
         // Due to duplicate parameters, context locals aren't guaranteed to come
         // in order.
@@ -259,7 +237,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     }
   }
 
-  index += stack_local_count + 2 * context_local_count;
+  index += 2 * context_local_count;
 
   // If the receiver is allocated, add its index.
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
@@ -328,7 +306,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
     Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope) {
   const bool has_outer_scope_info = !outer_scope.is_null();
-  const int length = kVariablePartIndex + 1 + (has_outer_scope_info ? 1 : 0);
+  const int length = kVariablePartIndex + (has_outer_scope_info ? 1 : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
@@ -347,14 +325,10 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
-  scope_info->SetStackLocalCount(0);
   scope_info->SetContextLocalCount(0);
 
   int index = kVariablePartIndex;
   DCHECK_EQ(index, scope_info->ParameterNamesIndex());
-  DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
-  scope_info->set(index++, Smi::kZero);
-  DCHECK_EQ(index, scope_info->StackLocalNamesIndex());
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
@@ -386,15 +360,13 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   DCHECK(type == SCRIPT_SCOPE || type == FUNCTION_SCOPE);
 
   const int parameter_count = 0;
-  const int stack_local_count = 0;
   const bool is_empty_function = type == FUNCTION_SCOPE;
   const int context_local_count = is_empty_function ? 0 : 1;
   const bool has_receiver = !is_empty_function;
   const bool has_inferred_function_name = is_empty_function;
   const bool has_position_info = true;
   const int length = kVariablePartIndex + parameter_count +
-                     (1 + stack_local_count) + 2 * context_local_count +
-                     (has_receiver ? 1 : 0) +
+                     2 * context_local_count + (has_receiver ? 1 : 0) +
                      (is_empty_function ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
                      (has_position_info ? kPositionInfoEntries : 0);
@@ -417,14 +389,9 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       IsDebugEvaluateScopeField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
-  scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
 
   int index = kVariablePartIndex;
-  const int first_slot_index = 0;
-  DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
-  scope_info->set(index++, Smi::FromInt(first_slot_index));
-  DCHECK_EQ(index, scope_info->StackLocalNamesIndex());
 
   // Here we add info for context-allocated "this".
   DCHECK_EQ(index, scope_info->ContextLocalNamesIndex());
@@ -495,19 +462,6 @@ LanguageMode ScopeInfo::language_mode() const {
 
 bool ScopeInfo::is_declaration_scope() const {
   return DeclarationScopeField::decode(Flags());
-}
-
-int ScopeInfo::LocalCount() const {
-  return StackLocalCount() + ContextLocalCount();
-}
-
-int ScopeInfo::StackSlotCount() const {
-  if (length() > 0) {
-    bool function_name_stack_slot =
-        FunctionVariableField::decode(Flags()) == STACK;
-    return StackLocalCount() + (function_name_stack_slot ? 1 : 0);
-  }
-  return 0;
 }
 
 int ScopeInfo::ContextLength() const {
@@ -659,29 +613,6 @@ String* ScopeInfo::ParameterName(int var) const {
   return String::cast(get(info_index));
 }
 
-String* ScopeInfo::LocalName(int var) const {
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, LocalCount());
-  DCHECK(StackLocalNamesIndex() + StackLocalCount() ==
-         ContextLocalNamesIndex());
-  int info_index = StackLocalNamesIndex() + var;
-  return String::cast(get(info_index));
-}
-
-String* ScopeInfo::StackLocalName(int var) const {
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, StackLocalCount());
-  int info_index = StackLocalNamesIndex() + var;
-  return String::cast(get(info_index));
-}
-
-int ScopeInfo::StackLocalIndex(int var) const {
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, StackLocalCount());
-  int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
-  return first_slot_index + var;
-}
-
 String* ScopeInfo::ContextLocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
@@ -721,20 +652,6 @@ bool ScopeInfo::VariableIsSynthetic(String* name) {
   // .result start with a dot, so we can use that as a flag. It's a hack!
   return name->length() == 0 || name->Get(0) == '.' ||
          name->Equals(name->GetHeap()->this_string());
-}
-
-int ScopeInfo::StackSlotIndex(String* name) const {
-  DCHECK(name->IsInternalizedString());
-  if (length() == 0) return -1;
-  int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
-  int start = StackLocalNamesIndex();
-  int end = start + StackLocalCount();
-  for (int i = start; i < end; ++i) {
-    if (name == get(i)) {
-      return i - start + first_slot_index;
-    }
-  }
-  return -1;
 }
 
 int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
@@ -850,16 +767,8 @@ int ScopeInfo::ParameterNamesIndex() const {
   return kVariablePartIndex;
 }
 
-int ScopeInfo::StackLocalFirstSlotIndex() const {
-  return ParameterNamesIndex() + ParameterCount();
-}
-
-int ScopeInfo::StackLocalNamesIndex() const {
-  return StackLocalFirstSlotIndex() + 1;
-}
-
 int ScopeInfo::ContextLocalNamesIndex() const {
-  return StackLocalNamesIndex() + StackLocalCount();
+  return ParameterNamesIndex() + ParameterCount();
 }
 
 int ScopeInfo::ContextLocalInfosIndex() const {

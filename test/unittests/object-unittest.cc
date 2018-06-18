@@ -163,8 +163,6 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
-  EXPECT_EQ(scope_info->StackLocalCount(),
-            empty_function_scope_info->StackLocalCount());
   EXPECT_EQ(scope_info->ContextLocalCount(),
             empty_function_scope_info->ContextLocalCount());
 }

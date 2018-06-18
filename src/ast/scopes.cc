@@ -439,7 +439,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
           ModuleScope(isolate, handle(scope_info, isolate), ast_value_factory);
     } else {
       DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
-      DCHECK_EQ(scope_info->LocalCount(), 1);
       DCHECK_EQ(scope_info->ContextLocalCount(), 1);
       DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
       DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
@@ -958,10 +957,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
-  // If we have a serialized scope info, we might find the variable there.
-  // There should be no local slot with the given name.
-  DCHECK_LT(scope_info_->StackSlotIndex(*name_handle), 0);
-
   bool found = false;
 
   VariableLocation location;

@@ -2028,25 +2028,8 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   accumulator->Add(" {\n");
 
   // Compute the number of locals and expression stack elements.
-  int stack_locals_count = scope_info->StackLocalCount();
   int heap_locals_count = scope_info->ContextLocalCount();
   int expressions_count = ComputeExpressionsCount();
-
-  // Print stack-allocated local variables.
-  if (stack_locals_count > 0) {
-    accumulator->Add("  // stack-allocated locals\n");
-  }
-  for (int i = 0; i < stack_locals_count; i++) {
-    accumulator->Add("  var ");
-    accumulator->PrintName(scope_info->StackLocalName(i));
-    accumulator->Add(" = ");
-    if (i < expressions_count) {
-      accumulator->Add("%o", GetExpression(i));
-    } else {
-      accumulator->Add("// no expression found - inconsistent frame?");
-    }
-    accumulator->Add("\n");
-  }
 
   // Try to get hold of the context of this frame.
   Context* context = nullptr;
@@ -2081,11 +2064,10 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
 
   // Print the expression stack.
-  int expressions_start = stack_locals_count;
-  if (expressions_start < expressions_count) {
+  if (0 < expressions_count) {
     accumulator->Add("  // expression stack (top to bottom)\n");
   }
-  for (int i = expressions_count - 1; i >= expressions_start; i--) {
+  for (int i = expressions_count - 1; i >= 0; i--) {
     accumulator->Add("  [%02d] : %o\n", i, GetExpression(i));
   }
 
