@@ -1423,12 +1423,12 @@ Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
 
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset, Node* target_bytecode) {
-  InterpreterDispatchDescriptor descriptor(isolate());
   // Propagate speculation poisoning.
   Node* poisoned_handler_entry = WordPoisonOnSpeculation(handler_entry);
   return TailCallBytecodeDispatch(
-      descriptor, poisoned_handler_entry, GetAccumulatorUnchecked(),
-      bytecode_offset, BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
+      InterpreterDispatchDescriptor{}, poisoned_handler_entry,
+      GetAccumulatorUnchecked(), bytecode_offset, BytecodeArrayTaggedPointer(),
+      DispatchTableRawPointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {

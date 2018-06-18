@@ -54,7 +54,6 @@ class AstStringConstants;
 class BasicBlockProfiler;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
-class CallInterfaceDescriptorData;
 class CancelableTaskManager;
 class CodeEventDispatcher;
 class ExternalCodeEventListener;
@@ -1144,9 +1143,6 @@ class Isolate : private HiddenFactory {
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
 
-  V8_EXPORT_PRIVATE CallInterfaceDescriptorData* call_descriptor_data(
-      int index);
-
   void IterateDeferredHandles(RootVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1562,7 +1558,6 @@ class Isolate : private HiddenFactory {
   RegExpStack* regexp_stack_;
   std::vector<int> regexp_indices_;
   DateCache* date_cache_;
-  CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::RandomNumberGenerator* fuzzer_rng_;
   base::AtomicValue<RAILMode> rail_mode_;

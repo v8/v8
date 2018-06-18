@@ -390,7 +390,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       CallDescriptor::Flags flags);
 
   static CallDescriptor* GetStubCallDescriptor(
-      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
       MachineType return_type = MachineType::AnyTagged(),
@@ -398,7 +398,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       StubCallMode stub_mode = StubCallMode::kCallOnHeapBuiltin);
 
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(
-      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count);
 
   // Creates a call descriptor for simplified C calls that is appropriate

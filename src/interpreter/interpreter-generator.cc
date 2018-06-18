@@ -3107,9 +3107,8 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
                                      OperandScale operand_scale) {
   Zone zone(isolate->allocator(), ZONE_NAME);
-  InterpreterDispatchDescriptor descriptor(isolate);
   compiler::CodeAssemblerState state(
-      isolate, &zone, descriptor, Code::BYTECODE_HANDLER,
+      isolate, &zone, InterpreterDispatchDescriptor{}, Code::BYTECODE_HANDLER,
       Bytecodes::ToString(bytecode),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
@@ -3183,9 +3182,9 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
     debug_name = debug_name.append(Bytecodes::ToString(prefix_bytecode));
   }
 
-  InterpreterDispatchDescriptor descriptor(isolate);
   compiler::CodeAssemblerState state(
-      isolate, &zone, descriptor, Code::BYTECODE_HANDLER, debug_name.c_str(),
+      isolate, &zone, InterpreterDispatchDescriptor{}, Code::BYTECODE_HANDLER,
+      debug_name.c_str(),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
           : PoisoningMitigationLevel::kDontPoison,

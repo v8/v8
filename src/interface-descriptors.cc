@@ -15,7 +15,7 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
   register_param_count_ = register_parameter_count;
 
   // InterfaceDescriptor owns a copy of the registers array.
-  register_params_.reset(NewArray<Register>(register_parameter_count, no_reg));
+  register_params_ = NewArray<Register>(register_parameter_count, no_reg);
   for (int i = 0; i < register_parameter_count; i++) {
     register_params_[i] = registers[i];
   }
@@ -27,13 +27,37 @@ void CallInterfaceDescriptorData::InitializePlatformIndependent(
   // InterfaceDescriptor owns a copy of the MachineType array.
   // We only care about parameters, not receiver and result.
   param_count_ = parameter_count + extra_parameter_count;
-  machine_types_.reset(NewArray<MachineType>(param_count_));
+  machine_types_ = NewArray<MachineType>(param_count_);
   for (int i = 0; i < param_count_; i++) {
     if (machine_types == nullptr || i >= parameter_count) {
       machine_types_[i] = MachineType::AnyTagged();
     } else {
       machine_types_[i] = machine_types[i];
     }
+  }
+}
+
+void CallInterfaceDescriptorData::Reset() {
+  delete[] machine_types_;
+  machine_types_ = nullptr;
+  delete[] register_params_;
+  register_params_ = nullptr;
+}
+
+// static
+CallInterfaceDescriptorData
+    CallDescriptors::call_descriptor_data_[NUMBER_OF_DESCRIPTORS];
+
+void CallDescriptors::InitializeOncePerProcess() {
+#define INTERFACE_DESCRIPTOR(name, ...) \
+  name##Descriptor().Initialize(&call_descriptor_data_[CallDescriptors::name]);
+  INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
+#undef INTERFACE_DESCRIPTOR
+}
+
+void CallDescriptors::TearDown() {
+  for (CallInterfaceDescriptorData& data : call_descriptor_data_) {
+    data.Reset();
   }
 }
 
@@ -58,15 +82,12 @@ void CallInterfaceDescriptor::JSDefaultInitializePlatformSpecific(
                                    default_js_stub_registers);
 }
 
-const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
-  CallInterfaceDescriptorData* start = isolate->call_descriptor_data(0);
-  size_t index = data_ - start;
-  DCHECK(index < CallDescriptors::NUMBER_OF_DESCRIPTORS);
-  CallDescriptors::Key key = static_cast<CallDescriptors::Key>(index);
+const char* CallInterfaceDescriptor::DebugName() const {
+  CallDescriptors::Key key = CallDescriptors::GetKey(data_);
   switch (key) {
-#define DEF_CASE(NAME, ...)   \
-  case CallDescriptors::NAME: \
-    return #NAME " Descriptor";
+#define DEF_CASE(name, ...)   \
+  case CallDescriptors::name: \
+    return #name " Descriptor";
     INTERFACE_DESCRIPTOR_LIST(DEF_CASE)
 #undef DEF_CASE
     case CallDescriptors::NUMBER_OF_DESCRIPTORS:

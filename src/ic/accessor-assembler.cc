@@ -202,8 +202,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_handler);
   {
-    typedef LoadWithVectorDescriptor Descriptor;
-    exit_point->ReturnCallStub(Descriptor(isolate()), handler, p->context,
+    exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, handler, p->context,
                                p->receiver, p->name, p->slot, p->vector);
   }
 }
@@ -885,9 +884,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      StoreWithVectorDescriptor descriptor(isolate());
-      TailCallStub(descriptor, CAST(strong_handler), CAST(p->context),
-                   p->receiver, p->name, p->value, p->slot, p->vector);
+      TailCallStub(StoreWithVectorDescriptor{}, CAST(strong_handler),
+                   CAST(p->context), p->receiver, p->name, p->value, p->slot,
+                   p->vector);
     }
   }
 
@@ -1225,9 +1224,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
              &if_transitioning_element_store);
       BIND(&if_element_store);
       {
-        StoreWithVectorDescriptor descriptor(isolate());
-        TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
-                     p->value, p->slot, p->vector);
+        TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context,
+                     p->receiver, p->name, p->value, p->slot, p->vector);
       }
 
       BIND(&if_transitioning_element_store);
@@ -1239,9 +1237,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
         GotoIf(IsDeprecatedMap(transition_map), miss);
 
-        StoreTransitionDescriptor descriptor(isolate());
-        TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
-                     transition_map, p->value, p->slot, p->vector);
+        TailCallStub(StoreTransitionDescriptor{}, code_handler, p->context,
+                     p->receiver, p->name, transition_map, p->value, p->slot,
+                     p->vector);
       }
     };
   }
@@ -3076,9 +3074,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       TNode<HeapObject> handler = CAST(var_handler.value());
       Label if_transitioning_element_store(this);
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
-      StoreWithVectorDescriptor descriptor(isolate());
-      TailCallStub(descriptor, CAST(handler), CAST(p->context), p->receiver,
-                   p->name, p->value, p->slot, p->vector);
+      TailCallStub(StoreWithVectorDescriptor{}, CAST(handler), CAST(p->context),
+                   p->receiver, p->name, p->value, p->slot, p->vector);
 
       BIND(&if_transitioning_element_store);
       {
@@ -3089,9 +3086,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         GotoIf(IsDeprecatedMap(transition_map), &miss);
         Node* code = LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
         CSA_ASSERT(this, IsCode(code));
-        StoreTransitionDescriptor descriptor(isolate());
-        TailCallStub(descriptor, code, p->context, p->receiver, p->name,
-                     transition_map, p->value, p->slot, p->vector);
+        TailCallStub(StoreTransitionDescriptor{}, code, p->context, p->receiver,
+                     p->name, transition_map, p->value, p->slot, p->vector);
       }
     }
 

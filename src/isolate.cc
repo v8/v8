@@ -2508,7 +2508,6 @@ Isolate::Isolate()
       setup_delegate_(nullptr),
       regexp_stack_(nullptr),
       date_cache_(nullptr),
-      call_descriptor_data_(nullptr),
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(nullptr),
@@ -2726,9 +2725,6 @@ Isolate::~Isolate() {
 
   delete date_cache_;
   date_cache_ = nullptr;
-
-  delete[] call_descriptor_data_;
-  call_descriptor_data_ = nullptr;
 
   delete regexp_stack_;
   regexp_stack_ = nullptr;
@@ -2961,8 +2957,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
-  call_descriptor_data_ =
-      new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
   compiler_dispatcher_ =
@@ -3005,12 +2999,6 @@ bool Isolate::Init(StartupDeserializer* des) {
       counters()->wasm_address_space_usage_mb());
   wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
       counters()->wasm_module_code_size_mb());
-
-// Initialize the interface descriptors ahead of time.
-#define INTERFACE_DESCRIPTOR(Name, ...) \
-  { Name##Descriptor(this); }
-  INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
-#undef INTERFACE_DESCRIPTOR
 
   deoptimizer_data_ = new DeoptimizerData(heap());
 
@@ -3602,12 +3590,6 @@ void Isolate::InvalidatePromiseThenProtector() {
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-}
-
-
-CallInterfaceDescriptorData* Isolate::call_descriptor_data(int index) {
-  DCHECK(0 <= index && index < CallDescriptors::NUMBER_OF_DESCRIPTORS);
-  return &call_descriptor_data_[index];
 }
 
 static base::RandomNumberGenerator* ensure_rng_exists(

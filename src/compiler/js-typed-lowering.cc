@@ -583,7 +583,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     Callable const callable =
         CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     node->InsertInput(graph()->zone(), 0,
@@ -1104,7 +1104,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     // Convert {receiver} using the ToObjectStub.
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
     rfalse = efalse = if_false =
         graph()->NewNode(common()->Call(call_descriptor),
@@ -1547,7 +1547,7 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  graph()->zone(), callable.descriptor(), arity + 1,
                   CallDescriptor::kNeedsFrameState)));
     return Changed(node);
   }
@@ -1590,9 +1590,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
-        node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(),
-                  ConstructStubDescriptor(isolate()), 1 + arity, flags)));
+        node,
+        common()->Call(Linkage::GetStubCallDescriptor(
+            graph()->zone(), ConstructStubDescriptor{}, 1 + arity, flags)));
 
     return Changed(node);
   }
@@ -1621,8 +1621,7 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
-                  flags)));
+                  graph()->zone(), callable.descriptor(), arity + 1, flags)));
     return Changed(node);
   }
 
@@ -1701,8 +1700,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           jsgraph()->Constant(shared->internal_formal_parameter_count()));
       NodeProperties::ChangeOp(
           node, common()->Call(Linkage::GetStubCallDescriptor(
-                    isolate(), graph()->zone(), callable.descriptor(),
-                    1 + arity, flags)));
+                    graph()->zone(), callable.descriptor(), 1 + arity, flags)));
     } else if (shared->HasBuiltinId() &&
                Builtins::HasCppImplementation(shared->builtin_id())) {
       // Patch {node} to a direct CEntry call.
@@ -1717,7 +1715,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), descriptor, 1 + arity, flags);
+          graph()->zone(), descriptor, 1 + arity, flags);
       Node* stub_code = jsgraph()->HeapConstant(callable.code());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
@@ -1745,8 +1743,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
-                  flags)));
+                  graph()->zone(), callable.descriptor(), 1 + arity, flags)));
     return Changed(node);
   }
 
@@ -1835,7 +1832,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         Callable const callable =
             Builtins::CallableFor(isolate(), Builtins::kForInFilter);
         auto call_descriptor = Linkage::GetStubCallDescriptor(
-            isolate(), graph()->zone(), callable.descriptor(), 0,
+            graph()->zone(), callable.descriptor(), 0,
             CallDescriptor::kNeedsFrameState);
         vfalse = efalse = if_false =
             graph()->NewNode(common()->Call(call_descriptor),

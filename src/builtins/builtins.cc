@@ -159,11 +159,11 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
       if (kind == TFJ || kind == CPP) {
-        return Callable(code, BuiltinDescriptor(isolate));
+        return Callable(code, BuiltinDescriptor{});
       }
       UNREACHABLE();
   }
-  CallInterfaceDescriptor descriptor(isolate, key);
+  CallInterfaceDescriptor descriptor(key);
   return Callable(code, descriptor);
 }
 

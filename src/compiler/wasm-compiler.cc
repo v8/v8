@@ -4020,9 +4020,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* target = jsgraph()->HeapConstant(callable.code());
     if (!allocate_heap_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
-          isolate_, mcgraph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoThrow,
-          MachineType::AnyTagged(), 1, Linkage::kNoContext);
+          mcgraph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+          Operator::kNoThrow, MachineType::AnyTagged(), 1, Linkage::kNoContext);
       allocate_heap_number_operator_.set(common->Call(call_descriptor));
     }
     Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
@@ -4183,8 +4182,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildJavaScriptToNumber(Node* node, Node* js_context) {
     Callable callable = Builtins::CallableFor(isolate_, Builtins::kToNumber);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate_, mcgraph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags, Operator::kNoProperties);
+        mcgraph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+        Operator::kNoProperties);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
     Node* result =
@@ -4498,8 +4497,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           }
 
           call_descriptor = Linkage::GetStubCallDescriptor(
-              isolate_, mcgraph()->zone(), ArgumentAdaptorDescriptor(isolate_),
-              1 + wasm_count, CallDescriptor::kNoFlags, Operator::kNoProperties,
+              mcgraph()->zone(), ArgumentAdaptorDescriptor{}, 1 + wasm_count,
+              CallDescriptor::kNoFlags, Operator::kNoProperties,
               MachineType::AnyTagged(), 1, Linkage::kPassContext,
               StubCallMode::kCallWasmRuntimeStub);
 
@@ -4524,8 +4523,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       args[pos++] = undefined_node;                        // receiver
 
       call_descriptor = Linkage::GetStubCallDescriptor(
-          isolate_, graph()->zone(), CallTrampolineDescriptor(isolate_),
-          wasm_count + 1, CallDescriptor::kNoFlags, Operator::kNoProperties,
+          graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
           MachineType::AnyTagged(), 1, Linkage::kPassContext,
           StubCallMode::kCallWasmRuntimeStub);
 

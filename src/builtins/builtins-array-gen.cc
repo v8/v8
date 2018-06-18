@@ -4066,9 +4066,8 @@ void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
   // pops the current frame but leaves all the incoming JS arguments on the
   // expression stack so that the target builtin can still find them where it
   // expects.
-  ArrayNArgumentsConstructorDescriptor descriptor(isolate());
-  TailCallStub(descriptor, code, context, target, allocation_site_or_undefined,
-               argc);
+  TailCallStub(ArrayNArgumentsConstructorDescriptor{}, code, context, target,
+               allocation_site_or_undefined, argc);
 }
 
 void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(

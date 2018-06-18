@@ -33,7 +33,7 @@ TF_BUILTIN(WasmArgumentsAdaptor, CodeStubAssembler) {
       MachineType::TaggedPointer(), roots,
       IntPtrConstant(Heap::roots_to_builtins_offset() +
                      Builtins::kArgumentsAdaptorTrampoline * kPointerSize)));
-  TailCallStub(ArgumentAdaptorDescriptor(isolate()), target, context, function,
+  TailCallStub(ArgumentAdaptorDescriptor{}, target, context, function,
                new_target, argc1, argc2);
 }
 
@@ -54,8 +54,7 @@ TF_BUILTIN(WasmCallJavaScript, CodeStubAssembler) {
       Load(MachineType::TaggedPointer(), roots,
            IntPtrConstant(Heap::roots_to_builtins_offset() +
                           Builtins::kCall_ReceiverIsAny * kPointerSize)));
-  TailCallStub(CallTrampolineDescriptor(isolate()), target, context, function,
-               argc);
+  TailCallStub(CallTrampolineDescriptor{}, target, context, function, argc);
 }
 
 TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {

@@ -862,7 +862,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kGetProperty);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
         MachineType::AnyTagged(), 1);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
@@ -2554,8 +2554,8 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
           : GetCallableForArrayIncludes(receiver_map->elements_kind(),
                                         isolate());
   CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0,
-      CallDescriptor::kNoFlags, Operator::kEliminatable);
+      graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      Operator::kEliminatable);
   // The stub expects the following arguments: the receiver array, its elements,
   // the search_element, the array length, and the index to start searching
   // from.
@@ -2909,7 +2909,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Callable call_api_callback = CodeFactory::CallApiCallback(isolate(), argc);
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), cid,
+      graph()->zone(), cid,
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1, Linkage::kNoContext);
@@ -5286,10 +5286,10 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(
 
   Callable const callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0,
-      CallDescriptor::kNeedsFrameState,
-      Operator::kNoDeopt | Operator::kNoWrite);
+  auto call_descriptor =
+      Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(), 0,
+                                     CallDescriptor::kNeedsFrameState,
+                                     Operator::kNoDeopt | Operator::kNoWrite);
 
   // TODO(turbofan): Massage the FrameState of the {node} here once we
   // have an artificial builtin frame type, so that it looks like the
@@ -6420,8 +6420,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     Callable const callable =
         Builtins::CallableFor(isolate(), Builtins::kOrderedHashTableHealIndex);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags, Operator::kEliminatable);
+        graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+        Operator::kEliminatable);
     index = effect =
         graph()->NewNode(common()->Call(call_descriptor),
                          jsgraph()->HeapConstant(callable.code()), table, index,

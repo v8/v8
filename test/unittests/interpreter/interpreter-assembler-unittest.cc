@@ -25,8 +25,7 @@ namespace interpreter_assembler_unittest {
 InterpreterAssemblerTestState::InterpreterAssemblerTestState(
     InterpreterAssemblerTest* test, Bytecode bytecode)
     : compiler::CodeAssemblerState(
-          test->isolate(), test->zone(),
-          InterpreterDispatchDescriptor(test->isolate()),
+          test->isolate(), test->zone(), InterpreterDispatchDescriptor{},
           Code::BYTECODE_HANDLER, Bytecodes::ToString(bytecode),
           PoisoningMitigationLevel::kPoisonCriticalOnly,
           Bytecodes::ReturnCount(bytecode)) {}

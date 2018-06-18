@@ -108,7 +108,7 @@ TEST(TestLinkageStubCall) {
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
   OptimizedCompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate, &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
   CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));

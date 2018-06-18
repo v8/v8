@@ -22,7 +22,7 @@ class CodeAssemblerTester {
   explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor(isolate), Code::STUB, name,
+        state_(isolate, &zone_, VoidDescriptor{}, Code::STUB, name,
                PoisoningMitigationLevel::kDontPoison) {}
 
   // Test generating code for a JS function (e.g. builtins).

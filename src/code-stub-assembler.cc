@@ -11240,7 +11240,7 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
     //
     // Call to Function.prototype[@@hasInstance] directly.
     Callable builtin(BUILTIN_CODE(isolate(), FunctionPrototypeHasInstance),
-                     CallTrampolineDescriptor(isolate()));
+                     CallTrampolineDescriptor{});
     Node* result = CallJS(builtin, context, inst_of_handler, callable, object);
     var_result.Bind(result);
     Goto(&return_result);

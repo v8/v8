@@ -422,8 +422,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 1,
-      CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      zone(), callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
+      Operator::kNoProperties);
 
   // Build frame state for the state before the call.
   Node* parameters = m.AddNode(
@@ -517,8 +517,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 1,
-      CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      zone(), callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
+      Operator::kNoProperties);
 
   // Build frame state for the state before the call.
   Node* parameters = m.AddNode(

@@ -1745,7 +1745,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   CallInterfaceDescriptor call_interface_descriptor =
       call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), call_interface_descriptor,
+      graph()->zone(), call_interface_descriptor,
       call_interface_descriptor.GetStackParameterCount() + argc +
           1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,

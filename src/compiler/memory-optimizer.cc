@@ -237,7 +237,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
                                        AllocateInOldSpaceStubConstant();
         if (!allocate_operator_.is_set()) {
           auto call_descriptor = Linkage::GetStubCallDescriptor(
-              isolate(), graph()->zone(), AllocateDescriptor(isolate()), 0,
+              graph()->zone(), AllocateDescriptor{}, 0,
               CallDescriptor::kCanUseRoots, Operator::kNoThrow,
               MachineType::AnyTagged(), 1, Linkage::kNoContext);
           allocate_operator_.set(common()->Call(call_descriptor));
@@ -294,7 +294,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
                                    AllocateInOldSpaceStubConstant();
     if (!allocate_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), AllocateDescriptor(isolate()), 0,
+          graph()->zone(), AllocateDescriptor{}, 0,
           CallDescriptor::kCanUseRoots, Operator::kNoThrow,
           MachineType::AnyTagged(), 1, Linkage::kNoContext);
       allocate_operator_.set(common()->Call(call_descriptor));
