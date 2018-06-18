@@ -786,7 +786,6 @@ inline void rsy_format(Opcode op, int f1, int f2, int f3, int f4) {
 
 
 inline void rs_format(Opcode op, int f1, int f2, int f3, const int f4) {
-  DCHECK(is_uint12(d2));
   uint32_t code = getfield<uint32_t, 4, 0, 8>(op) |
                   getfield<uint32_t, 4, 8, 12>(f1) |
                   getfield<uint32_t, 4, 12, 16>(f2) |

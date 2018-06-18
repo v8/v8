@@ -9221,7 +9221,7 @@ EVALUATE(STOC) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);            \
   intptr_t addr = static_cast<intptr_t>(b2_val) + d2;           \
   int32_t r3_val = get_low_register<int32_t>(r3);               \
-  DCHECK_EQ(target_addr & 0x3, 0);                              \
+  DCHECK_EQ(addr & 0x3, 0);                              \
   int32_t r1_val = op(reinterpret_cast<int32_t*>(addr),         \
                       r3_val, __ATOMIC_SEQ_CST);                \
   set_low_register(r1, r1_val);
