@@ -990,24 +990,30 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
 // ES6 String.prototype.includes(searchString [, position])
 // #sec-string.prototype.includes
 TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
-  Generate(kIncludes);
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  Generate(kIncludes, argc, context);
 }
 
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
 TF_BUILTIN(StringPrototypeIndexOf, StringIncludesIndexOfAssembler) {
-  Generate(kIndexOf);
-}
-
-void StringIncludesIndexOfAssembler::Generate(SearchVariant variant) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
-  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  Generate(kIndexOf, argc, context);
+}
+
+void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
+                                              TNode<IntPtrT> argc,
+                                              TNode<Context> context) {
+  CodeStubArguments arguments(this, argc);
   Node* const receiver = arguments.GetReceiver();
-  // From now on use word-size argc value.
-  argc = arguments.GetLength(INTPTR_PARAMETERS);
 
   VARIABLE(var_search_string, MachineRepresentation::kTagged);
   VARIABLE(var_position, MachineRepresentation::kTagged);
@@ -1620,10 +1626,8 @@ class StringPadAssembler : public StringBuiltinsAssembler {
  protected:
   enum Variant { kStart, kEnd };
 
-  void Generate(Variant variant, const char* method_name) {
-    Node* const context = Parameter(BuiltinDescriptor::kContext);
-    Node* argc =
-        ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  void Generate(Variant variant, const char* method_name, TNode<IntPtrT> argc,
+                TNode<Context> context) {
     CodeStubArguments arguments(this, argc);
     Node* const receiver = arguments.GetReceiver();
     Node* const receiver_string = ToThisString(context, receiver, method_name);
@@ -1733,11 +1737,19 @@ class StringPadAssembler : public StringBuiltinsAssembler {
 };
 
 TF_BUILTIN(StringPrototypePadEnd, StringPadAssembler) {
-  Generate(kEnd, "String.prototype.padEnd");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(kEnd, "String.prototype.padEnd", argc, context);
 }
 
 TF_BUILTIN(StringPrototypePadStart, StringPadAssembler) {
-  Generate(kStart, "String.prototype.padStart");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(kStart, "String.prototype.padStart", argc, context);
 }
 
 // ES6 #sec-string.prototype.search
@@ -2190,26 +2202,37 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
 
 // ES6 #sec-string.prototype.trim
 TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
-  Generate(String::kTrim, "String.prototype.trim");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(String::kTrim, "String.prototype.trim", argc, context);
 }
 
 // https://github.com/tc39/proposal-string-left-right-trim
 TF_BUILTIN(StringPrototypeTrimStart, StringTrimAssembler) {
-  Generate(String::kTrimStart, "String.prototype.trimLeft");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(String::kTrimStart, "String.prototype.trimLeft", argc, context);
 }
 
 // https://github.com/tc39/proposal-string-left-right-trim
 TF_BUILTIN(StringPrototypeTrimEnd, StringTrimAssembler) {
-  Generate(String::kTrimEnd, "String.prototype.trimRight");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(String::kTrimEnd, "String.prototype.trimRight", argc, context);
 }
 
 void StringTrimAssembler::Generate(String::TrimMode mode,
-                                   const char* method_name) {
+                                   const char* method_name, TNode<IntPtrT> argc,
+                                   TNode<Context> context) {
   Label return_emptystring(this), if_runtime(this);
 
-  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
-  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments arguments(this, argc);
   Node* const receiver = arguments.GetReceiver();
 
   // Check that {receiver} is coercible to Object and convert it to a String.

@@ -82,7 +82,9 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Main entry point for a collection constructor builtin.
   void GenerateConstructor(Variant variant,
-                           Handle<String> constructor_function_name);
+                           Handle<String> constructor_function_name,
+                           TNode<Object> new_target, TNode<IntPtrT> argc,
+                           TNode<Context> context);
 
   // Retrieves the collection function that adds an entry. `set` for Maps and
   // `add` for Sets.
@@ -354,13 +356,11 @@ TNode<Object> BaseCollectionsAssembler::AllocateJSCollectionSlow(
 }
 
 void BaseCollectionsAssembler::GenerateConstructor(
-    Variant variant, Handle<String> constructor_function_name) {
+    Variant variant, Handle<String> constructor_function_name,
+    TNode<Object> new_target, TNode<IntPtrT> argc, TNode<Context> context) {
   const int kIterableArg = 0;
-  CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+  CodeStubArguments args(this, argc);
   TNode<Object> iterable = args.GetOptionalArgumentValue(kIterableArg);
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   Label if_undefined(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &if_undefined);
@@ -745,11 +745,23 @@ TNode<Object> CollectionsBuiltinsAssembler::AllocateTable(
 }
 
 TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
-  GenerateConstructor(kMap, isolate()->factory()->Map_string());
+  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  GenerateConstructor(kMap, isolate()->factory()->Map_string(), new_target,
+                      argc, context);
 }
 
 TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
-  GenerateConstructor(kSet, isolate()->factory()->Set_string());
+  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  GenerateConstructor(kSet, isolate()->factory()->Set_string(), new_target,
+                      argc, context);
 }
 
 Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
@@ -2224,11 +2236,23 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
 }
 
 TF_BUILTIN(WeakMapConstructor, WeakCollectionsBuiltinsAssembler) {
-  GenerateConstructor(kWeakMap, isolate()->factory()->WeakMap_string());
+  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  GenerateConstructor(kWeakMap, isolate()->factory()->WeakMap_string(),
+                      new_target, argc, context);
 }
 
 TF_BUILTIN(WeakSetConstructor, WeakCollectionsBuiltinsAssembler) {
-  GenerateConstructor(kWeakSet, isolate()->factory()->WeakSet_string());
+  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  GenerateConstructor(kWeakSet, isolate()->factory()->WeakSet_string(),
+                      new_target, argc, context);
 }
 
 TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {

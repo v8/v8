@@ -2900,7 +2900,8 @@ class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
 
   enum SearchVariant { kIncludes, kIndexOf };
 
-  void Generate(SearchVariant variant);
+  void Generate(SearchVariant variant, TNode<IntPtrT> argc,
+                TNode<Context> context);
   void GenerateSmiOrObject(SearchVariant variant, Node* context, Node* elements,
                            Node* search_element, Node* array_length,
                            Node* from_index);
@@ -2912,18 +2913,17 @@ class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
                             Node* from_index);
 };
 
-void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
+void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
+                                             TNode<IntPtrT> argc,
+                                             TNode<Context> context) {
   const int kSearchElementArg = 0;
   const int kFromIndexArg = 1;
 
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
   TNode<Object> receiver = args.GetReceiver();
   TNode<Object> search_element =
       args.GetOptionalArgumentValue(kSearchElementArg);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   Node* intptr_zero = IntPtrConstant(0);
 
@@ -3388,7 +3388,11 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(SearchVariant variant,
 }
 
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
-  Generate(kIncludes);
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(kIncludes, argc, context);
 }
 
 TF_BUILTIN(ArrayIncludesSmiOrObject, ArrayIncludesIndexofAssembler) {
@@ -3422,7 +3426,13 @@ TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
                        from_index);
 }
 
-TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) { Generate(kIndexOf); }
+TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Generate(kIndexOf, argc, context);
+}
 
 TF_BUILTIN(ArrayIndexOfSmiOrObject, ArrayIncludesIndexofAssembler) {
   Node* context = Parameter(Descriptor::kContext);
