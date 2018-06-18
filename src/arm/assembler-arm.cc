@@ -1153,6 +1153,7 @@ int Operand::InstructionsRequired(const Assembler* assembler,
 void Assembler::Move32BitImmediate(Register rd, const Operand& x,
                                    Condition cond) {
   if (UseMovImmediateLoad(x, this)) {
+    CpuFeatureScope scope(this, ARMv7);
     // UseMovImmediateLoad should return false when we need to output
     // relocation info, since we prefer the constant pool for values that
     // can be patched.
@@ -1160,12 +1161,9 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     UseScratchRegisterScope temps(this);
     // Re-use the destination register as a scratch if possible.
     Register target = rd != pc ? rd : temps.Acquire();
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      uint32_t imm32 = static_cast<uint32_t>(x.immediate());
-      CpuFeatureScope scope(this, ARMv7);
-      movw(target, imm32 & 0xFFFF, cond);
-      movt(target, imm32 >> 16, cond);
-    }
+    uint32_t imm32 = static_cast<uint32_t>(x.immediate());
+    movw(target, imm32 & 0xFFFF, cond);
+    movt(target, imm32 >> 16, cond);
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
     }

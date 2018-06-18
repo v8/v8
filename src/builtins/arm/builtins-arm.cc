@@ -2294,6 +2294,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  // The function index was put in r4 by the jump table trampoline.
+  // Convert to Smi for the runtime call.
+  __ SmiTag(r4, r4);
   {
     TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -2308,8 +2311,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ stm(db_w, sp, gp_regs);
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
 
-    // Pass the WASM instance as an explicit argument to WasmCompileLazy.
+    // Pass instance and function index as explicit arguments to the runtime
+    // function.
     __ push(kWasmInstanceRegister);
+    __ push(r4);
     // Load the correct CEntry builtin from the instance object.
     __ ldr(r2, FieldMemOperand(kWasmInstanceRegister,
                                WasmInstanceObject::kCEntryStubOffset));

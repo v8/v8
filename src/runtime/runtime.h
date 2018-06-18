@@ -581,7 +581,7 @@ namespace internal {
   F(WasmThrow, 0, 1)                 \
   F(WasmThrowCreate, 2, 1)           \
   F(WasmThrowTypeError, 0, 1)        \
-  F(WasmCompileLazy, 1, 1)
+  F(WasmCompileLazy, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(DebugBreakOnBytecode, 1, 2)           \

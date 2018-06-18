@@ -78,7 +78,7 @@ class IndirectFunctionTableEntry {
 //      - target   = pointer to wasm-to-js wrapper code entrypoint
 //   - an imported wasm function from another instance, which has fields
 //      - instance = target instance
-//      - target   = entrypoint to wasm code of the function
+//      - target   = entrypoint for the function
 class ImportedFunctionEntry {
  public:
   inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
@@ -388,7 +388,6 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_function_callables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_instances, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
-  DECL_OPTIONAL_ACCESSORS(managed_indirect_patcher, Foreign)
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS(centry_stub, Code)
@@ -423,7 +422,6 @@ class WasmInstanceObject : public JSObject {
   V(kImportedFunctionCallablesOffset, kPointerSize)                     \
   V(kIndirectFunctionTableInstancesOffset, kPointerSize)                \
   V(kManagedNativeAllocationsOffset, kPointerSize)                      \
-  V(kManagedIndirectPatcherOffset, kPointerSize)                        \
   V(kUndefinedValueOffset, kPointerSize)                                \
   V(kNullValueOffset, kPointerSize)                                     \
   V(kCEntryStubOffset, kPointerSize)                                    \

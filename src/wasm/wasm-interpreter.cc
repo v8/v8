@@ -2676,18 +2676,23 @@ class ThreadImpl {
       return {ExternalCallResult::INVALID_FUNC};
     }
 
-    WasmCode* code;
-    Handle<WasmInstanceObject> instance;
-    {
-      IndirectFunctionTableEntry entry(instance_object_, entry_index);
-      // Signature check.
-      if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
-        return {ExternalCallResult::SIGNATURE_MISMATCH};
-      }
+    IndirectFunctionTableEntry entry(instance_object_, entry_index);
+    // Signature check.
+    if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
+      return {ExternalCallResult::SIGNATURE_MISMATCH};
+    }
 
-      instance = handle(entry.instance(), isolate);
-      code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-          entry.target());
+    Handle<WasmInstanceObject> instance = handle(entry.instance(), isolate);
+    Address target = entry.target();
+    NativeModule* native_module =
+        isolate->wasm_engine()->code_manager()->LookupNativeModule(target);
+    WasmCode* code;
+    if (native_module->is_jump_table_slot(target)) {
+      uint32_t func_index =
+          native_module->GetFunctionIndexFromJumpTableSlot(target);
+      code = native_module->code(func_index);
+    } else {
+      code = native_module->Lookup(target);
     }
 
     // Call either an internal or external WASM function.
