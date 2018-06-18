@@ -344,7 +344,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
     return isolate->heap()->undefined_value();
   }
 
-  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
+  return *it.MaterializeScopeDetails();
 }
 
 static bool SetScopeVariableValue(ScopeIterator* it, int index,
