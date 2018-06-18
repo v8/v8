@@ -1405,7 +1405,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
   if (!fun.IsHeapConstant() || !fun.AsHeapConstant()->Ref().IsJSFunction()) {
     return Type::NonInternal();
   }
-  JSFunctionHeapReference function = fun.AsHeapConstant()->Ref().AsJSFunction();
+  JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
   if (!function.HasBuiltinFunctionId()) {
     return Type::NonInternal();
   }

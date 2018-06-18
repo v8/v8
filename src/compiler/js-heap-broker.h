@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class HeapReferenceType {
+class HeapObjectType {
  public:
   enum OddballType : uint8_t {
     kNone,     // Not an Oddball.
@@ -29,8 +29,8 @@ class HeapReferenceType {
 
   typedef base::Flags<Flag> Flags;
 
-  HeapReferenceType(InstanceType instance_type, Flags flags,
-                    OddballType oddball_type)
+  HeapObjectType(InstanceType instance_type, Flags flags,
+                 OddballType oddball_type)
       : instance_type_(instance_type),
         oddball_type_(oddball_type),
         flags_(flags) {
@@ -52,98 +52,94 @@ class HeapReferenceType {
 
 #define HEAP_BROKER_DATA_LIST(V) \
   V(Context)                     \
-  V(JSFunction)                  \
-  V(Number)
+  V(HeapNumber)                  \
+  V(JSFunction)
 
 #define HEAP_BROKER_KIND_LIST(V) \
   HEAP_BROKER_DATA_LIST(V)       \
   V(InternalizedString)          \
   V(String)
 
-#define FORWARD_DECL(Name) class Name##HeapReference;
+#define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_DATA_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
 class JSHeapBroker;
-class HeapReference;
+class HeapObjectRef;
 
-class ObjectReference {
+class ObjectRef {
  public:
-  explicit ObjectReference(Handle<Object> object) : object_(object) {}
+  explicit ObjectRef(Handle<Object> object) : object_(object) {}
 
-  Handle<Object> object() const { return object_; }
+  template <typename T>
+  Handle<T> object() const {
+    AllowHandleDereference handle_dereference;
+    return Handle<T>::cast(object_);
+  }
+
   bool IsSmi() const;
   int AsSmi() const;
-  HeapReference AsHeapReference() const;
-
- private:
-  Handle<Object> object_;
-};
-
-class HeapReference {
- public:
-  explicit HeapReference(Handle<HeapObject> object) : object_(object) {}
+  HeapObjectRef AsHeapObjectRef() const;
 
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_KIND_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
-#define HEAP_AS_METHOD_DECL(Name) Name##HeapReference As##Name() const;
+#define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_DATA_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
-  HeapReferenceType type(const JSHeapBroker* broker) const;
-  Handle<HeapObject> object() const { return object_; }
+ private:
+  Handle<Object> object_;
+};
+
+class HeapObjectRef : public ObjectRef {
+ public:
+  explicit HeapObjectRef(Handle<Object> object);
+  HeapObjectType type(const JSHeapBroker* broker) const;
 
  private:
   friend class JSHeapBroker;
-  Handle<HeapObject> object_;
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   JSHeapBroker(Isolate* isolate);
 
-  HeapReferenceType HeapReferenceTypeFromMap(Handle<Map> map) const {
-    return HeapReferenceTypeFromMap(*map);
+  HeapObjectType HeapObjectTypeFromMap(Handle<Map> map) const {
+    AllowHandleDereference handle_dereference;
+    return HeapObjectTypeFromMap(*map);
   }
-
-  HeapReference HeapReferenceForObject(Handle<Object> object) const;
 
   static base::Optional<int> TryGetSmi(Handle<Object> object);
 
   Isolate* isolate() const { return isolate_; }
 
  private:
-  friend class HeapReference;
-  HeapReferenceType HeapReferenceTypeFromMap(Map* map) const;
+  friend class HeapObjectRef;
+  HeapObjectType HeapObjectTypeFromMap(Map* map) const;
 
   Isolate* const isolate_;
 };
 
-class JSFunctionHeapReference : public HeapReference {
+class JSFunctionRef : public HeapObjectRef {
  public:
-  explicit JSFunctionHeapReference(Handle<HeapObject> object)
-      : HeapReference(object) {}
+  explicit JSFunctionRef(Handle<Object> object);
   bool HasBuiltinFunctionId() const;
   BuiltinFunctionId GetBuiltinFunctionId() const;
 };
 
-class NumberHeapReference : public HeapReference {
+class HeapNumberRef : public HeapObjectRef {
  public:
-  explicit NumberHeapReference(Handle<HeapObject> object)
-      : HeapReference(object) {}
+  explicit HeapNumberRef(Handle<Object> object);
   double value() const;
 };
 
-class ContextHeapReference : public HeapReference {
+class ContextRef : public HeapObjectRef {
  public:
-  explicit ContextHeapReference(Handle<HeapObject> object)
-      : HeapReference(object) {}
-  base::Optional<ContextHeapReference> previous(
-      const JSHeapBroker* broker) const;
-  base::Optional<ObjectReference> get(const JSHeapBroker* broker,
-                                      int index) const;
+  explicit ContextRef(Handle<Object> object);
+  base::Optional<ContextRef> previous(const JSHeapBroker* broker) const;
+  base::Optional<ObjectRef> get(const JSHeapBroker* broker, int index) const;
 };
 
 }  // namespace compiler

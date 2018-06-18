@@ -251,7 +251,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static double Max(bitset);
 
   static bitset Glb(double min, double max);
-  static bitset Lub(HeapReferenceType const& type);
+  static bitset Lub(HeapObjectType const& type);
   static bitset Lub(double value);
   static bitset Lub(double min, double max);
   static bitset ExpandInternals(bitset bits);
@@ -377,7 +377,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type Intersect(Type type1, Type type2, Zone* zone);
 
   static Type For(const JSHeapBroker* js_heap_broker, Handle<i::Map> map) {
-    HeapReferenceType type = js_heap_broker->HeapReferenceTypeFromMap(map);
+    HeapObjectType type = js_heap_broker->HeapObjectTypeFromMap(map);
     return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(type)));
   }
 
@@ -534,28 +534,28 @@ class OtherNumberConstantType : public TypeBase {
 
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
-  Handle<HeapObject> Value() const { return heap_ref_.object(); }
-  const HeapReference& Ref() const { return heap_ref_; }
+  Handle<HeapObject> Value() const;
+  const HeapObjectRef& Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
 
   static HeapConstantType* New(const JSHeapBroker* broker,
-                               const HeapReference& heap_ref, Zone* zone) {
-    DCHECK(!heap_ref.IsNumber());
+                               const HeapObjectRef& heap_ref, Zone* zone) {
+    DCHECK(!heap_ref.IsHeapNumber());
     DCHECK_IMPLIES(heap_ref.IsString(), heap_ref.IsInternalizedString());
     BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type(broker));
     return new (zone->New(sizeof(HeapConstantType)))
         HeapConstantType(bitset, heap_ref);
   }
 
-  HeapConstantType(BitsetType::bitset bitset, const HeapReference& heap_ref);
+  HeapConstantType(BitsetType::bitset bitset, const HeapObjectRef& heap_ref);
 
   BitsetType::bitset Lub() const { return bitset_; }
 
   BitsetType::bitset bitset_;
-  HeapReference heap_ref_;
+  HeapObjectRef heap_ref_;
 };
 
 // -----------------------------------------------------------------------------

@@ -9,57 +9,71 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-bool ObjectReference::IsSmi() const {
+HeapObjectRef::HeapObjectRef(Handle<Object> object) : ObjectRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsHeapObject());
+}
+
+JSFunctionRef::JSFunctionRef(Handle<Object> object) : HeapObjectRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsJSFunction());
+}
+
+HeapNumberRef::HeapNumberRef(Handle<Object> object) : HeapObjectRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsHeapNumber());
+}
+
+ContextRef::ContextRef(Handle<Object> object) : HeapObjectRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsContext());
+}
+
+bool ObjectRef::IsSmi() const {
   AllowHandleDereference allow_handle_dereference;
   return object_->IsSmi();
 }
 
-int ObjectReference::AsSmi() const {
-  AllowHandleDereference allow_handle_dereference;
-  return Smi::cast(*object_)->value();
+int ObjectRef::AsSmi() const { return object<Smi>()->value(); }
+
+HeapObjectRef ObjectRef::AsHeapObjectRef() const {
+  return HeapObjectRef(object<HeapObject>());
 }
 
-HeapReference ObjectReference::AsHeapReference() const {
-  AllowHandleDereference allow_handle_dereference;
-  return HeapReference(Handle<HeapObject>::cast(object_));
-}
-
-base::Optional<ContextHeapReference> ContextHeapReference::previous(
+base::Optional<ContextRef> ContextRef::previous(
     const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
-  Context* previous = Handle<Context>::cast(object())->previous();
-  if (previous == nullptr) return base::Optional<ContextHeapReference>();
-  return broker->HeapReferenceForObject(handle(previous, broker->isolate()))
-      .AsContext();
+  Context* previous = object<Context>()->previous();
+  if (previous == nullptr) return base::Optional<ContextRef>();
+  return ContextRef(handle(previous, broker->isolate()));
 }
 
-base::Optional<ObjectReference> ContextHeapReference::get(
-    const JSHeapBroker* broker, int index) const {
+base::Optional<ObjectRef> ContextRef::get(const JSHeapBroker* broker,
+                                          int index) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
-  Handle<Object> value(Handle<Context>::cast(object())->get(index),
-                       broker->isolate());
-  return ObjectReference(value);
+  Handle<Object> value(object<Context>()->get(index), broker->isolate());
+  return ObjectRef(value);
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate) : isolate_(isolate) {}
 
-HeapReferenceType JSHeapBroker::HeapReferenceTypeFromMap(Map* map) const {
+HeapObjectType JSHeapBroker::HeapObjectTypeFromMap(Map* map) const {
   AllowHandleDereference allow_handle_dereference;
   Heap* heap = isolate_->heap();
-  HeapReferenceType::OddballType oddball_type = HeapReferenceType::kNone;
+  HeapObjectType::OddballType oddball_type = HeapObjectType::kNone;
   if (map->instance_type() == ODDBALL_TYPE) {
     if (map == heap->undefined_map()) {
-      oddball_type = HeapReferenceType::kUndefined;
+      oddball_type = HeapObjectType::kUndefined;
     } else if (map == heap->null_map()) {
-      oddball_type = HeapReferenceType::kNull;
+      oddball_type = HeapObjectType::kNull;
     } else if (map == heap->boolean_map()) {
-      oddball_type = HeapReferenceType::kBoolean;
+      oddball_type = HeapObjectType::kBoolean;
     } else if (map == heap->the_hole_map()) {
-      oddball_type = HeapReferenceType::kHole;
+      oddball_type = HeapObjectType::kHole;
     } else {
-      oddball_type = HeapReferenceType::kOther;
+      oddball_type = HeapObjectType::kOther;
       DCHECK(map == heap->uninitialized_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
@@ -67,17 +81,11 @@ HeapReferenceType JSHeapBroker::HeapReferenceTypeFromMap(Map* map) const {
              map == heap->stale_register_map());
     }
   }
-  HeapReferenceType::Flags flags(0);
-  if (map->is_undetectable()) flags |= HeapReferenceType::kUndetectable;
-  if (map->is_callable()) flags |= HeapReferenceType::kCallable;
+  HeapObjectType::Flags flags(0);
+  if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
+  if (map->is_callable()) flags |= HeapObjectType::kCallable;
 
-  return HeapReferenceType(map->instance_type(), flags, oddball_type);
-}
-
-HeapReference JSHeapBroker::HeapReferenceForObject(
-    Handle<Object> object) const {
-  AllowHandleDereference allow_handle_dereference;
-  return HeapReference(Handle<HeapObject>::cast(object));
+  return HeapObjectType(map->instance_type(), flags, oddball_type);
 }
 
 // static
@@ -88,40 +96,39 @@ base::Optional<int> JSHeapBroker::TryGetSmi(Handle<Object> object) {
 }
 
 #define HEAP_KIND_FUNCTIONS_DEF(Name)                \
-  bool HeapReference::Is##Name() const {             \
+  bool ObjectRef::Is##Name() const {                 \
     AllowHandleDereference allow_handle_dereference; \
-    return object_->Is##Name();                      \
+    return object<Object>()->Is##Name();             \
   }
 HEAP_BROKER_KIND_LIST(HEAP_KIND_FUNCTIONS_DEF)
 #undef HEAP_KIND_FUNCTIONS_DEF
 
-#define HEAP_DATA_FUNCTIONS_DEF(Name)                   \
-  Name##HeapReference HeapReference::As##Name() const { \
-    AllowHandleDereference allow_handle_dereference;    \
-    SLOW_DCHECK(object_->Is##Name());                   \
-    return Name##HeapReference(object_);                \
+#define HEAP_DATA_FUNCTIONS_DEF(Name)       \
+  Name##Ref ObjectRef::As##Name() const {   \
+    SLOW_DCHECK(Is##Name());                \
+    return Name##Ref(object<HeapObject>()); \
   }
 HEAP_BROKER_DATA_LIST(HEAP_DATA_FUNCTIONS_DEF)
 #undef HEAP_DATA_FUNCTIONS_DEF
 
-HeapReferenceType HeapReference::type(const JSHeapBroker* broker) const {
+HeapObjectType HeapObjectRef::type(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
-  return broker->HeapReferenceTypeFromMap(object_->map());
+  return broker->HeapObjectTypeFromMap(object<HeapObject>()->map());
 }
 
-double NumberHeapReference::value() const {
+double HeapNumberRef::value() const {
   AllowHandleDereference allow_handle_dereference;
-  return object()->Number();
+  return object<HeapObject>()->Number();
 }
 
-bool JSFunctionHeapReference::HasBuiltinFunctionId() const {
+bool JSFunctionRef::HasBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
-  return JSFunction::cast(*object())->shared()->HasBuiltinFunctionId();
+  return object<JSFunction>()->shared()->HasBuiltinFunctionId();
 }
 
-BuiltinFunctionId JSFunctionHeapReference::GetBuiltinFunctionId() const {
+BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
-  return JSFunction::cast(*object())->shared()->builtin_function_id();
+  return object<JSFunction>()->shared()->builtin_function_id();
 }
 
 }  // namespace compiler

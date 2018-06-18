@@ -47,7 +47,6 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
 }
 
 Node* JSGraph::Constant(Handle<Object> value) {
-  AllowHandleDereference handle_dereference;
   // Dereference the handle to determine if a number constant or other
   // canonicalized node can be used.
   if (value->IsNumber()) {
@@ -64,6 +63,33 @@ Node* JSGraph::Constant(Handle<Object> value) {
     return TheHoleConstant();
   } else {
     return HeapConstant(Handle<HeapObject>::cast(value));
+  }
+}
+
+Node* JSGraph::Constant(const JSHeapBroker* broker, const ObjectRef& ref) {
+  if (ref.IsSmi()) return Constant(ref.AsSmi());
+  HeapObjectType type = ref.AsHeapObjectRef().type(broker);
+  if (ref.IsHeapNumber()) {
+    return Constant(ref.AsHeapNumber().value());
+  } else if (type.oddball_type() == HeapObjectType::kUndefined) {
+    DCHECK(
+        ref.object<Object>().equals(isolate()->factory()->undefined_value()));
+    return UndefinedConstant();
+  } else if (type.oddball_type() == HeapObjectType::kNull) {
+    DCHECK(ref.object<Object>().equals(isolate()->factory()->null_value()));
+    return NullConstant();
+  } else if (type.oddball_type() == HeapObjectType::kHole) {
+    DCHECK(ref.object<Object>().equals(isolate()->factory()->the_hole_value()));
+    return TheHoleConstant();
+  } else if (type.oddball_type() == HeapObjectType::kBoolean) {
+    if (ref.object<Object>().equals(isolate()->factory()->true_value())) {
+      return TrueConstant();
+    } else {
+      DCHECK(ref.object<Object>().equals(isolate()->factory()->false_value()));
+      return FalseConstant();
+    }
+  } else {
+    return HeapConstant(ref.object<HeapObject>());
   }
 }
 
