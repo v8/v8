@@ -1894,7 +1894,7 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
                 PropertyArray::kLengthAndHashOffset);
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
-  CSA_SLOW_ASSERT(
+  CSA_ASSERT(
       this,
       IsOffsetInBounds(
           offset,
@@ -1921,6 +1921,12 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   // This function is currently used for non-FixedArrays (e.g., PropertyArrays)
   // and thus the reasonable assert IsFixedArraySubclass(object) is
   // untrue. TODO(marja): Fix.
+  CSA_SLOW_ASSERT(
+      this, Word32Or(IsHashTable(object),
+                     Word32Or(IsFixedArray(object),
+                              Word32Or(IsPropertyArray(object),
+                                       Word32Or(IsEphemeronHashTable(object),
+                                                IsContext(object))))));
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
@@ -2517,12 +2523,28 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
-  // TODO(cbruni): Enable check once we have TNodes in this method. Currently
-  // the bounds check will fail for PropertyArray due to the different length
-  // encoding.
-  // CSA_ASSERT(this,
-  //         IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
-  //                             FixedArray::kHeaderSize));
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset ==
+                PropertyArray::kLengthAndHashOffset);
+  // Check that index_node + additional_offset <= object.length.
+  // TODO(cbruni): Use proper LoadXXLength helpers
+  CSA_ASSERT(
+      this,
+      IsOffsetInBounds(
+          offset,
+          Select<IntPtrT>(
+              IsPropertyArray(object),
+              [=] {
+                TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
+                    object, PropertyArray::kLengthAndHashOffset);
+                return TNode<IntPtrT>::UncheckedCast(
+                    DecodeWord<PropertyArray::LengthField>(length_and_hash));
+              },
+              [=] {
+                return LoadAndUntagObjectField(object,
+                                               FixedArrayBase::kLengthOffset);
+              }),
+          FixedArray::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
                                value);
