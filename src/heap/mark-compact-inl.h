@@ -92,23 +92,25 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
   collector_->AddEphemeronHashTable(table);
 
-  for (int i = 0; i < table->Capacity(); i++) {
-    Object** key_slot =
-        table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-    HeapObject* key = HeapObject::cast(table->KeyAt(i));
-    collector_->RecordSlot(table, key_slot, key);
+  if (V8_LIKELY(FLAG_optimize_ephemerons)) {
+    for (int i = 0; i < table->Capacity(); i++) {
+      Object** key_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+      HeapObject* key = HeapObject::cast(table->KeyAt(i));
+      collector_->RecordSlot(table, key_slot, key);
 
-    Object** value_slot =
-        table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+      Object** value_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-    if (marking_state()->IsBlackOrGrey(key)) {
-      VisitPointer(table, value_slot);
+      if (marking_state()->IsBlackOrGrey(key)) {
+        VisitPointer(table, value_slot);
 
-    } else {
-      Object* value = *value_slot;
+      } else {
+        Object* value = *value_slot;
 
-      if (value->IsHeapObject()) {
-        collector_->RecordSlot(table, value_slot, HeapObject::cast(value));
+        if (value->IsHeapObject()) {
+          collector_->RecordSlot(table, value_slot, HeapObject::cast(value));
+        }
       }
     }
   }

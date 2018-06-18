@@ -1925,6 +1925,26 @@ class EphemeronHashTableMarkingTask : public ItemParallelJob::Task {
             }
           }
         }
+
+        // Record slots if that wasn't done already in concurrent or
+        // incremental marking
+        if (V8_UNLIKELY(!FLAG_optimize_ephemerons)) {
+          Object** key_slot =
+              table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+          HeapObject* key = HeapObject::cast(table->KeyAt(i));
+
+          if (collector_->marking_state()->IsBlackOrGrey(key)) {
+            collector_->RecordSlot(table, key_slot, key);
+            Object* value = table->ValueAt(i);
+
+            if (value->IsHeapObject()) {
+              Object** value_slot = table->RawFieldOfElementAt(
+                  EphemeronHashTable::EntryToValueIndex(i));
+              collector_->RecordSlot(table, value_slot,
+                                     HeapObject::cast(value));
+            }
+          }
+        }
       }
 
       item->MarkFinished();

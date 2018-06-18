@@ -415,7 +415,11 @@ class MajorNonAtomicMarkingState final
 struct WeakObjects {
   Worklist<WeakCell*, 64> weak_cells;
   Worklist<TransitionArray*, 64> transition_arrays;
+
+  // Keep track of all EphemeronHashTables in the heap to process
+  // them in the atomic pause.
   Worklist<EphemeronHashTable*, 64> ephemeron_hash_tables;
+
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
   Worklist<std::pair<HeapObject*, HeapObjectReference**>, 64> weak_references;

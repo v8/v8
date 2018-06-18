@@ -779,6 +779,11 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
 DEFINE_BOOL(fast_promotion_new_space, false,
             "fast promote new space on high survival rates")
 
+DEFINE_BOOL(optimize_ephemerons, true,
+            "use optimized handling of ephemerons in the GC")
+DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_marking)
+DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_visiting)
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
