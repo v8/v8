@@ -40,8 +40,8 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(OBJECT_TYPE_STRING);
   }
 
-  static const Type* GetStringType() {
-    return Get().GetBuiltinType(STRING_TYPE_STRING);
+  static const Type* GetConstStringType() {
+    return Get().GetBuiltinType(CONST_STRING_TYPE_STRING);
   }
 
   static const Type* GetIntPtrType() {

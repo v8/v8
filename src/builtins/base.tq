@@ -26,7 +26,8 @@ type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';
-type String extends HeapObject generates 'TNode<String>';
+type String extends HeapObject generates 'TNode<String>'
+    constexpr 'const char*';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi | HeapNumber;
@@ -145,6 +146,8 @@ const INTPTR_PARAMETERS: constexpr ParameterMode = 'INTPTR_PARAMETERS';
 
 extern macro Is64(): constexpr bool;
 
+extern macro Print(constexpr String);
+extern macro Print(constexpr String, Object);
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
@@ -339,6 +342,7 @@ extern macro Int32Constant(constexpr int31): int32;
 extern macro Int32Constant(constexpr int32): int32;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro BoolConstant(constexpr bool): bool;
+extern macro StringConstant(constexpr String): String;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 
@@ -389,6 +393,13 @@ from_constexpr<LanguageMode>(b: constexpr LanguageMode): LanguageMode {
 macro from_constexpr<A : type>(e: constexpr ElementsKind): A;
 from_constexpr<ElementsKind>(e: constexpr ElementsKind): ElementsKind {
   return Int32Constant(e);
+}
+macro from_constexpr<A: type>(s: constexpr String): A;
+from_constexpr<String>(s: constexpr String): String {
+  return StringConstant(s);
+}
+from_constexpr<Object>(s: constexpr String): Object {
+  return StringConstant(s);
 }
 
 macro convert<A : type>(i: int32): A;

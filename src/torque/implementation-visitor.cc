@@ -490,11 +490,10 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(StringLiteralExpression* expr) {
-  std::string temp = GenerateNewTempVariable(TypeOracle::GetStringType());
-  source_out() << "StringConstant(\""
-               << expr->literal.substr(1, expr->literal.size() - 2) << "\");"
-               << std::endl;
-  return VisitResult{TypeOracle::GetStringType(), temp};
+  std::string temp = GenerateNewTempVariable(TypeOracle::GetConstStringType());
+  source_out() << "\"" << expr->literal.substr(1, expr->literal.size() - 2)
+               << "\";" << std::endl;
+  return VisitResult{TypeOracle::GetConstStringType(), temp};
 }
 
 VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {

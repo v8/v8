@@ -221,6 +221,7 @@ bool IsAssignableFrom(const Type* to, const Type* from) {
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            const std::vector<Label*>& labels) {
   auto i = sig.parameter_types.types.begin();
+  if (sig.parameter_types.types.size() > types.size()) return false;
   // TODO(danno): The test below is actually insufficient. The labels'
   // parameters must be checked too. ideally, the named part of
   // LabelDeclarationVector would be factored out so that the label count and
