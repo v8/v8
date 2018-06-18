@@ -9394,7 +9394,7 @@ TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
     SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot) {
-  TNode<IntPtrT> size = IntPtrConstant(AllocationSite::kSize);
+  TNode<IntPtrT> size = IntPtrConstant(AllocationSite::kSizeWithWeakNext);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
   StoreMapNoWriteBarrier(site, Heap::kAllocationSiteWithWeakNextMapRootIndex);
   // Should match AllocationSite::Initialize.

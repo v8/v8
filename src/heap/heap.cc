@@ -870,17 +870,16 @@ void Heap::ProcessPretenuringFeedback() {
     // Step 2: Deopt maybe tenured allocation sites if necessary.
     bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
     if (deopt_maybe_tenured) {
-      Object* list_element = allocation_sites_list();
-      while (list_element->IsAllocationSite()) {
-        site = AllocationSite::cast(list_element);
-        DCHECK(site->IsAllocationSite());
-        allocation_sites++;
-        if (site->IsMaybeTenure()) {
-          site->set_deopt_dependent_code(true);
-          trigger_deoptimization = true;
-        }
-        list_element = site->weak_next();
-      }
+      ForeachAllocationSite(
+          allocation_sites_list(),
+          [&allocation_sites, &trigger_deoptimization](AllocationSite* site) {
+            DCHECK(site->IsAllocationSite());
+            allocation_sites++;
+            if (site->IsMaybeTenure()) {
+              site->set_deopt_dependent_code(true);
+              trigger_deoptimization = true;
+            }
+          });
     }
 
     if (trigger_deoptimization) {
@@ -919,16 +918,15 @@ void Heap::InvalidateCodeDeoptimizationData(Code* code) {
 void Heap::DeoptMarkedAllocationSites() {
   // TODO(hpayer): If iterating over the allocation sites list becomes a
   // performance issue, use a cache data structure in heap instead.
-  Object* list_element = allocation_sites_list();
-  while (list_element->IsAllocationSite()) {
-    AllocationSite* site = AllocationSite::cast(list_element);
+
+  ForeachAllocationSite(allocation_sites_list(), [this](AllocationSite* site) {
     if (site->deopt_dependent_code()) {
       site->dependent_code()->MarkCodeForDeoptimization(
           isolate_, DependentCode::kAllocationSiteTenuringChangedGroup);
       site->set_deopt_dependent_code(false);
     }
-    list_element = site->weak_next();
-  }
+  });
+
   Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
@@ -2458,20 +2456,37 @@ void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
   set_allocation_sites_list(retainer->RetainAs(allocation_sites_list()));
 }
 
+void Heap::ForeachAllocationSite(Object* list,
+                                 std::function<void(AllocationSite*)> visitor) {
+  DisallowHeapAllocation disallow_heap_allocation;
+  Object* current = list;
+  while (current->IsAllocationSite()) {
+    AllocationSite* site = AllocationSite::cast(current);
+    visitor(site);
+    Object* current_nested = site->nested_site();
+    while (current_nested->IsAllocationSite()) {
+      AllocationSite* nested_site = AllocationSite::cast(current_nested);
+      visitor(nested_site);
+      current_nested = nested_site->nested_site();
+    }
+    current = site->weak_next();
+  }
+}
+
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
   DisallowHeapAllocation no_allocation_scope;
-  Object* cur = allocation_sites_list();
   bool marked = false;
-  while (cur->IsAllocationSite()) {
-    AllocationSite* casted = AllocationSite::cast(cur);
-    if (casted->GetPretenureMode() == flag) {
-      casted->ResetPretenureDecision();
-      casted->set_deopt_dependent_code(true);
-      marked = true;
-      RemoveAllocationSitePretenuringFeedback(casted);
-    }
-    cur = casted->weak_next();
-  }
+
+  ForeachAllocationSite(allocation_sites_list(),
+                        [&marked, flag, this](AllocationSite* site) {
+                          if (site->GetPretenureMode() == flag) {
+                            site->ResetPretenureDecision();
+                            site->set_deopt_dependent_code(true);
+                            marked = true;
+                            RemoveAllocationSitePretenuringFeedback(site);
+                            return;
+                          }
+                        });
   if (marked) isolate_->stack_guard()->RequestDeoptMarkedAllocationSites();
 }
 

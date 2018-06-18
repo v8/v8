@@ -454,7 +454,7 @@ class V8_EXPORT_PRIVATE Factory {
                                              int slack = 0);
 
   // Allocate a tenured AllocationSite. Its payload is null.
-  Handle<AllocationSite> NewAllocationSite();
+  Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
 
   // Allocates and initializes a new Map.
   Handle<Map> NewMap(InstanceType type, int instance_size,
