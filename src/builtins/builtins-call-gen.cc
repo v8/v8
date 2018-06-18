@@ -356,22 +356,20 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 }
 
 TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(CallWithArrayLikeDescriptor::kTarget));
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
   SloppyTNode<Object> new_target = nullptr;
-  TNode<Object> arguments_list =
-      CAST(Parameter(CallWithArrayLikeDescriptor::kArgumentsList));
-  TNode<Context> context =
-      CAST(Parameter(CallWithArrayLikeDescriptor::kContext));
+  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(CallWithSpreadDescriptor::kTarget));
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
   SloppyTNode<Object> new_target = nullptr;
-  TNode<Object> spread = CAST(Parameter(CallWithSpreadDescriptor::kSpread));
-  TNode<Int32T> args_count = UncheckedCast<Int32T>(
-      Parameter(CallWithSpreadDescriptor::kArgumentsCount));
-  TNode<Context> context = CAST(Parameter(CallWithSpreadDescriptor::kContext));
+  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
+  TNode<Int32T> args_count =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
