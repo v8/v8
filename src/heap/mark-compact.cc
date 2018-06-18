@@ -1910,16 +1910,10 @@ class EphemeronHashTableMarkingTask : public ItemParallelJob::Task {
       for (int i = start; i < limit; i++) {
         HeapObject* key = HeapObject::cast(table->KeyAt(i));
         if (collector_->marking_state()->IsBlackOrGrey(key)) {
-          Object** key_slot =
-              table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-          collector_->RecordSlot(table, key_slot, key);
-          Object** value_slot = table->RawFieldOfElementAt(
-              EphemeronHashTable::EntryToValueIndex(i));
-          Object* value_obj = *value_slot;
+          Object* value_obj = table->ValueAt(i);
 
           if (value_obj->IsHeapObject()) {
             HeapObject* value = HeapObject::cast(value_obj);
-            collector_->RecordSlot(table, value_slot, value);
 
             if (collector_->marking_state()->WhiteToGrey(value)) {
               worklist_->Push(task_id_, value);

@@ -362,12 +362,24 @@ class ConcurrentMarkingVisitor final
     weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 
     for (int i = 0; i < table->Capacity(); i++) {
+      Object** key_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       HeapObject* key = HeapObject::cast(table->KeyAt(i));
+      MarkCompactCollector::RecordSlot(table, key_slot, key);
+
+      Object** value_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
       if (marking_state_.IsBlackOrGrey(key)) {
-        Object** value_slot = table->RawFieldOfElementAt(
-            EphemeronHashTable::EntryToValueIndex(i));
         VisitPointer(table, value_slot);
+
+      } else {
+        Object* value = table->ValueAt(i);
+
+        if (value->IsHeapObject()) {
+          MarkCompactCollector::RecordSlot(table, value_slot,
+                                           HeapObject::cast(value));
+        }
       }
     }
 

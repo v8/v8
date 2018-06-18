@@ -93,11 +93,23 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
   collector_->AddEphemeronHashTable(table);
 
   for (int i = 0; i < table->Capacity(); i++) {
+    Object** key_slot =
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
     HeapObject* key = HeapObject::cast(table->KeyAt(i));
+    collector_->RecordSlot(table, key_slot, key);
+
+    Object** value_slot =
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+
     if (marking_state()->IsBlackOrGrey(key)) {
-      Object** value_slot =
-          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
       VisitPointer(table, value_slot);
+
+    } else {
+      Object* value = *value_slot;
+
+      if (value->IsHeapObject()) {
+        collector_->RecordSlot(table, value_slot, HeapObject::cast(value));
+      }
     }
   }
 
