@@ -25,6 +25,17 @@ Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
   return result;
 }
 
+namespace {
+
+void PrintMacroSignatures(std::stringstream& s,
+                          const std::vector<Macro*>& macros) {
+  for (Macro* m : macros) {
+    s << "\n    " << m->signature();
+  }
+}
+
+}  // namespace
+
 Callable* FileVisitor::LookupCall(const std::string& name,
                                   const Arguments& arguments) {
   Callable* result = nullptr;
@@ -36,11 +47,25 @@ Callable* FileVisitor::LookupCall(const std::string& name,
     result = RuntimeFunction::cast(declarable);
   } else if (declarable->IsMacroList()) {
     std::vector<Macro*> candidates;
+    std::vector<Macro*> macros_with_same_name;
     for (Macro* m : MacroList::cast(declarable)->list()) {
       if (IsCompatibleSignature(m->signature(), parameter_types,
                                 arguments.labels)) {
         candidates.push_back(m);
+      } else if (m->name() == name) {
+        macros_with_same_name.push_back(m);
       }
+    }
+
+    if (candidates.empty() && macros_with_same_name.empty()) {
+      return nullptr;
+    } else if (candidates.empty()) {
+      std::stringstream stream;
+      stream << "cannot find macro with name \"" << name
+             << "\" and parameter type(s) (" << parameter_types
+             << "), candidates are:";
+      PrintMacroSignatures(stream, macros_with_same_name);
+      ReportError(stream.str());
     }
 
     auto is_better_candidate = [&](Macro* a, Macro* b) {
@@ -49,9 +74,7 @@ Callable* FileVisitor::LookupCall(const std::string& name,
           .StrictlyBetterThan(ParameterDifference(
               b->signature().parameter_types.types, parameter_types));
     };
-    if (candidates.empty()) {
-      return nullptr;
-    }
+
     Macro* best = *std::min_element(candidates.begin(), candidates.end(),
                                     is_better_candidate);
     for (Macro* candidate : candidates) {
@@ -59,10 +82,7 @@ Callable* FileVisitor::LookupCall(const std::string& name,
         std::stringstream s;
         s << "ambiguous macro \"" << name << "\" with types ("
           << parameter_types << "), candidates:";
-        for (Macro* m : candidates) {
-          s << "\n    (" << m->signature().parameter_types << ") => "
-            << m->signature().return_type;
-        }
+        PrintMacroSignatures(s, candidates);
         ReportError(s.str());
       }
     }

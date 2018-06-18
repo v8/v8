@@ -160,8 +160,16 @@ std::ostream& operator<<(std::ostream& os, const Signature& sig) {
     os << "...";
   }
   os << ")";
-  if (!sig.return_type->IsVoid()) {
-    os << ": " << sig.return_type;
+  os << ": " << sig.return_type;
+
+  if (sig.labels.empty()) return os;
+
+  os << " labels ";
+  for (size_t i = 0; i < sig.labels.size(); ++i) {
+    if (i > 0) os << ", ";
+    os << sig.labels[i].name;
+
+    if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
   }
   return os;
 }
