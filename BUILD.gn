@@ -2277,7 +2277,6 @@ v8_source_set("v8_base") {
     "src/runtime/runtime-classes.cc",
     "src/runtime/runtime-collections.cc",
     "src/runtime/runtime-compiler.cc",
-    "src/runtime/runtime-dataview.cc",
     "src/runtime/runtime-date.cc",
     "src/runtime/runtime-debug.cc",
     "src/runtime/runtime-forin.cc",

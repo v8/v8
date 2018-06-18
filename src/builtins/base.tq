@@ -201,11 +201,14 @@ extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro SmiAbove(Smi, Smi): bool;
 
 extern operator '==' macro WordEqual(intptr, intptr): bool;
+extern operator '==' macro WordEqual(uintptr, uintptr): bool;
 extern operator '!=' macro WordNotEqual(intptr, intptr): bool;
+extern operator '!=' macro WordNotEqual(uintptr, uintptr): bool;
 extern operator '<' macro IntPtrLessThan(intptr, intptr): bool;
 extern operator '>' macro IntPtrGreaterThan(intptr, intptr): bool;
 extern operator '<=' macro IntPtrLessThanOrEqual(intptr, intptr): bool;
 extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
+extern operator '>=' macro UintPtrGreaterThanOrEqual(uintptr, uintptr): bool;
 
 extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
@@ -233,6 +236,7 @@ extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '>>>' macro WordShr(intptr, intptr): intptr;
+extern operator '>>>' macro WordShr(uintptr, uintptr): uintptr;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
 
@@ -240,10 +244,11 @@ extern operator '+' macro Int32Add(int32, int32): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
-extern operator '&' macro Word32And(int32, int32): int32;
+extern operator '&' macro Word32And(word32, word32): int32;
 
 extern operator '==' macro Word32Equal(word32, word32): bool;
 extern operator '!=' macro Word32NotEqual(word32, word32): bool;
+extern operator '>>>' macro Word32Shr(word32, word32): word32;
 extern operator '<<' macro Word32Shl(word32, word32): word32;
 extern operator '|' macro Word32Or(word32, word32): word32;
 
@@ -347,6 +352,9 @@ from_constexpr<int32>(i: constexpr int31): int32 {
 from_constexpr<word32>(i: constexpr int31): word32 {
   return from_constexpr<int32>(i);
 }
+from_constexpr<uintptr>(i: constexpr int31): uintptr {
+  return ChangeUint32ToWord(i);
+}
 from_constexpr<Smi>(i: constexpr int31): Smi {
   return SmiConstant(i);
 }
@@ -400,7 +408,7 @@ macro convert<A : type>(ui: uint32): A;
 convert<Number>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
-macro convert<A: type>(word: word32): A;
+macro convert<A : type>(word: word32): A;
 convert<int32>(word: word32): int32 {
   return Signed(word);
 }
@@ -411,7 +419,7 @@ convert<uintptr>(word: word32): uintptr {
   return ChangeUint32ToWord(word);
 }
 macro convert<A : type>(i: intptr): A;
-convert<int32>(i: intptr): int32 {
+convert<word32>(i: intptr): word32 {
   return TruncateIntPtrToInt32(i);
 }
 convert<uintptr>(i: intptr): uintptr {
@@ -420,9 +428,12 @@ convert<uintptr>(i: intptr): uintptr {
 convert<Smi>(i: intptr): Smi {
   return SmiTag(i);
 }
-macro convert<A: type>(ui: uintptr): A;
+macro convert<A : type>(ui: uintptr): A;
 convert<intptr>(ui: uintptr): intptr {
   return Signed(ui);
+}
+convert<word32>(ui: uintptr): word32 {
+  return TruncateIntPtrToInt32(Signed(ui));
 }
 macro convert<A : type>(s: Smi): A;
 convert<intptr>(s: Smi): intptr {

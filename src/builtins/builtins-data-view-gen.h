@@ -18,21 +18,27 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
       : BaseBuiltinsFromDSLAssembler(state) {}
 
   TNode<Smi> LoadDataViewByteOffset(TNode<JSDataView> data_view) {
-    return LoadObjectField<Smi>(data_view, JSDataView::kByteOffsetOffset);
+    return CAST(LoadObjectField(data_view, JSDataView::kByteOffsetOffset));
   }
 
   TNode<Smi> LoadDataViewByteLength(TNode<JSDataView> data_view) {
-    return LoadObjectField<Smi>(data_view, JSDataView::kByteLengthOffset);
+    return CAST(LoadObjectField(data_view, JSDataView::kByteLengthOffset));
   }
 
-  TNode<Uint32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
-    return UncheckedCast<Uint32T>(
+  TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
+    return UncheckedCast<Int32T>(
         Load(MachineType::Uint8(), data_pointer, offset));
   }
 
   TNode<Int32T> LoadInt8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
     return UncheckedCast<Int32T>(
         Load(MachineType::Int8(), data_pointer, offset));
+  }
+
+  void StoreWord8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset,
+                  TNode<Word32T> value) {
+    StoreNoWriteBarrier(MachineRepresentation::kWord8, data_pointer, offset,
+                        value);
   }
 
   int32_t DataViewElementSize(ElementsKind elements_kind) {
@@ -42,6 +48,16 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   TNode<IntPtrT> DataViewEncodeBigIntBits(bool sign, int32_t digits) {
     return IntPtrConstant(BigInt::SignBits::encode(sign) |
                           BigInt::LengthBits::encode(digits));
+  }
+
+  TNode<UintPtrT> DataViewDecodeBigIntLength(TNode<BigInt> value) {
+    TNode<WordT> bitfield = LoadBigIntBitfield(value);
+    return DecodeWord<BigIntBase::LengthBits>(bitfield);
+  }
+
+  TNode<UintPtrT> DataViewDecodeBigIntSign(TNode<BigInt> value) {
+    TNode<WordT> bitfield = LoadBigIntBitfield(value);
+    return DecodeWord<BigIntBase::SignBits>(bitfield);
   }
 };
 
