@@ -2782,7 +2782,6 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
 
     scopes->Advance();
     CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeGlobal, scopes->GetType());
-    CHECK(scopes->GetFunction().IsEmpty());
 
     scopes->Advance();
     CHECK(scopes->Done());

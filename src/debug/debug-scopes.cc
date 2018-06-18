@@ -41,6 +41,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 ScopeIterator::~ScopeIterator() { delete info_; }
 
 Handle<Object> ScopeIterator::GetFunctionDebugName() const {
+  if (!function_.is_null()) return JSFunction::GetDebugName(function_);
+
   if (!context_->IsNativeContext()) {
     DisallowHeapAllocation no_gc;
     ScopeInfo* closure_info = context_->closure_context()->scope_info();

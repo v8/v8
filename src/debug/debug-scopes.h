@@ -80,8 +80,6 @@ class ScopeIterator {
   // Populate the set with collected non-local variable names.
   Handle<StringSet> GetNonLocals();
 
-  // Return function which represents closure for current scope.
-  Handle<JSFunction> GetFunction() { return function_; }
   // Similar to JSFunction::GetName return the function's name or it's inferred
   // name.
   Handle<Object> GetFunctionDebugName() const;

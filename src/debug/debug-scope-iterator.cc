@@ -90,12 +90,6 @@ v8::Local<v8::Object> DebugScopeIterator::GetObject() {
   return Utils::ToLocal(value);
 }
 
-v8::Local<v8::Function> DebugScopeIterator::GetFunction() {
-  DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetFunction();
-  if (closure.is_null()) return v8::Local<v8::Function>();
-  return Utils::ToLocal(closure);
-}
 int DebugScopeIterator::GetScriptId() {
   DCHECK(!Done());
   return iterator_.GetScript()->id();
@@ -178,11 +172,6 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
 int DebugWasmScopeIterator::GetScriptId() {
   DCHECK(!Done());
   return -1;
-}
-
-v8::Local<v8::Function> DebugWasmScopeIterator::GetFunction() {
-  DCHECK(!Done());
-  return v8::Local<v8::Function>();
 }
 
 v8::Local<v8::Value> DebugWasmScopeIterator::GetFunctionDebugName() {

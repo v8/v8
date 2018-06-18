@@ -398,7 +398,6 @@ class ScopeIterator {
   virtual void Advance() = 0;
   virtual ScopeType GetType() = 0;
   virtual v8::Local<v8::Object> GetObject() = 0;
-  virtual v8::Local<v8::Function> GetFunction() = 0;
   virtual v8::Local<v8::Value> GetFunctionDebugName() = 0;
   virtual int GetScriptId() = 0;
   virtual bool HasLocationInfo() = 0;
