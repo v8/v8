@@ -260,8 +260,8 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
       } else {
         Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
         pair->set(component, value);
-        PropertyDetails details(kAccessor, DONT_ENUM,
-                                PropertyCellType::kNoCell);
+        PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
+                                enum_order);
         dictionary->DetailsAtPut(entry, details);
         dictionary->ValueAtPut(entry, *pair);
       }
