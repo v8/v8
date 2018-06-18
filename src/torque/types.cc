@@ -150,7 +150,7 @@ std::string UnionType::GetGeneratedTNodeTypeName() const {
 
 std::ostream& operator<<(std::ostream& os, const Signature& sig) {
   os << "(";
-  for (size_t i = 0; i < sig.parameter_names.size(); ++i) {
+  for (size_t i = 0; i < sig.parameter_types.types.size(); ++i) {
     if (i > 0) os << ", ";
     if (!sig.parameter_names.empty()) os << sig.parameter_names[i] << ": ";
     os << sig.parameter_types.types[i];
