@@ -919,7 +919,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
 RUNTIME_FUNCTION(Runtime_SetDataProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
 
   // 2. If source is undefined or null, let keys be an empty List.
