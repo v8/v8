@@ -59,20 +59,6 @@ module data_view {
     return data_view.byte_offset;
   }
 
-  extern macro BranchIfToBooleanIsTrue(Object): never labels Taken, NotTaken;
-
-  // TODO(theotime): This function should be moved to base.tq, we can't call
-  // functions that were defined in another Torque file for now.
-  macro ToBoolean(obj: Object): bool {
-      try {
-        BranchIfToBooleanIsTrue(obj) otherwise Taken, NotTaken;
-      } label Taken {
-        return true;
-      } label NotTaken {
-        return false;
-    }
-  }
-
   extern macro BitcastInt32ToFloat32(word32): float32;
   extern macro BitcastFloat32ToInt32(float32): word32;
   extern macro Float64ExtractLowWord32(float64): word32;

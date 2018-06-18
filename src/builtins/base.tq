@@ -668,3 +668,15 @@ macro NumberIsNaN(number: Number): bool {
   let value: float64 = convert<float64>(unsafe_cast<HeapNumber>(number));
   return value != value;
 }
+
+extern macro BranchIfToBooleanIsTrue(Object): never labels Taken, NotTaken;
+
+macro ToBoolean(obj: Object): bool {
+    try {
+      BranchIfToBooleanIsTrue(obj) otherwise Taken, NotTaken;
+    } label Taken {
+      return true;
+    } label NotTaken {
+      return false;
+  }
+}
