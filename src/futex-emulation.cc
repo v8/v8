@@ -74,7 +74,14 @@ void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
 }
 
 void AtomicsWaitWakeHandle::Wake() {
-  stopped_ = true;
+  // Adding a separate `NotifyWake()` variant that doesn't acquire the lock
+  // itself would likely just add unnecessary complexity..
+  // The split lock by itself isn’t an issue, as long as the caller properly
+  // synchronizes this with the closing `AtomicsWaitCallback`.
+  {
+    base::LockGuard<base::Mutex> lock_guard(FutexEmulation::mutex_.Pointer());
+    stopped_ = true;
+  }
   isolate_->futex_wait_list_node()->NotifyWake();
 }
 
@@ -126,6 +133,9 @@ Object* FutexEmulation::Wait(Isolate* isolate,
 
   do {  // Not really a loop, just makes it easier to break out early.
     base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
+    // Reset node->waiting_ = false when leaving this scope (but while
+    // still holding the lock).
+    ResetWaitingOnScopeExit reset_waiting(node);
 
     if (*p != value) {
       result = isolate->heap()->not_equal();
@@ -213,8 +223,6 @@ Object* FutexEmulation::Wait(Isolate* isolate,
 
     wait_list_.Pointer()->RemoveNode(node);
   } while (0);
-
-  node->waiting_ = false;
 
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
                                   rel_timeout_ms, nullptr);
