@@ -354,6 +354,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return p_o;
   }
 
+  TNode<NumberDictionary> UnsafeCastObjectToNumberDictionary(
+      TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<JSReceiver> UnsafeCastObjectToJSReceiver(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
+  TNode<JSObject> UnsafeCastObjectToJSObject(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -2127,9 +2140,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               TVariable<IntPtrT>* var_entry,
                               Label* if_not_found);
 
-  TNode<Object> LoadNumberDictionaryElement(TNode<NumberDictionary> dictionary,
-                                            TNode<IntPtrT> intptr_index,
-                                            Label* not_data, Label* if_hole);
+  TNode<Object> BasicLoadNumberDictionaryElement(
+      TNode<NumberDictionary> dictionary, TNode<IntPtrT> intptr_index,
+      Label* not_data, Label* if_hole);
+  void BasicStoreNumberDictionaryElement(TNode<NumberDictionary> dictionary,
+                                         TNode<IntPtrT> intptr_index,
+                                         TNode<Object> value, Label* fail,
+                                         Label* if_hole);
 
   template <class Dictionary>
   void FindInsertionEntry(TNode<Dictionary> dictionary, TNode<Name> key,

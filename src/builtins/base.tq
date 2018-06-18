@@ -48,6 +48,7 @@ type FixedTypedArrayBase extends FixedArrayBase generates
 'TNode<FixedTypedArrayBase>';
 type FixedTypedArray extends FixedTypedArrayBase generates
 'TNode<FixedTypedArray>';
+type NumberDictionary extends HeapObject generates 'TNode<NumberDictionary>';
 
 type JSArrayBuffer extends JSObject generates 'TNode<JSArrayBuffer>';
 type JSArrayBufferView extends JSObject generates 'TNode<JSArrayBufferView>';
@@ -73,6 +74,7 @@ const PACKED_ELEMENTS: constexpr ElementsKind = 'PACKED_ELEMENTS';
 const HOLEY_ELEMENTS: constexpr ElementsKind = 'HOLEY_ELEMENTS';
 const PACKED_DOUBLE_ELEMENTS: constexpr ElementsKind = 'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS: constexpr ElementsKind = 'HOLEY_DOUBLE_ELEMENTS';
+const DICTIONARY_ELEMENTS: constexpr ElementsKind = 'DICTIONARY_ELEMENTS';
 
 const UINT8_ELEMENTS: constexpr ElementsKind = 'UINT8_ELEMENTS';
 const INT8_ELEMENTS: constexpr ElementsKind = 'INT8_ELEMENTS';
@@ -279,7 +281,7 @@ extern macro ConvertFixedArrayBaseToFixedDoubleArray(FixedArrayBase):
     FixedDoubleArray labels CastError;
 extern macro TaggedToNumber(Object): Number labels CastError;
 
-macro cast<A: type>(o: Object): A labels CastError;
+macro cast<A : type>(o: Object): A labels CastError;
 cast<Number>(o: Object): Number labels CastError {
   return TaggedToNumber(o) otherwise CastError;
 }
@@ -298,7 +300,7 @@ cast<Callable>(o: Object): Callable labels CastError {
 cast<JSArray>(o: Object): JSArray labels CastError {
   return TaggedToJSArray(o) otherwise CastError;
 }
-macro cast<A: type>(o: FixedArrayBase): A labels CastError;
+macro cast<A : type>(o: FixedArrayBase): A labels CastError;
 cast<FixedArray>(o: FixedArrayBase): FixedArray labels CastError {
   return ConvertFixedArrayBaseToFixedArray(o) otherwise CastError;
 }
@@ -335,7 +337,7 @@ extern macro BoolConstant(constexpr bool): bool;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 
-macro from_constexpr<A: type>(o: constexpr int31): A;
+macro from_constexpr<A : type>(o: constexpr int31): A;
 from_constexpr<intptr>(i: constexpr int31): intptr {
   return IntPtrConstant(i);
 }
@@ -351,7 +353,7 @@ from_constexpr<Smi>(i: constexpr int31): Smi {
 from_constexpr<Number>(i: constexpr int31): Number {
   return SmiConstant(i);
 }
-macro from_constexpr<A: type>(o: constexpr int32): A;
+macro from_constexpr<A : type>(o: constexpr int32): A;
 from_constexpr<intptr>(i: constexpr int32): intptr {
   return IntPtrConstant(i);
 }
@@ -364,24 +366,24 @@ from_constexpr<word32>(i: constexpr int32): word32 {
 from_constexpr<Number>(i: constexpr int32): Number {
   return NumberConstant(i);
 }
-macro from_constexpr<A: type>(o: constexpr float64): A;
+macro from_constexpr<A : type>(o: constexpr float64): A;
 from_constexpr<Number>(f: constexpr float64): Number {
   return NumberConstant(f);
 }
-macro from_constexpr<A: type>(b: constexpr bool): A;
+macro from_constexpr<A : type>(b: constexpr bool): A;
 from_constexpr<bool>(b: constexpr bool): bool {
   return BoolConstant(b);
 }
-macro from_constexpr<A: type>(l: constexpr LanguageMode): A;
+macro from_constexpr<A : type>(l: constexpr LanguageMode): A;
 from_constexpr<LanguageMode>(b: constexpr LanguageMode): LanguageMode {
   return LanguageModeConstant(b);
 }
-macro from_constexpr<A: type>(e: constexpr ElementsKind): A;
+macro from_constexpr<A : type>(e: constexpr ElementsKind): A;
 from_constexpr<ElementsKind>(e: constexpr ElementsKind): ElementsKind {
   return Int32Constant(e);
 }
 
-macro convert<A: type>(i: int32): A;
+macro convert<A : type>(i: int32): A;
 convert<Number>(i: int32): Number {
   return ChangeInt32ToTagged(i);
 }
@@ -394,7 +396,7 @@ convert<intptr>(i: int32): intptr {
 convert<Smi>(i: int32): Smi {
   return SmiFromInt32(i);
 }
-macro convert<A: type>(ui: uint32): A;
+macro convert<A : type>(ui: uint32): A;
 convert<Number>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
@@ -408,7 +410,7 @@ convert<uint32>(word: word32): uint32 {
 convert<uintptr>(word: word32): uintptr {
   return ChangeUint32ToWord(word);
 }
-macro convert<A: type>(i: intptr): A;
+macro convert<A : type>(i: intptr): A;
 convert<int32>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
 }
@@ -422,22 +424,22 @@ macro convert<A: type>(ui: uintptr): A;
 convert<intptr>(ui: uintptr): intptr {
   return Signed(ui);
 }
-macro convert<A: type>(s: Smi): A;
+macro convert<A : type>(s: Smi): A;
 convert<intptr>(s: Smi): intptr {
   return SmiUntag(s);
 }
 convert<int32>(s: Smi): int32 {
   return SmiToInt32(s);
 }
-macro convert<A: type>(h: HeapNumber): A;
+macro convert<A : type>(h: HeapNumber): A;
 convert<float64>(h: HeapNumber): float64 {
   return LoadHeapNumberValue(h);
 }
-macro convert<A: type>(n: Number): A;
+macro convert<A : type>(n: Number): A;
 convert<float64>(n: Number): float64 {
   return ChangeNumberToFloat64(n);
 }
-macro convert<A: type>(f: float32): A;
+macro convert<A : type>(f: float32): A;
 convert<float64>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);
 }
@@ -452,12 +454,15 @@ extern macro UnsafeCastObjectToNumber(Object): Number;
 extern macro UnsafeCastObjectToHeapObject(Object): HeapObject;
 extern macro UnsafeCastObjectToJSArray(Object): JSArray;
 extern macro UnsafeCastObjectToFixedTypedArrayBase(Object): FixedTypedArrayBase;
+extern macro UnsafeCastObjectToNumberDictionary(Object): NumberDictionary;
+extern macro UnsafeCastObjectToJSReceiver(Object): JSReceiver;
+extern macro UnsafeCastObjectToJSObject(Object): JSObject;
 
-macro unsafe_cast<A: type>(n: Number): A;
+macro unsafe_cast<A : type>(n: Number): A;
 unsafe_cast<HeapNumber>(n: Number): HeapNumber {
   return UnsafeCastNumberToHeapNumber(n);
 }
-macro unsafe_cast<A: type>(o: Object): A;
+macro unsafe_cast<A : type>(o: Object): A;
 unsafe_cast<FixedArray>(o: Object): FixedArray {
   return UnsafeCastObjectToFixedArray(o);
 }
@@ -484,6 +489,15 @@ unsafe_cast<JSArray>(o: Object): JSArray {
 }
 unsafe_cast<FixedTypedArrayBase>(o: Object): FixedTypedArrayBase {
   return UnsafeCastObjectToFixedTypedArrayBase(o);
+}
+unsafe_cast<NumberDictionary>(o: Object): NumberDictionary {
+  return UnsafeCastObjectToNumberDictionary(o);
+}
+unsafe_cast<JSReceiver>(o: Object): JSReceiver {
+  return UnsafeCastObjectToJSReceiver(o);
+}
+unsafe_cast<JSObject>(o: Object): JSObject {
+  return UnsafeCastObjectToJSObject(o);
 }
 
 extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
@@ -526,6 +540,8 @@ extern operator
 extern operator
 '[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
 
+extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
+
 extern macro LoadFixedDoubleArrayElement(FixedDoubleArray, Smi): float64;
 extern macro Float64SilenceNaN(float64): float64;
 
@@ -535,6 +551,13 @@ macro StoreFixedDoubleArrayElementWithSmiIndex(
     array: FixedDoubleArray, index: Smi, value: float64) {
   StoreFixedDoubleArrayElement(array, index, value, SMI_PARAMETERS);
 }
+
+extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr):
+    Object labels NotData,
+    IfHole;
+extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
+    labels Fail,
+    IfHole;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
@@ -613,6 +636,8 @@ extern macro IsJSArray(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
+extern macro IsExtensibleMap(Map): bool;
+extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {

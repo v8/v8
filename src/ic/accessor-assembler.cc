@@ -1801,7 +1801,7 @@ void AccessorAssembler::EmitElementLoad(
     Comment("dictionary elements");
     GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
 
-    TNode<Object> value = LoadNumberDictionaryElement(
+    TNode<Object> value = BasicLoadNumberDictionaryElement(
         CAST(elements), intptr_index, miss, if_hole);
     exit_point->Return(value);
   }

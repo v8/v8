@@ -10,6 +10,7 @@ module array {
   type FastPackedSmiElements;
   type FastSmiOrObjectElements;
   type FastDoubleElements;
+  type DictionaryElements;
 
   macro Load<ElementsAccessor : type>(
       context: Context, receiver: Object, index: Smi): Object labels Bailout {
@@ -36,6 +37,16 @@ module array {
     let value: float64 =
         LoadDoubleWithHoleCheck(elems, index) otherwise Bailout;
     return AllocateHeapNumberWithValue(value);
+  }
+
+  Load<DictionaryElements>(
+      context: Context, elements: Object, index: Smi): Object labels Bailout {
+    let dictionary: NumberDictionary = unsafe_cast<NumberDictionary>(elements);
+    let intptr_index: intptr = convert<intptr>(index);
+    let value: Object =
+        BasicLoadNumberDictionaryElement(dictionary, intptr_index)
+    otherwise Bailout, Bailout;
+    return value;
   }
 
   macro Store<ElementsAccessor : type>(
@@ -68,6 +79,21 @@ module array {
   extern macro UnsafeCastObjectToCompareBuiltinFn(Object): CompareBuiltinFn;
   unsafe_cast<CompareBuiltinFn>(o: Object): CompareBuiltinFn {
     return UnsafeCastObjectToCompareBuiltinFn(o);
+  }
+
+  Store<DictionaryElements>(
+      context: Context, elements: Object, index: Smi, value: Object) {
+    try {
+      let dictionary: NumberDictionary =
+          unsafe_cast<NumberDictionary>(elements);
+      let intptr_index: intptr = convert<intptr>(index);
+      BasicStoreNumberDictionaryElement(dictionary, intptr_index, value)
+      otherwise Fail, Fail;
+      return;
+    }
+    label Fail {
+      unreachable;
+    }
   }
 
   builtin SortCompareDefault(
@@ -136,6 +162,13 @@ module array {
     return true;
   }
 
+  CanUseSameAccessor<DictionaryElements>(
+      context: Context, receiver: Object, initialReceiverMap: Object,
+      initialReceiverLength: Number): bool {
+    let obj: JSReceiver = unsafe_cast<JSReceiver>(receiver);
+    return obj.map == initialReceiverMap;
+  }
+
   macro CallCompareFn<E : type>(
       context: Context, receiver: Object, initialReceiverMap: Object,
       initialReceiverLength: Number, userCmpFn: Object,
@@ -155,6 +188,9 @@ module array {
       to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn)
   labels Bailout {
     for (let i: Smi = from + 1; i < to; ++i) {
+      assert(CanUseSameAccessor<E>(
+          context, receiver, initialReceiverMap, initialReceiverLength));
+
       let element: Object = Load<E>(context, elements, i) otherwise Bailout;
       let j: Smi = i - 1;
       for (; j >= from; --j) {
@@ -282,6 +318,8 @@ module array {
 
     // Move pivot element to a place on the left.
     Swap<E>(context, elements, from + 1, third_index, v1) otherwise Bailout;
+    assert(CanUseSameAccessor<E>(
+        context, receiver, initialReceiverMap, initialReceiverLength));
 
     return v1;
   }
@@ -350,6 +388,9 @@ module array {
           // Start looking for high_start to find the first value that is
           // smaller than pivot.
           while (order > 0) {
+            assert(CanUseSameAccessor<E>(
+                context, receiver, initialReceiverMap, initialReceiverLength));
+
             high_start--;
             if (high_start == idx) {
               break_for = true;
@@ -475,6 +516,7 @@ module array {
       // TODO(szuend): Investigate performance tradeoff of skipping this step
       //               for PACKED_* and handling Undefineds during sorting.
       let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
+      assert(a.map == map);
 
       sort_state[kInitialReceiverLengthIdx()] = len;
       sort_state[kElementsIdx()] = a.elements;
@@ -502,9 +544,22 @@ module array {
       let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
 
       sort_state[kInitialReceiverLengthIdx()] = len;
-      sort_state[kElementsIdx()] = obj;
       sort_state[kRandomStateIdx()] = nofNonUndefined;
 
+      // Reload the map, PrepareElementsForSort might have changed the
+      // elements kind.
+      map = obj.map;
+
+      if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
+          !IsCustomElementsReceiverInstanceType(map.instance_type)) {
+        let jsobj: JSObject = unsafe_cast<JSObject>(obj);
+        sort_state[kElementsIdx()] = jsobj.elements;
+        ArrayQuickSort<DictionaryElements>(
+            context, sort_state, 0, nofNonUndefined);
+        return receiver;
+      }
+
+      sort_state[kElementsIdx()] = obj;
       ArrayQuickSort<GenericElementsAccessor>(
           context, sort_state, 0, nofNonUndefined);
     }
