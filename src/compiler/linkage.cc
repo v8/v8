@@ -410,21 +410,6 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       descriptor.DebugName(isolate), descriptor.allocatable_registers());
 }
 
-// TODO(ishell): remove this once CallInterfaceDescriptors support
-// Linkage::kNoContext and Operator::kNoThrow flags.
-// static
-CallDescriptor* Linkage::GetAllocateCallDescriptor(Isolate* isolate,
-                                                   Zone* zone) {
-  return GetStubCallDescriptor(isolate, zone,
-                               AllocateDescriptor(isolate),  // descriptor
-                               0,  // stack_parameter_count
-                               CallDescriptor::kCanUseRoots,  // flags
-                               Operator::kNoThrow,            // properties
-                               MachineType::AnyTagged(),      // return_type
-                               1,                             // return_count
-                               Linkage::kNoContext);          // context_spec
-}
-
 // static
 CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
