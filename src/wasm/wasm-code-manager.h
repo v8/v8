@@ -94,8 +94,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kLazyStub,
     kRuntimeStub,
     kInterpreterEntry,
-    kTrampoline,
-    kJumpTable
+    kTrampoline
   };
 
   // Each runtime stub is identified by an id. This id is used to reference the
@@ -252,8 +251,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
 
   // When starting lazy compilation, provide the WasmLazyCompile builtin by
-  // calling SetLazyBuiltin. It will be copied into this NativeModule and the
-  // jump table will be populated with that copy.
+  // calling SetLazyBuiltin. It will initialize the code table with it. Copies
+  // of it might be cloned from them later when creating entries for exported
+  // functions and indirect callable functions, so that they may be identified
+  // by the runtime.
   void SetLazyBuiltin(Handle<Code> code);
 
   // Initializes all runtime stubs by copying them over from the JS-allocated
@@ -281,12 +282,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return code;
   }
 
-  bool is_jump_table_slot(Address address) const {
-    return jump_table_->contains(address);
-  }
-
-  uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address);
-
   // Transition this module from code relying on trap handlers (i.e. without
   // explicit memory bounds checks) to code that does not require trap handlers
   // (i.e. code with explicit bounds checks).
@@ -295,9 +290,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // after calling this method.
   void DisableTrapHandler();
 
-  // Returns the target to call for the given function (returns a jump table
-  // slot within {jump_table_}).
-  Address GetCallTargetForFunction(uint32_t func_index) const;
+  // Returns the instruction start of code suitable for indirect or import calls
+  // for the given function index. If the code at the given index is the lazy
+  // compile stub, it will clone a non-anonymous lazy compile stub for the
+  // purpose. This will soon change to always return a jump table slot.
+  Address GetCallTargetForFunction(uint32_t index);
 
   bool SetExecutable(bool executable);
 
@@ -325,8 +322,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
 
-  WasmCode* Lookup(Address) const;
-
   const size_t instance_id = 0;
   ~NativeModule();
 
@@ -338,10 +333,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class NativeModuleModificationScope;
 
   static base::AtomicNumber<size_t> next_id_;
-  NativeModule(Isolate* isolate, uint32_t num_functions,
-               uint32_t num_imported_functions, bool can_request_more,
-               VirtualMemory* code_space, WasmCodeManager* code_manager,
-               ModuleEnv& env);
+  NativeModule(Isolate* isolate, uint32_t num_functions, uint32_t num_imports,
+               bool can_request_more, VirtualMemory* code_space,
+               WasmCodeManager* code_manager, ModuleEnv& env);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
   Address AllocateForCode(size_t size);
@@ -360,15 +354,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          size_t handler_table_offset,
                          std::unique_ptr<ProtectedInstructions>, WasmCode::Tier,
                          WasmCode::FlushICache);
+  WasmCode* CloneCode(const WasmCode*, WasmCode::FlushICache);
+  WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
   // TODO(7424): Only used for debugging in {WasmCode::Validate}. Remove.
   Code* ReverseTrampolineLookup(Address target);
-
-  WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
-
-  void PatchJumpTable(uint32_t func_index, Address target,
-                      WasmCode::FlushICache);
 
   void set_code(uint32_t index, WasmCode* code) {
     DCHECK_LT(index, num_functions_);
@@ -384,15 +375,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t num_functions_;
   uint32_t num_imported_functions_;
   std::unique_ptr<WasmCode* []> code_table_;
+  std::unique_ptr<WasmCode* []> lazy_compile_stubs_;
 
   WasmCode* runtime_stub_table_[WasmCode::kRuntimeStubCount] = {nullptr};
 
   // Maps from instruction start of an immovable code object to instruction
   // start of the trampoline.
   std::unordered_map<Address, Address> trampolines_;
-
-  // Jump table used to easily redirect wasm function calls.
-  WasmCode* jump_table_ = nullptr;
 
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
@@ -434,7 +423,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
       Isolate* isolate, size_t memory_estimate, uint32_t num_functions,
       uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env);
 
-  NativeModule* LookupNativeModule(Address pc) const;
   WasmCode* LookupCode(Address pc) const;
   WasmCode* GetCodeFromStartAddress(Address pc) const;
   size_t remaining_uncommitted_code_space() const;

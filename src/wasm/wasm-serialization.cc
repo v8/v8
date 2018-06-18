@@ -268,7 +268,7 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
 }
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
-  if (code == nullptr) return sizeof(size_t);
+  if (code->kind() == WasmCode::kLazyStub) return sizeof(size_t);
   DCHECK_EQ(WasmCode::kFunction, code->kind());
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
@@ -290,7 +290,7 @@ void NativeModuleSerializer::WriteHeader(Writer* writer) {
 }
 
 void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
-  if (code == nullptr) {
+  if (code->kind() == WasmCode::kLazyStub) {
     writer->Write(size_t{0});
     return;
   }
@@ -500,8 +500,6 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       handler_table_offset, std::move(protected_instructions), tier,
       WasmCode::kNoFlushICache);
   native_module_->set_code(fn_index, ret);
-  native_module_->PatchJumpTable(fn_index, ret->instruction_start(),
-                                 WasmCode::kFlushICache);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |

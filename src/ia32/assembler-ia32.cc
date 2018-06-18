@@ -3216,12 +3216,6 @@ void Assembler::GrowBuffer() {
     *p += pc_delta;
   }
 
-  // Relocate js-to-wasm calls (which are encoded pc-relative).
-  for (RelocIterator it(desc, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-       !it.done(); it.next()) {
-    it.rinfo()->apply(pc_delta);
-  }
-
   DCHECK(!buffer_overflow());
 }
 

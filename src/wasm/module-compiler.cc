@@ -376,37 +376,156 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   return {};
 }
 
-ModuleEnv CreateModuleEnvFromNativeModule(NativeModule* native_module) {
-  WasmModule* module = native_module->module_object()->module();
+// A helper class to prevent pathological patching behavior for indirect
+// references to code which must be updated after lazy compiles.
+// Utilizes a reverse mapping to prevent O(n^2) behavior.
+class IndirectPatcher {
+ public:
+  void Patch(Handle<WasmInstanceObject> caller_instance,
+             Handle<WasmInstanceObject> target_instance, int func_index,
+             Address old_target, Address new_target) {
+    TRACE_LAZY(
+        "IndirectPatcher::Patch(caller=%p, target=%p, func_index=%i, "
+        "old_target=%" PRIuPTR ", new_target=%" PRIuPTR ")\n",
+        *caller_instance, *target_instance, func_index, old_target, new_target);
+    if (mapping_.size() == 0 || misses_ >= kMaxMisses) {
+      BuildMapping(caller_instance);
+    }
+    // Patch entries for the given function index.
+    WasmCodeManager* code_manager =
+        caller_instance->GetIsolate()->wasm_engine()->code_manager();
+    USE(code_manager);
+    auto& entries = mapping_[func_index];
+    int patched = 0;
+    for (auto index : entries) {
+      if (index < 0) {
+        // Imported function entry.
+        int i = -1 - index;
+        ImportedFunctionEntry entry(caller_instance, i);
+        if (entry.target() == old_target) {
+          DCHECK_EQ(
+              func_index,
+              code_manager->GetCodeFromStartAddress(entry.target())->index());
+          entry.set_wasm_to_wasm(*target_instance, new_target);
+          patched++;
+        }
+      } else {
+        // Indirect function table entry.
+        int i = index;
+        IndirectFunctionTableEntry entry(caller_instance, i);
+        if (entry.target() == old_target) {
+          DCHECK_EQ(
+              func_index,
+              code_manager->GetCodeFromStartAddress(entry.target())->index());
+          entry.set(entry.sig_id(), *target_instance, new_target);
+          patched++;
+        }
+      }
+    }
+    if (patched == 0) misses_++;
+  }
+
+ private:
+  void BuildMapping(Handle<WasmInstanceObject> caller_instance) {
+    mapping_.clear();
+    misses_ = 0;
+    TRACE_LAZY("BuildMapping for (caller=%p)...\n", *caller_instance);
+    Isolate* isolate = caller_instance->GetIsolate();
+    WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
+    uint32_t num_imported_functions =
+        caller_instance->module()->num_imported_functions;
+    // Process the imported function entries.
+    for (unsigned i = 0; i < num_imported_functions; i++) {
+      ImportedFunctionEntry entry(caller_instance, i);
+      WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
+      if (code->kind() != WasmCode::kLazyStub) continue;
+      TRACE_LAZY(" +import[%u] -> #%d (%p)\n", i, code->index(),
+                 code->instructions().start());
+      DCHECK(!entry.is_js_receiver_entry());
+      WasmInstanceObject* target_instance = entry.instance();
+      WasmCode* new_code =
+          target_instance->compiled_module()->GetNativeModule()->code(
+              code->index());
+      if (new_code->kind() != WasmCode::kLazyStub) {
+        // Patch an imported function entry which is already compiled.
+        entry.set_wasm_to_wasm(target_instance, new_code->instruction_start());
+      } else {
+        int key = code->index();
+        int index = -1 - i;
+        mapping_[key].push_back(index);
+      }
+    }
+    // Process the indirect function table entries.
+    size_t ift_size = caller_instance->indirect_function_table_size();
+    for (unsigned i = 0; i < ift_size; i++) {
+      IndirectFunctionTableEntry entry(caller_instance, i);
+      if (entry.target() == kNullAddress) continue;  // null IFT entry
+      WasmCode* code = code_manager->GetCodeFromStartAddress(entry.target());
+      if (code->kind() != WasmCode::kLazyStub) continue;
+      TRACE_LAZY(" +indirect[%u] -> #%d (lazy:%p)\n", i, code->index(),
+                 code->instructions().start());
+      WasmInstanceObject* target_instance = entry.instance();
+      WasmCode* new_code =
+          target_instance->compiled_module()->GetNativeModule()->code(
+              code->index());
+      if (new_code->kind() != WasmCode::kLazyStub) {
+        // Patch an indirect function table entry which is already compiled.
+        entry.set(entry.sig_id(), target_instance,
+                  new_code->instruction_start());
+      } else {
+        int key = code->index();
+        int index = i;
+        mapping_[key].push_back(index);
+      }
+    }
+  }
+
+  static constexpr int kMaxMisses = 5;  // maximum misses before rebuilding
+  std::unordered_map<int, std::vector<int>> mapping_;
+  int misses_ = 0;
+};
+
+ModuleEnv CreateModuleEnvFromModuleObject(
+    Isolate* isolate, Handle<WasmModuleObject> module_object) {
+  WasmModule* module = module_object->module();
   wasm::UseTrapHandler use_trap_handler =
-      native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
+      module_object->compiled_module()->GetNativeModule()->use_trap_handler()
+          ? kUseTrapHandler
+          : kNoTrapHandler;
   return ModuleEnv(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
 }
 
-wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
-                                    NativeModule* native_module,
-                                    int func_index) {
+const wasm::WasmCode* LazyCompileFunction(
+    Isolate* isolate, Handle<WasmModuleObject> module_object, int func_index) {
   base::ElapsedTimer compilation_timer;
-  DCHECK(!native_module->has_code(static_cast<uint32_t>(func_index)));
+  NativeModule* native_module =
+      module_object->compiled_module()->GetNativeModule();
+  wasm::WasmCode* existing_code =
+      native_module->code(static_cast<uint32_t>(func_index));
+  if (existing_code != nullptr &&
+      existing_code->kind() == wasm::WasmCode::kFunction) {
+    TRACE_LAZY("Function %d already compiled.\n", func_index);
+    return existing_code;
+  }
 
   compilation_timer.Start();
   // TODO(wasm): Refactor this to only get the name if it is really needed for
   // tracing / debugging.
   std::string func_name;
   {
-    WasmName name = Vector<const char>::cast(
-        native_module->module_object()->GetRawFunctionName(func_index));
+    WasmName name =
+        Vector<const char>::cast(module_object->GetRawFunctionName(func_index));
     // Copy to std::string, because the underlying string object might move on
     // the heap.
     func_name.assign(name.start(), static_cast<size_t>(name.length()));
   }
 
-  TRACE_LAZY("Compiling function '%s' (#%d).\n", func_name.c_str(), func_index);
+  TRACE_LAZY("Compiling function %s, %d.\n", func_name.c_str(), func_index);
 
-  ModuleEnv module_env = CreateModuleEnvFromNativeModule(native_module);
+  ModuleEnv module_env =
+      CreateModuleEnvFromModuleObject(isolate, module_object);
 
-  const uint8_t* module_start =
-      native_module->module_object()->module_bytes()->GetChars();
+  const uint8_t* module_start = module_object->module_bytes()->GetChars();
 
   const WasmFunction* func = &module_env.module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(),
@@ -453,19 +572,292 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   return wasm_code;
 }
 
-Address CompileLazy(Isolate* isolate, NativeModule* native_module,
-                    uint32_t func_index) {
+namespace {
+
+int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
+                                       int offset) {
+  DCHECK(!iterator.done());
+  int byte_pos;
+  do {
+    byte_pos = iterator.source_position().ScriptOffset();
+    iterator.Advance();
+  } while (!iterator.done() && iterator.code_offset() <= offset);
+  return byte_pos;
+}
+
+const wasm::WasmCode* LazyCompileFromJsToWasm(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    Handle<Code> js_to_wasm_caller, uint32_t callee_func_index) {
+  Decoder decoder(nullptr, nullptr);
+  Handle<WasmModuleObject> module_object(instance->module_object());
+  NativeModule* native_module = instance->compiled_module()->GetNativeModule();
+
+  TRACE_LAZY(
+      "Starting lazy compilation (func %u, js_to_wasm: true, patch caller: "
+      "true). \n",
+      callee_func_index);
+  LazyCompileFunction(isolate, module_object, callee_func_index);
+  {
+    DisallowHeapAllocation no_gc;
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+    RelocIterator it(*js_to_wasm_caller,
+                     RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
+    DCHECK(!it.done());
+    const wasm::WasmCode* callee_compiled =
+        native_module->code(callee_func_index);
+    DCHECK_NOT_NULL(callee_compiled);
+    DCHECK_EQ(WasmCode::kLazyStub,
+              isolate->wasm_engine()
+                  ->code_manager()
+                  ->GetCodeFromStartAddress(it.rinfo()->js_to_wasm_address())
+                  ->kind());
+    it.rinfo()->set_js_to_wasm_address(callee_compiled->instruction_start());
+    TRACE_LAZY("Patched 1 location in js-to-wasm %p.\n", *js_to_wasm_caller);
+
+#ifdef DEBUG
+    it.next();
+    DCHECK(it.done());
+#endif
+  }
+
+  wasm::WasmCode* ret = native_module->code(callee_func_index);
+  DCHECK_NOT_NULL(ret);
+  DCHECK_EQ(wasm::WasmCode::kFunction, ret->kind());
+  return ret;
+}
+
+const wasm::WasmCode* LazyCompileIndirectCall(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t func_index) {
+  TRACE_LAZY(
+      "Starting lazy compilation (func %u, js_to_wasm: false, patch caller: "
+      "false). \n",
+      func_index);
+  Handle<WasmModuleObject> module_object(instance->module_object());
+  return LazyCompileFunction(isolate, module_object, func_index);
+}
+
+const wasm::WasmCode* LazyCompileDirectCall(Isolate* isolate,
+                                            Handle<WasmInstanceObject> instance,
+                                            const wasm::WasmCode* wasm_caller,
+                                            int32_t caller_ret_offset) {
+  DCHECK_LE(0, caller_ret_offset);
+
+  Decoder decoder(nullptr, nullptr);
+
+  // Gather all the targets of direct calls inside the code of {wasm_caller}
+  // and place their function indexes in {direct_callees}.
+  std::vector<int32_t> direct_callees;
+  // The last one before {caller_ret_offset} must be the call that triggered
+  // this lazy compilation.
+  int callee_pos = -1;
+  uint32_t num_non_compiled_callees = 0;  // For stats.
+  {
+    DisallowHeapAllocation no_gc;
+    WasmModuleObject* module_object = instance->module_object();
+    SeqOneByteString* module_bytes = module_object->module_bytes();
+    uint32_t caller_func_index = wasm_caller->index();
+    SourcePositionTableIterator source_pos_iterator(
+        wasm_caller->source_positions());
+
+    const byte* func_bytes =
+        module_bytes->GetChars() +
+        module_object->module()->functions[caller_func_index].code.offset();
+    for (RelocIterator it(wasm_caller->instructions(),
+                          wasm_caller->reloc_info(),
+                          wasm_caller->constant_pool(),
+                          RelocInfo::ModeMask(RelocInfo::WASM_CALL));
+         !it.done(); it.next()) {
+      // TODO(clemensh): Introduce safe_cast<T, bool> which (D)CHECKS
+      // (depending on the bool) against limits of T and then static_casts.
+      size_t offset_l = it.rinfo()->pc() - wasm_caller->instruction_start();
+      DCHECK_GE(kMaxInt, offset_l);
+      int offset = static_cast<int>(offset_l);
+      int byte_pos =
+          AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
+
+      WasmCode* callee = isolate->wasm_engine()->code_manager()->LookupCode(
+          it.rinfo()->target_address());
+      if (callee->kind() == WasmCode::kLazyStub) {
+        // The callee has not been compiled.
+        ++num_non_compiled_callees;
+        int32_t callee_func_index =
+            ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
+        DCHECK_LT(callee_func_index,
+                  wasm_caller->native_module()->num_functions());
+        // {caller_ret_offset} points to one instruction after the call.
+        // Remember the last called function before that offset.
+        if (offset < caller_ret_offset) {
+          callee_pos = static_cast<int>(direct_callees.size());
+        }
+        direct_callees.push_back(callee_func_index);
+      } else {
+        // If the callee is not the lazy compile stub, assume this callee
+        // has already been compiled.
+        direct_callees.push_back(-1);
+        continue;
+      }
+    }
+
+    TRACE_LAZY("Found %d non-compiled callees in function=%p.\n",
+               num_non_compiled_callees, wasm_caller);
+    USE(num_non_compiled_callees);
+  }
+  CHECK_LE(0, callee_pos);
+
+  // TODO(wasm): compile all functions in non_compiled_callees in
+  // background, wait for direct_callees[callee_pos].
+  auto callee_func_index = direct_callees[callee_pos];
+  TRACE_LAZY(
+      "Starting lazy compilation (function=%p retaddr=+%d direct_callees[%d] "
+      "-> %d).\n",
+      wasm_caller, caller_ret_offset, callee_pos, callee_func_index);
+
+  Handle<WasmModuleObject> module_object(instance->module_object());
+  NativeModule* native_module = instance->compiled_module()->GetNativeModule();
+  const WasmCode* ret =
+      LazyCompileFunction(isolate, module_object, callee_func_index);
+  DCHECK_NOT_NULL(ret);
+
+  int patched = 0;
+  {
+    // Now patch the code in {wasm_caller} with all functions which are now
+    // compiled. This will pick up any other compiled functions, not only {ret}.
+    size_t pos = 0;
+    for (RelocIterator
+             it(wasm_caller->instructions(), wasm_caller->reloc_info(),
+                wasm_caller->constant_pool(),
+                RelocInfo::ModeMask(RelocInfo::WASM_CALL));
+         !it.done(); it.next(), ++pos) {
+      auto callee_index = direct_callees[pos];
+      if (callee_index < 0) continue;  // callee already compiled.
+      const WasmCode* callee_compiled = native_module->code(callee_index);
+      if (callee_compiled->kind() != WasmCode::kFunction) continue;
+      DCHECK_EQ(WasmCode::kLazyStub,
+                isolate->wasm_engine()
+                    ->code_manager()
+                    ->GetCodeFromStartAddress(it.rinfo()->wasm_call_address())
+                    ->kind());
+      it.rinfo()->set_wasm_call_address(callee_compiled->instruction_start());
+      ++patched;
+    }
+    DCHECK_EQ(direct_callees.size(), pos);
+  }
+
+  DCHECK_LT(0, patched);
+  TRACE_LAZY("Patched %d calls(s) in %p.\n", patched, wasm_caller);
+  USE(patched);
+
+  return ret;
+}
+
+}  // namespace
+
+Address CompileLazy(Isolate* isolate,
+                    Handle<WasmInstanceObject> target_instance) {
   HistogramTimerScope lazy_time_scope(
       isolate->counters()->wasm_lazy_compilation_time());
 
+  //==========================================================================
+  // Begin stack walk.
+  //==========================================================================
+  StackFrameIterator it(isolate);
+
+  //==========================================================================
+  // First frame: C entry stub.
+  //==========================================================================
+  DCHECK(!it.done());
+  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
+  it.Advance();
+
+  //==========================================================================
+  // Second frame: WasmCompileLazy builtin.
+  //==========================================================================
+  DCHECK(!it.done());
+  int target_func_index = -1;
+  bool indirectly_called = false;
+  const wasm::WasmCode* lazy_stub =
+      isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
+  CHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub->kind());
+  if (!lazy_stub->IsAnonymous()) {
+    // If the lazy stub is not "anonymous", then its copy encodes the target
+    // function index. Used for import and indirect calls.
+    target_func_index = lazy_stub->index();
+    indirectly_called = true;
+  }
+  it.Advance();
+
+  //==========================================================================
+  // Third frame: The calling wasm code (direct or indirect), or js-to-wasm
+  // wrapper.
+  //==========================================================================
+  DCHECK(!it.done());
+  DCHECK(it.frame()->is_js_to_wasm() || it.frame()->is_wasm_compiled());
+  Handle<Code> js_to_wasm_caller_code;
+  Handle<WasmInstanceObject> caller_instance;
+  const WasmCode* wasm_caller_code = nullptr;
+  int32_t caller_ret_offset = -1;
+  if (it.frame()->is_js_to_wasm()) {
+    js_to_wasm_caller_code = handle(it.frame()->LookupCode(), isolate);
+    // This wasn't actually an indirect call, but a JS->wasm call.
+    indirectly_called = false;
+  } else {
+    caller_instance =
+        handle(WasmCompiledFrame::cast(it.frame())->wasm_instance(), isolate);
+    wasm_caller_code =
+        isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
+    auto offset = it.frame()->pc() - wasm_caller_code->instruction_start();
+    caller_ret_offset = static_cast<int32_t>(offset);
+    DCHECK_EQ(offset, caller_ret_offset);
+  }
+
+  //==========================================================================
+  // Begin compilation.
+  //==========================================================================
+  Handle<WasmCompiledModule> compiled_module(
+      target_instance->compiled_module());
+
+  NativeModule* native_module = compiled_module->GetNativeModule();
   DCHECK(!native_module->lazy_compile_frozen());
 
   NativeModuleModificationScope native_module_modification_scope(native_module);
 
-  wasm::WasmCode* result =
-      LazyCompileFunction(isolate, native_module, func_index);
-  DCHECK_NOT_NULL(result);
-  DCHECK_EQ(func_index, result->index());
+  const wasm::WasmCode* result = nullptr;
+
+  if (!js_to_wasm_caller_code.is_null()) {
+    result = LazyCompileFromJsToWasm(isolate, target_instance,
+                                     js_to_wasm_caller_code, target_func_index);
+    DCHECK_NOT_NULL(result);
+    DCHECK_EQ(target_func_index, result->index());
+  } else {
+    DCHECK_NOT_NULL(wasm_caller_code);
+    if (target_func_index < 0) {
+      result = LazyCompileDirectCall(isolate, target_instance, wasm_caller_code,
+                                     caller_ret_offset);
+      DCHECK_NOT_NULL(result);
+    } else {
+      result =
+          LazyCompileIndirectCall(isolate, target_instance, target_func_index);
+      DCHECK_NOT_NULL(result);
+    }
+  }
+
+  //==========================================================================
+  // Update import and indirect function tables in the caller.
+  //==========================================================================
+  if (indirectly_called) {
+    DCHECK(!caller_instance.is_null());
+    if (!caller_instance->has_managed_indirect_patcher()) {
+      auto patcher = Managed<IndirectPatcher>::Allocate(isolate, 0);
+      caller_instance->set_managed_indirect_patcher(*patcher);
+    }
+    IndirectPatcher* patcher = Managed<IndirectPatcher>::cast(
+                                   caller_instance->managed_indirect_patcher())
+                                   ->raw();
+    Address old_target = lazy_stub->instruction_start();
+    patcher->Patch(caller_instance, target_instance, target_func_index,
+                   old_target, result->instruction_start());
+  }
 
   return result->instruction_start();
 }
@@ -484,6 +876,15 @@ void FlushICache(const wasm::NativeModule* native_module) {
     if (code == nullptr) continue;
     Assembler::FlushICache(code->instructions().start(),
                            code->instructions().size());
+  }
+}
+
+void FlushICache(Handle<FixedArray> functions) {
+  for (int i = 0, e = functions->length(); i < e; ++i) {
+    if (!functions->get(i)->IsCode()) continue;
+    Code* code = Code::cast(functions->get(i));
+    Assembler::FlushICache(code->raw_instruction_start(),
+                           code->raw_instruction_size());
   }
 }
 
@@ -686,6 +1087,24 @@ void FinishCompilationUnits(CompilationState* compilation_state,
   }
 }
 
+void UpdateAllCompiledModulesWithTopTierCode(
+    Handle<WasmModuleObject> module_object) {
+  WasmModule* module = module_object->module();
+  DCHECK_GT(module->functions.size() - module->num_imported_functions, 0);
+  USE(module);
+
+  CodeSpaceMemoryModificationScope modification_scope(
+      module_object->GetIsolate()->heap());
+
+  NativeModule* native_module =
+      module_object->compiled_module()->GetNativeModule();
+
+  // Link.
+  CodeSpecialization code_specialization;
+  code_specialization.RelocateDirectCalls(native_module);
+  code_specialization.ApplyToWholeModule(native_module, module_object);
+}
+
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
                        const ModuleWireBytes& wire_bytes, ModuleEnv* module_env,
                        Handle<WasmModuleObject> module_object,
@@ -725,6 +1144,53 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   size_t functions_count = GetNumFunctionsToCompile(module);
   compilation_state->SetNumberOfFunctionsToCompile(functions_count);
   compilation_state->SetWireBytes(wire_bytes);
+
+  DeferredHandles* deferred_handles = nullptr;
+  Handle<WasmModuleObject> module_object_deferred;
+  if (compilation_state->compile_mode() == CompileMode::kTiering) {
+    // Open a deferred handle scope for the module_object, in order to allow
+    // for background tiering compilation.
+    DeferredHandleScope deferred(isolate);
+    module_object_deferred = handle(*module_object, isolate);
+    deferred_handles = deferred.Detach();
+  }
+  compilation_state->AddCallback(
+      [module_object_deferred, deferred_handles](
+          // Callback is called from a foreground thread.
+          CompilationEvent event, ErrorThrower* thrower) mutable {
+        switch (event) {
+          case CompilationEvent::kFinishedBaselineCompilation:
+            // Nothing to do, since we are finishing baseline compilation
+            // in this foreground thread.
+            return;
+          case CompilationEvent::kFinishedTopTierCompilation:
+            UpdateAllCompiledModulesWithTopTierCode(module_object_deferred);
+            // TODO(wasm): Currently compilation has to finish before the
+            // {deferred_handles} can be removed. We need to make sure that
+            // we can clean it up at a time when the native module
+            // should die (but currently cannot, since it's kept alive
+            // through the {deferred_handles} themselves).
+            delete deferred_handles;
+            deferred_handles = nullptr;
+            return;
+          case CompilationEvent::kFailedCompilation:
+            // If baseline compilation failed, we will reflect this without
+            // a callback, in this thread through {thrower}.
+            // Tier-up compilation should not fail if baseline compilation
+            // did not fail.
+            DCHECK(!module_object_deferred->compiled_module()
+                        ->GetNativeModule()
+                        ->compilation_state()
+                        ->baseline_compilation_finished());
+            delete deferred_handles;
+            deferred_handles = nullptr;
+            return;
+          case CompilationEvent::kDestroyed:
+            if (deferred_handles) delete deferred_handles;
+            return;
+        }
+        UNREACHABLE();
+      });
 
   // 1) The main thread allocates a compilation unit for each wasm function
   //    and stores them in the vector {compilation_units} within the
@@ -1345,8 +1811,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   CodeSpecialization code_specialization;
   code_specialization.RelocateDirectCalls(native_module);
-  code_specialization.ApplyToWholeModule(native_module, SKIP_ICACHE_FLUSH);
+  code_specialization.ApplyToWholeModule(native_module, module_object_,
+                                         SKIP_ICACHE_FLUSH);
   FlushICache(native_module);
+  FlushICache(handle(module_object_->export_wrappers(), isolate_));
 
   //--------------------------------------------------------------------------
   // Insert the compiled module into the weak list of compiled modules.
@@ -1387,6 +1855,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
+    Handle<WasmInstanceObject> start_function_instance = instance;
     Address start_call_address =
         static_cast<uint32_t>(start_index) < module_->num_imported_functions
             ? kNullAddress
@@ -1397,7 +1866,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // TODO(clemensh): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
-        isolate_, instance, MaybeHandle<String>(), start_index,
+        isolate_, start_function_instance, MaybeHandle<String>(), start_index,
         static_cast<int>(sig->parameter_count()), wrapper_code);
   }
 
@@ -1650,14 +2119,15 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imported_mutable_globals = 0;
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
-  int num_imports = static_cast<int>(module_->import_table.size());
-  NativeModule* native_module = instance->compiled_module()->GetNativeModule();
-  for (int index = 0; index < num_imports; ++index) {
+  for (int index = 0; index < static_cast<int>(module_->import_table.size());
+       ++index) {
     WasmImport& import = module_->import_table[index];
 
     Handle<String> module_name = sanitized_imports_[index].module_name;
     Handle<String> import_name = sanitized_imports_[index].import_name;
     Handle<Object> value = sanitized_imports_[index].value;
+    NativeModule* native_module =
+        instance->compiled_module()->GetNativeModule();
 
     switch (import.kind) {
       case kExternalFunction: {
@@ -1687,8 +2157,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             return -1;
           }
           // The import reference is the instance object itself.
-          Address imported_target = imported_function->GetWasmCallTarget();
           ImportedFunctionEntry entry(instance, func_index);
+          Address imported_target = imported_function->GetWasmCallTarget();
           entry.set_wasm_to_wasm(*imported_instance, imported_target);
         } else {
           // The imported function is a callable.
@@ -2656,17 +3126,17 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 }
                 return;
               case CompilationEvent::kFinishedTopTierCompilation:
-                // It is only safe to remove the AsyncCompileJob if no
-                // foreground task is currently pending, and no finisher is
-                // outstanding (streaming compilation).
+                // It is only safe to schedule the UpdateToTopTierCompiledCode
+                // step if no foreground task is currently pending, and no
+                // finisher is outstanding (streaming compilation).
                 if (job->num_pending_foreground_tasks_ == 0 &&
                     job->outstanding_finishers_.Value() == 0) {
-                  job->isolate_->wasm_engine()->RemoveCompileJob(job);
-                } else {
-                  // If a foreground task was pending or a finsher was pending,
-                  // we will rely on FinishModule to remove the job.
-                  job->tiering_completed_ = true;
+                  job->DoSync<UpdateToTopTierCompiledCode>();
                 }
+                // If a foreground task was pending or a finsher was pending,
+                // we will rely on FinishModule to switch the step to
+                // UpdateToTopTierCompiledCode.
+                job->tiering_completed_ = true;
                 return;
               case CompilationEvent::kFailedCompilation: {
                 // Tier-up compilation should not fail if baseline compilation
@@ -2768,8 +3238,20 @@ class AsyncCompileJob::FinishModule : public CompileStep {
                                          ->compilation_state()
                                          ->compile_mode());
     if (job_->tiering_completed_) {
-      job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
+      job_->DoSync<UpdateToTopTierCompiledCode>();
     }
+  }
+};
+
+//==========================================================================
+// Step 7 (sync): Update with top tier code.
+//==========================================================================
+class AsyncCompileJob::UpdateToTopTierCompiledCode : public CompileStep {
+  void RunInForeground() override {
+    TRACE_COMPILE("(7) Update native module to use optimized code...\n");
+
+    UpdateAllCompiledModulesWithTopTierCode(job_->module_object_);
+    job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
   }
 };
 

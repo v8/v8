@@ -210,12 +210,14 @@ class TestingModuleBuilder {
     return reinterpret_cast<Address>(globals_data_);
   }
   void Link() {
-    if (linked_) return;
-    CodeSpecialization code_specialization;
-    code_specialization.RelocateDirectCalls(native_module_);
-    code_specialization.ApplyToWholeModule(native_module_);
-    linked_ = true;
-    native_module_->SetExecutable(true);
+    if (!linked_) {
+      Handle<WasmModuleObject> module(instance_object()->module_object());
+      CodeSpecialization code_specialization;
+      code_specialization.RelocateDirectCalls(native_module_);
+      code_specialization.ApplyToWholeModule(native_module_, module);
+      linked_ = true;
+      native_module_->SetExecutable(true);
+    }
   }
 
   ModuleEnv CreateModuleEnv();

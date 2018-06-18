@@ -2423,10 +2423,6 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
-  // The function index was pushed to the stack by the caller as int32.
-  __ Pop(r11);
-  // Convert to Smi for the runtime call.
-  __ SmiTag(r11, r11);
   {
     TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -2450,10 +2446,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       offset += kSimd128Size;
     }
 
-    // Push the WASM instance as an explicit argument to WasmCompileLazy.
+    // Pass the WASM instance as an explicit argument to WasmCompileLazy.
     __ Push(kWasmInstanceRegister);
-    // Push the function index as second argument.
-    __ Push(r11);
     // Load the correct CEntry builtin from the instance object.
     __ movp(rcx, FieldOperand(kWasmInstanceRegister,
                               WasmInstanceObject::kCEntryStubOffset));

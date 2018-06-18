@@ -118,9 +118,9 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
-  Address target = native_module_->GetCallTargetForFunction(index);
+  wasm::WasmCode* code = native_module_->code(index);
   Handle<Code> ret_code = compiler::CompileJSToWasmWrapper(
-      isolate_, test_module_ptr_, target, index,
+      isolate_, test_module_ptr_, code->instruction_start(), index,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler);
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
@@ -165,9 +165,9 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_->functions[table.values[j]];
       int sig_id = test_module_->signature_map.Find(function.sig);
-      auto target =
-          native_module_->GetCallTargetForFunction(function.func_index);
-      IndirectFunctionTableEntry(instance, j).set(sig_id, *instance, target);
+      auto wasm_code = native_module_->code(function.func_index);
+      IndirectFunctionTableEntry(instance, j)
+          .set(sig_id, *instance, wasm_code->instruction_start());
     }
   }
 }
