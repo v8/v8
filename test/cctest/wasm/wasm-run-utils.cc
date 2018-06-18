@@ -435,9 +435,6 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     wasm_code->LogCode(isolate());
   }
   CHECK(!thrower.error());
-  if (trap_handler::IsTrapHandlerEnabled()) {
-    native_module->UnpackAndRegisterProtectedInstructions();
-  }
 }
 
 WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,

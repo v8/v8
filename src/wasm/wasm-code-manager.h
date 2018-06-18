@@ -149,10 +149,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return *protected_instructions_.get();
   }
 
-  // Register protected instruction information with the trap handler. Sets
-  // trap_handler_index.
-  void RegisterTrapHandlerData();
-
   void Validate() const;
   void Print(Isolate* isolate) const;
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os,
@@ -206,7 +202,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t trap_handler_index() const;
   void set_trap_handler_index(size_t);
   bool HasTrapHandlerIndex() const;
-  void ResetTrapHandlerIndex();
+
+  // Register protected instruction information with the trap handler. Sets
+  // trap_handler_index.
+  void RegisterTrapHandlerData();
 
   Vector<byte> instructions_;
   std::unique_ptr<const byte[]> reloc_info_;
@@ -282,11 +281,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     DCHECK_NOT_NULL(code);
     return code;
   }
-
-  // Register/release the protected instructions in all code objects with the
-  // global trap handler for this process.
-  void UnpackAndRegisterProtectedInstructions();
-  void ReleaseProtectedInstructions();
 
   // Transition this module from code relying on trap handlers (i.e. without
   // explicit memory bounds checks) to code that does not require trap handlers

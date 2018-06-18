@@ -139,8 +139,8 @@ void WasmCode::set_trap_handler_index(size_t value) {
 }
 
 void WasmCode::RegisterTrapHandlerData() {
+  DCHECK(!HasTrapHandlerIndex());
   if (kind() != wasm::WasmCode::kFunction) return;
-  if (HasTrapHandlerIndex()) return;
 
   Address base = instruction_start();
 
@@ -155,8 +155,6 @@ void WasmCode::RegisterTrapHandlerData() {
 }
 
 bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
-
-void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
 bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   return isolate->logger()->is_listening_to_code_events() ||
@@ -563,8 +561,6 @@ WasmCode* NativeModule::AddCode(
       safepoint_table_offset, handler_table_offset,
       std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
 
-  set_code(index, ret);
-
   // Apply the relocation delta by iterating over the RelocInfo.
   AllowDeferredHandleDereference embedding_raw_address;
   intptr_t delta = ret->instructions().start() - desc.buffer;
@@ -593,6 +589,11 @@ WasmCode* NativeModule::AddCode(
     } else {
       it.rinfo()->apply(delta);
     }
+  }
+
+  set_code(index, ret);
+  if (use_trap_handler_) {
+    ret->RegisterTrapHandlerData();
   }
 
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes
@@ -803,24 +804,6 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
     set_code(ret->index(), ret);
   }
   return ret;
-}
-
-void NativeModule::UnpackAndRegisterProtectedInstructions() {
-  for (WasmCode* wasm_code : code_table()) {
-    if (wasm_code == nullptr) continue;
-    wasm_code->RegisterTrapHandlerData();
-  }
-}
-
-void NativeModule::ReleaseProtectedInstructions() {
-  for (WasmCode* wasm_code : code_table()) {
-    if (wasm_code == nullptr || !wasm_code->HasTrapHandlerIndex()) continue;
-    CHECK_LT(wasm_code->trap_handler_index(),
-             static_cast<size_t>(std::numeric_limits<int>::max()));
-    trap_handler::ReleaseHandlerData(
-        static_cast<int>(wasm_code->trap_handler_index()));
-    wasm_code->ResetTrapHandlerIndex();
-  }
 }
 
 void NativeModule::DisableTrapHandler() {

@@ -569,9 +569,6 @@ const wasm::WasmCode* LazyCompileFunction(
       compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
                             : 0);
 
-  if (trap_handler::IsTrapHandlerEnabled()) {
-    wasm_code->RegisterTrapHandlerData();
-  }
   return wasm_code;
 }
 
@@ -1818,13 +1815,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                                          SKIP_ICACHE_FLUSH);
   FlushICache(native_module);
   FlushICache(handle(module_object_->export_wrappers(), isolate_));
-
-  //--------------------------------------------------------------------------
-  // Unpack and notify signal handler of protected instructions.
-  //--------------------------------------------------------------------------
-  if (use_trap_handler()) {
-    native_module->UnpackAndRegisterProtectedInstructions();
-  }
 
   //--------------------------------------------------------------------------
   // Insert the compiled module into the weak list of compiled modules.

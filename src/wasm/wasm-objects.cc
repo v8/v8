@@ -1551,14 +1551,6 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   DisallowHeapAllocation no_gc;
   compiled_module->reset_prev_instance();
   compiled_module->reset_next_instance();
-  wasm::NativeModule* native_module = compiled_module->GetNativeModule();
-  if (native_module == nullptr) return;
-  native_module->SetExecutable(false);
-
-  TRACE("Resetting %zu\n", native_module->instance_id);
-  if (native_module->use_trap_handler()) {
-    native_module->ReleaseProtectedInstructions();
-  }
 }
 
 void WasmCompiledModule::PrintInstancesChain() {
