@@ -252,7 +252,6 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
   GenerateIndent();
   source_out() << "TNode<Context> " << val->GetValueForDeclaration()
                << " = UncheckedCast<Context>(Parameter("
-               << (builtin->IsVarArgsJavaScript() ? "Builtin" : "")
                << "Descriptor::kContext));" << std::endl;
   GenerateIndent();
   source_out() << "USE(" << val->GetValueForDeclaration() << ");" << std::endl;
@@ -265,7 +264,7 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
     std::string arguments_name = arguments->GetValueForDeclaration();
     GenerateIndent();
     source_out()
-        << "Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);"
+        << "Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);"
         << std::endl;
     GenerateIndent();
     source_out() << "CodeStubArguments arguments_impl(this, "

@@ -757,12 +757,12 @@ TF_BUILTIN(TypedArrayConstructorLazyDeoptContinuation,
 
 // ES #sec-typedarray-constructors
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
   Node* arg1 = args.GetOptionalArgumentValue(0);
   Node* arg2 = args.GetOptionalArgumentValue(1);
@@ -1201,9 +1201,10 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
 
 // ES #sec-get-%typedarray%.prototype.set
 TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      this,
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
 
   Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
       if_offset_is_out_of_bounds(this, Label::kDeferred),
@@ -1291,9 +1292,10 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
       if_typed_array_is_neutered(this, Label::kDeferred),
       if_bigint_mixed_types(this, Label::kDeferred);
 
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      this,
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
 
   TNode<Object> receiver = args.GetReceiver();
   TNode<JSTypedArray> source =
@@ -1415,9 +1417,10 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   TVARIABLE(Smi, var_begin);
   TVARIABLE(Smi, var_end);
 
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      this,
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
 
   // 1. Let O be the this value.
   // 3. If O does not have a [[TypedArrayName]] internal slot, throw a TypeError
@@ -1571,11 +1574,11 @@ TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
 
 // ES6 #sec-%typedarray%.of
 TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   // 1. Let len be the actual number of arguments passed to this function.
   TNode<IntPtrT> length = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   // 2. Let items be the List of arguments passed to this function.
   CodeStubArguments args(this, length, nullptr, INTPTR_PARAMETERS,
                          CodeStubArguments::ReceiverMode::kHasReceiver);
@@ -1713,7 +1716,7 @@ TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
 
 // ES6 #sec-%typedarray%.from
 TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label check_iterator(this), from_array_like(this), fast_path(this),
       slow_path(this), create_typed_array(this),
@@ -1723,7 +1726,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       if_neutered(this, Label::kDeferred);
 
   CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      this,
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Object> source = args.GetOptionalArgumentValue(0);
 
   // 5. If thisArg is present, let T be thisArg; else let T be undefined.
@@ -1895,9 +1899,10 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
   const char* method_name = "%TypedArray%.prototype.filter";
 
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      this,
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
 
   Label if_callback_not_callable(this, Label::kDeferred),
       detached(this, Label::kDeferred);

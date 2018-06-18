@@ -434,12 +434,12 @@ Callable CodeFactory::InternalArraySingleArgumentConstructor(
 
 // static
 Callable CodeFactory::ArrayPop(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ArrayPop), BuiltinDescriptor{});
+  return Callable(BUILTIN_CODE(isolate, ArrayPop), JSTrampolineDescriptor{});
 }
 
 // static
 Callable CodeFactory::ArrayShift(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ArrayShift), BuiltinDescriptor{});
+  return Callable(BUILTIN_CODE(isolate, ArrayShift), JSTrampolineDescriptor{});
 }
 
 // static
@@ -456,13 +456,13 @@ Callable CodeFactory::CloneFastJSArray(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ArrayPush(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ArrayPush), BuiltinDescriptor{});
+  return Callable(BUILTIN_CODE(isolate, ArrayPush), JSTrampolineDescriptor{});
 }
 
 // static
 Callable CodeFactory::FunctionPrototypeBind(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, FunctionPrototypeBind),
-                  BuiltinDescriptor{});
+                  JSTrampolineDescriptor{});
 }
 
 }  // namespace internal

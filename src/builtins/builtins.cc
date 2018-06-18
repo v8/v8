@@ -159,7 +159,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
       if (kind == TFJ || kind == CPP) {
-        return Callable(code, BuiltinDescriptor{});
+        return Callable(code, JSTrampolineDescriptor{});
       }
       UNREACHABLE();
   }

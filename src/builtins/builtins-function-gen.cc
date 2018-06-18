@@ -17,9 +17,9 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
 

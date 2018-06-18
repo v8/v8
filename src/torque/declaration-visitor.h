@@ -272,7 +272,8 @@ class DeclarationVisitor : public FileVisitor {
           assert(builtin->parameter_names().size() >= 2);
           new_contents_stream << ", "
                               << (builtin->parameter_names().size() - 2);
-          // And the receiver is implicitly declared.
+          // And the receiver is explicitly declared.
+          new_contents_stream << ", kReceiver";
           firstParameterIndex = 2;
         }
       }

@@ -176,10 +176,10 @@ TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
 
 TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   Label tailcall_to_shared(this);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
   TNode<Int32T> arg_count =
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   TNode<JSFunction> function = CAST(LoadFromFrame(
       StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer()));
 

@@ -138,15 +138,15 @@ struct IteratorRecord {
                 EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, \
                 __LINE__, CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
 
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                     \
-  (csa)->Assert(                                                         \
-      [&]() -> compiler::Node* {                                         \
-        compiler::Node* const argc =                                     \
-            (csa)->Parameter(Descriptor::kActualArgumentsCount);         \
-        return (csa)->Op(argc, (csa)->Int32Constant(expected));          \
-      },                                                                 \
-      "argc " #op " " #expected, __FILE__, __LINE__,                     \
-      SmiFromInt32((csa)->Parameter(Descriptor::kActualArgumentsCount)), \
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                       \
+  (csa)->Assert(                                                           \
+      [&]() -> compiler::Node* {                                           \
+        compiler::Node* const argc =                                       \
+            (csa)->Parameter(Descriptor::kJSActualArgumentsCount);         \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));            \
+      },                                                                   \
+      "argc " #op " " #expected, __FILE__, __LINE__,                       \
+      SmiFromInt32((csa)->Parameter(Descriptor::kJSActualArgumentsCount)), \
       "argc")
 
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \

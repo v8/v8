@@ -16,9 +16,9 @@ TF_BUILTIN(FastConsoleAssert, CodeStubAssembler) {
 
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
   GotoIf(Word32Equal(argc, Int32Constant(0)), &runtime);
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));

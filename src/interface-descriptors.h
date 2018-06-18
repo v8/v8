@@ -50,7 +50,6 @@ class PlatformInterfaceDescriptor;
   V(JSTrampoline)                     \
   V(AbortJS)                          \
   V(AllocateHeapNumber)               \
-  V(Builtin)                          \
   V(ArrayConstructor)                 \
   V(ArrayNoArgumentConstructor)       \
   V(ArraySingleArgumentConstructor)   \
@@ -321,20 +320,6 @@ constexpr int kMaxBuiltinRegisterParams = 5;
                                                                         \
  public:
 
-#define DECLARE_DESCRIPTOR_WITH_STACK_ARGS(name, base)                  \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                              \
- protected:                                                             \
-  void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
-      override {                                                        \
-    data->InitializePlatformIndependent(0, kParameterCount, nullptr);   \
-  }                                                                     \
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)    \
-      override {                                                        \
-    data->InitializePlatformSpecific(0, nullptr);                       \
-  }                                                                     \
-                                                                        \
- public:
-
 #define DEFINE_PARAMETERS(...)                            \
   enum ParameterIndices {                                 \
     __dummy = -1, /* to be able to pass zero arguments */ \
@@ -353,40 +338,6 @@ constexpr int kMaxBuiltinRegisterParams = 5;
                                                         \
     kParameterCount,                                    \
     kContext = kParameterCount /* implicit parameter */ \
-  };
-
-#define DECLARE_BUILTIN_DESCRIPTOR(name)                                      \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, BuiltinDescriptor)                       \
- protected:                                                                   \
-  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
-      override {                                                              \
-    MachineType machine_types[] = {MachineType::AnyTagged(),                  \
-                                   MachineType::AnyTagged(),                  \
-                                   MachineType::Int32()};                     \
-    data->InitializePlatformIndependent(arraysize(machine_types),             \
-                                        kStackParameterCount, machine_types); \
-  }                                                                           \
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)          \
-      override {                                                              \
-    Register registers[] = {TargetRegister(), NewTargetRegister(),            \
-                            ArgumentsCountRegister()};                        \
-    data->InitializePlatformSpecific(arraysize(registers), registers);        \
-  }                                                                           \
-                                                                              \
- public:
-
-#define DEFINE_BUILTIN_PARAMETERS(...)                                  \
-  enum ParameterIndices {                                               \
-    kReceiver,                                                          \
-    kBeforeFirstStackParameter = kReceiver,                             \
-    __VA_ARGS__,                                                        \
-    kAfterLastStackParameter,                                           \
-    kNewTarget = kAfterLastStackParameter,                              \
-    kArgumentsCount,                                                    \
-    kContext, /* implicit parameter */                                  \
-    kParameterCount = kContext,                                         \
-    kArity = kAfterLastStackParameter - kBeforeFirstStackParameter - 1, \
-    kStackParameterCount = kArity + 1                                   \
   };
 
 class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
@@ -694,17 +645,6 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS()
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
-};
-
-class BuiltinDescriptor : public CallInterfaceDescriptor {
- public:
-  // TODO(ishell): Where is kFunction??
-  DEFINE_PARAMETERS(kNewTarget, kArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BuiltinDescriptor,
-                                               CallInterfaceDescriptor)
-  static const Register ArgumentsCountRegister();
-  static const Register NewTargetRegister();
-  static const Register TargetRegister();
 };
 
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {

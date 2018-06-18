@@ -791,7 +791,7 @@ TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
 // ES6 #sec-promise-executor
 TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   Node* const executor = Parameter(Descriptor::kExecutor);
-  Node* const new_target = Parameter(Descriptor::kNewTarget);
+  Node* const new_target = Parameter(Descriptor::kJSNewTarget);
   Node* const context = Parameter(Descriptor::kContext);
   Isolate* isolate = this->isolate();
 

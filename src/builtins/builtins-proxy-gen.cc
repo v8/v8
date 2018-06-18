@@ -150,7 +150,7 @@ TF_BUILTIN(ProxyConstructor, ProxiesCodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  Node* new_target = Parameter(Descriptor::kNewTarget);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
   Label throwtypeerror(this, Label::kDeferred), createproxy(this);
   Branch(IsUndefined(new_target), &throwtypeerror, &createproxy);
 

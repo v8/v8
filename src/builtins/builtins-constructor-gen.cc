@@ -631,10 +631,10 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
@@ -683,9 +683,9 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.
@@ -705,7 +705,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   {
     // 3. If NewTarget is undefined, return n.
     Node* n_value = var_n.value();
-    Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+    Node* new_target = Parameter(Descriptor::kJSNewTarget);
     Label return_n(this), constructnumber(this, Label::kDeferred);
     Branch(IsUndefined(new_target), &return_n, &constructnumber);
 
@@ -730,12 +730,12 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
 
 // https://tc39.github.io/ecma262/#sec-string-constructor
 TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
 
