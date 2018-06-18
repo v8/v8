@@ -20829,7 +20829,7 @@ class InitDefaultIsolateThread : public v8::base::Thread {
     switch (testCase_) {
       case SetResourceConstraints: {
         create_params.constraints.set_max_semi_space_size_in_kb(1024);
-        create_params.constraints.set_max_old_space_size(6);
+        create_params.constraints.set_max_old_space_size(8);
         break;
       }
       default:
@@ -20878,28 +20878,23 @@ static void InitializeTestHelper(InitDefaultIsolateThread::TestCase testCase) {
   CHECK(thread.result());
 }
 
-
-TEST(InitializeDefaultIsolateOnSecondaryThread1) {
+TEST(InitializeDefaultIsolateOnSecondaryThread_ResourceConstraints) {
   InitializeTestHelper(InitDefaultIsolateThread::SetResourceConstraints);
 }
 
-
-TEST(InitializeDefaultIsolateOnSecondaryThread2) {
+TEST(InitializeDefaultIsolateOnSecondaryThread_FatalHandler) {
   InitializeTestHelper(InitDefaultIsolateThread::SetFatalHandler);
 }
 
-
-TEST(InitializeDefaultIsolateOnSecondaryThread3) {
+TEST(InitializeDefaultIsolateOnSecondaryThread_CounterFunction) {
   InitializeTestHelper(InitDefaultIsolateThread::SetCounterFunction);
 }
 
-
-TEST(InitializeDefaultIsolateOnSecondaryThread4) {
+TEST(InitializeDefaultIsolateOnSecondaryThread_CreateHistogramFunction) {
   InitializeTestHelper(InitDefaultIsolateThread::SetCreateHistogramFunction);
 }
 
-
-TEST(InitializeDefaultIsolateOnSecondaryThread5) {
+TEST(InitializeDefaultIsolateOnSecondaryThread_AddHistogramSampleFunction) {
   InitializeTestHelper(InitDefaultIsolateThread::SetAddHistogramSampleFunction);
 }
 

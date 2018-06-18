@@ -116,9 +116,6 @@
   'test-api/SecondaryStubCache': [SKIP],
   'test-api/AccessCheckInIC': [SKIP],
 
-  # BUG(7856)
-  'test-api/InitializeDefaultIsolateOnSecondaryThread1': [SKIP],
-
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
