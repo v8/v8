@@ -47,7 +47,7 @@ std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
 ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    Isolate* isolate, ErrorThrower* thrower, std::shared_ptr<WasmModule> module,
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes);
 
@@ -150,7 +150,7 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   std::unique_ptr<CompilationResultResolver> resolver_;
-  std::unique_ptr<WasmModule> module_;
+  std::shared_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmCompiledModule> compiled_module_;

@@ -893,9 +893,9 @@ class ModuleDecoderImpl : public Decoder {
     return consume_init_expr(nullptr, kWasmStmt);
   }
 
-  WasmModule* module() { return module_.get(); }
+  const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
 
-  Counters* GetCounters() {
+  Counters* GetCounters() const {
     DCHECK_NOT_NULL(counters_);
     return counters_;
   }
@@ -906,7 +906,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
  private:
-  std::unique_ptr<WasmModule> module_;
+  std::shared_ptr<WasmModule> module_;
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_section_ = kFirstSectionInModule;
@@ -1358,7 +1358,9 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
 ModuleDecoder::ModuleDecoder() = default;
 ModuleDecoder::~ModuleDecoder() = default;
 
-WasmModule* ModuleDecoder::module() const { return impl_->module(); }
+const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
+  return impl_->shared_module();
+}
 
 void ModuleDecoder::StartDecoding(Isolate* isolate, ModuleOrigin origin) {
   DCHECK_NULL(impl_);

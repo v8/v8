@@ -215,8 +215,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
   ModuleResult result = SyncDecodeWasmModule(isolate, buffer, buffer + size,
                                              false, ModuleOrigin::kWasmOrigin);
   CHECK(result.ok());
-  std::unique_ptr<WasmModule> module = std::move(result.val);
-  const WasmFunction* func = &module->functions[1];
+  const WasmFunction* func = &result.val->functions[1];
   return func->code.offset();
 }
 

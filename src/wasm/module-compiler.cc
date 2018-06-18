@@ -1442,7 +1442,7 @@ class BackgroundCompileTask : public CancelableTask {
 }  // namespace
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    Isolate* isolate, ErrorThrower* thrower, std::shared_ptr<WasmModule> module,
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   WasmModule* wasm_module = module.get();
@@ -2890,7 +2890,7 @@ void AsyncCompileJob::FinishCompile() {
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.
   module_object_ = WasmModuleObject::New(
-      isolate_, compiled_module_, export_wrappers, std::move(module_),
+      isolate_, compiled_module_, export_wrappers, module_,
       Handle<SeqOneByteString>::cast(module_bytes), script,
       asm_js_offset_table);
   compiled_module_->GetNativeModule()->SetModuleObject(module_object_);
@@ -3037,7 +3037,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
     } else {
       // Decode passed.
       job_->module_ = std::move(result.val);
-      job_->DoSync<PrepareAndStartCompile>(job_->module_.get(), true);
+      job_->DoSync<PrepareAndStartCompile>(true);
     }
   }
 };
@@ -3065,11 +3065,10 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
-  explicit PrepareAndStartCompile(WasmModule* module, bool start_compilation)
-      : module_(module), start_compilation_(start_compilation) {}
+  explicit PrepareAndStartCompile(bool start_compilation)
+      : start_compilation_(start_compilation) {}
 
  private:
-  WasmModule* module_;
   bool start_compilation_;
 
   void RunInForeground() override {
@@ -3079,13 +3078,14 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // is done.
     job_->background_task_manager_.CancelAndWait();
 
-    DCHECK_LE(module_->num_imported_functions, module_->functions.size());
+    WasmModule* module = job_->module_.get();
+    DCHECK_LE(module->num_imported_functions, module->functions.size());
     // Create the compiled module object and populate with compiled functions
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of
     // this object.
-    ModuleEnv env = CreateDefaultModuleEnv(module_);
-    job_->compiled_module_ = NewCompiledModule(job_->isolate_, module_, env);
+    ModuleEnv env = CreateDefaultModuleEnv(module);
+    job_->compiled_module_ = NewCompiledModule(job_->isolate_, module, env);
 
     {
       DeferredHandleScope deferred(job_->isolate_);
@@ -3093,7 +3093,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job_->deferred_handles_.push_back(deferred.Detach());
     }
     size_t num_functions =
-        module_->functions.size() - module_->num_imported_functions;
+        module->functions.size() - module->num_imported_functions;
 
     if (num_functions == 0) {
       // Tiering has nothing to do if module is empty.
@@ -3171,7 +3171,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       size_t functions_count = GetNumFunctionsToCompile(env.module);
       compilation_state->SetNumberOfFunctionsToCompile(functions_count);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(module_->functions, job_->wire_bytes_,
+      InitializeCompilationUnits(module->functions, job_->wire_bytes_,
                                  env.module,
                                  job_->compiled_module_->GetNativeModule());
     }
@@ -3220,9 +3220,8 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     TRACE_COMPILE("(6) Finish module...\n");
     job_->AsyncCompileSucceeded(job_->module_object_);
 
-    WasmModule* module = job_->module_object_->module();
     size_t num_functions =
-        module->functions.size() - module->num_imported_functions;
+        job_->module_->functions.size() - job_->module_->num_imported_functions;
     if (job_->compiled_module_->GetNativeModule()
                 ->compilation_state()
                 ->compile_mode() == CompileMode::kRegular ||
@@ -3301,6 +3300,7 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
   decoder_.StartDecoding(job_->isolate());
+  job_->module_ = decoder_.shared_module();
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
@@ -3351,8 +3351,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
     return false;
   }
-  job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(decoder_.module(),
-                                                          false);
+  job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(false);
   // Execute the PrepareAndStartCompile step immediately and not in a separate
   // task. The step expects to be run on a separate foreground thread though, so
   // we to increment {num_pending_foreground_tasks_} to look like one.
@@ -3409,15 +3408,14 @@ void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
                                       job_->bytes_copy_.get() + length);
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());
-  job_->module_ = std::move(result.val);
+  DCHECK_EQ(job_->module_, result.val);
   if (job_->DecrementAndCheckFinisherCount()) {
     if (job_->compiled_module_.is_null()) {
       // We are processing a WebAssembly module without code section. We need to
       // prepare compilation first before we can finish it.
       // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
       // is no code section.
-      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(job_->module_.get(),
-                                                            true);
+      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(true);
     } else {
       job_->FinishCompile();
     }
