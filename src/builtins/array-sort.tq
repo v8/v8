@@ -142,8 +142,8 @@ module array {
   }
 
   macro CanUseSameAccessor<ElementsAccessor : type>(
-      context: Context, receiver: Object, initialReceiverMap: Object,
-      initialReceiverLength: Number): bool {
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
     assert(IsJSArray(unsafe_cast<HeapObject>(receiver)));
 
     let a: JSArray = unsafe_cast<JSArray>(receiver);
@@ -152,31 +152,34 @@ module array {
     let originalLength: Smi = unsafe_cast<Smi>(initialReceiverLength);
     if (a.length_fast != originalLength) return false;
 
+    if (a.elements != elements) return false;
+
     return true;
   }
 
   CanUseSameAccessor<GenericElementsAccessor>(
-      context: Context, receiver: Object, initialReceiverMap: Object,
-      initialReceiverLength: Number): bool {
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
     // Do nothing. We are already on the slow path.
     return true;
   }
 
   CanUseSameAccessor<DictionaryElements>(
-      context: Context, receiver: Object, initialReceiverMap: Object,
-      initialReceiverLength: Number): bool {
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
     let obj: JSReceiver = unsafe_cast<JSReceiver>(receiver);
     return obj.map == initialReceiverMap;
   }
 
   macro CallCompareFn<E : type>(
-      context: Context, receiver: Object, initialReceiverMap: Object,
-      initialReceiverLength: Number, userCmpFn: Object,
-      sortCompare: CompareBuiltinFn, x: Object,
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number,
+      userCmpFn: Object, sortCompare: CompareBuiltinFn, x: Object,
       y: Object): Number labels Bailout {
     let result: Number = sortCompare(context, userCmpFn, x, y);
     if (!CanUseSameAccessor<E>(
-            context, receiver, initialReceiverMap, initialReceiverLength))
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength))
       goto Bailout;
     return result;
   }
@@ -189,18 +192,19 @@ module array {
   labels Bailout {
     for (let i: Smi = from + 1; i < to; ++i) {
       assert(CanUseSameAccessor<E>(
-          context, receiver, initialReceiverMap, initialReceiverLength));
+          context, receiver, elements, initialReceiverMap, initialReceiverLength));
 
       let element: Object = Load<E>(context, elements, i) otherwise Bailout;
       let j: Smi = i - 1;
       for (; j >= from; --j) {
         assert(CanUseSameAccessor<E>(
-            context, receiver, initialReceiverMap, initialReceiverLength));
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength));
 
         let tmp: Object = Load<E>(context, elements, j) otherwise Bailout;
         let order: Number = CallCompareFn<E>(
-            context, receiver, initialReceiverMap, initialReceiverLength,
-            userCmpFn, sortCompare, tmp, element)
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, userCmpFn, sortCompare, tmp, element)
         otherwise Bailout;
         if (order > 0) {
           Store<E>(context, elements, j + 1, tmp);
@@ -233,6 +237,9 @@ module array {
   }
   macro kRandomStateIdx(): constexpr int31 {
     return 6;
+  }
+  macro kSortStateSize(): intptr {
+    return IntPtrConstant(7);
   }
 
   // Returns a random positive Smi in the range of [0, range).
@@ -278,8 +285,8 @@ module array {
     let v2: Object = Load<E>(context, elements, third_index) otherwise Bailout;
 
     let c01: Number = CallCompareFn<E>(
-        context, receiver, initialReceiverMap, initialReceiverLength, userCmpFn,
-        sortCompare, v0, v1)
+        context, receiver, elements, initialReceiverMap, initialReceiverLength,
+        userCmpFn, sortCompare, v0, v1)
     otherwise Bailout;
     if (c01 > 0) {
       // v0 > v1, so swap them.
@@ -289,8 +296,8 @@ module array {
     }
     // Current state: v0 <= v1.
     let c02: Number = CallCompareFn<E>(
-        context, receiver, initialReceiverMap, initialReceiverLength, userCmpFn,
-        sortCompare, v0, v2)
+        context, receiver, elements, initialReceiverMap, initialReceiverLength,
+        userCmpFn, sortCompare, v0, v2)
     otherwise Bailout;
     if (c02 >= 0) {
       // v0 <= v1 and v0 >= v2, hence swap to v2 <= v0 <= v1.
@@ -301,8 +308,8 @@ module array {
     } else {
       // v0 <= v1 and v0 < v2.
       let c12: Number = CallCompareFn<E>(
-          context, receiver, initialReceiverMap, initialReceiverLength,
-          userCmpFn, sortCompare, v1, v2)
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, userCmpFn, sortCompare, v1, v2)
       otherwise Bailout;
       if (c12 > 0) {
         // v0 <= v1 and v0 < v2 and v1 > v2, hence swap to v0 <= v2 < v1.
@@ -319,7 +326,7 @@ module array {
     // Move pivot element to a place on the left.
     Swap<E>(context, elements, from + 1, third_index, v1) otherwise Bailout;
     assert(CanUseSameAccessor<E>(
-        context, receiver, initialReceiverMap, initialReceiverLength));
+        context, receiver, elements, initialReceiverMap, initialReceiverLength));
 
     return v1;
   }
@@ -371,12 +378,13 @@ module array {
       // From idx to high_start are elements that haven"t been compared yet.
       for (let idx: Smi = low_end + 1; idx < high_start; idx++) {
         assert(CanUseSameAccessor<E>(
-            context, receiver, initialReceiverMap, initialReceiverLength));
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength));
 
         let element: Object = Load<E>(context, elements, idx) otherwise Bailout;
         let order: Number = CallCompareFn<E>(
-            context, receiver, initialReceiverMap, initialReceiverLength,
-            userCmpFn, sortCompare, element, pivot)
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, userCmpFn, sortCompare, element, pivot)
         otherwise Bailout;
 
         if (order < 0) {
@@ -389,7 +397,7 @@ module array {
           // smaller than pivot.
           while (order > 0) {
             assert(CanUseSameAccessor<E>(
-                context, receiver, initialReceiverMap, initialReceiverLength));
+                context, receiver, elements, initialReceiverMap, initialReceiverLength));
 
             high_start--;
             if (high_start == idx) {
@@ -400,8 +408,8 @@ module array {
             let top_elem: Object =
                 Load<E>(context, elements, high_start) otherwise Bailout;
             order = CallCompareFn<E>(
-                context, receiver, initialReceiverMap, initialReceiverLength,
-                userCmpFn, sortCompare, top_elem, pivot)
+                context, receiver, elements, initialReceiverMap,
+                initialReceiverLength, userCmpFn, sortCompare, top_elem, pivot)
             otherwise Bailout;
           }
 
@@ -490,7 +498,7 @@ module array {
     let map: Map = obj.map;
 
     let sort_state: FixedArray =
-        AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(7));
+        AllocateFixedArray(PACKED_ELEMENTS, kSortStateSize());
 
     sort_state[kReceiverIdx()] = obj;
     sort_state[kUserCmpFnIdx()] = comparefnObj;
