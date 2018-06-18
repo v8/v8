@@ -24,23 +24,6 @@
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
-#define REPEAT_0_TO_1(V, T0, T) V(T0) V(T0, T)
-#define REPEAT_0_TO_2(V, T0, T) REPEAT_0_TO_1(V, T0, T) V(T0, T, T)
-#define REPEAT_0_TO_3(V, T0, T) REPEAT_0_TO_2(V, T0, T) V(T0, T, T, T)
-#define REPEAT_0_TO_4(V, T0, T) REPEAT_0_TO_3(V, T0, T) V(T0, T, T, T, T)
-#define REPEAT_0_TO_5(V, T0, T) REPEAT_0_TO_4(V, T0, T) V(T0, T, T, T, T, T)
-#define REPEAT_0_TO_6(V, T0, T) REPEAT_0_TO_5(V, T0, T) V(T0, T, T, T, T, T, T)
-#define REPEAT_0_TO_7(V, T0, T) \
-  REPEAT_0_TO_6(V, T0, T) V(T0, T, T, T, T, T, T, T)
-#define REPEAT_0_TO_8(V, T0, T) \
-  REPEAT_0_TO_7(V, T0, T) V(T0, T, T, T, T, T, T, T, T)
-#define REPEAT_0_TO_9(V, T0, T) \
-  REPEAT_0_TO_8(V, T0, T) V(T0, T, T, T, T, T, T, T, T, T)
-#define REPEAT_0_TO_10(V, T0, T) \
-  REPEAT_0_TO_9(V, T0, T) V(T0, T, T, T, T, T, T, T, T, T, T)
-#define REPEAT_0_TO_11(V, T0, T) \
-  REPEAT_0_TO_10(V, T0, T) V(T0, T, T, T, T, T, T, T, T, T, T, T)
-
 namespace v8 {
 namespace internal {
 
@@ -1066,11 +1049,30 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   Bind(&success);
 }
 
-template <class... TArgs>
-TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
-                                             TNode<Object> context,
-                                             TArgs... args) {
-  int argc = static_cast<int>(sizeof...(args));
+namespace {
+template <size_t kMaxSize>
+class NodeArray {
+ public:
+  void Add(Node* node) {
+    DCHECK_GT(kMaxSize, size());
+    *ptr_++ = node;
+  }
+
+  Node* const* data() const { return arr_; }
+  int size() const { return static_cast<int>(ptr_ - arr_); }
+
+ private:
+  Node* arr_[kMaxSize];
+  Node** ptr_ = arr_;
+};
+}  // namespace
+
+TNode<Object> CodeAssembler::CallRuntimeImpl(
+    Runtime::FunctionId function, TNode<Object> context,
+    std::initializer_list<TNode<Object>> args) {
+  constexpr size_t kMaxNumArgs = 6;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
@@ -1081,86 +1083,50 @@ TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
   Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
 
-  Node* nodes[] = {centry, implicit_cast<TNode<Object>>(args)..., ref, arity,
-                   context};
+  NodeArray<kMaxNumArgs + 4> inputs;
+  inputs.Add(centry);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(ref);
+  inputs.Add(arity);
+  inputs.Add(context);
 
   CallPrologue();
   Node* return_value =
-      raw_assembler()->CallN(call_descriptor, arraysize(nodes), nodes);
+      raw_assembler()->CallN(call_descriptor, inputs.size(), inputs.data());
   CallEpilogue();
   return UncheckedCast<Object>(return_value);
 }
 
-// Instantiate CallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                                   \
-  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::CallRuntimeImpl( \
-      Runtime::FunctionId, __VA_ARGS__);
-REPEAT_0_TO_6(INSTANTIATE, TNode<Object>, SloppyTNode<Object>)
-#undef INSTANTIATE
-
-template <class... TArgs>
-void CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
-                                        TNode<Int32T> arity,
-                                        TNode<Object> context, TArgs... args) {
+void CodeAssembler::TailCallRuntimeImpl(
+    Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
+    std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
   TNode<Code> centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
-  return TailCallRuntimeWithCEntryImpl(function, arity, centry, context,
-                                       implicit_cast<TNode<Object>>(args)...);
+  return TailCallRuntimeWithCEntryImpl(function, arity, centry, context, args);
 }
 
-// Instantiate TailCallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                              \
-  template V8_EXPORT_PRIVATE void CodeAssembler::TailCallRuntimeImpl( \
-      Runtime::FunctionId, TNode<Int32T>, __VA_ARGS__);
-REPEAT_0_TO_6(INSTANTIATE, TNode<Object>, SloppyTNode<Object>)
-#undef INSTANTIATE
-
-template <class... TArgs>
-void CodeAssembler::TailCallRuntimeWithCEntryImpl(Runtime::FunctionId function,
-                                                  TNode<Int32T> arity,
-                                                  TNode<Code> centry,
-                                                  TNode<Object> context,
-                                                  TArgs... args) {
-  int argc = static_cast<int>(sizeof...(args));
+void CodeAssembler::TailCallRuntimeWithCEntryImpl(
+    Runtime::FunctionId function, TNode<Int32T> arity, TNode<Code> centry,
+    TNode<Object> context, std::initializer_list<TNode<Object>> args) {
+  constexpr size_t kMaxNumArgs = 6;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
 
   Node* ref = ExternalConstant(ExternalReference::Create(function));
 
-  Node* nodes[] = {centry, args..., ref, arity, context};
+  NodeArray<kMaxNumArgs + 4> inputs;
+  inputs.Add(centry);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(ref);
+  inputs.Add(arity);
+  inputs.Add(context);
 
-  raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
+  raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
-
-// Instantiate TailCallRuntimeWithCEntryImpl() for argument counts used by
-// CSA-generated code.
-#define INSTANTIATE(...)                            \
-  template V8_EXPORT_PRIVATE void                   \
-      CodeAssembler::TailCallRuntimeWithCEntryImpl( \
-          Runtime::FunctionId, TNode<Int32T>, TNode<Code>, __VA_ARGS__);
-REPEAT_0_TO_6(INSTANTIATE, TNode<Object>, SloppyTNode<Object>)
-#undef INSTANTIATE
-
-template <class... TArgs>
-Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
-                               size_t result_size, SloppyTNode<Code> target,
-                               SloppyTNode<Object> context, TArgs... args) {
-  Node* nodes[] = {target, args..., context};
-  int input_count = arraysize(nodes);
-  if (context == nullptr) --input_count;
-  return CallStubN(descriptor, result_size, input_count, nodes,
-                   context != nullptr);
-}
-
-// Instantiate CallStubR() for argument counts used by CSA-generated code.
-#define INSTANTIATE(...)                                                    \
-  template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR(                \
-      const CallInterfaceDescriptor& descriptor, size_t, SloppyTNode<Code>, \
-      __VA_ARGS__);
-REPEAT_0_TO_10(INSTANTIATE, SloppyTNode<Object>, Node*)
-#undef INSTANTIATE
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
                                size_t result_size, int input_count,
@@ -1186,55 +1152,66 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   return return_value;
 }
 
-template <class... TArgs>
 void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
                                      TNode<Code> target, TNode<Object> context,
-                                     TArgs... args) {
-  DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
+                                     std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 11;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  DCHECK_EQ(descriptor.GetParameterCount(), args.size());
   size_t result_size = 1;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
       CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
-  Node* nodes[] = {target, args..., context};
-  CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
-  raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
+  NodeArray<kMaxNumArgs + 2> inputs;
+  inputs.Add(target);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(context);
+
+  raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
 
-// Instantiate TailCallStub() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                           \
-  template V8_EXPORT_PRIVATE void CodeAssembler::TailCallStubImpl( \
-      const CallInterfaceDescriptor& descriptor, TNode<Code>, __VA_ARGS__);
-REPEAT_0_TO_11(INSTANTIATE, TNode<Object>, Node*)
-#undef INSTANTIATE
+Node* CodeAssembler::CallStubRImpl(const CallInterfaceDescriptor& descriptor,
+                                   size_t result_size, SloppyTNode<Code> target,
+                                   SloppyTNode<Object> context,
+                                   std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 10;
+  DCHECK_GE(kMaxNumArgs, args.size());
 
-template <class... TArgs>
-Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
+  NodeArray<kMaxNumArgs + 2> inputs;
+  inputs.Add(target);
+  for (auto arg : args) inputs.Add(arg);
+  if (context) inputs.Add(context);
+
+  return CallStubN(descriptor, result_size, inputs.size(), inputs.data(),
+                   context != nullptr);
+}
+
+Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
-    TArgs... args) {
-  DCHECK_LE(descriptor.GetParameterCount(), sizeof...(args));
+    std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 6;
+  DCHECK_GE(kMaxNumArgs, args.size());
+
+  DCHECK_LE(descriptor.GetParameterCount(), args.size());
+  int argc = static_cast<int>(args.size());
   // Extra arguments not mentioned in the descriptor are passed on the stack.
-  int stack_parameter_count =
-      sizeof...(args) - descriptor.GetRegisterParameterCount();
+  int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, stack_parameter_count,
       CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), 0);
 
-  Node* nodes[] = {target, args..., context};
-  return raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
-}
+  NodeArray<kMaxNumArgs + 2> inputs;
+  inputs.Add(target);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(context);
 
-// Instantiate TailCallStubThenBytecodeDispatch() for argument counts used by
-// CSA-generated code
-#define INSTANTIATE(...)                           \
-  template V8_EXPORT_PRIVATE Node*                 \
-  CodeAssembler::TailCallStubThenBytecodeDispatch( \
-      const CallInterfaceDescriptor&, Node*, Node*, Node*, __VA_ARGS__);
-REPEAT_0_TO_6(INSTANTIATE, Node*, Node*)
-#undef INSTANTIATE
+  return raw_assembler()->TailCallN(call_descriptor, inputs.size(),
+                                    inputs.data());
+}
 
 template <class... TArgs>
 Node* CodeAssembler::TailCallBytecodeDispatch(
@@ -1726,15 +1703,3 @@ Smi* CheckObjectType(Object* value, Smi* type, String* location) {
 
 }  // namespace internal
 }  // namespace v8
-
-#undef REPEAT_0_TO_1
-#undef REPEAT_0_TO_2
-#undef REPEAT_0_TO_3
-#undef REPEAT_0_TO_4
-#undef REPEAT_0_TO_5
-#undef REPEAT_0_TO_6
-#undef REPEAT_0_TO_7
-#undef REPEAT_0_TO_8
-#undef REPEAT_0_TO_9
-#undef REPEAT_0_TO_10
-#undef REPEAT_0_TO_11
