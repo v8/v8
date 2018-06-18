@@ -13,5 +13,4 @@ var f = new Flower();
 // know about a toStringTag.
 f[Symbol.toStringTag] = 'Dog';
 g({}, [], f);
-g(3, 2.3, {a: 42});
-/*string*/
+g(3, 2.3, {a: 42});/*string*/

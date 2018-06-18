@@ -14,6 +14,12 @@ Tests possible breakpoints in array literal
                 scriptId : <scriptId>
             }
             [2] : {
+                columnNumber : 7
+                lineNumber : 0
+                scriptId : <scriptId>
+                type : return
+            }
+            [3] : {
                 columnNumber : 8
                 lineNumber : 0
                 scriptId : <scriptId>

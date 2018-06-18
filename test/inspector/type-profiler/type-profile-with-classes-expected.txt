@@ -12,5 +12,4 @@ var f = new Flower();
 f.constructor = {};
 f.constructor.name = "Not a flower.";
 g({}, [], f);
-g(3, 2.3, {a: 42});
-/*string*/
+g(3, 2.3, {a: 42});/*string*/

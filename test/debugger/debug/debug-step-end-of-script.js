@@ -4,7 +4,7 @@
 
 
 var Debug = debug.Debug;
-var expected = ["debugger;", ""];
+var expected = ["debugger;", "debugger;"];
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
