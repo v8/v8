@@ -37,6 +37,27 @@ void CallInterfaceDescriptorData::InitializePlatformIndependent(
   }
 }
 
+void CallInterfaceDescriptor::JSDefaultInitializePlatformSpecific(
+    CallInterfaceDescriptorData* data, int non_js_register_parameter_count) {
+  DCHECK_LE(static_cast<unsigned>(non_js_register_parameter_count), 1);
+
+  // 3 is for kTarget, kNewTarget and kActualArgumentsCount
+  int register_parameter_count = 3 + non_js_register_parameter_count;
+
+  DCHECK(!AreAliased(
+      kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+      kJavaScriptCallArgCountRegister, kJavaScriptCallExtraArg1Register));
+
+  const Register default_js_stub_registers[] = {
+      kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+      kJavaScriptCallArgCountRegister, kJavaScriptCallExtraArg1Register};
+
+  CHECK_LE(static_cast<size_t>(register_parameter_count),
+           arraysize(default_js_stub_registers));
+  data->InitializePlatformSpecific(register_parameter_count,
+                                   default_js_stub_registers);
+}
+
 const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
   CallInterfaceDescriptorData* start = isolate->call_descriptor_data(0);
   size_t index = data_ - start;
@@ -450,34 +471,6 @@ void ConstructStubDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void ConstructTrampolineDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kFunction, kNewTarget, kActualArgumentsCount
-  MachineType machine_types[] = {
-      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
-}
-
-void ConstructTrampolineDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {FunctionRegister(), NewTargetRegister(),
-                          ActualArgumentsCountRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-const Register ConstructTrampolineDescriptor::FunctionRegister() {
-  return kJSFunctionRegister;
-}
-
-const Register ConstructTrampolineDescriptor::NewTargetRegister() {
-  return kJavaScriptCallNewTargetRegister;
-}
-
-const Register ConstructTrampolineDescriptor::ActualArgumentsCountRegister() {
-  return kJavaScriptCallArgCountRegister;
-}
-
 void BuiltinDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kTarget, kNewTarget, kArgumentsCount
@@ -504,16 +497,6 @@ const Register BuiltinDescriptor::NewTargetRegister() {
 
 const Register BuiltinDescriptor::TargetRegister() {
   return kJSFunctionRegister;
-}
-
-void ArrayConstructorDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::AnyTagged(), MachineType::Int32(),
-                                 MachineType::AnyTagged()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
 }
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformIndependent(
@@ -558,6 +541,17 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformIndependent(
       MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
+}
+
+void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // Keep the arguments on the same registers as they were in
+  // ArrayConstructorDescriptor to avoid unnecessary register moves.
+  // kFunction, kAllocationSite, kActualArgumentsCount
+  Register registers[] = {kJavaScriptCallTargetRegister,
+                          kJavaScriptCallExtraArg1Register,
+                          kJavaScriptCallArgCountRegister};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void ArgumentAdaptorDescriptor::InitializePlatformIndependent(

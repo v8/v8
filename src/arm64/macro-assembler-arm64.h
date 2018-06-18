@@ -42,24 +42,28 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-#define kReturnRegister0 x0
-#define kReturnRegister1 x1
-#define kReturnRegister2 x2
-#define kJSFunctionRegister x1
-#define kContextRegister cp
-#define kAllocateSizeRegister x1
-#define kSpeculationPoisonRegister x18
-#define kInterpreterAccumulatorRegister x0
-#define kInterpreterBytecodeOffsetRegister x19
-#define kInterpreterBytecodeArrayRegister x20
-#define kInterpreterDispatchTableRegister x21
-#define kJavaScriptCallArgCountRegister x0
-#define kJavaScriptCallCodeStartRegister x2
-#define kJavaScriptCallNewTargetRegister x3
-#define kOffHeapTrampolineRegister ip0
-#define kRuntimeCallFunctionRegister x1
-#define kRuntimeCallArgCountRegister x0
-#define kWasmInstanceRegister x7
+constexpr Register kReturnRegister0 = x0;
+constexpr Register kReturnRegister1 = x1;
+constexpr Register kReturnRegister2 = x2;
+constexpr Register kJSFunctionRegister = x1;
+constexpr Register kContextRegister = cp;
+constexpr Register kAllocateSizeRegister = x1;
+constexpr Register kSpeculationPoisonRegister = x18;
+constexpr Register kInterpreterAccumulatorRegister = x0;
+constexpr Register kInterpreterBytecodeOffsetRegister = x19;
+constexpr Register kInterpreterBytecodeArrayRegister = x20;
+constexpr Register kInterpreterDispatchTableRegister = x21;
+
+constexpr Register kJavaScriptCallArgCountRegister = x0;
+constexpr Register kJavaScriptCallCodeStartRegister = x2;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
+constexpr Register kJavaScriptCallNewTargetRegister = x3;
+constexpr Register kJavaScriptCallExtraArg1Register = x2;
+
+constexpr Register kOffHeapTrampolineRegister = ip0;
+constexpr Register kRuntimeCallFunctionRegister = x1;
+constexpr Register kRuntimeCallArgCountRegister = x0;
+constexpr Register kWasmInstanceRegister = x7;
 
 #define LS_MACRO_LIST(V)                                     \
   V(Ldrb, Register&, rt, LDRB_w)                             \

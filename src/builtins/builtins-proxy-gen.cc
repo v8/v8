@@ -337,7 +337,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   Node* argc = Parameter(Descriptor::kActualArgumentsCount);
   Node* argc_ptr = ChangeInt32ToIntPtr(argc);
-  Node* proxy = Parameter(Descriptor::kFunction);
+  Node* proxy = Parameter(Descriptor::kTarget);
   Node* new_target = Parameter(Descriptor::kNewTarget);
   Node* context = Parameter(Descriptor::kContext);
 

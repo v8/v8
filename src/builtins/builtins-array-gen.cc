@@ -4031,7 +4031,7 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
   // This is a trampoline to ArrayConstructorImpl which just adds
   // allocation_site parameter value and sets new_target if necessary.
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kFunction));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));

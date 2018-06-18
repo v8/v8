@@ -80,7 +80,7 @@ namespace internal {
   TFS(CreateShallowObjectLiteral, kFeedbackVector, kSlot,                      \
       kBoilerplateDescription, kFlags)                                         \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
-  TFC(ConstructProxy, ConstructTrampoline, 1)                                  \
+  TFC(ConstructProxy, JSTrampoline, 1)                                         \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(JSEntryTrampoline)                                                       \
@@ -120,9 +120,9 @@ namespace internal {
   ASM(InterpreterOnStackReplacement)                                           \
                                                                                \
   /* Code life-cycle */                                                        \
-  TFC(CompileLazy, ConstructTrampoline, 1)                                     \
-  TFC(CompileLazyDeoptimizedCode, ConstructTrampoline, 1)                      \
-  TFC(DeserializeLazy, ConstructTrampoline, 1)                                 \
+  TFC(CompileLazy, JSTrampoline, 1)                                            \
+  TFC(CompileLazyDeoptimizedCode, JSTrampoline, 1)                             \
+  TFC(DeserializeLazy, JSTrampoline, 1)                                        \
   ASM(InstantiateAsmJs)                                                        \
   ASM(NotifyDeoptimized)                                                       \
                                                                                \
@@ -235,7 +235,7 @@ namespace internal {
   TFJ(ReturnReceiver, 0)                                                       \
                                                                                \
   /* Array */                                                                  \
-  TFC(ArrayConstructor, ConstructTrampoline, 1)                                \
+  TFC(ArrayConstructor, JSTrampoline, 1)                                       \
   TFC(ArrayConstructorImpl, ArrayConstructor, 1)                               \
   TFC(ArrayNoArgumentConstructor_PackedSmi_DontOverride,                       \
       ArrayNoArgumentConstructor, 1)                                           \

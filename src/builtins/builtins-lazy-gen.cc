@@ -147,13 +147,13 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 }
 
 TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kFunction));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
 
   CompileLazy(function);
 }
 
 TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kFunction));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
 
   // Set the code slot inside the JSFunction to CompileLazy.
   TNode<Code> code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
@@ -165,7 +165,7 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
 TF_BUILTIN(DeserializeLazy, LazyBuiltinsAssembler) {
   Label deserialize_in_runtime(this, Label::kDeferred);
 
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kFunction));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
 
   // Load the builtin id for lazy deserialization from SharedFunctionInfo.
   TNode<SharedFunctionInfo> shared =

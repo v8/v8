@@ -47,7 +47,7 @@ class PlatformInterfaceDescriptor;
   V(ConstructForwardVarargs)          \
   V(ConstructWithSpread)              \
   V(ConstructWithArrayLike)           \
-  V(ConstructTrampoline)              \
+  V(JSTrampoline)                     \
   V(AbortJS)                          \
   V(AllocateHeapNumber)               \
   V(Builtin)                          \
@@ -223,6 +223,13 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   static void DefaultInitializePlatformSpecific(
       CallInterfaceDescriptorData* data, int register_parameter_count);
 
+  // Initializes |data| using the platform dependent default set of registers
+  // for JavaScript-compatible calling convention.
+  // It is intended to be used for TurboFan stubs being called with JavaScript
+  // linkage + additional parameters on registers and stack.
+  static void JSDefaultInitializePlatformSpecific(
+      CallInterfaceDescriptorData* data, int non_js_register_parameter_count);
+
  private:
   const CallInterfaceDescriptorData* data_;
 };
@@ -234,7 +241,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   }                                                        \
   static inline CallDescriptors::Key key();
 
-static const int kMaxBuiltinRegisterParams = 5;
+constexpr int kMaxBuiltinRegisterParams = 5;
 
 #define DECLARE_DEFAULT_DESCRIPTOR(name, base, parameter_count)               \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                    \
@@ -255,6 +262,32 @@ static const int kMaxBuiltinRegisterParams = 5;
   name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {}    \
                                                                               \
  public:
+
+#define DECLARE_JS_COMPATIBLE_DESCRIPTOR(name, base,                        \
+                                         non_js_reg_parameters_count)       \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                  \
+ protected:                                                                 \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)        \
+      override {                                                            \
+    JSDefaultInitializePlatformSpecific(data, non_js_reg_parameters_count); \
+  }                                                                         \
+  name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {}  \
+                                                                            \
+ public:
+
+#define DEFINE_JS_PARAMETER_TYPES(...)                                        \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
+      override {                                                              \
+    /* kTarget, kNewTarget, kActualArgumentsCount, */                         \
+    MachineType machine_types[] = {MachineType::AnyTagged(),                  \
+                                   MachineType::AnyTagged(),                  \
+                                   MachineType::Int32(), __VA_ARGS__};        \
+    static_assert(                                                            \
+        kParameterCount == arraysize(machine_types),                          \
+        "Parameter names definition is not consistent with parameter types"); \
+    data->InitializePlatformIndependent(arraysize(machine_types), 0,          \
+                                        machine_types);                       \
+  }
 
 #define DECLARE_DESCRIPTOR(name, base)                                         \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
@@ -293,6 +326,17 @@ static const int kMaxBuiltinRegisterParams = 5;
                                                           \
     kParameterCount,                                      \
     kContext = kParameterCount /* implicit parameter */   \
+  };
+
+#define DEFINE_JS_PARAMETERS(...)                       \
+  enum ParameterIndices {                               \
+    kTarget,                                            \
+    kNewTarget,                                         \
+    kActualArgumentsCount,                              \
+    ##__VA_ARGS__,                                      \
+                                                        \
+    kParameterCount,                                    \
+    kContext = kParameterCount /* implicit parameter */ \
   };
 
 #define DECLARE_BUILTIN_DESCRIPTOR(name)                                      \
@@ -340,6 +384,19 @@ class AllocateDescriptor : public CallInterfaceDescriptor {
   enum ParameterIndices { kRequestedSize, kParameterCount };
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(AllocateDescriptor,
                                                CallInterfaceDescriptor)
+};
+
+// This descriptor defines the JavaScript calling convention that can be used
+// by stubs: target, new.target, argc (not including the receiver) and context
+// are passed in registers while receiver and the rest of the JS arguments are
+// passed on the stack.
+class JSTrampolineDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_JS_PARAMETERS()
+  DEFINE_JS_PARAMETER_TYPES();
+
+  DECLARE_JS_COMPATIBLE_DESCRIPTOR(JSTrampolineDescriptor,
+                                   CallInterfaceDescriptor, 0)
 };
 
 class ContextOnlyDescriptor : public CallInterfaceDescriptor {
@@ -606,19 +663,6 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-// This descriptor is also used by DebugBreakTrampoline, CompileLazy* and
-// DeserializeLazy builtins because it handles both regular function calls and
-// construct calls, and we need to pass new.target for the latter.
-class ConstructTrampolineDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructTrampolineDescriptor,
-                                               CallInterfaceDescriptor)
-  static const Register FunctionRegister();
-  static const Register NewTargetRegister();
-  static const Register ActualArgumentsCountRegister();
-};
-
 class CallFunctionDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
@@ -647,12 +691,13 @@ class BuiltinDescriptor : public CallInterfaceDescriptor {
   static const Register TargetRegister();
 };
 
-// TODO(jgruber): Replace with generic TFS descriptor.
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArrayConstructorDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_JS_PARAMETERS(kAllocationSite)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
+
+  DECLARE_JS_COMPATIBLE_DESCRIPTOR(ArrayConstructorDescriptor,
+                                   CallInterfaceDescriptor, 1)
 };
 
 class ArrayNArgumentsConstructorDescriptor : public CallInterfaceDescriptor {
@@ -825,9 +870,12 @@ BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DECLARE_DEFAULT_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR
+#undef DECLARE_JS_COMPATIBLE_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE
 #undef DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG
 #undef DEFINE_PARAMETERS
+#undef DEFINE_JS_PARAMETES
+#undef DEFINE_JS_PARAMETER_TYPES
 
 // We define the association between CallDescriptors::Key and the specialized
 // descriptor here to reduce boilerplate and mistakes.

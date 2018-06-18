@@ -26,9 +26,13 @@ constexpr Register kInterpreterAccumulatorRegister = r2;
 constexpr Register kInterpreterBytecodeOffsetRegister = r6;
 constexpr Register kInterpreterBytecodeArrayRegister = r7;
 constexpr Register kInterpreterDispatchTableRegister = r8;
+
 constexpr Register kJavaScriptCallArgCountRegister = r2;
-constexpr Register kJavaScriptCallNewTargetRegister = r5;
 constexpr Register kJavaScriptCallCodeStartRegister = r4;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
+constexpr Register kJavaScriptCallNewTargetRegister = r5;
+constexpr Register kJavaScriptCallExtraArg1Register = r4;
+
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r3;
 constexpr Register kRuntimeCallArgCountRegister = r2;

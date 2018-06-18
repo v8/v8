@@ -12,7 +12,7 @@ namespace internal {
 
 class LazyBuiltinsAssembler : public CodeStubAssembler {
  public:
-  typedef ConstructTrampolineDescriptor Descriptor;
+  typedef JSTrampolineDescriptor Descriptor;
 
   explicit LazyBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}

@@ -1236,9 +1236,7 @@ TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
                                             TNode<JSFunction> function,
                                             TNode<Object> new_target,
                                             TNode<Int32T> arg_count) {
-  // Use the ConstructTrampolineDescriptor because it passes new.target too in
-  // case this is called during construct.
-  ConstructTrampolineDescriptor descriptor(isolate());
+  JSTrampolineDescriptor descriptor(isolate());
   size_t result_size = 1;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),

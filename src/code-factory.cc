@@ -269,7 +269,7 @@ Callable CodeFactory::CallFunctionForwardVarargs(Isolate* isolate) {
 // static
 Callable CodeFactory::Construct(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, Construct),
-                  ConstructTrampolineDescriptor(isolate));
+                  JSTrampolineDescriptor(isolate));
 }
 
 // static
@@ -281,7 +281,7 @@ Callable CodeFactory::ConstructWithSpread(Isolate* isolate) {
 // static
 Callable CodeFactory::ConstructFunction(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ConstructFunction),
-                  ConstructTrampolineDescriptor(isolate));
+                  JSTrampolineDescriptor(isolate));
 }
 
 // static
