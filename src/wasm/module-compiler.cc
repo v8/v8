@@ -1330,90 +1330,6 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   }
 }
 
-MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
-    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
-    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) {
-  WasmModule* wasm_module = module.get();
-  TimedHistogramScope wasm_compile_module_time_scope(
-      SELECT_WASM_COUNTER(isolate->async_counters(), wasm_module->origin,
-                          wasm_compile, module_time));
-  // TODO(6792): No longer needed once WebAssembly code is off heap. Use
-  // base::Optional to be able to close the scope before notifying the debugger.
-  base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
-      base::in_place_t(), isolate->heap());
-
-  Factory* factory = isolate->factory();
-  // Create heap objects for script, module bytes and asm.js offset table to
-  // be stored in the module object.
-  Handle<Script> script;
-  Handle<ByteArray> asm_js_offset_table;
-  if (asm_js_script.is_null()) {
-    script = CreateWasmScript(isolate, wire_bytes);
-  } else {
-    script = asm_js_script;
-    asm_js_offset_table =
-        isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
-    asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
-                                 asm_js_offset_table_bytes.length());
-  }
-  // TODO(wasm): only save the sections necessary to deserialize a
-  // {WasmModule}. E.g. function bodies could be omitted.
-  Handle<String> module_bytes =
-      factory
-          ->NewStringFromOneByte({wire_bytes.start(), wire_bytes.length()},
-                                 TENURED)
-          .ToHandleChecked();
-  DCHECK(module_bytes->IsSeqOneByteString());
-
-  // Create the module object.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
-  // only have one WasmModuleObject. Otherwise, we might only set
-  // breakpoints on a (potentially empty) subset of the instances.
-
-  int export_wrappers_size =
-      static_cast<int>(wasm_module->num_exported_functions);
-  Handle<FixedArray> export_wrappers =
-      factory->NewFixedArray(static_cast<int>(export_wrappers_size), TENURED);
-  Handle<Code> init_builtin = BUILTIN_CODE(isolate, Illegal);
-  for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
-    export_wrappers->set(i, *init_builtin);
-  }
-  ModuleEnv env = CreateDefaultModuleEnv(wasm_module);
-
-  // Create the compiled module object and populate with compiled functions
-  // and information needed at instantiation time. This object needs to be
-  // serializable. Instantiation may occur off a deserialized version of this
-  // object.
-  Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate, wasm_module, env);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, compiled_module, export_wrappers, std::move(module),
-      Handle<SeqOneByteString>::cast(module_bytes), script,
-      asm_js_offset_table);
-  compiled_module->GetNativeModule()->SetModuleObject(module_object);
-  CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
-  if (thrower->error()) return {};
-
-  // Compile JS->wasm wrappers for exported functions.
-  CompileJsToWasmWrappers(isolate, module_object,
-                          isolate->async_counters().get());
-
-  // If we created a wasm script, finish it now and make it public to the
-  // debugger.
-  if (asm_js_script.is_null()) {
-    // Close the CodeSpaceMemoryModificationScope before calling into the
-    // debugger.
-    modification_scope.reset();
-    isolate->debug()->OnAfterCompile(script);
-  }
-
-  // Log the code within the generated module for profiling.
-  compiled_module->GetNativeModule()->LogWasmCodes(isolate);
-
-  return module_object;
-}
-
 // The runnable task that finishes compilation in foreground (e.g. updating
 // the NativeModule, the code table, etc.).
 class FinishCompileTask : public CancelableTask {
@@ -1532,9 +1448,84 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-  return CompileToModuleObjectInternal(isolate, thrower, std::move(module),
-                                       wire_bytes, asm_js_script,
-                                       asm_js_offset_table_bytes);
+  WasmModule* wasm_module = module.get();
+  TimedHistogramScope wasm_compile_module_time_scope(
+      SELECT_WASM_COUNTER(isolate->async_counters(), wasm_module->origin,
+                          wasm_compile, module_time));
+  // TODO(6792): No longer needed once WebAssembly code is off heap. Use
+  // base::Optional to be able to close the scope before notifying the debugger.
+  base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
+      base::in_place_t(), isolate->heap());
+
+  Factory* factory = isolate->factory();
+  // Create heap objects for script, module bytes and asm.js offset table to
+  // be stored in the module object.
+  Handle<Script> script;
+  Handle<ByteArray> asm_js_offset_table;
+  if (asm_js_script.is_null()) {
+    script = CreateWasmScript(isolate, wire_bytes);
+  } else {
+    script = asm_js_script;
+    asm_js_offset_table =
+        isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
+    asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
+                                 asm_js_offset_table_bytes.length());
+  }
+  // TODO(wasm): only save the sections necessary to deserialize a
+  // {WasmModule}. E.g. function bodies could be omitted.
+  Handle<String> module_bytes =
+      factory
+          ->NewStringFromOneByte({wire_bytes.start(), wire_bytes.length()},
+                                 TENURED)
+          .ToHandleChecked();
+  DCHECK(module_bytes->IsSeqOneByteString());
+
+  // Create the module object.
+  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // only have one WasmModuleObject. Otherwise, we might only set
+  // breakpoints on a (potentially empty) subset of the instances.
+
+  int export_wrappers_size =
+      static_cast<int>(wasm_module->num_exported_functions);
+  Handle<FixedArray> export_wrappers =
+      factory->NewFixedArray(static_cast<int>(export_wrappers_size), TENURED);
+  Handle<Code> init_builtin = BUILTIN_CODE(isolate, Illegal);
+  for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
+    export_wrappers->set(i, *init_builtin);
+  }
+  ModuleEnv env = CreateDefaultModuleEnv(wasm_module);
+
+  // Create the compiled module object and populate with compiled functions
+  // and information needed at instantiation time. This object needs to be
+  // serializable. Instantiation may occur off a deserialized version of this
+  // object.
+  Handle<WasmCompiledModule> compiled_module =
+      NewCompiledModule(isolate, wasm_module, env);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, compiled_module, export_wrappers, std::move(module),
+      Handle<SeqOneByteString>::cast(module_bytes), script,
+      asm_js_offset_table);
+  compiled_module->GetNativeModule()->SetModuleObject(module_object);
+  CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
+  if (thrower->error()) return {};
+
+  // Compile JS->wasm wrappers for exported functions.
+  CompileJsToWasmWrappers(isolate, module_object,
+                          isolate->async_counters().get());
+
+  // If we created a wasm script, finish it now and make it public to the
+  // debugger.
+  if (asm_js_script.is_null()) {
+    // Close the CodeSpaceMemoryModificationScope before calling into the
+    // debugger.
+    modification_scope.reset();
+    isolate->debug()->OnAfterCompile(script);
+  }
+
+  // Log the code within the generated module for profiling.
+  compiled_module->GetNativeModule()->LogWasmCodes(isolate);
+
+  return module_object;
 }
 
 InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
