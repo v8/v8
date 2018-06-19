@@ -216,19 +216,21 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
                                  Handle<SharedFunctionInfo> shared_info);
-  FunctionLiteral* DoParseFunction(ParseInfo* info,
+  FunctionLiteral* DoParseFunction(Isolate* isolate, ParseInfo* info,
                                    const AstRawString* raw_name);
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(ParseInfo* info);
+  FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
 
   // Parse with the script as if the source is implicitly wrapped in a function.
   // We manually construct the AST and scopes for a top-level function and the
   // function wrapper.
-  void ParseWrapped(ParseInfo* info, ZoneList<Statement*>* body,
-                    DeclarationScope* scope, Zone* zone, bool* ok);
+  void ParseWrapped(Isolate* isolate, ParseInfo* info,
+                    ZoneList<Statement*>* body, DeclarationScope* scope,
+                    Zone* zone, bool* ok);
 
-  ZoneList<const AstRawString*>* PrepareWrappedArguments(ParseInfo* info,
+  ZoneList<const AstRawString*>* PrepareWrappedArguments(Isolate* isolate,
+                                                         ParseInfo* info,
                                                          Zone* zone);
 
   void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);

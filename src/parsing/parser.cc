@@ -507,7 +507,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
 
   scanner_.Initialize(info->character_stream(), info->is_module());
-  FunctionLiteral* result = DoParseProgram(info);
+  FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
 
   HandleSourceURLComments(isolate, info->script());
@@ -528,11 +528,12 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   return result;
 }
 
-
-FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
+FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   // Note that this function can be called from the main thread or from a
   // background thread. We should not access anything Isolate / heap dependent
-  // via ParseInfo, and also not pass it forward.
+  // via ParseInfo, and also not pass it forward. If not on the main thread
+  // isolate will be nullptr.
+  DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
 
@@ -583,7 +584,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       ok = ok && module()->Validate(this->scope()->AsModuleScope(),
                                     pending_error_handler(), zone());
     } else if (info->is_wrapped_as_function()) {
-      ParseWrapped(info, body, scope, zone(), &ok);
+      ParseWrapped(isolate, info, body, scope, zone(), &ok);
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
@@ -637,23 +638,27 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   return result;
 }
 
-ZoneList<const AstRawString*>* Parser::PrepareWrappedArguments(ParseInfo* info,
+ZoneList<const AstRawString*>* Parser::PrepareWrappedArguments(Isolate* isolate,
+                                                               ParseInfo* info,
                                                                Zone* zone) {
   DCHECK(parsing_on_main_thread_);
-  Handle<FixedArray> arguments(info->script()->wrapped_arguments());
+  DCHECK_NOT_NULL(isolate);
+  Handle<FixedArray> arguments(info->script()->wrapped_arguments(), isolate);
   int arguments_length = arguments->length();
   ZoneList<const AstRawString*>* arguments_for_wrapped_function =
       new (zone) ZoneList<const AstRawString*>(arguments_length, zone);
   for (int i = 0; i < arguments_length; i++) {
     const AstRawString* argument_string = ast_value_factory()->GetString(
-        Handle<String>(String::cast(arguments->get(i))));
+        Handle<String>(String::cast(arguments->get(i)), isolate));
     arguments_for_wrapped_function->Add(argument_string, zone);
   }
   return arguments_for_wrapped_function;
 }
 
-void Parser::ParseWrapped(ParseInfo* info, ZoneList<Statement*>* body,
+void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
+                          ZoneList<Statement*>* body,
                           DeclarationScope* outer_scope, Zone* zone, bool* ok) {
+  DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK(info->is_wrapped_as_function());
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
@@ -665,7 +670,7 @@ void Parser::ParseWrapped(ParseInfo* info, ZoneList<Statement*>* body,
   Scanner::Location location(0, 0);
 
   ZoneList<const AstRawString*>* arguments_for_wrapped_function =
-      PrepareWrappedArguments(info, zone);
+      PrepareWrappedArguments(isolate, info, zone);
 
   FunctionLiteral* function_literal = ParseFunctionLiteral(
       function_name, location, kSkipFunctionNameCheck, kNormalFunction,
@@ -692,14 +697,15 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(factory()->zone(), info->zone());
 
   // Initialize parser state.
-  Handle<String> name(shared_info->Name());
+  Handle<String> name(shared_info->Name(), isolate);
   info->set_function_name(ast_value_factory()->GetString(name));
   scanner_.Initialize(info->character_stream(), info->is_module());
 
-  FunctionLiteral* result = DoParseFunction(info, info->function_name());
+  FunctionLiteral* result =
+      DoParseFunction(isolate, info, info->function_name());
   MaybeResetCharacterStream(info, result);
   if (result != nullptr) {
-    Handle<String> inferred_name(shared_info->inferred_name());
+    Handle<String> inferred_name(shared_info->inferred_name(), isolate);
     result->set_inferred_name(inferred_name);
   }
 
@@ -733,8 +739,9 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
+FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
                                          const AstRawString* raw_name) {
+  DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
@@ -857,8 +864,9 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
                                   info->start_position(), info->end_position());
     } else {
       ZoneList<const AstRawString*>* arguments_for_wrapped_function =
-          info->is_wrapped_as_function() ? PrepareWrappedArguments(info, zone())
-                                         : nullptr;
+          info->is_wrapped_as_function()
+              ? PrepareWrappedArguments(isolate, info, zone())
+              : nullptr;
       result = ParseFunctionLiteral(
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(),
@@ -3448,9 +3456,10 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // scopes) and set their end position after we know the script length.
   if (info->is_toplevel()) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
-    result = DoParseProgram(info);
+    result = DoParseProgram(/* isolate = */ nullptr, info);
   } else {
-    result = DoParseFunction(info, info->function_name());
+    result =
+        DoParseFunction(/* isolate = */ nullptr, info, info->function_name());
   }
   MaybeResetCharacterStream(info, result);
 
