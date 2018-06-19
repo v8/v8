@@ -178,19 +178,22 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
   bool should_optimize_jumps =
       rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
 
-  Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
-      rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-      should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level());
+  Handle<Code> code =
+      Pipeline::GenerateCodeForCodeStub(
+          rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
+          state->kind_, state->name_, state->stub_key_, state->builtin_index_,
+          should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level())
+          .ToHandleChecked();
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
 
     // Regenerate machine code
     code = Pipeline::GenerateCodeForCodeStub(
-        rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-        state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-        &jump_opt, rasm->poisoning_level());
+               rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
+               schedule, state->kind_, state->name_, state->stub_key_,
+               state->builtin_index_, &jump_opt, rasm->poisoning_level())
+               .ToHandleChecked();
   }
 
   state->code_generated_ = true;

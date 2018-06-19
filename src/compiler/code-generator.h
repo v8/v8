@@ -88,9 +88,9 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
-  // FinalizeCode returns a null handle.
+  // FinalizeCode returns an empty MaybeHandle.
   void AssembleCode();  // Does not need to run on main thread.
-  Handle<Code> FinalizeCode();
+  MaybeHandle<Code> FinalizeCode();
 
   Handle<ByteArray> GetSourcePositionTable();
 

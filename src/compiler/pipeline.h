@@ -56,7 +56,7 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.
-  static Handle<Code> GenerateCodeForCodeStub(
+  static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule, Code::Kind kind, const char* debug_name,
       uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
@@ -64,14 +64,14 @@ class Pipeline : public AllStatic {
 
   // Run the entire pipeline and generate a handle to a code object suitable for
   // testing.
-  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
-                                             Isolate* isolate);
+  static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
-                                             Isolate* isolate, Graph* graph,
-                                             Schedule* schedule = nullptr);
+  static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate, Graph* graph,
+      Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
@@ -80,7 +80,7 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  V8_EXPORT_PRIVATE static Handle<Code> GenerateCodeForTesting(
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule = nullptr,

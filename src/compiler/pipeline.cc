@@ -222,8 +222,8 @@ class PipelineData {
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
 
-  Handle<Code> code() { return code_; }
-  void set_code(Handle<Code> code) {
+  MaybeHandle<Code> code() { return code_; }
+  void set_code(MaybeHandle<Code> code) {
     DCHECK(code_.is_null());
     code_ = code;
   }
@@ -404,7 +404,7 @@ class PipelineData {
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
   base::Optional<OsrHelper> osr_helper_;
-  Handle<Code> code_ = Handle<Code>::null();
+  MaybeHandle<Code> code_;
   CodeGenerator* code_generator_ = nullptr;
 
   // All objects in the following group of fields are allocated in graph_zone_.
@@ -485,11 +485,11 @@ class PipelineImpl final {
   void AssembleCode(Linkage* linkage);
 
   // Step D. Run the code finalization pass.
-  Handle<Code> FinalizeCode();
+  MaybeHandle<Code> FinalizeCode();
 
   void VerifyGeneratedCodeIsIdempotent();
   void RunPrintAndVerify(const char* phase, bool untyped = false);
-  Handle<Code> GenerateCode(CallDescriptor* call_descriptor);
+  MaybeHandle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* call_descriptor, bool run_verifier);
 
@@ -910,8 +910,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
-  Handle<Code> code = pipeline_.FinalizeCode();
-  if (code.is_null()) {
+  MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
     if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
       return AbortOptimization(BailoutReason::kCodeGenerationFailed);
     }
@@ -2081,7 +2082,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   return SelectInstructions(linkage);
 }
 
-Handle<Code> Pipeline::GenerateCodeForCodeStub(
+MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
     uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
@@ -2134,8 +2135,8 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
 }
 
 // static
-Handle<Code> Pipeline::GenerateCodeForTesting(OptimizedCompilationInfo* info,
-                                              Isolate* isolate) {
+MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
+    OptimizedCompilationInfo* info, Isolate* isolate) {
   ZoneStats zone_stats(isolate->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(Handle<Script>::null(), info, isolate,
@@ -2146,23 +2147,23 @@ Handle<Code> Pipeline::GenerateCodeForTesting(OptimizedCompilationInfo* info,
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
   Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(isolate);
 
-  if (!pipeline.CreateGraph()) return Handle<Code>::null();
-  if (!pipeline.OptimizeGraph(&linkage)) return Handle<Code>::null();
+  if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
+  if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   pipeline.AssembleCode(&linkage);
   return pipeline.FinalizeCode();
 }
 
 // static
-Handle<Code> Pipeline::GenerateCodeForTesting(OptimizedCompilationInfo* info,
-                                              Isolate* isolate, Graph* graph,
-                                              Schedule* schedule) {
+MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
+    OptimizedCompilationInfo* info, Isolate* isolate, Graph* graph,
+    Schedule* schedule) {
   auto call_descriptor = Linkage::ComputeIncoming(info->zone(), info);
   return GenerateCodeForTesting(info, isolate, call_descriptor, graph,
                                 schedule);
 }
 
 // static
-Handle<Code> Pipeline::GenerateCodeForTesting(
+MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
     CallDescriptor* call_descriptor, Graph* graph, Schedule* schedule,
     SourcePositionTable* source_positions) {
@@ -2437,12 +2438,15 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
   return out;
 }
 
-Handle<Code> PipelineImpl::FinalizeCode() {
+MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   PipelineData* data = this->data_;
   Run<FinalizeCodePhase>();
 
-  Handle<Code> code = data->code();
-  if (code.is_null()) return code;
+  MaybeHandle<Code> maybe_code = data->code();
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    return maybe_code;
+  }
 
   if (data->profiler_data()) {
 #ifdef ENABLE_DISASSEMBLER
@@ -2486,11 +2490,11 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   return code;
 }
 
-Handle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
+MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
   Linkage linkage(call_descriptor);
 
   // Perform instruction selection and register allocation.
-  if (!SelectInstructions(&linkage)) return Handle<Code>();
+  if (!SelectInstructions(&linkage)) return MaybeHandle<Code>();
 
   // Generate the final machine code.
   AssembleCode(&linkage);

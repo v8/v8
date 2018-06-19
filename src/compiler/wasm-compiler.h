@@ -107,21 +107,20 @@ class TurbofanWasmCompilationUnit {
 };
 
 // Wraps a JS function, producing a code object that can be called from wasm.
-Handle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
-                                    wasm::FunctionSig*, uint32_t index,
-                                    wasm::ModuleOrigin, wasm::UseTrapHandler);
+MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
+                                         wasm::FunctionSig*, uint32_t index,
+                                         wasm::ModuleOrigin,
+                                         wasm::UseTrapHandler);
 
 // Wraps a given wasm code object, producing a code object.
-V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(Isolate*,
-                                                      wasm::WasmModule*,
-                                                      Address call_target,
-                                                      uint32_t index,
-                                                      wasm::UseTrapHandler);
+V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
+    Isolate*, wasm::WasmModule*, Address call_target, uint32_t index,
+    wasm::UseTrapHandler);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
-Handle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
-                                         wasm::FunctionSig*);
+MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
+                                              wasm::FunctionSig*);
 
 // Helper function to get the offset into a fixed array for a given {index}.
 // TODO(titzer): access-builder.h is not accessible outside compiler. Move?
@@ -138,7 +137,7 @@ enum CWasmEntryParameters {
 // Compiles a stub with JS linkage, taking parameters as described by
 // {CWasmEntryParameters}. It loads the wasm parameters from the argument
 // buffer and calls the wasm function given as first parameter.
-Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
+MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
 
 // Values from the instance object are cached between WASM-level function calls.
 // This struct allows the SSA environment handling this cache to be defined

@@ -150,8 +150,8 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureFeedbackVector(function);
 
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, isolate);
-  CHECK(!code.is_null());
+  Handle<Code> code =
+      Pipeline::GenerateCodeForTesting(&info, isolate).ToHandleChecked();
   info.dependencies()->Commit(code);
   info.context()->native_context()->AddOptimizedCode(*code);
   function->set_code(*code);
@@ -165,8 +165,8 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, isolate, graph);
-  CHECK(!code.is_null());
+  Handle<Code> code =
+      Pipeline::GenerateCodeForTesting(&info, isolate, graph).ToHandleChecked();
   function->set_code(*code);
   return function;
 }

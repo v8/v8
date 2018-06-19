@@ -128,7 +128,8 @@ class BytecodeGraphTester {
     compilation_info.ReopenHandlesInNewHandleScope();
 
     Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(&compilation_info, isolate_);
+        Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
+            .ToHandleChecked();
     function->set_code(*code);
 
     return function;

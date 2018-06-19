@@ -42,7 +42,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     // Manually compile a wasm to JS wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    Handle<Code> code = compiler::CompileWasmToJSWrapper(
+    MaybeHandle<Code> code = compiler::CompileWasmToJSWrapper(
         isolate_, maybe_import->js_function, maybe_import->sig,
         maybe_import_index, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
@@ -51,7 +51,8 @@ TestingModuleBuilder::TestingModuleBuilder(
       native_module_->SetNumFunctionsForTesting(maybe_import_index + 1);
     }
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
-        code, wasm::WasmCode::kWasmToJsWrapper, maybe_import_index);
+        code.ToHandleChecked(), wasm::WasmCode::kWasmToJsWrapper,
+        maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
@@ -119,9 +120,10 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
   wasm::WasmCode* code = native_module_->code(index);
-  Handle<Code> ret_code = compiler::CompileJSToWasmWrapper(
+  MaybeHandle<Code> maybe_ret_code = compiler::CompileJSToWasmWrapper(
       isolate_, test_module_ptr_, code->instruction_start(), index,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler);
+  Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
       static_cast<int>(index),
@@ -339,7 +341,8 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
 }
 
 Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
-  if (code_.is_null()) {
+  Handle<Code> code;
+  if (!code_.ToHandle(&code)) {
     Isolate* isolate = CcTest::InitIsolateOnce();
 
     auto call_descriptor =
@@ -364,18 +367,18 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
                                   Code::C_WASM_ENTRY);
     code_ = compiler::Pipeline::GenerateCodeForTesting(
         &info, isolate, call_descriptor, graph(), nullptr);
-    CHECK(!code_.is_null());
+    code = code_.ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       OFStream os(tracing_scope.file());
 
-      code_->Disassemble("wasm wrapper", os);
+      code->Disassemble("wasm wrapper", os);
     }
 #endif
   }
 
-  return code_;
+  return code;
 }
 
 void WasmFunctionCompiler::Build(const byte* start, const byte* end) {

@@ -299,7 +299,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
  private:
   Node* inner_code_node_;
   Node* context_address_;
-  Handle<Code> code_;
+  MaybeHandle<Code> code_;
   Signature<MachineType>* signature_;
 };
 

@@ -4711,9 +4711,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 };
 }  // namespace
 
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    Address call_target, uint32_t index,
-                                    wasm::UseTrapHandler use_trap_handler) {
+MaybeHandle<Code> CompileJSToWasmWrapper(
+    Isolate* isolate, wasm::WasmModule* module, Address call_target,
+    uint32_t index, wasm::UseTrapHandler use_trap_handler) {
   const wasm::WasmFunction* func = &module->functions[index];
 
   //----------------------------------------------------------------------------
@@ -4761,10 +4761,14 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
-  Handle<Code> code =
+  MaybeHandle<Code> maybe_code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    return maybe_code;
+  }
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code && !code.is_null()) {
+  if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
     OFStream os(tracing_scope.file());
     code->Disassemble(func_name.start(), os);
@@ -4779,10 +4783,10 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   return code;
 }
 
-Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
-                                    wasm::FunctionSig* sig, uint32_t index,
-                                    wasm::ModuleOrigin origin,
-                                    wasm::UseTrapHandler use_trap_handler) {
+MaybeHandle<Code> CompileWasmToJSWrapper(
+    Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
+    uint32_t index, wasm::ModuleOrigin origin,
+    wasm::UseTrapHandler use_trap_handler) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -4832,10 +4836,14 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
 
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
       &info, isolate, incoming, &graph, nullptr, source_position_table);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    return maybe_code;
+  }
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code && !code.is_null()) {
+  if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
     OFStream os(tracing_scope.file());
     code->Disassemble(func_name.start(), os);
@@ -4850,8 +4858,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   return code;
 }
 
-Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
-                                         wasm::FunctionSig* sig) {
+MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
+                                              uint32_t func_index,
+                                              wasm::FunctionSig* sig) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -4872,49 +4881,49 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   builder.set_effect_ptr(&effect);
   builder.BuildWasmInterpreterEntry(func_index);
 
-  Handle<Code> code = Handle<Code>::null();
-  {
-    // Schedule and compile to machine code.
-    CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
-    if (machine.Is32()) {
-      incoming = GetI32WasmCallDescriptor(&zone, incoming);
-    }
+  // Schedule and compile to machine code.
+  CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
+  if (machine.Is32()) {
+    incoming = GetI32WasmCallDescriptor(&zone, incoming);
+  }
 #ifdef DEBUG
-    EmbeddedVector<char, 32> func_name;
-    func_name.Truncate(
-        SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
+  EmbeddedVector<char, 32> func_name;
+  func_name.Truncate(
+      SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 #else
-    Vector<const char> func_name = CStrVector("wasm-interpreter-entry");
+  Vector<const char> func_name = CStrVector("wasm-interpreter-entry");
 #endif
 
-    OptimizedCompilationInfo info(func_name, &zone,
-                                  Code::WASM_INTERPRETER_ENTRY);
+  OptimizedCompilationInfo info(func_name, &zone, Code::WASM_INTERPRETER_ENTRY);
 
-    if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-      StdoutStream{} << "-- Wasm interpreter entry graph -- " << std::endl
-                     << AsRPO(graph);
-    }
-
-    code = Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph,
-                                            nullptr);
-#ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_opt_code && !code.is_null()) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      code->Disassemble(func_name.start(), os);
-    }
-#endif
-
-    if (must_record_function_compilation(isolate)) {
-      RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
-                                "%.*s", func_name.length(), func_name.start());
-    }
+  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
+    StdoutStream{} << "-- Wasm interpreter entry graph -- " << std::endl
+                   << AsRPO(graph);
   }
 
-  return code;
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
+      &info, isolate, incoming, &graph, nullptr);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    return maybe_code;
+  }
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_opt_code) {
+    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    code->Disassemble(func_name.start(), os);
+  }
+#endif
+
+  if (must_record_function_compilation(isolate)) {
+    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
+                              "%.*s", func_name.length(), func_name.start());
+  }
+
+  return maybe_code;
 }
 
-Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
+MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
@@ -4960,10 +4969,14 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
     StdoutStream{} << "-- C Wasm entry graph -- " << std::endl << AsRPO(graph);
   }
 
-  Handle<Code> code =
+  MaybeHandle<Code> maybe_code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    return maybe_code;
+  }
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code && !code.is_null()) {
+  if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
     OFStream os(tracing_scope.file());
     code->Disassemble(debug_name, os);

@@ -216,8 +216,10 @@ class JSToWasmWrapperCache {
       }
     }
 
-    Handle<Code> code = compiler::CompileJSToWasmWrapper(
-        isolate, module, call_target, index, use_trap_handler);
+    Handle<Code> code =
+        compiler::CompileJSToWasmWrapper(isolate, module, call_target, index,
+                                         use_trap_handler)
+            .ToHandleChecked();
     if (!is_import) {
       uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
       DCHECK_EQ(code_cache_.size(), new_cache_idx);
@@ -2163,9 +2165,11 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         } else {
           // The imported function is a callable.
           Handle<JSReceiver> js_receiver(JSReceiver::cast(*value), isolate_);
-          Handle<Code> wrapper_code = compiler::CompileWasmToJSWrapper(
-              isolate_, js_receiver, expected_sig, func_index, module_->origin,
-              use_trap_handler());
+          Handle<Code> wrapper_code =
+              compiler::CompileWasmToJSWrapper(
+                  isolate_, js_receiver, expected_sig, func_index,
+                  module_->origin, use_trap_handler())
+                  .ToHandleChecked();
           RecordStats(*wrapper_code, counters());
 
           WasmCode* wasm_code = native_module->AddCodeCopy(

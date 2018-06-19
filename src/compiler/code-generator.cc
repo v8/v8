@@ -356,10 +356,10 @@ Handle<ByteArray> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTable(isolate());
 }
 
-Handle<Code> CodeGenerator::FinalizeCode() {
+MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) {
     tasm()->AbortedCodeGeneration();
-    return Handle<Code>();
+    return MaybeHandle<Code>();
   }
 
   // Allocate the source position table.
@@ -381,10 +381,11 @@ Handle<Code> CodeGenerator::FinalizeCode() {
       source_positions, deopt_data, kMovable, info()->stub_key(), true,
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
       handler_table_offset_);
+
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     tasm()->AbortedCodeGeneration();
-    return Handle<Code>();
+    return MaybeHandle<Code>();
   }
   isolate()->counters()->total_compiled_code_size()->Increment(
       code->raw_instruction_size());

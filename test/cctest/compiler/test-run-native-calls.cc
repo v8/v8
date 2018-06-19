@@ -258,8 +258,8 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
   OptimizedCompilationInfo info(ArrayVector("testing"), graph->zone(),
                                 Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, call_descriptor, graph, schedule);
-  CHECK(!code.is_null());
+                          &info, isolate, call_descriptor, graph, schedule)
+                          .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
     StdoutStream os;

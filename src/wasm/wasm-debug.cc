@@ -676,10 +676,10 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     DCHECK_GT(module->functions.size(), func_index);
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
-    Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
+    MaybeHandle<Code> new_code = compiler::CompileWasmInterpreterEntry(
         isolate, func_index, module->functions[func_index].sig);
-    const wasm::WasmCode* wasm_new_code =
-        native_module->AddInterpreterEntry(new_code, func_index);
+    const wasm::WasmCode* wasm_new_code = native_module->AddInterpreterEntry(
+        new_code.ToHandleChecked(), func_index);
     const wasm::WasmCode* old_code =
         native_module->code(static_cast<uint32_t>(func_index));
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
@@ -770,7 +770,8 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index)->IsUndefined(isolate));
-    Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
+    Handle<Code> new_entry_code =
+        compiler::CompileCWasmEntry(isolate, sig).ToHandleChecked();
     Handle<WasmExportedFunctionData> function_data =
         Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
             WASM_EXPORTED_FUNCTION_DATA_TYPE, TENURED));
