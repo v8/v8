@@ -53,7 +53,11 @@ class HeapObjectType {
 #define HEAP_BROKER_DATA_LIST(V) \
   V(Context)                     \
   V(HeapNumber)                  \
-  V(JSFunction)
+  V(HeapObject)                  \
+  V(JSFunction)                  \
+  V(Name)                        \
+  V(NativeContext)               \
+  V(ScriptContextTable)
 
 #define HEAP_BROKER_KIND_LIST(V) \
   HEAP_BROKER_DATA_LIST(V)       \
@@ -97,6 +101,9 @@ class HeapObjectRef : public ObjectRef {
  public:
   explicit HeapObjectRef(Handle<Object> object);
   HeapObjectType type(const JSHeapBroker* broker) const;
+  HeapObjectType::OddballType oddball_type(const JSHeapBroker* broker) const {
+    return type(broker).oddball_type();
+  }
 
  private:
   friend class JSHeapBroker;
@@ -139,7 +146,31 @@ class ContextRef : public HeapObjectRef {
  public:
   explicit ContextRef(Handle<Object> object);
   base::Optional<ContextRef> previous(const JSHeapBroker* broker) const;
-  base::Optional<ObjectRef> get(const JSHeapBroker* broker, int index) const;
+  ObjectRef get(const JSHeapBroker* broker, int index) const;
+};
+
+class NativeContextRef : public ContextRef {
+ public:
+  explicit NativeContextRef(Handle<Object> object);
+  ScriptContextTableRef script_context_table(const JSHeapBroker* broker) const;
+};
+
+class NameRef : public HeapObjectRef {
+ public:
+  explicit NameRef(Handle<Object> object);
+};
+
+class ScriptContextTableRef : public HeapObjectRef {
+ public:
+  explicit ScriptContextTableRef(Handle<Object> object);
+
+  struct LookupResult {
+    ContextRef context;
+    bool immutable;
+    int index;
+  };
+
+  base::Optional<LookupResult> lookup(const NameRef& name) const;
 };
 
 }  // namespace compiler

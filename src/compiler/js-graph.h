@@ -56,6 +56,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   Node* Constant(Handle<Object> value);
 
   // Like above, but doesn't access the heap directly.
+  // TODO(neis): Make the broker a member of JSGraph.
   Node* Constant(const JSHeapBroker* broker, const ObjectRef& value);
 
   // Creates a NumberConstant node, usually canonicalized.

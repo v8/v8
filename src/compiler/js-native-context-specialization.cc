@@ -192,7 +192,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   // Compute property access info for @@hasInstance on {receiver}.
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
-                                        native_context(), graph()->zone());
+                                        native_context().object<Context>(),
+                                        graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad,
           &access_info)) {
@@ -209,7 +210,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       Handle<JSObject> holder;
       if (access_info.holder().ToHandle(&holder)) {
         access_builder.AssumePrototypesStable(
-            native_context(), access_info.receiver_maps(), holder);
+            native_context().object<Context>(), access_info.receiver_maps(),
+            holder);
       }
 
       // Check that {constructor} is actually {receiver}.
@@ -233,8 +235,9 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      access_builder.AssumePrototypesStable(
-          native_context(), access_info.receiver_maps(), holder);
+      access_builder.AssumePrototypesStable(native_context().object<Context>(),
+                                            access_info.receiver_maps(),
+                                            holder);
     } else {
       holder = receiver;
     }
@@ -438,7 +441,8 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
 
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
-  if (!m.Is(handle(native_context()->promise_function(), isolate())))
+  if (!m.Is(handle(native_context().object<Context>()->promise_function(),
+                   isolate())))
     return NoChange();
 
   // Check if we know something about the {value}.
@@ -482,7 +486,8 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Compute property access info for "then" on {resolution}.
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
-                                        native_context(), graph()->zone());
+                                        native_context().object<Context>(),
+                                        graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           MapHandles(resolution_maps.begin(), resolution_maps.end()),
           factory()->then_string(), AccessMode::kLoad, &access_info)) {
@@ -497,7 +502,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Add proper dependencies on the {resolution}s [[Prototype]]s.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
-    access_builder.AssumePrototypesStable(native_context(),
+    access_builder.AssumePrototypesStable(native_context().object<Context>(),
                                           access_info.receiver_maps(), holder);
   }
 
@@ -516,7 +521,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
   // context (if any), so we can constant-fold those fields, which is
   // safe, since the NATIVE_CONTEXT_INDEX slot is always immutable.
   if (access.index() == Context::NATIVE_CONTEXT_INDEX) {
-    Node* value = jsgraph()->HeapConstant(native_context());
+    Node* value = jsgraph()->Constant(js_heap_broker(), native_context());
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -728,46 +733,60 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
-  Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
+  NameRef name(LoadGlobalParametersOf(node->op()).name());
   Node* effect = NodeProperties::GetEffectInput(node);
 
   // Try to lookup the name on the script context table first (lexical scoping).
-  ScriptContextTableLookupResult result;
-  if (LookupInScriptContextTable(name, &result)) {
-    if (result.context->is_the_hole(isolate(), result.index)) return NoChange();
-    Node* context = jsgraph()->HeapConstant(result.context);
+  base::Optional<ScriptContextTableRef::LookupResult> result =
+      native_context().script_context_table(js_heap_broker()).lookup(name);
+  if (result) {
+    ObjectRef contents = result->context.get(js_heap_broker(), result->index);
+    if (contents.IsHeapObject() &&
+        contents.AsHeapObject().oddball_type(js_heap_broker()) ==
+            HeapObjectType::kHole) {
+      return NoChange();
+    }
+    Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
     Node* value = effect = graph()->NewNode(
-        javascript()->LoadContext(0, result.index, result.immutable), context,
+        javascript()->LoadContext(0, result->index, result->immutable), context,
         effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
 
   // Lookup the {name} on the global object instead.
-  return ReduceGlobalAccess(node, nullptr, nullptr, name, AccessMode::kLoad);
+  return ReduceGlobalAccess(node, nullptr, nullptr, name.object<Name>(),
+                            AccessMode::kLoad);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
-  Handle<Name> name = StoreGlobalParametersOf(node->op()).name();
+  NameRef name(StoreGlobalParametersOf(node->op()).name());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Try to lookup the name on the script context table first (lexical scoping).
-  ScriptContextTableLookupResult result;
-  if (LookupInScriptContextTable(name, &result)) {
-    if (result.context->is_the_hole(isolate(), result.index)) return NoChange();
-    if (result.immutable) return NoChange();
-    Node* context = jsgraph()->HeapConstant(result.context);
-    effect = graph()->NewNode(javascript()->StoreContext(0, result.index),
+  base::Optional<ScriptContextTableRef::LookupResult> result =
+      native_context().script_context_table(js_heap_broker()).lookup(name);
+  if (result) {
+    ObjectRef contents = result->context.get(js_heap_broker(), result->index);
+    if (contents.IsHeapObject() &&
+        contents.AsHeapObject().oddball_type(js_heap_broker()) ==
+            HeapObjectType::kHole) {
+      return NoChange();
+    }
+    if (result->immutable) return NoChange();
+    Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
+    effect = graph()->NewNode(javascript()->StoreContext(0, result->index),
                               value, context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
   // Lookup the {name} on the global object instead.
-  return ReduceGlobalAccess(node, nullptr, value, name, AccessMode::kStore);
+  return ReduceGlobalAccess(node, nullptr, value, name.object<Name>(),
+                            AccessMode::kStore);
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
@@ -794,7 +813,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Detached global proxies have |null| as their constructor.
       if (maybe_constructor->IsJSFunction() &&
           JSFunction::cast(maybe_constructor)->native_context() ==
-              *native_context()) {
+              *native_context().object<Context>()) {
         return ReduceGlobalAccess(node, receiver, value, name, access_mode,
                                   index);
       }
@@ -803,7 +822,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Compute property access infos for the receiver maps.
   AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
-                                        native_context(), graph()->zone());
+                                        native_context().object<Context>(),
+                                        graph()->zone());
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   if (!access_info_factory.ComputePropertyAccessInfos(
           receiver_maps, name, access_mode, &access_infos)) {
@@ -1167,7 +1187,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // Retrieve the native context from the given {node}.
     // Compute element access infos for the receiver maps.
     AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
-                                          native_context(), graph()->zone());
+                                          native_context().object<Context>(),
+                                          graph()->zone());
     ZoneVector<ElementAccessInfo> access_infos(zone());
     if (!access_info_factory.ComputeElementAccessInfos(
             receiver_maps, access_mode, &access_infos)) {
@@ -1759,7 +1780,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(call_api_callback.code());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* context = jsgraph()->Constant(native_context());
+  Node* context = jsgraph()->Constant(js_heap_broker(), native_context());
   Node* inputs[10] = {code,    context, data, holder, function_reference,
                       receiver};
   int index = 6 + argc;
@@ -1785,7 +1806,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   Handle<JSObject> holder;
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
-    access_builder.AssumePrototypesStable(native_context(),
+    access_builder.AssumePrototypesStable(native_context().object<Context>(),
                                           access_info.receiver_maps(), holder);
   }
 
@@ -1842,7 +1863,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
-    access_builder.AssumePrototypesStable(native_context(),
+    access_builder.AssumePrototypesStable(native_context().object<Context>(),
                                           access_info.receiver_maps(), holder);
   }
 
@@ -2066,7 +2087,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
-                                        native_context(), graph()->zone());
+                                        native_context().object<Context>(),
+                                        graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           receiver_map, cached_name, AccessMode::kStoreInLiteral,
           &access_info)) {
@@ -2881,24 +2903,6 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
     }
   }
   return MaybeHandle<Map>();
-}
-
-bool JSNativeContextSpecialization::LookupInScriptContextTable(
-    Handle<Name> name, ScriptContextTableLookupResult* result) {
-  if (!name->IsString()) return false;
-  Handle<ScriptContextTable> script_context_table(
-      global_object()->native_context()->script_context_table(), isolate());
-  ScriptContextTable::LookupResult lookup_result;
-  if (!ScriptContextTable::Lookup(script_context_table,
-                                  Handle<String>::cast(name), &lookup_result)) {
-    return false;
-  }
-  Handle<Context> script_context = ScriptContextTable::GetContext(
-      script_context_table, lookup_result.context_index);
-  result->context = script_context;
-  result->immutable = lookup_result.mode == VariableMode::kConst;
-  result->index = lookup_result.slot_index;
-  return true;
 }
 
 Graph* JSNativeContextSpecialization::graph() const {

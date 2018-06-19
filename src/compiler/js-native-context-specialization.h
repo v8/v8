@@ -226,7 +226,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
-  Handle<Context> native_context() const { return native_context_; }
+  const NativeContextRef& native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
 
@@ -235,7 +235,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;
-  Handle<Context> native_context_;
+  NativeContextRef native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   TypeCache const& type_cache_;

@@ -29,6 +29,11 @@ ContextRef::ContextRef(Handle<Object> object) : HeapObjectRef(object) {
   SLOW_DCHECK(object->IsContext());
 }
 
+NativeContextRef::NativeContextRef(Handle<Object> object) : ContextRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsNativeContext());
+}
+
 bool ObjectRef::IsSmi() const {
   AllowHandleDereference allow_handle_dereference;
   return object_->IsSmi();
@@ -49,8 +54,7 @@ base::Optional<ContextRef> ContextRef::previous(
   return ContextRef(handle(previous, broker->isolate()));
 }
 
-base::Optional<ObjectRef> ContextRef::get(const JSHeapBroker* broker,
-                                          int index) const {
+ObjectRef ContextRef::get(const JSHeapBroker* broker, int index) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   Handle<Object> value(object<Context>()->get(index), broker->isolate());
@@ -129,6 +133,42 @@ bool JSFunctionRef::HasBuiltinFunctionId() const {
 BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
   return object<JSFunction>()->shared()->builtin_function_id();
+}
+
+NameRef::NameRef(Handle<Object> object) : HeapObjectRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsName());
+}
+
+ScriptContextTableRef::ScriptContextTableRef(Handle<Object> object)
+    : HeapObjectRef(object) {
+  AllowHandleDereference handle_dereference;
+  SLOW_DCHECK(object->IsScriptContextTable());
+}
+
+base::Optional<ScriptContextTableRef::LookupResult>
+ScriptContextTableRef::lookup(const NameRef& name) const {
+  AllowHandleDereference handle_dereference;
+  if (!name.IsString()) return {};
+  ScriptContextTable::LookupResult lookup_result;
+  auto table = object<ScriptContextTable>();
+  if (!ScriptContextTable::Lookup(table, name.object<String>(),
+                                  &lookup_result)) {
+    return {};
+  }
+  Handle<Context> script_context =
+      ScriptContextTable::GetContext(table, lookup_result.context_index);
+  LookupResult result{ContextRef(script_context),
+                      lookup_result.mode == VariableMode::kConst,
+                      lookup_result.slot_index};
+  return result;
+}
+
+ScriptContextTableRef NativeContextRef::script_context_table(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference handle_dereference;
+  return ScriptContextTableRef(
+      handle(object<Context>()->script_context_table(), broker->isolate()));
 }
 
 }  // namespace compiler
