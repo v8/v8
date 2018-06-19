@@ -43,6 +43,14 @@ class JumpTableAssembler : public TurboAssembler {
   static constexpr int kJumpTableSlotSize = 5 * kInstrSize;
 #elif V8_TARGET_ARCH_ARM64
   static constexpr int kJumpTableSlotSize = 3 * kInstructionSize;
+#elif V8_TARGET_ARCH_S390X
+  static constexpr int kJumpTableSlotSize = 20;
+#elif V8_TARGET_ARCH_S390
+  static constexpr int kJumpTableSlotSize = 14;
+#elif V8_TARGET_ARCH_PPC64
+  static constexpr int kJumpTableSlotSize = 48;
+#elif V8_TARGET_ARCH_PPC
+  static constexpr int kJumpTableSlotSize = 24;
 #else
   static constexpr int kJumpTableSlotSize = 1;
 #endif
