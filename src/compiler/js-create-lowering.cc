@@ -564,8 +564,9 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   // Constructing an Array via new Array(N) where N is an unsigned
   // integer, always creates a holey backing store.
   if (!IsHoleyElementsKind(initial_map->elements_kind())) {
-    initial_map = Map::AsElementsKind(
-        initial_map, GetHoleyElementsKind(initial_map->elements_kind()));
+    initial_map =
+        Map::AsElementsKind(isolate(), initial_map,
+                            GetHoleyElementsKind(initial_map->elements_kind()));
   }
 
   // Check that the {limit} is an unsigned integer in the valid range.
@@ -616,7 +617,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   ElementsKind elements_kind = initial_map->elements_kind();
   if (NodeProperties::GetType(length).Max() > 0.0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
-    initial_map = Map::AsElementsKind(initial_map, elements_kind);
+    initial_map = Map::AsElementsKind(isolate(), initial_map, elements_kind);
   }
   DCHECK(IsFastElementsKind(elements_kind));
 
@@ -805,7 +806,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       if (!site.is_null()) {
         ElementsKind elements_kind = site->GetElementsKind();
         if (initial_map->elements_kind() != elements_kind) {
-          initial_map = Map::AsElementsKind(initial_map, elements_kind);
+          initial_map =
+              Map::AsElementsKind(isolate(), initial_map, elements_kind);
         }
         can_inline_call = site->CanInlineCall();
         pretenure = site->GetPretenureMode();
@@ -831,7 +833,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
               elements_kind, IsHoleyElementsKind(elements_kind)
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
-          initial_map = Map::AsElementsKind(initial_map, elements_kind);
+          initial_map =
+              Map::AsElementsKind(isolate(), initial_map, elements_kind);
           return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
                                 pretenure);
         }
@@ -887,7 +890,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
           // we cannot inline this invocation of the Array constructor here.
           return NoChange();
         }
-        initial_map = Map::AsElementsKind(initial_map, elements_kind);
+        initial_map =
+            Map::AsElementsKind(isolate(), initial_map, elements_kind);
 
         return ReduceNewArray(node, values, initial_map, pretenure);
       }

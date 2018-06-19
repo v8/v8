@@ -124,7 +124,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
 void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> old_map(object->map());
   // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(old_map, "DisableAccessChecks");
+  Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
   new_map->set_is_access_check_needed(false);
   JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
 }
@@ -133,7 +133,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
 void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> old_map(object->map());
   // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(old_map, "EnableAccessChecks");
+  Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
   new_map->set_may_have_interesting_symbols(true);
   JSObject::MigrateToMap(object, new_map);
@@ -443,7 +443,7 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
   // TODO(cbruni): decide what to do here.
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, instance_prototype,
-      JSObject::GetProperty(parent_instance,
+      JSObject::GetProperty(isolate, parent_instance,
                             isolate->factory()->prototype_string()),
       JSFunction);
   return scope.CloseAndEscape(instance_prototype);
@@ -654,7 +654,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (prototype->IsTheHole(isolate)) {
     prototype = isolate->factory()->NewFunctionPrototype(result);
   } else if (obj->prototype_provider_template()->IsUndefined(isolate)) {
-    JSObject::AddProperty(Handle<JSObject>::cast(prototype),
+    JSObject::AddProperty(isolate, Handle<JSObject>::cast(prototype),
                           isolate->factory()->constructor_string(), result,
                           DONT_ENUM);
   }

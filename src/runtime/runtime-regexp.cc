@@ -1115,7 +1115,7 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
     DCHECK(capture_value->IsUndefined(isolate) || capture_value->IsString());
 
-    JSObject::AddProperty(groups, capture_name, capture_value, NONE);
+    JSObject::AddProperty(isolate, groups, capture_name, capture_value, NONE);
   }
 
   return groups;
@@ -1584,7 +1584,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
   Handle<Object> flags_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, flags_obj, JSObject::GetProperty(recv, factory->flags_string()));
+      isolate, flags_obj,
+      JSObject::GetProperty(isolate, recv, factory->flags_string()));
 
   Handle<String> flags;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags,
@@ -1750,7 +1751,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   Handle<Object> global_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, global_obj,
-      JSReceiver::GetProperty(recv, factory->global_string()));
+      JSReceiver::GetProperty(isolate, recv, factory->global_string()));
   const bool global = global_obj->BooleanValue(isolate);
 
   bool unicode = false;
@@ -1758,7 +1759,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     Handle<Object> unicode_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, unicode_obj,
-        JSReceiver::GetProperty(recv, factory->unicode_string()));
+        JSReceiver::GetProperty(isolate, recv, factory->unicode_string()));
     unicode = unicode_obj->BooleanValue(isolate);
 
     RETURN_FAILURE_ON_EXCEPTION(isolate,

@@ -829,8 +829,8 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
                                       Handle<Name> name) {
   Handle<Object> func;
   Isolate* isolate = receiver->GetIsolate();
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
-                             JSReceiver::GetProperty(receiver, name), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, func, JSReceiver::GetProperty(isolate, receiver, name), Object);
   if (func->IsNullOrUndefined(isolate)) {
     return isolate->factory()->undefined_value();
   }
@@ -2132,8 +2132,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         }
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value, JSReceiver::GetProperty(from, next_key),
-            Nothing<bool>());
+            isolate, prop_value,
+            JSReceiver::GetProperty(isolate, from, next_key), Nothing<bool>());
         stable = from->map() == *map;
       }
     } else {
@@ -2354,7 +2354,8 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
     if (constructor->IsJSReceiver()) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, constructor,
-          JSReceiver::GetProperty(Handle<JSReceiver>::cast(constructor),
+          JSReceiver::GetProperty(isolate,
+                                  Handle<JSReceiver>::cast(constructor),
                                   isolate->factory()->species_symbol()),
           Object);
       if (constructor->IsNull(isolate)) {
@@ -2381,7 +2382,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
   Handle<Object> ctor_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ctor_obj,
-      JSObject::GetProperty(recv, isolate->factory()->constructor_string()),
+      JSObject::GetProperty(isolate, recv,
+                            isolate->factory()->constructor_string()),
       Object);
 
   if (ctor_obj->IsUndefined(isolate)) return default_ctor;
@@ -2397,7 +2399,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
   Handle<Object> species;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, species,
-      JSObject::GetProperty(ctor, isolate->factory()->species_symbol()),
+      JSObject::GetProperty(isolate, ctor,
+                            isolate->factory()->species_symbol()),
       Object);
 
   if (species->IsNullOrUndefined(isolate)) {
@@ -3769,8 +3772,8 @@ FieldType* Map::UnwrapFieldType(MaybeObject* wrapped_type) {
   return FieldType::cast(wrapped_type->ToObject());
 }
 
-MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
-                                    Handle<FieldType> type,
+MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
+                                    Handle<Name> name, Handle<FieldType> type,
                                     PropertyAttributes attributes,
                                     PropertyConstness constness,
                                     Representation representation,
@@ -3783,8 +3786,6 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
   if (map->NumberOfOwnDescriptors() >= kMaxNumberOfDescriptors) {
     return MaybeHandle<Map>();
   }
-
-  Isolate* isolate = map->GetIsolate();
 
   // Compute the new index for new field.
   int index = map->NextFreePropertyIndex();
@@ -3804,13 +3805,12 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
                  constness == PropertyConstness::kMutable);
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
-  Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
+  Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
   new_map->AccountAddedPropertyField();
   return new_map;
 }
 
-
-MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
+MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
                                        Handle<Name> name,
                                        Handle<Object> constant,
                                        PropertyAttributes attributes,
@@ -3821,15 +3821,14 @@ MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
   }
 
   if (FLAG_track_constant_fields) {
-    Isolate* isolate = map->GetIsolate();
     Representation representation = constant->OptimalRepresentation();
     Handle<FieldType> type = constant->OptimalType(isolate, representation);
-    return CopyWithField(map, name, type, attributes, PropertyConstness::kConst,
-                         representation, flag);
+    return CopyWithField(isolate, map, name, type, attributes,
+                         PropertyConstness::kConst, representation, flag);
   } else {
     // Allocate new instance descriptors with (name, constant) added.
     Descriptor d = Descriptor::DataConstant(name, 0, constant, attributes);
-    Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
+    Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
     return new_map;
   }
 }
@@ -4362,7 +4361,8 @@ void JSObject::ForceSetPrototype(Handle<JSObject> object,
                                  Handle<Object> proto) {
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map());
-  Handle<Map> new_map = Map::Copy(old_map, "ForceSetPrototype");
+  Handle<Map> new_map =
+      Map::Copy(object->GetIsolate(), old_map, "ForceSetPrototype");
   Map::SetPrototype(new_map, proto);
   JSObject::MigrateToMap(object, new_map);
 }
@@ -4394,16 +4394,15 @@ void DescriptorArray::GeneralizeAllFields() {
   }
 }
 
-Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
+Handle<Map> Map::CopyGeneralizeAllFields(Isolate* isolate, Handle<Map> map,
                                          ElementsKind elements_kind,
                                          int modify_index, PropertyKind kind,
                                          PropertyAttributes attributes,
                                          const char* reason) {
-  Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> descriptors =
-      DescriptorArray::CopyUpTo(old_descriptors, number_of_own_descriptors);
+  Handle<DescriptorArray> descriptors = DescriptorArray::CopyUpTo(
+      isolate, old_descriptors, number_of_own_descriptors);
   descriptors->GeneralizeAllFields();
 
   Handle<LayoutDescriptor> new_layout_descriptor(
@@ -5217,8 +5216,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   return Just(true);
 }
 
-
-void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
+void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // Only supports adding slack to owned descriptors.
   DCHECK(map->owns_descriptors());
 
@@ -5226,8 +5224,8 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   int old_size = map->NumberOfOwnDescriptors();
   if (slack <= descriptors->NumberOfSlackDescriptors()) return;
 
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
-      descriptors, old_size, slack);
+  Handle<DescriptorArray> new_descriptors =
+      DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
 
   DisallowHeapAllocation no_allocation;
   // The descriptors are still the same, so keep the layout descriptor.
@@ -5245,7 +5243,6 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   // will be lazily replaced by the extended cache when needed.
   new_descriptors->CopyEnumCacheFrom(*descriptors);
 
-  Isolate* isolate = map->GetIsolate();
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
@@ -5288,7 +5285,7 @@ Handle<Map> Map::GetObjectCreateMap(Handle<HeapObject> prototype) {
     return map;
   }
 
-  return Map::TransitionToPrototype(map, prototype);
+  return Map::TransitionToPrototype(isolate, map, prototype);
 }
 
 // static
@@ -5456,8 +5453,8 @@ Handle<WeakCell> Map::WeakCellForMap(Handle<Map> map) {
   return weak_cell;
 }
 
-
-static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
+static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
+                                                 Handle<Map> map,
                                                  ElementsKind to_kind) {
   DCHECK(IsTransitionElementsKind(map->elements_kind()));
 
@@ -5472,7 +5469,7 @@ static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
     if (IsFastElementsKind(kind)) {
       while (kind != to_kind && !IsTerminalElementsKind(kind)) {
         kind = GetNextTransitionElementsKind(kind);
-        current_map = Map::CopyAsElementsKind(current_map, kind, flag);
+        current_map = Map::CopyAsElementsKind(isolate, current_map, kind, flag);
       }
     }
   }
@@ -5480,7 +5477,7 @@ static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
   // In case we are exiting the fast elements kind system, just add the map in
   // the end.
   if (kind != to_kind) {
-    current_map = Map::CopyAsElementsKind(current_map, to_kind, flag);
+    current_map = Map::CopyAsElementsKind(isolate, current_map, to_kind, flag);
   }
 
   DCHECK(current_map->elements_kind() == to_kind);
@@ -5535,7 +5532,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
   }
 
   if (!allow_store_transition) {
-    return Map::CopyAsElementsKind(map, to_kind, OMIT_TRANSITION);
+    return Map::CopyAsElementsKind(isolate, map, to_kind, OMIT_TRANSITION);
   }
 
   return Map::ReconfigureElementsKind(map, to_kind);
@@ -5543,14 +5540,15 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
 
 
 // static
-Handle<Map> Map::AsElementsKind(Handle<Map> map, ElementsKind kind) {
+Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
+                                ElementsKind kind) {
   Handle<Map> closest_map(FindClosestElementsTransition(*map, kind));
 
   if (closest_map->elements_kind() == kind) {
     return closest_map;
   }
 
-  return AddMissingElementsTransitions(closest_map, kind);
+  return AddMissingElementsTransitions(isolate, closest_map, kind);
 }
 
 
@@ -6042,11 +6040,11 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
   return true;
 }
 
-
-void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
-                           Handle<Object> value,
+void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
+                           Handle<Name> name, Handle<Object> value,
                            PropertyAttributes attributes) {
-  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(isolate, object, name, object,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
 #ifdef DEBUG
   uint32_t index;
@@ -6587,9 +6585,9 @@ void JSReceiver::SetIdentityHash(int hash) {
 void JSReceiver::SetProperties(HeapObject* properties) {
   DCHECK_IMPLIES(properties->IsPropertyArray() &&
                      PropertyArray::cast(properties)->length() == 0,
-                 properties == properties->GetHeap()->empty_property_array());
+                 properties == GetHeap()->empty_property_array());
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = properties->GetIsolate();
+  Isolate* isolate = GetIsolate();
   int hash = GetIdentityHashHelper(isolate, this);
   Object* new_properties = properties;
 
@@ -8356,7 +8354,7 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
   // be extensible.
   // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
   Handle<Map> new_map =
-      Map::Copy(handle(object->map(), isolate), "PreventExtensions");
+      Map::Copy(isolate, handle(object->map(), isolate), "PreventExtensions");
 
   new_map->set_is_extensible(false);
   JSObject::MigrateToMap(object, new_map);
@@ -8538,7 +8536,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   } else if (transitions.CanHaveMoreTransitions()) {
     // Create a new descriptor array with the appropriate property attributes
     Handle<Map> new_map = Map::CopyForPreventExtensions(
-        old_map, attrs, transition_marker, "CopyForPreventExtensions");
+        isolate, old_map, attrs, transition_marker, "CopyForPreventExtensions");
     JSObject::MigrateToMap(object, new_map);
   } else {
     DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
@@ -8548,7 +8546,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
     // Create a new map, since other objects with this map may be extensible.
     // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-    Handle<Map> new_map = Map::Copy(handle(object->map(), isolate),
+    Handle<Map> new_map = Map::Copy(isolate, handle(object->map(), isolate),
                                     "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
     if (!new_element_dictionary.is_null()) {
@@ -8661,7 +8659,8 @@ MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
   for (Handle<String> name : method_names) {
     Handle<Object> method;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, method,
-                               JSReceiver::GetProperty(receiver, name), Object);
+                               JSReceiver::GetProperty(isolate, receiver, name),
+                               Object);
     if (method->IsCallable()) {
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -8825,7 +8824,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
         }
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value, JSReceiver::GetProperty(object, next_key),
+            isolate, prop_value,
+            JSReceiver::GetProperty(isolate, object, next_key),
             Nothing<bool>());
         stable = object->map() == *map;
       }
@@ -9223,8 +9223,8 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
 // memory on the map transition tree.
 
 // static
-Handle<Map> Map::TransitionToImmutableProto(Handle<Map> map) {
-  Handle<Map> new_map = Map::Copy(map, "ImmutablePrototype");
+Handle<Map> Map::TransitionToImmutableProto(Isolate* isolate, Handle<Map> map) {
+  Handle<Map> new_map = Map::Copy(isolate, map, "ImmutablePrototype");
   new_map->set_is_immutable_proto(true);
   return new_map;
 }
@@ -9303,8 +9303,7 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
   return result;
 }
 
-
-Handle<Map> Map::ShareDescriptor(Handle<Map> map,
+Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
                                  Handle<DescriptorArray> descriptors,
                                  Descriptor* descriptor) {
   // Sanity check. This path is only to be taken if the map owns its descriptor
@@ -9325,10 +9324,10 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   if (descriptors->NumberOfSlackDescriptors() == 0) {
     int old_size = descriptors->number_of_descriptors();
     if (old_size == 0) {
-      descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
+      descriptors = DescriptorArray::Allocate(isolate, 0, 1);
     } else {
       int slack = SlackForArraySize(old_size, kMaxNumberOfDescriptors);
-      EnsureDescriptorSlack(map, slack);
+      EnsureDescriptorSlack(isolate, map, slack);
       descriptors = handle(map->instance_descriptors());
     }
   }
@@ -9336,7 +9335,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   Handle<LayoutDescriptor> layout_descriptor =
       FLAG_unbox_double_fields
           ? LayoutDescriptor::ShareAppend(map, descriptor->GetDetails())
-          : handle(LayoutDescriptor::FastPointerLayout(), map->GetIsolate());
+          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
 
   {
     DisallowHeapAllocation no_gc;
@@ -9517,9 +9516,8 @@ void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
   ConnectTransition(parent, child, name, SIMPLE_PROPERTY_TRANSITION);
 }
 
-
-Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
-                                    TransitionFlag flag) {
+Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
+                                    ElementsKind kind, TransitionFlag flag) {
   // Only certain objects are allowed to have non-terminal fast transitional
   // elements kinds.
   DCHECK(map->IsJSObjectMap());
@@ -9543,14 +9541,13 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
     DCHECK(kind != map->elements_kind());
   }
 
-  Isolate* isolate = map->GetIsolate();
   bool insert_transition =
       flag == INSERT_TRANSITION &&
       TransitionsAccessor(isolate, map).CanHaveMoreTransitions() &&
       maybe_elements_transition_map == nullptr;
 
   if (insert_transition) {
-    Handle<Map> new_map = CopyForTransition(map, "CopyAsElementsKind");
+    Handle<Map> new_map = CopyForTransition(isolate, map, "CopyAsElementsKind");
     new_map->set_elements_kind(kind);
 
     Handle<Name> name = isolate->factory()->elements_transition_symbol();
@@ -9559,7 +9556,7 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   }
 
   // Create a new free-floating map only if we are not allowed to store it.
-  Handle<Map> new_map = Copy(map, "CopyAsElementsKind");
+  Handle<Map> new_map = Copy(isolate, map, "CopyAsElementsKind");
   new_map->set_elements_kind(kind);
   return new_map;
 }
@@ -9604,8 +9601,8 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   return map;
 }
 
-
-Handle<Map> Map::CopyForTransition(Handle<Map> map, const char* reason) {
+Handle<Map> Map::CopyForTransition(Isolate* isolate, Handle<Map> map,
+                                   const char* reason) {
   DCHECK(!map->is_prototype_map());
   Handle<Map> new_map = CopyDropDescriptors(map);
 
@@ -9620,28 +9617,26 @@ Handle<Map> Map::CopyForTransition(Handle<Map> map, const char* reason) {
     // copying the map; creating a new descriptor array cell.
     Handle<DescriptorArray> descriptors(map->instance_descriptors());
     int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-    Handle<DescriptorArray> new_descriptors =
-        DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
+    Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+        isolate, descriptors, number_of_own_descriptors);
     Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                   map->GetIsolate());
+                                                   isolate);
     new_map->InitializeDescriptors(*new_descriptors, *new_layout_descriptor);
   }
 
   if (FLAG_trace_maps) {
-    LOG(map->GetIsolate(),
-        MapEvent("CopyForTransition", *map, *new_map, reason));
+    LOG(isolate, MapEvent("CopyForTransition", *map, *new_map, reason));
   }
   return new_map;
 }
 
-
-Handle<Map> Map::Copy(Handle<Map> map, const char* reason) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> new_descriptors =
-      DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      isolate, descriptors, number_of_own_descriptors);
   Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                 map->GetIsolate());
+                                                 isolate);
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
                                 OMIT_TRANSITION, MaybeHandle<Name>(), reason,
                                 SPECIAL_TRANSITION);
@@ -9649,8 +9644,9 @@ Handle<Map> Map::Copy(Handle<Map> map, const char* reason) {
 
 
 Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
-  Handle<Map> copy = Copy(
-      handle(isolate->object_function()->initial_map(), isolate), "MapCreate");
+  Handle<Map> copy =
+      Copy(isolate, handle(isolate->object_function()->initial_map(), isolate),
+           "MapCreate");
 
   // Check that we do not overflow the instance size when adding the extra
   // inobject properties. If the instance size overflows, we allocate as many
@@ -9671,15 +9667,13 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
   return copy;
 }
 
-
-Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
+Handle<Map> Map::CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
                                           PropertyAttributes attrs_to_add,
                                           Handle<Symbol> transition_marker,
                                           const char* reason) {
   int num_descriptors = map->NumberOfOwnDescriptors();
-  Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
-      handle(map->instance_descriptors(), isolate), num_descriptors,
+      isolate, handle(map->instance_descriptors(), isolate), num_descriptors,
       attrs_to_add);
   Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                  isolate);
@@ -9758,7 +9752,8 @@ Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
   return UpdateDescriptorForValue(Update(map), descriptor, constness, value);
 }
 
-Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
+Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
+                                          Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
@@ -9774,7 +9769,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   // Migrate to the newest map before storing the property.
   map = Update(map);
 
-  Isolate* isolate = map->GetIsolate();
   Map* maybe_transition = TransitionsAccessor(isolate, map)
                               .SearchTransition(*name, kData, attributes);
   if (maybe_transition != nullptr) {
@@ -9792,12 +9786,13 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   MaybeHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_mode)) {
     if (!FLAG_track_constant_fields && value->IsJSFunction()) {
-      maybe_map = Map::CopyWithConstant(map, name, value, attributes, flag);
+      maybe_map =
+          Map::CopyWithConstant(isolate, map, name, value, attributes, flag);
     } else {
       Representation representation = value->OptimalRepresentation();
       Handle<FieldType> type = value->OptimalType(isolate, representation);
-      maybe_map = Map::CopyWithField(map, name, type, attributes, constness,
-                                     representation, flag);
+      maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,
+                                     constness, representation, flag);
     }
   }
 
@@ -9843,9 +9838,8 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   return result;
 }
 
-
-Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
-                                             PropertyKind kind,
+Handle<Map> Map::ReconfigureExistingProperty(Isolate* isolate, Handle<Map> map,
+                                             int descriptor, PropertyKind kind,
                                              PropertyAttributes attributes) {
   // Dictionaries have to be reconfigured in-place.
   DCHECK(!map->is_dictionary_map());
@@ -9853,16 +9847,14 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   if (!map->GetBackPointer()->IsMap()) {
     // There is no benefit from reconstructing transition tree for maps without
     // back pointers.
-    return CopyGeneralizeAllFields(map, map->elements_kind(), descriptor, kind,
-                                   attributes,
+    return CopyGeneralizeAllFields(isolate, map, map->elements_kind(),
+                                   descriptor, kind, attributes,
                                    "GenAll_AttributesMismatchProtoMap");
   }
 
   if (FLAG_trace_generalization) {
     map->PrintReconfiguration(stdout, descriptor, kind, attributes);
   }
-
-  Isolate* isolate = map->GetIsolate();
 
   MapUpdater mu(isolate, map);
   DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
@@ -9972,26 +9964,24 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
 
   TransitionFlag flag = INSERT_TRANSITION;
   Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
-  return Map::CopyInsertDescriptor(map, &d, flag);
+  return Map::CopyInsertDescriptor(isolate, map, &d, flag);
 }
 
-
-Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
+Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
                                    Descriptor* descriptor,
                                    TransitionFlag flag) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
 
-  Isolate* isolate = map->GetIsolate();
   // Share descriptors only if map owns descriptors and it not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
       !map->GetBackPointer()->IsUndefined(isolate) &&
       TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
-    return ShareDescriptor(map, descriptors, descriptor);
+    return ShareDescriptor(isolate, map, descriptors, descriptor);
   }
 
   int nof = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors =
-      DescriptorArray::CopyUpTo(descriptors, nof, 1);
+      DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
   new_descriptors->Append(descriptor);
 
   Handle<LayoutDescriptor> new_layout_descriptor =
@@ -10004,44 +9994,40 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
                                 SIMPLE_PROPERTY_TRANSITION);
 }
 
-
-Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
+Handle<Map> Map::CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
                                       Descriptor* descriptor,
                                       TransitionFlag flag) {
   Handle<DescriptorArray> old_descriptors(map->instance_descriptors());
 
   // We replace the key if it is already present.
-  int index = old_descriptors->SearchWithCache(map->GetIsolate(),
-                                               *descriptor->GetKey(), *map);
+  int index =
+      old_descriptors->SearchWithCache(isolate, *descriptor->GetKey(), *map);
   if (index != DescriptorArray::kNotFound) {
-    return CopyReplaceDescriptor(map, old_descriptors, descriptor, index, flag);
+    return CopyReplaceDescriptor(isolate, map, old_descriptors, descriptor,
+                                 index, flag);
   }
-  return CopyAddDescriptor(map, descriptor, flag);
+  return CopyAddDescriptor(isolate, map, descriptor, flag);
 }
 
-
-Handle<DescriptorArray> DescriptorArray::CopyUpTo(
-    Handle<DescriptorArray> desc,
-    int enumeration_index,
-    int slack) {
-  return DescriptorArray::CopyUpToAddAttributes(
-      desc, enumeration_index, NONE, slack);
+Handle<DescriptorArray> DescriptorArray::CopyUpTo(Isolate* isolate,
+                                                  Handle<DescriptorArray> desc,
+                                                  int enumeration_index,
+                                                  int slack) {
+  return DescriptorArray::CopyUpToAddAttributes(isolate, desc,
+                                                enumeration_index, NONE, slack);
 }
-
 
 Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
-    Handle<DescriptorArray> desc,
-    int enumeration_index,
-    PropertyAttributes attributes,
-    int slack) {
+    Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
+    PropertyAttributes attributes, int slack) {
   if (enumeration_index + slack == 0) {
-    return desc->GetIsolate()->factory()->empty_descriptor_array();
+    return isolate->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
 
   Handle<DescriptorArray> descriptors =
-      DescriptorArray::Allocate(desc->GetIsolate(), size, slack);
+      DescriptorArray::Allocate(isolate, size, slack);
 
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
@@ -10091,8 +10077,7 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray* desc, int nof_descriptors) {
   return true;
 }
 
-
-Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
+Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                        Handle<DescriptorArray> descriptors,
                                        Descriptor* descriptor,
                                        int insertion_index,
@@ -10105,7 +10090,7 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
   DCHECK_NE(kField, descriptors->GetDetails(insertion_index).location());
 
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
-      descriptors, map->NumberOfOwnDescriptors());
+      isolate, descriptors, map->NumberOfOwnDescriptors());
 
   new_descriptors->Replace(insertion_index, descriptor);
   Handle<LayoutDescriptor> new_layout_descriptor = LayoutDescriptor::New(
@@ -12460,7 +12445,8 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
-    Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
+    Handle<Map> new_map = Map::Copy(object->GetIsolate(), handle(object->map()),
+                                    "CopyAsPrototype");
     JSObject::MigrateToMap(object, new_map);
     object->map()->set_is_prototype_map(true);
 
@@ -12778,8 +12764,9 @@ Handle<Object> CacheInitialJSArrayMaps(
       new_map = handle(maybe_elements_transition,
                        maybe_elements_transition->GetIsolate());
     } else {
-      new_map = Map::CopyAsElementsKind(
-          current_map, next_kind, INSERT_TRANSITION);
+      new_map =
+          Map::CopyAsElementsKind(native_context->GetIsolate(), current_map,
+                                  next_kind, INSERT_TRANSITION);
     }
     DCHECK_EQ(next_kind, new_map->elements_kind());
     native_context->set(Context::ArrayMapIndex(next_kind), *new_map);
@@ -12810,7 +12797,8 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
       // into the initial map where it belongs.
       function->set_prototype_or_initial_map(*value);
     } else {
-      Handle<Map> new_map = Map::Copy(initial_map, "SetInstancePrototype");
+      Handle<Map> new_map =
+          Map::Copy(isolate, initial_map, "SetInstancePrototype");
       JSFunction::SetInitialMap(function, new_map, value);
 
       // If the function is used as the global Array function, cache the
@@ -12858,7 +12846,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     // Remove map transitions because they point to maps with a
     // different prototype.
     Handle<Map> new_map =
-        Map::Copy(handle(function->map(), isolate), "SetPrototype");
+        Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
     JSObject::MigrateToMap(function, new_map);
     new_map->SetConstructor(*value);
@@ -13112,7 +13100,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     Handle<String> prototype_string = isolate->factory()->prototype_string();
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, prototype,
-        JSReceiver::GetProperty(new_target, prototype_string), Map);
+        JSReceiver::GetProperty(isolate, new_target, prototype_string), Map);
     // The above prototype lookup might change the constructor and its
     // prototype, hence we have to reload the initial map.
     EnsureHasInitialMap(constructor);
@@ -15168,13 +15156,12 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   UNREACHABLE();
 }
 
-Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
+Handle<Map> Map::TransitionToPrototype(Isolate* isolate, Handle<Map> map,
                                        Handle<Object> prototype) {
-  Isolate* isolate = map->GetIsolate();
   Handle<Map> new_map =
       TransitionsAccessor(isolate, map).GetPrototypeTransition(prototype);
   if (new_map.is_null()) {
-    new_map = Copy(map, "TransitionToPrototype");
+    new_map = Copy(isolate, map, "TransitionToPrototype");
     TransitionsAccessor(isolate, map)
         .PutPrototypeTransition(prototype, new_map);
     Map::SetPrototype(new_map, prototype);
@@ -15351,7 +15338,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
   isolate->UpdateNoElementsProtectorOnSetPrototype(real_receiver);
 
-  Handle<Map> new_map = Map::TransitionToPrototype(map, value);
+  Handle<Map> new_map = Map::TransitionToPrototype(isolate, map, value);
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 
@@ -15367,7 +15354,8 @@ void JSObject::SetImmutableProto(Handle<JSObject> object) {
   // Nothing to do if prototype is already set.
   if (map->is_immutable_proto()) return;
 
-  Handle<Map> new_map = Map::TransitionToImmutableProto(map);
+  Handle<Map> new_map =
+      Map::TransitionToImmutableProto(object->GetIsolate(), map);
   object->synchronized_set_map(*new_map);
 }
 
@@ -16134,8 +16122,9 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     // on JSPromise instances which have the (initial) %PromisePrototype%.
     then = isolate->promise_then();
   } else {
-    then = JSReceiver::GetProperty(Handle<JSReceiver>::cast(resolution),
-                                   isolate->factory()->then_string());
+    then =
+        JSReceiver::GetProperty(isolate, Handle<JSReceiver>::cast(resolution),
+                                isolate->factory()->then_string());
   }
 
   // 9. If then is an abrupt completion, then

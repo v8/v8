@@ -159,7 +159,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj));
     Handle<Object> tag;
-    if (JSReceiver::GetProperty(exception,
+    if (JSReceiver::GetProperty(isolate, exception,
                                 isolate->factory()->InternalizeUtf8String(
                                     wasm::WasmException::kRuntimeIdStr))
             .ToHandle(&tag)) {
@@ -181,7 +181,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj));
     Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(exception,
+    if (JSReceiver::GetProperty(isolate, exception,
                                 isolate->factory()->InternalizeUtf8String(
                                     wasm::WasmException::kRuntimeValuesStr))
             .ToHandle(&values_obj)) {
@@ -209,7 +209,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj));
     Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(exception,
+    if (JSReceiver::GetProperty(isolate, exception,
                                 isolate->factory()->InternalizeUtf8String(
                                     wasm::WasmException::kRuntimeValuesStr))
             .ToHandle(&values_obj)) {

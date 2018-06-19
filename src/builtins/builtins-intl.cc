@@ -216,8 +216,8 @@ bool AddElement(Handle<JSArray> array, int index,
   Factory* factory = isolate->factory();
   Handle<JSObject> element = factory->NewJSObject(isolate->object_function());
   Handle<String> value;
-  JSObject::AddProperty(element, factory->type_string(), field_type_string,
-                        NONE);
+  JSObject::AddProperty(isolate, element, factory->type_string(),
+                        field_type_string, NONE);
 
   icu::UnicodeString field(formatted.tempSubStringBetween(begin, end));
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -227,7 +227,7 @@ bool AddElement(Handle<JSArray> array, int index,
           field.length())),
       false);
 
-  JSObject::AddProperty(element, factory->value_string(), value, NONE);
+  JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
   RETURN_ON_EXCEPTION_VALUE(
       isolate, JSObject::AddDataElement(array, index, element, NONE), false);
   return true;

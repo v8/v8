@@ -267,8 +267,9 @@ class InstantiateBytesResultResolver
                 i::StrLength(reinterpret_cast<const char*>(module_str))))
             .ToHandleChecked();
 
-    i::JSObject::AddProperty(result, instance_name, instance, i::NONE);
-    i::JSObject::AddProperty(result, module_name, module_, i::NONE);
+    i::JSObject::AddProperty(isolate_, result, instance_name, instance,
+                             i::NONE);
+    i::JSObject::AddProperty(isolate_, result, module_name, module_, i::NONE);
 
     i::MaybeHandle<i::Object> promise_result =
         i::JSPromise::Resolve(promise_, result);
@@ -1281,7 +1282,7 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
   Handle<JSFunction> function = CreateFunc(isolate, name, func);
   function->shared()->set_length(length);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
-  JSObject::AddProperty(object, name, function, attributes);
+  JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
 }
 
@@ -1349,8 +1350,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-  JSObject::AddProperty(webassembly, factory->to_string_tag_symbol(), name,
-                        ro_attributes);
+  JSObject::AddProperty(isolate, webassembly, factory->to_string_tag_symbol(),
+                        name, ro_attributes);
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
@@ -1364,7 +1365,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Expose the API on the global object if configured to do so.
   if (exposed_on_global_object) {
-    JSObject::AddProperty(global, name, webassembly, attributes);
+    JSObject::AddProperty(isolate, global, name, webassembly, attributes);
   }
 
   // Setup Module
@@ -1383,7 +1384,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
               1);
   InstallFunc(isolate, module_constructor, "customSections",
               WebAssemblyModuleCustomSections, 2);
-  JSObject::AddProperty(module_proto, factory->to_string_tag_symbol(),
+  JSObject::AddProperty(isolate, module_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
   // Setup Instance
@@ -1398,7 +1399,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
   InstallGetter(isolate, instance_proto, "exports",
                 WebAssemblyInstanceGetExports);
-  JSObject::AddProperty(instance_proto, factory->to_string_tag_symbol(),
+  JSObject::AddProperty(isolate, instance_proto,
+                        factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 
   // Setup Table
@@ -1415,7 +1417,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
   InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
-  JSObject::AddProperty(table_proto, factory->to_string_tag_symbol(),
+  JSObject::AddProperty(isolate, table_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Table"), ro_attributes);
 
   // Setup Memory
@@ -1430,7 +1432,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
-  JSObject::AddProperty(memory_proto, factory->to_string_tag_symbol(),
+  JSObject::AddProperty(isolate, memory_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
 
   // Setup Global
@@ -1447,7 +1449,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
     InstallGetterSetter(isolate, global_proto, "value",
                         WebAssemblyGlobalGetValue, WebAssemblyGlobalSetValue);
-    JSObject::AddProperty(global_proto, factory->to_string_tag_symbol(),
+    JSObject::AddProperty(isolate, global_proto,
+                          factory->to_string_tag_symbol(),
                           v8_str(isolate, "WebAssembly.Global"), ro_attributes);
   }
 
@@ -1455,15 +1458,18 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function());
-  JSObject::AddProperty(webassembly, isolate->factory()->CompileError_string(),
+  JSObject::AddProperty(isolate, webassembly,
+                        isolate->factory()->CompileError_string(),
                         compile_error, attributes);
   Handle<JSFunction> link_error(
       isolate->native_context()->wasm_link_error_function());
-  JSObject::AddProperty(webassembly, isolate->factory()->LinkError_string(),
-                        link_error, attributes);
+  JSObject::AddProperty(isolate, webassembly,
+                        isolate->factory()->LinkError_string(), link_error,
+                        attributes);
   Handle<JSFunction> runtime_error(
       isolate->native_context()->wasm_runtime_error_function());
-  JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),
+  JSObject::AddProperty(isolate, webassembly,
+                        isolate->factory()->RuntimeError_string(),
                         runtime_error, attributes);
 }
 

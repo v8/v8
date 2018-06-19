@@ -467,7 +467,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   } else if (holder_obj->HasFastProperties()) {
     Handle<Map> old_map(holder_obj->map(), isolate_);
     Handle<Map> new_map = Map::ReconfigureExistingProperty(
-        old_map, descriptor_number(), i::kData, attributes);
+        isolate_, old_map, descriptor_number(), i::kData, attributes);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
     new_map = Map::PrepareForDataProperty(new_map, descriptor_number(),
@@ -572,8 +572,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
     return;
   }
 
-  Handle<Map> transition = Map::TransitionToDataProperty(
-      map, name_, value, attributes, kDefaultFieldConstness, store_mode);
+  Handle<Map> transition =
+      Map::TransitionToDataProperty(isolate_, map, name_, value, attributes,
+                                    kDefaultFieldConstness, store_mode);
   state_ = TRANSITION;
   transition_ = transition;
 

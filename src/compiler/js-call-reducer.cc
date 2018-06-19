@@ -456,7 +456,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
           : native_context()->bound_function_without_constructor_map(),
       isolate());
   if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(map, prototype);
+    map = Map::TransitionToPrototype(isolate(), map, prototype);
   }
 
   // Make sure we can rely on the {receiver_maps}.

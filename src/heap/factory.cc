@@ -2357,7 +2357,8 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
 
   if (!IsResumableFunction(function->shared()->kind())) {
-    JSObject::AddProperty(prototype, constructor_string(), function, DONT_ENUM);
+    JSObject::AddProperty(isolate(), prototype, constructor_string(), function,
+                          DONT_ENUM);
   }
 
   return prototype;
@@ -2674,8 +2675,8 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 Handle<JSObject> Factory::NewJSObjectWithNullProto(PretenureFlag pretenure) {
   Handle<JSObject> result =
       NewJSObject(isolate()->object_function(), pretenure);
-  Handle<Map> new_map =
-      Map::Copy(Handle<Map>(result->map(), isolate()), "ObjectWithNullProto");
+  Handle<Map> new_map = Map::Copy(
+      isolate(), Handle<Map>(result->map(), isolate()), "ObjectWithNullProto");
   Map::SetPrototype(new_map, null_value());
   JSObject::MigrateToMap(result, new_map);
   return result;
@@ -3239,7 +3240,7 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
                         ? isolate()->bound_function_with_constructor_map()
                         : isolate()->bound_function_without_constructor_map();
   if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(map, prototype);
+    map = Map::TransitionToPrototype(isolate(), map, prototype);
   }
   DCHECK_EQ(target_function->IsConstructor(), map->is_constructor());
 
@@ -3295,7 +3296,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
                                         isolate());
 
   if (old_map->is_prototype_map()) {
-    map = Map::Copy(map, "CopyAsPrototypeForJSGlobalProxy");
+    map = Map::Copy(isolate(), map, "CopyAsPrototypeForJSGlobalProxy");
     map->set_is_prototype_map(true);
   }
   JSObject::NotifyMapChange(old_map, map, isolate());
@@ -3784,7 +3785,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   //
   // Setup descriptors array.
   //
-  Map::EnsureDescriptorSlack(map, descriptors_count);
+  Map::EnsureDescriptorSlack(isolate(), map, descriptors_count);
 
   PropertyAttributes ro_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -3860,7 +3861,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   //
   // Setup descriptors array.
   //
-  Map::EnsureDescriptorSlack(map, descriptors_count);
+  Map::EnsureDescriptorSlack(isolate(), map, descriptors_count);
 
   PropertyAttributes rw_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
@@ -3925,7 +3926,7 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   //
   // Setup descriptors array.
   //
-  Map::EnsureDescriptorSlack(map, 2);
+  Map::EnsureDescriptorSlack(isolate(), map, 2);
 
   PropertyAttributes ro_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);

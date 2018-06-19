@@ -69,7 +69,7 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* MathFunction(const std::string& name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("Math"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
@@ -82,7 +82,7 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* StringFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("String"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
@@ -95,7 +95,7 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* NumberFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("Number"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(

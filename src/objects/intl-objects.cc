@@ -56,7 +56,7 @@ bool ExtractStringSetting(Isolate* isolate, Handle<JSObject> options,
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
-      JSReceiver::GetProperty(options, str).ToHandleChecked();
+      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
   if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
         v8_isolate, v8::Utils::ToLocal(Handle<String>::cast(object)));
@@ -70,7 +70,7 @@ bool ExtractIntegerSetting(Isolate* isolate, Handle<JSObject> options,
                            const char* key, int32_t* value) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
-      JSReceiver::GetProperty(options, str).ToHandleChecked();
+      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
   if (object->IsNumber()) {
     return object->ToInt32(value);
   }
@@ -81,7 +81,7 @@ bool ExtractBooleanSetting(Isolate* isolate, Handle<JSObject> options,
                            const char* key, bool* value) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
-      JSReceiver::GetProperty(options, str).ToHandleChecked();
+      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
   if (object->IsBoolean()) {
     *value = object->BooleanValue(isolate);
     return true;
@@ -726,7 +726,8 @@ bool SetResolvedPluralRulesSettings(Isolate* isolate,
 
   Handle<JSObject> pluralCategories = Handle<JSObject>::cast(
       JSObject::GetProperty(
-          resolved, factory->NewStringFromStaticChars("pluralCategories"))
+          isolate, resolved,
+          factory->NewStringFromStaticChars("pluralCategories"))
           .ToHandleChecked());
 
   UErrorCode status = U_ZERO_ERROR;

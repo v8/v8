@@ -1151,7 +1151,7 @@ void Accessors::ErrorStackGetter(
   Handle<Object> stack_trace;
   Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();
   MaybeHandle<Object> maybe_stack_trace =
-      JSObject::GetProperty(holder, stack_trace_symbol);
+      JSObject::GetProperty(isolate, holder, stack_trace_symbol);
   if (!maybe_stack_trace.ToHandle(&stack_trace) ||
       stack_trace->IsUndefined(isolate)) {
     Handle<Object> result = isolate->factory()->undefined_value();
@@ -1190,7 +1190,8 @@ void Accessors::ErrorStackGetter(
     }
   } else {
     // The stack property has been modified in the meantime.
-    if (!JSObject::GetProperty(holder, name).ToHandle(&formatted_stack_trace)) {
+    if (!JSObject::GetProperty(isolate, holder, name)
+             .ToHandle(&formatted_stack_trace)) {
       isolate->OptionalRescheduleException(false);
       return;
     }

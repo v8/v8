@@ -1148,8 +1148,8 @@ MaybeHandle<String> GetStringPropertyOrDefault(Isolate* isolate,
                                                Handle<String> key,
                                                Handle<String> default_str) {
   Handle<Object> obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, JSObject::GetProperty(recv, key),
-                             String);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj,
+                             JSObject::GetProperty(isolate, recv, key), String);
 
   Handle<String> str;
   if (obj->IsUndefined(isolate)) {

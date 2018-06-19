@@ -645,7 +645,7 @@ class Map : public HeapObject {
       Handle<Map> map,
       PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
-  static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
+  static Handle<Map> CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
 
@@ -653,28 +653,31 @@ class Map : public HeapObject {
   static FieldType* UnwrapFieldType(MaybeObject* wrapped_type);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
-      Handle<Map> map, Handle<Name> name, Handle<FieldType> type,
-      PropertyAttributes attributes, PropertyConstness constness,
-      Representation representation, TransitionFlag flag);
+      Isolate* isolate, Handle<Map> map, Handle<Name> name,
+      Handle<FieldType> type, PropertyAttributes attributes,
+      PropertyConstness constness, Representation representation,
+      TransitionFlag flag);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithConstant(
-      Handle<Map> map, Handle<Name> name, Handle<Object> constant,
-      PropertyAttributes attributes, TransitionFlag flag);
+      Isolate* isolate, Handle<Map> map, Handle<Name> name,
+      Handle<Object> constant, PropertyAttributes attributes,
+      TransitionFlag flag);
 
   // Returns a new map with all transitions dropped from the given map and
   // the ElementsKind set.
   static Handle<Map> TransitionElementsTo(Handle<Map> map,
                                           ElementsKind to_kind);
 
-  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
+  static Handle<Map> AsElementsKind(Isolate* isolate, Handle<Map> map,
+                                    ElementsKind kind);
 
-  static Handle<Map> CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
-                                        TransitionFlag flag);
+  static Handle<Map> CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
+                                        ElementsKind kind, TransitionFlag flag);
 
   static Handle<Map> AsLanguageMode(Handle<Map> initial_map,
                                     Handle<SharedFunctionInfo> shared_info);
 
-  static Handle<Map> CopyForPreventExtensions(Handle<Map> map,
+  static Handle<Map> CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
                                               PropertyAttributes attrs_to_add,
                                               Handle<Symbol> transition_marker,
                                               const char* reason);
@@ -685,7 +688,7 @@ class Map : public HeapObject {
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
   inline bool TooManyFastProperties(StoreFromKeyed store_mode) const;
-  static Handle<Map> TransitionToDataProperty(Handle<Map> map,
+  static Handle<Map> TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Name> name,
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
@@ -695,7 +698,8 @@ class Map : public HeapObject {
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
       Handle<Object> getter, Handle<Object> setter,
       PropertyAttributes attributes);
-  static Handle<Map> ReconfigureExistingProperty(Handle<Map> map,
+  static Handle<Map> ReconfigureExistingProperty(Isolate* isolate,
+                                                 Handle<Map> map,
                                                  int descriptor,
                                                  PropertyKind kind,
                                                  PropertyAttributes attributes);
@@ -705,11 +709,13 @@ class Map : public HeapObject {
   // Returns a copy of the map, prepared for inserting into the transition
   // tree (if the |map| owns descriptors then the new one will share
   // descriptors with |map|).
-  static Handle<Map> CopyForTransition(Handle<Map> map, const char* reason);
+  static Handle<Map> CopyForTransition(Isolate* isolate, Handle<Map> map,
+                                       const char* reason);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  static Handle<Map> Copy(Handle<Map> map, const char* reason);
+  static Handle<Map> Copy(Isolate* isolate, Handle<Map> map,
+                          const char* reason);
   static Handle<Map> Create(Isolate* isolate, int inobject_properties);
 
   // Returns the next free property index (only valid for FAST MODE).
@@ -722,7 +728,8 @@ class Map : public HeapObject {
 
   static inline int SlackForArraySize(int old_size, int size_limit);
 
-  static void EnsureDescriptorSlack(Handle<Map> map, int slack);
+  static void EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map,
+                                    int slack);
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to an Object.create call. Might transition the given {prototype}.
@@ -781,10 +788,11 @@ class Map : public HeapObject {
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
 
-  static Handle<Map> TransitionToPrototype(Handle<Map> map,
+  static Handle<Map> TransitionToPrototype(Isolate* isolate, Handle<Map> map,
                                            Handle<Object> prototype);
 
-  static Handle<Map> TransitionToImmutableProto(Handle<Map> map);
+  static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
+                                                Handle<Map> map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
@@ -886,7 +894,7 @@ class Map : public HeapObject {
   bool EquivalentToForElementsKindTransition(const Map* other) const;
   static Handle<Map> RawCopy(Handle<Map> map, int instance_size,
                              int inobject_properties);
-  static Handle<Map> ShareDescriptor(Handle<Map> map,
+  static Handle<Map> ShareDescriptor(Isolate* isolate, Handle<Map> map,
                                      Handle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);
   static Handle<Map> AddMissingTransitions(
@@ -896,7 +904,8 @@ class Map : public HeapObject {
       Handle<Map> parent_map, Handle<Map> child_map, int new_descriptor,
       Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> full_layout_descriptor);
-  static Handle<Map> CopyAddDescriptor(Handle<Map> map, Descriptor* descriptor,
+  static Handle<Map> CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
+                                       Descriptor* descriptor,
                                        TransitionFlag flag);
   static Handle<Map> CopyReplaceDescriptors(
       Handle<Map> map, Handle<DescriptorArray> descriptors,
@@ -904,7 +913,7 @@ class Map : public HeapObject {
       MaybeHandle<Name> maybe_name, const char* reason,
       SimpleTransitionFlag simple_flag);
 
-  static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
+  static Handle<Map> CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
                                            Descriptor* descriptor, int index,
                                            TransitionFlag flag);
@@ -916,9 +925,12 @@ class Map : public HeapObject {
                                     PropertyNormalizationMode mode);
 
   // TODO(ishell): Move to MapUpdater.
-  static Handle<Map> CopyGeneralizeAllFields(
-      Handle<Map> map, ElementsKind elements_kind, int modify_index,
-      PropertyKind kind, PropertyAttributes attributes, const char* reason);
+  static Handle<Map> CopyGeneralizeAllFields(Isolate* isolate, Handle<Map> map,
+                                             ElementsKind elements_kind,
+                                             int modify_index,
+                                             PropertyKind kind,
+                                             PropertyAttributes attributes,
+                                             const char* reason);
 
   void DeprecateTransitionTree();
 

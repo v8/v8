@@ -170,9 +170,9 @@ void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
 }
 
 MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
-  result_map_ = Map::CopyGeneralizeAllFields(old_map_, new_elements_kind_,
-                                             modified_descriptor_, new_kind_,
-                                             new_attributes_, reason);
+  result_map_ = Map::CopyGeneralizeAllFields(
+      isolate_, old_map_, new_elements_kind_, modified_descriptor_, new_kind_,
+      new_attributes_, reason);
   state_ = kEnd;
   return state_;  // Done.
 }
@@ -232,7 +232,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     result_map_ = handle(
         JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
     if (from_kind != to_kind) {
-      result_map_ = Map::AsElementsKind(result_map_, to_kind);
+      result_map_ = Map::AsElementsKind(isolate_, result_map_, to_kind);
     }
     DCHECK(result_map_->is_dictionary_map());
     return state_;
@@ -294,7 +294,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
 
   // From here on, use the map with correct elements kind as root map.
   if (from_kind != to_kind) {
-    root_map_ = Map::AsElementsKind(root_map_, to_kind);
+    root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
   }
   state_ = kAtRootMap;
   return state_;  // Not done yet.

@@ -145,7 +145,7 @@ TEST(StressJS) {
 
   PropertyAttributes attrs = NONE;
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
-  Map::EnsureDescriptorSlack(map, 1);
+  Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
       Handle<Name>(Name::cast(foreign->name())), foreign, attrs);

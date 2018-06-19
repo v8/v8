@@ -869,9 +869,10 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
   return GetProperty(&it);
 }
 
-MaybeHandle<Object> JSReceiver::GetProperty(Handle<JSReceiver> receiver,
+MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
+                                            Handle<JSReceiver> receiver,
                                             Handle<Name> name) {
-  LookupIterator it(receiver, name, receiver);
+  LookupIterator it(isolate, receiver, name, receiver);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return Object::GetProperty(&it);
 }
@@ -924,7 +925,7 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
                                             const char* name) {
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  return GetProperty(receiver, str);
+  return GetProperty(isolate, receiver, str);
 }
 
 // static
@@ -1001,7 +1002,6 @@ void HeapObject::VerifySmiField(int offset) {
   CHECK(READ_FIELD(this, offset)->IsSmi());
 }
 #endif
-
 
 Heap* HeapObject::GetHeap() const {
   Heap* heap = MemoryChunk::FromAddress(

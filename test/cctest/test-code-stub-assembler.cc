@@ -884,7 +884,7 @@ TEST(TransitionLookup) {
     // 1) there is a "base" attributes transition
     // 2) there are other non-base attributes transitions
     if ((i & 1) == 0) {
-      CHECK(!Map::CopyWithField(root_map, name, any, base_attributes,
+      CHECK(!Map::CopyWithField(isolate, root_map, name, any, base_attributes,
                                 PropertyConstness::kMutable,
                                 Representation::Tagged(), INSERT_TRANSITION)
                  .is_null());
@@ -896,7 +896,7 @@ TEST(TransitionLookup) {
         if (attributes == base_attributes) continue;
         // Don't add private symbols with enumerable attributes.
         if (is_private && ((attributes & DONT_ENUM) == 0)) continue;
-        CHECK(!Map::CopyWithField(root_map, name, any, attributes,
+        CHECK(!Map::CopyWithField(isolate, root_map, name, any, attributes,
                                   PropertyConstness::kMutable,
                                   Representation::Tagged(), INSERT_TRANSITION)
                    .is_null());
@@ -943,7 +943,7 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
   Isolate* isolate = object->GetIsolate();
   for (size_t i = 0; i < count; i++) {
     Handle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
-    JSObject::AddProperty(object, names[i], value, NONE);
+    JSObject::AddProperty(isolate, object, names[i], value, NONE);
   }
 }
 
@@ -972,7 +972,7 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
       Handle<Object> setter(pair->setter(), isolate);
       JSObject::DefineAccessor(object, names[i], getter, setter, NONE).Check();
     } else {
-      JSObject::AddProperty(object, names[i], value, NONE);
+      JSObject::AddProperty(isolate, object, names[i], value, NONE);
     }
   }
 }
@@ -1091,7 +1091,7 @@ TEST(TryHasOwnProperty) {
     AddProperties(object, names, arraysize(names));
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
 
-    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
     CHECK(JSObject::DeleteProperty(object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
@@ -1113,7 +1113,7 @@ TEST(TryHasOwnProperty) {
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
 
-    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
     CHECK(JSObject::DeleteProperty(object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
@@ -1298,7 +1298,7 @@ TEST(TryGetOwnProperty) {
                   rand_gen.NextInt());
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
 
-    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
     CHECK(JSObject::DeleteProperty(object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
@@ -1314,7 +1314,7 @@ TEST(TryGetOwnProperty) {
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
 
-    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
     CHECK(JSObject::DeleteProperty(object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
@@ -1331,7 +1331,7 @@ TEST(TryGetOwnProperty) {
       for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
         Handle<Name> name = names[name_index];
         Handle<Object> expected_value =
-            JSReceiver::GetProperty(object, name).ToHandleChecked();
+            JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
         Handle<Object> value = ft.Call(object, name).ToHandleChecked();
         CHECK(expected_value->SameValue(*value));
       }
@@ -1353,7 +1353,7 @@ TEST(TryGetOwnProperty) {
            key_index++) {
         Handle<Name> name = non_existing_names[key_index];
         Handle<Object> expected_value =
-            JSReceiver::GetProperty(object, name).ToHandleChecked();
+            JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
         CHECK(expected_value->IsUndefined(isolate));
         Handle<Object> value = ft.Call(object, name).ToHandleChecked();
         CHECK_EQ(*not_found_symbol, *value);

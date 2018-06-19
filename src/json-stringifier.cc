@@ -231,8 +231,8 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
   if (length == 0) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
-    JSObject::AddProperty(holder, factory()->empty_string(), initial_holder,
-                          NONE);
+    JSObject::AddProperty(isolate_, holder, factory()->empty_string(),
+                          initial_holder, NONE);
     return holder;
   } else {
     FixedArray* elements = FixedArray::cast(stack_->elements());

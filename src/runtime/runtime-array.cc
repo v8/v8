@@ -607,7 +607,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   // advice. Therefore we use AllocateJSObjectFromMap instead of passing
   // the constructor.
   if (to_kind != initial_map->elements_kind()) {
-    initial_map = Map::AsElementsKind(initial_map, to_kind);
+    initial_map = Map::AsElementsKind(isolate, initial_map, to_kind);
   }
 
   // If we don't care to track arrays of to_kind ElementsKind, then

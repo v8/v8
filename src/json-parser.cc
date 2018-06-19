@@ -60,7 +60,7 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
   Handle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<String> name = isolate->factory()->empty_string();
-  JSObject::AddProperty(holder, name, object, NONE);
+  JSObject::AddProperty(isolate, holder, name, object, NONE);
   return internalizer.InternalizeJsonProperty(holder, name);
 }
 

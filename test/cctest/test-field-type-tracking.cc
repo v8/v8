@@ -324,7 +324,7 @@ class Expectations {
 
   Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind elements_kind) {
     elements_kind_ = elements_kind;
-    map = Map::AsElementsKind(map, elements_kind);
+    map = Map::AsElementsKind(isolate_, map, elements_kind);
     CHECK_EQ(elements_kind_, map->elements_kind());
     return map;
   }
@@ -339,8 +339,8 @@ class Expectations {
                  field_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    return Map::CopyWithField(map, name, field_type, attributes, constness,
-                              representation, INSERT_TRANSITION)
+    return Map::CopyWithField(isolate_, map, name, field_type, attributes,
+                              constness, representation, INSERT_TRANSITION)
         .ToHandleChecked();
   }
 
@@ -351,7 +351,7 @@ class Expectations {
     SetDataConstant(property_index, attributes, value);
 
     Handle<String> name = MakeName("prop", property_index);
-    return Map::CopyWithConstant(map, name, value, attributes,
+    return Map::CopyWithConstant(isolate_, map, name, value, attributes,
                                  INSERT_TRANSITION)
         .ToHandleChecked();
   }
@@ -369,7 +369,7 @@ class Expectations {
 
     Handle<String> name = MakeName("prop", property_index);
     return Map::TransitionToDataProperty(
-        map, name, value, attributes, constness,
+        isolate_, map, name, value, attributes, constness,
         Object::CERTAINLY_NOT_STORE_FROM_KEYED);
   }
 
@@ -382,7 +382,7 @@ class Expectations {
 
     Handle<String> name = MakeName("prop", property_index);
     return Map::TransitionToDataProperty(
-        map, name, value, attributes, PropertyConstness::kConst,
+        isolate_, map, name, value, attributes, PropertyConstness::kConst,
         Object::CERTAINLY_NOT_STORE_FROM_KEYED);
   }
 
@@ -413,7 +413,7 @@ class Expectations {
     Handle<String> name = MakeName("prop", property_index);
 
     Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
-    return Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
+    return Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
   }
 
   Handle<Map> AddAccessorConstant(Handle<Map> map,
@@ -433,13 +433,13 @@ class Expectations {
       Handle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *factory->null_value());
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
-      map = Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
+      map = Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
     }
     if (!setter->IsNull(isolate_)) {
       Handle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *setter);
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
-      map = Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
+      map = Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
     }
     return map;
   }
@@ -1021,7 +1021,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
   Handle<Map> new_map =
-      Map::ReconfigureExistingProperty(map2, kSplitProp, kData, NONE);
+      Map::ReconfigureExistingProperty(isolate, map2, kSplitProp, kData, NONE);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1106,7 +1106,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
   Handle<Map> new_map =
-      Map::ReconfigureExistingProperty(map2, kSplitProp, kData, NONE);
+      Map::ReconfigureExistingProperty(isolate, map2, kSplitProp, kData, NONE);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1485,7 +1485,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
   Handle<Map> new_map =
-      Map::ReconfigureExistingProperty(map2, kSplitProp, kData, NONE);
+      Map::ReconfigureExistingProperty(isolate, map2, kSplitProp, kData, NONE);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -2179,8 +2179,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions; i++) {
     CHECK(TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
     Handle<String> name = MakeName("foo", i);
-    Map::CopyWithField(map2, name, any_type, NONE, PropertyConstness::kMutable,
-                       Representation::Smi(), INSERT_TRANSITION)
+    Map::CopyWithField(isolate, map2, name, any_type, NONE,
+                       PropertyConstness::kMutable, Representation::Smi(),
+                       INSERT_TRANSITION)
         .ToHandleChecked();
   }
   CHECK(!TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
@@ -2323,7 +2324,8 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol());
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
-      return Map::CopyForPreventExtensions(map, NONE, frozen_symbol,
+      return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, NONE,
+                                           frozen_symbol,
                                            "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
@@ -2354,7 +2356,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
       CHECK(map->owns_descriptors());
-      Map::CopyWithField(map, MakeString("foo"), any_type, NONE,
+      Map::CopyWithField(isolate, map, MakeString("foo"), any_type, NONE,
                          PropertyConstness::kMutable, Representation::Smi(),
                          INSERT_TRANSITION)
           .ToHandleChecked();
@@ -2362,7 +2364,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
 
       Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol());
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
-      return Map::CopyForPreventExtensions(map, NONE, frozen_symbol,
+      return Map::CopyForPreventExtensions(isolate, map, NONE, frozen_symbol,
                                            "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
@@ -2396,7 +2398,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
     }
 
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      return Map::TransitionToPrototype(map, prototype_);
+      return Map::TransitionToPrototype(CcTest::i_isolate(), map, prototype_);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const {
@@ -2437,13 +2439,13 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
       CHECK(map->owns_descriptors());
-      Map::CopyWithField(map, MakeString("foo"), any_type, NONE,
+      Map::CopyWithField(isolate, map, MakeString("foo"), any_type, NONE,
                          PropertyConstness::kMutable, Representation::Smi(),
                          INSERT_TRANSITION)
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      return Map::TransitionToPrototype(map, prototype_);
+      return Map::TransitionToPrototype(isolate, map, prototype_);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const {
@@ -2531,10 +2533,11 @@ struct ReconfigureAsDataPropertyOperator {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  Handle<Map> DoTransition(Expectations& expectations, Handle<Map> map) {
+  Handle<Map> DoTransition(Isolate* isolate, Expectations& expectations,
+                           Handle<Map> map) {
     expectations.SetDataField(descriptor_, PropertyConstness::kMutable,
                               representation_, heap_type_);
-    return Map::ReconfigureExistingProperty(map, descriptor_, kData,
+    return Map::ReconfigureExistingProperty(isolate, map, descriptor_, kData,
                                             attributes_);
   }
 };
@@ -2548,10 +2551,11 @@ struct ReconfigureAsAccessorPropertyOperator {
                                         PropertyAttributes attributes = NONE)
       : descriptor_(descriptor), attributes_(attributes) {}
 
-  Handle<Map> DoTransition(Expectations& expectations, Handle<Map> map) {
+  Handle<Map> DoTransition(Isolate* isolate, Expectations& expectations,
+                           Handle<Map> map) {
     expectations.SetAccessorField(descriptor_);
-    return Map::ReconfigureExistingProperty(map, descriptor_, kAccessor,
-                                            attributes_);
+    return Map::ReconfigureExistingProperty(isolate, map, descriptor_,
+                                            kAccessor, attributes_);
   }
 };
 

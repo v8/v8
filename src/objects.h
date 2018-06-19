@@ -2185,7 +2185,7 @@ class JSReceiver: public HeapObject {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, const char* key);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
-      Handle<JSReceiver> receiver, Handle<Name> name);
+      Isolate* isolate, Handle<JSReceiver> receiver, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetElement(
       Isolate* isolate, Handle<JSReceiver> receiver, uint32_t index);
 
@@ -2467,8 +2467,9 @@ class JSObject: public JSReceiver {
       LookupIterator* it, Handle<Object> value,
       ShouldThrow should_throw = kDontThrow);
 
-  static void AddProperty(Handle<JSObject> object, Handle<Name> name,
-                          Handle<Object> value, PropertyAttributes attributes);
+  static void AddProperty(Isolate* isolate, Handle<JSObject> object,
+                          Handle<Name> name, Handle<Object> value,
+                          PropertyAttributes attributes);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataElement(
       Handle<JSObject> receiver, uint32_t index, Handle<Object> value,

@@ -573,16 +573,17 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
   Handle<JSObject> jsinfo =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  JSObject::AddProperty(jsinfo, isolate->factory()->script_string(), script,
-                        NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->position_string(),
+  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->script_string(),
+                        script, NONE);
+  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->position_string(),
                         handle(Smi::FromInt(position), isolate), NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->line_string(),
+  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->line_string(),
                         handle(Smi::FromInt(info.line), isolate), NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->column_string(),
+  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->column_string(),
                         handle(Smi::FromInt(info.column), isolate), NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->sourceText_string(),
-                        sourceText, NONE);
+  JSObject::AddProperty(isolate, jsinfo,
+                        isolate->factory()->sourceText_string(), sourceText,
+                        NONE);
 
   return jsinfo;
 }
@@ -779,11 +780,11 @@ Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
   Handle<String> count_string = factory->InternalizeUtf8String("count");
 
   Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
-  JSObject::AddProperty(range_obj, start_string,
+  JSObject::AddProperty(isolate, range_obj, start_string,
                         factory->NewNumberFromInt(range.start), NONE);
-  JSObject::AddProperty(range_obj, end_string,
+  JSObject::AddProperty(isolate, range_obj, end_string,
                         factory->NewNumberFromInt(range.end), NONE);
-  JSObject::AddProperty(range_obj, count_string,
+  JSObject::AddProperty(isolate, range_obj, count_string,
                         factory->NewNumberFromUint(range.count), NONE);
 
   return range_obj;
@@ -833,7 +834,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
     Handle<JSArray> script_obj =
         factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
     Handle<JSObject> wrapper = Script::GetWrapper(script_data.script);
-    JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
+    JSObject::AddProperty(isolate, script_obj, script_string, wrapper, NONE);
     scripts_array->set(i, *script_obj);
   }
   return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);

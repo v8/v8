@@ -180,11 +180,11 @@ Handle<JSArray> GetImports(Isolate* isolate,
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, import.field_name);
 
-    JSObject::AddProperty(entry, module_string, import_module.ToHandleChecked(),
-                          NONE);
-    JSObject::AddProperty(entry, name_string, import_name.ToHandleChecked(),
-                          NONE);
-    JSObject::AddProperty(entry, kind_string, import_kind, NONE);
+    JSObject::AddProperty(isolate, entry, module_string,
+                          import_module.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, name_string,
+                          import_name.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, kind_string, import_kind, NONE);
 
     storage->set(index, *entry);
   }
@@ -243,9 +243,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, exp.name);
 
-    JSObject::AddProperty(entry, name_string, export_name.ToHandleChecked(),
-                          NONE);
-    JSObject::AddProperty(entry, kind_string, export_kind, NONE);
+    JSObject::AddProperty(isolate, entry, name_string,
+                          export_name.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, kind_string, export_kind, NONE);
 
     storage->set(index, *entry);
   }

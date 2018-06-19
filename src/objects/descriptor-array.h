@@ -100,11 +100,12 @@ class DescriptorArray : public WeakFixedArray {
   // array.
   inline void Append(Descriptor* desc);
 
-  static Handle<DescriptorArray> CopyUpTo(Handle<DescriptorArray> desc,
+  static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
+                                          Handle<DescriptorArray> desc,
                                           int enumeration_index, int slack = 0);
 
   static Handle<DescriptorArray> CopyUpToAddAttributes(
-      Handle<DescriptorArray> desc, int enumeration_index,
+      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
       PropertyAttributes attributes, int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.

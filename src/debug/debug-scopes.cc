@@ -366,7 +366,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
 
   Handle<JSObject> scope = isolate_->factory()->NewJSObjectWithNullProto();
   auto visitor = [=](Handle<String> name, Handle<Object> value) {
-    JSObject::AddProperty(scope, name, value, NONE);
+    JSObject::AddProperty(isolate_, scope, name, value, NONE);
     return false;
   };
 
