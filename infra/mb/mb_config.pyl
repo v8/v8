@@ -95,6 +95,7 @@
       'V8 Fuchsia': 'release_x64_fuchsia',
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
+      'V8 Linux64 UBSan': 'release_x64_ubsan',
       'V8 Linux64 UBSanVptr': 'release_x64_ubsan_vptr',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
@@ -443,6 +444,8 @@
       'minimal_symbols'],
     'release_x64_tsan_minimal_symbols': [
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
+    'release_x64_ubsan': [
+      'release_bot', 'x64', 'ubsan'],
     'release_x64_ubsan_vptr': [
       'release_bot', 'x64', 'ubsan_vptr'],
     'release_x64_ubsan_vptr_recover_edge': [
@@ -733,6 +736,14 @@
     'tsan': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_tsan=true',
+    },
+
+    'ubsan': {
+      'mixins': ['v8_enable_test_features'],
+      # TODO(krasin): Remove is_ubsan_no_recover=true when
+      # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
+      # ubsan instead.
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true',
     },
 
     'ubsan_vptr': {
