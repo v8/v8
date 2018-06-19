@@ -134,32 +134,21 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; external reference (%s)", reference_name);
   } else if (RelocInfo::IsCodeTarget(rmode)) {
     out->AddFormatted("    ;; code:");
-    if (isolate == nullptr) {
-      // TODO(mstarzinger): get a useful WASM name if the isolate is null
-      out->AddFormatted(" (unknown)");
-    } else if (wasm::WasmCode* wasmCode =
-                   isolate->wasm_engine()->code_manager()->LookupCode(
-                       relocinfo->target_address())) {
-      out->AddFormatted(" wasm(%s)",
-                        wasm::GetWasmCodeKindAsString(wasmCode->kind()));
+    Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
+    Code::Kind kind = code->kind();
+    if (kind == Code::STUB) {
+      // Get the STUB key and extract major and minor key.
+      uint32_t key = code->stub_key();
+      uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+      CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+      DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
+      out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
+                        CodeStub::MajorName(major_key));
+      out->AddFormatted("minor: %d", minor_key);
+    } else if (code->is_builtin()) {
+      out->AddFormatted(" Builtin::%s", Builtins::name(code->builtin_index()));
     } else {
-      Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
-      Code::Kind kind = code->kind();
-      if (kind == Code::STUB) {
-        // Get the STUB key and extract major and minor key.
-        uint32_t key = code->stub_key();
-        uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-        CodeStub::Major major_key = CodeStub::GetMajorKey(code);
-        DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
-        out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
-                          CodeStub::MajorName(major_key));
-        out->AddFormatted("minor: %d", minor_key);
-      } else if (code->is_builtin()) {
-        out->AddFormatted(" Builtin::%s",
-                          Builtins::name(code->builtin_index()));
-      } else {
-        out->AddFormatted(" %s", Code::Kind2String(kind));
-      }
+      out->AddFormatted(" %s", Code::Kind2String(kind));
     }
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
              isolate->deoptimizer_data() != nullptr) {

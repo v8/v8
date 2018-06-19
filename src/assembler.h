@@ -407,12 +407,6 @@ enum ICacheFlushMode { FLUSH_ICACHE_IF_NEEDED, SKIP_ICACHE_FLUSH };
 
 class RelocInfo {
  public:
-  enum Flag : uint8_t {
-    kNoFlags = 0,
-    kInNativeWasmCode = 1u << 0,  // Reloc info belongs to native wasm code.
-  };
-  typedef base::Flags<Flag> Flags;
-
   // This string is used to add padding comments to the reloc info in cases
   // where we are not sure to have enough space for patching in during
   // lazy deoptimization. This is the case if we have indirect calls for which
@@ -430,8 +424,8 @@ class RelocInfo {
   static const int kMaxSmallPCDelta;
 
   enum Mode : int8_t {
-    // Please note the order is important (see IsRealRelocMode, IsCodeTarget,
-    // IsGCRelocMode, and IsShareableRelocMode predicates below).
+    // Please note the order is important (see IsRealRelocMode, IsGCRelocMode,
+    // and IsShareableRelocMode predicates below).
 
     CODE_TARGET,
     EMBEDDED_OBJECT,  // LAST_GCED_ENUM
@@ -495,12 +489,12 @@ class RelocInfo {
   static inline bool IsRealRelocMode(Mode mode) {
     return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
   }
-  static inline bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) { return mode <= LAST_GCED_ENUM; }
   static inline bool IsShareableRelocMode(Mode mode) {
     return mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
   }
+  static inline bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
   static inline bool IsEmbeddedObject(Mode mode) {
     return mode == EMBEDDED_OBJECT;
   }
@@ -687,7 +681,6 @@ class RelocInfo {
   intptr_t data_ = 0;
   Code* host_;
   Address constant_pool_ = kNullAddress;
-  Flags flags_;
   friend class RelocIterator;
 };
 

@@ -438,9 +438,7 @@ RelocIterator::RelocIterator(Vector<byte> instructions,
                              int mode_mask)
     : RelocIterator(nullptr, reinterpret_cast<Address>(instructions.start()),
                     const_pool, reloc_info.start() + reloc_info.size(),
-                    reloc_info.start(), mode_mask) {
-  rinfo_.flags_ = RelocInfo::kInNativeWasmCode;
-}
+                    reloc_info.start(), mode_mask) {}
 
 RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
                              const byte* pos, const byte* end, int mode_mask)
@@ -586,19 +584,15 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
        << ")";
   } else if (IsCodeTarget(rmode_)) {
     const Address code_target = target_address();
-    if (flags_ & kInNativeWasmCode) {
-      os << " (wasm trampoline) ";
-    } else {
-      Code* code = Code::GetCodeFromTargetAddress(code_target);
-      DCHECK(code->IsCode());
-      os << " (" << Code::Kind2String(code->kind());
-      if (Builtins::IsBuiltin(code)) {
-        os << " " << Builtins::name(code->builtin_index());
-      } else if (code->kind() == Code::STUB) {
-        os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
-      }
-      os << ") ";
+    Code* code = Code::GetCodeFromTargetAddress(code_target);
+    DCHECK(code->IsCode());
+    os << " (" << Code::Kind2String(code->kind());
+    if (Builtins::IsBuiltin(code)) {
+      os << " " << Builtins::name(code->builtin_index());
+    } else if (code->kind() == Code::STUB) {
+      os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
     }
+    os << ") ";
     os << " (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Depotimization bailouts are stored as runtime entries.
