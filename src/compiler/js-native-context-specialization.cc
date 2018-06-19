@@ -741,9 +741,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
       native_context().script_context_table(js_heap_broker()).lookup(name);
   if (result) {
     ObjectRef contents = result->context.get(js_heap_broker(), result->index);
-    if (contents.IsHeapObject() &&
-        contents.AsHeapObject().oddball_type(js_heap_broker()) ==
-            HeapObjectType::kHole) {
+    OddballType oddball_type = contents.oddball_type(js_heap_broker());
+    if (oddball_type == OddballType::kHole ||
+        oddball_type == OddballType::kAny) {
       return NoChange();
     }
     Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
@@ -771,12 +771,11 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
       native_context().script_context_table(js_heap_broker()).lookup(name);
   if (result) {
     ObjectRef contents = result->context.get(js_heap_broker(), result->index);
-    if (contents.IsHeapObject() &&
-        contents.AsHeapObject().oddball_type(js_heap_broker()) ==
-            HeapObjectType::kHole) {
+    OddballType oddball_type = contents.oddball_type(js_heap_broker());
+    if (oddball_type == OddballType::kHole ||
+        oddball_type == OddballType::kAny || result->immutable) {
       return NoChange();
     }
-    if (result->immutable) return NoChange();
     Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
     effect = graph()->NewNode(javascript()->StoreContext(0, result->index),
                               value, context, effect, control);

@@ -68,20 +68,20 @@ Node* JSGraph::Constant(Handle<Object> value) {
 
 Node* JSGraph::Constant(const JSHeapBroker* broker, const ObjectRef& ref) {
   if (ref.IsSmi()) return Constant(ref.AsSmi());
-  HeapObjectType type = ref.AsHeapObjectRef().type(broker);
+  OddballType oddball_type = ref.oddball_type(broker);
   if (ref.IsHeapNumber()) {
     return Constant(ref.AsHeapNumber().value());
-  } else if (type.oddball_type() == HeapObjectType::kUndefined) {
+  } else if (oddball_type == OddballType::kUndefined) {
     DCHECK(
         ref.object<Object>().equals(isolate()->factory()->undefined_value()));
     return UndefinedConstant();
-  } else if (type.oddball_type() == HeapObjectType::kNull) {
+  } else if (oddball_type == OddballType::kNull) {
     DCHECK(ref.object<Object>().equals(isolate()->factory()->null_value()));
     return NullConstant();
-  } else if (type.oddball_type() == HeapObjectType::kHole) {
+  } else if (oddball_type == OddballType::kHole) {
     DCHECK(ref.object<Object>().equals(isolate()->factory()->the_hole_value()));
     return TheHoleConstant();
-  } else if (type.oddball_type() == HeapObjectType::kBoolean) {
+  } else if (oddball_type == OddballType::kBoolean) {
     if (ref.object<Object>().equals(isolate()->factory()->true_value())) {
       return TrueConstant();
     } else {

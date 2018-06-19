@@ -14,17 +14,18 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum class OddballType : uint8_t {
+  kNone,     // Not an Oddball.
+  kBoolean,  // True or False.
+  kUndefined,
+  kNull,
+  kHole,
+  kOther,  // Oddball, but none of the above.
+  kAny     // Any Oddball.
+};
+
 class HeapObjectType {
  public:
-  enum OddballType : uint8_t {
-    kNone,     // Not an Oddball.
-    kBoolean,  // True or False.
-    kUndefined,
-    kNull,
-    kHole,
-    kOther,  // Oddball, but none of the above.
-    kAny     // Any Oddball.
-  };
   enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };
 
   typedef base::Flags<Flag> Flags;
@@ -34,7 +35,8 @@ class HeapObjectType {
       : instance_type_(instance_type),
         oddball_type_(oddball_type),
         flags_(flags) {
-    DCHECK_EQ(instance_type == ODDBALL_TYPE, oddball_type != kNone);
+    DCHECK_EQ(instance_type == ODDBALL_TYPE,
+              oddball_type != OddballType::kNone);
   }
 
   OddballType oddball_type() const { return oddball_type_; }
@@ -81,9 +83,10 @@ class ObjectRef {
     return Handle<T>::cast(object_);
   }
 
+  OddballType oddball_type(const JSHeapBroker* broker) const;
+
   bool IsSmi() const;
   int AsSmi() const;
-  HeapObjectRef AsHeapObjectRef() const;
 
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_KIND_LIST(HEAP_IS_METHOD_DECL)
@@ -101,9 +104,6 @@ class HeapObjectRef : public ObjectRef {
  public:
   explicit HeapObjectRef(Handle<Object> object);
   HeapObjectType type(const JSHeapBroker* broker) const;
-  HeapObjectType::OddballType oddball_type(const JSHeapBroker* broker) const {
-    return type(broker).oddball_type();
-  }
 
  private:
   friend class JSHeapBroker;

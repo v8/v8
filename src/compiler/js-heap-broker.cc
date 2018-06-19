@@ -41,10 +41,6 @@ bool ObjectRef::IsSmi() const {
 
 int ObjectRef::AsSmi() const { return object<Smi>()->value(); }
 
-HeapObjectRef ObjectRef::AsHeapObjectRef() const {
-  return HeapObjectRef(object<HeapObject>());
-}
-
 base::Optional<ContextRef> ContextRef::previous(
     const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
@@ -66,18 +62,18 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate) : isolate_(isolate) {}
 HeapObjectType JSHeapBroker::HeapObjectTypeFromMap(Map* map) const {
   AllowHandleDereference allow_handle_dereference;
   Heap* heap = isolate_->heap();
-  HeapObjectType::OddballType oddball_type = HeapObjectType::kNone;
+  OddballType oddball_type = OddballType::kNone;
   if (map->instance_type() == ODDBALL_TYPE) {
     if (map == heap->undefined_map()) {
-      oddball_type = HeapObjectType::kUndefined;
+      oddball_type = OddballType::kUndefined;
     } else if (map == heap->null_map()) {
-      oddball_type = HeapObjectType::kNull;
+      oddball_type = OddballType::kNull;
     } else if (map == heap->boolean_map()) {
-      oddball_type = HeapObjectType::kBoolean;
+      oddball_type = OddballType::kBoolean;
     } else if (map == heap->the_hole_map()) {
-      oddball_type = HeapObjectType::kHole;
+      oddball_type = OddballType::kHole;
     } else {
-      oddball_type = HeapObjectType::kOther;
+      oddball_type = OddballType::kOther;
       DCHECK(map == heap->uninitialized_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
@@ -169,6 +165,11 @@ ScriptContextTableRef NativeContextRef::script_context_table(
   AllowHandleDereference handle_dereference;
   return ScriptContextTableRef(
       handle(object<Context>()->script_context_table(), broker->isolate()));
+}
+
+OddballType ObjectRef::oddball_type(const JSHeapBroker* broker) const {
+  return IsSmi() ? OddballType::kNone
+                 : AsHeapObject().type(broker).oddball_type();
 }
 
 }  // namespace compiler

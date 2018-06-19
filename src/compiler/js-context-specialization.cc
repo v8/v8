@@ -171,10 +171,10 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     // We must be conservative and check if the value in the slot is currently
     // the hole or undefined. Only if it is neither of these, can we be sure
     // that it won't change anymore.
-    HeapObjectType type = maybe_value->AsHeapObjectRef().type(js_heap_broker());
-    if (type.oddball_type() == HeapObjectType::kAny ||
-        type.oddball_type() == HeapObjectType::kUndefined ||
-        type.oddball_type() == HeapObjectType::kHole) {
+    OddballType oddball_type = maybe_value->oddball_type(js_heap_broker());
+    if (oddball_type == OddballType::kAny ||
+        oddball_type == OddballType::kUndefined ||
+        oddball_type == OddballType::kHole) {
       maybe_value.reset();
     }
   }
