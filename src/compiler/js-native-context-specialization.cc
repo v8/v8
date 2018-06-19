@@ -153,13 +153,11 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
-  if (function_map->is_stable()) {
-    Node* value = jsgraph()->Constant(function_prototype);
+  if (function_map->is_stable() && function_prototype->IsConstructor()) {
     dependencies()->AssumeMapStable(function_map);
-    if (function_prototype->IsConstructor()) {
-      ReplaceWithValue(node, value);
-      return Replace(value);
-    }
+    Node* value = jsgraph()->Constant(function_prototype);
+    ReplaceWithValue(node, value);
+    return Replace(value);
   }
 
   return NoChange();
