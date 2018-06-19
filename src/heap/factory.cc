@@ -140,6 +140,7 @@ void Factory::InitializeAllocationMemento(AllocationMemento* memento,
                                           AllocationSite* allocation_site) {
   memento->set_map_after_allocation(*allocation_memento_map(),
                                     SKIP_WRITE_BARRIER);
+  DCHECK(allocation_site->map() == *allocation_site_map());
   memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
   if (FLAG_allocation_site_pretenuring) {
     allocation_site->IncrementMementoCreateCount();
@@ -1750,18 +1751,15 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
   return array;
 }
 
-Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
-  Handle<Map> map = with_weak_next ? allocation_site_map()
-                                   : allocation_site_without_weaknext_map();
+Handle<AllocationSite> Factory::NewAllocationSite() {
+  Handle<Map> map = allocation_site_map();
   Handle<AllocationSite> site(AllocationSite::cast(New(map, TENURED)),
                               isolate());
   site->Initialize();
 
-  if (with_weak_next) {
-    // Link the site
-    site->set_weak_next(isolate()->heap()->allocation_sites_list());
-    isolate()->heap()->set_allocation_sites_list(*site);
-  }
+  // Link the site
+  site->set_weak_next(isolate()->heap()->allocation_sites_list());
+  isolate()->heap()->set_allocation_sites_list(*site);
   return site;
 }
 

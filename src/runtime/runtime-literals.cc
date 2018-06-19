@@ -240,22 +240,19 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
     if (top().is_null()) {
       // We are creating the top level AllocationSite as opposed to a nested
       // AllocationSite.
-      InitializeTraversal(isolate()->factory()->NewAllocationSite(true));
+      InitializeTraversal(isolate()->factory()->NewAllocationSite());
       scope_site = Handle<AllocationSite>(*top(), isolate());
       if (FLAG_trace_creation_allocation_sites) {
-        PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
+        PrintF("*** Creating top level AllocationSite %p\n",
                static_cast<void*>(*scope_site));
       }
     } else {
       DCHECK(!current().is_null());
-      scope_site = isolate()->factory()->NewAllocationSite(false);
+      scope_site = isolate()->factory()->NewAllocationSite();
       if (FLAG_trace_creation_allocation_sites) {
-        PrintF(
-            "*** Creating nested %s AllocationSite (top, current, new) (%p, "
-            "%p, "
-            "%p)\n",
-            "Slim", static_cast<void*>(*top()), static_cast<void*>(*current()),
-            static_cast<void*>(*scope_site));
+        PrintF("Creating nested site (top, current, new) (%p, %p, %p)\n",
+               static_cast<void*>(*top()), static_cast<void*>(*current()),
+               static_cast<void*>(*scope_site));
       }
       current()->set_nested_site(*scope_site);
       update_current_site(*scope_site);
@@ -273,7 +270,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
         PrintF("*** Setting AllocationSite %p transition_info %p\n",
                static_cast<void*>(*scope_site), static_cast<void*>(*object));
       } else {
-        PrintF("*** Setting AllocationSite (%p, %p) transition_info %p\n",
+        PrintF("Setting AllocationSite (%p, %p) transition_info %p\n",
                static_cast<void*>(*top()), static_cast<void*>(*scope_site),
                static_cast<void*>(*object));
       }

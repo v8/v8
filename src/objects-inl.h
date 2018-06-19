@@ -1140,10 +1140,6 @@ FixedArrayBase* JSObject::elements() const {
   return static_cast<FixedArrayBase*>(array);
 }
 
-bool AllocationSite::HasWeakNext() const {
-  return map() == GetHeap()->allocation_site_map();
-}
-
 void AllocationSite::Initialize() {
   set_transition_info_or_boilerplate(Smi::kZero);
   SetElementsKind(GetInitialFastElementsKind());
@@ -2434,8 +2430,7 @@ SMI_ACCESSORS(AllocationSite, pretenure_create_count,
               kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
-ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
-                  HasWeakNext())
+ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
 SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)

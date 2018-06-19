@@ -149,30 +149,6 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-template <bool includeWeakNext>
-class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
-    return offset >= AllocationSite::kStartOffset && offset < GetEndOffset(map);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
-                                 ObjectVisitor* v) {
-    IteratePointers(obj, AllocationSite::kStartOffset, GetEndOffset(map), v);
-  }
-
-  static inline int SizeOf(Map* map, HeapObject* object) {
-    return map->instance_size();
-  }
-
- private:
-  static inline int GetEndOffset(Map* map) {
-    return includeWeakNext ? map->instance_size()
-                           : AllocationSite::kSizeWithoutWeakNext;
-  }
-};
-
 class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kByteLengthOffset + kPointerSize == kBackingStoreOffset);
