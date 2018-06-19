@@ -15,16 +15,12 @@ async function f() {
 }
 f();
 
-async function importUndefined() {
+async function g() {
   try {
-    await import({ get toString() { return undefined; }})
+    let namespace = await import({ get toString() { return undefined; }});
   } catch(e) {
     log(2);
   }
-}
-
-function g() {
-  let namespace = Promise.resolve().then(importUndefined);
 }
 g();
   %RunMicrotasks();
