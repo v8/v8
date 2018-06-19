@@ -98,11 +98,10 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                          PretenureFlag pretenure);
   Node* AllocateFastLiteral(Node* effect, Node* control,
                             Handle<JSObject> boilerplate,
-                            AllocationSiteUsageContext* site_context);
+                            PretenureFlag pretenure);
   Node* AllocateFastLiteralElements(Node* effect, Node* control,
                                     Handle<JSObject> boilerplate,
-                                    PretenureFlag pretenure,
-                                    AllocationSiteUsageContext* site_context);
+                                    PretenureFlag pretenure);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
                               Handle<JSRegExp> boilerplate);
 

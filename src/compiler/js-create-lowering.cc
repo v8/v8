@@ -4,7 +4,6 @@
 
 #include "src/compiler/js-create-lowering.h"
 
-#include "src/allocation-site-scopes.h"
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
@@ -1201,6 +1200,17 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   return Changed(node);
 }
 
+void AssumeAllocationSiteTransitionDeepDependencies(
+    CompilationDependencies* dependencies, Isolate* isolate,
+    Handle<AllocationSite> site) {
+  while (true) {
+    dependencies->AssumeTransitionStable(site);
+    if (!site->nested_site()->IsAllocationSite()) break;
+    site = handle(AllocationSite::cast(site->nested_site()), isolate);
+  }
+  CHECK_EQ(site->nested_site(), Smi::kZero);
+}
+
 Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
          node->opcode() == IrOpcode::kJSCreateLiteralObject);
@@ -1215,11 +1225,15 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
     Handle<JSObject> boilerplate(site->boilerplate(), isolate());
     int max_properties = kMaxFastLiteralProperties;
     if (IsFastLiteral(boilerplate, kMaxFastLiteralDepth, &max_properties)) {
-      AllocationSiteUsageContext site_context(isolate(), site, false);
-      site_context.EnterNewScope();
+      PretenureFlag pretenure = NOT_TENURED;
+      if (FLAG_allocation_site_pretenuring) {
+        pretenure = site->GetPretenureMode();
+        dependencies()->AssumeTenuringDecision(site);
+      }
+      AssumeAllocationSiteTransitionDeepDependencies(dependencies(), isolate(),
+                                                     site);
       Node* value = effect =
-          AllocateFastLiteral(effect, control, boilerplate, &site_context);
-      site_context.ExitScope(site, boilerplate);
+          AllocateFastLiteral(effect, control, boilerplate, pretenure);
       ReplaceWithValue(node, value, effect, control);
       return Replace(value);
     }
@@ -1701,22 +1715,9 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   return a.Finish();
 }
 
-Node* JSCreateLowering::AllocateFastLiteral(
-    Node* effect, Node* control, Handle<JSObject> boilerplate,
-    AllocationSiteUsageContext* site_context) {
-  Handle<AllocationSite> current_site(*site_context->current(), isolate());
-  dependencies()->AssumeTransitionStable(current_site);
-
-  PretenureFlag pretenure = NOT_TENURED;
-  if (FLAG_allocation_site_pretenuring) {
-    Handle<AllocationSite> top_site(*site_context->top(), isolate());
-    pretenure = top_site->GetPretenureMode();
-    if (current_site.is_identical_to(top_site)) {
-      // We install a dependency for pretenuring only on the outermost literal.
-      dependencies()->AssumeTenuringDecision(top_site);
-    }
-  }
-
+Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
+                                            Handle<JSObject> boilerplate,
+                                            PretenureFlag pretenure) {
   // Setup the properties backing store.
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
 
@@ -1748,10 +1749,8 @@ Node* JSCreateLowering::AllocateFastLiteral(
       if (boilerplate_value->IsJSObject()) {
         Handle<JSObject> boilerplate_object =
             Handle<JSObject>::cast(boilerplate_value);
-        Handle<AllocationSite> current_site = site_context->EnterNewScope();
-        value = effect = AllocateFastLiteral(effect, control,
-                                             boilerplate_object, site_context);
-        site_context->ExitScope(current_site, boilerplate_object);
+        value = effect =
+            AllocateFastLiteral(effect, control, boilerplate_object, pretenure);
       } else if (property_details.representation().IsDouble()) {
         double number = Handle<HeapNumber>::cast(boilerplate_value)->value();
         // Allocate a mutable HeapNumber box and store the value into it.
@@ -1785,8 +1784,8 @@ Node* JSCreateLowering::AllocateFastLiteral(
   }
 
   // Setup the elements backing store.
-  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
-                                               pretenure, site_context);
+  Node* elements =
+      AllocateFastLiteralElements(effect, control, boilerplate, pretenure);
   if (elements->op()->EffectOutputCount() > 0) effect = elements;
 
   // Actually allocate and initialize the object.
@@ -1810,7 +1809,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
 
 Node* JSCreateLowering::AllocateFastLiteralElements(
     Node* effect, Node* control, Handle<JSObject> boilerplate,
-    PretenureFlag pretenure, AllocationSiteUsageContext* site_context) {
+    PretenureFlag pretenure) {
   Handle<FixedArrayBase> boilerplate_elements(boilerplate->elements(),
                                               isolate());
 
@@ -1855,10 +1854,8 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
         if (element_value->IsJSObject()) {
           Handle<JSObject> boilerplate_object =
               Handle<JSObject>::cast(element_value);
-          Handle<AllocationSite> current_site = site_context->EnterNewScope();
           elements_values[i] = effect = AllocateFastLiteral(
-              effect, control, boilerplate_object, site_context);
-          site_context->ExitScope(current_site, boilerplate_object);
+              effect, control, boilerplate_object, pretenure);
         } else {
           elements_values[i] = jsgraph()->Constant(element_value);
         }
