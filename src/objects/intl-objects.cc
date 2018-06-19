@@ -1143,14 +1143,7 @@ std::set<std::string> IntlUtil::GetAvailableLocales(const IcuService& service) {
 
     std::string shortened_locale;
     if (IntlUtil::RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
-      error = U_ZERO_ERROR;
-      char bcp47_result[ULOC_FULLNAME_CAPACITY];
-      uloc_toLanguageTag(shortened_locale.c_str(), bcp47_result,
-                         ULOC_FULLNAME_CAPACITY, true, &error);
-      if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-        // This shouldn't happen, but lets not break the user.
-        continue;
-      }
+      std::replace(shortened_locale.begin(), shortened_locale.end(), '_', '-');
       locales.insert(shortened_locale);
     }
   }
