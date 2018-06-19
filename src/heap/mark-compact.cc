@@ -300,7 +300,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         if (heap()->InNewSpace(object)) {
-          CHECK(heap()->InToSpace(object));
+          CHECK(Heap::InToSpace(object));
         }
         CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
       }
@@ -311,7 +311,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
       HeapObject* object;
       if ((*current)->ToStrongHeapObject(&object)) {
         if (heap()->InNewSpace(object)) {
-          CHECK(heap()->InToSpace(object));
+          CHECK(Heap::InToSpace(object));
         }
         CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
       }
@@ -2859,7 +2859,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (!(*slot)->ToStrongOrWeakHeapObject(&heap_object)) {
       return REMOVE_SLOT;
     }
-    if (heap_->InFromSpace(heap_object)) {
+    if (Heap::InFromSpace(heap_object)) {
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
         HeapObjectReference::Update(
@@ -2873,10 +2873,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       // callback in to space, the object is still live.
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
-      if (heap_->InToSpace(heap_object)) {
+      if (Heap::InToSpace(heap_object)) {
         return KEEP_SLOT;
       }
-    } else if (heap_->InToSpace(heap_object)) {
+    } else if (Heap::InToSpace(heap_object)) {
       // Slots can point to "to" space if the page has been moved, or if the
       // slot has been recorded multiple times in the remembered set, or
       // if the slot was already updated during old->old updating.
@@ -3451,7 +3451,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK_IMPLIES(heap()->InNewSpace(object), heap()->InToSpace(object));
+        CHECK_IMPLIES(heap()->InNewSpace(object), Heap::InToSpace(object));
       }
     }
   }
@@ -3459,7 +3459,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
       if ((*current)->ToStrongOrWeakHeapObject(&object)) {
-        CHECK_IMPLIES(heap()->InNewSpace(object), heap()->InToSpace(object));
+        CHECK_IMPLIES(heap()->InNewSpace(object), Heap::InToSpace(object));
       }
     }
   }
@@ -3482,7 +3482,7 @@ void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
 }
 
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
-  DCHECK_IMPLIES(heap->InNewSpace(*p), heap->InToSpace(*p));
+  DCHECK_IMPLIES(heap->InNewSpace(*p), Heap::InToSpace(*p));
   return heap->InNewSpace(*p) && !heap->minor_mark_compact_collector()
                                       ->non_atomic_marking_state()
                                       ->IsGrey(HeapObject::cast(*p));
@@ -4089,7 +4089,7 @@ class PageMarkingItem : public MarkingItem {
     if (heap()->InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.
-      DCHECK(heap()->InToSpace(object));
+      DCHECK(Heap::InToSpace(object));
       HeapObject* heap_object;
       bool success = object->ToStrongOrWeakHeapObject(&heap_object);
       USE(success);

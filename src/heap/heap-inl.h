@@ -360,17 +360,20 @@ bool Heap::InFromSpace(HeapObject* heap_object) {
       ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
+// static
 bool Heap::InToSpace(Object* object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InToSpace(HeapObject::cast(object));
 }
 
+// static
 bool Heap::InToSpace(MaybeObject* object) {
   HeapObject* heap_object;
   return object->ToStrongOrWeakHeapObject(&heap_object) &&
          InToSpace(heap_object);
 }
 
+// static
 bool Heap::InToSpace(HeapObject* heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
 }

@@ -601,7 +601,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
                                  HeapObject* obj, HeapObject** out) -> bool {
     DCHECK(obj->IsHeapObject());
     // Only pointers to from space have to be updated.
-    if (heap_->InFromSpace(obj)) {
+    if (Heap::InFromSpace(obj)) {
       MapWord map_word = obj->map_word();
       if (!map_word.IsForwardingAddress()) {
         // There may be objects on the marking deque that do not exist anymore,
@@ -615,7 +615,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());
       *out = dest;
       return true;
-    } else if (heap_->InToSpace(obj)) {
+    } else if (Heap::InToSpace(obj)) {
       // The object may be on a page that was moved in new space.
       DCHECK(
           Page::FromAddress(obj->address())->IsFlagSet(Page::SWEEP_TO_ITERATE));

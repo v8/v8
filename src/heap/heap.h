@@ -1368,9 +1368,9 @@ class Heap {
   static inline bool InFromSpace(Object* object);
   static inline bool InFromSpace(MaybeObject* object);
   static inline bool InFromSpace(HeapObject* heap_object);
-  inline bool InToSpace(Object* object);
-  inline bool InToSpace(MaybeObject* object);
-  inline bool InToSpace(HeapObject* heap_object);
+  static inline bool InToSpace(Object* object);
+  static inline bool InToSpace(MaybeObject* object);
+  static inline bool InToSpace(HeapObject* heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object* object);
