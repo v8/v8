@@ -13,6 +13,7 @@
 #include "src/api.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/intl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/managed.h"
@@ -1076,6 +1077,85 @@ void V8BreakIterator::DeleteBreakIterator(
   delete reinterpret_cast<icu::BreakIterator*>(data.GetInternalField(0));
   delete reinterpret_cast<icu::UnicodeString*>(data.GetInternalField(1));
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+}
+
+// Build the shortened locale; eg, convert xx_Yyyy_ZZ  to xx_ZZ.
+bool IntlUtil::RemoveLocaleScriptTag(const std::string& icu_locale,
+                                     std::string* locale_less_script) {
+  icu::Locale new_locale = icu::Locale::createCanonical(icu_locale.c_str());
+  const char* icu_script = new_locale.getScript();
+  if (icu_script == NULL || strlen(icu_script) == 0) {
+    *locale_less_script = std::string();
+    return false;
+  }
+
+  const char* icu_language = new_locale.getLanguage();
+  const char* icu_country = new_locale.getCountry();
+  icu::Locale short_locale = icu::Locale(icu_language, icu_country);
+  const char* icu_name = short_locale.getName();
+  *locale_less_script = std::string(icu_name);
+  return true;
+}
+
+std::set<std::string> IntlUtil::GetAvailableLocales(const IcuService& service) {
+  const icu::Locale* icu_available_locales = nullptr;
+  int32_t count = 0;
+
+  switch (service) {
+    case IcuService::kBreakIterator:
+      icu_available_locales = icu::BreakIterator::getAvailableLocales(count);
+      break;
+    case IcuService::kCollator:
+      icu_available_locales = icu::Collator::getAvailableLocales(count);
+      break;
+    case IcuService::kDateFormat:
+      icu_available_locales = icu::DateFormat::getAvailableLocales(count);
+      break;
+    case IcuService::kNumberFormat:
+      icu_available_locales = icu::NumberFormat::getAvailableLocales(count);
+      break;
+    case IcuService::kPluralRules:
+      // TODO(littledan): For PluralRules, filter out locales that
+      // don't support PluralRules.
+      // PluralRules is missing an appropriate getAvailableLocales method,
+      // so we should filter from all locales, but it's not clear how; see
+      // https://ssl.icu-project.org/trac/ticket/12756
+      icu_available_locales = icu::Locale::getAvailableLocales(count);
+      break;
+  }
+
+  UErrorCode error = U_ZERO_ERROR;
+  char result[ULOC_FULLNAME_CAPACITY];
+
+  std::set<std::string> locales;
+  for (int32_t i = 0; i < count; ++i) {
+    const char* icu_name = icu_available_locales[i].getName();
+
+    error = U_ZERO_ERROR;
+    // No need to force strict BCP47 rules.
+    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
+    if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
+      // This shouldn't happen, but lets not break the user.
+      continue;
+    }
+    std::string locale(result);
+    locales.insert(locale);
+
+    std::string shortened_locale;
+    if (IntlUtil::RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
+      error = U_ZERO_ERROR;
+      char bcp47_result[ULOC_FULLNAME_CAPACITY];
+      uloc_toLanguageTag(shortened_locale.c_str(), bcp47_result,
+                         ULOC_FULLNAME_CAPACITY, true, &error);
+      if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
+        // This shouldn't happen, but lets not break the user.
+        continue;
+      }
+      locales.insert(shortened_locale);
+    }
+  }
+
+  return locales;
 }
 
 }  // namespace internal
