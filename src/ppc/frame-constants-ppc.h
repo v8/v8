@@ -5,6 +5,7 @@
 #ifndef V8_PPC_FRAME_CONSTANTS_PPC_H_
 #define V8_PPC_FRAME_CONSTANTS_PPC_H_
 
+#include "src/base/macros.h"
 #include "src/frame-constants.h"
 
 namespace v8 {

@@ -5,6 +5,9 @@
 #ifndef V8_ARM_FRAME_CONSTANTS_ARM_H_
 #define V8_ARM_FRAME_CONSTANTS_ARM_H_
 
+#include "src/base/macros.h"
+#include "src/frame-constants.h"
+
 namespace v8 {
 namespace internal {
 
