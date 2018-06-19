@@ -2091,7 +2091,7 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
   return is_int26(offset);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target,
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
                                            RelocInfo::Mode rmode) {
   DCHECK_EQ(rmode, RelocInfo::RUNTIME_ENTRY);
 
@@ -2100,22 +2100,20 @@ void TurboAssembler::CallForDeoptimization(Address target,
   Label start_call;
   Bind(&start_call);
 #endif
+  // The deoptimizer requires the deoptimization id to be in x16.
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-
-  // Deoptimisation table entries require the call address to be in x16, in
-  // order to compute the entry id.
-  // TODO(all): Put the entry id back in the table now that we are using
-  // a direct branch for the call and do not need to set up x16.
   DCHECK(temp.Is(x16));
-  Mov(temp, Immediate(target, rmode));
-
+  // Make sure that the deopt id can be encoded in 16 bits, so can be encoded
+  // in a single movz instruction with a zero shift.
+  DCHECK(is_uint16(deopt_id));
+  movz(temp, deopt_id);
   int64_t offset = static_cast<int64_t>(target) -
                    static_cast<int64_t>(isolate_data().code_range_start);
   DCHECK_EQ(offset % kInstructionSize, 0);
   offset = offset / static_cast<int>(kInstructionSize);
   DCHECK(IsNearCallOffset(offset));
-  near_call(static_cast<int>(offset), rmode);
+  near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
 
 #ifdef DEBUG
   AssertSizeOfCodeGeneratedSince(&start_call, kNearCallSize + kInstructionSize);

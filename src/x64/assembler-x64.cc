@@ -19,6 +19,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
 
@@ -4857,6 +4858,10 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
+}
 
 }  // namespace internal
 }  // namespace v8

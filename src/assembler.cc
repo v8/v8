@@ -595,11 +595,12 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     os << ") ";
     os << " (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
-    // Depotimization bailouts are stored as runtime entries.
-    int id = Deoptimizer::GetDeoptimizationId(isolate, target_address(),
-                                              DeoptimizeKind::kEager);
-    if (id != Deoptimizer::kNotDeoptimizationEntry) {
-      os << "  (deoptimization bailout " << id << ")";
+    // Deoptimization bailouts are stored as runtime entries.
+    DeoptimizeKind type;
+    if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
+      int id = GetDeoptimizationId(isolate, type);
+      os << "  (" << Deoptimizer::MessageFor(type) << " deoptimization bailout "
+         << id << ")";
     }
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";

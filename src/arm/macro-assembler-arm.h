@@ -358,7 +358,9 @@ class TurboAssembler : public TurboAssemblerBase {
 
   // This should only be used when assembling a deoptimizer call because of
   // the CheckConstPool invocation, which is only needed for deoptimization.
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     Call(target, rmode);
     CheckConstPool(false, false);
   }

@@ -126,7 +126,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   if (info()->is_source_positions_enabled()) {
     tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
-  tasm()->CallForDeoptimization(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+  tasm()->CallForDeoptimization(deopt_entry, deoptimization_id,
+                                RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
 

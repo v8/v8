@@ -41,6 +41,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc-inl.h"
 
@@ -159,6 +160,11 @@ bool RelocInfo::IsInConstantPool() {
     return Assembler::IsConstantPoolLoadStart(pc_);
   }
   return false;
+}
+
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,

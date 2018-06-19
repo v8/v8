@@ -902,7 +902,8 @@ class TurboAssembler : public TurboAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode);
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode);
 
   // For every Call variant, there is a matching CallSize function that returns
   // the size (in bytes) of the call sequence.

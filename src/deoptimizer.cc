@@ -600,16 +600,41 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate, Address addr,
                                      DeoptimizeKind kind) {
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(kind, DeoptimizerData::kLastDeoptimizeKind);
+  DCHECK(IsInDeoptimizationTable(isolate, addr, kind));
   Code* code = data->deopt_entry_code(kind);
-  if (code == nullptr) return kNotDeoptimizationEntry;
   Address start = code->raw_instruction_start();
-  if (addr < start ||
-      addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
-    return kNotDeoptimizationEntry;
-  }
   DCHECK_EQ(0,
             static_cast<int>(addr - start) % table_entry_size_);
   return static_cast<int>(addr - start) / table_entry_size_;
+}
+
+bool Deoptimizer::IsInDeoptimizationTable(Isolate* isolate, Address addr,
+                                          DeoptimizeKind type) {
+  DeoptimizerData* data = isolate->deoptimizer_data();
+  CHECK_LE(type, DeoptimizerData::kLastDeoptimizeKind);
+  Code* code = data->deopt_entry_code(type);
+  if (code == nullptr) return false;
+  Address start = code->raw_instruction_start();
+  return ((table_entry_size_ == 0 && addr == start) ||
+          (addr >= start &&
+           addr < start + (kMaxNumberOfEntries * table_entry_size_)));
+}
+
+bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
+                                        DeoptimizeKind* type) {
+  if (IsInDeoptimizationTable(isolate, addr, DeoptimizeKind::kEager)) {
+    *type = DeoptimizeKind::kEager;
+    return true;
+  }
+  if (IsInDeoptimizationTable(isolate, addr, DeoptimizeKind::kSoft)) {
+    *type = DeoptimizeKind::kSoft;
+    return true;
+  }
+  if (IsInDeoptimizationTable(isolate, addr, DeoptimizeKind::kLazy)) {
+    *type = DeoptimizeKind::kLazy;
+    return true;
+  }
+  return false;
 }
 
 int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {

@@ -410,7 +410,9 @@ class TurboAssembler : public TurboAssemblerBase {
 
   void RetpolineJump(Register reg);
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     call(target, rmode);
   }
 

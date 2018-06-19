@@ -39,6 +39,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/mips/assembler-mips-inl.h"
 
 namespace v8 {
@@ -196,6 +197,11 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   return false;
+}
+
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,

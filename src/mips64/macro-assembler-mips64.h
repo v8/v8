@@ -298,7 +298,9 @@ class TurboAssembler : public TurboAssemblerBase {
             COND_ARGS);
   void Call(Label* target);
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     Call(target, rmode);
   }
 

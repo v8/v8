@@ -478,6 +478,11 @@ class Deoptimizer : public Malloced {
   static int GetDeoptimizationId(Isolate* isolate, Address addr,
                                  DeoptimizeKind kind);
 
+  // Returns true if {addr} is a deoptimization entry and stores its type in
+  // {type}. Returns false if {addr} is not a deoptimization entry.
+  static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
+                                    DeoptimizeKind* type);
+
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
   static int output_count_offset() {
@@ -535,6 +540,9 @@ class Deoptimizer : public Malloced {
   Code* FindOptimizedCode();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
+
+  static bool IsInDeoptimizationTable(Isolate* isolate, Address addr,
+                                      DeoptimizeKind type);
 
   void DoComputeOutputFrames();
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
