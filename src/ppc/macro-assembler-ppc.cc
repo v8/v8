@@ -2377,7 +2377,7 @@ void TurboAssembler::Add(Register dst, Register src, intptr_t value,
 }
 
 
-void MacroAssembler::Cmpi(Register src1, const Operand& src2, Register scratch,
+void TurboAssembler::Cmpi(Register src1, const Operand& src2, Register scratch,
                           CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_int16(value)) {
@@ -3087,6 +3087,16 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   mov(kSpeculationPoisonRegister, Operand(-1));
+}
+
+void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
+  Cmpi(x, Operand(y), r0);
+  beq(dest);
+}
+
+void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
+  Cmpi(x, Operand(y), r0);
+  blt(dest);
 }
 
 }  // namespace internal

@@ -202,6 +202,9 @@ class TurboAssembler : public TurboAssemblerBase {
     TestIfSmi(value);
     beq(smi_label /*, cr0*/);  // branch if SMI
   }
+  void JumpIfEqual(Register x, int32_t y, Label* dest);
+  void JumpIfLessThan(Register x, int32_t y, Label* dest);
+
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(Handle<Code> code,

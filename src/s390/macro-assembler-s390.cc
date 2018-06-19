@@ -4484,6 +4484,16 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   larl(dst, Operand(-pc_offset() / 2));
 }
 
+void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
+  Cmp32(x, Operand(y));
+  beq(dest);
+}
+
+void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
+  Cmp32(x, Operand(y));
+  blt(dest);
+}
+
 }  // namespace internal
 }  // namespace v8
 
