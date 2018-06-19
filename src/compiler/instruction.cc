@@ -4,6 +4,8 @@
 
 #include "src/compiler/instruction.h"
 
+#include <iomanip>
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
@@ -722,15 +724,12 @@ std::ostream& operator<<(std::ostream& os,
     os << std::endl;
   }
 
-  ScopedVector<char> buf(32);
   PrintableInstruction printable_instr;
   printable_instr.register_configuration_ = config;
   for (int j = block->first_instruction_index();
        j <= block->last_instruction_index(); j++) {
-    // TODO(svenpanne) Add some basic formatting to our streams.
-    SNPrintF(buf, "%5d", j);
     printable_instr.instr_ = code->InstructionAt(j);
-    os << "   " << buf.start() << ": " << printable_instr << std::endl;
+    os << "   " << std::setw(5) << j << ": " << printable_instr << std::endl;
   }
 
   for (RpoNumber succ : block->successors()) {
