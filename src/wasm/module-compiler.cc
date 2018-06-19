@@ -628,13 +628,6 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   return true;
 }
 
-size_t GetNumFunctionsToCompile(const WasmModule* wasm_module) {
-  uint32_t start = wasm_module->num_imported_functions;
-  uint32_t num_funcs = static_cast<uint32_t>(wasm_module->functions.size());
-  uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
-  return funcs_to_compile;
-}
-
 void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
                                 const ModuleWireBytes& wire_bytes,
                                 const WasmModule* wasm_module,
@@ -716,8 +709,9 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   // the compilation units. This foreground thread will be
   // responsible for finishing compilation.
   compilation_state->SetFinisherIsRunning(true);
-  size_t functions_count = GetNumFunctionsToCompile(module);
-  compilation_state->SetNumberOfFunctionsToCompile(functions_count);
+  uint32_t num_wasm_functions =
+      native_module->num_functions() - native_module->num_imported_functions();
+  compilation_state->SetNumberOfFunctionsToCompile(num_wasm_functions);
   compilation_state->SetWireBytes(wire_bytes);
 
   // 1) The main thread allocates a compilation unit for each wasm function
@@ -2682,8 +2676,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // InitializeCompilationUnits always returns 0 for streaming compilation,
       // then DoAsync would do the same as NextStep already.
 
-      size_t functions_count = GetNumFunctionsToCompile(module);
-      compilation_state->SetNumberOfFunctionsToCompile(functions_count);
+      compilation_state->SetNumberOfFunctionsToCompile(
+          module->num_declared_functions);
       // Add compilation units and kick off compilation.
       InitializeCompilationUnits(module->functions, job_->wire_bytes_, module,
                                  job_->native_module_);
