@@ -210,9 +210,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         int local_index = var->index() - Context::MIN_CONTEXT_SLOTS;
         DCHECK_LE(0, local_index);
         DCHECK_LT(local_index, context_local_count);
-        uint32_t info = VariableModeField::encode(var->mode()) |
-                        InitFlagField::encode(var->initialization_flag()) |
-                        MaybeAssignedFlagField::encode(var->maybe_assigned());
+        uint32_t info =
+            VariableModeField::encode(var->mode()) |
+            InitFlagField::encode(var->initialization_flag()) |
+            MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+            ParameterNumberField::encode(ParameterNumberField::kMax);
         scope_info->set(context_local_base + local_index, *var->name());
         scope_info->set(context_local_info_base + local_index,
                         Smi::FromInt(info));
@@ -226,7 +228,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         uint32_t properties =
             VariableModeField::encode(var->mode()) |
             InitFlagField::encode(var->initialization_flag()) |
-            MaybeAssignedFlagField::encode(var->maybe_assigned());
+            MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+            ParameterNumberField::encode(ParameterNumberField::kMax);
         scope_info->set(module_var_entry + kModuleVariablePropertiesOffset,
                         Smi::FromInt(properties));
         module_var_entry += kModuleVariableEntryLength;
@@ -234,6 +237,25 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       }
       default:
         break;
+    }
+  }
+
+  if (scope->is_declaration_scope()) {
+    // Mark contexts slots with the parameter number they represent. We walk the
+    // list of parameters. That can include duplicate entries if a parameter
+    // name is repeated. By walking upwards, we'll automatically mark the
+    // context slot with the highest parameter number that uses this variable.
+    // That will be the parameter number that is represented by the context
+    // slot. All lower parameters will only be available on the stack through
+    // the arguments object.
+    for (int i = 0; i < parameter_count; i++) {
+      Variable* parameter = scope->AsDeclarationScope()->parameter(i);
+      if (parameter->location() != VariableLocation::CONTEXT) continue;
+      int index = parameter->index() - Context::MIN_CONTEXT_SLOTS;
+      int info_index = context_local_info_base + index;
+      int info = Smi::ToInt(scope_info->get(info_index));
+      info = ParameterNumberField::update(info, i);
+      scope_info->set(info_index, Smi::FromInt(info));
     }
   }
 
@@ -400,9 +422,11 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   }
   DCHECK_EQ(index, scope_info->ContextLocalInfosIndex());
   if (context_local_count) {
-    const uint32_t value = VariableModeField::encode(VariableMode::kConst) |
-                           InitFlagField::encode(kCreatedInitialized) |
-                           MaybeAssignedFlagField::encode(kNotAssigned);
+    const uint32_t value =
+        VariableModeField::encode(VariableMode::kConst) |
+        InitFlagField::encode(kCreatedInitialized) |
+        MaybeAssignedFlagField::encode(kNotAssigned) |
+        ParameterNumberField::encode(ParameterNumberField::kMax);
     scope_info->set(index++, Smi::FromInt(value));
   }
 
@@ -581,12 +605,12 @@ String* ScopeInfo::FunctionDebugName() const {
 
 int ScopeInfo::StartPosition() const {
   DCHECK(HasPositionInfo());
-  return Smi::cast(get(PositionInfoIndex()))->value();
+  return Smi::ToInt(get(PositionInfoIndex()));
 }
 
 int ScopeInfo::EndPosition() const {
   DCHECK(HasPositionInfo());
-  return Smi::cast(get(PositionInfoIndex() + 1))->value();
+  return Smi::ToInt(get(PositionInfoIndex() + 1));
 }
 
 void ScopeInfo::SetPositionInfo(int start, int end) {
@@ -634,6 +658,22 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) const {
   int info_index = ContextLocalInfosIndex() + var;
   int value = Smi::ToInt(get(info_index));
   return InitFlagField::decode(value);
+}
+
+bool ScopeInfo::ContextLocalIsParameter(int var) const {
+  DCHECK_LE(0, var);
+  DCHECK_LT(var, ContextLocalCount());
+  DCHECK_LT(var, ParameterCount());
+  int info_index = ContextLocalInfosIndex() + var;
+  int value = Smi::ToInt(get(info_index));
+  return ParameterNumberField::decode(value) != ParameterNumberField::kMax;
+}
+
+uint32_t ScopeInfo::ContextLocalParameterNumber(int var) const {
+  DCHECK(ContextLocalIsParameter(var));
+  int info_index = ContextLocalInfosIndex() + var;
+  int value = Smi::ToInt(get(info_index));
+  return ParameterNumberField::decode(value);
 }
 
 MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
@@ -955,9 +995,8 @@ String* ModuleInfo::RegularExportLocalName(int i) const {
 }
 
 int ModuleInfo::RegularExportCellIndex(int i) const {
-  return Smi::cast(regular_exports()->get(i * kRegularExportLength +
-                                          kRegularExportCellIndexOffset))
-      ->value();
+  return Smi::ToInt(regular_exports()->get(i * kRegularExportLength +
+                                           kRegularExportCellIndexOffset));
 }
 
 FixedArray* ModuleInfo::RegularExportExportNames(int i) const {

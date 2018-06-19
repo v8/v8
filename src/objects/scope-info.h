@@ -120,6 +120,9 @@ class ScopeInfo : public FixedArray {
   // Return the initialization flag of the given context local.
   InitializationFlag ContextLocalInitFlag(int var) const;
 
+  bool ContextLocalIsParameter(int var) const;
+  uint32_t ContextLocalParameterNumber(int var) const;
+
   // Return the initialization flag of the given context local.
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
 
@@ -321,6 +324,8 @@ class ScopeInfo : public FixedArray {
   class VariableModeField : public BitField<VariableMode, 0, 3> {};
   class InitFlagField : public BitField<InitializationFlag, 3, 1> {};
   class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
+  class ParameterNumberField
+      : public BitField<uint32_t, MaybeAssignedFlagField::kNext, 16> {};
 
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,

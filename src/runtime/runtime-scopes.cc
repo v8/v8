@@ -428,43 +428,24 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         --index;
       }
 
-      Handle<ScopeInfo> scope_info(callee->shared()->scope_info());
-      while (index >= 0) {
-        // Detect duplicate names to the right in the parameter list.
-        Handle<String> name(scope_info->ParameterName(index));
-        int context_local_count = scope_info->ContextLocalCount();
-        bool duplicate = false;
-        for (int j = index + 1; j < parameter_count; ++j) {
-          if (scope_info->ParameterName(j) == *name) {
-            duplicate = true;
-            break;
-          }
-        }
+      Handle<ScopeInfo> scope_info(callee->shared()->scope_info(), isolate);
 
-        if (duplicate) {
-          // This goes directly in the arguments array with a hole in the
-          // parameter map.
-          arguments->set(index, parameters[index]);
-          parameter_map->set_the_hole(index + 2);
-        } else {
-          // The context index goes in the parameter map with a hole in the
-          // arguments array.
-          int context_index = -1;
-          for (int j = 0; j < context_local_count; ++j) {
-            if (scope_info->ContextLocalName(j) == *name) {
-              context_index = j;
-              break;
-            }
-          }
+      // First mark all mappable slots as unmapped and copy the values into the
+      // arguments object.
+      for (int i = 0; i < mapped_count; i++) {
+        arguments->set(i, parameters[i]);
+        parameter_map->set_the_hole(i + 2);
+      }
 
-          DCHECK_GE(context_index, 0);
-          arguments->set_the_hole(index);
-          parameter_map->set(
-              index + 2,
-              Smi::FromInt(Context::MIN_CONTEXT_SLOTS + context_index));
-        }
-
-        --index;
+      // Walk all context slots to find context allocated parameters. Mark each
+      // found parameter as mapped.
+      for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
+        if (!scope_info->ContextLocalIsParameter(i)) continue;
+        int parameter = scope_info->ContextLocalParameterNumber(i);
+        if (parameter >= mapped_count) continue;
+        arguments->set_the_hole(parameter);
+        Smi* slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
+        parameter_map->set(parameter + 2, slot);
       }
     } else {
       // If there is no aliasing, the arguments object elements are not
