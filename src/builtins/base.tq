@@ -250,6 +250,8 @@ extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
 extern operator '&' macro Word32And(word32, word32): int32;
+extern operator '==' macro
+  ConstexprInt31Equal(constexpr int31, constexpr int31): constexpr bool;
 
 extern operator '==' macro Word32Equal(word32, word32): bool;
 extern operator '!=' macro Word32NotEqual(word32, word32): bool;

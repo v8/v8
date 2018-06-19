@@ -351,9 +351,10 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 
     VisitResult condition_result = Visit(expr->condition);
     if (!condition_result.type()->IsNever()) {
+      condition_result =
+          GenerateImplicitConvert(TypeOracle::GetBoolType(), condition_result);
       GenerateBranch(condition_result, true_label, false_label);
     }
-
     GenerateLabelBind(true_label);
     GenerateIndent();
     source_out() << result->GetValueForWrite() << " = " << f1 << "();"

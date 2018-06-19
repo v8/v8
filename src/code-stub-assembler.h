@@ -2623,6 +2623,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   bool ConstexprBoolNot(bool value) { return !value; }
 
+  bool ConstexprInt31Equal(int31_t a, int31_t b) { return a == b; }
+
   void PerformStackCheck(TNode<Context> context);
 
  protected:
