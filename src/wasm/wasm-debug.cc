@@ -568,56 +568,6 @@ Handle<FixedArray> GetOrCreateInterpretedFunctions(
   return new_arr;
 }
 
-using CodeRelocationMap = std::map<Address, Address>;
-
-void RedirectCallsitesInCode(Isolate* isolate, const wasm::WasmCode* code,
-                             CodeRelocationMap* map) {
-  DisallowHeapAllocation no_gc;
-  for (RelocIterator it(code->instructions(), code->reloc_info(),
-                        code->constant_pool(),
-                        RelocInfo::ModeMask(RelocInfo::WASM_CALL));
-       !it.done(); it.next()) {
-    Address target = it.rinfo()->target_address();
-    auto new_target = map->find(target);
-    if (new_target == map->end()) continue;
-    it.rinfo()->set_wasm_call_address(new_target->second);
-  }
-}
-
-void RedirectCallsitesInJSWrapperCode(Isolate* isolate, Code* code,
-                                      CodeRelocationMap* map) {
-  DisallowHeapAllocation no_gc;
-  for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-       !it.done(); it.next()) {
-    Address target = it.rinfo()->js_to_wasm_address();
-    auto new_target = map->find(target);
-    if (new_target == map->end()) continue;
-    it.rinfo()->set_js_to_wasm_address(new_target->second);
-  }
-}
-
-void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
-                                 CodeRelocationMap* map) {
-  DisallowHeapAllocation no_gc;
-  // Redirect all calls in wasm functions.
-  wasm::NativeModule* native_module =
-      instance->compiled_module()->GetNativeModule();
-  for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->num_functions();
-       i < e; ++i) {
-    wasm::WasmCode* code = native_module->code(i);
-    RedirectCallsitesInCode(isolate, code, map);
-  }
-  // TODO(6668): Find instances that imported our code and also patch those.
-
-  // Redirect all calls in exported functions.
-  FixedArray* export_wrapper = instance->module_object()->export_wrappers();
-  for (int i = 0, e = export_wrapper->length(); i != e; ++i) {
-    Code* code = Code::cast(export_wrapper->get(i));
-    RedirectCallsitesInJSWrapperCode(isolate, code, map);
-  }
-}
-
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
@@ -663,7 +613,6 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   wasm::NativeModule* native_module =
       instance->compiled_module()->GetNativeModule();
   wasm::WasmModule* module = instance->module();
-  CodeRelocationMap code_to_relocate;
 
   // We may modify js wrappers, as well as wasm functions. Hence the 2
   // modification scopes.
@@ -680,16 +629,10 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         isolate, func_index, module->functions[func_index].sig);
     const wasm::WasmCode* wasm_new_code = native_module->AddInterpreterEntry(
         new_code.ToHandleChecked(), func_index);
-    const wasm::WasmCode* old_code =
-        native_module->code(static_cast<uint32_t>(func_index));
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
         wasm_new_code->instruction_start(), TENURED);
     interpreted_functions->set(func_index, *foreign_holder);
-    DCHECK_EQ(0, code_to_relocate.count(old_code->instruction_start()));
-    code_to_relocate.insert(std::make_pair(old_code->instruction_start(),
-                                           wasm_new_code->instruction_start()));
   }
-  RedirectCallsitesInInstance(isolate, *instance, &code_to_relocate);
 }
 
 void WasmDebugInfo::PrepareStep(StepAction step_action) {

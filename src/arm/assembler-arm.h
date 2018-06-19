@@ -1549,6 +1549,9 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  // Move a 32-bit immediate into a register, potentially via the constant pool.
+  void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
+
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
@@ -1679,9 +1682,6 @@ class Assembler : public AssemblerBase {
 
   inline void CheckBuffer();
   void GrowBuffer();
-
-  // 32-bit immediate values
-  void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 
   // Instruction generation
   void AddrMode1(Instr instr, Register rd, Register rn, const Operand& x);

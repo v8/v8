@@ -68,62 +68,19 @@ void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
   relocate_direct_calls_module_ = native_module;
 }
 
-bool CodeSpecialization::ApplyToWholeModule(
-    NativeModule* native_module, Handle<WasmModuleObject> module_object,
-    ICacheFlushMode icache_flush_mode) {
+bool CodeSpecialization::ApplyToWholeModule(NativeModule* native_module,
+                                            ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmModule* module = module_object->module();
-  std::vector<WasmFunction>* wasm_functions =
-      &module_object->module()->functions;
-  FixedArray* export_wrappers = module_object->export_wrappers();
-  DCHECK_EQ(export_wrappers->length(), module->num_exported_functions);
 
   bool changed = false;
-  int func_index = module->num_imported_functions;
 
   // Patch all wasm functions.
-  for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
-       func_index < num_wasm_functions; ++func_index) {
-    WasmCode* wasm_function = native_module->code(func_index);
-    // TODO(clemensh): Get rid of this nullptr check
-    if (wasm_function == nullptr ||
-        wasm_function->kind() != WasmCode::kFunction) {
-      continue;
-    }
-    changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
+  for (WasmCode* wasm_code : native_module->code_table()) {
+    if (wasm_code == nullptr) continue;
+    if (wasm_code->kind() != WasmCode::kFunction) continue;
+    changed |= ApplyToWasmCode(wasm_code, icache_flush_mode);
   }
 
-  // Patch all exported functions (JS_TO_WASM_FUNCTION).
-  int reloc_mode = 0;
-  // Patch CODE_TARGET if we shall relocate direct calls. If we patch direct
-  // calls, the instance registered for that (relocate_direct_calls_module_)
-  // should match the instance we currently patch (instance).
-  if (relocate_direct_calls_module_ != nullptr) {
-    DCHECK_EQ(native_module, relocate_direct_calls_module_);
-    reloc_mode |= RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
-  }
-  if (!reloc_mode) return changed;
-  int wrapper_index = 0;
-  for (auto exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    Code* export_wrapper = Code::cast(export_wrappers->get(wrapper_index++));
-    if (export_wrapper->kind() != Code::JS_TO_WASM_FUNCTION) continue;
-    for (RelocIterator it(export_wrapper, reloc_mode); !it.done(); it.next()) {
-      RelocInfo::Mode mode = it.rinfo()->rmode();
-      switch (mode) {
-        case RelocInfo::JS_TO_WASM_CALL: {
-          changed = true;
-          Address new_target =
-              native_module->GetCallTargetForFunction(exp.index);
-          it.rinfo()->set_js_to_wasm_address(new_target, icache_flush_mode);
-        } break;
-        default:
-          UNREACHABLE();
-      }
-    }
-  }
-  DCHECK_EQ(module->functions.size(), func_index);
-  DCHECK_EQ(export_wrappers->length(), wrapper_index);
   return changed;
 }
 
@@ -167,9 +124,9 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         uint32_t called_func_index = ExtractDirectCallIndex(
             patch_direct_calls_helper->decoder,
             patch_direct_calls_helper->func_bytes + byte_pos);
-        const WasmCode* new_code = native_module->code(called_func_index);
-        it.rinfo()->set_wasm_call_address(new_code->instruction_start(),
-                                          icache_flush_mode);
+        Address new_target =
+            native_module->GetCallTargetForFunction(called_func_index);
+        it.rinfo()->set_wasm_call_address(new_target, icache_flush_mode);
         changed = true;
       } break;
 
