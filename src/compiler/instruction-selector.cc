@@ -1192,8 +1192,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
         if (min_value > p.value()) min_value = p.value();
         if (max_value < p.value()) max_value = p.value();
       }
-      // Ensure that comparison order of if-cascades is preserved.
-      std::stable_sort(cases.begin(), cases.end());
       SwitchInfo sw(cases, min_value, max_value, default_branch);
       VisitSwitch(input, sw);
       break;
@@ -2119,8 +2117,7 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
   inputs[0] = index_operand;
   InstructionOperand default_operand = g.Label(sw.default_branch());
   std::fill(&inputs[1], &inputs[input_count], default_operand);
-  for (size_t index = 0; index < sw.case_count(); ++index) {
-    const CaseInfo& c = sw.GetCase(index);
+  for (const CaseInfo& c : sw.CasesUnsorted()) {
     size_t value = c.value - sw.min_value();
     DCHECK_LE(0u, value);
     DCHECK_LT(value + 2, input_count);
@@ -2133,19 +2130,38 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
 void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
                                            InstructionOperand& value_operand) {
   OperandGenerator g(this);
+  std::vector<CaseInfo> cases = sw.CasesSortedByOriginalOrder();
   size_t input_count = 2 + sw.case_count() * 2;
   DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
   auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch());
-  for (size_t index = 0; index < sw.case_count(); ++index) {
-    const CaseInfo& c = sw.GetCase(index);
+  for (size_t index = 0; index < cases.size(); ++index) {
+    const CaseInfo& c = cases[index];
     inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
     inputs[index * 2 + 2 + 1] = g.Label(c.branch);
   }
   Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
+void InstructionSelector::EmitBinarySearchSwitch(
+    const SwitchInfo& sw, InstructionOperand& value_operand) {
+  OperandGenerator g(this);
+  size_t input_count = 2 + sw.case_count() * 2;
+  DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
+  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  inputs[0] = value_operand;
+  inputs[1] = g.Label(sw.default_branch());
+  std::vector<CaseInfo> cases = sw.CasesSortedByValue();
+  std::stable_sort(cases.begin(), cases.end(),
+                   [](CaseInfo a, CaseInfo b) { return a.value < b.value; });
+  for (size_t index = 0; index < cases.size(); ++index) {
+    const CaseInfo& c = cases[index];
+    inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
+    inputs[index * 2 + 2 + 1] = g.Label(c.branch);
+  }
+  Emit(kArchBinarySearchSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
+}
 
 void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
   EmitIdentity(node);

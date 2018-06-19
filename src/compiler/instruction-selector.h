@@ -461,6 +461,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void EmitTableSwitch(const SwitchInfo& sw, InstructionOperand& index_operand);
   void EmitLookupSwitch(const SwitchInfo& sw,
                         InstructionOperand& value_operand);
+  void EmitBinarySearchSwitch(const SwitchInfo& sw,
+                              InstructionOperand& value_operand);
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);

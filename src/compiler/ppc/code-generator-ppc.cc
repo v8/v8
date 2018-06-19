@@ -1093,6 +1093,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kArchBinarySearchSwitch:
+      AssembleArchBinarySearchSwitch(instr);
+      break;
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -2233,7 +2236,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
-
 void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   PPCOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -2243,7 +2245,6 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   }
   AssembleArchJump(i.InputRpo(1));
 }
-
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   PPCOperandConverter i(this, instr);

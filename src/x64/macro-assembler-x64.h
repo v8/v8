@@ -326,6 +326,16 @@ class TurboAssembler : public TurboAssemblerBase {
   void JumpIfSmi(Register src, Label* on_smi,
                  Label::Distance near_jump = Label::kFar);
 
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    cmpl(a, Immediate(b));
+    j(equal, dest);
+  }
+
+  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+    cmpl(a, Immediate(b));
+    j(less, dest);
+  }
+
   void Move(Register dst, Smi* source);
 
   void Move(Operand dst, Smi* source) {

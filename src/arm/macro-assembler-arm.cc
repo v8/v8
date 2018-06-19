@@ -1986,6 +1986,16 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   b(eq, smi_label);
 }
 
+void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
+  cmp(x, Operand(y));
+  b(eq, dest);
+}
+
+void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
+  cmp(x, Operand(y));
+  b(lt, dest);
+}
+
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   tst(value, Operand(kSmiTagMask));
   b(ne, not_smi_label);

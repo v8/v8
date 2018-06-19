@@ -836,6 +836,16 @@ class TurboAssembler : public TurboAssemblerBase {
   void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,
                  BranchDelaySlot bd = PROTECT);
 
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    li(kScratchReg, Operand(b));
+    Branch(dest, eq, a, Operand(kScratchReg));
+  }
+
+  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+    li(kScratchReg, Operand(b));
+    Branch(dest, lt, a, Operand(kScratchReg));
+  }
+
   // Push a standard frame, consisting of ra, fp, context and JS function.
   void PushStandardFrame(Register function_reg);
 

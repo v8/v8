@@ -352,6 +352,25 @@ void CodeGenerator::TryInsertBranchPoisoning(const InstructionBlock* block) {
   }
 }
 
+void CodeGenerator::AssembleArchBinarySearchSwitchRange(
+    Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
+    std::pair<int32_t, Label*>* end) {
+  if (end - begin < kBinarySearchSwitchMinimalCases) {
+    while (begin != end) {
+      tasm()->JumpIfEqual(input, begin->first, begin->second);
+      ++begin;
+    }
+    AssembleArchJump(def_block);
+    return;
+  }
+  auto middle = begin + (end - begin) / 2;
+  Label less_label;
+  tasm()->JumpIfLessThan(input, middle->first, &less_label);
+  AssembleArchBinarySearchSwitchRange(input, def_block, middle, end);
+  tasm()->bind(&less_label);
+  AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
+}
+
 Handle<ByteArray> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTable(isolate());
 }

@@ -1093,6 +1093,15 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
   }
 }
 
+void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
+  Cmp(x, y);
+  B(eq, dest);
+}
+
+void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
+  Cmp(x, y);
+  B(lt, dest);
+}
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   JumpIfSmi(value, nullptr, not_smi_label);

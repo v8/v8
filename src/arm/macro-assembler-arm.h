@@ -523,6 +523,9 @@ class TurboAssembler : public TurboAssemblerBase {
   // Jump if the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
+  void JumpIfEqual(Register x, int32_t y, Label* dest);
+  void JumpIfLessThan(Register x, int32_t y, Label* dest);
+
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return

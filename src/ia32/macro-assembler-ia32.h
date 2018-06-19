@@ -146,6 +146,16 @@ class TurboAssembler : public TurboAssemblerBase {
     j(zero, smi_label, distance);
   }
 
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    cmp(a, Immediate(b));
+    j(equal, dest);
+  }
+
+  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+    cmp(a, Immediate(b));
+    j(less, dest);
+  }
+
   void SmiUntag(Register reg) { sar(reg, kSmiTagSize); }
 
   // Removes current frame and its arguments from the stack preserving the

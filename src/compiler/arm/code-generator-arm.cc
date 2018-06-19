@@ -832,6 +832,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArchBinarySearchSwitch:
+      AssembleArchBinarySearchSwitch(instr);
+      break;
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -2827,6 +2830,16 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ mov(reg, Operand(1), LeaveCC, cc);
 }
 
+void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
+  ArmOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  std::vector<std::pair<int32_t, Label*>> cases;
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
+  }
+  AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
+                                      cases.data() + cases.size());
+}
 
 void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   ArmOperandConverter i(this, instr);

@@ -1178,7 +1178,6 @@ void TurboAssembler::JumpIfSmi(Register src, Label* on_smi,
   j(smi, on_smi, near_jump);
 }
 
-
 void MacroAssembler::JumpIfNotSmi(Register src,
                                   Label* on_not_smi,
                                   Label::Distance near_jump) {

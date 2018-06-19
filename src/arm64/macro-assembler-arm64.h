@@ -858,6 +858,9 @@ class TurboAssembler : public TurboAssemblerBase {
   inline void JumpIfSmi(Register value, Label* smi_label,
                         Label* not_smi_label = nullptr);
 
+  inline void JumpIfEqual(Register x, int32_t y, Label* dest);
+  inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
+
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);
   // Provide explicit double and float interfaces for FP immediate moves, rather
