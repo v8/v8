@@ -272,9 +272,8 @@ enum DispatchTableElements : int {
 }  // namespace
 
 Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    Handle<FixedArray> export_wrappers,
-    std::shared_ptr<wasm::WasmModule> module,
+    Isolate* isolate, Handle<FixedArray> export_wrappers,
+    std::shared_ptr<wasm::WasmModule> module, wasm::ModuleEnv& env,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
   // The {managed_module} will take shared ownership of the {WasmModule} object,
@@ -284,6 +283,12 @@ Handle<WasmModuleObject> WasmModuleObject::New(
       Managed<WasmModule>::FromSharedPtr(isolate, module_size,
                                          std::move(module));
 
+  // Create the first {WasmCompiledModule} associated with this
+  // {WasmModuleObject}.
+  Handle<WasmCompiledModule> compiled_module =
+      WasmCompiledModule::New(isolate, managed_module->raw(), env);
+
+  // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
       isolate->native_context()->wasm_module_constructor());
   auto module_object = Handle<WasmModuleObject>::cast(
@@ -303,6 +308,10 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
+  // TODO(clemensh): Move the reference to the native module to the module
+  // object.
+  compiled_module->GetNativeModule()->SetModuleObject(module_object);
+
   return module_object;
 }
 

@@ -535,14 +535,6 @@ ModuleEnv CreateDefaultModuleEnv(const WasmModule* module,
   return ModuleEnv(module, use_trap_handler, kRuntimeExceptionSupport);
 }
 
-Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
-                                             WasmModule* module,
-                                             ModuleEnv& env) {
-  Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, module, env);
-  return compiled_module;
-}
-
 size_t GetMaxUsableMemorySize(Isolate* isolate) {
   return isolate->heap()->memory_allocator()->code_range()->valid()
              ? isolate->heap()->memory_allocator()->code_range()->size()
@@ -1032,13 +1024,10 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate, wasm_module, env);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, compiled_module, export_wrappers, std::move(module),
-      Handle<SeqOneByteString>::cast(module_bytes), script,
-      asm_js_offset_table);
-  compiled_module->GetNativeModule()->SetModuleObject(module_object);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, export_wrappers, std::move(module), env,
+                            Handle<SeqOneByteString>::cast(module_bytes),
+                            script, asm_js_offset_table);
   CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
   if (thrower->error()) return {};
 
@@ -1056,7 +1045,9 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   }
 
   // Log the code within the generated module for profiling.
-  compiled_module->GetNativeModule()->LogWasmCodes(isolate);
+  NativeModule* native_module =
+      module_object->compiled_module()->GetNativeModule();
+  native_module->LogWasmCodes(isolate);
 
   return module_object;
 }
@@ -2333,9 +2324,7 @@ void AsyncCompileJob::Start() {
 
 void AsyncCompileJob::Abort() {
   background_task_manager_.CancelAndWait();
-  if (!compiled_module_.is_null()) {
-    compiled_module_->GetNativeModule()->compilation_state()->Abort();
-  }
+  if (native_module_) native_module_->compilation_state()->Abort();
   if (num_pending_foreground_tasks_ == 0) {
     // No task is pending, we can just remove the AsyncCompileJob.
     isolate_->wasm_engine()->RemoveCompileJob(this);
@@ -2397,49 +2386,14 @@ AsyncCompileJob::~AsyncCompileJob() {
 }
 
 void AsyncCompileJob::FinishCompile() {
-  RecordStats(compiled_module_->GetNativeModule(), counters());
-
-  // Create heap objects for script and module bytes to be stored in the
-  // module object. Asm.js is not compiled asynchronously.
-  Handle<Script> script = CreateWasmScript(isolate_, wire_bytes_);
-  Handle<ByteArray> asm_js_offset_table;
-  // TODO(wasm): Improve efficiency of storing module wire bytes.
-  //   1. Only store relevant sections, not function bodies
-  //   2. Don't make a second copy of the bytes here; reuse the copy made
-  //      for asynchronous compilation and store it as an external one
-  //      byte string for serialization/deserialization.
-  Handle<String> module_bytes =
-      isolate_->factory()
-          ->NewStringFromOneByte({wire_bytes_.start(), wire_bytes_.length()},
-                                 TENURED)
-          .ToHandleChecked();
-  DCHECK(module_bytes->IsSeqOneByteString());
-  int export_wrapper_size = static_cast<int>(module_->num_exported_functions);
-  Handle<FixedArray> export_wrappers =
-      isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
-
-  // Create the module object.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
-  // only have one {WasmModuleObject}. Otherwise, we might only set
-  // breakpoints on a (potentially empty) subset of the instances.
-  // Create the module object.
-  module_object_ = WasmModuleObject::New(
-      isolate_, compiled_module_, export_wrappers, module_,
-      Handle<SeqOneByteString>::cast(module_bytes), script,
-      asm_js_offset_table);
-  compiled_module_->GetNativeModule()->SetModuleObject(module_object_);
-
-  {
-    DeferredHandleScope deferred(isolate_);
-    module_object_ = handle(*module_object_, isolate_);
-    deferred_handles_.push_back(deferred.Detach());
-  }
+  RecordStats(native_module_, counters());
 
   // Finish the wasm script now and make it public to the debugger.
+  Handle<Script> script(module_object_->script(), isolate_);
   isolate_->debug()->OnAfterCompile(script);
 
   // Log the code within the generated module for profiling.
-  compiled_module_->GetNativeModule()->LogWasmCodes(isolate_);
+  native_module_->LogWasmCodes(isolate_);
 
   // TODO(wasm): compiling wrappers should be made async as well.
   DoSync<CompileWrappers>();
@@ -2612,18 +2566,45 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // is done.
     job_->background_task_manager_.CancelAndWait();
 
+    // Create heap objects for script and module bytes to be stored in the
+    // module object. Asm.js is not compiled asynchronously.
+    Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_);
+    Handle<ByteArray> asm_js_offset_table;
+
     WasmModule* module = job_->module_.get();
-    DCHECK_LE(module->num_imported_functions, module->functions.size());
-    // Create the compiled module object and populate with compiled functions
-    // and information needed at instantiation time. This object needs to be
-    // serializable. Instantiation may occur off a deserialized version of
-    // this object.
     ModuleEnv env = CreateDefaultModuleEnv(module);
-    job_->compiled_module_ = NewCompiledModule(job_->isolate_, module, env);
+    int export_wrapper_size = static_cast<int>(module->num_exported_functions);
+    Handle<FixedArray> export_wrappers =
+        job_->isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
+    // TODO(wasm): Improve efficiency of storing module wire bytes.
+    //   1. Only store relevant sections, not function bodies
+    //   2. Don't make a second copy of the bytes here; reuse the copy made
+    //      for asynchronous compilation and store it as an external one
+    //      byte string for serialization/deserialization.
+    Handle<String> module_bytes =
+        job_->isolate_->factory()
+            ->NewStringFromOneByte(
+                {job_->wire_bytes_.start(), job_->wire_bytes_.length()},
+                TENURED)
+            .ToHandleChecked();
+    DCHECK(module_bytes->IsSeqOneByteString());
+
+    // Create the module object and populate with compiled functions and
+    // information needed at instantiation time.
+    // TODO(clemensh): For the same module (same bytes / same hash), we should
+    // only have one {WasmModuleObject}. Otherwise, we might only set
+    // breakpoints on a (potentially empty) subset of the instances.
+    // Create the module object.
+    job_->module_object_ =
+        WasmModuleObject::New(job_->isolate_, export_wrappers, job_->module_,
+                              env, Handle<SeqOneByteString>::cast(module_bytes),
+                              script, asm_js_offset_table);
+    job_->native_module_ =
+        job_->module_object_->compiled_module()->GetNativeModule();
 
     {
       DeferredHandleScope deferred(job_->isolate_);
-      job_->compiled_module_ = handle(*job_->compiled_module_, job_->isolate_);
+      job_->module_object_ = handle(*job_->module_object_, job_->isolate_);
       job_->deferred_handles_.push_back(deferred.Detach());
     }
     size_t num_functions =
@@ -2639,7 +2620,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     }
 
     CompilationState* compilation_state =
-        job_->compiled_module_->GetNativeModule()->compilation_state();
+        job_->native_module_->compilation_state();
     {
       // Instance field {job_} cannot be captured by copy, therefore
       // we need to add a local helper variable {job}. We want to
@@ -2675,8 +2656,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
               case CompilationEvent::kFailedCompilation: {
                 // Tier-up compilation should not fail if baseline compilation
                 // did not fail.
-                DCHECK(!job->compiled_module_->GetNativeModule()
-                            ->compilation_state()
+                DCHECK(!job->native_module_->compilation_state()
                             ->baseline_compilation_finished());
 
                 SaveContext saved_context(job->isolate());
@@ -2702,12 +2682,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // InitializeCompilationUnits always returns 0 for streaming compilation,
       // then DoAsync would do the same as NextStep already.
 
-      size_t functions_count = GetNumFunctionsToCompile(env.module);
+      size_t functions_count = GetNumFunctionsToCompile(module);
       compilation_state->SetNumberOfFunctionsToCompile(functions_count);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(module->functions, job_->wire_bytes_,
-                                 env.module,
-                                 job_->compiled_module_->GetNativeModule());
+      InitializeCompilationUnits(module->functions, job_->wire_bytes_, module,
+                                 job_->native_module_);
     }
   }
 };
@@ -2756,9 +2735,8 @@ class AsyncCompileJob::FinishModule : public CompileStep {
 
     size_t num_functions =
         job_->module_->functions.size() - job_->module_->num_imported_functions;
-    if (job_->compiled_module_->GetNativeModule()
-                ->compilation_state()
-                ->compile_mode() == CompileMode::kRegular ||
+    if (job_->native_module_->compilation_state()->compile_mode() ==
+            CompileMode::kRegular ||
         num_functions == 0) {
       // If we do not tier up, the async compile job is done here and
       // can be deleted.
@@ -2768,9 +2746,8 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     // If background tiering compilation finished before we resolved the
     // promise, switch to patching now. Otherwise, patching will be scheduled
     // by a callback.
-    DCHECK_EQ(CompileMode::kTiering, job_->compiled_module_->GetNativeModule()
-                                         ->compilation_state()
-                                         ->compile_mode());
+    DCHECK_EQ(CompileMode::kTiering,
+              job_->native_module_->compilation_state()->compile_mode());
     if (job_->tiering_completed_) {
       job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
     }
@@ -2799,8 +2776,8 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
 
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationState as well.
-  if (!job_->compiled_module_.is_null()) {
-    job_->compiled_module_->GetNativeModule()->compilation_state()->Abort();
+  if (job_->native_module_) {
+    job_->native_module_->compilation_state()->Abort();
 
     if (job_->num_pending_foreground_tasks_ == 0) {
       job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
@@ -2882,14 +2859,14 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   constexpr bool on_foreground = true;
   job_->step_->Run(on_foreground);
 
-  NativeModule* native_module = job_->compiled_module_->GetNativeModule();
-  native_module->compilation_state()->SetNumberOfFunctionsToCompile(
+  job_->native_module_->compilation_state()->SetNumberOfFunctionsToCompile(
       functions_count);
 
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.SetValue(2);
-  compilation_unit_builder_.reset(new CompilationUnitBuilder(native_module));
+  compilation_unit_builder_.reset(
+      new CompilationUnitBuilder(job_->native_module_));
   return true;
 }
 
@@ -2925,14 +2902,25 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
                                                size_t length) {
   TRACE_STREAMING("Finish stream...\n");
+  // TODO(clemensh): Move wire bytes to the NativeModule, remove code below.
   job_->bytes_copy_ = std::move(bytes);
   job_->wire_bytes_ = ModuleWireBytes(job_->bytes_copy_.get(),
                                       job_->bytes_copy_.get() + length);
+  Handle<String> module_bytes =
+      job_->isolate_->factory()
+          ->NewStringFromOneByte(
+              {job_->wire_bytes_.start(), job_->wire_bytes_.length()}, TENURED)
+          .ToHandleChecked();
+  DCHECK(module_bytes->IsSeqOneByteString());
+  if (!job_->module_object_.is_null()) {
+    job_->module_object_->set_module_bytes(
+        SeqOneByteString::cast(*module_bytes));
+  }
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());
   DCHECK_EQ(job_->module_, result.val);
   if (job_->DecrementAndCheckFinisherCount()) {
-    if (job_->compiled_module_.is_null()) {
+    if (job_->native_module_ == nullptr) {
       // We are processing a WebAssembly module without code section. We need to
       // prepare compilation first before we can finish it.
       // {PrepareAndStartCompile} will call {FinishCompile} by itself if there

@@ -217,12 +217,11 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   script->set_type(Script::TYPE_WASM);
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   ModuleEnv env = CreateModuleEnv();
-  Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate_, test_module_ptr_, env);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate_, compiled_module, export_wrappers, test_module_, empty_string,
-      script, Handle<ByteArray>::null());
-  compiled_module->GetNativeModule()->SetModuleObject(module_object);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate_, export_wrappers, test_module_, env,
+                            empty_string, script, Handle<ByteArray>::null());
+  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
+                                             isolate_);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.

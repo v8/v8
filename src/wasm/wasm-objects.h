@@ -135,12 +135,13 @@ class WasmModuleObject : public JSObject {
                                 WASM_MODULE_OBJECT_FIELDS)
 #undef WASM_MODULE_OBJECT_FIELDS
 
-  static Handle<WasmModuleObject> New(
-      Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-      Handle<FixedArray> export_wrappers,
-      std::shared_ptr<wasm::WasmModule> module,
-      Handle<SeqOneByteString> module_bytes, Handle<Script> script,
-      Handle<ByteArray> asm_js_offset_table);
+  static Handle<WasmModuleObject> New(Isolate* isolate,
+                                      Handle<FixedArray> export_wrappers,
+                                      std::shared_ptr<wasm::WasmModule> module,
+                                      wasm::ModuleEnv& env,
+                                      Handle<SeqOneByteString> module_bytes,
+                                      Handle<Script> script,
+                                      Handle<ByteArray> asm_js_offset_table);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.

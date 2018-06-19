@@ -602,9 +602,14 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
   wasm::ModuleEnv env(module, use_trap_handler,
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
-  Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, module, env);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, export_wrappers, std::move(decode_result.val), env,
+      Handle<SeqOneByteString>::cast(module_bytes), script,
+      Handle<ByteArray>::null());
+  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
+                                             isolate);
   NativeModule* native_module = compiled_module->GetNativeModule();
+
   if (FLAG_wasm_lazy_compilation) {
     native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
   }
@@ -612,12 +617,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
-
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, compiled_module, export_wrappers, std::move(decode_result.val),
-      Handle<SeqOneByteString>::cast(module_bytes), script,
-      Handle<ByteArray>::null());
-  native_module->SetModuleObject(module_object);
 
   // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
   // requires unlocking the code space here. This should eventually be moved
