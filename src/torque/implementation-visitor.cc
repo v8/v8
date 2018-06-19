@@ -565,7 +565,8 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
 
     if (!(expression_result.type() == TypeOracle::GetConstexprBoolType())) {
       std::stringstream stream;
-      stream << "expression should return type \"constexpr bool\" but doesn't";
+      stream << "expression should return type constexpr bool "
+             << "but returns type " << expression_result.type();
       ReportError(stream.str());
     }
 
