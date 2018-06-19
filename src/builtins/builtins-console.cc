@@ -32,11 +32,8 @@ namespace internal {
   V(Count, count)                   \
   V(CountReset, countReset)         \
   V(Assert, assert)                 \
-  V(MarkTimeline, markTimeline)     \
   V(Profile, profile)               \
-  V(ProfileEnd, profileEnd)         \
-  V(Timeline, timeline)             \
-  V(TimelineEnd, timelineEnd)
+  V(ProfileEnd, profileEnd)
 
 namespace {
 void ConsoleCall(
