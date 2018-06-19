@@ -4210,7 +4210,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      // RelocInfo is only necessary if generating code for the snapshot.
+      // Otherwise, the target address is immortal-immovable and never needs to
+      // be fixed up by GC (or deserialization).
+      li(t9, Operand(entry, RelocInfo::NONE));
       Jump(t9, cond, rs, rt, bd);
       return;
     }
@@ -4313,7 +4316,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      // RelocInfo is only necessary if generating code for the snapshot.
+      // Otherwise, the target address is immortal-immovable and never needs to
+      // be fixed up by GC (or deserialization).
+      li(t9, Operand(entry, RelocInfo::NONE));
       Call(t9, cond, rs, rt, bd);
       return;
     }

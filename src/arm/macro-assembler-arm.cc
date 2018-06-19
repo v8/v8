@@ -218,7 +218,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
       // preserve scratch registers across calls.
-      mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      // RelocInfo is only necessary if generating code for the snapshot.
+      // Otherwise, the target address is immortal-immovable and never needs to
+      // be fixed up by GC (or deserialization).
+      mov(ip, Operand(entry, RelocInfo::NONE));
       Jump(ip, cond);
       return;
     }
@@ -324,7 +327,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
       // preserve scratch registers across calls.
-      mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      // RelocInfo is only necessary if generating code for the snapshot.
+      // Otherwise, the target address is immortal-immovable and never needs to
+      // be fixed up by GC (or deserialization).
+      mov(ip, Operand(entry, RelocInfo::NONE));
       Call(ip, cond);
       return;
     }
