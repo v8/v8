@@ -738,7 +738,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   TranslationIterator state_iterator(translations, translation_index);
   translated_state_.Init(
-      input_->GetFramePointerAddress(), &state_iterator,
+      isolate_, input_->GetFramePointerAddress(), &state_iterator,
       input_data->LiteralArray(), input_->GetRegisterValues(),
       trace_scope_ == nullptr ? nullptr : trace_scope_->file(),
       function_->IsHeapObject()
@@ -3225,20 +3225,20 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
-  Init(frame->fp(), &it, data->LiteralArray(), nullptr /* registers */,
-       nullptr /* trace file */,
+  Init(frame->isolate(), frame->fp(), &it, data->LiteralArray(),
+       nullptr /* registers */, nullptr /* trace file */,
        frame->function()->shared()->internal_formal_parameter_count());
 }
 
-void TranslatedState::Init(Address input_frame_pointer,
+void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
                            TranslationIterator* iterator,
                            FixedArray* literal_array, RegisterValues* registers,
                            FILE* trace_file, int formal_parameter_count) {
   DCHECK(frames_.empty());
 
   formal_parameter_count_ = formal_parameter_count;
+  isolate_ = isolate;
 
-  isolate_ = literal_array->GetIsolate();
   // Read out the 'header' translation.
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());

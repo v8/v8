@@ -306,9 +306,9 @@ class TranslatedState {
 
   Isolate* isolate() { return isolate_; }
 
-  void Init(Address input_frame_pointer, TranslationIterator* iterator,
-            FixedArray* literal_array, RegisterValues* registers,
-            FILE* trace_file, int parameter_count);
+  void Init(Isolate* isolate, Address input_frame_pointer,
+            TranslationIterator* iterator, FixedArray* literal_array,
+            RegisterValues* registers, FILE* trace_file, int parameter_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback();

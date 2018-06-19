@@ -312,7 +312,7 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
     BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
     interpreter::BytecodeArrayAccessor accessor(
-        handle(bytecode_array, bytecode_array->GetIsolate()), code_offset());
+        handle(bytecode_array, isolate()), code_offset());
 
     DCHECK_EQ(accessor.current_bytecode(),
               interpreter::Bytecode::kSuspendGenerator);

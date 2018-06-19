@@ -993,13 +993,14 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_function_token_position(new_function_token_pos);
 
   if (info->HasBytecodeArray()) {
-    TranslateSourcePositionTable(handle(info->GetBytecodeArray()),
-                                 position_change_array);
+    TranslateSourcePositionTable(
+        handle(info->GetBytecodeArray(), shared_info_wrapper.isolate()),
+        position_change_array);
   }
   if (info->HasBreakInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.
-    info->GetIsolate()->debug()->RemoveBreakInfoAndMaybeFree(
-        handle(info->GetDebugInfo()));
+    shared_info_wrapper.isolate()->debug()->RemoveBreakInfoAndMaybeFree(
+        handle(info->GetDebugInfo(), shared_info_wrapper.isolate()));
   }
 }
 
@@ -1122,7 +1123,7 @@ class MultipleFunctionTarget {
     if (!frame->is_java_script()) return false;
     JavaScriptFrame* jsframe = JavaScriptFrame::cast(frame);
     Handle<SharedFunctionInfo> old_shared(jsframe->function()->shared());
-    Isolate* isolate = old_shared->GetIsolate();
+    Isolate* isolate = jsframe->isolate();
     int len = GetArrayLength(old_shared_array_);
     // Find corresponding new shared function info and return whether it
     // references new.target.

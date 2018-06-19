@@ -4719,7 +4719,7 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
         old_map->elements_kind()) {
       return MaybeHandle<Map>();
     }
-    return handle(constructor->initial_map());
+    return handle(constructor->initial_map(), constructor->GetIsolate());
   }
   if (!old_map->EquivalentToForTransition(root_map)) return MaybeHandle<Map>();
 
@@ -14746,7 +14746,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
 
   os << "RelocInfo (size = " << relocation_size() << ")\n";
   for (RelocIterator it(this); !it.done(); it.next()) {
-    it.rinfo()->Print(GetIsolate(), os);
+    it.rinfo()->Print(isolate, os);
   }
   os << "\n";
 
@@ -15677,7 +15677,7 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     if (memento == nullptr) return false;
 
     // Walk through to the Allocation Site
-    site = handle(memento->GetAllocationSite());
+    site = handle(memento->GetAllocationSite(), heap->isolate());
   }
   return AllocationSite::DigestTransitionFeedback<update_or_check>(site,
                                                                    to_kind);
@@ -15766,7 +15766,7 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 
 template <typename BackingStore>
 static int HoleyElementsUsage(JSObject* object, BackingStore* store) {
-  Isolate* isolate = store->GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   int limit = object->IsJSArray() ? Smi::ToInt(JSArray::cast(object)->length())
                                   : store->length();
   int used = 0;
@@ -17850,10 +17850,9 @@ struct EnumIndexComparator {
 
 template <typename Derived, typename Shape>
 void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
-    Handle<Derived> dictionary, Handle<FixedArray> storage,
+    Isolate* isolate, Handle<Derived> dictionary, Handle<FixedArray> storage,
     KeyCollectionMode mode, KeyAccumulator* accumulator) {
   DCHECK_IMPLIES(mode != KeyCollectionMode::kOwnOnly, accumulator != nullptr);
-  Isolate* isolate = dictionary->GetIsolate();
   int length = storage->length();
   int capacity = dictionary->Capacity();
   int properties = 0;
@@ -18996,13 +18995,15 @@ BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
 
 template void
 BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CopyEnumKeysTo(
-    Handle<GlobalDictionary> dictionary, Handle<FixedArray> storage,
-    KeyCollectionMode mode, KeyAccumulator* accumulator);
+    Isolate* isolate, Handle<GlobalDictionary> dictionary,
+    Handle<FixedArray> storage, KeyCollectionMode mode,
+    KeyAccumulator* accumulator);
 
 template void
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::CopyEnumKeysTo(
-    Handle<NameDictionary> dictionary, Handle<FixedArray> storage,
-    KeyCollectionMode mode, KeyAccumulator* accumulator);
+    Isolate* isolate, Handle<NameDictionary> dictionary,
+    Handle<FixedArray> storage, KeyCollectionMode mode,
+    KeyAccumulator* accumulator);
 
 template Handle<FixedArray>
 BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::IterationIndices(

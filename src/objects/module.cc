@@ -944,7 +944,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   Handle<String> name = Handle<String>::cast(it->GetName());
   DCHECK_EQ(it->state(), LookupIterator::ACCESSOR);
 
-  Isolate* isolate = name->GetIsolate();
+  Isolate* isolate = it->isolate();
 
   Handle<Object> lookup(object->module()->exports()->Lookup(name), isolate);
   if (lookup->IsTheHole(isolate)) {

@@ -1702,7 +1702,8 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   }
 
   if (summary.IsJavaScript()) {
-    shared = handle(summary.AsJavaScript().function()->shared());
+    shared =
+        handle(summary.AsJavaScript().function()->shared(), frame->isolate());
   }
   *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, shared);
   return true;

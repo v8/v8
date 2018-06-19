@@ -84,7 +84,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
     DCHECK(self_ref->IsOddball());
     DCHECK(Oddball::cast(*self_ref)->kind() == Oddball::kSelfReferenceMarker);
 #ifdef V8_EMBEDDED_BUILTINS
-    auto builder = code->GetIsolate()->builtins_constants_table_builder();
+    auto builder = heap->isolate()->builtins_constants_table_builder();
     if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
 #endif  // V8_EMBEDDED_BUILTINS
     *(self_ref.location()) = *code;

@@ -959,7 +959,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     if (maybe_code_handler.object()->IsStoreHandler()) {
       Handle<StoreHandler> data_handler =
           Handle<StoreHandler>::cast(maybe_code_handler.object());
-      handler = handle(Code::cast(data_handler->smi_handler()));
+      handler = handle(Code::cast(data_handler->smi_handler()),
+                       vector()->GetIsolate());
     } else if (maybe_code_handler.object()->IsSmi()) {
       // Skip proxy handlers.
       DCHECK_EQ(*(maybe_code_handler.object()),
@@ -1018,7 +1019,8 @@ ForInHint FeedbackNexus::GetForInFeedback() const {
 
 Handle<FeedbackCell> FeedbackNexus::GetFeedbackCell() const {
   DCHECK_EQ(FeedbackSlotKind::kCreateClosure, kind());
-  return handle(FeedbackCell::cast(GetFeedback()->ToObject()));
+  return handle(FeedbackCell::cast(GetFeedback()->ToObject()),
+                vector()->GetIsolate());
 }
 
 MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {

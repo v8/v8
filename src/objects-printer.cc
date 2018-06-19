@@ -2270,7 +2270,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
   } else if (key == heap->strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
-    DCHECK(!IsSpecialTransition(key->GetIsolate(), key));
+    DCHECK(!IsSpecialTransition(heap->isolate(), key));
     os << "(transition to ";
     int descriptor = target->LastAdded();
     DescriptorArray* descriptors = target->instance_descriptors();

@@ -730,7 +730,7 @@ void JSArgumentsObject::JSArgumentsObjectVerify() {
 }
 
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(JSObject* holder) {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = holder->GetIsolate();
   FixedArrayVerify();
   // Abort verification if only partially initialized (can't use arguments()
   // getter because it does FixedArray::cast()).
@@ -1256,7 +1256,7 @@ void CallbackTask::CallbackTaskVerify() {
 void PromiseReactionJobTask::PromiseReactionJobTaskVerify() {
   CHECK(IsPromiseReactionJobTask());
   MicrotaskVerify();
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = context()->GetIsolate();
   VerifyPointer(argument());
   VerifyHeapPointer(context());
   CHECK(context()->IsContext());
@@ -1600,7 +1600,7 @@ void WasmDebugInfo::WasmDebugInfoVerify() {
   VerifyObjectField(kInstanceOffset);
   CHECK(wasm_instance()->IsWasmInstanceObject());
   VerifyObjectField(kInterpreterHandleOffset);
-  CHECK(interpreter_handle()->IsUndefined(GetIsolate()) ||
+  CHECK(interpreter_handle()->IsUndefined(wasm_instance()->GetIsolate()) ||
         interpreter_handle()->IsForeign());
   VerifyObjectField(kInterpretedFunctionsOffset);
   VerifyObjectField(kLocalsNamesOffset);

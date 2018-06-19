@@ -624,7 +624,7 @@ Handle<FixedArray> GetOwnEnumPropertyDictionaryKeys(Isolate* isolate,
     return isolate->factory()->empty_fixed_array();
   }
   Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
-  T::CopyEnumKeysTo(dictionary, storage, mode, accumulator);
+  T::CopyEnumKeysTo(isolate, dictionary, storage, mode, accumulator);
   return storage;
 }
 }  // namespace
