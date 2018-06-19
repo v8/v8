@@ -1650,7 +1650,65 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
                  "%TypedArray%.of");
 }
 
+void TypedArrayBuiltinsAssembler::IterableToListSlowPath(
+    TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn,
+    Variable* created_list) {
+  IteratorBuiltinsAssembler iterator_assembler(state());
+
+  // 1. Let iteratorRecord be ? GetIterator(items, method).
+  IteratorRecord iterator_record =
+      iterator_assembler.GetIterator(context, iterable, iterator_fn);
+
+  // 2. Let values be a new empty List.
+  GrowableFixedArray values(state());
+
+  Variable* vars[] = {values.var_array(), values.var_length(),
+                      values.var_capacity()};
+  Label loop_start(this, 3, vars), loop_end(this);
+  Goto(&loop_start);
+  // 3. Let next be true.
+  // 4. Repeat, while next is not false
+  BIND(&loop_start);
+  {
+    //  a. Set next to ? IteratorStep(iteratorRecord).
+    TNode<Object> next = CAST(
+        iterator_assembler.IteratorStep(context, iterator_record, &loop_end));
+    //  b. If next is not false, then
+    //   i. Let nextValue be ? IteratorValue(next).
+    TNode<Object> next_value =
+        CAST(iterator_assembler.IteratorValue(context, next));
+    //   ii. Append nextValue to the end of the List values.
+    values.Push(next_value);
+    Goto(&loop_start);
+  }
+  BIND(&loop_end);
+
+  // 5. Return values.
+  TNode<JSArray> js_array_values = values.ToJSArray(context);
+  created_list->Bind(js_array_values);
+}
+
+// Unlike IterableToListUnsafe, this builtin always returns a new JSArray
+// and is thus safe to use even in the presence of code that may call back
+// into user-JS.
 TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+
+  TVARIABLE(JSArray, created_list);
+  IterableToListSlowPath(context, iterable, iterator_fn, &created_list);
+
+  Return(created_list.value());
+}
+
+// This verison of IterableToList does not follow the spec, in that it returns
+// the input array if the iteration would be unobservable. This means that if
+// input iterable is still available in user-JS, it can be modified and make the
+// following code incorrect and potentially unsafe. We do this as an
+// optimization for spread calls, where the elements are pushed to the stack
+// with no user-JS being run inbetween.
+TF_BUILTIN(IterableToListUnsafe, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
   TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
@@ -1674,39 +1732,7 @@ TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
 
   BIND(&slow_path);
   {
-    IteratorBuiltinsAssembler iterator_assembler(state());
-
-    // 1. Let iteratorRecord be ? GetIterator(items, method).
-    IteratorRecord iterator_record =
-        iterator_assembler.GetIterator(context, iterable, iterator_fn);
-
-    // 2. Let values be a new empty List.
-    GrowableFixedArray values(state());
-
-    Variable* vars[] = {values.var_array(), values.var_length(),
-                        values.var_capacity()};
-    Label loop_start(this, 3, vars), loop_end(this);
-    Goto(&loop_start);
-    // 3. Let next be true.
-    // 4. Repeat, while next is not false
-    BIND(&loop_start);
-    {
-      //  a. Set next to ? IteratorStep(iteratorRecord).
-      TNode<Object> next = CAST(
-          iterator_assembler.IteratorStep(context, iterator_record, &loop_end));
-      //  b. If next is not false, then
-      //   i. Let nextValue be ? IteratorValue(next).
-      TNode<Object> next_value =
-          CAST(iterator_assembler.IteratorValue(context, next));
-      //   ii. Append nextValue to the end of the List values.
-      values.Push(next_value);
-      Goto(&loop_start);
-    }
-    BIND(&loop_end);
-
-    // 5. Return values.
-    TNode<JSArray> js_array_values = values.ToJSArray(context);
-    created_list = js_array_values;
+    IterableToListSlowPath(context, iterable, iterator_fn, &created_list);
     Goto(&done);
   }
 
