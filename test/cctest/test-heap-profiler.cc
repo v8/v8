@@ -343,7 +343,7 @@ TEST(HeapSnapshotCodeObjects) {
 
   CompileRun(
       "function lazy(x) { return x - 1; }\n"
-      "function compiled(x) { return x + 1; }\n"
+      "function compiled(x) { ()=>x; return x + 1; }\n"
       "var anonymous = (function() { return function() { return 0; } })();\n"
       "compiled(1)");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

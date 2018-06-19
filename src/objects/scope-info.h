@@ -108,9 +108,6 @@ class ScopeInfo : public FixedArray {
 
   ModuleInfo* ModuleDescriptorInfo() const;
 
-  // Return the name of the given parameter.
-  String* ParameterName(int var) const;
-
   // Return the name of the given context local.
   String* ContextLocalName(int var) const;
 
@@ -145,11 +142,6 @@ class ScopeInfo : public FixedArray {
   int ModuleIndex(Handle<String> name, VariableMode* mode,
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
-
-  // Lookup support for serialized scope info. Returns the
-  // parameter index for a given parameter name if the parameter is present;
-  // otherwise returns a value < 0. The name must be an internalized string.
-  int ParameterIndex(String* name) const;
 
   // Lookup support for serialized scope info. Returns the function context
   // slot index if the function name is present and context-allocated (named
@@ -217,42 +209,36 @@ class ScopeInfo : public FixedArray {
 
  private:
   // The layout of the variable part of a ScopeInfo is as follows:
-  // 1. ParameterNames:
-  //    This part stores the names of the parameters for function scopes. One
-  //    slot is used per parameter, so in total this part occupies
-  //    ParameterCount() slots in the array. For other scopes than function
-  //    scopes ParameterCount() is 0.
-  // 2. ContextLocalNames:
+  // 1. ContextLocalNames:
   //    Contains the names of local variables and parameters that are allocated
   //    in the context. They are stored in increasing order of the context slot
   //    index starting with Context::MIN_CONTEXT_SLOTS. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount() slots
   //    in the array.
-  // 3. ContextLocalInfos:
+  // 2. ContextLocalInfos:
   //    Contains the variable modes and initialization flags corresponding to
   //    the context locals in ContextLocalNames. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount()
   //    slots in the array.
-  // 4. ReceiverInfo:
+  // 3. ReceiverInfo:
   //    If the scope binds a "this" value, one slot is reserved to hold the
   //    context or stack slot index for the variable.
-  // 5. FunctionNameInfo:
+  // 4. FunctionNameInfo:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
-  // 6. InferredFunctionName:
+  // 5. InferredFunctionName:
   //    Contains the function's inferred name.
-  // 7. SourcePosition:
+  // 6. SourcePosition:
   //    Contains two slots with a) the startPosition and b) the endPosition if
   //    the scope belongs to a function or script.
-  // 8. OuterScopeInfoIndex:
+  // 7. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 9. ModuleInfo, ModuleVariableCount, and ModuleVariables:
+  // 8. ModuleInfo, ModuleVariableCount, and ModuleVariables:
   //    For a module scope, this part contains the ModuleInfo, the number of
   //    MODULE-allocated variables, and the metadata of those variables.  For
   //    non-module scopes it is empty.
-  int ParameterNamesIndex() const;
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int ReceiverInfoIndex() const;

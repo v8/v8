@@ -1176,10 +1176,14 @@ class DebugInfoSection : public DebugSection {
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       int current_abbreviation = 4;
 
+      EmbeddedVector<char, 256> buffer;
+      StringBuilder builder(buffer.start(), buffer.length());
+
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
-        w->WriteString(
-            scope->ParameterName(param)->ToCString(DISALLOW_NULLS).get());
+        builder.Reset();
+        builder.AddFormatted("param%d", param);
+        w->WriteString(builder.Finalize());
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1189,9 +1193,6 @@ class DebugInfoSection : public DebugSection {
               kPointerSize * (params - param - 1));
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
-
-      EmbeddedVector<char, 256> buffer;
-      StringBuilder builder(buffer.start(), buffer.length());
 
       // See contexts.h for more information.
       DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);

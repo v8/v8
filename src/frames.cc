@@ -2004,13 +2004,6 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   int parameters_count = ComputeParametersCount();
   for (int i = 0; i < parameters_count; i++) {
     accumulator->Add(",");
-    // If we have a name for the parameter we print it. Nameless
-    // parameters are either because we have more actual parameters
-    // than formal parameters or because we have no scope information.
-    if (i < scope_info->ParameterCount()) {
-      accumulator->PrintName(scope_info->ParameterName(i));
-      accumulator->Add("=");
-    }
     accumulator->Add("%o", GetParameter(i));
   }
 

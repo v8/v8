@@ -139,8 +139,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   const bool has_receiver = receiver_info == STACK || receiver_info == CONTEXT;
   const int parameter_count = scope->num_parameters();
   const bool has_outer_scope_info = !outer_scope.is_null();
-  const int length = kVariablePartIndex + parameter_count +
-                     2 * context_local_count + (has_receiver ? 1 : 0) +
+  const int length = kVariablePartIndex + 2 * context_local_count +
+                     (has_receiver ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
                      (has_position_info ? kPositionInfoEntries : 0) +
@@ -187,14 +187,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   scope_info->SetContextLocalCount(context_local_count);
 
   int index = kVariablePartIndex;
-  // Add parameters.
-  DCHECK_EQ(index, scope_info->ParameterNamesIndex());
-  if (scope->is_declaration_scope()) {
-    for (int i = 0; i < parameter_count; ++i) {
-      scope_info->set(index++,
-                      *scope->AsDeclarationScope()->parameter(i)->name());
-    }
-  }
 
   // Add context locals' names and info, module variables' names and info.
   // Context locals are added using their index.
@@ -350,7 +342,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   scope_info->SetContextLocalCount(0);
 
   int index = kVariablePartIndex;
-  DCHECK_EQ(index, scope_info->ParameterNamesIndex());
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
@@ -387,8 +378,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   const bool has_receiver = !is_empty_function;
   const bool has_inferred_function_name = is_empty_function;
   const bool has_position_info = true;
-  const int length = kVariablePartIndex + parameter_count +
-                     2 * context_local_count + (has_receiver ? 1 : 0) +
+  const int length = kVariablePartIndex + 2 * context_local_count +
+                     (has_receiver ? 1 : 0) +
                      (is_empty_function ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
                      (has_position_info ? kPositionInfoEntries : 0);
@@ -630,13 +621,6 @@ ModuleInfo* ScopeInfo::ModuleDescriptorInfo() const {
   return ModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
-String* ScopeInfo::ParameterName(int var) const {
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, ParameterCount());
-  int info_index = ParameterNamesIndex() + var;
-  return String::cast(get(info_index));
-}
-
 String* ScopeInfo::ContextLocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
@@ -775,24 +759,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
   return -1;
 }
 
-int ScopeInfo::ParameterIndex(String* name) const {
-  DCHECK(name->IsInternalizedString());
-  if (length() == 0) return -1;
-  // We must read parameters from the end since for
-  // multiply declared parameters the value of the
-  // last declaration of that parameter is used
-  // inside a function (and thus we need to look
-  // at the last index). Was bug# 1110337.
-  int start = ParameterNamesIndex();
-  int end = start + ParameterCount();
-  for (int i = end - 1; i >= start; --i) {
-    if (name == get(i)) {
-      return i - start;
-    }
-  }
-  return -1;
-}
-
 int ScopeInfo::ReceiverContextSlotIndex() const {
   if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT) {
     return Smi::ToInt(get(ReceiverInfoIndex()));
@@ -815,13 +781,9 @@ FunctionKind ScopeInfo::function_kind() const {
   return FunctionKindField::decode(Flags());
 }
 
-int ScopeInfo::ParameterNamesIndex() const {
+int ScopeInfo::ContextLocalNamesIndex() const {
   DCHECK_LT(0, length());
   return kVariablePartIndex;
-}
-
-int ScopeInfo::ContextLocalNamesIndex() const {
-  return ParameterNamesIndex() + ParameterCount();
 }
 
 int ScopeInfo::ContextLocalInfosIndex() const {
