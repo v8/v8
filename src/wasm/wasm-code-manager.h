@@ -96,7 +96,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kLazyStub,
     kRuntimeStub,
     kInterpreterEntry,
-    kTrampoline,
     kJumpTable
   };
 
@@ -128,8 +127,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
 
   uint32_t index() const { return index_.ToChecked(); }
-  // Anonymous functions are functions that don't carry an index, like
-  // trampolines.
+  // Anonymous functions are functions that don't carry an index.
   bool IsAnonymous() const { return index_.IsNothing(); }
   Kind kind() const { return kind_; }
   NativeModule* native_module() const { return native_module_; }
@@ -362,8 +360,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          size_t handler_table_offset,
                          std::unique_ptr<ProtectedInstructions>, WasmCode::Tier,
                          WasmCode::FlushICache);
-  Address GetLocalAddressFor(Handle<Code>);
-  Address CreateTrampolineTo(Handle<Code>);
 
   WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
 
@@ -386,11 +382,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmCode* []> code_table_;
 
   WasmCode* runtime_stub_table_[WasmCode::kRuntimeStubCount] = {nullptr};
-
-  // Maps from instruction start of an immovable code object to instruction
-  // start of the trampoline.
-  // TODO(mstarzinger): By now trampolines are unused. Remove.
-  std::unordered_map<Address, Address> trampolines_;
 
   // Jump table used to easily redirect wasm function calls.
   WasmCode* jump_table_ = nullptr;

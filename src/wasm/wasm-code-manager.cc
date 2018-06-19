@@ -49,8 +49,6 @@ constexpr bool kModuleCanAllocateMoreMemory = false;
 constexpr bool kModuleCanAllocateMoreMemory = true;
 #endif
 
-constexpr bool kNeedsTrampoline = !kModuleCanAllocateMoreMemory;
-
 }  // namespace
 
 void DisjointAllocationPool::Merge(AddressRange range) {
@@ -269,8 +267,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "runtime-stub";
     case WasmCode::kInterpreterEntry:
       return "interpreter entry";
-    case WasmCode::kTrampoline:
-      return "trampoline";
     case WasmCode::kJumpTable:
       return "jump table";
   }
@@ -592,37 +588,6 @@ WasmCode* NativeModule::AddCode(
   return ret;
 }
 
-Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
-  Address dest = code->raw_instruction_start();
-  Address ret = dest;
-  if (kNeedsTrampoline) {
-    JumpTableAssembler jtasm;
-    jtasm.EmitJumpTrampoline(dest);
-    CodeDesc code_desc;
-    jtasm.GetCode(nullptr, &code_desc);
-    Vector<const byte> instructions(code_desc.buffer,
-                                    static_cast<size_t>(code_desc.instr_size));
-    WasmCode* wasm_code = AddOwnedCode(instructions,         // instructions
-                                       nullptr,              // reloc_info
-                                       0,                    // reloc_size
-                                       nullptr,              // source_pos
-                                       0,                    // source_pos_size
-                                       Nothing<uint32_t>(),  // index
-                                       WasmCode::kTrampoline,  // kind
-                                       0,   // constant_pool_offset
-                                       0,   // stack_slots
-                                       0,   // safepoint_table_offset
-                                       0,   // handler_table_offset
-                                       {},  // protected_instructions
-                                       WasmCode::kOther,         // tier
-                                       WasmCode::kFlushICache);  // flush_icache
-    ret = wasm_code->instruction_start();
-  }
-  DCHECK_EQ(0, trampolines_.count(dest));
-  trampolines_.emplace(std::make_pair(dest, ret));
-  return ret;
-}
-
 WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, num_wasm_functions);
@@ -653,22 +618,6 @@ void NativeModule::PatchJumpTable(uint32_t func_index, Address target,
   Address jump_table_slot = jump_table_->instruction_start() +
                             slot_idx * JumpTableAssembler::kJumpTableSlotSize;
   JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, target, flush_icache);
-}
-
-Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
-  DCHECK(Heap::IsImmovable(*code));
-
-  // Limit calls of {Code} objects on the GC heap to builtins (i.e. disallow
-  // calls to {CodeStub} or dynamic code). The serializer depends on this.
-  DCHECK(code->is_builtin());
-
-  Address index = code->raw_instruction_start();
-  auto trampoline_iter = trampolines_.find(index);
-  if (trampoline_iter == trampolines_.end()) {
-    return CreateTrampolineTo(code);
-  } else {
-    return trampoline_iter->second;
-  }
 }
 
 Address NativeModule::AllocateForCode(size_t size) {

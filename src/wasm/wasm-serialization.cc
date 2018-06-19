@@ -218,11 +218,8 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
 
  private:
   size_t MeasureCode(const WasmCode*) const;
-
   void WriteHeader(Writer* writer);
   void WriteCode(const WasmCode*, Writer* writer);
-
-  uint32_t EncodeBuiltin(Address);
 
   Isolate* const isolate_;
   const NativeModule* const native_module_;
@@ -231,9 +228,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   // wasm code targets reverse lookup
   std::map<Address, uint32_t> wasm_targets_lookup_;
   std::map<Address, uint32_t> wasm_stub_targets_lookup_;
-  // immovable builtins and runtime entries lookup
   std::map<Address, uint32_t> reference_table_lookup_;
-  std::map<Address, uint32_t> builtin_lookup_;
 
   DISALLOW_COPY_AND_ASSIGN(NativeModuleSerializer);
 };
@@ -255,15 +250,6 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     reference_table_lookup_.insert(std::make_pair(addr, i));
-  }
-  for (auto pair : native_module_->trampolines_) {
-    v8::internal::Code* code = Code::GetCodeFromTargetAddress(pair.first);
-    int builtin_index = code->builtin_index();
-    DCHECK_GE(builtin_index, 0);
-    // Note that ARM64 can only encode 26 bits in branch immediate instructions.
-    DCHECK_LT(builtin_index, 1 << 26);
-    uint32_t tag = static_cast<uint32_t>(builtin_index);
-    builtin_lookup_.insert(std::make_pair(pair.second, tag));
   }
 }
 
@@ -331,8 +317,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
 #endif
   memcpy(code_start, code->instructions().start(), code_size);
   // Relocate the code.
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+  int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
@@ -344,11 +329,6 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
        !iter.done(); iter.next(), orig_iter.next()) {
     RelocInfo::Mode mode = orig_iter.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::CODE_TARGET: {
-        Address orig_target = orig_iter.rinfo()->target_address();
-        uint32_t tag = EncodeBuiltin(orig_target);
-        SetWasmCalleeTag(iter.rinfo(), tag);
-      } break;
       case RelocInfo::WASM_CALL: {
         Address orig_target = orig_iter.rinfo()->wasm_call_address();
         uint32_t tag = wasm_targets_lookup_[orig_target];
@@ -376,11 +356,6 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   if (code_start != serialized_code_start) {
     memcpy(serialized_code_start, code_start, code_size);
   }
-}
-
-uint32_t NativeModuleSerializer::EncodeBuiltin(Address address) {
-  DCHECK_EQ(1, builtin_lookup_.count(address));
-  return builtin_lookup_.find(address)->second;
 }
 
 bool NativeModuleSerializer::Write(Writer* writer) {
@@ -425,7 +400,6 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
  private:
   bool ReadHeader(Reader* reader);
   bool ReadCode(uint32_t fn_index, Reader* reader);
-  Address GetBuiltinTrampolineFromTag(uint32_t);
 
   Isolate* const isolate_;
   NativeModule* const native_module_;
@@ -504,8 +478,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
                                  WasmCode::kFlushICache);
 
   // Relocate the code.
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+  int mask = RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
@@ -513,13 +486,6 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::CODE_TARGET: {
-        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        Address target = GetBuiltinTrampolineFromTag(tag);
-        iter.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER,
-                                         SKIP_ICACHE_FLUSH);
-        break;
-      }
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
@@ -562,12 +528,6 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     ret->Print(isolate_);
   }
   return true;
-}
-
-Address NativeModuleDeserializer::GetBuiltinTrampolineFromTag(uint32_t tag) {
-  int builtin_id = static_cast<int>(tag);
-  v8::internal::Code* builtin = isolate_->builtins()->builtin(builtin_id);
-  return native_module_->GetLocalAddressFor(handle(builtin, isolate_));
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
