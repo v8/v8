@@ -4,12 +4,12 @@
 
 load('sort-base.js');
 
-createSuite('PackedSmi', 1000, Sort, CreatePackedSmiArray);
-createSuite('PackedDouble', 1000, Sort, CreatePackedDoubleArray);
-createSuite('PackedElement', 1000, Sort, CreatePackedObjectArray);
+createSortSuite('PackedSmi', 1000, Sort, CreatePackedSmiArray);
+createSortSuite('PackedDouble', 1000, Sort, CreatePackedDoubleArray);
+createSortSuite('PackedElement', 1000, Sort, CreatePackedObjectArray);
 
-createSuite('HoleySmi', 1000, Sort, CreateHoleySmiArray);
-createSuite('HoleyDouble', 1000, Sort, CreateHoleyDoubleArray);
-createSuite('HoleyElement', 1000, Sort, CreateHoleyObjectArray);
+createSortSuite('HoleySmi', 1000, Sort, CreateHoleySmiArray);
+createSortSuite('HoleyDouble', 1000, Sort, CreateHoleyDoubleArray);
+createSortSuite('HoleyElement', 1000, Sort, CreateHoleyObjectArray);
 
-createSuite('Dictionary', 1000, Sort, CreateDictionaryArray);
+createSortSuite('Dictionary', 1000, Sort, CreateDictionaryArray);

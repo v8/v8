@@ -8,7 +8,6 @@ load('sort-base.js');
 // after a set amount of comparisons. The transform function should cause the
 // element kind of the array to change.
 function CreateCompareFn(transformfn) {
-  let counter = 0;
   return (a, b) => {
     ++counter;
     if (counter == kArraySize/2) {
@@ -23,22 +22,22 @@ let cmp_packed_smi_to_double = CreateCompareFn(() => array_to_sort.push(0.1));
 let cmp_holey_smi_to_double = CreateCompareFn(() => array_to_sort.push(0.1));
 let cmp_double_to_double = CreateCompareFn(() => array_to_sort.length *= 2);
 
-createSuite(
+createSortSuite(
     'PackedSmiToPackedDouble', 1000, CreateSortFn([cmp_packed_smi_to_double]),
     CreatePackedSmiArray, AssertPackedDoubleElements);
-createSuite(
+createSortSuite(
     'HoleySmiToHoleyDouble', 1000, CreateSortFn([cmp_holey_smi_to_double]),
     CreateHoleySmiArray, AssertHoleyDoubleElements);
-createSuite(
+createSortSuite(
     'PackedDoubleToHoleyDouble', 1000, CreateSortFn([cmp_double_to_double]),
     CreatePackedDoubleArray, AssertHoleyDoubleElements);
 
 let cmp_packed_to_dict = CreateCompareFn(() => array_to_sort[%MaxSmi()] = 42);
 let cmp_holey_to_dict = CreateCompareFn(() => array_to_sort[%MaxSmi()] = 42);
 
-createSuite(
+createSortSuite(
     'PackedElementToDictionary', 1000, CreateSortFn([cmp_packed_to_dict]),
     CreatePackedObjectArray, AssertDictionaryElements);
-createSuite(
+createSortSuite(
     'HoleyElementToDictionary', 1000, CreateSortFn([cmp_holey_to_dict]),
     CreateHoleyObjectArray, AssertDictionaryElements);

@@ -9,12 +9,12 @@ load('sort-base.js');
 // other sort benchmarks have monomorphic call sites.
 let sortfn = CreateSortFn([cmp_smaller, cmp_greater]);
 
-createSuite('PackedSmi', 1000, sortfn, CreatePackedSmiArray);
-createSuite('PackedDouble', 1000, sortfn, CreatePackedDoubleArray);
-createSuite('PackedElement', 1000, sortfn, CreatePackedObjectArray);
+createSortSuite('PackedSmi', 1000, sortfn, CreatePackedSmiArray);
+createSortSuite('PackedDouble', 1000, sortfn, CreatePackedDoubleArray);
+createSortSuite('PackedElement', 1000, sortfn, CreatePackedObjectArray);
 
-createSuite('HoleySmi', 1000, sortfn, CreateHoleySmiArray);
-createSuite('HoleyDouble', 1000, sortfn, CreateHoleyDoubleArray);
-createSuite('HoleyElement', 1000, sortfn, CreateHoleyObjectArray);
+createSortSuite('HoleySmi', 1000, sortfn, CreateHoleySmiArray);
+createSortSuite('HoleyDouble', 1000, sortfn, CreateHoleyDoubleArray);
+createSortSuite('HoleyElement', 1000, sortfn, CreateHoleyObjectArray);
 
-createSuite('Dictionary', 1000, sortfn, CreateDictionaryArray);
+createSortSuite('Dictionary', 1000, sortfn, CreateDictionaryArray);

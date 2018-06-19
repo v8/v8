@@ -85,14 +85,16 @@ let SetupUpUp = () => SetupPreSortedHalfs(Up, Up);
 let SetupDownDown = () => SetupPreSortedHalfs(Down, Down);
 let SetupDownUp = () => SetupPreSortedHalfs(Down, Up);
 
-createSuite('Up', 1000, SortAsc, () => Up(array_to_sort, kLength), TearDown);
-createSuite('Down', 1000, SortAsc, () => Down(array_to_sort, kLength), TearDown);
-createSuite('Saw1000', 1000, SortAsc, SetupSaw1000, TearDown);
-createSuite('Saw500', 1000, SortAsc, SetupSaw500, TearDown);
-createSuite('Saw200', 1000, SortAsc, SetupSaw200, TearDown);
-createSuite('Saw200Symmetric', 1000, SortAsc, SetupSaw200Sym, TearDown);
-createSuite('Saw200Down', 1000, SortAsc, SetupSaw200Down, TearDown);
-createSuite('UpDown', 1000, SortAsc, SetupUpDown, TearDown);
-createSuite('UpUp', 1000, SortAsc, SetupUpUp, TearDown);
-createSuite('DownDown', 1000, SortAsc, SetupDownDown, TearDown);
-createSuite('DownUp', 1000, SortAsc, SetupDownUp, TearDown);
+createSortSuite(
+    'Up', 1000, SortAsc, () => Up(array_to_sort, kLength), TearDown);
+createSortSuite(
+    'Down', 1000, SortAsc, () => Down(array_to_sort, kLength), TearDown);
+createSortSuite('Saw1000', 1000, SortAsc, SetupSaw1000, TearDown);
+createSortSuite('Saw500', 1000, SortAsc, SetupSaw500, TearDown);
+createSortSuite('Saw200', 1000, SortAsc, SetupSaw200, TearDown);
+createSortSuite('Saw200Symmetric', 1000, SortAsc, SetupSaw200Sym, TearDown);
+createSortSuite('Saw200Down', 1000, SortAsc, SetupSaw200Down, TearDown);
+createSortSuite('UpDown', 1000, SortAsc, SetupUpDown, TearDown);
+createSortSuite('UpUp', 1000, SortAsc, SetupUpUp, TearDown);
+createSortSuite('DownDown', 1000, SortAsc, SetupDownDown, TearDown);
+createSortSuite('DownUp', 1000, SortAsc, SetupDownUp, TearDown);
