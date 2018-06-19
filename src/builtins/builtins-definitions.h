@@ -1198,8 +1198,10 @@ namespace internal {
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
+  TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
   TFC(WasmArgumentsAdaptor, ArgumentAdaptor, 1)                                \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
+  TFC(WasmToNumber, TypeConversion, 1)                                         \
   TFS(WasmStackGuard)                                                          \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \

@@ -33,9 +33,11 @@ struct WasmModule;
 // elements of the list coincide with {compiler::TrapId}, order matters.
 #define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
   FOREACH_WASM_TRAPREASON(VTRAP)         \
+  V(WasmAllocateHeapNumber)              \
   V(WasmArgumentsAdaptor)                \
   V(WasmCallJavaScript)                  \
   V(WasmStackGuard)                      \
+  V(WasmToNumber)                        \
   V(DoubleToI)
 
 struct AddressRange {
@@ -362,8 +364,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          WasmCode::FlushICache);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
-  // TODO(7424): Only used for debugging in {WasmCode::Validate}. Remove.
-  Code* ReverseTrampolineLookup(Address target);
 
   WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
 
@@ -389,6 +389,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Maps from instruction start of an immovable code object to instruction
   // start of the trampoline.
+  // TODO(mstarzinger): By now trampolines are unused. Remove.
   std::unordered_map<Address, Address> trampolines_;
 
   // Jump table used to easily redirect wasm function calls.

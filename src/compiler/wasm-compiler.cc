@@ -4007,21 +4007,27 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, wasm::ModuleEnv* env, JSGraph* jsgraph,
                           wasm::FunctionSig* sig,
-                          compiler::SourcePositionTable* spt)
+                          compiler::SourcePositionTable* spt,
+                          StubCallMode stub_mode)
       : WasmGraphBuilder(env, zone, jsgraph, sig, spt),
         isolate_(jsgraph->isolate()),
-        jsgraph_(jsgraph) {}
+        jsgraph_(jsgraph),
+        stub_mode_(stub_mode) {}
 
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
-    Callable callable =
-        Builtins::CallableFor(isolate_, Builtins::kAllocateHeapNumber);
-    Node* target = jsgraph()->HeapConstant(callable.code());
+    Node* target = (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
+                       ? mcgraph()->RelocatableIntPtrConstant(
+                             wasm::WasmCode::kWasmAllocateHeapNumber,
+                             RelocInfo::WASM_STUB_CALL)
+                       : jsgraph()->HeapConstant(
+                             BUILTIN_CODE(isolate_, AllocateHeapNumber));
     if (!allocate_heap_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
-          mcgraph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
-          Operator::kNoThrow, MachineType::AnyTagged(), 1, Linkage::kNoContext);
+          mcgraph()->zone(), AllocateHeapNumberDescriptor(), 0,
+          CallDescriptor::kNoFlags, Operator::kNoThrow,
+          MachineType::AnyTagged(), 1, Linkage::kNoContext, stub_mode_);
       allocate_heap_number_operator_.set(common->Call(call_descriptor));
     }
     Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
@@ -4180,11 +4186,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildJavaScriptToNumber(Node* node, Node* js_context) {
-    Callable callable = Builtins::CallableFor(isolate_, Builtins::kToNumber);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
-        Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+        mcgraph()->zone(), TypeConversionDescriptor(), 0,
+        CallDescriptor::kNoFlags, Operator::kNoProperties,
+        MachineType::AnyTagged(), 1, Linkage::kPassContext, stub_mode_);
+    Node* stub_code =
+        (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
+            ? mcgraph()->RelocatableIntPtrConstant(
+                  wasm::WasmCode::kWasmToNumber, RelocInfo::WASM_STUB_CALL)
+            : jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, ToNumber));
 
     Node* result =
         graph()->NewNode(mcgraph()->common()->Call(call_descriptor), stub_code,
@@ -4707,6 +4717,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  private:
   Isolate* const isolate_;
   JSGraph* jsgraph_;
+  StubCallMode stub_mode_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 };
 }  // namespace
@@ -4732,7 +4743,8 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   Node* effect = nullptr;
 
   wasm::ModuleEnv env(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
-  WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, func->sig, nullptr);
+  WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, func->sig, nullptr,
+                                  StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildJSToWasmWrapper(index, call_target);
@@ -4810,7 +4822,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(
                       wasm::kRuntimeExceptionSupport);
 
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig,
-                                  source_position_table);
+                                  source_position_table,
+                                  StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmToJSWrapper(target, index);
@@ -4876,7 +4889,8 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr);
+  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr,
+                                  StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmInterpreterEntry(func_index);
@@ -4936,7 +4950,8 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr);
+  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr,
+                                  StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildCWasmEntry();

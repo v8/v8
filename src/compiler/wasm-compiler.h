@@ -38,11 +38,9 @@ enum class TrapId : uint32_t;
 
 namespace wasm {
 struct DecodeStruct;
-class SignatureMap;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
 typedef compiler::MachineGraph TFGraph;
-class NativeModule;
 class WasmCode;
 }  // namespace wasm
 
@@ -151,7 +149,6 @@ struct WasmInstanceCacheNodes {
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
-typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   enum EnforceBoundsCheck : bool {

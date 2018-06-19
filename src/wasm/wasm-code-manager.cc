@@ -178,17 +178,6 @@ void WasmCode::Validate() const {
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::CODE_TARGET: {
-        Address target = it.rinfo()->target_address();
-        Code* code = native_module_->ReverseTrampolineLookup(target);
-        // TODO(7424): This is by now limited to only contain references to a
-        // limited set of builtins. This code will eventually be completely free
-        // of {RelocInfo::CODE_TARGET} relocation entries altogether.
-        int builtin_index = code->builtin_index();
-        CHECK(builtin_index == Builtins::kAllocateHeapNumber ||
-              builtin_index == Builtins::kToNumber);
-        break;
-      }
       case RelocInfo::WASM_STUB_CALL: {
         Address target = it.rinfo()->wasm_stub_call_address();
         WasmCode* code = native_module_->Lookup(target);
@@ -509,7 +498,6 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instruction_start() - code->InstructionStart();
   int mode_mask = RelocInfo::kApplyMask |
-                  RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   RelocIterator orig_it(*code, mode_mask);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
@@ -523,12 +511,6 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
           runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
       it.rinfo()->set_wasm_stub_call_address(code->instruction_start(),
                                              SKIP_ICACHE_FLUSH);
-    } else if (RelocInfo::IsCodeTarget(mode)) {
-      Code* call_target =
-          Code::GetCodeFromTargetAddress(orig_it.rinfo()->target_address());
-      it.rinfo()->set_target_address(
-          GetLocalAddressFor(handle(call_target, call_target->GetIsolate())),
-          SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
     }
@@ -562,7 +544,6 @@ WasmCode* NativeModule::AddCode(
     source_pos.reset(new byte[source_pos_table->length()]);
     source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());
   }
-  TurboAssembler* origin = reinterpret_cast<TurboAssembler*>(desc.origin);
   WasmCode* ret = AddOwnedCode(
       {desc.buffer, static_cast<size_t>(desc.instr_size)},
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size),
@@ -576,7 +557,6 @@ WasmCode* NativeModule::AddCode(
   AllowDeferredHandleDereference embedding_raw_address;
   intptr_t delta = ret->instructions().start() - desc.buffer;
   int mode_mask = RelocInfo::kApplyMask |
-                  RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
                         ret->constant_pool(), mode_mask);
@@ -589,14 +569,6 @@ WasmCode* NativeModule::AddCode(
           runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
       it.rinfo()->set_wasm_stub_call_address(code->instruction_start(),
                                              SKIP_ICACHE_FLUSH);
-    } else if (RelocInfo::IsCodeTarget(mode)) {
-      // rewrite code handles to direct pointers to the first instruction in the
-      // code object
-      Handle<Object> p = it.rinfo()->target_object_handle(origin);
-      Code* code = Code::cast(*p);
-      it.rinfo()->set_target_address(
-          GetLocalAddressFor(handle(code, code->GetIsolate())),
-          SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
     }
@@ -697,17 +669,6 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
   } else {
     return trampoline_iter->second;
   }
-}
-
-Code* NativeModule::ReverseTrampolineLookup(Address target) {
-  // Uses sub-optimal linear search, but is only used for debugging.
-  for (auto pair : trampolines_) {
-    if (pair.second == target) {
-      return Code::GetCodeFromTargetAddress(pair.first);
-    }
-  }
-  UNREACHABLE();
-  return nullptr;
 }
 
 Address NativeModule::AllocateForCode(size_t size) {
