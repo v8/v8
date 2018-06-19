@@ -4,10 +4,8 @@
 
 module typed_array {
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
-
-  type MethodName;
-  const kTypedArrayProtoSort: MethodName = '\"%TypedArray%.prototype.sort\"';
-  extern macro ValidateTypedArray(Context, Object, MethodName): JSTypedArray;
+  extern macro ValidateTypedArray(
+      Context, Object, constexpr String): JSTypedArray;
 
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
@@ -271,7 +269,7 @@ module typed_array {
     // 3. Let buffer be ? ValidateTypedArray(obj).
     //    ValidateTypedArray currently returns the array, not the ViewBuffer.
     let array: JSTypedArray =
-        ValidateTypedArray(context, obj, kTypedArrayProtoSort);
+        ValidateTypedArray(context, obj, '%TypedArray%.prototype.sort');
 
     // Default sorting is done in C++ using std::sort
     if (comparefn_obj == Undefined) {
