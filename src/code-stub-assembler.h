@@ -1628,6 +1628,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsJSArrayIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSAsyncGeneratorObject(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSFunctionInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsAllocationSiteInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSFunction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(SloppyTNode<HeapObject> object);

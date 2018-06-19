@@ -960,8 +960,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       // Check if it is an AllocationSite.
       Comment("check if allocation site");
       TNode<HeapObject> strong_feedback = CAST(feedback);
-      GotoIfNot(IsAllocationSiteMap(LoadMap(strong_feedback)),
-                &check_initialized);
+      GotoIfNot(IsAllocationSite(strong_feedback), &check_initialized);
 
       // Make sure that {target} and {new_target} are the Array constructor.
       Node* array_function = LoadContextElement(LoadNativeContext(context),

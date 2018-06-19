@@ -1030,9 +1030,17 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
                !(AllocationSite::cast(object)->IsZombie())) {
       // "dead" AllocationSites need to live long enough for a traversal of new
       // space. These sites get a one-time reprieve.
-      AllocationSite* site = AllocationSite::cast(object);
-      site->MarkZombie();
-      marking_state_->WhiteToBlack(site);
+
+      Object* nested = object;
+      while (nested->IsAllocationSite()) {
+        AllocationSite* current_site = AllocationSite::cast(nested);
+        // MarkZombie will override the nested_site, read it first before
+        // marking
+        nested = current_site->nested_site();
+        current_site->MarkZombie();
+        marking_state_->WhiteToBlack(current_site);
+      }
+
       return object;
     } else {
       return nullptr;

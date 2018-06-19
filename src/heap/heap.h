@@ -805,6 +805,11 @@ class Heap {
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
+  // Traverse all the allocaions_sites [nested_site and weak_next] in the list
+  // and foreach call the visitor
+  void ForeachAllocationSite(Object* list,
+                             std::function<void(AllocationSite*)> visitor);
+
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
 

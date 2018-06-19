@@ -3489,13 +3489,30 @@ TEST(DisableInlineAllocation) {
 static int AllocationSitesCount(Heap* heap) {
   int count = 0;
   for (Object* site = heap->allocation_sites_list();
-       !(site->IsUndefined(heap->isolate()));
-       site = AllocationSite::cast(site)->weak_next()) {
+       site->IsAllocationSite();) {
+    AllocationSite* cur = AllocationSite::cast(site);
+    CHECK(cur->HasWeakNext());
+    site = cur->weak_next();
     count++;
   }
   return count;
 }
 
+static int SlimAllocationSiteCount(Heap* heap) {
+  int count = 0;
+  for (Object* weak_list = heap->allocation_sites_list();
+       weak_list->IsAllocationSite();) {
+    AllocationSite* weak_cur = AllocationSite::cast(weak_list);
+    for (Object* site = weak_cur->nested_site(); site->IsAllocationSite();) {
+      AllocationSite* cur = AllocationSite::cast(site);
+      CHECK(!cur->HasWeakNext());
+      site = cur->nested_site();
+      count++;
+    }
+    weak_list = weak_cur->weak_next();
+  }
+  return count;
+}
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
   if (FLAG_always_opt || !FLAG_opt) return;
@@ -3565,6 +3582,21 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
         WeakCell::cast(site->dependent_code()->object_at(0))->cleared());
 }
 
+void CheckNumberOfAllocations(Heap* heap, const char* source,
+                              int expected_full_alloc,
+                              int expected_slim_alloc) {
+  int prev_fat_alloc_count = AllocationSitesCount(heap);
+  int prev_slim_alloc_count = SlimAllocationSiteCount(heap);
+
+  CompileRun(source);
+
+  int fat_alloc_sites = AllocationSitesCount(heap) - prev_fat_alloc_count;
+  int slim_alloc_sites = SlimAllocationSiteCount(heap) - prev_slim_alloc_count;
+
+  CHECK_EQ(expected_full_alloc, fat_alloc_sites);
+  CHECK_EQ(expected_slim_alloc, slim_alloc_sites);
+}
+
 TEST(AllocationSiteCreation) {
   FLAG_always_opt = false;
   CcTest::InitializeVM();
@@ -3572,90 +3604,52 @@ TEST(AllocationSiteCreation) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
-  int prev_count = 0;
-  int count = 0;
-
   // Array literals.
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("(function f1() { return []; })()");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(1, count - prev_count);
+  CheckNumberOfAllocations(heap, "(function f1() { return []; })()", 1, 0);
+  CheckNumberOfAllocations(heap, "(function f2() { return [1, 2]; })()", 1, 0);
+  CheckNumberOfAllocations(heap, "(function f3() { return [[1], [2]]; })()", 1,
+                           2);
 
-  prev_count = count;
-  CompileRun("(function f2() { return [1, 2]; })()");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(1, count - prev_count);
-
-  prev_count = count;
-  CompileRun("(function f3() { return [[1], [2]]; })()");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(3, count - prev_count);
-
-  prev_count = count;
-  CompileRun(
-      "(function f4() { "
-      "return [0, [1, 1.1, 1.2, "
-      "], 1.5, [2.1, 2.2], 3];"
-      "})()");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(3, count - prev_count);
+  CheckNumberOfAllocations(heap,
+                           "(function f4() { "
+                           "return [0, [1, 1.1, 1.2, "
+                           "], 1.5, [2.1, 2.2], 3];"
+                           "})()",
+                           1, 2);
 
   // Object literals have lazy AllocationSites
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("function f5() { return {}; }; f5(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(0, count - prev_count);
+  CheckNumberOfAllocations(heap, "function f5() { return {}; }; f5(); ", 0, 0);
+
   // No AllocationSites are created for the empty object literal.
   for (int i = 0; i < 5; i++) {
-    prev_count = AllocationSitesCount(heap);
-    CompileRun("f5(); ");
-    count = AllocationSitesCount(heap);
-    CHECK_EQ(0, count - prev_count);
+    CheckNumberOfAllocations(heap, "f5(); ", 0, 0);
   }
 
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("function f6() { return {a:1}; }; f6(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(0, count - prev_count);
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("f6(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(1, count - prev_count);
+  CheckNumberOfAllocations(heap, "function f6() { return {a:1}; }; f6(); ", 0,
+                           0);
 
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("function f7() { return {a:1, b:2}; }; f7(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(0, count - prev_count);
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("f7(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(1, count - prev_count);
+  CheckNumberOfAllocations(heap, "f6(); ", 1, 0);
 
-  prev_count = AllocationSitesCount(heap);
-  CompileRun(
-      "function f8() {"
-      "return {a:{}, b:{ a:2, c:{ d:{f:{}}} } }; "
-      "}; f8(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(0, count - prev_count);
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("f8(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(6, count - prev_count);
+  CheckNumberOfAllocations(heap, "function f7() { return {a:1, b:2}; }; f7(); ",
+                           0, 0);
+  CheckNumberOfAllocations(heap, "f7(); ", 1, 0);
+
+  CheckNumberOfAllocations(heap,
+                           "function f8() {"
+                           "return {a:{}, b:{ a:2, c:{ d:{f:{}}} } }; "
+                           "}; f8(); ",
+                           0, 0);
+  CheckNumberOfAllocations(heap, "f8(); ", 1, 5);
 
   // We currently eagerly create allocation sites if there are sub-arrays.
-  prev_count = AllocationSitesCount(heap);
-  CompileRun(
-      "function f9() {"
-      "return {a:[1, 2, 3], b:{ a:2, c:{ d:{f:[]} } }}; "
-      "}; f9(); ");
-  count = AllocationSitesCount(heap);
-  CHECK_EQ(6, count - prev_count);
-  prev_count = AllocationSitesCount(heap);
-  CompileRun("f9(); ");
-  count = AllocationSitesCount(heap);
+  CheckNumberOfAllocations(heap,
+                           "function f9() {"
+                           "return {a:[1, 2, 3], b:{ a:2, c:{ d:{f:[]} } }}; "
+                           "}; f9(); ",
+                           1, 5);
+
   // No new AllocationSites created on the second invocation.
-  CHECK_EQ(0, count - prev_count);
+  CheckNumberOfAllocations(heap, "f9(); ", 0, 0);
 }
 
 TEST(CellsInOptimizedCodeAreWeak) {

@@ -3936,6 +3936,9 @@ class AllocationSite: public Struct {
 
   inline void Initialize();
 
+  // Checks if the allocation site contain weak_next field;
+  inline bool HasWeakNext() const;
+
   // This method is expensive, it should only be called for reporting.
   bool IsNested();
 
@@ -4024,23 +4027,17 @@ class AllocationSite: public Struct {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ALLOCATION_SITE_FIELDS)
 
-  // Need KSize to statisfy Struct Macro gen machineary
-  static const int kSize = kSizeWithWeakNext;
+  static const int kStartOffset = HeapObject::kHeaderSize;
 
-  // During mark compact we need to take special care for the dependent code
-  // field.
-  static const int kPointerFieldsBeginOffset =
-      kTransitionInfoOrBoilerplateOffset;
-  static const int kPointerFieldsEndOffset = kWeakNextOffset;
+  template <bool includeWeakNext>
+  class BodyDescriptorImpl;
 
-  // Ignores weakness.
-  typedef FixedBodyDescriptor<HeapObject::kHeaderSize, kSize, kSize>
-      BodyDescriptor;
+  // BodyDescriptor is used to traverse all the fields including weak_next
+  typedef BodyDescriptorImpl<true> BodyDescriptor;
 
-  // Respects weakness.
-  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
-                              kPointerFieldsEndOffset, kSize>
-      BodyDescriptorWeak;
+  // BodyDescriptorWeak is used to traverse all the pointers
+  // except for weak_next
+  typedef BodyDescriptorImpl<false> BodyDescriptorWeak;
 
  private:
   inline bool PretenuringDecisionMade() const;

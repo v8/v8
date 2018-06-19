@@ -1892,7 +1892,7 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
 
 void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AllocationSite");
-  os << "\n - weak_next: " << Brief(weak_next());
+  if (this->HasWeakNext()) os << "\n - weak_next: " << Brief(weak_next());
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - nested site: " << Brief(nested_site());
   os << "\n - memento found count: "

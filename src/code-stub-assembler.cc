@@ -5251,7 +5251,7 @@ TNode<BoolT> CodeStubAssembler::IsAccessorPair(SloppyTNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsAllocationSite(
     SloppyTNode<HeapObject> object) {
-  return IsAllocationSiteMap(LoadMap(object));
+  return IsAllocationSiteInstanceType(LoadInstanceType(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsAnyHeapNumber(
@@ -5362,6 +5362,11 @@ TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsAllocationSiteInstanceType(
+    SloppyTNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, ALLOCATION_SITE_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSFunction(SloppyTNode<HeapObject> object) {
@@ -9394,7 +9399,7 @@ TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
     SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot) {
-  TNode<IntPtrT> size = IntPtrConstant(AllocationSite::kSize);
+  TNode<IntPtrT> size = IntPtrConstant(AllocationSite::kSizeWithWeakNext);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
   StoreMapNoWriteBarrier(site, Heap::kAllocationSiteWithWeakNextMapRootIndex);
   // Should match AllocationSite::Initialize.
