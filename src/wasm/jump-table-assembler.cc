@@ -85,22 +85,30 @@ void JumpTableAssembler::NopBytes(int bytes) {
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   // Load function index to r4.
-  // This generates <= 3 instructions: ldr, const pool start, constant
+  // This generates [movw, movt] on ARMv7 and later, [ldr, constant pool marker,
+  // constant] on ARMv6.
   Move32BitImmediate(r4, Operand(func_index));
-  // Jump to {lazy_compile_target}.
-  int offset =
-      lazy_compile_target - reinterpret_cast<Address>(pc_) - kPcLoadDelta;
-  DCHECK_EQ(0, offset % kInstrSize);
-  DCHECK(is_int26(offset));     // 26 bit imm
-  b(offset);                    // 1 instr
-  CheckConstPool(true, false);  // force emit of const pool
+  // EmitJumpSlot emits either [b], [movw, movt, mov] (ARMv7+), or [ldr,
+  // constant].
+  // In total, this is <=5 instructions on all architectures.
+  // TODO(arm): Optimize this for code size; lazy compile is not performance
+  // critical, as it's only executed once per function.
+  EmitJumpSlot(lazy_compile_target);
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
   int offset = target - reinterpret_cast<Address>(pc_) - kPcLoadDelta;
   DCHECK_EQ(0, offset % kInstrSize);
-  DCHECK(is_int26(offset));  // 26 bit imm
-  b(offset);
+  // If the offset is within 64 MB, emit a direct jump. Otherwise jump
+  // indirectly.
+  if (is_int26(offset)) {
+    b(offset);  // 1 instr
+  } else {
+    // {Move32BitImmediate} emits either [movw, movt, mov] or [ldr, constant].
+    Move32BitImmediate(pc, Operand(target));
+  }
+
+  CheckConstPool(true, false);  // force emit of const pool
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
