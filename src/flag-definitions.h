@@ -1136,7 +1136,7 @@ DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
 
 // checks.cc
 #ifdef ENABLE_SLOW_DCHECKS
-DEFINE_BOOL(enable_slow_asserts, true,
+DEFINE_BOOL(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 #endif
 
