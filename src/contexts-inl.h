@@ -45,8 +45,6 @@ Context* Context::cast(Object* context) {
   return reinterpret_cast<Context*>(context);
 }
 
-Isolate* Context::GetIsolate() const { return GetHeap()->isolate(); }
-
 void Context::set_scope_info(ScopeInfo* scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);
 }

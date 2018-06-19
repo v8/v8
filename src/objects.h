@@ -1809,14 +1809,14 @@ class HeapObject: public Object {
 
   // The Heap the object was allocated in. Used also to access Isolate.
 #ifdef DEPRECATE_GET_ISOLATE
-  [[deprecated("Pass Heap explicitly")]]
+  [[deprecated("Pass Heap explicitly or use a NeverReadOnlyHeapObject")]]
 #endif
       inline Heap*
       GetHeap() const;
 
 // Convenience method to get current isolate.
 #ifdef DEPRECATE_GET_ISOLATE
-  [[deprecated("Pass Isolate explicitly")]]
+  [[deprecated("Pass Isolate explicitly or use a NeverReadOnlyHeapObject")]]
 #endif
       inline Isolate*
       GetIsolate() const;
@@ -1953,6 +1953,17 @@ class HeapObject: public Object {
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
 };
 
+// Mixin class for objects that can never be in RO space.
+// TODO(leszeks): Add checks in the factory that we never allocate these objects
+// in RO space.
+class NeverReadOnlySpaceObject {
+ public:
+  // The Heap the object was allocated in. Used also to access Isolate.
+  inline Heap* GetHeap() const;
+
+  // Convenience method to get current isolate.
+  inline Isolate* GetIsolate() const;
+};
 
 template <int start_offset, int end_offset, int size>
 class FixedBodyDescriptor;
@@ -2096,12 +2107,15 @@ class PropertyArray : public HeapObject {
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver: public HeapObject {
+class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  // Use the mixin methods over the HeapObject methods.
+  // TODO(v8:7786) Remove once the HeapObject methods are gone.
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Returns true if there is no slow (ie, dictionary) backing store.
   inline bool HasFastProperties() const;
-
-  inline Isolate* GetIsolate() const;
 
   // Returns the properties array backing store if it
   // exists. Otherwise, returns an empty_property_array when there's a
