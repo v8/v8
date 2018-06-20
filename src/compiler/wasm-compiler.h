@@ -350,7 +350,7 @@ class WasmGraphBuilder {
   SetOncePointer<Node> globals_start_;
   SetOncePointer<Node> imported_mutable_globals_;
   SetOncePointer<Node> stack_check_code_node_;
-  const Operator* stack_check_call_operator_ = nullptr;
+  SetOncePointer<const Operator> stack_check_call_operator_;
 
   Node** cur_buffer_;
   size_t cur_bufsize_;

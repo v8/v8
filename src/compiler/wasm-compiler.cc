@@ -264,8 +264,16 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   if (stack_check_call_operator_ == nullptr) {
     // Build and cache the stack check call operator and the constant
     // representing the stack check code.
-    wasm::FunctionSig dummy_sig(0, 0, nullptr);
-    auto call_descriptor = GetWasmCallDescriptor(mcgraph()->zone(), &dummy_sig);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        mcgraph()->zone(),                    // zone
+        WasmStackGuardDescriptor{},           // descriptor
+        0,                                    // stack parameter count
+        CallDescriptor::kNoFlags,             // flags
+        Operator::kNoProperties,              // properties
+        MachineType::None(),                  // return type
+        0,                                    // return count
+        Linkage::kNoContext,                  // context specification
+        StubCallMode::kCallWasmRuntimeStub);  // stub call mode
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
     stack_check_code_node_.set(mcgraph()->RelocatableIntPtrConstant(
@@ -273,9 +281,9 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
     stack_check_call_operator_ = mcgraph()->common()->Call(call_descriptor);
   }
 
-  Node* call =
-      graph()->NewNode(stack_check_call_operator_, stack_check_code_node_.get(),
-                       instance_node_.get(), *effect, stack_check.if_false);
+  Node* call = graph()->NewNode(stack_check_call_operator_.get(),
+                                stack_check_code_node_.get(), *effect,
+                                stack_check.if_false);
 
   SetSourcePosition(call, position);
 
