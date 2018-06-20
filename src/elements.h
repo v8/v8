@@ -180,7 +180,7 @@ class ElementsAccessor {
 
   virtual void Reverse(JSObject* receiver) = 0;
 
-  virtual void CopyElements(Handle<FixedArrayBase> source,
+  virtual void CopyElements(Isolate* isolate, Handle<FixedArrayBase> source,
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 

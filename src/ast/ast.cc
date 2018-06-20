@@ -633,7 +633,8 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     elements = isolate->factory()->NewFixedDoubleArray(constants_length);
     // We are copying from non-fast-double to fast-double.
     ElementsKind from_kind = TERMINAL_FAST_ELEMENTS_KIND;
-    accessor->CopyElements(fixed_array, from_kind, elements, constants_length);
+    accessor->CopyElements(isolate, fixed_array, from_kind, elements,
+                           constants_length);
   }
 
   // Remember both the literal's constant values as well as the ElementsKind.
