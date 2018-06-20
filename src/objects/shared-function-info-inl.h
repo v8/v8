@@ -576,20 +576,19 @@ void SharedFunctionInfo::FlushCompiled() {
 
   DCHECK(CanFlushCompiled());
 
-  Oddball* the_hole = GetIsolate()->heap()->the_hole_value();
-
   if (is_compiled()) {
-    HeapObject* outer_scope_info = the_hole;
-    if (!is_toplevel()) {
-      if (scope_info()->HasOuterScopeInfo()) {
-        outer_scope_info = scope_info()->OuterScopeInfo();
-      }
+    HeapObject* outer_scope_info;
+    if (scope_info()->HasOuterScopeInfo()) {
+      outer_scope_info = scope_info()->OuterScopeInfo();
+    } else {
+      outer_scope_info = GetIsolate()->heap()->the_hole_value();
     }
     // Raw setter to avoid validity checks, since we're performing the unusual
     // task of decompiling.
     set_raw_outer_scope_info_or_feedback_metadata(outer_scope_info);
   } else {
-    DCHECK(outer_scope_info()->IsScopeInfo() || is_toplevel());
+    DCHECK(outer_scope_info()->IsScopeInfo() ||
+           outer_scope_info()->IsTheHole());
   }
 
   set_builtin_id(Builtins::kCompileLazy);

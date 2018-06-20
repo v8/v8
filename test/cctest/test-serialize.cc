@@ -2618,6 +2618,51 @@ TEST(SnapshotCreatorNoExternalReferencesDefault) {
   delete[] blob.data;
 }
 
+v8::StartupData CreateCustomSnapshotWithPreparseDataAndNoOuterScope() {
+  v8::SnapshotCreator creator;
+  v8::Isolate* isolate = creator.GetIsolate();
+  {
+    v8::HandleScope handle_scope(isolate);
+    {
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun(
+          "var foo = {\n"
+          "  // This function is not top-level, but also has no outer scope.\n"
+          "  bar: function(){\n"
+          "    // Add an inner function so that the outer one has preparse\n"
+          "    // scope data.\n"
+          "    return function(){}\n"
+          "  }\n"
+          "};\n");
+      creator.SetDefaultContext(context);
+    }
+  }
+  return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+}
+
+TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
+  DisableAlwaysOpt();
+  v8::StartupData blob = CreateCustomSnapshotWithPreparseDataAndNoOuterScope();
+
+  // Deserialize with an incomplete list of external references.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
 TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
   DisableAlwaysOpt();
   v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
