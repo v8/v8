@@ -46,11 +46,11 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   return info;
 }
 
-static V8_INLINE bool CheckForName(Handle<Name> name,
+static V8_INLINE bool CheckForName(Isolate* isolate, Handle<Name> name,
                                    Handle<String> property_name, int offset,
                                    FieldIndex::Encoding encoding,
                                    FieldIndex* index) {
-  if (Name::Equals(name, property_name)) {
+  if (Name::Equals(isolate, name, property_name)) {
     *index = FieldIndex::ForInObjectOffset(offset, encoding);
     return true;
   }
@@ -64,11 +64,11 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
                                         Handle<Name> name, FieldIndex* index) {
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
-      return CheckForName(name, isolate->factory()->length_string(),
+      return CheckForName(isolate, name, isolate->factory()->length_string(),
                           JSArray::kLengthOffset, FieldIndex::kTagged, index);
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
-        return CheckForName(name, isolate->factory()->length_string(),
+        return CheckForName(isolate, name, isolate->factory()->length_string(),
                             String::kLengthOffset, FieldIndex::kTagged, index);
       }
 

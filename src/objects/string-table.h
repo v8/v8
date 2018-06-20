@@ -103,7 +103,7 @@ class StringSetShape : public BaseShape<String*> {
 class StringSet : public HashTable<StringSet, StringSetShape> {
  public:
   static Handle<StringSet> New(Isolate* isolate);
-  static Handle<StringSet> Add(Handle<StringSet> blacklist,
+  static Handle<StringSet> Add(Isolate* isolate, Handle<StringSet> blacklist,
                                Handle<String> name);
   bool Has(Handle<String> name);
 

@@ -869,7 +869,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Does nothing if ScopeInfo is already allocated.
   static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate);
 
-  Handle<StringSet> CollectNonLocals(ParseInfo* info,
+  Handle<StringSet> CollectNonLocals(Isolate* isolate, ParseInfo* info,
                                      Handle<StringSet> non_locals);
 
   // Determine if we can use lazy compilation for this scope.

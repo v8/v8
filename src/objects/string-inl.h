@@ -289,21 +289,22 @@ bool String::Equals(String* other) {
   return SlowEquals(other);
 }
 
-bool String::Equals(Handle<String> one, Handle<String> two) {
+bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   if (one.is_identical_to(two)) return true;
   if (one->IsInternalizedString() && two->IsInternalizedString()) {
     return false;
   }
-  return SlowEquals(one, two);
+  return SlowEquals(isolate, one, two);
 }
 
-Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
+Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
+                               PretenureFlag pretenure) {
   if (string->IsConsString()) {
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
       string = handle(cons->first());
     } else {
-      return SlowFlatten(cons, pretenure);
+      return SlowFlatten(isolate, cons, pretenure);
     }
   }
   if (string->IsThinString()) {

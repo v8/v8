@@ -184,8 +184,8 @@ bool HeapObject::IsJSGeneratorObject() const {
 
 bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
 
-bool HeapObject::IsExternal() const {
-  return map()->FindRootMap() == GetHeap()->external_map();
+bool HeapObject::IsExternal(Isolate* isolate) const {
+  return map()->FindRootMap() == isolate->heap()->external_map();
 }
 
 #define IS_TYPE_FUNCTION_DEF(type_)                               \

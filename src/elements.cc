@@ -4184,7 +4184,7 @@ class StringWrapperElementsAccessor
     uint32_t length = static_cast<uint32_t>(string->length());
     if (entry < length) {
       return isolate->factory()->LookupSingleCharacterStringFromCode(
-          String::Flatten(string)->Get(entry));
+          String::Flatten(isolate, string)->Get(entry));
     }
     return BackingStoreAccessor::GetImpl(isolate, holder->elements(),
                                          entry - length);
@@ -4266,7 +4266,7 @@ class StringWrapperElementsAccessor
                                               AddKeyConversion convert) {
     Isolate* isolate = receiver->GetIsolate();
     Handle<String> string(GetString(*receiver), isolate);
-    string = String::Flatten(string);
+    string = String::Flatten(isolate, string);
     uint32_t length = static_cast<uint32_t>(string->length());
     for (uint32_t i = 0; i < length; i++) {
       accumulator->AddKey(

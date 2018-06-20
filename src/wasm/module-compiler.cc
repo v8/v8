@@ -2034,7 +2034,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                               .ToHandleChecked();
     Handle<JSObject> export_to;
     if (is_asm_js && exp.kind == kExternalFunction &&
-        String::Equals(name, single_function_name)) {
+        String::Equals(isolate_, name, single_function_name)) {
       export_to = instance;
     } else {
       export_to = exports_object;

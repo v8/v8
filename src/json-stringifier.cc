@@ -704,7 +704,7 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
 }
 
 void JsonStringifier::SerializeString(Handle<String> object) {
-  object = String::Flatten(object);
+  object = String::Flatten(isolate_, object);
   if (builder_.CurrentEncoding() == String::ONE_BYTE_ENCODING) {
     if (object->IsOneByteRepresentationUnderneath()) {
       SerializeString_<uint8_t, uint8_t>(object);

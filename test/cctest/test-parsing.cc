@@ -1235,7 +1235,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     if (test_preparser && !ignore_error_msg) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
-      if (!i::String::Equals(message_string, preparser_message)) {
+      if (!i::String::Equals(isolate, message_string, preparser_message)) {
         FATAL(
             "Expected parser and preparser to produce the same error on:\n"
             "\t%s\n"

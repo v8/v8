@@ -525,10 +525,10 @@ int StringIndexOf(Isolate* isolate, Handle<String> subject,
 // 2. subject == pattern.
 bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
                               Handle<String> pattern) {
-  if (String::Equals(subject, pattern)) return true;
+  if (String::Equals(isolate, subject, pattern)) return true;
 
-  FlatStringReader subject_reader(isolate, String::Flatten(subject));
-  FlatStringReader pattern_reader(isolate, String::Flatten(pattern));
+  FlatStringReader subject_reader(isolate, String::Flatten(isolate, subject));
+  FlatStringReader pattern_reader(isolate, String::Flatten(isolate, pattern));
 
   int pattern_index = pattern_reader.length() - 1;
   int subject_index = subject_reader.length() - 1;
@@ -1041,7 +1041,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
   // here to improve the efficiency of converting it to a C string and
   // other operations that are likely to take place (see GetLocalizedMessage
   // for example).
-  return String::Flatten(result_string);
+  return String::Flatten(isolate, result_string);
 }
 
 

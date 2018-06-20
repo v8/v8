@@ -976,7 +976,7 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
     if (m.HasValue() && m.Value()->IsString()) {
       Handle<Object> input_value = m.Value();
       return Replace(jsgraph()->Constant(
-          String::ToNumber(Handle<String>::cast(input_value))));
+          String::ToNumber(isolate(), Handle<String>::cast(input_value))));
     }
   }
   if (input_type.IsHeapConstant()) {

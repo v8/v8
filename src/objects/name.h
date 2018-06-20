@@ -29,7 +29,8 @@ class Name : public HeapObject {
 
   // Equality operations.
   inline bool Equals(Name* other);
-  inline static bool Equals(Handle<Name> one, Handle<Name> two);
+  inline static bool Equals(Isolate* isolate, Handle<Name> one,
+                            Handle<Name> two);
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);

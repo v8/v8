@@ -1167,7 +1167,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
 #endif
   DCHECK(begin > 0 || end < str->length());
 
-  str = String::Flatten(str);
+  str = String::Flatten(isolate(), str);
 
   int length = end - begin;
   if (length <= 0) return empty_string();
@@ -1301,7 +1301,7 @@ Handle<ExternalOneByteString> Factory::NewNativeSourceString(
 Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
   Handle<Map> map(isolate()->native_context()->string_iterator_map(),
                   isolate());
-  Handle<String> flat_string = String::Flatten(string);
+  Handle<String> flat_string = String::Flatten(isolate(), string);
   Handle<JSStringIterator> iterator =
       Handle<JSStringIterator>::cast(NewJSObjectFromMap(map));
   iterator->set_string(*flat_string);
@@ -3374,7 +3374,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   Handle<String> shared_name;
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
-    shared_name = String::Flatten(shared_name, TENURED);
+    shared_name = String::Flatten(isolate(), shared_name, TENURED);
   }
 
   Handle<Map> map = shared_function_info_map();
@@ -3742,9 +3742,11 @@ Handle<RegExpMatchInfo> Factory::NewRegExpMatchInfo() {
 }
 
 Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {
-  if (Name::Equals(name, undefined_string())) return undefined_value();
-  if (Name::Equals(name, NaN_string())) return nan_value();
-  if (Name::Equals(name, Infinity_string())) return infinity_value();
+  if (Name::Equals(isolate(), name, undefined_string())) {
+    return undefined_value();
+  }
+  if (Name::Equals(isolate(), name, NaN_string())) return nan_value();
+  if (Name::Equals(isolate(), name, Infinity_string())) return infinity_value();
   return Handle<Object>::null();
 }
 

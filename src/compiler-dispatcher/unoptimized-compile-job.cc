@@ -129,7 +129,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
         source, shared_->StartPosition(), shared_->EndPosition()));
     parse_info_->set_character_stream(std::move(stream));
   } else {
-    source = String::Flatten(source);
+    source = String::Flatten(isolate, source);
     const void* data;
     int offset = 0;
     int length = source->length();

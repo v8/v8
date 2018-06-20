@@ -190,7 +190,7 @@ class String : public Name {
   INLINE(uint16_t Get(int index));
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
-  static Handle<Object> ToNumber(Handle<String> subject);
+  static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
 
   // Flattens the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
@@ -205,7 +205,7 @@ class String : public Name {
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
 
-  static inline Handle<String> Flatten(Handle<String> string,
+  static inline Handle<String> Flatten(Isolate* isolate, Handle<String> string,
                                        PretenureFlag pretenure = NOT_TENURED);
 
   // Tries to return the content of a flat string as a structure holding either
@@ -230,7 +230,8 @@ class String : public Name {
   // for strings containing supplementary characters, lexicographic ordering on
   // sequences of UTF-16 code unit values differs from that on sequences of code
   // point values.
-  V8_WARN_UNUSED_RESULT static ComparisonResult Compare(Handle<String> x,
+  V8_WARN_UNUSED_RESULT static ComparisonResult Compare(Isolate* isolate,
+                                                        Handle<String> x,
                                                         Handle<String> y);
 
   // Perform ES6 21.1.3.8, including checking arguments.
@@ -278,7 +279,8 @@ class String : public Name {
 
   // String equality operations.
   inline bool Equals(String* other);
-  inline static bool Equals(Handle<String> one, Handle<String> two);
+  inline static bool Equals(Isolate* isolate, Handle<String> one,
+                            Handle<String> two);
   bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);
 
   // Dispatches to Is{One,Two}ByteEqualTo.
@@ -316,7 +318,8 @@ class String : public Name {
 
   // Trimming.
   enum TrimMode { kTrim, kTrimStart, kTrimEnd };
-  static Handle<String> Trim(Handle<String> string, TrimMode mode);
+  static Handle<String> Trim(Isolate* isolate, Handle<String> string,
+                             TrimMode mode);
 
   DECL_CAST(String)
 
@@ -437,7 +440,8 @@ class String : public Name {
   static inline ConsString* VisitFlat(Visitor* visitor, String* string,
                                       int offset = 0);
 
-  static Handle<FixedArray> CalculateLineEnds(Handle<String> string,
+  static Handle<FixedArray> CalculateLineEnds(Isolate* isolate,
+                                              Handle<String> string,
                                               bool include_ending_line);
 
  private:
@@ -445,14 +449,15 @@ class String : public Name {
   friend class StringTableInsertionKey;
   friend class InternalizedStringKey;
 
-  static Handle<String> SlowFlatten(Handle<ConsString> cons,
+  static Handle<String> SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                     PretenureFlag tenure);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
   bool SlowEquals(String* other);
 
-  static bool SlowEquals(Handle<String> one, Handle<String> two);
+  static bool SlowEquals(Isolate* isolate, Handle<String> one,
+                         Handle<String> two);
 
   // Slow case of AsArrayIndex.
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);

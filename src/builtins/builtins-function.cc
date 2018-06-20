@@ -53,7 +53,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         Handle<String> param;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, param, Object::ToString(isolate, args.at(i)), Object);
-        param = String::Flatten(param);
+        param = String::Flatten(isolate, param);
         builder.AppendString(param);
         if (!FLAG_harmony_function_tostring) {
           // If the formal parameters string include ) - an illegal

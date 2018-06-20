@@ -769,11 +769,17 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
 
 namespace {
 
-struct NameComparator {
+class NameComparator {
+ public:
+  explicit NameComparator(Isolate* isolate) : isolate_(isolate) {}
+
   bool operator()(uint32_t hash1, uint32_t hash2, const Handle<Name>& key1,
                   const Handle<Name>& key2) const {
-    return Name::Equals(key1, key2);
+    return Name::Equals(isolate_, key1, key2);
   }
+
+ private:
+  Isolate* isolate_;
 };
 
 }  // namespace
@@ -872,7 +878,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   base::TemplateHashMapImpl<Handle<Name>, int, NameComparator,
                             ZoneAllocationPolicy>
       unchecked_result_keys(ZoneHashMap::kDefaultHashMapCapacity,
-                            NameComparator(), alloc);
+                            NameComparator(isolate_), alloc);
   int unchecked_result_keys_size = 0;
   for (int i = 0; i < trap_result->length(); ++i) {
     Handle<Name> key(Name::cast(trap_result->get(i)), isolate_);

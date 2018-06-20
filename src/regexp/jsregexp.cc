@@ -226,7 +226,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK_LE(0, index);
   DCHECK_LE(index, subject->length());
 
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
 
   String* needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -325,7 +325,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  pattern = String::Flatten(pattern);
+  pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
@@ -518,7 +518,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     int previous_index, Handle<RegExpMatchInfo> last_match_info) {
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
 
   // Prepare space for the return values.
 #if defined(V8_INTERPRETED_REGEXP) && defined(DEBUG)
@@ -6644,7 +6644,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   // Sample some characters from the middle of the string.
   static const int kSampleSize = 128;
 
-  sample_subject = String::Flatten(sample_subject);
+  sample_subject = String::Flatten(isolate, sample_subject);
   int chars_sampled = 0;
   int half_way = (sample_subject->length() - kSampleSize) / 2;
   for (int i = Max(0, half_way);

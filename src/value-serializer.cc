@@ -431,7 +431,7 @@ void ValueSerializer::WriteBigInt(BigInt* bigint) {
 }
 
 void ValueSerializer::WriteString(Handle<String> string) {
-  string = String::Flatten(string);
+  string = String::Flatten(isolate_, string);
   DisallowHeapAllocation no_gc;
   String::FlatContent flat = string->GetFlatContent();
   DCHECK(flat.IsFlat());

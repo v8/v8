@@ -143,7 +143,7 @@ JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
                           isolate_),
       position_(-1),
       properties_(&zone_) {
-  source_ = String::Flatten(source_);
+  source_ = String::Flatten(isolate, source_);
   pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
   // Optimized fast case where we only have Latin1 characters.

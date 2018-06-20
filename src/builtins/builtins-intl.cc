@@ -33,7 +33,7 @@ namespace internal {
 BUILTIN(StringPrototypeToUpperCaseIntl) {
   HandleScope scope(isolate);
   TO_THIS_STRING(string, "String.prototype.toUpperCase");
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   return ConvertCase(string, true, isolate);
 }
 
@@ -53,16 +53,19 @@ BUILTIN(StringPrototypeNormalizeIntl) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
                                        Object::ToString(isolate, form_input));
 
-    if (String::Equals(form, isolate->factory()->NFC_string())) {
+    if (String::Equals(isolate, form, isolate->factory()->NFC_string())) {
       form_name = "nfc";
       form_mode = UNORM2_COMPOSE;
-    } else if (String::Equals(form, isolate->factory()->NFD_string())) {
+    } else if (String::Equals(isolate, form,
+                              isolate->factory()->NFD_string())) {
       form_name = "nfc";
       form_mode = UNORM2_DECOMPOSE;
-    } else if (String::Equals(form, isolate->factory()->NFKC_string())) {
+    } else if (String::Equals(isolate, form,
+                              isolate->factory()->NFKC_string())) {
       form_name = "nfkc";
       form_mode = UNORM2_COMPOSE;
-    } else if (String::Equals(form, isolate->factory()->NFKD_string())) {
+    } else if (String::Equals(isolate, form,
+                              isolate->factory()->NFKD_string())) {
       form_name = "nfkc";
       form_mode = UNORM2_DECOMPOSE;
     } else {
@@ -75,7 +78,7 @@ BUILTIN(StringPrototypeNormalizeIntl) {
   }
 
   int length = string->length();
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   icu::UnicodeString result;
   std::unique_ptr<uc16[]> sap;
   UErrorCode status = U_ZERO_ERROR;

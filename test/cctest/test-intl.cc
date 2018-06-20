@@ -149,7 +149,7 @@ TEST(GetOptions) {
   CHECK(result->IsString());
   Handle<String> expected_str =
       isolate->factory()->NewStringFromAsciiChecked("42");
-  CHECK(String::Equals(expected_str, Handle<String>::cast(result)));
+  CHECK(String::Equals(isolate, expected_str, Handle<String>::cast(result)));
 
   result = Object::GetOption(isolate, options, key, Object::OptionType::Boolean,
                              empty_fixed_array, undefined, service)
@@ -173,7 +173,7 @@ TEST(GetOptions) {
                              values, undefined, service)
                .ToHandleChecked();
   CHECK(result->IsString());
-  CHECK(String::Equals(expected_str, Handle<String>::cast(result)));
+  CHECK(String::Equals(isolate, expected_str, Handle<String>::cast(result)));
 
   // Test boolean values
   CHECK(Object::SetProperty(&it, isolate->factory()->ToBoolean(false),

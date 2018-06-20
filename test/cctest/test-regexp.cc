@@ -457,14 +457,16 @@ TEST(ParserRegression) {
 
 static void ExpectError(const char* input, const char* expected,
                         bool unicode = false) {
+  Isolate* isolate = CcTest::i_isolate();
+
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData result;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
-                                                 &reader, flags, &result));
+  CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+                                                 &result));
   CHECK_NULL(result.tree);
   CHECK(!result.error.is_null());
   std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);

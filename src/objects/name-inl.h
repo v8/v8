@@ -69,13 +69,13 @@ bool Name::Equals(Name* other) {
   return String::cast(this)->SlowEquals(String::cast(other));
 }
 
-bool Name::Equals(Handle<Name> one, Handle<Name> two) {
+bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
   if (one.is_identical_to(two)) return true;
   if ((one->IsInternalizedString() && two->IsInternalizedString()) ||
       one->IsSymbol() || two->IsSymbol()) {
     return false;
   }
-  return String::SlowEquals(Handle<String>::cast(one),
+  return String::SlowEquals(isolate, Handle<String>::cast(one),
                             Handle<String>::cast(two));
 }
 

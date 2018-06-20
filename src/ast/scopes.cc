@@ -1474,11 +1474,11 @@ Scope* Scope::GetOuterScopeWithContext() {
 }
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(
-    ParseInfo* info, Handle<StringSet> non_locals) {
+    Isolate* isolate, ParseInfo* info, Handle<StringSet> non_locals) {
   VariableProxy* free_variables = FetchFreeVariables(this, info);
   for (VariableProxy* proxy = free_variables; proxy != nullptr;
        proxy = proxy->next_unresolved()) {
-    non_locals = StringSet::Add(non_locals, proxy->name());
+    non_locals = StringSet::Add(isolate, non_locals, proxy->name());
   }
   return non_locals;
 }

@@ -385,8 +385,8 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   icu::Collator* collator = Collator::UnpackCollator(isolate, collator_holder);
   CHECK_NOT_NULL(collator);
 
-  string1 = String::Flatten(string1);
-  string2 = String::Flatten(string2);
+  string1 = String::Flatten(isolate, string1);
+  string2 = String::Flatten(isolate, string2);
 
   UCollationResult result;
   UErrorCode status = U_ZERO_ERROR;
@@ -537,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   delete u_text;
 
   int length = text->length();
-  text = String::Flatten(text);
+  text = String::Flatten(isolate, text);
   DisallowHeapAllocation no_gc;
   String::FlatContent flat = text->GetFlatContent();
   std::unique_ptr<uc16[]> sap;
@@ -627,7 +627,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  s = String::Flatten(s);
+  s = String::Flatten(isolate, s);
   return ConvertToLower(s, isolate);
 }
 
@@ -635,7 +635,7 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  s = String::Flatten(s);
+  s = String::Flatten(isolate, s);
   return ConvertToUpper(s, isolate);
 }
 
@@ -649,8 +649,8 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
   // Primary language tag can be up to 8 characters long in theory.
   // https://tools.ietf.org/html/bcp47#section-2.2.1
   DCHECK_LE(lang_arg->length(), 8);
-  lang_arg = String::Flatten(lang_arg);
-  s = String::Flatten(s);
+  lang_arg = String::Flatten(isolate, lang_arg);
+  s = String::Flatten(isolate, s);
 
   // All the languages requiring special-handling have two-letter codes.
   // Note that we have to check for '!= 2' here because private-use language

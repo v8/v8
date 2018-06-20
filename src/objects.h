@@ -1060,7 +1060,6 @@ template <class C> inline bool Is(Object* obj);
   V(DescriptorArray)                           \
   V(EphemeronHashTable)                        \
   V(EnumCache)                                 \
-  V(External)                                  \
   V(ExternalOneByteString)                     \
   V(ExternalString)                            \
   V(ExternalTwoByteString)                     \
@@ -1235,6 +1234,8 @@ class Object {
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+
+  INLINE(bool IsExternal(Isolate* isolate) const);
 
 #define IS_TYPE_FUNCTION_DECL(Type, Value) \
   INLINE(bool Is##Type(Isolate* isolate) const);
@@ -1827,6 +1828,8 @@ class HeapObject: public Object {
 #define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+
+  INLINE(bool IsExternal(Isolate* isolate) const);
 
 #define IS_TYPE_FUNCTION_DECL(Type, Value) \
   INLINE(bool Is##Type(Isolate* isolate) const);

@@ -629,13 +629,13 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Type field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {
-      DCHECK(Name::Equals(factory()->length_string(), name));
+      DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
       // The String::length property is always a smi in the range
       // [0, String::kMaxLength].
       field_type = type_cache_.kStringLengthType;
       field_representation = MachineRepresentation::kTaggedSigned;
     } else if (map->IsJSArrayMap()) {
-      DCHECK(Name::Equals(factory()->length_string(), name));
+      DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
       // The JSArray::length property is a smi in the range
       // [0, FixedDoubleArray::kMaxLength] in case of fast double
       // elements, a smi in the range [0, FixedArray::kMaxLength]

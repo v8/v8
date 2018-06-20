@@ -25,7 +25,7 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
 
   // Create a character stream for the parser.
   Handle<String> source(String::cast(info->script()->source()), isolate);
-  source = String::Flatten(source);
+  source = String::Flatten(isolate, source);
   isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
   info->set_character_stream(std::move(stream));
@@ -60,7 +60,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 
   // Create a character stream for the parser.
   Handle<String> source(String::cast(info->script()->source()), isolate);
-  source = String::Flatten(source);
+  source = String::Flatten(isolate, source);
   isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
       source, shared_info->StartPosition(), shared_info->EndPosition()));

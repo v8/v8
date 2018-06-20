@@ -402,7 +402,7 @@ TEST(ToString) {
     Handle<String> expected = handle(String::cast(test->get(1)), isolate);
     Handle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(result->IsString());
-    CHECK(String::Equals(Handle<String>::cast(result), expected));
+    CHECK(String::Equals(isolate, Handle<String>::cast(result), expected));
   }
 }
 

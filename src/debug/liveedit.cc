@@ -419,10 +419,9 @@ class TokensCompareOutput : public Comparator::Output {
 // never has terminating new line character.
 class LineEndsWrapper {
  public:
-  explicit LineEndsWrapper(Handle<String> string)
-      : ends_array_(String::CalculateLineEnds(string, false)),
-        string_len_(string->length()) {
-  }
+  explicit LineEndsWrapper(Isolate* isolate, Handle<String> string)
+      : ends_array_(String::CalculateLineEnds(isolate, string, false)),
+        string_len_(string->length()) {}
   int length() {
     return ends_array_->length() + 1;
   }
@@ -1568,11 +1567,11 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
 void LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,
                               Handle<String> s2,
                               std::vector<SourceChangeRange>* changes) {
-  s1 = String::Flatten(s1);
-  s2 = String::Flatten(s2);
+  s1 = String::Flatten(isolate, s1);
+  s2 = String::Flatten(isolate, s2);
 
-  LineEndsWrapper line_ends1(s1);
-  LineEndsWrapper line_ends2(s2);
+  LineEndsWrapper line_ends1(isolate, s1);
+  LineEndsWrapper line_ends2(isolate, s2);
 
   LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
   TokenizingLineArrayCompareOutput output(isolate, line_ends1, line_ends2, s1,

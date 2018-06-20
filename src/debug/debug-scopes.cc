@@ -146,7 +146,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     if (option == COLLECT_NON_LOCALS) {
       DCHECK(non_locals_.is_null());
       non_locals_ = info_->literal()->scope()->CollectNonLocals(
-          info_, StringSet::New(isolate_));
+          isolate_, info_, StringSet::New(isolate_));
     }
 
     CHECK(DeclarationScope::Analyze(info_));
@@ -771,7 +771,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
   // TODO(verwaest): Walk parameters backwards, not forwards.
   // TODO(verwaest): Use VariableMap rather than locals() list for lookup.
   for (Variable* var : *current_scope_->locals()) {
-    if (String::Equals(var->name(), variable_name)) {
+    if (String::Equals(isolate_, var->name(), variable_name)) {
       int index = var->index();
       switch (var->location()) {
         case VariableLocation::LOOKUP:

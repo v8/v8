@@ -196,7 +196,7 @@ MaybeHandle<Object> Object::ConvertToNumberOrNumeric(Isolate* isolate,
       return input;
     }
     if (input->IsString()) {
-      return String::ToNumber(Handle<String>::cast(input));
+      return String::ToNumber(isolate, Handle<String>::cast(input));
     }
     if (input->IsOddball()) {
       return Oddball::ToNumber(Handle<Oddball>::cast(input));
@@ -559,8 +559,8 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
   }
   if (x->IsString() && y->IsString()) {
     // ES6 section 7.2.11 Abstract Relational Comparison step 5.
-    return Just(
-        String::Compare(Handle<String>::cast(x), Handle<String>::cast(y)));
+    return Just(String::Compare(isolate, Handle<String>::cast(x),
+                                Handle<String>::cast(y)));
   }
   if (x->IsBigInt() && y->IsString()) {
     return Just(BigInt::CompareToString(isolate, Handle<BigInt>::cast(x),
@@ -603,7 +603,8 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       } else if (y->IsBoolean()) {
         return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsString()) {
-        return Just(NumberEquals(x, String::ToNumber(Handle<String>::cast(y))));
+        return Just(NumberEquals(
+            x, String::ToNumber(isolate, Handle<String>::cast(y))));
       } else if (y->IsBigInt()) {
         return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
       } else if (y->IsJSReceiver()) {
@@ -616,13 +617,13 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       }
     } else if (x->IsString()) {
       if (y->IsString()) {
-        return Just(
-            String::Equals(Handle<String>::cast(x), Handle<String>::cast(y)));
+        return Just(String::Equals(isolate, Handle<String>::cast(x),
+                                   Handle<String>::cast(y)));
       } else if (y->IsNumber()) {
-        x = String::ToNumber(Handle<String>::cast(x));
+        x = String::ToNumber(isolate, Handle<String>::cast(x));
         return Just(NumberEquals(x, y));
       } else if (y->IsBoolean()) {
-        x = String::ToNumber(Handle<String>::cast(x));
+        x = String::ToNumber(isolate, Handle<String>::cast(x));
         return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsBigInt()) {
         return Just(BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
@@ -641,7 +642,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       } else if (y->IsNumber()) {
         return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
       } else if (y->IsString()) {
-        y = String::ToNumber(Handle<String>::cast(y));
+        y = String::ToNumber(isolate, Handle<String>::cast(y));
         return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
       } else if (y->IsBigInt()) {
         x = Oddball::ToNumber(Handle<Oddball>::cast(x));
@@ -2512,7 +2513,7 @@ void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
   os << value();
 }
 
-Handle<String> String::SlowFlatten(Handle<ConsString> cons,
+Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                    PretenureFlag pretenure) {
   DCHECK_NE(cons->second()->length(), 0);
 
@@ -2522,14 +2523,13 @@ Handle<String> String::SlowFlatten(Handle<ConsString> cons,
     // String::Flatten only in those cases where String::SlowFlatten is not
     // called again.
     if (cons->second()->IsConsString() && !cons->second()->IsFlat()) {
-      cons = handle(ConsString::cast(cons->second()));
+      cons = handle(ConsString::cast(cons->second()), isolate);
     } else {
-      return String::Flatten(handle(cons->second()));
+      return String::Flatten(isolate, handle(cons->second(), isolate));
     }
   }
 
   DCHECK(AllowHeapAllocation::IsAllowed());
-  Isolate* isolate = cons->GetIsolate();
   int length = cons->length();
   PretenureFlag tenure = isolate->heap()->InNewSpace(*cons) ? pretenure
                                                             : TENURED;
@@ -3734,7 +3734,7 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
 Handle<Context> JSReceiver::GetCreationContext() {
   JSReceiver* receiver = this;
   // Externals are JSObjects with null as a constructor.
-  DCHECK(!receiver->IsExternal());
+  DCHECK(!receiver->IsExternal(GetIsolate()));
   Object* constructor = receiver->map()->GetConstructor();
   JSFunction* function;
   if (constructor->IsJSFunction()) {
@@ -10621,9 +10621,9 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
 #endif
 
 // static
-Handle<String> String::Trim(Handle<String> string, TrimMode mode) {
-  Isolate* const isolate = string->GetIsolate();
-  string = String::Flatten(string);
+Handle<String> String::Trim(Isolate* isolate, Handle<String> string,
+                            TrimMode mode) {
+  string = String::Flatten(isolate, string);
   int const length = string->length();
 
   // Perform left trimming if requested.
@@ -10649,7 +10649,15 @@ Handle<String> String::Trim(Handle<String> string, TrimMode mode) {
   return isolate->factory()->NewSubString(string, left, right);
 }
 
-bool String::LooksValid() { return GetIsolate()->heap()->Contains(this); }
+bool String::LooksValid() {
+  // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
+  // basically the same logic as the way we access the heap in the first place.
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  // RO_SPACE objects should always be valid.
+  if (chunk->owner()->identity() == RO_SPACE) return true;
+  if (chunk->heap() == nullptr) return false;
+  return chunk->heap()->Contains(this);
+}
 
 // static
 MaybeHandle<String> Name::ToFunctionName(Handle<Name> name) {
@@ -10707,11 +10715,9 @@ int ParseDecimalInteger(const uint8_t* s, int from, int to) {
 }  // namespace
 
 // static
-Handle<Object> String::ToNumber(Handle<String> subject) {
-  Isolate* const isolate = subject->GetIsolate();
-
+Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   // Flatten {subject} string first.
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
 
   // Fast array index case.
   uint32_t index;
@@ -10765,7 +10771,7 @@ Handle<Object> String::ToNumber(Handle<String> subject) {
   // Slower case.
   int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   return isolate->factory()->NewNumber(
-      StringToDouble(isolate->unicode_cache(), subject, flags));
+      StringToDouble(isolate, isolate->unicode_cache(), subject, flags));
 }
 
 
@@ -11266,16 +11272,15 @@ static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
   }
 }
 
-
-Handle<FixedArray> String::CalculateLineEnds(Handle<String> src,
+Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
+                                             Handle<String> src,
                                              bool include_ending_line) {
-  src = Flatten(src);
+  src = Flatten(isolate, src);
   // Rough estimate of line count based on a roughly estimated average
   // length of (unpacked) code.
   int line_count_estimate = src->length() >> 4;
   std::vector<int> line_ends;
   line_ends.reserve(line_count_estimate);
-  Isolate* isolate = src->GetIsolate();
   { DisallowHeapAllocation no_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
     String::FlatContent content = src->GetFlatContent();
@@ -11504,8 +11509,8 @@ bool String::SlowEquals(String* other) {
   return comparator.Equals(this, other);
 }
 
-
-bool String::SlowEquals(Handle<String> one, Handle<String> two) {
+bool String::SlowEquals(Isolate* isolate, Handle<String> one,
+                        Handle<String> two) {
   // Fast check: negative check with lengths.
   int one_length = one->length();
   if (one_length != two->length()) return false;
@@ -11514,9 +11519,11 @@ bool String::SlowEquals(Handle<String> one, Handle<String> two) {
   // Fast check: if at least one ThinString is involved, dereference it/them
   // and restart.
   if (one->IsThinString() || two->IsThinString()) {
-    if (one->IsThinString()) one = handle(ThinString::cast(*one)->actual());
-    if (two->IsThinString()) two = handle(ThinString::cast(*two)->actual());
-    return String::Equals(one, two);
+    if (one->IsThinString())
+      one = handle(ThinString::cast(*one)->actual(), isolate);
+    if (two->IsThinString())
+      two = handle(ThinString::cast(*two)->actual(), isolate);
+    return String::Equals(isolate, one, two);
   }
 
   // Fast check: if hash code is computed for both strings
@@ -11543,8 +11550,8 @@ bool String::SlowEquals(Handle<String> one, Handle<String> two) {
   // before we try to flatten the strings.
   if (one->Get(0) != two->Get(0)) return false;
 
-  one = String::Flatten(one);
-  two = String::Flatten(two);
+  one = String::Flatten(isolate, one);
+  two = String::Flatten(isolate, two);
 
   DisallowHeapAllocation no_gc;
   String::FlatContent flat1 = one->GetFlatContent();
@@ -11564,7 +11571,8 @@ bool String::SlowEquals(Handle<String> one, Handle<String> two) {
 
 
 // static
-ComparisonResult String::Compare(Handle<String> x, Handle<String> y) {
+ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
+                                 Handle<String> y) {
   // A few fast case tests before we flatten.
   if (x.is_identical_to(y)) {
     return ComparisonResult::kEqual;
@@ -11583,8 +11591,8 @@ ComparisonResult String::Compare(Handle<String> x, Handle<String> y) {
   }
 
   // Slow case.
-  x = String::Flatten(x);
-  y = String::Flatten(y);
+  x = String::Flatten(isolate, x);
+  y = String::Flatten(isolate, y);
 
   DisallowHeapAllocation no_gc;
   ComparisonResult result = ComparisonResult::kEqual;
@@ -11675,8 +11683,8 @@ int String::IndexOf(Isolate* isolate, Handle<String> receiver,
   uint32_t receiver_length = receiver->length();
   if (start_index + search_length > receiver_length) return -1;
 
-  receiver = String::Flatten(receiver);
-  search = String::Flatten(search);
+  receiver = String::Flatten(isolate, receiver);
+  search = String::Flatten(isolate, search);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before getting encoding.
@@ -11704,7 +11712,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
   const int replacement_length = replacement->length();
   const int captures_length = match->CaptureCount();
 
-  replacement = String::Flatten(replacement);
+  replacement = String::Flatten(isolate, replacement);
 
   Handle<String> dollar_string =
       factory->LookupSingleCharacterStringFromCode('$');
@@ -11936,8 +11944,8 @@ Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
     return Smi::FromInt(start_index);
   }
 
-  receiver_string = String::Flatten(receiver_string);
-  search_string = String::Flatten(search_string);
+  receiver_string = String::Flatten(isolate, receiver_string);
+  search_string = String::Flatten(isolate, search_string);
 
   int last_index = -1;
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
@@ -13334,7 +13342,7 @@ void Script::InitLineEnds(Handle<Script> script) {
   } else {
     DCHECK(src_obj->IsString());
     Handle<String> src(String::cast(src_obj), isolate);
-    Handle<FixedArray> array = String::CalculateLineEnds(src, true);
+    Handle<FixedArray> array = String::CalculateLineEnds(isolate, src, true);
     script->set_line_ends(*array);
   }
 
@@ -16377,7 +16385,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   // suggested by ECMA-262, 5th, section 15.10.4.1.
   if (source->length() == 0) source = factory->query_colon_string();
 
-  source = String::Flatten(source);
+  source = String::Flatten(isolate, source);
 
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
@@ -16738,7 +16746,7 @@ bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
   if (s->IsSmi()) {
     result = s;
   } else {
-    result = String::ToNumber(Handle<String>::cast(s));
+    result = String::ToNumber(isolate, Handle<String>::cast(s));
     if (!result->IsMinusZero()) {
       Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
       // Avoid treating strings like "2E1" and "20" as the same key.
@@ -17035,7 +17043,7 @@ void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
 // static
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   if (string->IsInternalizedString()) return string;
 
   InternalizedStringKey key(string);
@@ -17304,11 +17312,11 @@ Handle<StringSet> StringSet::New(Isolate* isolate) {
   return HashTable::New(isolate, 0);
 }
 
-Handle<StringSet> StringSet::Add(Handle<StringSet> stringset,
+Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(name)) {
     stringset = EnsureCapacity(stringset, 1);
-    uint32_t hash = ShapeT::Hash(name->GetIsolate(), *name);
+    uint32_t hash = ShapeT::Hash(isolate, *name);
     int entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
     stringset->ElementAdded();

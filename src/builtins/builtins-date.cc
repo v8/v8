@@ -105,7 +105,7 @@ const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 // ES6 section 20.3.1.16 Date Time String Format
 double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
-  str = String::Flatten(str);
+  str = String::Flatten(isolate, str);
   // TODO(bmeurer): Change DateParser to not use the FixedArray.
   Handle<FixedArray> tmp =
       isolate->factory()->NewFixedArray(DateParser::OUTPUT_SIZE);

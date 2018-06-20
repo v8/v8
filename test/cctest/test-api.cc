@@ -8269,12 +8269,12 @@ static int StrNCmp16(uint16_t* a, uint16_t* b, int n) {
   }
 }
 
-
-int GetUtf8Length(Local<String> str) {
+int GetUtf8Length(v8::Isolate* isolate, Local<String> str) {
   int len = str->Utf8Length();
   if (len < 0) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::Handle<i::String> istr(v8::Utils::OpenHandle(*str));
-    i::String::Flatten(istr);
+    i::String::Flatten(i_isolate, istr);
     len = str->Utf8Length();
   }
   return len;
@@ -8440,7 +8440,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, charlen);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = GetUtf8Length(left_tree);
+  len = GetUtf8Length(context->GetIsolate(), left_tree);
   int utf8_expected =
       (0x80 + (0x800 - 0x80) * 2 + (0xD800 - 0x800) * 3) / kStride;
   CHECK_EQ(utf8_expected, len);
@@ -8454,7 +8454,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(1, utf8buf[utf8_expected]);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = GetUtf8Length(right_tree);
+  len = GetUtf8Length(context->GetIsolate(), right_tree);
   CHECK_EQ(utf8_expected, len);
   len = right_tree->WriteUtf8(utf8buf, utf8_expected, &charlen);
   CHECK_EQ(utf8_expected, len);
@@ -8619,7 +8619,7 @@ static void Utf16Helper(
         Local<v8::String>::Cast(a->Get(context.local(), i).ToLocalChecked());
     Local<v8::Number> expected_len = Local<v8::Number>::Cast(
         alens->Get(context.local(), i).ToLocalChecked());
-    int length = GetUtf8Length(string);
+    int length = GetUtf8Length(context->GetIsolate(), string);
     CHECK_EQ(static_cast<int>(expected_len->Value()), length);
   }
 }
@@ -20231,7 +20231,8 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
   int length = string->length();
   CHECK(string->IsOneByteRepresentation());
 
-  i::Handle<i::String> flat_string = i::String::Flatten(string);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  i::Handle<i::String> flat_string = i::String::Flatten(i_isolate, string);
 
   CHECK(string->IsOneByteRepresentation());
   CHECK(flat_string->IsOneByteRepresentation());

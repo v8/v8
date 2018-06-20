@@ -130,7 +130,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
     if (index >= 0 && index < str->length()) {
       Factory* factory = isolate->factory();
       return factory->LookupSingleCharacterStringFromCode(
-          String::Flatten(str)->Get(index));
+          String::Flatten(isolate, str)->Get(index));
     }
   }
 

@@ -868,12 +868,11 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());
 
   // Sort them alphabetically.
-  struct {
-    bool operator()(Handle<String> a, Handle<String> b) {
-      return String::Compare(a, b) == ComparisonResult::kLessThan;
-    }
-  } StringLess;
-  std::sort(names.begin(), names.end(), StringLess);
+  std::sort(names.begin(), names.end(),
+            [&isolate](Handle<String> a, Handle<String> b) {
+              return String::Compare(isolate, a, b) ==
+                     ComparisonResult::kLessThan;
+            });
 
   // Create the namespace object (initially empty).
   Handle<JSModuleNamespace> ns = isolate->factory()->NewJSModuleNamespace();

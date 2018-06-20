@@ -233,7 +233,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   HeapIterator heap_iterator(heap());
   HeapObject* heap_obj;
   while ((heap_obj = heap_iterator.next()) != nullptr) {
-    if (!heap_obj->IsJSObject() || heap_obj->IsExternal()) continue;
+    if (!heap_obj->IsJSObject() || heap_obj->IsExternal(isolate())) continue;
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
     if (!predicate->Filter(v8_obj)) continue;

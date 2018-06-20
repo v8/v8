@@ -3136,7 +3136,7 @@ bool StackFrame::IsWasm() const { return Utils::OpenHandle(this)->is_wasm(); }
 MaybeLocal<Value> JSON::Parse(Isolate* v8_isolate, Local<String> json_string) {
   PREPARE_FOR_EXECUTION(v8_isolate->GetCurrentContext(), JSON, Parse, Value);
   i::Handle<i::String> string = Utils::OpenHandle(*json_string);
-  i::Handle<i::String> source = i::String::Flatten(string);
+  i::Handle<i::String> source = i::String::Flatten(isolate, string);
   i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
   auto maybe = source->IsSeqOneByteString()
                    ? i::JsonParser<true>::Parse(isolate, source, undefined)
@@ -3151,7 +3151,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context,
                               Local<String> json_string) {
   PREPARE_FOR_EXECUTION(context, JSON, Parse, Value);
   i::Handle<i::String> string = Utils::OpenHandle(*json_string);
-  i::Handle<i::String> source = i::String::Flatten(string);
+  i::Handle<i::String> source = i::String::Flatten(isolate, string);
   i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
   auto maybe = source->IsSeqOneByteString()
                    ? i::JsonParser<true>::Parse(isolate, source, undefined)
@@ -3585,7 +3585,10 @@ bool Value::IsBoolean() const {
 
 
 bool Value::IsExternal() const {
-  return Utils::OpenHandle(this)->IsExternal();
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Handle<i::HeapObject> heap_obj = i::Handle<i::HeapObject>::cast(obj);
+  return heap_obj->IsExternal(heap_obj->GetIsolate());
 }
 
 
@@ -3798,7 +3801,7 @@ void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
 
 
 void External::CheckCast(v8::Value* that) {
-  Utils::ApiCheck(Utils::OpenHandle(that)->IsExternal(), "v8::External::Cast",
+  Utils::ApiCheck(that->IsExternal(), "v8::External::Cast",
                   "Could not convert to external");
 }
 
@@ -5510,10 +5513,10 @@ bool String::ContainsOnlyOneByte() const {
   return helper.Check(*str);
 }
 
-
+// TODO(v8:7786): Deprecate this function and pass the isolate in instead.
 int String::Utf8Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  str = i::String::Flatten(str);
+  str = i::String::Flatten(str->GetIsolate(), str);
   int length = str->length();
   if (length == 0) return 0;
   i::DisallowHeapAllocation no_gc;
@@ -5744,7 +5747,7 @@ int String::WriteUtf8(char* buffer,
   i::Isolate* isolate = str->GetIsolate();
   LOG_API(isolate, String, WriteUtf8);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  str = i::String::Flatten(str);  // Flatten the string for efficiency.
+  str = i::String::Flatten(isolate, str);  // Flatten the string for efficiency.
   const int string_length = str->length();
   bool write_null = !(options & NO_NULL_TERMINATION);
   bool replace_invalid_utf8 = (options & REPLACE_INVALID_UTF8);
@@ -5794,7 +5797,7 @@ static inline int WriteHelper(const String* string,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   DCHECK(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(string);
-  str = i::String::Flatten(str);
+  str = i::String::Flatten(isolate, str);
   int end = start + length;
   if ((length == -1) || (length > str->length() - start) )
     end = str->length();
