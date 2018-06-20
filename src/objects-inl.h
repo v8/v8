@@ -1995,15 +1995,8 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
 
-  DescriptorLookupCache* cache = isolate->descriptor_lookup_cache();
-  int number = cache->Lookup(map, name);
-
-  if (number == DescriptorLookupCache::kAbsent) {
-    number = Search(name, number_of_own_descriptors);
-    cache->Update(map, name, number);
-  }
-
-  return number;
+  // TODO(neis): As an experiment, don't actually use the cache.
+  return Search(name, number_of_own_descriptors);
 }
 
 
