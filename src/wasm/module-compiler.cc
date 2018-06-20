@@ -31,11 +31,6 @@
     if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
   } while (false)
 
-#define TRACE_CHAIN(instance)        \
-  do {                               \
-    instance->PrintInstancesChain(); \
-  } while (false)
-
 #define TRACE_COMPILE(...)                             \
   do {                                                 \
     if (FLAG_trace_wasm_compiler) PrintF(__VA_ARGS__); \
@@ -286,11 +281,8 @@ class InstanceBuilder {
   Counters* counters() const { return async_counters().get(); }
 
   wasm::UseTrapHandler use_trap_handler() const {
-    return module_object_->compiled_module()
-                   ->GetNativeModule()
-                   ->use_trap_handler()
-               ? kUseTrapHandler
-               : kNoTrapHandler;
+    return module_object_->native_module()->use_trap_handler() ? kUseTrapHandler
+                                                               : kNoTrapHandler;
   }
 
 // Helper routines to print out errors with imports.
@@ -810,8 +802,7 @@ void ValidateSequentially(Isolate* isolate, const ModuleWireBytes& wire_bytes,
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          Handle<WasmModuleObject> module_object,
                          const WasmModule* wasm_module, ModuleEnv* env) {
-  WasmCompiledModule* compiled_module = module_object->compiled_module();
-  NativeModule* const native_module = compiled_module->GetNativeModule();
+  NativeModule* const native_module = module_object->native_module();
   auto* byte_string = module_object->module_bytes();
   const ModuleWireBytes wire_bytes(
       byte_string->GetChars(), byte_string->GetChars() + byte_string->length());
@@ -1039,9 +1030,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   }
 
   // Log the code within the generated module for profiling.
-  NativeModule* native_module =
-      module_object->compiled_module()->GetNativeModule();
-  native_module->LogWasmCodes(isolate);
+  module_object->native_module()->LogWasmCodes(isolate);
 
   return module_object;
 }
@@ -1134,8 +1123,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       constexpr bool allow_trap_handler = false;
       ModuleEnv env = CreateDefaultModuleEnv(module_, allow_trap_handler);
       // Disable trap handlers on this native module.
-      NativeModule* native_module =
-          module_object_->compiled_module()->GetNativeModule();
+      NativeModule* native_module = module_object_->native_module();
       native_module->DisableTrapHandler();
 
       // Recompile all functions in this native module.
@@ -1151,7 +1139,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Reuse the compiled module (if no owner), otherwise clone.
   //--------------------------------------------------------------------------
-  wasm::NativeModule* native_module = nullptr;
+  wasm::NativeModule* native_module = module_object_->native_module();
   // Root the old instance, if any, in case later allocation causes GC,
   // to prevent the finalizer running for the old instance.
   MaybeHandle<WasmInstanceObject> old_instance;
@@ -1167,19 +1155,15 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       // We do that last. Since we are holding on to the old instance,
       // the owner + original state used for cloning and patching
       // won't be mutated by possible finalizer runs.
-      TRACE("Cloning from %zu\n", original->GetNativeModule()->instance_id);
+      TRACE("Cloning from %zu\n", native_module->instance_id);
       new_compiled_module = WasmCompiledModule::Clone(isolate_, original);
-      RecordStats(module_object_->compiled_module()->GetNativeModule(),
-                  counters());
+      RecordStats(module_object_->native_module(), counters());
     } else {
       // No instance owned the original compiled module.
       new_compiled_module = original;
-      TRACE("Reusing existing instance %zu\n",
-            new_compiled_module->GetNativeModule()->instance_id);
+      TRACE("Reusing existing instance %zu\n", native_module->instance_id);
     }
-    native_module = new_compiled_module->GetNativeModule();
   }
-  DCHECK_NOT_NULL(native_module);
   wasm::NativeModuleModificationScope native_modification_scope(native_module);
 
   //--------------------------------------------------------------------------
@@ -1390,8 +1374,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   DCHECK(!isolate_->has_pending_exception());
   TRACE("Successfully built instance %zu\n",
-        module_object_->compiled_module()->GetNativeModule()->instance_id);
-  TRACE_CHAIN(module_object_->compiled_module());
+        module_object_->native_module()->instance_id);
   return instance;
 }
 
@@ -1638,7 +1621,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   int num_imports = static_cast<int>(module_->import_table.size());
-  NativeModule* native_module = instance->compiled_module()->GetNativeModule();
+  NativeModule* native_module = instance->module_object()->native_module();
   for (int index = 0; index < num_imports; ++index) {
     WasmImport& import = module_->import_table[index];
 
@@ -2211,8 +2194,7 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
 }
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
-  NativeModule* native_module =
-      module_object_->compiled_module()->GetNativeModule();
+  NativeModule* native_module = module_object_->native_module();
   int function_table_count = static_cast<int>(module_->function_tables.size());
   for (int index = 0; index < function_table_count; ++index) {
     TableInstance& table_instance = table_instances_[index];
@@ -2593,8 +2575,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
         WasmModuleObject::New(job_->isolate_, export_wrappers, job_->module_,
                               env, Handle<SeqOneByteString>::cast(module_bytes),
                               script, asm_js_offset_table);
-    job_->native_module_ =
-        job_->module_object_->compiled_module()->GetNativeModule();
+    job_->native_module_ = job_->module_object_->native_module();
 
     {
       DeferredHandleScope deferred(job_->isolate_);
@@ -3198,8 +3179,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
   Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
-  NativeModule* native_module =
-      module_object->compiled_module()->GetNativeModule();
+  NativeModule* native_module = module_object->native_module();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
   WasmModule* module = module_object->module();
@@ -3252,7 +3232,6 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 }  // namespace v8
 
 #undef TRACE
-#undef TRACE_CHAIN
 #undef TRACE_COMPILE
 #undef TRACE_STREAMING
 #undef TRACE_LAZY

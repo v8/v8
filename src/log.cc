@@ -1756,23 +1756,23 @@ static int EnumerateCompiledFunctions(Heap* heap,
   return compiled_funcs_count;
 }
 
-static int EnumerateWasmModules(Heap* heap,
-                                Handle<WasmCompiledModule>* modules) {
+static int EnumerateWasmModuleObjects(
+    Heap* heap, Handle<WasmModuleObject>* module_objects) {
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
-  int wasm_modules_count = 0;
+  int module_objects_count = 0;
 
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
-    if (obj->IsWasmCompiledModule()) {
-      WasmCompiledModule* module = WasmCompiledModule::cast(obj);
-      if (modules != nullptr) {
-        modules[wasm_modules_count] = Handle<WasmCompiledModule>(module);
+    if (obj->IsWasmModuleObject()) {
+      WasmModuleObject* module = WasmModuleObject::cast(obj);
+      if (module_objects != nullptr) {
+        module_objects[module_objects_count] = handle(module, heap->isolate());
       }
-      wasm_modules_count++;
+      module_objects_count++;
     }
   }
-  return wasm_modules_count;
+  return module_objects_count;
 }
 
 void Logger::LogCodeObject(Object* object) {
@@ -2091,11 +2091,13 @@ void ExistingCodeLogger::LogCompiledFunctions() {
     LogExistingFunction(sfis[i], code_objects[i]);
   }
 
-  const int compiled_wasm_modules_count = EnumerateWasmModules(heap, nullptr);
-  ScopedVector<Handle<WasmCompiledModule>> modules(compiled_wasm_modules_count);
-  EnumerateWasmModules(heap, modules.start());
-  for (int i = 0; i < compiled_wasm_modules_count; ++i) {
-    modules[i]->GetNativeModule()->LogWasmCodes(isolate_);
+  const int wasm_module_objects_count =
+      EnumerateWasmModuleObjects(heap, nullptr);
+  std::unique_ptr<Handle<WasmModuleObject>[]> module_objects(
+      new Handle<WasmModuleObject>[wasm_module_objects_count]);
+  EnumerateWasmModuleObjects(heap, module_objects.get());
+  for (int i = 0; i < wasm_module_objects_count; ++i) {
+    module_objects[i]->native_module()->LogWasmCodes(isolate_);
   }
 }
 

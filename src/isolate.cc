@@ -1758,7 +1758,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       // a second lookup here could lead to inconsistency.
       int byte_offset =
           FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-              instance->compiled_module()->GetNativeModule()->code(func_index),
+              instance->module_object()->native_module()->code(func_index),
               code_offset);
 
       bool is_at_number_conversion =

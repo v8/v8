@@ -308,7 +308,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 #endif
 
   Address entrypoint = wasm::CompileLazy(
-      isolate, instance->compiled_module()->GetNativeModule(), func_index);
+      isolate, instance->module_object()->native_module(), func_index);
   return reinterpret_cast<Object*>(entrypoint);
 }
 

@@ -7482,8 +7482,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::wasm::NativeModule* native_module =
-      obj->compiled_module()->GetNativeModule();
+  i::wasm::NativeModule* native_module = obj->native_module();
   size_t buffer_size =
       i::wasm::GetSerializedNativeModuleSize(obj->GetIsolate(), native_module);
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);

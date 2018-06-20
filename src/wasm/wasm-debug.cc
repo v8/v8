@@ -560,8 +560,8 @@ Handle<FixedArray> GetOrCreateInterpretedFunctions(
   if (!obj->IsUndefined(isolate)) return Handle<FixedArray>::cast(obj);
 
   int num_functions = debug_info->wasm_instance()
-                          ->compiled_module()
-                          ->GetNativeModule()
+                          ->module_object()
+                          ->native_module()
                           ->num_functions();
   Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(num_functions);
   debug_info->set_interpreted_functions(*new_arr);
@@ -611,7 +611,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
       GetOrCreateInterpretedFunctions(isolate, debug_info);
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   wasm::NativeModule* native_module =
-      instance->compiled_module()->GetNativeModule();
+      instance->module_object()->native_module();
   wasm::WasmModule* module = instance->module();
 
   // We may modify js wrappers, as well as wasm functions. Hence the 2

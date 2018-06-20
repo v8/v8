@@ -105,7 +105,8 @@ class WasmModuleObject : public JSObject {
  public:
   DECL_CAST(WasmModuleObject)
 
-  // Shared compiled code between multiple WebAssembly.Module objects.
+  DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
+  inline wasm::NativeModule* native_module();
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(managed_module, Managed<wasm::WasmModule>)
@@ -122,6 +123,7 @@ class WasmModuleObject : public JSObject {
 
 // Layout description.
 #define WASM_MODULE_OBJECT_FIELDS(V)       \
+  V(kNativeModuleOffset, kPointerSize)     \
   V(kCompiledModuleOffset, kPointerSize)   \
   V(kExportWrappersOffset, kPointerSize)   \
   V(kManagedModuleOffset, kPointerSize)    \
@@ -156,7 +158,7 @@ class WasmModuleObject : public JSObject {
                                       Handle<WasmModuleObject> module);
 
   // Check whether this module was generated from asm.js source.
-  bool is_asm_js();
+  inline bool is_asm_js();
 
   static void AddBreakpoint(Handle<WasmModuleObject>, int position,
                             Handle<BreakPoint> break_point);
@@ -536,7 +538,6 @@ class WasmCompiledModule : public Struct {
   V(kNextInstanceOffset, kPointerSize)          \
   V(kPrevInstanceOffset, kPointerSize)          \
   V(kOwningInstanceOffset, kPointerSize)        \
-  V(kNativeModuleOffset, kPointerSize)          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -570,11 +571,9 @@ class WasmCompiledModule : public Struct {
   WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
-  WCM_OBJECT(Foreign, native_module)
 
  public:
-  static Handle<WasmCompiledModule> New(Isolate* isolate,
-                                        wasm::ModuleEnv& env);
+  static Handle<WasmCompiledModule> New(Isolate* isolate);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
@@ -582,14 +581,11 @@ class WasmCompiledModule : public Struct {
 
   bool has_instance() const;
 
-  wasm::NativeModule* GetNativeModule() const;
   void InsertInChain(WasmModuleObject*);
   void RemoveFromChain();
 
   DECL_ACCESSORS(raw_next_instance, Object);
   DECL_ACCESSORS(raw_prev_instance, Object);
-
-  void PrintInstancesChain();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);

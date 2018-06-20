@@ -234,7 +234,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
-  native_module_ = compiled_module->GetNativeModule();
+  native_module_ = module_object->native_module();
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   DCHECK(compiled_module->IsWasmCompiledModule());
@@ -413,9 +413,6 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
   }
 
-  Handle<WasmCompiledModule> compiled_module(
-      builder_->instance_object()->compiled_module(), isolate());
-  NativeModule* native_module = compiled_module->GetNativeModule();
   Handle<SeqOneByteString> wire_bytes(
       builder_->instance_object()->module_object()->module_bytes(), isolate());
 
@@ -437,6 +434,8 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       builder_->execution_mode() == WasmExecutionMode::kExecuteLiftoff
           ? WasmCompilationUnit::CompilationMode::kLiftoff
           : WasmCompilationUnit::CompilationMode::kTurbofan;
+  NativeModule* native_module =
+      builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate(), &module_env, native_module, func_body,
                            func_name, function_->func_index, comp_mode,
                            isolate()->counters(), builder_->lower_simd());

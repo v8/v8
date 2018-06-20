@@ -1593,7 +1593,6 @@ void WasmCompiledModule::WasmCompiledModuleVerify() {
   VerifyObjectField(kNextInstanceOffset);
   VerifyObjectField(kPrevInstanceOffset);
   VerifyObjectField(kOwningInstanceOffset);
-  VerifyObjectField(kNativeModuleOffset);
 }
 
 void WasmDebugInfo::WasmDebugInfoVerify() {
@@ -1633,6 +1632,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify() {
 
 void WasmModuleObject::WasmModuleObjectVerify() {
   CHECK(IsWasmModuleObject());
+  VerifyObjectField(kNativeModuleOffset);
   VerifyObjectField(kCompiledModuleOffset);
   VerifyObjectField(kExportWrappersOffset);
   VerifyObjectField(kManagedModuleOffset);

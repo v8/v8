@@ -3452,7 +3452,7 @@ TEST(Liftoff_prologue) {
   r.Build(&call[0], &call[0] + call.size());
 
   NativeModule* native_module =
-      r.builder().instance_object()->compiled_module()->GetNativeModule();
+      r.builder().instance_object()->module_object()->native_module();
 
   // This test only works if we managed to compile with Liftoff.
   if (native_module->code(add_compiler.function_index())->is_liftoff()) {

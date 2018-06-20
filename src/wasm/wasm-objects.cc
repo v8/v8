@@ -273,21 +273,21 @@ enum DispatchTableElements : int {
 
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<FixedArray> export_wrappers,
-    std::shared_ptr<wasm::WasmModule> module, wasm::ModuleEnv& env,
+    std::shared_ptr<wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
-  DCHECK_EQ(module.get(), env.module);
+  WasmModule* module = shared_module.get();
+  DCHECK_EQ(module, env.module);
+  size_t module_size = EstimateWasmModuleSize(module);
   // The {managed_module} will take shared ownership of the {WasmModule} object,
   // and release it when the GC reclaim the managed.
-  size_t module_size = EstimateWasmModuleSize(module.get());
   Handle<Managed<WasmModule>> managed_module =
       Managed<WasmModule>::FromSharedPtr(isolate, module_size,
-                                         std::move(module));
+                                         std::move(shared_module));
 
   // Create the first {WasmCompiledModule} associated with this
   // {WasmModuleObject}.
-  Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, env);
+  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(isolate);
 
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
@@ -309,9 +309,19 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
-  // TODO(clemensh): Move the reference to the native module to the module
-  // object.
-  compiled_module->GetNativeModule()->SetModuleObject(module_object);
+
+  // Create the {NativeModule}, and link it bidirectionally to the
+  // {WasmModuleObject}.
+  size_t memory_estimate =
+      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(module);
+  auto native_module =
+      isolate->wasm_engine()->code_manager()->NewNativeModule(isolate, env);
+  native_module->SetModuleObject(module_object);
+  native_module->SetRuntimeStubs(isolate);
+  Handle<Managed<wasm::NativeModule>> managed_native_module =
+      Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
+                                                 std::move(native_module));
+  module_object->set_managed_native_module(*managed_native_module);
 
   return module_object;
 }
@@ -353,13 +363,6 @@ void WasmModuleObject::ValidateStateForTesting(
   CHECK(!compiled_module->has_prev_instance());
   CHECK(!compiled_module->has_next_instance());
   CHECK(!compiled_module->has_instance());
-}
-
-bool WasmModuleObject::is_asm_js() {
-  bool asm_js = module()->origin == wasm::kAsmJsOrigin;
-  DCHECK_EQ(asm_js, script()->IsUserJavaScript());
-  DCHECK_EQ(asm_js, has_asm_js_offset_table());
-  return asm_js;
 }
 
 namespace {
@@ -1390,12 +1393,8 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   // If a link to shared memory instances exists, update the list of memory
   // instances before the instance is destroyed.
   WasmCompiledModule* compiled_module = instance->compiled_module();
-  wasm::NativeModule* native_module = compiled_module->GetNativeModule();
-  if (native_module) {
-    TRACE("Finalizing %zu {\n", native_module->instance_id);
-  } else {
-    TRACE("Finalized already cleaned up compiled module\n");
-  }
+  TRACE("Finalizing %zu {\n",
+        instance->module_object()->native_module()->instance_id);
 
   // Since the order of finalizers is not guaranteed, it can be the case
   // that {instance->compiled_module()->module()}, which is a
@@ -1443,7 +1442,7 @@ void WasmInstanceObject::InstallFinalizer(Isolate* isolate,
 }
 
 Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
-  wasm::NativeModule* native_module = compiled_module()->GetNativeModule();
+  wasm::NativeModule* native_module = module_object()->native_module();
   if (func_index < native_module->num_imported_functions()) {
     return imported_function_targets()[func_index];
   }
@@ -1506,26 +1505,10 @@ Address WasmExportedFunction::GetWasmCallTarget() {
   return instance()->GetCallTarget(function_index());
 }
 
-Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
-                                                   wasm::ModuleEnv& env) {
+Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate) {
   Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   compiled_module->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
-  {
-    size_t memory_estimate =
-        isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-            env.module);
-    auto native_module =
-        isolate->wasm_engine()->code_manager()->NewNativeModule(isolate, env);
-    Handle<Foreign> native_module_wrapper =
-        Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
-                                                   std::move(native_module));
-    compiled_module->set_native_module(*native_module_wrapper);
-  }
-  compiled_module->GetNativeModule()->SetRuntimeStubs(isolate);
-
-  // TODO(mtrofin): copy the rest of the specialization parameters over.
-  // We're currently OK because we're only using defaults.
   return compiled_module;
 }
 
@@ -1535,23 +1518,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
-  ret->set_native_module(module->native_module());
-
-  // construct the wrapper in 2 steps, because its construction may trigger GC,
-  // which would shift the this pointer in set_native_module.
-  size_t native_module_size = 0;
-  Handle<Foreign> native_module_wrapper =
-      Managed<wasm::NativeModule>::FromSharedPtr(
-          isolate, native_module_size,
-          Managed<wasm::NativeModule>::cast(module->native_module())->get());
-  ret->set_native_module(*native_module_wrapper);
 
   return ret;
-}
-
-wasm::NativeModule* WasmCompiledModule::GetNativeModule() const {
-  if (!has_native_module()) return nullptr;
-  return Managed<wasm::NativeModule>::cast(native_module())->raw();
 }
 
 void WasmCompiledModule::Reset(Isolate* isolate,
@@ -1559,18 +1527,6 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   DisallowHeapAllocation no_gc;
   compiled_module->reset_prev_instance();
   compiled_module->reset_next_instance();
-}
-
-void WasmCompiledModule::PrintInstancesChain() {
-#if DEBUG
-  if (!FLAG_trace_wasm_instances) return;
-  for (WasmCompiledModule* current = this; current != nullptr;) {
-    PrintF("->%zu", current->GetNativeModule()->instance_id);
-    if (!current->has_next_instance()) break;
-    current = current->next_instance();
-  }
-  PrintF("\n");
-#endif
 }
 
 void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {

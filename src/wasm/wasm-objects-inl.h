@@ -49,6 +49,8 @@ CAST_ACCESSOR(WasmTableObject)
   }
 
 // WasmModuleObject
+ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
+          kNativeModuleOffset)
 ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
@@ -63,8 +65,17 @@ OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
 wasm::WasmModule* WasmModuleObject::module() const {
   return managed_module()->raw();
 }
+wasm::NativeModule* WasmModuleObject::native_module() {
+  return managed_native_module()->raw();
+}
 void WasmModuleObject::reset_breakpoint_infos() {
   WRITE_FIELD(this, kBreakPointInfosOffset, GetHeap()->undefined_value());
+}
+bool WasmModuleObject::is_asm_js() {
+  bool asm_js = module()->origin == wasm::kAsmJsOrigin;
+  DCHECK_EQ(asm_js, script()->IsUserJavaScript());
+  DCHECK_EQ(asm_js, has_asm_js_offset_table());
+  return asm_js;
 }
 
 // WasmTableObject
@@ -237,7 +248,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 WCM_OBJECT(WasmCompiledModule, next_instance, kNextInstanceOffset)
 WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)
 WCM_WEAK_LINK(WasmInstanceObject, owning_instance, kOwningInstanceOffset)
-WCM_OBJECT(Foreign, native_module, kNativeModuleOffset)
 ACCESSORS(WasmCompiledModule, raw_next_instance, Object, kNextInstanceOffset);
 ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
 

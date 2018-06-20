@@ -909,8 +909,7 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
-  wasm::NativeModule* native_module =
-      module_obj->compiled_module()->GetNativeModule();
+  wasm::NativeModule* native_module = module_obj->native_module();
   size_t compiled_size =
       wasm::GetSerializedNativeModuleSize(isolate, native_module);
   void* array_data = isolate->array_buffer_allocator()->Allocate(compiled_size);
@@ -1053,7 +1052,7 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
   wasm::NativeModule* native_module =
-      exp_fun->instance()->compiled_module()->GetNativeModule();
+      exp_fun->instance()->module_object()->native_module();
   uint32_t func_index = exp_fun->function_index();
   return isolate->heap()->ToBoolean(
       native_module->has_code(func_index) &&
@@ -1075,7 +1074,7 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   DisallowHeapAllocation no_gc;
   CONVERT_ARG_CHECKED(WasmInstanceObject, instance, 0);
 
-  instance->compiled_module()->GetNativeModule()->set_lazy_compile_frozen(true);
+  instance->module_object()->native_module()->set_lazy_compile_frozen(true);
   return isolate->heap()->undefined_value();
 }
 
