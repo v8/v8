@@ -1455,9 +1455,9 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
-    // TODO(ppc): does this condition depend on serialization somehow?
     bool sharing_ok =
-        RelocInfo::IsNone(rmode) || (RelocInfo::IsShareableRelocMode(rmode) &&
+        RelocInfo::IsNone(rmode) || (!options().record_reloc_info_for_exrefs &&
+                                     RelocInfo::IsShareableRelocMode(rmode) &&
                                      !is_constant_pool_entry_sharing_blocked());
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
