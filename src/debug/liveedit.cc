@@ -22,6 +22,36 @@
 
 namespace v8 {
 namespace internal {
+namespace {
+// A general-purpose comparator between 2 arrays.
+class Comparator {
+ public:
+  // Holds 2 arrays of some elements allowing to compare any pair of
+  // element from the first array and element from the second array.
+  class Input {
+   public:
+    virtual int GetLength1() = 0;
+    virtual int GetLength2() = 0;
+    virtual bool Equals(int index1, int index2) = 0;
+
+   protected:
+    virtual ~Input() = default;
+  };
+
+  // Receives compare result as a series of chunks.
+  class Output {
+   public:
+    // Puts another chunk in result list. Note that technically speaking
+    // only 3 arguments actually needed with 4th being derivable.
+    virtual void AddChunk(int pos1, int pos2, int len1, int len2) = 0;
+
+   protected:
+    virtual ~Output() = default;
+  };
+
+  // Finds the difference between 2 arrays of elements.
+  static void CalculateDifference(Input* input, Output* result_writer);
+};
 
 void SetElementSloppy(Handle<JSObject> object,
                       uint32_t index,
@@ -33,7 +63,6 @@ void SetElementSloppy(Handle<JSObject> object,
                      LanguageMode::kSloppy)
       .Assert();
 }
-
 
 // A simple implementation of dynamic programming algorithm. It solves
 // the problem of finding the difference of 2 arrays. It uses a table of results
@@ -234,7 +263,6 @@ class Differencer {
   };
 };
 
-
 void Comparator::CalculateDifference(Comparator::Input* input,
                                      Comparator::Output* result_writer) {
   Differencer differencer(input);
@@ -243,17 +271,13 @@ void Comparator::CalculateDifference(Comparator::Input* input,
   differencer.SaveResult(result_writer);
 }
 
-
-static bool CompareSubstrings(Handle<String> s1, int pos1,
-                              Handle<String> s2, int pos2, int len) {
+bool CompareSubstrings(Handle<String> s1, int pos1, Handle<String> s2, int pos2,
+                       int len) {
   for (int i = 0; i < len; i++) {
-    if (s1->Get(i + pos1) != s2->Get(i + pos2)) {
-      return false;
-    }
+    if (s1->Get(i + pos1) != s2->Get(i + pos2)) return false;
   }
   return true;
 }
-
 
 // Additional to Input interface. Lets switch Input range to subrange.
 // More elegant way would be to wrap one Input as another Input object
@@ -272,16 +296,9 @@ class SubrangableOutput : public Comparator::Output {
   virtual void SetSubrange2(int offset, int len) = 0;
 };
 
-
-static int min(int a, int b) {
-  return a < b ? a : b;
-}
-
-
 // Finds common prefix and suffix in input. This parts shouldn't take space in
 // linear programming table. Enable subranging in input and output.
-static void NarrowDownInput(SubrangableInput* input,
-    SubrangableOutput* output) {
+void NarrowDownInput(SubrangableInput* input, SubrangableOutput* output) {
   const int len1 = input->GetLength1();
   const int len2 = input->GetLength2();
 
@@ -290,14 +307,15 @@ static void NarrowDownInput(SubrangableInput* input,
 
   {
     common_prefix_len = 0;
-    int prefix_limit = min(len1, len2);
+    int prefix_limit = std::min(len1, len2);
     while (common_prefix_len < prefix_limit &&
         input->Equals(common_prefix_len, common_prefix_len)) {
       common_prefix_len++;
     }
 
     common_suffix_len = 0;
-    int suffix_limit = min(len1 - common_prefix_len, len2 - common_prefix_len);
+    int suffix_limit =
+        std::min(len1 - common_prefix_len, len2 - common_prefix_len);
 
     while (common_suffix_len < suffix_limit &&
         input->Equals(len1 - common_suffix_len - 1,
@@ -362,13 +380,9 @@ class TokensCompareInput : public Comparator::Input {
       : s1_(s1), offset1_(offset1), len1_(len1),
         s2_(s2), offset2_(offset2), len2_(len2) {
   }
-  virtual int GetLength1() {
-    return len1_;
-  }
-  virtual int GetLength2() {
-    return len2_;
-  }
-  bool Equals(int index1, int index2) {
+  int GetLength1() override { return len1_; }
+  int GetLength2() override { return len2_; }
+  bool Equals(int index1, int index2) override {
     return s1_->Get(offset1_ + index1) == s2_->Get(offset2_ + index2);
   }
 
@@ -381,26 +395,25 @@ class TokensCompareInput : public Comparator::Input {
   int len2_;
 };
 
-
-// Stores compare result in JSArray. Converts substring positions
+// Stores compare result in std::vector. Converts substring positions
 // to absolute positions.
 class TokensCompareOutput : public Comparator::Output {
  public:
-  TokensCompareOutput(CompareOutputArrayWriter* array_writer,
-                      int offset1, int offset2)
-        : array_writer_(array_writer), offset1_(offset1), offset2_(offset2) {
-  }
+  TokensCompareOutput(int offset1, int offset2,
+                      std::vector<SourceChangeRange>* output)
+      : output_(output), offset1_(offset1), offset2_(offset2) {}
 
-  void AddChunk(int pos1, int pos2, int len1, int len2) {
-    array_writer_->WriteChunk(pos1 + offset1_, pos2 + offset2_, len1, len2);
+  void AddChunk(int pos1, int pos2, int len1, int len2) override {
+    output_->emplace_back(
+        SourceChangeRange{pos1 + offset1_, pos1 + len1 + offset1_,
+                          pos2 + offset2_, pos2 + offset2_ + len2});
   }
 
  private:
-  CompareOutputArrayWriter* array_writer_;
+  std::vector<SourceChangeRange>* output_;
   int offset1_;
   int offset2_;
 };
-
 
 // Wraps raw n-elements line_ends array as a list of n+1 lines. The last line
 // never has terminating new line character.
@@ -415,13 +428,7 @@ class LineEndsWrapper {
   }
   // Returns start for any line including start of the imaginary line after
   // the last line.
-  int GetLineStart(int index) {
-    if (index == 0) {
-      return 0;
-    } else {
-      return GetLineEnd(index - 1);
-    }
-  }
+  int GetLineStart(int index) { return index == 0 ? 0 : GetLineEnd(index - 1); }
   int GetLineEnd(int index) {
     if (index == ends_array_->length()) {
       // End of the last line is always an end of the whole string.
@@ -442,7 +449,6 @@ class LineEndsWrapper {
   }
 };
 
-
 // Represents 2 strings as 2 arrays of lines.
 class LineArrayCompareInput : public SubrangableInput {
  public:
@@ -454,13 +460,9 @@ class LineArrayCompareInput : public SubrangableInput {
         subrange_len1_(line_ends1_.length()),
         subrange_len2_(line_ends2_.length()) {
   }
-  int GetLength1() {
-    return subrange_len1_;
-  }
-  int GetLength2() {
-    return subrange_len2_;
-  }
-  bool Equals(int index1, int index2) {
+  int GetLength1() override { return subrange_len1_; }
+  int GetLength2() override { return subrange_len2_; }
+  bool Equals(int index1, int index2) override {
     index1 += subrange_offset1_;
     index2 += subrange_offset2_;
 
@@ -476,11 +478,11 @@ class LineArrayCompareInput : public SubrangableInput {
     return CompareSubstrings(s1_, line_start1, s2_, line_start2,
                              len1);
   }
-  void SetSubrange1(int offset, int len) {
+  void SetSubrange1(int offset, int len) override {
     subrange_offset1_ = offset;
     subrange_len1_ = len;
   }
-  void SetSubrange2(int offset, int len) {
+  void SetSubrange2(int offset, int len) override {
     subrange_offset2_ = offset;
     subrange_len2_ = len;
   }
@@ -496,24 +498,25 @@ class LineArrayCompareInput : public SubrangableInput {
   int subrange_len2_;
 };
 
-
-// Stores compare result in JSArray. For each chunk tries to conduct
+// Stores compare result in std::vector. For each chunk tries to conduct
 // a fine-grained nested diff token-wise.
 class TokenizingLineArrayCompareOutput : public SubrangableOutput {
  public:
   TokenizingLineArrayCompareOutput(Isolate* isolate, LineEndsWrapper line_ends1,
                                    LineEndsWrapper line_ends2,
-                                   Handle<String> s1, Handle<String> s2)
+                                   Handle<String> s1, Handle<String> s2,
+                                   std::vector<SourceChangeRange>* output)
       : isolate_(isolate),
-        array_writer_(isolate),
         line_ends1_(line_ends1),
         line_ends2_(line_ends2),
         s1_(s1),
         s2_(s2),
         subrange_offset1_(0),
-        subrange_offset2_(0) {}
+        subrange_offset2_(0),
+        output_(output) {}
 
-  void AddChunk(int line_pos1, int line_pos2, int line_len1, int line_len2) {
+  void AddChunk(int line_pos1, int line_pos2, int line_len1,
+                int line_len2) override {
     line_pos1 += subrange_offset1_;
     line_pos2 += subrange_offset2_;
 
@@ -528,63 +531,52 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
 
       TokensCompareInput tokens_input(s1_, char_pos1, char_len1,
                                       s2_, char_pos2, char_len2);
-      TokensCompareOutput tokens_output(&array_writer_, char_pos1,
-                                          char_pos2);
+      TokensCompareOutput tokens_output(char_pos1, char_pos2, output_);
 
       Comparator::CalculateDifference(&tokens_input, &tokens_output);
     } else {
-      array_writer_.WriteChunk(char_pos1, char_pos2, char_len1, char_len2);
+      output_->emplace_back(SourceChangeRange{
+          char_pos1, char_pos1 + char_len1, char_pos2, char_pos2 + char_len2});
     }
   }
-  void SetSubrange1(int offset, int len) {
+  void SetSubrange1(int offset, int len) override {
     subrange_offset1_ = offset;
   }
-  void SetSubrange2(int offset, int len) {
+  void SetSubrange2(int offset, int len) override {
     subrange_offset2_ = offset;
-  }
-
-  Handle<JSArray> GetResult() {
-    return array_writer_.GetResult();
   }
 
  private:
   static const int CHUNK_LEN_LIMIT = 800;
 
   Isolate* isolate_;
-  CompareOutputArrayWriter array_writer_;
   LineEndsWrapper line_ends1_;
   LineEndsWrapper line_ends2_;
   Handle<String> s1_;
   Handle<String> s2_;
   int subrange_offset1_;
   int subrange_offset2_;
+  std::vector<SourceChangeRange>* output_;
 };
+}  // anonymous namespace
 
 Handle<JSArray> LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,
                                          Handle<String> s2) {
-  s1 = String::Flatten(s1);
-  s2 = String::Flatten(s2);
-
-  LineEndsWrapper line_ends1(s1);
-  LineEndsWrapper line_ends2(s2);
-
-  LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
-  TokenizingLineArrayCompareOutput output(isolate, line_ends1, line_ends2, s1,
-                                          s2);
-
-  NarrowDownInput(&input, &output);
-
-  Comparator::CalculateDifference(&input, &output);
-
-  return output.GetResult();
+  std::vector<SourceChangeRange> changes;
+  CompareStrings(isolate, s1, s2, &changes);
+  CompareOutputArrayWriter writer(isolate);
+  for (const auto& change : changes) {
+    writer.WriteChunk(change.start_position, change.new_start_position,
+                      change.end_position - change.start_position,
+                      change.new_end_position - change.new_start_position);
+  }
+  return writer.GetResult();
 }
-
 
 // Unwraps JSValue object, returning its field "value"
 static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
   return Handle<Object>(jsValue->value(), jsValue->GetIsolate());
 }
-
 
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
@@ -659,7 +651,6 @@ Handle<SharedFunctionInfo> SharedInfoWrapper::GetInfo() {
   Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
   return UnwrapSharedFunctionInfoFromJSValue(value_wrapper);
 }
-
 
 void LiveEdit::InitializeThreadLocal(Debug* debug) {
   debug->thread_local_.restart_fp_ = 0;
@@ -919,8 +910,8 @@ namespace {
 // Only position in text beyond any changes may be successfully translated.
 // If a positions is inside some region that changed, result is currently
 // undefined.
-static int TranslatePosition(int original_position,
-                             Handle<JSArray> position_change_array) {
+static int TranslatePosition2(int original_position,
+                              Handle<JSArray> position_change_array) {
   int position_diff = 0;
   int array_len = GetArrayLength(position_change_array);
   Isolate* isolate = position_change_array->GetIsolate();
@@ -961,7 +952,7 @@ void TranslateSourcePositionTable(Handle<BytecodeArray> code,
        !iterator.done(); iterator.Advance()) {
     SourcePosition position = iterator.source_position();
     position.SetScriptOffset(
-        TranslatePosition(position.ScriptOffset(), position_change_array));
+        TranslatePosition2(position.ScriptOffset(), position_change_array));
     builder.AddPosition(iterator.code_offset(), position,
                         iterator.is_statement());
   }
@@ -981,12 +972,12 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
   int old_function_start = info->StartPosition();
-  int new_function_start = TranslatePosition(old_function_start,
-                                             position_change_array);
+  int new_function_start =
+      TranslatePosition2(old_function_start, position_change_array);
   int new_function_end =
-      TranslatePosition(info->EndPosition(), position_change_array);
-  int new_function_token_pos =
-      TranslatePosition(info->function_token_position(), position_change_array);
+      TranslatePosition2(info->EndPosition(), position_change_array);
+  int new_function_token_pos = TranslatePosition2(
+      info->function_token_position(), position_change_array);
 
   info->set_raw_start_position(new_function_start);
   info->set_raw_end_position(new_function_end);
@@ -1572,6 +1563,39 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
   }
 
   return scope_info_list;
+}
+
+void LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,
+                              Handle<String> s2,
+                              std::vector<SourceChangeRange>* changes) {
+  s1 = String::Flatten(s1);
+  s2 = String::Flatten(s2);
+
+  LineEndsWrapper line_ends1(s1);
+  LineEndsWrapper line_ends2(s2);
+
+  LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
+  TokenizingLineArrayCompareOutput output(isolate, line_ends1, line_ends2, s1,
+                                          s2, changes);
+
+  NarrowDownInput(&input, &output);
+
+  Comparator::CalculateDifference(&input, &output);
+}
+
+int LiveEdit::TranslatePosition(const std::vector<SourceChangeRange>& changes,
+                                int position) {
+  auto it = std::lower_bound(changes.begin(), changes.end(), position,
+                             [](const SourceChangeRange& change, int position) {
+                               return change.end_position < position;
+                             });
+  if (it != changes.end() && position == it->end_position) {
+    return it->new_end_position;
+  }
+  if (it == changes.begin()) return position;
+  DCHECK(it == changes.end() || position <= it->start_position);
+  it = std::prev(it);
+  return position + (it->new_end_position - it->end_position);
 }
 
 }  // namespace internal

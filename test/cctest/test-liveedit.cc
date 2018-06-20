@@ -29,83 +29,22 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/debug/liveedit.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
-
-// Anonymous namespace.
 namespace {
-
-class StringCompareInput : public Comparator::Input {
- public:
-  StringCompareInput(const char* s1, const char* s2) : s1_(s1), s2_(s2) {
-  }
-  int GetLength1() {
-    return StrLength(s1_);
-  }
-  int GetLength2() {
-    return StrLength(s2_);
-  }
-  bool Equals(int index1, int index2) {
-    return s1_[index1] == s2_[index2];
-  }
-
- private:
-  const char* s1_;
-  const char* s2_;
-};
-
-
-class DiffChunkStruct : public ZoneObject {
- public:
-  DiffChunkStruct(int pos1_param, int pos2_param, int len1_param,
-                  int len2_param)
-      : pos1(pos1_param),
-        pos2(pos2_param),
-        len1(len1_param),
-        len2(len2_param),
-        next(nullptr) {}
-  int pos1;
-  int pos2;
-  int len1;
-  int len2;
-  DiffChunkStruct* next;
-};
-
-
-class ListDiffOutputWriter : public Comparator::Output {
- public:
-  explicit ListDiffOutputWriter(DiffChunkStruct** next_chunk_pointer,
-                                Zone* zone)
-      : next_chunk_pointer_(next_chunk_pointer), zone_(zone) {
-    (*next_chunk_pointer_) = nullptr;
-  }
-  void AddChunk(int pos1, int pos2, int len1, int len2) {
-    current_chunk_ = new(zone_) DiffChunkStruct(pos1, pos2, len1, len2);
-    (*next_chunk_pointer_) = current_chunk_;
-    next_chunk_pointer_ = &current_chunk_->next;
-  }
- private:
-  DiffChunkStruct** next_chunk_pointer_;
-  DiffChunkStruct* current_chunk_;
-  Zone* zone_;
-};
-
-
 void CompareStringsOneWay(const char* s1, const char* s2,
-                          int expected_diff_parameter = -1) {
-  StringCompareInput input(s1, s2);
-
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-
-  DiffChunkStruct* first_chunk;
-  ListDiffOutputWriter writer(&first_chunk, &zone);
-
-  Comparator::CalculateDifference(&input, &writer);
+                          int expected_diff_parameter,
+                          std::vector<SourceChangeRange>* changes) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Handle<i::String> i_s1 = isolate->factory()->NewStringFromAsciiChecked(s1);
+  i::Handle<i::String> i_s2 = isolate->factory()->NewStringFromAsciiChecked(s2);
+  changes->clear();
+  LiveEdit::CompareStrings(isolate, i_s1, i_s2, changes);
 
   int len1 = StrLength(s1);
   int len2 = StrLength(s2);
@@ -114,23 +53,23 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   int pos2 = 0;
 
   int diff_parameter = 0;
-
-  for (DiffChunkStruct* chunk = first_chunk; chunk != nullptr;
-       chunk = chunk->next) {
-    int diff_pos1 = chunk->pos1;
+  for (const auto& diff : *changes) {
+    int diff_pos1 = diff.start_position;
     int similar_part_length = diff_pos1 - pos1;
     int diff_pos2 = pos2 + similar_part_length;
 
-    CHECK_EQ(diff_pos2, chunk->pos2);
+    CHECK_EQ(diff_pos2, diff.new_start_position);
 
     for (int j = 0; j < similar_part_length; j++) {
       CHECK(pos1 + j < len1);
       CHECK(pos2 + j < len2);
       CHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
     }
-    diff_parameter += chunk->len1 + chunk->len2;
-    pos1 = diff_pos1 + chunk->len1;
-    pos2 = diff_pos2 + chunk->len2;
+    int diff_len1 = diff.end_position - diff.start_position;
+    int diff_len2 = diff.new_end_position - diff.new_start_position;
+    diff_parameter += diff_len1 + diff_len2;
+    pos1 = diff_pos1 + diff_len1;
+    pos2 = diff_pos2 + diff_len2;
   }
   {
     // After last chunk.
@@ -149,6 +88,16 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   }
 }
 
+void CompareStringsOneWay(const char* s1, const char* s2,
+                          int expected_diff_parameter = -1) {
+  std::vector<SourceChangeRange> changes;
+  CompareStringsOneWay(s1, s2, expected_diff_parameter, &changes);
+}
+
+void CompareStringsOneWay(const char* s1, const char* s2,
+                          std::vector<SourceChangeRange>* changes) {
+  CompareStringsOneWay(s1, s2, -1, changes);
+}
 
 void CompareStrings(const char* s1, const char* s2,
                     int expected_diff_parameter = -1) {
@@ -156,12 +105,25 @@ void CompareStrings(const char* s1, const char* s2,
   CompareStringsOneWay(s2, s1, expected_diff_parameter);
 }
 
-}  // Anonymous namespace.
+void CompareOneWayPlayWithLF(const char* s1, const char* s2) {
+  std::string s1_one_line(s1);
+  std::replace(s1_one_line.begin(), s1_one_line.end(), '\n', ' ');
+  std::string s2_one_line(s2);
+  std::replace(s2_one_line.begin(), s2_one_line.end(), '\n', ' ');
+  CompareStringsOneWay(s1, s2, -1);
+  CompareStringsOneWay(s1_one_line.c_str(), s2, -1);
+  CompareStringsOneWay(s1, s2_one_line.c_str(), -1);
+  CompareStringsOneWay(s1_one_line.c_str(), s2_one_line.c_str(), -1);
+}
 
-
-// --- T h e   A c t u a l   T e s t s
+void CompareStringsPlayWithLF(const char* s1, const char* s2) {
+  CompareOneWayPlayWithLF(s1, s2);
+  CompareOneWayPlayWithLF(s2, s1);
+}
+}  // anonymous namespace
 
 TEST(LiveEditDiffer) {
+  v8::HandleScope handle_scope(CcTest::isolate());
   CompareStrings("zz1zzz12zz123zzz", "zzzzzzzzzz", 6);
   CompareStrings("zz1zzz12zz123zzz", "zz0zzz0zz0zzz", 9);
   CompareStrings("123456789", "987654321", 16);
@@ -177,7 +139,62 @@ TEST(LiveEditDiffer) {
   CompareStrings("a cat", "a capybara", 7);
   CompareStrings("abbabababababaaabbabababababbabbbbbbbababa",
                  "bbbbabababbbabababbbabababababbabbababa");
+  CompareStringsPlayWithLF("", "");
+  CompareStringsPlayWithLF("a", "b");
+  CompareStringsPlayWithLF(
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway",
+      "yesterday\nall\nmy\ntroubles\nseem\nso\nfar\naway");
+  CompareStringsPlayWithLF(
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway",
+      "\nall\nmy\ntroubles\nseemed\nso\nfar\naway");
+  CompareStringsPlayWithLF(
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway",
+      "all\nmy\ntroubles\nseemed\nso\nfar\naway");
+  CompareStringsPlayWithLF(
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway",
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway\n");
+  CompareStringsPlayWithLF(
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\nfar\naway",
+      "yesterday\nall\nmy\ntroubles\nseemed\nso\n");
 }
 
+TEST(LiveEditTranslatePosition) {
+  v8::HandleScope handle_scope(CcTest::isolate());
+  std::vector<SourceChangeRange> changes;
+  CompareStringsOneWay("a", "a", &changes);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
+  CompareStringsOneWay("a", "b", &changes);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
+  CompareStringsOneWay("ababa", "aaa", &changes);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 1);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 3);
+  CompareStringsOneWay("ababa", "acaca", &changes);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 3);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 4);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 5);
+  CompareStringsOneWay("aaa", "ababa", &changes);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 4);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 5);
+  CompareStringsOneWay("aabbaaaa", "aaaabbaa", &changes);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 4);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 5);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 6);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 7);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 6), 8);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 8), 8);
+}
 }  // namespace internal
 }  // namespace v8

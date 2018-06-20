@@ -33,6 +33,13 @@ namespace internal {
 
 class JavaScriptFrame;
 
+struct SourceChangeRange {
+  int start_position;
+  int end_position;
+  int new_start_position;
+  int new_end_position;
+};
+
 // This class collects some specific information on structure of functions
 // in a particular script.
 //
@@ -70,7 +77,6 @@ class LiveEditFunctionTracker
 
   DISALLOW_COPY_AND_ASSIGN(LiveEditFunctionTracker);
 };
-
 
 class LiveEdit : AllStatic {
  public:
@@ -129,6 +135,12 @@ class LiveEdit : AllStatic {
   // Return error message or nullptr.
   static const char* RestartFrame(JavaScriptFrame* frame);
 
+  static void CompareStrings(Isolate* isolate, Handle<String> a,
+                             Handle<String> b,
+                             std::vector<SourceChangeRange>* changes);
+  static int TranslatePosition(const std::vector<SourceChangeRange>& changed,
+                               int position);
+
   // A copy of this is in liveedit.js.
   enum FunctionPatchabilityStatus {
     FUNCTION_AVAILABLE_FOR_PATCH = 1,
@@ -150,40 +162,6 @@ class LiveEdit : AllStatic {
   // Architecture-specific constant.
   static const bool kFrameDropperSupported;
 };
-
-
-// A general-purpose comparator between 2 arrays.
-class Comparator {
- public:
-  // Holds 2 arrays of some elements allowing to compare any pair of
-  // element from the first array and element from the second array.
-  class Input {
-   public:
-    virtual int GetLength1() = 0;
-    virtual int GetLength2() = 0;
-    virtual bool Equals(int index1, int index2) = 0;
-
-   protected:
-    virtual ~Input() {}
-  };
-
-  // Receives compare result as a series of chunks.
-  class Output {
-   public:
-    // Puts another chunk in result list. Note that technically speaking
-    // only 3 arguments actually needed with 4th being derivable.
-    virtual void AddChunk(int pos1, int pos2, int len1, int len2) = 0;
-
-   protected:
-    virtual ~Output() {}
-  };
-
-  // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(Input* input,
-                                  Output* result_writer);
-};
-
-
 
 // Simple helper class that creates more or less typed structures over
 // JSArray object. This is an adhoc method of passing structures from C++
