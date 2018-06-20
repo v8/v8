@@ -6832,8 +6832,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   // Add proper dependencies on the {regexp}s [[Prototype]]s.
   Handle<JSObject> holder;
   if (ai_exec.holder().ToHandle(&holder)) {
-    access_builder.AssumePrototypesStable(native_context(),
-                                          ai_exec.receiver_maps(), holder);
+    dependencies()->AssumePrototypesStable(native_context(),
+                                           ai_exec.receiver_maps(), holder);
   }
 
   if (need_map_check) {

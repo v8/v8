@@ -207,7 +207,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       // Determine actual holder and perform prototype chain checks.
       Handle<JSObject> holder;
       if (access_info.holder().ToHandle(&holder)) {
-        access_builder.AssumePrototypesStable(
+        dependencies()->AssumePrototypesStable(
             native_context().object<Context>(), access_info.receiver_maps(),
             holder);
       }
@@ -233,9 +233,9 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      access_builder.AssumePrototypesStable(native_context().object<Context>(),
-                                            access_info.receiver_maps(),
-                                            holder);
+      dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                             access_info.receiver_maps(),
+                                             holder);
     } else {
       holder = receiver;
     }
@@ -500,8 +500,8 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Add proper dependencies on the {resolution}s [[Prototype]]s.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
-    access_builder.AssumePrototypesStable(native_context().object<Context>(),
-                                          access_info.receiver_maps(), holder);
+    dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                           access_info.receiver_maps(), holder);
   }
 
   // Simply fulfill the {promise} with the {resolution}.
@@ -1803,8 +1803,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   Handle<JSObject> holder;
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
-    access_builder.AssumePrototypesStable(native_context().object<Context>(),
-                                          access_info.receiver_maps(), holder);
+    dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                           access_info.receiver_maps(), holder);
   }
 
   // Generate the actual property access.
@@ -1860,8 +1860,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
-    access_builder.AssumePrototypesStable(native_context().object<Context>(),
-                                          access_info.receiver_maps(), holder);
+    dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                           access_info.receiver_maps(), holder);
   }
 
   DCHECK(!access_info.IsNotFound());

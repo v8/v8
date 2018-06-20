@@ -46,6 +46,12 @@ class CompilationDependencies {
   }
   void AssumeTransitionStable(Handle<AllocationSite> site);
 
+  // Adds stability dependencies on all prototypes of every class in
+  // {receiver_type} up to (and including) the {holder}.
+  void AssumePrototypesStable(Handle<Context> native_context,
+                              std::vector<Handle<Map>> const& receiver_maps,
+                              Handle<JSObject> holder);
+
   void Commit(Handle<Code> code);
   void Rollback();
   void Abort() { aborted_ = true; }
