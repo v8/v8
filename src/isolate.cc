@@ -2517,6 +2517,8 @@ Isolate::Isolate()
       atomics_wait_callback_(nullptr),
       atomics_wait_callback_data_(nullptr),
       promise_hook_(nullptr),
+      host_import_module_dynamically_callback_(nullptr),
+      host_initialize_import_meta_object_callback_(nullptr),
       load_start_time_ms_(0),
       serializer_enabled_(false),
       has_fatal_error_(false),
