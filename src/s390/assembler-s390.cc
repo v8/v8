@@ -347,8 +347,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size) {
+Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   code_targets_.reserve(100);
 
@@ -792,8 +792,8 @@ void Assembler::dp(uintptr_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
-      (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
-       !emit_debug_code())) {
+      (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+       !options().record_reloc_info_for_exrefs && !emit_debug_code())) {
     return;
   }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);

@@ -52,9 +52,8 @@ class TurboAssemblerBase : public Assembler {
   virtual void LoadRoot(Register destination, Heap::RootListIndex index) = 0;
 
  protected:
-  TurboAssemblerBase(Isolate* isolate, void* buffer, int buffer_size,
-                     CodeObjectRequired create_code_object);
-  TurboAssemblerBase(IsolateData isolate_data, void* buffer, int buffer_size);
+  TurboAssemblerBase(Isolate* isolate, const Options& options, void* buffer,
+                     int buffer_size, CodeObjectRequired create_code_object);
 
   Isolate* const isolate_ = nullptr;
 

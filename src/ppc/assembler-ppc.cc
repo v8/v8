@@ -241,8 +241,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size),
+Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -498,7 +498,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // pointer in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-      PatchingAssembler patcher(isolate_data(),
+      PatchingAssembler patcher(options(),
                                 reinterpret_cast<byte*>(buffer_ + pos), 2);
       patcher.bitwise_mov32(dst, offset);
       break;
@@ -514,7 +514,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
                           : (SIGN_EXT_IMM22(operands & kImm22Mask));
       int32_t offset = target_pos + delta;
       PatchingAssembler patcher(
-          isolate_data(), reinterpret_cast<byte*>(buffer_ + pos),
+          options(), reinterpret_cast<byte*>(buffer_ + pos),
           2 + static_cast<int32_t>(opcode == kUnboundAddLabelLongOffsetOpcode));
       patcher.bitwise_add32(dst, base, offset);
       if (opcode == kUnboundAddLabelLongOffsetOpcode) patcher.nop();
@@ -523,7 +523,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     case kUnboundMovLabelAddrOpcode: {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      PatchingAssembler patcher(isolate_data(),
+      PatchingAssembler patcher(options(),
                                 reinterpret_cast<byte*>(buffer_ + pos),
                                 kMovInstructionsNoConstantPool);
       // Keep internal references relative until EmitRelocations.
@@ -531,7 +531,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       break;
     }
     case kUnboundJumpTableEntryOpcode: {
-      PatchingAssembler patcher(isolate_data(),
+      PatchingAssembler patcher(options(),
                                 reinterpret_cast<byte*>(buffer_ + pos),
                                 kPointerSize / kInstrSize);
       // Keep internal references relative until EmitRelocations.
@@ -1299,7 +1299,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != nullptr && assembler->predictable_code_size()) return true;
-    return assembler->serializer_enabled();
+    return assembler->options().record_reloc_info_for_exrefs;
   } else if (RelocInfo::IsNone(rmode_)) {
     return false;
   }
@@ -2071,8 +2071,8 @@ void Assembler::dp(uintptr_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
-      (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
-       !emit_debug_code())) {
+      (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+       !options().record_reloc_info_for_exrefs && !emit_debug_code())) {
     return;
   }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
@@ -2142,9 +2142,9 @@ void Assembler::CheckTrampolinePool() {
   }
 }
 
-PatchingAssembler::PatchingAssembler(IsolateData isolate_data, byte* address,
+PatchingAssembler::PatchingAssembler(const Options& options, byte* address,
                                      int instructions)
-    : Assembler(isolate_data, address, instructions * kInstrSize + kGap) {
+    : Assembler(options, address, instructions * kInstrSize + kGap) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }
 

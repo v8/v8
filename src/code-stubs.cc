@@ -106,15 +106,16 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), nullptr, 256, CodeObjectRequired::kYes);
+  // TODO(yangguo): remove this once we can serialize IC stubs.
+  Assembler::Options options = Assembler::DefaultOptions(isolate(), true);
+  MacroAssembler masm(isolate(), options, nullptr, 256,
+                      CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.
     isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
-    // TODO(yangguo): remove this once we can serialize IC stubs.
-    masm.enable_serializer();
     NoCurrentFrameScope scope(&masm);
     Generate(&masm);
   }

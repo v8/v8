@@ -337,7 +337,8 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
 // TODO(clemensh): Provide a reasonably sized buffer, based on wasm function
 // size.
 LiftoffAssembler::LiftoffAssembler(Isolate* isolate)
-    : TurboAssembler(isolate, nullptr, 0, CodeObjectRequired::kNo) {
+    : TurboAssembler(isolate, Assembler::DefaultOptions(isolate), nullptr, 0,
+                     CodeObjectRequired::kNo) {
   set_trap_on_abort(true);  // Avoid calls to Abort.
 }
 

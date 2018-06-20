@@ -53,20 +53,30 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
-    : IsolateData(isolate->serializer_enabled() ? kSerializerEnabled
-                                                : kSerializerDisabled,
-                  isolate->heap()->memory_allocator()->code_range()->start()) {}
-#else
-AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
-    : IsolateData(isolate->serializer_enabled() ? kSerializerEnabled
-                                                : kSerializerDisabled) {}
+AssemblerBase::Options AssemblerBase::DefaultOptions(
+    Isolate* isolate, bool explicitly_support_serialization) {
+  Options options;
+  bool serializer =
+      isolate->serializer_enabled() || explicitly_support_serialization;
+  options.record_reloc_info_for_exrefs = serializer;
+  options.enable_root_array_delta_access = !serializer;
+#ifdef USE_SIMULATOR
+  // Don't generate simulator specific code if we are building a snapshot, which
+  // might be run on real hardware.
+  options.enable_simulator_code = !serializer;
 #endif
+  options.isolate_independent_code = isolate->ShouldLoadConstantsFromRootList();
+  options.inline_offheap_trampolines = !serializer;
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+  options.code_range_start =
+      isolate->heap()->memory_allocator()->code_range()->start();
+#endif
+  return options;
+}
 
-AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
+AssemblerBase::AssemblerBase(const Options& options, void* buffer,
                              int buffer_size)
-    : isolate_data_(isolate_data),
+    : options_(options),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),

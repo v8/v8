@@ -118,8 +118,9 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
-  TurboAssembler patching_assembler(isolate(), buffer_ + offset,
-                                    kAvailableSpace, CodeObjectRequired::kNo);
+  TurboAssembler patching_assembler(nullptr, Assembler::Options{},
+                                    buffer_ + offset, kAvailableSpace,
+                                    CodeObjectRequired::kNo);
   // If bytes can be represented as 16bit, addiu will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, addu will be generated.

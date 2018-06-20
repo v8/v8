@@ -505,8 +505,8 @@ class Assembler : public AssemblerBase {
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+      : Assembler(DefaultOptions(isolate), buffer, buffer_size) {}
+  Assembler(const Options& options, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -1455,10 +1455,10 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
+    // TODO(ppc): does this condition depend on serialization somehow?
     bool sharing_ok =
-        RelocInfo::IsNone(rmode) ||
-        (!serializer_enabled() && RelocInfo::IsShareableRelocMode(rmode) &&
-         !is_constant_pool_entry_sharing_blocked());
+        RelocInfo::IsNone(rmode) || (RelocInfo::IsShareableRelocMode(rmode) &&
+                                     !is_constant_pool_entry_sharing_blocked());
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
   ConstantPoolEntry::Access ConstantPoolAddEntry(Double value) {
@@ -1647,7 +1647,7 @@ class EnsureSpace BASE_EMBEDDED {
 
 class PatchingAssembler : public Assembler {
  public:
-  PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
+  PatchingAssembler(const Options& options, byte* address, int instructions);
   ~PatchingAssembler();
 };
 

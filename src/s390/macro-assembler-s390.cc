@@ -26,9 +26,10 @@
 namespace v8 {
 namespace internal {
 
-MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
+MacroAssembler::MacroAssembler(Isolate* isolate, const Options& options,
+                               void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, size, create_code_object) {
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
   if (create_code_object == CodeObjectRequired::kYes) {
     // Unlike TurboAssembler, which can be used off the main thread and may not
     // allocate, macro assembler creates its own copy of the self-reference
@@ -196,13 +197,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     Register scratch = r1;
     IndirectLoadConstant(scratch, code);
     la(scratch, MemOperand(scratch, Code::kHeaderSize - kHeapObjectTag));
     b(cond, scratch);
     return;
-  } else if (!isolate()->serializer_enabled()) {
+  } else if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
@@ -293,14 +294,14 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode) && cond == al);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     // Use ip directly instead of using UseScratchRegisterScope, as we do not
     // preserve scratch registers across calls.
     IndirectLoadConstant(ip, code);
     la(ip, MemOperand(ip, Code::kHeaderSize - kHeapObjectTag));
     Call(ip);
     return;
-  } else if (!isolate()->serializer_enabled()) {
+  } else if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
@@ -354,7 +355,7 @@ void TurboAssembler::Push(Smi* smi) {
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(dst, value);
     return;
   }
@@ -364,7 +365,7 @@ void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
 
 void TurboAssembler::Move(Register dst, ExternalReference reference) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadExternalReference(dst, reference);
     return;
   }

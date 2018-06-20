@@ -63,9 +63,10 @@ StackArgumentsAccessor::StackArgumentsAccessor(
       extra_displacement_to_last_argument_(
           extra_displacement_to_last_argument) {}
 
-MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
+MacroAssembler::MacroAssembler(Isolate* isolate, const Options& options,
+                               void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, size, create_code_object) {
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
   if (create_code_object == CodeObjectRequired::kYes) {
     // Unlike TurboAssembler, which can be used off the main thread and may not
     // allocate, macro assembler creates its own copy of the self-reference
@@ -102,7 +103,7 @@ int64_t TurboAssembler::RootRegisterDelta(ExternalReference other) {
 }
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
-  if (root_array_available_ && !serializer_enabled()) {
+  if (root_array_available_ && options().enable_root_array_delta_access) {
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       movp(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -111,7 +112,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
   }
   // Safe code.
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadExternalReference(kScratchRegister, source);
     movp(destination, Operand(kScratchRegister, 0));
     return;
@@ -127,7 +128,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
-  if (root_array_available_ && !serializer_enabled()) {
+  if (root_array_available_ && options().enable_root_array_delta_access) {
     int64_t delta = RootRegisterDelta(destination);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       movp(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
@@ -186,7 +187,7 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
 
 void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
-  if (root_array_available_ && !serializer_enabled()) {
+  if (root_array_available_ && options().enable_root_array_delta_access) {
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       leap(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -195,7 +196,7 @@ void TurboAssembler::LoadAddress(Register destination,
   }
   // Safe code.
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadExternalReference(destination, source);
     return;
   }
@@ -205,7 +206,7 @@ void TurboAssembler::LoadAddress(Register destination,
 
 Operand TurboAssembler::ExternalOperand(ExternalReference target,
                                         Register scratch) {
-  if (root_array_available_ && !serializer_enabled()) {
+  if (root_array_available_ && options().enable_root_array_delta_access) {
     int64_t delta = RootRegisterDelta(target);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       return Operand(kRootRegister, static_cast<int32_t>(delta));
@@ -216,7 +217,7 @@ Operand TurboAssembler::ExternalOperand(ExternalReference target,
 }
 
 int TurboAssembler::LoadAddressSize(ExternalReference source) {
-  if (root_array_available_ && !serializer_enabled()) {
+  if (root_array_available_ && options().enable_root_array_delta_access) {
     // This calculation depends on the internals of LoadAddress.
     // It's correctness is ensured by the asserts in the Call
     // instruction below.
@@ -237,14 +238,6 @@ int TurboAssembler::LoadAddressSize(ExternalReference source) {
 
 
 void MacroAssembler::PushAddress(ExternalReference source) {
-  Address address = source.address();
-  if (is_int32(address) && !serializer_enabled()) {
-    if (emit_debug_code()) {
-      Move(kScratchRegister, kZapValue, RelocInfo::NONE);
-    }
-    Push(Immediate(static_cast<int32_t>(address)));
-    return;
-  }
   LoadAddress(kScratchRegister, source);
   Push(kScratchRegister);
 }
@@ -1069,7 +1062,7 @@ void TurboAssembler::Move(Register dst, Smi* source) {
 
 void TurboAssembler::Move(Register dst, ExternalReference ext) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadExternalReference(dst, ext);
     return;
   }
@@ -1378,7 +1371,7 @@ void TurboAssembler::Push(Handle<HeapObject> source) {
 void TurboAssembler::Move(Register result, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(result, object);
     return;
   }
@@ -1521,7 +1514,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
                           Condition cc) {
 // TODO(X64): Inline this
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
+  if (root_array_available_ && options().isolate_independent_code &&
       !Builtins::IsEmbeddedBuiltin(*code_object)) {
     // Calls to embedded targets are initially generated as standard
     // pc-relative calls below. When creating the embedded blob, call offsets
@@ -1538,7 +1531,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
     jmp(kScratchRegister);
     bind(&skip);
     return;
-  } else if (!isolate()->serializer_enabled()) {
+  } else if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
@@ -1598,7 +1591,7 @@ void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && isolate()->ShouldLoadConstantsFromRootList() &&
+  if (root_array_available_ && options().isolate_independent_code &&
       !Builtins::IsEmbeddedBuiltin(*code_object)) {
     // Calls to embedded targets are initially generated as standard
     // pc-relative calls below. When creating the embedded blob, call offsets
@@ -1609,7 +1602,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
     leap(kScratchRegister, FieldOperand(kScratchRegister, Code::kHeaderSize));
     call(kScratchRegister);
     return;
-  } else if (!isolate()->serializer_enabled()) {
+  } else if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {

@@ -899,8 +899,8 @@ class Assembler : public AssemblerBase {
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+      : Assembler(DefaultOptions(isolate), buffer, buffer_size) {}
+  Assembler(const Options& options, void* buffer, int buffer_size);
 
   virtual ~Assembler();
 
@@ -3626,8 +3626,8 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
-      : Assembler(isolate_data, start, count * kInstructionSize + kGap) {
+  PatchingAssembler(const Options& options, byte* start, unsigned count)
+      : Assembler(options, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }

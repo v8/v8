@@ -12,19 +12,15 @@
 namespace v8 {
 namespace internal {
 
-TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate, void* buffer,
-                                       int buffer_size,
+TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate, const Options& options,
+                                       void* buffer, int buffer_size,
                                        CodeObjectRequired create_code_object)
-    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
+    : Assembler(options, buffer, buffer_size), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ = Handle<HeapObject>::New(
         isolate->heap()->self_reference_marker(), isolate);
   }
 }
-
-TurboAssemblerBase::TurboAssemblerBase(IsolateData isolate_data, void* buffer,
-                                       int buffer_size)
-    : Assembler(isolate_data, buffer, buffer_size) {}
 
 #ifdef V8_EMBEDDED_BUILTINS
 void TurboAssemblerBase::IndirectLoadConstant(Register destination,

@@ -139,38 +139,35 @@ enum class CodeObjectRequired { kNo, kYes };
 
 class AssemblerBase : public Malloced {
  public:
-  enum SerializerEnabled : bool {
-    kSerializerEnabled = true,
-    kSerializerDisabled = false
+  struct Options {
+    // Recording reloc info for external references is needed whenever
+    // code is serialized, e.g. into the snapshot or as a WASM module.
+    // It can be disabled for code that will not survive process destruction.
+    bool record_reloc_info_for_exrefs = true;
+    // Enables access to exrefs by computing a delta from the root array.
+    // Only valid if code will not survive the process.
+    bool enable_root_array_delta_access = false;
+    // Enables specific assembler sequences only used for the simulator.
+    bool enable_simulator_code = false;
+    // Enables use of isolate-independent constants, indirected through the
+    // root array.
+    // (macro assembler feature).
+    bool isolate_independent_code = false;
+    // Enables the use of isolate-independent builtins through an off-heap
+    // trampoline. (macro assembler feature).
+    bool inline_offheap_trampolines = false;
+    // On some platforms, all code is within a given range in the process,
+    // and the start of this range is configured here.
+    Address code_range_start = 0;
   };
-  struct IsolateData {
-    explicit IsolateData(Isolate* isolate);
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
-    constexpr IsolateData(SerializerEnabled serializer_enabled,
-                          Address code_range_start)
-        : serializer_enabled(serializer_enabled),
-          code_range_start(code_range_start) {}
-#else
-    explicit constexpr IsolateData(SerializerEnabled serializer_enabled)
-        : serializer_enabled(serializer_enabled) {}
-#endif
+  static Options DefaultOptions(Isolate* isolate,
+                                bool explicitly_support_serialization = false);
 
-    SerializerEnabled serializer_enabled;
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
-    Address code_range_start;
-#endif
-  };
-
-  AssemblerBase(IsolateData isolate_data, void* buffer, int buffer_size);
+  AssemblerBase(const Options& options, void* buffer, int buffer_size);
   virtual ~AssemblerBase();
 
-  IsolateData isolate_data() const { return isolate_data_; }
-
-  bool serializer_enabled() const { return isolate_data_.serializer_enabled; }
-  void enable_serializer() {
-    isolate_data_.serializer_enabled = kSerializerEnabled;
-  }
+  const Options& options() const { return options_; }
 
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
@@ -258,7 +255,7 @@ class AssemblerBase : public Malloced {
   void RequestHeapObject(HeapObjectRequest request);
 
  private:
-  IsolateData isolate_data_;
+  const Options options_;
   uint64_t enabled_cpu_features_;
   bool emit_debug_code_;
   bool predictable_code_size_;

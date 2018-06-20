@@ -148,7 +148,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
     return;
   }
 #endif
-  PatchingAssembler patching_assembler(IsolateData(isolate()), buffer_ + offset,
+  PatchingAssembler patching_assembler(Assembler::Options{}, buffer_ + offset,
                                        1);
   patching_assembler.PatchSubSp(bytes);
 }

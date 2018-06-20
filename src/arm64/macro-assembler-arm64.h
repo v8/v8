@@ -179,12 +179,10 @@ enum PreShiftImmMode {
 
 class TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : TurboAssemblerBase(isolate, buffer, buffer_size, create_code_object) {}
-
-  TurboAssembler(IsolateData isolate_data, void* buffer, int buffer_size)
-      : TurboAssemblerBase(isolate_data, buffer, buffer_size) {}
+  TurboAssembler(Isolate* isolate, const Options& options, void* buffer,
+                 int buffer_size, CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
+                           create_code_object) {}
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
   // mechanism depends on CEntry. If use_real_aborts is false, Abort will
@@ -1308,8 +1306,12 @@ class TurboAssembler : public TurboAssemblerBase {
 
 class MacroAssembler : public TurboAssembler {
  public:
-  MacroAssembler(Isolate* isolate, byte* buffer, unsigned buffer_size,
-                 CodeObjectRequired create_code_object);
+  MacroAssembler(Isolate* isolate, void* buffer, int size,
+                 CodeObjectRequired create_code_object)
+      : MacroAssembler(isolate, Assembler::DefaultOptions(isolate), buffer,
+                       size, create_code_object) {}
+  MacroAssembler(Isolate* isolate, const Options& options, void* buffer,
+                 int size, CodeObjectRequired create_code_object);
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.
