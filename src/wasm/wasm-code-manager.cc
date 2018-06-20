@@ -501,7 +501,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
        !it.done(); it.next(), orig_it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmStubCall(mode)) {
-      uint32_t stub_call_tag = it.rinfo()->wasm_stub_call_tag();
+      uint32_t stub_call_tag = orig_it.rinfo()->wasm_stub_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
       WasmCode* code =
           runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
