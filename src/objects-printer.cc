@@ -1836,7 +1836,7 @@ void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - js_callback: " << Brief(js_callback());
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
-     << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
+     << (IsSideEffectFreeCallHandlerInfo(GetIsolate()) ? "true" : "false");
   os << "\n";
 }
 

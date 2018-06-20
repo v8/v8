@@ -3506,7 +3506,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "callback= " << Brief(info->callback());
       os << ", js_callback= " << Brief(info->js_callback());
       os << ", data= " << Brief(info->data());
-      if (info->IsSideEffectFreeCallHandlerInfo()) {
+      if (info->IsSideEffectFreeCallHandlerInfo(isolate)) {
         os << ", side_effect_free= true>";
       } else {
         os << ", side_effect_free= false>";

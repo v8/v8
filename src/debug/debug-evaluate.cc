@@ -952,7 +952,8 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
 }
 
 // static
-bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
+bool DebugEvaluate::CallbackHasNoSideEffect(Isolate* isolate,
+                                            Object* callback_info) {
   DisallowHeapAllocation no_gc;
   if (callback_info->IsAccessorInfo()) {
     // List of whitelisted internal accessors can be found in accessors.h.
@@ -971,7 +972,7 @@ bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
     }
   } else if (callback_info->IsCallHandlerInfo()) {
     CallHandlerInfo* info = CallHandlerInfo::cast(callback_info);
-    if (info->IsSideEffectFreeCallHandlerInfo()) return true;
+    if (info->IsSideEffectFreeCallHandlerInfo(isolate)) return true;
     if (FLAG_trace_side_effect_free_debug_evaluate) {
       PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
     }

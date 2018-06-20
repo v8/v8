@@ -101,29 +101,30 @@ ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 
-bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
-  DCHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-         map() == GetHeap()->side_effect_free_call_handler_info_map() ||
-         map() ==
-             GetHeap()->next_call_side_effect_free_call_handler_info_map());
-  return map() == GetHeap()->side_effect_free_call_handler_info_map();
+bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo(Isolate* isolate) const {
+  Heap* heap = isolate->heap();
+  DCHECK(map() == heap->side_effect_call_handler_info_map() ||
+         map() == heap->side_effect_free_call_handler_info_map() ||
+         map() == heap->next_call_side_effect_free_call_handler_info_map());
+  return map() == heap->side_effect_free_call_handler_info_map();
 }
 
-bool CallHandlerInfo::IsSideEffectCallHandlerInfo() const {
-  DCHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-         map() == GetHeap()->side_effect_free_call_handler_info_map() ||
-         map() ==
-             GetHeap()->next_call_side_effect_free_call_handler_info_map());
-  return map() == GetHeap()->side_effect_call_handler_info_map();
+bool CallHandlerInfo::IsSideEffectCallHandlerInfo(Isolate* isolate) const {
+  Heap* heap = isolate->heap();
+  DCHECK(map() == heap->side_effect_call_handler_info_map() ||
+         map() == heap->side_effect_free_call_handler_info_map() ||
+         map() == heap->next_call_side_effect_free_call_handler_info_map());
+  return map() == heap->side_effect_call_handler_info_map();
 }
 
-void CallHandlerInfo::SetNextCallHasNoSideEffect() {
-  set_map(GetHeap()->next_call_side_effect_free_call_handler_info_map());
+void CallHandlerInfo::SetNextCallHasNoSideEffect(Isolate* isolate) {
+  set_map(isolate->heap()->next_call_side_effect_free_call_handler_info_map());
 }
 
-bool CallHandlerInfo::NextCallHasNoSideEffect() {
-  if (map() == GetHeap()->next_call_side_effect_free_call_handler_info_map()) {
-    set_map(GetHeap()->side_effect_call_handler_info_map());
+bool CallHandlerInfo::NextCallHasNoSideEffect(Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  if (map() == heap->next_call_side_effect_free_call_handler_info_map()) {
+    set_map(heap->side_effect_call_handler_info_map());
     return true;
   }
   return false;

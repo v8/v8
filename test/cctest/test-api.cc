@@ -13404,7 +13404,7 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::CallHandlerInfo* handler_info =
       i::CallHandlerInfo::cast(cons->instance_call_handler());
-  CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
+  CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo(CcTest::i_isolate()));
   handler_info->set_map(heap->side_effect_free_call_handler_info_map());
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
 }
