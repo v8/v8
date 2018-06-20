@@ -42,7 +42,7 @@ TF_BUILTIN(WasmAllocateHeapNumber, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmArgumentsAdaptor, WasmBuiltinsAssembler) {
   TNode<Object> context = UncheckedParameter(Descriptor::kContext);
-  TNode<Object> function = UncheckedParameter(Descriptor::kFunction);
+  TNode<Object> function = UncheckedParameter(Descriptor::kTarget);
   TNode<Object> new_target = UncheckedParameter(Descriptor::kNewTarget);
   TNode<Object> argc1 = UncheckedParameter(Descriptor::kActualArgumentsCount);
   TNode<Object> argc2 = UncheckedParameter(Descriptor::kExpectedArgumentsCount);

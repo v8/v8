@@ -48,7 +48,7 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
   TNode<Int32T> args_count =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }

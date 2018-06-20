@@ -290,36 +290,6 @@ constexpr int kMaxBuiltinRegisterParams = 5;
                                                                             \
  public:
 
-#define DEFINE_JS_PARAMETER_TYPES(...)                                        \
-  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
-      override {                                                              \
-    /* kTarget, kNewTarget, kActualArgumentsCount, */                         \
-    MachineType machine_types[] = {MachineType::AnyTagged(),                  \
-                                   MachineType::AnyTagged(),                  \
-                                   MachineType::Int32(), __VA_ARGS__};        \
-    static_assert(                                                            \
-        kParameterCount == arraysize(machine_types),                          \
-        "Parameter names definition is not consistent with parameter types"); \
-    data->InitializePlatformIndependent(arraysize(machine_types), 0,          \
-                                        machine_types);                       \
-  }
-
-#define DECLARE_DESCRIPTOR(name, base)                                         \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
- protected:                                                                    \
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override; \
-  name(CallDescriptors::Key key) : base(key) {}                                \
-                                                                               \
- public:
-
-#define DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(name, base)        \
-  DECLARE_DESCRIPTOR(name, base)                                        \
- protected:                                                             \
-  void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
-      override;                                                         \
-                                                                        \
- public:
-
 #define DEFINE_PARAMETERS(...)                            \
   enum ParameterIndices {                                 \
     __dummy = -1, /* to be able to pass zero arguments */ \
@@ -328,6 +298,26 @@ constexpr int kMaxBuiltinRegisterParams = 5;
     kParameterCount,                                      \
     kContext = kParameterCount /* implicit parameter */   \
   };
+
+#define DEFINE_PARAMETERS_NO_CONTEXT(...)                 \
+  enum ParameterIndices {                                 \
+    __dummy = -1, /* to be able to pass zero arguments */ \
+    ##__VA_ARGS__,                                        \
+                                                          \
+    kParameterCount                                       \
+  };
+
+#define DEFINE_PARAMETER_TYPES(...)                                           \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
+      override {                                                              \
+    /* First element is here to workaround empty __VA_ARGS__ case */          \
+    MachineType machine_types[] = {MachineType::None(), ##__VA_ARGS__};       \
+    static_assert(                                                            \
+        kParameterCount == arraysize(machine_types) - 1,                      \
+        "Parameter names definition is not consistent with parameter types"); \
+    data->InitializePlatformIndependent(kParameterCount, 0,                   \
+                                        &machine_types[1]);                   \
+  }
 
 #define DEFINE_JS_PARAMETERS(...)                       \
   enum ParameterIndices {                               \
@@ -340,17 +330,32 @@ constexpr int kMaxBuiltinRegisterParams = 5;
     kContext = kParameterCount /* implicit parameter */ \
   };
 
+#define DEFINE_JS_PARAMETER_TYPES(...)                                         \
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), /* kTarget */               \
+                         MachineType::AnyTagged(), /* kNewTarget */            \
+                         MachineType::Int32(),     /* kActualArgumentsCount */ \
+                         ##__VA_ARGS__)
+
+#define DECLARE_DESCRIPTOR(name, base)                                         \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
+ protected:                                                                    \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override; \
+  name(CallDescriptors::Key key) : base(key) {}                                \
+                                                                               \
+ public:
+
 class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
 };
 
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
-  // No context parameter
-  enum ParameterIndices { kRequestedSize, kParameterCount };
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(AllocateDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32())
+  DECLARE_DESCRIPTOR(AllocateDescriptor, CallInterfaceDescriptor)
 };
 
 // This descriptor defines the JavaScript calling convention that can be used
@@ -360,7 +365,7 @@ class AllocateDescriptor : public CallInterfaceDescriptor {
 class JSTrampolineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_JS_PARAMETERS()
-  DEFINE_JS_PARAMETER_TYPES();
+  DEFINE_JS_PARAMETER_TYPES()
 
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(JSTrampolineDescriptor,
                                    CallInterfaceDescriptor, 0)
@@ -368,6 +373,8 @@ class JSTrampolineDescriptor : public CallInterfaceDescriptor {
 
 class ContextOnlyDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
@@ -375,8 +382,10 @@ class ContextOnlyDescriptor : public CallInterfaceDescriptor {
 class LoadDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kSlot)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(LoadDescriptor, CallInterfaceDescriptor)
 
   static const Register ReceiverRegister();
   static const Register NameRegister();
@@ -386,8 +395,9 @@ class LoadDescriptor : public CallInterfaceDescriptor {
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kName, kSlot)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(LoadGlobalDescriptor, CallInterfaceDescriptor)
 
   static const Register NameRegister() {
     return LoadDescriptor::NameRegister();
@@ -401,8 +411,11 @@ class LoadGlobalDescriptor : public CallInterfaceDescriptor {
 class StoreDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(StoreDescriptor, CallInterfaceDescriptor)
 
   static const Register ReceiverRegister();
   static const Register NameRegister();
@@ -422,8 +435,13 @@ class StoreDescriptor : public CallInterfaceDescriptor {
 class StoreTransitionDescriptor : public StoreDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kMap, kValue, kSlot, kVector)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreTransitionDescriptor,
-                                               StoreDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kMap
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(StoreTransitionDescriptor, StoreDescriptor)
 
   static const Register MapRegister();
   static const Register SlotRegister();
@@ -436,8 +454,12 @@ class StoreTransitionDescriptor : public StoreDescriptor {
 class StoreWithVectorDescriptor : public StoreDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot, kVector)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreWithVectorDescriptor,
-                                               StoreDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(StoreWithVectorDescriptor, StoreDescriptor)
 
   static const Register VectorRegister();
 
@@ -448,8 +470,10 @@ class StoreWithVectorDescriptor : public StoreDescriptor {
 class StoreGlobalDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kName, kValue, kSlot)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(StoreGlobalDescriptor, CallInterfaceDescriptor)
 
   static const bool kPassLastArgsOnStack =
       StoreDescriptor::kPassLastArgsOnStack;
@@ -472,8 +496,11 @@ class StoreGlobalDescriptor : public CallInterfaceDescriptor {
 class StoreGlobalWithVectorDescriptor : public StoreGlobalDescriptor {
  public:
   DEFINE_PARAMETERS(kName, kValue, kSlot, kVector)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalWithVectorDescriptor,
-                                               StoreGlobalDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(StoreGlobalWithVectorDescriptor, StoreGlobalDescriptor)
 
   static const Register VectorRegister() {
     return StoreWithVectorDescriptor::VectorRegister();
@@ -486,8 +513,11 @@ class StoreGlobalWithVectorDescriptor : public StoreGlobalDescriptor {
 class LoadWithVectorDescriptor : public LoadDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadWithVectorDescriptor,
-                                               LoadDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(LoadWithVectorDescriptor, LoadDescriptor)
 
   static const Register VectorRegister();
 };
@@ -495,8 +525,10 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
  public:
   DEFINE_PARAMETERS(kName, kSlot, kVector)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
-                                               LoadGlobalDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(LoadGlobalWithVectorDescriptor, LoadGlobalDescriptor)
 
   static const Register VectorRegister() {
     return LoadWithVectorDescriptor::VectorRegister();
@@ -506,8 +538,9 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
 class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kScopeInfo, kSlots)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastNewFunctionContextDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kScopeInfo
+                         MachineType::Int32())      // kSlots
+  DECLARE_DESCRIPTOR(FastNewFunctionContextDescriptor, CallInterfaceDescriptor)
 
   static const Register ScopeInfoRegister();
   static const Register SlotsRegister();
@@ -516,6 +549,8 @@ class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kNewTarget)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::AnyTagged())  // kNewTarget
   DECLARE_DESCRIPTOR(FastNewObjectDescriptor, CallInterfaceDescriptor)
   static const Register TargetRegister();
   static const Register NewTargetRegister();
@@ -524,13 +559,19 @@ class FastNewObjectDescriptor : public CallInterfaceDescriptor {
 class RecordWriteDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject, kSlot, kIsolate, kRememberedSet, kFPMode)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RecordWriteDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
+                         MachineType::Pointer(),        // kSlot
+                         MachineType::Pointer(),        // kIsolate
+                         MachineType::TaggedSigned(),   // kRememberedSet
+                         MachineType::TaggedSigned())   // kFPMode
+
+  DECLARE_DESCRIPTOR(RecordWriteDescriptor, CallInterfaceDescriptor)
 };
 
 class TypeConversionDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kArgument)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionDescriptor, CallInterfaceDescriptor)
 
   static const Register ArgumentRegister();
@@ -540,8 +581,9 @@ class TypeConversionStackParameterDescriptor final
     : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kArgument)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      TypeConversionStackParameterDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(TypeConversionStackParameterDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class GetPropertyDescriptor final : public CallInterfaceDescriptor {
@@ -554,96 +596,114 @@ class GetPropertyDescriptor final : public CallInterfaceDescriptor {
 class TypeofDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeofDescriptor, CallInterfaceDescriptor)
 };
 
 class CallTrampolineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kActualArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallTrampolineDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
+                         MachineType::Int32())      // kActualArgumentsCount
+  DECLARE_DESCRIPTOR(CallTrampolineDescriptor, CallInterfaceDescriptor)
 };
 
 class CallVarargsDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kArgumentsList,
                     kArgumentsLength)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallVarargsDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::Int32(),      // kActualArgumentsCount
+                         MachineType::AnyTagged(),  // kArgumentsList
+                         MachineType::Int32())      // kArgumentsLength
+  DECLARE_DESCRIPTOR(CallVarargsDescriptor, CallInterfaceDescriptor)
 };
 
 class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kStartIndex)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallForwardVarargsDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::Int32(),      // kActualArgumentsCount
+                         MachineType::Int32())      // kStartIndex
+  DECLARE_DESCRIPTOR(CallForwardVarargsDescriptor, CallInterfaceDescriptor)
 };
 
 class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallWithSpreadDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::Int32(),      // kArgumentsCount
+                         MachineType::AnyTagged())  // kSpread
+  DECLARE_DESCRIPTOR(CallWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
 class CallWithArrayLikeDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsList)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallWithArrayLikeDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::AnyTagged())  // kArgumentsList
+  DECLARE_DESCRIPTOR(CallWithArrayLikeDescriptor, CallInterfaceDescriptor)
 };
 
 class ConstructVarargsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kArgumentsList,
-                    kArgumentsLength)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructVarargsDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_JS_PARAMETERS(kArgumentsList, kArgumentsLength)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged(),  // kArgumentsList
+                            MachineType::Int32())      // kArgumentsLength
+  DECLARE_DESCRIPTOR(ConstructVarargsDescriptor, CallInterfaceDescriptor)
 };
 
 class ConstructForwardVarargsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kStartIndex)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      ConstructForwardVarargsDescriptor, CallInterfaceDescriptor)
+  DEFINE_JS_PARAMETERS(kStartIndex)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
+  DECLARE_DESCRIPTOR(ConstructForwardVarargsDescriptor, CallInterfaceDescriptor)
 };
 
 class ConstructWithSpreadDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsCount, kSpread)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructWithSpreadDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_JS_PARAMETERS(kSpread)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(ConstructWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
 class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsList)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructWithArrayLikeDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::AnyTagged(),  // kNewTarget
+                         MachineType::AnyTagged())  // kArgumentsList
+  DECLARE_DESCRIPTOR(ConstructWithArrayLikeDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(ishell): consider merging this with ArrayConstructorDescriptor
 class ConstructStubDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount,
-                    kAllocationSite)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructStubDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_JS_PARAMETERS(kAllocationSite)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
+
+  // TODO(ishell): Use DECLARE_JS_COMPATIBLE_DESCRIPTOR if registers match
+  DECLARE_DESCRIPTOR(ConstructStubDescriptor, CallInterfaceDescriptor)
 };
 
 class CallFunctionDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS(kTarget)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
 };
 
 class AbortJSDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AbortJSDescriptor, CallInterfaceDescriptor)
 };
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
 
@@ -663,8 +723,11 @@ class ArrayNArgumentsConstructorDescriptor : public CallInterfaceDescriptor {
   // The ArrayNArgumentsConstructor builtin does not access stack arguments
   // directly it just forwards them to the runtime function.
   DEFINE_PARAMETERS(kFunction, kAllocationSite, kActualArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      ArrayNArgumentsConstructorDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction,
+                         MachineType::AnyTagged(),  // kAllocationSite
+                         MachineType::Int32())      // kActualArgumentsCount
+  DECLARE_DESCRIPTOR(ArrayNArgumentsConstructorDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class ArrayNoArgumentConstructorDescriptor
@@ -675,9 +738,12 @@ class ArrayNoArgumentConstructorDescriptor
   // JS arguments passed on the expression stack.
   DEFINE_PARAMETERS(kFunction, kAllocationSite, kActualArgumentsCount,
                     kFunctionParameter)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      ArrayNoArgumentConstructorDescriptor,
-      ArrayNArgumentsConstructorDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
+                         MachineType::AnyTagged(),  // kAllocationSite
+                         MachineType::Int32(),      // kActualArgumentsCount
+                         MachineType::AnyTagged())  // kFunctionParameter
+  DECLARE_DESCRIPTOR(ArrayNoArgumentConstructorDescriptor,
+                     ArrayNArgumentsConstructorDescriptor)
 };
 
 class ArraySingleArgumentConstructorDescriptor
@@ -688,9 +754,13 @@ class ArraySingleArgumentConstructorDescriptor
   // JS arguments passed on the expression stack.
   DEFINE_PARAMETERS(kFunction, kAllocationSite, kActualArgumentsCount,
                     kFunctionParameter, kArraySizeSmiParameter)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      ArraySingleArgumentConstructorDescriptor,
-      ArrayNArgumentsConstructorDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
+                         MachineType::AnyTagged(),  // kAllocationSite
+                         MachineType::Int32(),      // kActualArgumentsCount
+                         MachineType::AnyTagged(),  // kFunctionParameter
+                         MachineType::AnyTagged())  // kArraySizeSmiParameter
+  DECLARE_DESCRIPTOR(ArraySingleArgumentConstructorDescriptor,
+                     ArrayNArgumentsConstructorDescriptor)
 };
 
 class CompareDescriptor : public CallInterfaceDescriptor {
@@ -711,35 +781,46 @@ class BinaryOpDescriptor : public CallInterfaceDescriptor {
 class StringAtDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kPosition)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringAtDescriptor,
-                                               CallInterfaceDescriptor)
+  // TODO(turbofan): Allow builtins to return untagged values.
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+                         MachineType::IntPtr())     // kPosition
+  DECLARE_DESCRIPTOR(StringAtDescriptor, CallInterfaceDescriptor)
 };
 
 class StringSubstringDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kString, kFrom, kTo)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringSubstringDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kString
+                         MachineType::IntPtr(),     // kFrom
+                         MachineType::IntPtr())     // kTo
+
+  // TODO(turbofan): Allow builtins to return untagged values.
+  DECLARE_DESCRIPTOR(StringSubstringDescriptor, CallInterfaceDescriptor)
 };
 
 class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount,
-                    kExpectedArgumentsCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArgumentAdaptorDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_JS_PARAMETERS(kExpectedArgumentsCount)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
+  DECLARE_DESCRIPTOR(ArgumentAdaptorDescriptor, CallInterfaceDescriptor)
 };
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTargetContext, kCallData, kHolder, kApiFunctionAddress)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiCallbackDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext
+                         MachineType::AnyTagged(),  // kCallData
+                         MachineType::AnyTagged(),  // kHolder
+                         MachineType::Pointer())    // kApiFunctionAddress
+  DECLARE_DESCRIPTOR(ApiCallbackDescriptor, CallInterfaceDescriptor)
 };
 
 class ApiGetterDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kHolder, kCallback)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+                         MachineType::AnyTagged(),  // kHolder
+                         MachineType::AnyTagged())  // kCallback
   DECLARE_DESCRIPTOR(ApiGetterDescriptor, CallInterfaceDescriptor)
 
   static const Register ReceiverRegister();
@@ -751,6 +832,8 @@ class ApiGetterDescriptor : public CallInterfaceDescriptor {
 class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject, kKey)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kObject
+                         MachineType::AnyTagged())  // kKey
   DECLARE_DESCRIPTOR(GrowArrayElementsDescriptor, CallInterfaceDescriptor)
 
   static const Register ObjectRegister();
@@ -760,8 +843,10 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFrame, kLength, kMappedCount)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(NewArgumentsElementsDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),       // kFrame
+                         MachineType::TaggedSigned(),  // kLength
+                         MachineType::TaggedSigned())  // kMappedCount
+  DECLARE_DESCRIPTOR(NewArgumentsElementsDescriptor, CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
@@ -769,15 +854,21 @@ class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
  public:
   DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
                     kDispatchTable)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(InterpreterDispatchDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kAccumulator
+                         MachineType::IntPtr(),     // kBytecodeOffset
+                         MachineType::AnyTagged(),  // kBytecodeArray
+                         MachineType::IntPtr())     // kDispatchTable
+  DECLARE_DESCRIPTOR(InterpreterDispatchDescriptor, CallInterfaceDescriptor)
 };
 
 class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunction)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InterpreterPushArgsThenCallDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
+                         MachineType::Pointer(),    // kFirstArgument
+                         MachineType::AnyTagged())  // kFunction
+  DECLARE_DESCRIPTOR(InterpreterPushArgsThenCallDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class InterpreterPushArgsThenConstructDescriptor
@@ -785,25 +876,37 @@ class InterpreterPushArgsThenConstructDescriptor
  public:
   DEFINE_PARAMETERS(kNumberOfArguments, kNewTarget, kConstructor,
                     kFeedbackElement, kFirstArgument)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InterpreterPushArgsThenConstructDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
+                         MachineType::AnyTagged(),  // kNewTarget
+                         MachineType::AnyTagged(),  // kConstructor
+                         MachineType::AnyTagged(),  // kFeedbackElement
+                         MachineType::Pointer())    // kFirstArgument
+  DECLARE_DESCRIPTOR(InterpreterPushArgsThenConstructDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunctionEntry)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(InterpreterCEntryDescriptor,
-                                               CallInterfaceDescriptor)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),    // kNumberOfArguments
+                         MachineType::Pointer(),  // kFirstArgument
+                         MachineType::Pointer())  // kFunctionEntry
+  DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
 };
 
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS(kValue, kGenerator)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
+                         MachineType::AnyTagged())  // kGenerator
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
 };
 
 class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FrameDropperTrampolineDescriptor,
-                                               CallInterfaceDescriptor)
+ public:
+  DEFINE_PARAMETERS(kRestartFp)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer())
+  DECLARE_DESCRIPTOR(FrameDropperTrampolineDescriptor, CallInterfaceDescriptor)
 };
 
 class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
@@ -827,10 +930,10 @@ BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR
 #undef DECLARE_JS_COMPATIBLE_DESCRIPTOR
-#undef DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE
-#undef DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG
 #undef DEFINE_PARAMETERS
-#undef DEFINE_JS_PARAMETES
+#undef DEFINE_PARAMETERS_NO_CONTEXT
+#undef DEFINE_PARAMETER_TYPES
+#undef DEFINE_JS_PARAMETERS
 #undef DEFINE_JS_PARAMETER_TYPES
 
 // We define the association between CallDescriptors::Key and the specialized
