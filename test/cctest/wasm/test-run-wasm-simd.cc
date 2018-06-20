@@ -465,7 +465,7 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4ConvertI32x4) {
+WASM_SIMD_TEST(F32x4ConvertI32x4) {
   WasmRunner<int32_t, int32_t, float, float> r(execution_mode, lower_simd);
   byte a = 0;
   byte expected_signed = 1;
@@ -861,7 +861,7 @@ int32_t ConvertToInt(double val, bool unsigned_integer) {
 }
 
 // Tests both signed and unsigned conversion.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ConvertF32x4) {
+WASM_SIMD_TEST(I32x4ConvertF32x4) {
   WasmRunner<int32_t, float, int32_t, int32_t> r(execution_mode, lower_simd);
   byte a = 0;
   byte expected_signed = 1;
@@ -886,7 +886,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ConvertF32x4) {
 }
 
 // Tests both signed and unsigned conversion from I16x8 (unpacking).
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4ConvertI16x8) {
+WASM_SIMD_TEST(I32x4ConvertI16x8) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(execution_mode,
                                                             lower_simd);
   byte a = 0;
@@ -1108,7 +1108,7 @@ WASM_SIMD_TEST(I32x4ShrU) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
 // Tests both signed and unsigned conversion from I8x16 (unpacking).
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8ConvertI8x16) {
+WASM_SIMD_TEST(I16x8ConvertI8x16) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(execution_mode,
                                                             lower_simd);
   byte a = 0;
@@ -1172,30 +1172,47 @@ WASM_SIMD_TEST(I16x8Neg) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion from I32x4 (packing).
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8ConvertI32x4) {
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+WASM_SIMD_TEST(I16x8ConvertI32x4) {
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t> r(
+      execution_mode, lower_simd);
   byte a = 0;
-  byte packed_signed = 1;
-  byte packed_unsigned = 2;
+  byte b = 1;
+  // indices for packed signed params
+  byte ps_a = 2;
+  byte ps_b = 3;
+  // indices for packed unsigned params
+  byte pu_a = 4;
+  byte pu_b = 5;
   byte simd0 = r.AllocateLocal(kWasmS128);
   byte simd1 = r.AllocateLocal(kWasmS128);
   byte simd2 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(kExprI16x8SConvertI32x4,
+        WASM_SET_LOCAL(simd1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(b))),
+        WASM_SET_LOCAL(simd2, WASM_SIMD_BINOP(kExprI16x8SConvertI32x4,
                                               WASM_GET_LOCAL(simd0),
-                                              WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT8(I16x8, simd1, I32, packed_signed),
+                                              WASM_GET_LOCAL(simd1))),
+        WASM_SIMD_CHECK8(I16x8, simd2, I32, ps_a, ps_a, ps_a, ps_a, ps_b, ps_b,
+                         ps_b, ps_b),
         WASM_SET_LOCAL(simd2, WASM_SIMD_BINOP(kExprI16x8UConvertI32x4,
                                               WASM_GET_LOCAL(simd0),
-                                              WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT8(I16x8, simd2, I32, packed_unsigned), WASM_ONE);
+                                              WASM_GET_LOCAL(simd1))),
+        WASM_SIMD_CHECK8(I16x8, simd2, I32, pu_a, pu_a, pu_a, pu_a, pu_b, pu_b,
+                         pu_b, pu_b),
+        WASM_ONE);
 
   FOR_INT32_INPUTS(i) {
-    int32_t packed_signed = Narrow<int16_t>(*i);
-    int32_t packed_unsigned = UnsignedNarrow<int16_t>(*i);
-    // Sign-extend here, since ExtractLane sign extends.
-    if (packed_unsigned & 0x8000) packed_unsigned |= 0xFFFF0000;
-    CHECK_EQ(1, r.Call(*i, packed_signed, packed_unsigned));
+    FOR_INT32_INPUTS(j) {
+      // packed signed values
+      int32_t ps_a = Narrow<int16_t>(*i);
+      int32_t ps_b = Narrow<int16_t>(*j);
+      // packed unsigned values
+      int32_t pu_a = UnsignedNarrow<int16_t>(*i);
+      int32_t pu_b = UnsignedNarrow<int16_t>(*j);
+      // Sign-extend here, since ExtractLane sign extends.
+      if (pu_a & 0x8000) pu_a |= 0xFFFF0000;
+      if (pu_b & 0x8000) pu_b |= 0xFFFF0000;
+      CHECK_EQ(1, r.Call(*i, *j, ps_a, ps_b, pu_a, pu_b));
+    }
   }
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
@@ -1385,30 +1402,49 @@ WASM_SIMD_TEST(I8x16Neg) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion from I16x8 (packing).
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I8x16ConvertI16x8) {
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+WASM_SIMD_TEST(I8x16ConvertI16x8) {
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t> r(
+      execution_mode, lower_simd);
   byte a = 0;
-  byte packed_signed = 1;
-  byte packed_unsigned = 2;
+  byte b = 1;
+  // indices for packed signed params
+  byte ps_a = 2;
+  byte ps_b = 3;
+  // indices for packed unsigned params
+  byte pu_a = 4;
+  byte pu_b = 5;
   byte simd0 = r.AllocateLocal(kWasmS128);
   byte simd1 = r.AllocateLocal(kWasmS128);
   byte simd2 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd0, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(kExprI8x16SConvertI16x8,
+        WASM_SET_LOCAL(simd1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(b))),
+        WASM_SET_LOCAL(simd2, WASM_SIMD_BINOP(kExprI8x16SConvertI16x8,
                                               WASM_GET_LOCAL(simd0),
-                                              WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT16(I8x16, simd1, I32, packed_signed),
+                                              WASM_GET_LOCAL(simd1))),
+        WASM_SIMD_CHECK16(I8x16, simd2, I32, ps_a, ps_a, ps_a, ps_a, ps_a, ps_a,
+                          ps_a, ps_a, ps_b, ps_b, ps_b, ps_b, ps_b, ps_b, ps_b,
+                          ps_b),
         WASM_SET_LOCAL(simd2, WASM_SIMD_BINOP(kExprI8x16UConvertI16x8,
                                               WASM_GET_LOCAL(simd0),
-                                              WASM_GET_LOCAL(simd0))),
-        WASM_SIMD_CHECK_SPLAT16(I8x16, simd2, I32, packed_unsigned), WASM_ONE);
+                                              WASM_GET_LOCAL(simd1))),
+        WASM_SIMD_CHECK16(I8x16, simd2, I32, pu_a, pu_a, pu_a, pu_a, pu_a, pu_a,
+                          pu_a, pu_a, pu_b, pu_b, pu_b, pu_b, pu_b, pu_b, pu_b,
+                          pu_b),
+        WASM_ONE);
 
   FOR_INT16_INPUTS(i) {
-    int32_t packed_signed = Narrow<int8_t>(*i);
-    int32_t packed_unsigned = UnsignedNarrow<int8_t>(*i);
-    // Sign-extend here, since ExtractLane sign extends.
-    if (packed_unsigned & 0x80) packed_unsigned |= 0xFFFFFF00;
-    CHECK_EQ(1, r.Call(*i, packed_signed, packed_unsigned));
+    FOR_INT16_INPUTS(j) {
+      // packed signed values
+      int32_t ps_a = Narrow<int8_t>(*i);
+      int32_t ps_b = Narrow<int8_t>(*j);
+      // packed unsigned values
+      int32_t pu_a = UnsignedNarrow<int8_t>(*i);
+      int32_t pu_b = UnsignedNarrow<int8_t>(*j);
+      // Sign-extend here, since ExtractLane sign extends.
+      if (pu_a & 0x80) pu_a |= 0xFFFFFF00;
+      if (pu_b & 0x80) pu_b |= 0xFFFFFF00;
+      CHECK_EQ(1, r.Call(*i, *j, ps_a, ps_b, pu_a, pu_b));
+    }
   }
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||

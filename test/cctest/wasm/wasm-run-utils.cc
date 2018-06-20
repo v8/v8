@@ -304,7 +304,10 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
 
   // Function, context_address, effect, and control.
   Node** parameters = zone()->NewArray<Node*>(param_types.length() + 4);
-  graph()->SetStart(graph()->NewNode(common()->Start(7)));
+  int start_value_output_count =
+      static_cast<int>(signature_->parameter_count()) + 1;
+  graph()->SetStart(
+      graph()->NewNode(common()->Start(start_value_output_count)));
   Node* effect = graph()->start();
   int parameter_count = 0;
 

@@ -1848,6 +1848,75 @@ class ThreadImpl {
         SHIFT_CASE(I8x16ShrU, i8x16, int16, 16,
                    static_cast<uint8_t>(a) >> imm.shift)
 #undef SHIFT_CASE
+#define CONVERT_CASE(op, src_type, name, dst_type, count, start_index, ctype, \
+                     expr)                                                    \
+  case kExpr##op: {                                                           \
+    WasmValue v = Pop();                                                      \
+    src_type s = v.to_s128().to_##name();                                     \
+    dst_type res;                                                             \
+    for (size_t i = 0; i < count; ++i) {                                      \
+      ctype a = s.val[start_index + i];                                       \
+      res.val[i] = expr;                                                      \
+    }                                                                         \
+    Push(WasmValue(Simd128(res)));                                            \
+    return true;                                                              \
+  }
+        CONVERT_CASE(F32x4SConvertI32x4, int4, i32x4, float4, 4, 0, int32_t,
+                     static_cast<float>(a))
+        CONVERT_CASE(F32x4UConvertI32x4, int4, i32x4, float4, 4, 0, uint32_t,
+                     static_cast<float>(a))
+        CONVERT_CASE(I32x4SConvertF32x4, float4, f32x4, int4, 4, 0, double,
+                     std::isnan(a) ? 0
+                                   : a<kMinInt ? kMinInt : a> kMaxInt
+                                         ? kMaxInt
+                                         : static_cast<int32_t>(a))
+        CONVERT_CASE(I32x4UConvertF32x4, float4, f32x4, int4, 4, 0, double,
+                     std::isnan(a)
+                         ? 0
+                         : a<0 ? 0 : a> kMaxUInt32 ? kMaxUInt32
+                                                   : static_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4SConvertI16x8High, int8, i16x8, int4, 4, 4, int16_t,
+                     a)
+        CONVERT_CASE(I32x4UConvertI16x8High, int8, i16x8, int4, 4, 4, uint16_t,
+                     a)
+        CONVERT_CASE(I32x4SConvertI16x8Low, int8, i16x8, int4, 4, 0, int16_t, a)
+        CONVERT_CASE(I32x4UConvertI16x8Low, int8, i16x8, int4, 4, 0, uint16_t,
+                     a)
+        CONVERT_CASE(I16x8SConvertI8x16High, int16, i8x16, int8, 8, 8, int8_t,
+                     a)
+        CONVERT_CASE(I16x8UConvertI8x16High, int16, i8x16, int8, 8, 8, uint8_t,
+                     a)
+        CONVERT_CASE(I16x8SConvertI8x16Low, int16, i8x16, int8, 8, 0, int8_t, a)
+        CONVERT_CASE(I16x8UConvertI8x16Low, int16, i8x16, int8, 8, 0, uint8_t,
+                     a)
+#undef CONVERT_CASE
+#define PACK_CASE(op, src_type, name, dst_type, count, ctype, dst_ctype,    \
+                  is_unsigned)                                              \
+  case kExpr##op: {                                                         \
+    WasmValue v2 = Pop();                                                   \
+    WasmValue v1 = Pop();                                                   \
+    src_type s1 = v1.to_s128().to_##name();                                 \
+    src_type s2 = v2.to_s128().to_##name();                                 \
+    dst_type res;                                                           \
+    int64_t min = std::numeric_limits<ctype>::min();                        \
+    int64_t max = std::numeric_limits<ctype>::max();                        \
+    for (size_t i = 0; i < count; ++i) {                                    \
+      int32_t v = i < count / 2 ? s1.val[i] : s2.val[i - count / 2];        \
+      int64_t a = is_unsigned ? static_cast<int64_t>(v & 0xFFFFFFFFu) : v;  \
+      res.val[i] = static_cast<dst_ctype>(std::max(min, std::min(max, a))); \
+    }                                                                       \
+    Push(WasmValue(Simd128(res)));                                          \
+    return true;                                                            \
+  }
+        PACK_CASE(I16x8SConvertI32x4, int4, i32x4, int8, 8, int16_t, int16_t,
+                  false)
+        PACK_CASE(I16x8UConvertI32x4, int4, i32x4, int8, 8, uint16_t, int16_t,
+                  true)
+        PACK_CASE(I8x16SConvertI16x8, int8, i16x8, int16, 16, int8_t, int8_t,
+                  false)
+        PACK_CASE(I8x16UConvertI16x8, int8, i16x8, int16, 16, uint8_t, int8_t,
+                  true)
+#undef PACK_CASE
       default:
         return false;
     }
