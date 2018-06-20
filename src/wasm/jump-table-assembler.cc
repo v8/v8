@@ -161,6 +161,27 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
+                                                 Address lazy_compile_target) {
+  li(t0, func_index);  // max. 2 instr
+  // Jump produces max. 4 instructions for 32-bit platform
+  // and max. 6 instructions for 64-bit platform.
+  Jump(lazy_compile_target, RelocInfo::NONE);
+}
+
+void JumpTableAssembler::EmitJumpSlot(Address target) {
+  Jump(target, RelocInfo::NONE);
+}
+
+void JumpTableAssembler::NopBytes(int bytes) {
+  DCHECK_LE(0, bytes);
+  DCHECK_EQ(0, bytes % kInstrSize);
+  for (; bytes > 0; bytes -= kInstrSize) {
+    nop();
+  }
+}
+
 #elif V8_TARGET_ARCH_PPC
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
