@@ -11,13 +11,9 @@ Running test: testIncorrectScriptId
 
 Running test: testSourceWithSyntaxError
 {
-    id : <messageId>
-    result : {
-        exceptionDetails : {
-            columnNumber : 2
-            exceptionId : <exceptionId>
-            lineNumber : 0
-            text : Invalid or unexpected token
-        }
+    error : {
+        code : -32000
+        message : Uncaught [object Object]
     }
+    id : <messageId>
 }
