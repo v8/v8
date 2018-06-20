@@ -308,13 +308,14 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     };
     // Collect data from log.
     var logreader = new LogReader(
-      { 'timer-event-start': { parsers: [null, parseTimeStamp],
+      { 'timer-event-start': { parsers: [parseString, parseTimeStamp],
                                processor: processTimerEventStart },
-        'timer-event-end':   { parsers: [null, parseTimeStamp],
+        'timer-event-end':   { parsers: [parseString, parseTimeStamp],
                                processor: processTimerEventEnd },
-        'shared-library': { parsers: [null, parseInt, parseInt],
+        'shared-library': { parsers: [parseString, parseInt, parseInt],
                             processor: processSharedLibrary },
-        'code-creation':  { parsers: [null, parseInt, parseInt, parseInt, null],
+        'code-creation':  { parsers: [parseString, parseInt, parseInt,
+                                parseInt, parseString],
                             processor: processCodeCreateEvent },
         'code-move':      { parsers: [parseInt, parseInt],
                             processor: processCodeMoveEvent },
@@ -324,8 +325,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
                             processor: processCodeDeoptEvent },
         'current-time':   { parsers: [parseTimeStamp],
                             processor: processCurrentTimeEvent },
-        'tick':           { parsers: [parseInt, parseTimeStamp,
-                                      null, null, parseInt, 'var-args'],
+        'tick':           { parsers: [parseInt, parseTimeStamp, parseString,
+                                parseString, parseInt, parseVarArgs],
                             processor: processTickEvent }
       });
 

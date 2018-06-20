@@ -175,6 +175,9 @@ LogReader.prototype.skipDispatch = function(dispatch) {
   return false;
 };
 
+// Parses dummy variable for readability;
+const parseString = 'parse-string';
+const parseVarArgs = 'parse-var-args';
 
 /**
  * Does a dispatch of a log record.
@@ -196,14 +199,16 @@ LogReader.prototype.dispatchLogRow_ = function(fields) {
   var parsedFields = [];
   for (var i = 0; i < dispatch.parsers.length; ++i) {
     var parser = dispatch.parsers[i];
-    if (parser === null) {
+    if (parser === parseString) {
       parsedFields.push(fields[1 + i]);
     } else if (typeof parser == 'function') {
       parsedFields.push(parser(fields[1 + i]));
-    } else {
+    } else if (parser === parseVarArgs) {
       // var-args
       parsedFields.push(fields.slice(1 + i));
       break;
+    } else {
+      throw new Error("Invalid log field parser: " + parser);
     }
   }
 
