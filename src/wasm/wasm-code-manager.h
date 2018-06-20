@@ -428,7 +428,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // code. The native module may later request more memory.
   // TODO(titzer): isolate is only required here for CompilationState.
   std::unique_ptr<NativeModule> NewNativeModule(Isolate* isolate,
-                                                const WasmModule& module,
                                                 ModuleEnv& env);
   // TODO(titzer): isolate is only required here for CompilationState.
   std::unique_ptr<NativeModule> NewNativeModule(

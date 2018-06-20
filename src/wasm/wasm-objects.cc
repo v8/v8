@@ -276,6 +276,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     std::shared_ptr<wasm::WasmModule> module, wasm::ModuleEnv& env,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
+  DCHECK_EQ(module.get(), env.module);
   // The {managed_module} will take shared ownership of the {WasmModule} object,
   // and release it when the GC reclaim the managed.
   size_t module_size = EstimateWasmModuleSize(module.get());
@@ -286,7 +287,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   // Create the first {WasmCompiledModule} associated with this
   // {WasmModuleObject}.
   Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, managed_module->raw(), env);
+      WasmCompiledModule::New(isolate, env);
 
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
@@ -1506,7 +1507,6 @@ Address WasmExportedFunction::GetWasmCallTarget() {
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
-                                                   WasmModule* module,
                                                    wasm::ModuleEnv& env) {
   Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
       isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
@@ -1514,10 +1514,9 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
   {
     size_t memory_estimate =
         isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-            module);
+            env.module);
     auto native_module =
-        isolate->wasm_engine()->code_manager()->NewNativeModule(isolate,
-                                                                *module, env);
+        isolate->wasm_engine()->code_manager()->NewNativeModule(isolate, env);
     Handle<Foreign> native_module_wrapper =
         Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
                                                    std::move(native_module));

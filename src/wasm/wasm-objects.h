@@ -574,7 +574,6 @@ class WasmCompiledModule : public Struct {
 
  public:
   static Handle<WasmCompiledModule> New(Isolate* isolate,
-                                        wasm::WasmModule* module,
                                         wasm::ModuleEnv& env);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,

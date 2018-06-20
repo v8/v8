@@ -878,14 +878,15 @@ size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
   return estimate;
 }
 
-std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, const WasmModule& module, ModuleEnv& env) {
-  size_t memory_estimate = EstimateNativeModuleSize(&module);
+std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(Isolate* isolate,
+                                                               ModuleEnv& env) {
+  const WasmModule* module = env.module;
+  size_t memory_estimate = EstimateNativeModuleSize(module);
   uint32_t num_wasm_functions =
-      module.num_imported_functions + module.num_declared_functions;
-  DCHECK_EQ(module.functions.size(), num_wasm_functions);
+      module->num_imported_functions + module->num_declared_functions;
+  DCHECK_EQ(module->functions.size(), num_wasm_functions);
   return NewNativeModule(isolate, memory_estimate, num_wasm_functions,
-                         module.num_imported_functions,
+                         module->num_imported_functions,
                          kModuleCanAllocateMoreMemory, env);
 }
 
