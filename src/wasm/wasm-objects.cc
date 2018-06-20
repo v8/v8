@@ -419,7 +419,7 @@ void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
           position) {
     Handle<BreakPointInfo> old_info(
         BreakPointInfo::cast(breakpoint_infos->get(insert_pos)), isolate);
-    BreakPointInfo::SetBreakPoint(old_info, break_point);
+    BreakPointInfo::SetBreakPoint(isolate, old_info, break_point);
     return;
   }
 
@@ -446,7 +446,7 @@ void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
   // Generate new BreakpointInfo.
   Handle<BreakPointInfo> breakpoint_info =
       isolate->factory()->NewBreakPointInfo(position);
-  BreakPointInfo::SetBreakPoint(breakpoint_info, break_point);
+  BreakPointInfo::SetBreakPoint(isolate, breakpoint_info, break_point);
 
   // Now insert new position at insert_pos.
   new_breakpoint_infos->set(insert_pos, *breakpoint_info);

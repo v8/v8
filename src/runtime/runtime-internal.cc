@@ -570,7 +570,7 @@ RUNTIME_FUNCTION(Runtime_CreateTemplateObject) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
 
-  return *TemplateObjectDescription::CreateTemplateObject(description);
+  return *TemplateObjectDescription::CreateTemplateObject(isolate, description);
 }
 
 RUNTIME_FUNCTION(Runtime_ReportMessage) {

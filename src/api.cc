@@ -2331,7 +2331,7 @@ Local<Value> Module::GetModuleNamespace() {
       "v8::Module::GetModuleNamespace must be used on an instantiated module");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Handle<i::JSModuleNamespace> module_namespace =
-      i::Module::GetModuleNamespace(self);
+      i::Module::GetModuleNamespace(self->GetIsolate(), self);
   return ToApiHandle<Value>(module_namespace);
 }
 
@@ -2351,8 +2351,8 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(isolate, context, Module, InstantiateModule, Nothing<bool>(),
            i::HandleScope);
-  has_pending_exception =
-      !i::Module::Instantiate(Utils::OpenHandle(this), context, callback);
+  has_pending_exception = !i::Module::Instantiate(
+      isolate, Utils::OpenHandle(this), context, callback);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -2371,7 +2371,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   CHECK_GE(self->status(), i::Module::kInstantiated);
 
   Local<Value> result;
-  has_pending_exception = !ToLocal(i::Module::Evaluate(self), &result);
+  has_pending_exception = !ToLocal(i::Module::Evaluate(isolate, self), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -4163,9 +4163,10 @@ MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
 
 
 Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
+  i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
   auto self = Utils::OpenHandle(this);
   auto other = Utils::OpenHandle(*that);
-  return i::Object::Equals(self, other);
+  return i::Object::Equals(isolate, self, other);
 }
 
 
@@ -7065,7 +7066,7 @@ void Map::Clear() {
   i::Isolate* isolate = self->GetIsolate();
   LOG_API(isolate, Map, Clear);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::JSMap::Clear(self);
+  i::JSMap::Clear(isolate, self);
 }
 
 
@@ -7196,7 +7197,7 @@ void Set::Clear() {
   i::Isolate* isolate = self->GetIsolate();
   LOG_API(isolate, Set, Clear);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::JSSet::Clear(self);
+  i::JSSet::Clear(isolate, self);
 }
 
 

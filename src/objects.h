@@ -1329,10 +1329,11 @@ class Object {
 
   // ES6 section 7.2.11 Abstract Relational Comparison
   V8_WARN_UNUSED_RESULT static Maybe<ComparisonResult> Compare(
-      Handle<Object> x, Handle<Object> y);
+      Isolate* isolate, Handle<Object> x, Handle<Object> y);
 
   // ES6 section 7.2.12 Abstract Equality Comparison
-  V8_WARN_UNUSED_RESULT static Maybe<bool> Equals(Handle<Object> x,
+  V8_WARN_UNUSED_RESULT static Maybe<bool> Equals(Isolate* isolate,
+                                                  Handle<Object> x,
                                                   Handle<Object> y);
 
   // ES6 section 7.2.13 Strict Equality Comparison
@@ -1424,14 +1425,16 @@ class Object {
                                                        Handle<Object> rhs);
 
   // ES6 section 12.9 Relational Operators
-  V8_WARN_UNUSED_RESULT static inline Maybe<bool> GreaterThan(Handle<Object> x,
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> GreaterThan(Isolate* isolate,
+                                                              Handle<Object> x,
                                                               Handle<Object> y);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> GreaterThanOrEqual(
-      Handle<Object> x, Handle<Object> y);
-  V8_WARN_UNUSED_RESULT static inline Maybe<bool> LessThan(Handle<Object> x,
+      Isolate* isolate, Handle<Object> x, Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> LessThan(Isolate* isolate,
+                                                           Handle<Object> x,
                                                            Handle<Object> y);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> LessThanOrEqual(
-      Handle<Object> x, Handle<Object> y);
+      Isolate* isolate, Handle<Object> x, Handle<Object> y);
 
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O).
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryHasInstance(

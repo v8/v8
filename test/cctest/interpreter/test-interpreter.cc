@@ -748,7 +748,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
     CHECK_EQ(test_case.feedback, feedback0->ToSmi()->value());
-    CHECK(Object::Equals(test_case.result, return_val).ToChecked());
+    CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
 
@@ -854,7 +854,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
     CHECK_EQ(test_case.feedback, feedback0->ToSmi()->value());
-    CHECK(Object::Equals(test_case.result, return_val).ToChecked());
+    CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
 

@@ -572,7 +572,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
       CHECK(!ScopeInfo::VariableIsSynthetic(raw_name));
       name = handle(raw_name, isolate_);
     }
-    Handle<Object> value = Module::LoadVariable(module, index);
+    Handle<Object> value = Module::LoadVariable(isolate_, module, index);
 
     // Reflect variables under TDZ as undeclared in scope object.
     if (value->IsTheHole(isolate_)) continue;
@@ -686,7 +686,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         if (mode == Mode::STACK) continue;
         // if (var->IsExport()) continue;
         Handle<Module> module(context_->module(), isolate_);
-        value = Module::LoadVariable(module, var->index());
+        value = Module::LoadVariable(isolate_, module, var->index());
         // Reflect variables under TDZ as undeclared in scope object.
         if (value->IsTheHole(isolate_)) continue;
         break;

@@ -93,15 +93,16 @@ class OrderedHashTable : public OrderedHashTableBase {
 
   // Returns an OrderedHashTable (possibly |table|) with enough space
   // to add at least one new element.
-  static Handle<Derived> EnsureGrowable(Handle<Derived> table);
+  static Handle<Derived> EnsureGrowable(Isolate* isolate,
+                                        Handle<Derived> table);
 
   // Returns an OrderedHashTable (possibly |table|) that's shrunken
   // if possible.
-  static Handle<Derived> Shrink(Handle<Derived> table);
+  static Handle<Derived> Shrink(Isolate* isolate, Handle<Derived> table);
 
   // Returns a new empty OrderedHashTable and records the clearing so that
   // existing iterators can be updated.
-  static Handle<Derived> Clear(Handle<Derived> table);
+  static Handle<Derived> Clear(Isolate* isolate, Handle<Derived> table);
 
   // Returns true if the OrderedHashTable contains the key
   static bool HasKey(Isolate* isolate, Derived* table, Object* key);
@@ -194,7 +195,8 @@ class OrderedHashTable : public OrderedHashTableBase {
       (1 + (kEntrySize * kLoadFactor));
 
  protected:
-  static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
+  static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
+                                int new_capacity);
 
   void SetNumberOfBuckets(int num) {
     set(kNumberOfBucketsIndex, Smi::FromInt(num));
@@ -222,9 +224,11 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
  public:
   DECL_CAST(OrderedHashSet)
 
-  static Handle<OrderedHashSet> Add(Handle<OrderedHashSet> table,
+  static Handle<OrderedHashSet> Add(Isolate* isolate,
+                                    Handle<OrderedHashSet> table,
                                     Handle<Object> value);
-  static Handle<FixedArray> ConvertToKeysArray(Handle<OrderedHashSet> table,
+  static Handle<FixedArray> ConvertToKeysArray(Isolate* isolate,
+                                               Handle<OrderedHashSet> table,
                                                GetKeysConversion convert);
   static HeapObject* GetEmpty(Isolate* isolate);
   static inline int GetMapRootIndex();
@@ -237,7 +241,8 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
-  static Handle<OrderedHashMap> Add(Handle<OrderedHashMap> table,
+  static Handle<OrderedHashMap> Add(Isolate* isolate,
+                                    Handle<OrderedHashMap> table,
                                     Handle<Object> key, Handle<Object> value);
   Object* ValueAt(int entry);
 
@@ -313,9 +318,10 @@ class SmallOrderedHashTable : public HeapObject {
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element. Returns empty handle if
   // we've already reached MaxCapacity.
-  static MaybeHandle<Derived> Grow(Handle<Derived> table);
+  static MaybeHandle<Derived> Grow(Isolate* isolate, Handle<Derived> table);
 
-  static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
+  static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
+                                int new_capacity);
 
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
@@ -544,7 +550,8 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is
   // capacity to store |value| otherwise the new table is returned.
-  static MaybeHandle<SmallOrderedHashSet> Add(Handle<SmallOrderedHashSet> table,
+  static MaybeHandle<SmallOrderedHashSet> Add(Isolate* isolate,
+                                              Handle<SmallOrderedHashSet> table,
                                               Handle<Object> key);
   static inline bool Is(Handle<HeapObject> table);
 };
@@ -562,7 +569,8 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is
   // capacity to store |value| otherwise the new table is returned.
-  static MaybeHandle<SmallOrderedHashMap> Add(Handle<SmallOrderedHashMap> table,
+  static MaybeHandle<SmallOrderedHashMap> Add(Isolate* isolate,
+                                              Handle<SmallOrderedHashMap> table,
                                               Handle<Object> key,
                                               Handle<Object> value);
   static inline bool Is(Handle<HeapObject> table);

@@ -162,9 +162,10 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
   return closest_break;
 }
 
-bool BreakLocation::HasBreakPoint(Handle<DebugInfo> debug_info) const {
+bool BreakLocation::HasBreakPoint(Isolate* isolate,
+                                  Handle<DebugInfo> debug_info) const {
   // First check whether there is a break point with the same source position.
-  if (!debug_info->HasBreakPoint(position_)) return false;
+  if (!debug_info->HasBreakPoint(isolate, position_)) return false;
   if (debug_info->CanBreakAtEntry()) {
     DCHECK_EQ(Debug::kBreakAtEntryPosition, position_);
     return debug_info->BreakAtEntry();
@@ -562,7 +563,7 @@ MaybeHandle<FixedArray> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
                                                 BreakLocation* location,
                                                 bool* has_break_points) {
   bool has_break_points_to_check =
-      break_points_active_ && location->HasBreakPoint(debug_info);
+      break_points_active_ && location->HasBreakPoint(isolate_, debug_info);
   if (has_break_points) *has_break_points = has_break_points_to_check;
   if (!has_break_points_to_check) return {};
 
@@ -667,9 +668,9 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Find the break point and change it.
   *source_position = FindBreakablePosition(debug_info, *source_position);
-  DebugInfo::SetBreakPoint(debug_info, *source_position, break_point);
+  DebugInfo::SetBreakPoint(isolate_, debug_info, *source_position, break_point);
   // At least one active break point now.
-  DCHECK_LT(0, debug_info->GetBreakPointCount());
+  DCHECK_LT(0, debug_info->GetBreakPointCount(isolate_));
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);
@@ -718,9 +719,9 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   if (breakable_position < *source_position) return false;
   *source_position = breakable_position;
 
-  DebugInfo::SetBreakPoint(debug_info, *source_position, break_point);
+  DebugInfo::SetBreakPoint(isolate_, debug_info, *source_position, break_point);
   // At least one active break point now.
-  DCHECK_LT(0, debug_info->GetBreakPointCount());
+  DCHECK_LT(0, debug_info->GetBreakPointCount(isolate_));
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);
@@ -764,7 +765,7 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     for (int i = 0; i < break_points->length(); i++) {
       if (break_points->get(i)->IsUndefined(isolate_)) continue;
       BreakPointInfo* info = BreakPointInfo::cast(break_points->get(i));
-      if (info->GetBreakPointCount() == 0) continue;
+      if (info->GetBreakPointCount(isolate_) == 0) continue;
       DCHECK(debug_info->HasDebugBytecodeArray());
       BreakIterator it(debug_info);
       it.SkipToPosition(info->source_position());
@@ -797,13 +798,13 @@ void Debug::ClearBreakPoint(Handle<BreakPoint> break_point) {
   for (DebugInfoListNode* node = debug_info_list_; node != nullptr;
        node = node->next()) {
     if (!node->debug_info()->HasBreakInfo()) continue;
-    Handle<Object> result =
-        DebugInfo::FindBreakPointInfo(node->debug_info(), break_point);
+    Handle<Object> result = DebugInfo::FindBreakPointInfo(
+        isolate_, node->debug_info(), break_point);
     if (result->IsUndefined(isolate_)) continue;
     Handle<DebugInfo> debug_info = node->debug_info();
-    if (DebugInfo::ClearBreakPoint(debug_info, break_point)) {
+    if (DebugInfo::ClearBreakPoint(isolate_, debug_info, break_point)) {
       ClearBreakPoints(debug_info);
-      if (debug_info->GetBreakPointCount() == 0) {
+      if (debug_info->GetBreakPointCount(isolate_) == 0) {
         RemoveBreakInfoAndMaybeFree(debug_info);
       } else {
         ApplyBreakPoints(debug_info);
@@ -832,7 +833,7 @@ void Debug::RemoveBreakpoint(int id) {
 void Debug::ClearAllBreakPoints() {
   ClearAllDebugInfos([=](Handle<DebugInfo> info) {
     ClearBreakPoints(info);
-    return info->ClearBreakInfo();
+    return info->ClearBreakInfo(isolate_);
   });
 }
 
@@ -871,7 +872,7 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 
 MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
                                                  int position) {
-  Handle<Object> break_points = debug_info->GetBreakPoints(position);
+  Handle<Object> break_points = debug_info->GetBreakPoints(isolate_, position);
   bool is_break_at_entry = debug_info->BreakAtEntry();
   DCHECK(!break_points->IsUndefined(isolate_));
   if (!break_points->IsFixedArray()) {
@@ -1146,18 +1147,19 @@ Handle<Object> Debug::GetSourceBreakLocations(
   if (!shared->HasBreakInfo()) {
     return isolate->factory()->undefined_value();
   }
+
   Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate);
-  if (debug_info->GetBreakPointCount() == 0) {
+  if (debug_info->GetBreakPointCount(isolate) == 0) {
     return isolate->factory()->undefined_value();
   }
-  Handle<FixedArray> locations =
-      isolate->factory()->NewFixedArray(debug_info->GetBreakPointCount());
+  Handle<FixedArray> locations = isolate->factory()->NewFixedArray(
+      debug_info->GetBreakPointCount(isolate));
   int count = 0;
   for (int i = 0; i < debug_info->break_points()->length(); ++i) {
     if (!debug_info->break_points()->get(i)->IsUndefined(isolate)) {
       BreakPointInfo* break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
-      int break_points = break_point_info->GetBreakPointCount();
+      int break_points = break_point_info->GetBreakPointCount(isolate);
       if (break_points == 0) continue;
       for (int j = 0; j < break_points; ++j) {
         locations->set(count++,
@@ -1579,8 +1581,9 @@ void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
 }
 
 void Debug::RemoveAllCoverageInfos() {
-  ClearAllDebugInfos(
-      [=](Handle<DebugInfo> info) { return info->ClearCoverageInfo(); });
+  ClearAllDebugInfos([=](Handle<DebugInfo> info) {
+    return info->ClearCoverageInfo(isolate_);
+  });
 }
 
 void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
@@ -1614,7 +1617,7 @@ void Debug::ClearAllDebugInfos(DebugInfoClearFunction clear_function) {
 }
 
 void Debug::RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info) {
-  bool should_unlink = debug_info->ClearBreakInfo();
+  bool should_unlink = debug_info->ClearBreakInfo(isolate_);
   if (should_unlink) {
     DebugInfoListNode* prev;
     DebugInfoListNode* node;

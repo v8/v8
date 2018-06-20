@@ -1636,7 +1636,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
     // It's not observable when the template object is created, so we
     // can just create it eagerly during graph building and bake in
     // the JSArray constant here.
-    cached_value = TemplateObjectDescription::CreateTemplateObject(description);
+    cached_value =
+        TemplateObjectDescription::CreateTemplateObject(isolate(), description);
     nexus.vector()->Set(slot, *cached_value);
   } else {
     cached_value = handle(

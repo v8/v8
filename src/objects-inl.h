@@ -2878,8 +2878,9 @@ NumberDictionary* JSObject::element_dictionary() {
 }
 
 // static
-Maybe<bool> Object::GreaterThan(Handle<Object> x, Handle<Object> y) {
-  Maybe<ComparisonResult> result = Compare(x, y);
+Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,
+                                Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kGreaterThan:
@@ -2895,8 +2896,9 @@ Maybe<bool> Object::GreaterThan(Handle<Object> x, Handle<Object> y) {
 
 
 // static
-Maybe<bool> Object::GreaterThanOrEqual(Handle<Object> x, Handle<Object> y) {
-  Maybe<ComparisonResult> result = Compare(x, y);
+Maybe<bool> Object::GreaterThanOrEqual(Isolate* isolate, Handle<Object> x,
+                                       Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kEqual:
@@ -2912,8 +2914,9 @@ Maybe<bool> Object::GreaterThanOrEqual(Handle<Object> x, Handle<Object> y) {
 
 
 // static
-Maybe<bool> Object::LessThan(Handle<Object> x, Handle<Object> y) {
-  Maybe<ComparisonResult> result = Compare(x, y);
+Maybe<bool> Object::LessThan(Isolate* isolate, Handle<Object> x,
+                             Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kLessThan:
@@ -2929,8 +2932,9 @@ Maybe<bool> Object::LessThan(Handle<Object> x, Handle<Object> y) {
 
 
 // static
-Maybe<bool> Object::LessThanOrEqual(Handle<Object> x, Handle<Object> y) {
-  Maybe<ComparisonResult> result = Compare(x, y);
+Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
+                                    Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kEqual:

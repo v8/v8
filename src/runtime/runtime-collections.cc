@@ -24,7 +24,7 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  table = OrderedHashSet::EnsureGrowable(table);
+  table = OrderedHashSet::EnsureGrowable(isolate, table);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -35,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  table = OrderedHashSet::Shrink(table);
+  table = OrderedHashSet::Shrink(isolate, table);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_MapShrink) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  table = OrderedHashMap::Shrink(table);
+  table = OrderedHashMap::Shrink(isolate, table);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -65,7 +65,7 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  table = OrderedHashMap::EnsureGrowable(table);
+  table = OrderedHashMap::EnsureGrowable(isolate, table);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }

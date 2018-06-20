@@ -39,25 +39,22 @@ Handle<String> MakeName(const char* str, int suffix) {
   return MakeString(buffer.start());
 }
 
-
 template <typename T, typename M>
-bool EQUALS(Handle<T> left, Handle<M> right) {
+bool EQUALS(Isolate* isolate, Handle<T> left, Handle<M> right) {
   if (*left == *right) return true;
-  return JSObject::Equals(Handle<Object>::cast(left),
+  return JSObject::Equals(isolate, Handle<Object>::cast(left),
                           Handle<Object>::cast(right))
       .FromJust();
 }
 
-
 template <typename T, typename M>
-bool EQUALS(Handle<T> left, M right) {
-  return EQUALS(left, handle(right, right->GetIsolate()));
+bool EQUALS(Isolate* isolate, Handle<T> left, M right) {
+  return EQUALS(isolate, left, handle(right, isolate));
 }
 
-
 template <typename T, typename M>
-bool EQUALS(T left, Handle<M> right) {
-  return EQUALS(handle(left, right->GetIsolate()), right);
+bool EQUALS(Isolate* isolate, T left, Handle<M> right) {
+  return EQUALS(isolate, handle(left, isolate), right);
 }
 
 }  // namespace
@@ -82,8 +79,8 @@ TEST(JSObjectAddingProperties) {
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<Map> previous_map(object->map());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
-  CHECK(EQUALS(object->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 
   // for the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array
@@ -93,7 +90,7 @@ TEST(JSObjectAddingProperties) {
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
   CHECK_LE(1, object->property_array()->length());
-  CHECK(EQUALS(object->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 }
 
 
@@ -115,8 +112,8 @@ TEST(JSObjectInObjectAddingProperties) {
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<Map> previous_map(object->map());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
-  CHECK(EQUALS(object->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 
   // we have reserved space for in-object properties, hence adding up to
   // |nof_inobject_properties| will not create a property store
@@ -127,8 +124,8 @@ TEST(JSObjectInObjectAddingProperties) {
   }
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
-  CHECK(EQUALS(object->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 
   // adding one more property will not fit in the in-object properties, thus
   // creating a property store
@@ -140,7 +137,7 @@ TEST(JSObjectInObjectAddingProperties) {
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
   // there must be at least 1 element in the properies store
   CHECK_LE(1, object->property_array()->length());
-  CHECK(EQUALS(object->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 }
 
 
@@ -160,8 +157,8 @@ TEST(JSObjectAddingElements) {
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<Map> previous_map(object->map());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
-  CHECK(EQUALS(object->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 
   // Adding an indexed element initializes the elements array
   name = MakeString("0");
@@ -170,7 +167,7 @@ TEST(JSObjectAddingElements) {
   // no change in elements_kind => no map transition
   CHECK_EQ(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
   CHECK_LE(1, object->elements()->length());
 
   // Adding more consecutive elements without a change in the backing store
@@ -183,7 +180,7 @@ TEST(JSObjectAddingElements) {
   // no change in elements_kind => no map transition
   CHECK_EQ(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
   CHECK_LE(non_dict_backing_store_limit, object->elements()->length());
 
   // Adding an element at an very large index causes a change to
@@ -194,7 +191,7 @@ TEST(JSObjectAddingElements) {
   // change in elements_kind => map transition
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(DICTIONARY_ELEMENTS, object->map()->elements_kind());
-  CHECK(EQUALS(object->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
   CHECK_LE(non_dict_backing_store_limit, object->elements()->length());
 }
 
@@ -213,8 +210,8 @@ TEST(JSArrayAddingProperties) {
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
   Handle<Map> previous_map(array->map());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
-  CHECK(EQUALS(array->property_array(), empty_property_array));
-  CHECK(EQUALS(array->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, array->elements(), empty_fixed_array));
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
   // for the default constructor function no in-object properties are reserved
@@ -226,7 +223,7 @@ TEST(JSArrayAddingProperties) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
   CHECK_LE(1, array->property_array()->length());
-  CHECK(EQUALS(array->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, array->elements(), empty_fixed_array));
   CHECK_EQ(0, Smi::ToInt(array->length()));
 }
 
@@ -246,8 +243,8 @@ TEST(JSArrayAddingElements) {
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
   Handle<Map> previous_map(array->map());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
-  CHECK(EQUALS(array->property_array(), empty_property_array));
-  CHECK(EQUALS(array->elements(), empty_fixed_array));
+  CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, array->elements(), empty_fixed_array));
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
   // Adding an indexed element initializes the elements array
@@ -257,7 +254,7 @@ TEST(JSArrayAddingElements) {
   // no change in elements_kind => no map transition
   CHECK_EQ(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
-  CHECK(EQUALS(array->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
   CHECK_LE(1, array->elements()->length());
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
@@ -271,7 +268,7 @@ TEST(JSArrayAddingElements) {
   // no change in elements_kind => no map transition
   CHECK_EQ(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
-  CHECK(EQUALS(array->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
   CHECK_LE(non_dict_backing_store_limit, array->elements()->length());
   CHECK_EQ(non_dict_backing_store_limit, Smi::ToInt(array->length()));
 
@@ -284,7 +281,7 @@ TEST(JSArrayAddingElements) {
   // change in elements_kind => map transition
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(DICTIONARY_ELEMENTS, array->map()->elements_kind());
-  CHECK(EQUALS(array->property_array(), empty_property_array));
+  CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
   CHECK_LE(non_dict_backing_store_limit, array->elements()->length());
   CHECK_LE(array->elements()->length(), index);
   CHECK_EQ(index + 1, Smi::ToInt(array->length()));

@@ -31,7 +31,7 @@ class JSSet : public JSCollection {
   DECL_CAST(JSSet)
 
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
-  static void Clear(Handle<JSSet> set);
+  static void Clear(Isolate* isolate, Handle<JSSet> set);
 
   // Dispatched behavior.
   DECL_PRINTER(JSSet)
@@ -60,7 +60,7 @@ class JSMap : public JSCollection {
   DECL_CAST(JSMap)
 
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
-  static void Clear(Handle<JSMap> map);
+  static void Clear(Isolate* isolate, Handle<JSMap> map);
 
   // Dispatched behavior.
   DECL_PRINTER(JSMap)

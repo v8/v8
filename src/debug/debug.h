@@ -86,7 +86,7 @@ class BreakLocation {
     return result;
   }
 
-  bool HasBreakPoint(Handle<DebugInfo> debug_info) const;
+  bool HasBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info) const;
 
   inline int position() const { return position_; }
 

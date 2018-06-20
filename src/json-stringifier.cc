@@ -133,10 +133,10 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       if (key.is_null()) continue;
       // Object keys are internalized, so do it here.
       key = factory()->InternalizeString(key);
-      set = OrderedHashSet::Add(set, key);
+      set = OrderedHashSet::Add(isolate_, set, key);
     }
     property_list_ = OrderedHashSet::ConvertToKeysArray(
-        set, GetKeysConversion::kKeepNumbers);
+        isolate_, set, GetKeysConversion::kKeepNumbers);
     property_list_ = handle_scope.CloseAndEscape(property_list_);
   } else if (replacer->IsCallable()) {
     replacer_function_ = Handle<JSReceiver>::cast(replacer);

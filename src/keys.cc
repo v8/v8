@@ -55,7 +55,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   }
   USE(ContainsOnlyValidKeys);
   Handle<FixedArray> result =
-      OrderedHashSet::ConvertToKeysArray(keys(), convert);
+      OrderedHashSet::ConvertToKeysArray(isolate(), keys(), convert);
   DCHECK(ContainsOnlyValidKeys(result));
   return result;
 }
@@ -80,7 +80,7 @@ void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
       Handle<String>::cast(key)->AsArrayIndex(&index)) {
     key = isolate_->factory()->NewNumberFromUint(index);
   }
-  Handle<OrderedHashSet> new_set = OrderedHashSet::Add(keys(), key);
+  Handle<OrderedHashSet> new_set = OrderedHashSet::Add(isolate(), keys(), key);
   if (*new_set != *keys_) {
     // The keys_ Set is converted directly to a FixedArray in GetKeys which can
     // be left-trimmer. Hence the previous Set should not keep a pointer to the
@@ -662,7 +662,9 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       // throws for uninitialized exports.
       for (int i = 0, n = enum_keys->length(); i < n; ++i) {
         Handle<String> key(String::cast(enum_keys->get(i)), isolate_);
-        if (Handle<JSModuleNamespace>::cast(object)->GetExport(key).is_null()) {
+        if (Handle<JSModuleNamespace>::cast(object)
+                ->GetExport(isolate(), key)
+                .is_null()) {
           return Nothing<bool>();
         }
       }

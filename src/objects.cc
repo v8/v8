@@ -298,7 +298,7 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
                       String);
     }
     if (input->IsBigInt()) {
-      return BigInt::ToString(Handle<BigInt>::cast(input));
+      return BigInt::ToString(isolate, Handle<BigInt>::cast(input));
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
@@ -550,7 +550,8 @@ ComparisonResult Reverse(ComparisonResult result) {
 }  // anonymous namespace
 
 // static
-Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
+Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
+                                        Handle<Object> y) {
   // ES6 section 7.2.11 Abstract Relational Comparison step 3 and 4.
   if (!Object::ToPrimitive(x, ToPrimitiveHint::kNumber).ToHandle(&x) ||
       !Object::ToPrimitive(y, ToPrimitiveHint::kNumber).ToHandle(&y)) {
@@ -562,12 +563,12 @@ Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
         String::Compare(Handle<String>::cast(x), Handle<String>::cast(y)));
   }
   if (x->IsBigInt() && y->IsString()) {
-    return Just(BigInt::CompareToString(Handle<BigInt>::cast(x),
+    return Just(BigInt::CompareToString(isolate, Handle<BigInt>::cast(x),
                                         Handle<String>::cast(y)));
   }
   if (x->IsString() && y->IsBigInt()) {
-    return Just(Reverse(BigInt::CompareToString(Handle<BigInt>::cast(y),
-                                                Handle<String>::cast(x))));
+    return Just(Reverse(BigInt::CompareToString(
+        isolate, Handle<BigInt>::cast(y), Handle<String>::cast(x))));
   }
   // ES6 section 7.2.11 Abstract Relational Comparison step 6.
   if (!Object::ToNumeric(x).ToHandle(&x) ||
@@ -591,7 +592,8 @@ Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
 
 
 // static
-Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
+Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
+                           Handle<Object> y) {
   // This is the generic version of Abstract Equality Comparison. Must be in
   // sync with CodeStubAssembler::Equal.
   while (true) {
@@ -623,7 +625,7 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
         x = String::ToNumber(Handle<String>::cast(x));
         return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsBigInt()) {
-        return Just(BigInt::EqualToString(Handle<BigInt>::cast(y),
+        return Just(BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
                                           Handle<String>::cast(x)));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
@@ -668,7 +670,7 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
       if (y->IsBigInt()) {
         return Just(BigInt::EqualToBigInt(BigInt::cast(*x), BigInt::cast(*y)));
       }
-      return Equals(y, x);
+      return Equals(isolate, y, x);
     } else if (x->IsJSReceiver()) {
       if (y->IsJSReceiver()) {
         return Just(x.is_identical_to(y));
@@ -18157,10 +18159,9 @@ void JSSet::Initialize(Handle<JSSet> set, Isolate* isolate) {
   set->set_table(*table);
 }
 
-
-void JSSet::Clear(Handle<JSSet> set) {
+void JSSet::Clear(Isolate* isolate, Handle<JSSet> set) {
   Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
-  table = OrderedHashSet::Clear(table);
+  table = OrderedHashSet::Clear(isolate, table);
   set->set_table(*table);
 }
 
@@ -18170,10 +18171,9 @@ void JSMap::Initialize(Handle<JSMap> map, Isolate* isolate) {
   map->set_table(*table);
 }
 
-
-void JSMap::Clear(Handle<JSMap> map) {
+void JSMap::Clear(Isolate* isolate, Handle<JSMap> map) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
-  table = OrderedHashMap::Clear(table);
+  table = OrderedHashMap::Clear(isolate, table);
   map->set_table(*table);
 }
 
