@@ -387,7 +387,8 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
 
   Handle<SharedFunctionInfo> shared(fun->shared());
   // Find the number of break points
-  Handle<Object> break_locations = Debug::GetSourceBreakLocations(shared);
+  Handle<Object> break_locations =
+      Debug::GetSourceBreakLocations(isolate, shared);
   if (break_locations->IsUndefined(isolate)) {
     return isolate->heap()->undefined_value();
   }

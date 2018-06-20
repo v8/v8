@@ -40,7 +40,7 @@ class DebugEvaluate : public AllStatic {
                                                   Handle<String> source);
 
   static SharedFunctionInfo::SideEffectState FunctionGetSideEffectState(
-      Handle<SharedFunctionInfo> info);
+      Isolate* isolate, Handle<SharedFunctionInfo> info);
   static bool CallbackHasNoSideEffect(Object* callback_info);
   static void ApplySideEffectChecks(Handle<BytecodeArray> bytecode_array);
 

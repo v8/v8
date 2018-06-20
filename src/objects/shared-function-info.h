@@ -282,7 +282,8 @@ class SharedFunctionInfo : public HeapObject {
     kRequiresRuntimeChecks = 2,
     kHasNoSideEffect = 3,
   };
-  static SideEffectState GetSideEffectState(Handle<SharedFunctionInfo> info);
+  static SideEffectState GetSideEffectState(Isolate* isolate,
+                                            Handle<SharedFunctionInfo> info);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);

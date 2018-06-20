@@ -13721,10 +13721,10 @@ String* SharedFunctionInfo::DebugName() {
 
 // static
 SharedFunctionInfo::SideEffectState SharedFunctionInfo::GetSideEffectState(
-    Handle<SharedFunctionInfo> info) {
+    Isolate* isolate, Handle<SharedFunctionInfo> info) {
   if (info->side_effect_state() == kNotComputed) {
     SharedFunctionInfo::SideEffectState has_no_side_effect =
-        DebugEvaluate::FunctionGetSideEffectState(info);
+        DebugEvaluate::FunctionGetSideEffectState(isolate, info);
     info->set_side_effect_state(has_no_side_effect);
   }
   return static_cast<SideEffectState>(info->side_effect_state());

@@ -77,12 +77,13 @@ class LiveEdit : AllStatic {
   static void InitializeThreadLocal(Debug* debug);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
-      Handle<Script> script, Handle<String> source);
+      Isolate* isolate, Handle<Script> script, Handle<String> source);
 
   static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                   Handle<JSArray> shared_info_array);
 
-  static void FixupScript(Handle<Script> script, int max_function_literal_id);
+  static void FixupScript(Isolate* isolate, Handle<Script> script,
+                          int max_function_literal_id);
 
   static void FunctionSourceUpdated(Handle<JSArray> shared_info_array,
                                     int new_function_literal_id);
@@ -97,7 +98,8 @@ class LiveEdit : AllStatic {
   // For a script updates its source field. If old_script_name is provided
   // (i.e. is a String), also creates a copy of the script with its original
   // source and sends notification to debugger.
-  static Handle<Object> ChangeScriptSource(Handle<Script> original_script,
+  static Handle<Object> ChangeScriptSource(Isolate* isolate,
+                                           Handle<Script> original_script,
                                            Handle<String> new_source,
                                            Handle<Object> old_script_name);
 
@@ -110,7 +112,8 @@ class LiveEdit : AllStatic {
 
   // Find open generator activations, and set corresponding "result" elements to
   // FUNCTION_BLOCKED_ACTIVE_GENERATOR.
-  static bool FindActiveGenerators(Handle<FixedArray> shared_info_array,
+  static bool FindActiveGenerators(Isolate* isolate,
+                                   Handle<FixedArray> shared_info_array,
                                    Handle<FixedArray> result, int len);
 
   // Checks listed functions on stack and return array with corresponding
@@ -141,7 +144,7 @@ class LiveEdit : AllStatic {
   // Compares 2 strings line-by-line, then token-wise and returns diff in form
   // of array of triplets (pos1, pos1_end, pos2_end) describing list
   // of diff chunks.
-  static Handle<JSArray> CompareStrings(Handle<String> s1,
+  static Handle<JSArray> CompareStrings(Isolate* isolate, Handle<String> s1,
                                         Handle<String> s2);
 
   // Architecture-specific constant.
@@ -254,7 +257,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
     this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
   }
 
-  void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+  void SetSharedFunctionInfo(Isolate* isolate, Handle<SharedFunctionInfo> info);
 
   Handle<SharedFunctionInfo> GetSharedFunctionInfo();
 

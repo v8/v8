@@ -44,7 +44,8 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                                             context);
   if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
   MaybeHandle<Object> result = Execution::Call(
-      isolate, fun, Handle<JSObject>(context->global_proxy()), 0, nullptr);
+      isolate, fun, Handle<JSObject>(context->global_proxy(), isolate), 0,
+      nullptr);
   if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
   return result;
 }
@@ -72,7 +73,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   Handle<Context> context = context_builder.evaluation_context();
-  Handle<JSObject> receiver(context->global_proxy());
+  Handle<JSObject> receiver(context->global_proxy(), isolate);
   MaybeHandle<Object> maybe_result =
       Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
                throw_on_side_effect);
@@ -115,7 +116,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
                                        Handle<Context>(), Handle<StringSet>());
   Handle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
-  Handle<JSObject> receiver(native_context->global_proxy());
+  Handle<JSObject> receiver(native_context->global_proxy(), isolate);
   const bool throw_on_side_effect = false;
   MaybeHandle<Object> maybe_result =
       Evaluate(isolate, outer_info, evaluation_context, receiver, source,
@@ -170,7 +171,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       frame_inspector_(frame, inlined_jsframe_index, isolate),
       scope_iterator_(isolate, &frame_inspector_,
                       ScopeIterator::COLLECT_NON_LOCALS) {
-  Handle<Context> outer_context(frame_inspector_.GetFunction()->context());
+  Handle<Context> outer_context(frame_inspector_.GetFunction()->context(),
+                                isolate);
   evaluation_context_ = outer_context;
   Factory* factory = isolate->factory();
 
@@ -856,7 +858,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
 
 // static
 SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
-    Handle<SharedFunctionInfo> info) {
+    Isolate* isolate, Handle<SharedFunctionInfo> info) {
   if (FLAG_trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] Checking function %s for side effect.\n",
            info->DebugName()->ToCString().get());
@@ -865,7 +867,7 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   DCHECK(info->is_compiled());
   if (info->HasBytecodeArray()) {
     // Check bytecodes against whitelist.
-    Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray());
+    Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(), isolate);
     if (FLAG_trace_side_effect_free_debug_evaluate) bytecode_array->Print();
     bool requires_runtime_checks = false;
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
@@ -914,7 +916,6 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
         BuiltinGetSideEffectState(static_cast<Builtins::Name>(builtin_index));
 #ifdef DEBUG
     if (state == SharedFunctionInfo::kHasNoSideEffect) {
-      Isolate* isolate = info->GetIsolate();
       Code* code = isolate->builtins()->builtin(builtin_index);
       if (code->builtin_index() == Builtins::kDeserializeLazy) {
         // Target builtin is not yet deserialized. Deserialize it now.

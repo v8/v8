@@ -71,8 +71,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditGatherCompileInfo) {
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle(Script::cast(script->value()), isolate);
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           LiveEdit::GatherCompileInfo(script_handle, source));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, LiveEdit::GatherCompileInfo(isolate, script_handle, source));
 }
 
 
@@ -91,7 +91,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
   Handle<Script> original_script(Script::cast(original_script_value->value()));
 
   Handle<Object> old_script = LiveEdit::ChangeScriptSource(
-      original_script, new_source, old_script_name);
+      isolate, original_script, new_source, old_script_name);
 
   if (old_script->IsScript()) {
     Handle<Script> script_handle = Handle<Script>::cast(old_script);
@@ -113,7 +113,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFixupScript) {
   CHECK(script_value->value()->IsScript());
   Handle<Script> script(Script::cast(script_value->value()));
 
-  LiveEdit::FixupScript(script, max_function_literal_id);
+  LiveEdit::FixupScript(isolate, script, max_function_literal_id);
   return isolate->heap()->undefined_value();
 }
 
@@ -257,7 +257,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
   CONVERT_ARG_HANDLE_CHECKED(String, s1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, s2, 1);
 
-  Handle<JSArray> result = LiveEdit::CompareStrings(s1, s2);
+  Handle<JSArray> result = LiveEdit::CompareStrings(isolate, s1, s2);
   uint32_t array_length = 0;
   CHECK(result->length()->ToArrayLength(&array_length));
   if (array_length > 0) {

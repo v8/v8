@@ -170,7 +170,7 @@ class BreakIterator {
 // weak handles to avoid a debug info object to keep a function alive.
 class DebugInfoListNode {
  public:
-  explicit DebugInfoListNode(DebugInfo* debug_info);
+  DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info);
   ~DebugInfoListNode();
 
   DebugInfoListNode* next() { return next_; }
@@ -295,7 +295,7 @@ class Debug {
                                                 int position);
 
   static Handle<Object> GetSourceBreakLocations(
-      Handle<SharedFunctionInfo> shared);
+      Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   // Check whether a global object is the debug global object.
   bool IsDebugGlobal(JSGlobalObject* global);

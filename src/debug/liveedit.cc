@@ -501,13 +501,17 @@ class LineArrayCompareInput : public SubrangableInput {
 // a fine-grained nested diff token-wise.
 class TokenizingLineArrayCompareOutput : public SubrangableOutput {
  public:
-  TokenizingLineArrayCompareOutput(LineEndsWrapper line_ends1,
+  TokenizingLineArrayCompareOutput(Isolate* isolate, LineEndsWrapper line_ends1,
                                    LineEndsWrapper line_ends2,
                                    Handle<String> s1, Handle<String> s2)
-      : array_writer_(s1->GetIsolate()),
-        line_ends1_(line_ends1), line_ends2_(line_ends2), s1_(s1), s2_(s2),
-        subrange_offset1_(0), subrange_offset2_(0) {
-  }
+      : isolate_(isolate),
+        array_writer_(isolate),
+        line_ends1_(line_ends1),
+        line_ends2_(line_ends2),
+        s1_(s1),
+        s2_(s2),
+        subrange_offset1_(0),
+        subrange_offset2_(0) {}
 
   void AddChunk(int line_pos1, int line_pos2, int line_len1, int line_len2) {
     line_pos1 += subrange_offset1_;
@@ -520,7 +524,7 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
 
     if (char_len1 < CHUNK_LEN_LIMIT && char_len2 < CHUNK_LEN_LIMIT) {
       // Chunk is small enough to conduct a nested token-level diff.
-      HandleScope subTaskScope(s1_->GetIsolate());
+      HandleScope subTaskScope(isolate_);
 
       TokensCompareInput tokens_input(s1_, char_pos1, char_len1,
                                       s2_, char_pos2, char_len2);
@@ -546,6 +550,7 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
  private:
   static const int CHUNK_LEN_LIMIT = 800;
 
+  Isolate* isolate_;
   CompareOutputArrayWriter array_writer_;
   LineEndsWrapper line_ends1_;
   LineEndsWrapper line_ends2_;
@@ -555,8 +560,7 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
   int subrange_offset2_;
 };
 
-
-Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
+Handle<JSArray> LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,
                                          Handle<String> s2) {
   s1 = String::Flatten(s1);
   s2 = String::Flatten(s2);
@@ -565,7 +569,8 @@ Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
   LineEndsWrapper line_ends2(s2);
 
   LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
-  TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2);
+  TokenizingLineArrayCompareOutput output(isolate, line_ends1, line_ends2, s1,
+                                          s2);
 
   NarrowDownInput(&input, &output);
 
@@ -583,8 +588,8 @@ static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
 
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
-static Handle<JSValue> WrapInJSValue(Handle<HeapObject> object) {
-  Isolate* isolate = object->GetIsolate();
+static Handle<JSValue> WrapInJSValue(Isolate* isolate,
+                                     Handle<HeapObject> object) {
   Handle<JSFunction> constructor = isolate->opaque_reference_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
@@ -597,7 +602,8 @@ static Handle<SharedFunctionInfo> UnwrapSharedFunctionInfoFromJSValue(
     Handle<JSValue> jsValue) {
   Object* shared = jsValue->value();
   CHECK(shared->IsSharedFunctionInfo());
-  return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(shared));
+  return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(shared),
+                                    jsValue->GetIsolate());
 }
 
 
@@ -622,8 +628,8 @@ void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
 }
 
 void FunctionInfoWrapper::SetSharedFunctionInfo(
-    Handle<SharedFunctionInfo> info) {
-  Handle<JSValue> info_holder = WrapInJSValue(info);
+    Isolate* isolate, Handle<SharedFunctionInfo> info) {
+  Handle<JSValue> info_holder = WrapInJSValue(isolate, info);
   this->SetField(kSharedFunctionInfoOffset_, info_holder);
 }
 
@@ -641,7 +647,7 @@ void SharedInfoWrapper::SetProperties(Handle<String> name,
                                       Handle<SharedFunctionInfo> info) {
   HandleScope scope(isolate());
   this->SetField(kFunctionNameOffset_, name);
-  Handle<JSValue> info_holder = WrapInJSValue(info);
+  Handle<JSValue> info_holder = WrapInJSValue(scope.isolate(), info);
   this->SetField(kSharedInfoOffset_, info_holder);
   this->SetSmiValueField(kStartPositionOffset_, start_position);
   this->SetSmiValueField(kEndPositionOffset_, end_position);
@@ -659,11 +665,9 @@ void LiveEdit::InitializeThreadLocal(Debug* debug) {
   debug->thread_local_.restart_fp_ = 0;
 }
 
-
-MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
+MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Isolate* isolate,
+                                                 Handle<Script> script,
                                                  Handle<String> source) {
-  Isolate* isolate = script->GetIsolate();
-
   MaybeHandle<JSArray> infos;
   Handle<Object> original_source =
       Handle<Object>(script->source(), isolate);
@@ -742,7 +746,8 @@ class FeedbackVectorFixer {
         CollectJSFunctions(shared_info, isolate);
 
     for (int i = 0; i < function_instances->length(); i++) {
-      Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
+      Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)),
+                             isolate);
       Handle<FeedbackCell> feedback_cell =
           isolate->factory()->NewManyClosuresCell(
               isolate->factory()->undefined_value());
@@ -871,8 +876,8 @@ void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
   shared_info_array->GetIsolate()->debug()->DeoptimizeFunction(shared_info);
 }
 
-void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
-  Isolate* isolate = script->GetIsolate();
+void LiveEdit::FixupScript(Isolate* isolate, Handle<Script> script,
+                           int max_function_literal_id) {
   Handle<WeakFixedArray> old_infos(script->shared_function_infos(), isolate);
   Handle<WeakFixedArray> new_infos(
       isolate->factory()->NewWeakFixedArray(max_function_literal_id + 1));
@@ -948,10 +953,10 @@ static int TranslatePosition(int original_position,
 
 void TranslateSourcePositionTable(Handle<BytecodeArray> code,
                                   Handle<JSArray> position_change_array) {
-  Isolate* isolate = code->GetIsolate();
+  Isolate* isolate = position_change_array->GetIsolate();
   SourcePositionTableBuilder builder;
 
-  Handle<ByteArray> source_position_table(code->SourcePositionTable());
+  Handle<ByteArray> source_position_table(code->SourcePositionTable(), isolate);
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePosition position = iterator.source_position();
@@ -1004,11 +1009,9 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   }
 }
 
-
-static Handle<Script> CreateScriptCopy(Handle<Script> original) {
-  Isolate* isolate = original->GetIsolate();
-
-  Handle<String> original_source(String::cast(original->source()));
+static Handle<Script> CreateScriptCopy(Isolate* isolate,
+                                       Handle<Script> original) {
+  Handle<String> original_source(String::cast(original->source()), isolate);
   Handle<Script> copy = isolate->factory()->NewScript(original_source);
 
   copy->set_name(original->name());
@@ -1031,13 +1034,13 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   return copy;
 }
 
-Handle<Object> LiveEdit::ChangeScriptSource(Handle<Script> original_script,
+Handle<Object> LiveEdit::ChangeScriptSource(Isolate* isolate,
+                                            Handle<Script> original_script,
                                             Handle<String> new_source,
                                             Handle<Object> old_script_name) {
-  Isolate* isolate = original_script->GetIsolate();
   Handle<Object> old_script_object;
   if (old_script_name->IsString()) {
-    Handle<Script> old_script = CreateScriptCopy(original_script);
+    Handle<Script> old_script = CreateScriptCopy(isolate, original_script);
     old_script->set_name(String::cast(*old_script_name));
     old_script_object = old_script;
     isolate->debug()->OnAfterCompile(old_script);
@@ -1082,7 +1085,8 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
                             LiveEdit::FunctionPatchabilityStatus status) {
   if (!frame->is_java_script()) return false;
 
-  Handle<JSFunction> function(JavaScriptFrame::cast(frame)->function());
+  Handle<JSFunction> function(JavaScriptFrame::cast(frame)->function(),
+                              frame->isolate());
 
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);
@@ -1122,7 +1126,8 @@ class MultipleFunctionTarget {
   bool FrameUsesNewTarget(StackFrame* frame) {
     if (!frame->is_java_script()) return false;
     JavaScriptFrame* jsframe = JavaScriptFrame::cast(frame);
-    Handle<SharedFunctionInfo> old_shared(jsframe->function()->shared());
+    Handle<SharedFunctionInfo> old_shared(jsframe->function()->shared(),
+                                          jsframe->isolate());
     Isolate* isolate = jsframe->isolate();
     int len = GetArrayLength(old_shared_array_);
     // Find corresponding new shared function info and return whether it
@@ -1310,11 +1315,9 @@ static const char* DropActivationsInActiveThread(
   return nullptr;
 }
 
-
-bool LiveEdit::FindActiveGenerators(Handle<FixedArray> shared_info_array,
-                                    Handle<FixedArray> result,
-                                    int len) {
-  Isolate* isolate = shared_info_array->GetIsolate();
+bool LiveEdit::FindActiveGenerators(Isolate* isolate,
+                                    Handle<FixedArray> shared_info_array,
+                                    Handle<FixedArray> result, int len) {
   bool found_suspended_activations = false;
 
   DCHECK_LE(len, result->length());
@@ -1382,7 +1385,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 
   DCHECK(old_shared_array->HasFastElements());
   Handle<FixedArray> old_shared_array_elements(
-      FixedArray::cast(old_shared_array->elements()));
+      FixedArray::cast(old_shared_array->elements()), isolate);
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(len);
   result->set_length(Smi::FromInt(len));
@@ -1400,7 +1403,8 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   // running (as we wouldn't want to restart them, because we don't know where
   // to restart them from) or suspended.  Fail if any one corresponds to the set
   // of functions being edited.
-  if (FindActiveGenerators(old_shared_array_elements, result_elements, len)) {
+  if (FindActiveGenerators(isolate, old_shared_array_elements, result_elements,
+                           len)) {
     return result;
   }
 
@@ -1455,7 +1459,8 @@ class SingleFrameTarget {
   bool FrameUsesNewTarget(StackFrame* frame) {
     if (!frame->is_java_script()) return false;
     JavaScriptFrame* jsframe = JavaScriptFrame::cast(frame);
-    Handle<SharedFunctionInfo> shared(jsframe->function()->shared());
+    Handle<SharedFunctionInfo> shared(jsframe->function()->shared(),
+                                      jsframe->isolate());
     return shared->scope_info()->HasNewTarget();
   }
 
@@ -1532,7 +1537,7 @@ void LiveEditFunctionTracker::FunctionDone(Handle<SharedFunctionInfo> shared,
   FunctionInfoWrapper info = FunctionInfoWrapper::cast(
       *JSReceiver::GetElement(isolate_, result_, current_parent_index_)
            .ToHandleChecked());
-  info.SetSharedFunctionInfo(shared);
+  info.SetSharedFunctionInfo(isolate_, shared);
 
   Handle<Object> scope_info_list = SerializeFunctionScope(scope);
   info.SetFunctionScopeInfo(scope_info_list);
