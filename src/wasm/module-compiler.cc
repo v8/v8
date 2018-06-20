@@ -370,13 +370,6 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   return {};
 }
 
-ModuleEnv CreateModuleEnvFromNativeModule(NativeModule* native_module) {
-  WasmModule* module = native_module->module_object()->module();
-  wasm::UseTrapHandler use_trap_handler =
-      native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  return ModuleEnv(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
-}
-
 wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
                                     NativeModule* native_module,
                                     int func_index) {
@@ -397,18 +390,18 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
 
   TRACE_LAZY("Compiling function '%s' (#%d).\n", func_name.c_str(), func_index);
 
-  ModuleEnv module_env = CreateModuleEnvFromNativeModule(native_module);
+  ModuleEnv* module_env = native_module->compilation_state()->module_env();
 
   const uint8_t* module_start =
       native_module->module_object()->module_bytes()->GetChars();
 
-  const WasmFunction* func = &module_env.module->functions[func_index];
+  const WasmFunction* func = &module_env->module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(),
                     module_start + func->code.offset(),
                     module_start + func->code.end_offset()};
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
-  WasmCompilationUnit unit(isolate, &module_env, native_module, body,
+  WasmCompilationUnit unit(isolate, module_env, native_module, body,
                            CStrVector(func_name.c_str()), func_index);
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
