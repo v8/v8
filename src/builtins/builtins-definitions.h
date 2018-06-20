@@ -420,7 +420,11 @@ namespace internal {
   /* AsyncFunction */                                                          \
   TFJ(AsyncFunctionAwaitCaught, 3, kReceiver, kGenerator, kAwaited,            \
       kOuterPromise)                                                           \
+  TFJ(AsyncFunctionAwaitCaughtOptimized, 3, kReceiver, kGenerator, kAwaited,   \
+      kOuterPromise)                                                           \
   TFJ(AsyncFunctionAwaitUncaught, 3, kReceiver, kGenerator, kAwaited,          \
+      kOuterPromise)                                                           \
+  TFJ(AsyncFunctionAwaitUncaughtOptimized, 3, kReceiver, kGenerator, kAwaited, \
       kOuterPromise)                                                           \
   TFJ(AsyncFunctionAwaitRejectClosure, 1, kReceiver, kSentError)               \
   TFJ(AsyncFunctionAwaitResolveClosure, 1, kReceiver, kSentValue)              \
@@ -1271,10 +1275,13 @@ namespace internal {
   /* See tc39.github.io/proposal-async-iteration/ */                           \
   /* #sec-%asyncfromsynciteratorprototype%-object) */                          \
   TFJ(AsyncFromSyncIteratorPrototypeNext, 1, kReceiver, kValue)                \
+  TFJ(AsyncFromSyncIteratorPrototypeNextOptimized, 1, kReceiver, kValue)       \
   /* #sec-%asyncfromsynciteratorprototype%.throw */                            \
   TFJ(AsyncFromSyncIteratorPrototypeThrow, 1, kReceiver, kReason)              \
+  TFJ(AsyncFromSyncIteratorPrototypeThrowOptimized, 1, kReceiver, kReason)     \
   /* #sec-%asyncfromsynciteratorprototype%.return */                           \
   TFJ(AsyncFromSyncIteratorPrototypeReturn, 1, kReceiver, kValue)              \
+  TFJ(AsyncFromSyncIteratorPrototypeReturnOptimized, 1, kReceiver, kValue)     \
   /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, 1, kReceiver, kValue)                          \
                                                                                \
@@ -1355,9 +1362,14 @@ namespace internal {
 #define BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(V) \
   V(AsyncFromSyncIteratorPrototypeNext)              \
   V(AsyncFromSyncIteratorPrototypeReturn)            \
+  V(AsyncFromSyncIteratorPrototypeNextOptimized)     \
+  V(AsyncFromSyncIteratorPrototypeThrowOptimized)    \
+  V(AsyncFromSyncIteratorPrototypeReturnOptimized)   \
   V(AsyncFromSyncIteratorPrototypeThrow)             \
   V(AsyncFunctionAwaitCaught)                        \
+  V(AsyncFunctionAwaitCaughtOptimized)               \
   V(AsyncFunctionAwaitUncaught)                      \
+  V(AsyncFunctionAwaitUncaughtOptimized)             \
   V(AsyncGeneratorResolve)                           \
   V(AsyncGeneratorAwaitCaught)                       \
   V(AsyncGeneratorAwaitUncaught)                     \
