@@ -530,6 +530,14 @@ Address Code::constant_pool() const {
 }
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
+#ifdef V8_EMBEDDED_BUILTINS
+  // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass in
+  // the current isolate.
+  Address start = reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlob());
+  Address end = start + Isolate::CurrentEmbeddedBlobSize();
+  CHECK(address < start || address >= end);
+#endif  // V8_EMBEDDED_BUILTINS
+
   HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
   // GetCodeFromTargetAddress might be called when marking objects during mark
   // sweep. reinterpret_cast is therefore used instead of the more appropriate

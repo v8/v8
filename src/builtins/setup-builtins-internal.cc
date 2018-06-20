@@ -152,12 +152,14 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
 }
 }  // anonymous namespace
 
+// static
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, int index,
                                       Code* code) {
   DCHECK_EQ(index, code->builtin_index());
   builtins->set_builtin(index, code);
 }
 
+// static
 void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   // Fill the builtins list with placeholders. References to these placeholder
   // builtins are eventually replaced by the actual builtins. This is to
@@ -170,6 +172,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   }
 }
 
+// static
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   // Replace references from all code objects to placeholders.
   Builtins* builtins = isolate->builtins();
@@ -209,6 +212,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   }
 }
 
+// static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
   DCHECK(!builtins->initialized_);

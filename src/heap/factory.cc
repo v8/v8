@@ -2583,10 +2583,10 @@ Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
 #ifdef V8_EMBEDDED_BUILTINS
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
-  DCHECK(isolate()->serializer_enabled());
-  DCHECK_NOT_NULL(isolate()->embedded_blob());
-  DCHECK_NE(0, isolate()->embedded_blob_size());
-  DCHECK(Builtins::IsEmbeddedBuiltin(*code));
+  CHECK(isolate()->serializer_enabled());
+  CHECK_NOT_NULL(isolate()->embedded_blob());
+  CHECK_NE(0, isolate()->embedded_blob_size());
+  CHECK(Builtins::IsEmbeddedBuiltin(*code));
 
   Handle<Code> result =
       Builtins::GenerateOffHeapTrampolineFor(isolate(), off_heap_entry);

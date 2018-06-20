@@ -75,9 +75,10 @@ void DisableAlwaysOpt() {
 // TestIsolate is used for testing isolate serialization.
 class TestIsolate : public Isolate {
  public:
-  static v8::Isolate* NewInitialized(bool enable_serializer) {
-    i::Isolate* isolate = new TestIsolate(enable_serializer);
-    isolate->setup_delegate_ = new SetupIsolateDelegateForTests(true);
+  static v8::Isolate* NewInitialized() {
+    const bool kEnableSerializer = true;
+    const bool kGenerateHeap = true;
+    i::Isolate* isolate = new TestIsolate(kEnableSerializer, kGenerateHeap);
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(nullptr);
@@ -88,22 +89,36 @@ class TestIsolate : public Isolate {
   // Allows flexibility to bootstrap with or without snapshot even when
   // the production Isolate class has one or the other behavior baked in.
   static v8::Isolate* New(const v8::Isolate::CreateParams& params) {
-    i::Isolate* isolate = new TestIsolate(false);
-    bool create_heap_objects = params.snapshot_blob == nullptr;
-    isolate->setup_delegate_ =
-        new SetupIsolateDelegateForTests(create_heap_objects);
+    const bool kEnableSerializer = false;
+    const bool kGenerateHeap = params.snapshot_blob == nullptr;
+    i::Isolate* isolate = new TestIsolate(kEnableSerializer, kGenerateHeap);
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Initialize(v8_isolate, params);
     return v8_isolate;
   }
-  explicit TestIsolate(bool with_serializer) : Isolate() {
+  explicit TestIsolate(bool with_serializer, bool generate_heap) : Isolate() {
     if (with_serializer) enable_serializer();
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
+    setup_delegate_ = new SetupIsolateDelegateForTests(generate_heap);
+
+#ifdef V8_EMBEDDED_BUILTINS
+    if (generate_heap || clear_embedded_blob_) {
+      // We're generating the heap, including new builtins. Act as if we don't
+      // have an embedded blob.
+      clear_embedded_blob_ = true;
+      SetEmbeddedBlob(nullptr, 0);
+    }
+#endif  // V8_EMBEDDED_BUILTINS
   }
-  void SetDeserializeFromSnapshot() {
-    setup_delegate_ = new SetupIsolateDelegateForTests(false);
-  }
+
+ private:
+  // A sticky flag that ensures the embedded blob is remains cleared after it
+  // has been cleared once. E.g.: after creating & serializing a complete heap
+  // snapshot, future isolates also expect the embedded blob to be cleared.
+  static bool clear_embedded_blob_;
 };
+
+bool TestIsolate::clear_embedded_blob_ = false;
 
 static Vector<const byte> WritePayload(const Vector<const byte>& payload) {
   int length = payload.length();
@@ -256,10 +271,11 @@ v8::Isolate* InitializeFromBlob(StartupBlobs& blobs) {
     SnapshotData startup_snapshot(blobs.startup);
     BuiltinSnapshotData builtin_snapshot(blobs.builtin);
     StartupDeserializer deserializer(&startup_snapshot, &builtin_snapshot);
-    TestIsolate* isolate = new TestIsolate(false);
+    const bool kEnableSerializer = false;
+    const bool kGenerateHeap = false;
+    TestIsolate* isolate = new TestIsolate(kEnableSerializer, kGenerateHeap);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
-    isolate->SetDeserializeFromSnapshot();
     isolate->Init(&deserializer);
   }
   return v8_isolate;
@@ -286,7 +302,7 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 UNINITIALIZED_TEST(StartupSerializerOnce) {
   DisableLazyDeserialization();
   DisableAlwaysOpt();
-  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  v8::Isolate* isolate = TestIsolate::NewInitialized();
   StartupBlobs blobs = Serialize(isolate);
   isolate->Dispose();
   isolate = Deserialize(blobs);
@@ -354,7 +370,7 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
 UNINITIALIZED_TEST(StartupSerializerTwice) {
   DisableLazyDeserialization();
   DisableAlwaysOpt();
-  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  v8::Isolate* isolate = TestIsolate::NewInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
   StartupBlobs blobs2 = Serialize(isolate);
   isolate->Dispose();
@@ -376,7 +392,7 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
   DisableLazyDeserialization();
   DisableAlwaysOpt();
-  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  v8::Isolate* isolate = TestIsolate::NewInitialized();
   StartupBlobs blobs = Serialize(isolate);
   isolate->Dispose();
   isolate = Deserialize(blobs);
@@ -402,7 +418,7 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   DisableLazyDeserialization();
   DisableAlwaysOpt();
-  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  v8::Isolate* isolate = TestIsolate::NewInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
   StartupBlobs blobs2 = Serialize(isolate);
   isolate->Dispose();
@@ -429,7 +445,7 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
                                       Vector<const byte>* builtin_blob_out,
                                       Vector<const byte>* partial_blob_out) {
-  v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
+  v8::Isolate* v8_isolate = TestIsolate::NewInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
   {
@@ -533,7 +549,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
 static void PartiallySerializeCustomContext(
     Vector<const byte>* startup_blob_out, Vector<const byte>* builtin_blob_out,
     Vector<const byte>* partial_blob_out) {
-  v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
+  v8::Isolate* v8_isolate = TestIsolate::NewInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);

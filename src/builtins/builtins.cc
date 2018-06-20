@@ -200,8 +200,10 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 // static
 bool Builtins::IsEmbeddedBuiltin(const Code* code) {
 #ifdef V8_EMBEDDED_BUILTINS
-  return Builtins::IsBuiltinId(code->builtin_index()) &&
-         Builtins::IsIsolateIndependent(code->builtin_index());
+  const int builtin_index = code->builtin_index();
+  return Isolate::CurrentEmbeddedBlob() != nullptr &&
+         Builtins::IsBuiltinId(builtin_index) &&
+         Builtins::IsIsolateIndependent(builtin_index);
 #else
   return false;
 #endif

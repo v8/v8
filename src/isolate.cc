@@ -2577,6 +2577,18 @@ Isolate::Isolate()
   tracing_cpu_profiler_.reset(new TracingCpuProfilerImpl(this));
 
   init_memcopy_functions(this);
+
+#ifdef V8_EMBEDDED_BUILTINS
+#ifdef V8_MULTI_SNAPSHOTS
+  if (FLAG_untrusted_code_mitigations) {
+    SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
+  } else {
+    SetEmbeddedBlob(TrustedEmbeddedBlob(), TrustedEmbeddedBlobSize());
+  }
+#else
+  SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
+#endif
+#endif  // V8_EMBEDDED_BUILTINS
 }
 
 
@@ -2962,18 +2974,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   interpreter_ = new interpreter::Interpreter(this);
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);
-
-#ifdef V8_EMBEDDED_BUILTINS
-#ifdef V8_MULTI_SNAPSHOTS
-  if (FLAG_untrusted_code_mitigations) {
-    SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
-  } else {
-    SetEmbeddedBlob(TrustedEmbeddedBlob(), TrustedEmbeddedBlobSize());
-  }
-#else
-  SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
-#endif
-#endif
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);

@@ -134,13 +134,6 @@
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
-
-  # Until https://crbug.com/v8/7718 is fixed.
-  'test-serialize/PartialSerializerCustomContext': [SKIP],
-  'test-serialize/StartupSerializerOnce': [SKIP],
-  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
-  'test-serialize/StartupSerializerTwice': [SKIP],
-  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

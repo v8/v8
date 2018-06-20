@@ -134,7 +134,8 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; external reference (%s)", reference_name);
   } else if (RelocInfo::IsCodeTarget(rmode)) {
     out->AddFormatted("    ;; code:");
-    Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
+    Code* code = isolate->heap()->GcSafeFindCodeForInnerPointer(
+        relocinfo->target_address());
     Code::Kind kind = code->kind();
     if (kind == Code::STUB) {
       // Get the STUB key and extract major and minor key.
