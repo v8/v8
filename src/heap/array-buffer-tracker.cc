@@ -47,14 +47,14 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         const size_t size = NumberToSize(new_buffer->byte_length());
         tracker->Add(new_buffer, size);
       }
-      moved_memory += it->second;
+      moved_memory += it->second.length;
     } else if (result == kRemoveEntry) {
-      freed_memory += it->second;
+      freed_memory += it->second.length;
       // We pass backing_store() and stored length to the collector for freeing
       // the backing store. Wasm allocations will go through their own tracker
       // based on the backing store.
       backing_stores_to_free.emplace_back(
-          old_buffer->backing_store(), it->second, old_buffer->backing_store(),
+          it->second.backing_store, it->second.length, it->second.backing_store,
           old_buffer->allocation_mode(), old_buffer->is_wasm_memory());
     } else {
       UNREACHABLE();

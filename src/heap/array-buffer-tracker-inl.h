@@ -60,11 +60,11 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
-    const size_t length = it->second;
+    const size_t length = it->second.length;
 
     if (should_free(buffer)) {
       JSArrayBuffer::FreeBackingStore(
-          isolate, {buffer->backing_store(), length, buffer->backing_store(),
+          isolate, {it->second.backing_store, length, it->second.backing_store,
                     buffer->allocation_mode(), buffer->is_wasm_memory()});
       it = array_buffers_.erase(it);
       freed_memory += length;
@@ -99,7 +99,7 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
   // Track the backing-store usage against the owning Space.
   space_->IncrementExternalBackingStoreBytes(length);
 
-  auto ret = array_buffers_.insert({buffer, length});
+  auto ret = array_buffers_.insert({buffer, {buffer->backing_store(), length}});
   USE(ret);
   // Check that we indeed inserted a new value and did not overwrite an existing
   // one (which would be a bug).
@@ -113,7 +113,7 @@ void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
   TrackingData::iterator it = array_buffers_.find(buffer);
   // Check that we indeed find a key to remove.
   DCHECK(it != array_buffers_.end());
-  DCHECK_EQ(length, it->second);
+  DCHECK_EQ(length, it->second.length);
   array_buffers_.erase(it);
 }
 
