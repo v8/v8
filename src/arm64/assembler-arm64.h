@@ -2887,6 +2887,10 @@ class Assembler : public AssemblerBase {
     return reinterpret_cast<byte*>(instr) - buffer_;
   }
 
+  static const char* GetSpecialRegisterName(int code) {
+    return (code == kSPRegInternalCode) ? "sp" : "UNKNOWN";
+  }
+
   // Register encoding.
   static Instr Rd(CPURegister rd) {
     DCHECK_NE(rd.code(), kSPRegInternalCode);

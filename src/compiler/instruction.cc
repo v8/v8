@@ -184,7 +184,8 @@ std::ostream& operator<<(std::ostream& os,
         os << "[fp_stack:" << allocated.index();
       } else if (op.IsRegister()) {
         os << "["
-           << GetRegConfig()->GetGeneralRegisterName(allocated.register_code())
+           << GetRegConfig()->GetGeneralOrSpecialRegisterName(
+                  allocated.register_code())
            << "|R";
       } else if (op.IsDoubleRegister()) {
         os << "["

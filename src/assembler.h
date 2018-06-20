@@ -227,6 +227,9 @@ class AssemblerBase : public Malloced {
     return FlushICache(reinterpret_cast<void*>(start), size);
   }
 
+  // Used to print the name of some special registers.
+  static const char* GetSpecialRegisterName(int code) { return "UNKNOWN"; }
+
  protected:
   // The buffer into which code and relocation info are generated. It could
   // either be owned by the assembler or be provided externally.
