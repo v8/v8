@@ -647,7 +647,6 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) const {
 bool ScopeInfo::ContextLocalIsParameter(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
-  DCHECK_LT(var, ParameterCount());
   int info_index = ContextLocalInfosIndex() + var;
   int value = Smi::ToInt(get(info_index));
   return ParameterNumberField::decode(value) != ParameterNumberField::kMax;
