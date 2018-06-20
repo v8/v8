@@ -525,9 +525,12 @@ class ModuleDecoderImpl : public Decoder {
     auto counter =
         SELECT_WASM_COUNTER(GetCounters(), origin_, wasm_functions_per, module);
     counter->AddSample(static_cast<int>(functions_count));
-    module_->functions.reserve(functions_count);
+    DCHECK_EQ(module_->functions.size(), module_->num_imported_functions);
+    uint32_t total_function_count =
+        module_->num_imported_functions + functions_count;
+    module_->functions.reserve(total_function_count);
     module_->num_declared_functions = functions_count;
-    for (uint32_t i = 0; ok() && i < functions_count; ++i) {
+    for (uint32_t i = 0; i < functions_count; ++i) {
       uint32_t func_index = static_cast<uint32_t>(module_->functions.size());
       module_->functions.push_back({nullptr,     // sig
                                     func_index,  // func_index
@@ -537,7 +540,9 @@ class ModuleDecoderImpl : public Decoder {
                                     false});     // exported
       WasmFunction* function = &module_->functions.back();
       function->sig_index = consume_sig_index(module_.get(), &function->sig);
+      if (!ok()) return;
     }
+    DCHECK_EQ(module_->functions.size(), total_function_count);
   }
 
   void DecodeTableSection() {

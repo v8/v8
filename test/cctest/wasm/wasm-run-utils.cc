@@ -29,12 +29,10 @@ TestingModuleBuilder::TestingModuleBuilder(
   uint32_t maybe_import_index = 0;
   if (maybe_import) {
     // Manually add an imported function before any other functions.
-    // This must happen before the instance objectis created, since the
+    // This must happen before the instance object is created, since the
     // instance object allocates import entries.
-    maybe_import_index = AddFunction(maybe_import->sig, nullptr);
+    maybe_import_index = AddFunction(maybe_import->sig, nullptr, kImport);
     DCHECK_EQ(0, maybe_import_index);
-    test_module_->num_imported_functions = 1;
-    test_module_->functions[0].imported = true;
   }
 
   instance_object_ = InitInstanceObject();
@@ -93,7 +91,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   return mem_start_;
 }
 
-uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
+uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
+                                           FunctionType type) {
   if (test_module_->functions.size() == 0) {
     // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
     // structs from moving.
@@ -104,6 +103,16 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
     native_module_->SetNumFunctionsForTesting(index + 1);
   }
   test_module_->functions.push_back({sig, index, 0, {0, 0}, false, false});
+  if (type == kImport) {
+    DCHECK_EQ(0, test_module_->num_declared_functions);
+    ++test_module_->num_imported_functions;
+    test_module_->functions.back().imported = true;
+  } else {
+    ++test_module_->num_declared_functions;
+  }
+  DCHECK_EQ(test_module_->functions.size(),
+            test_module_->num_imported_functions +
+                test_module_->num_declared_functions);
   if (name) {
     Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
     test_module_->AddNameForTesting(
@@ -452,7 +461,7 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
       source_position_table_(this->graph()),
       interpreter_(builder->interpreter()) {
   // Get a new function from the testing module.
-  int index = builder->AddFunction(sig, name);
+  int index = builder->AddFunction(sig, name, TestingModuleBuilder::kWasm);
   function_ = builder_->GetFunctionAt(index);
 }
 

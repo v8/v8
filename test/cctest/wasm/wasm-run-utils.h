@@ -181,7 +181,8 @@ class TestingModuleBuilder {
 
   void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
 
-  uint32_t AddFunction(FunctionSig* sig, const char* name);
+  enum FunctionType { kImport, kWasm };
+  uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
 
   Handle<JSFunction> WrapCode(uint32_t index);
 
