@@ -59,7 +59,7 @@ static void DumpMaps(i::PagedSpace* space) {
     STRUCT_LIST(STRUCT_LIST_CASE)
     ALLOCATION_SITE_LIST(ALLOCATION_SITE_LIST_CASE)
     if (n == NULL) continue;
-    const char* sname = AllocationSpaceName(space->identity());
+    const char* sname = space->name();
     i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", sname, p, t,
               n);
   }
@@ -109,7 +109,7 @@ static int DumpHeapConstants(const char* argv0) {
       // Code objects are generally platform-dependent.
       if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
         continue;
-      const char* sname = AllocationSpaceName(s->identity());
+      const char* sname = s->name();
       for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;

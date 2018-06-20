@@ -3515,7 +3515,7 @@ void LargeObjectSpace::Print() {
 void Page::Print() {
   // Make a best-effort to print the objects in the page.
   PrintF("Page@%p in %s\n", reinterpret_cast<void*>(this->address()),
-         AllocationSpaceName(this->owner()->identity()));
+         this->owner()->name());
   printf(" --------------------------------------\n");
   HeapObjectIterator objects(this);
   unsigned mark_size = 0;

@@ -423,8 +423,7 @@ static void TraceFragmentation(PagedSpace* space) {
   int number_of_pages = space->CountTotalPages();
   intptr_t reserved = (number_of_pages * space->AreaSize());
   intptr_t free = reserved - space->SizeOfObjects();
-  PrintF("[%s]: %d pages, %d (%.1f%%) free\n",
-         AllocationSpaceName(space->identity()), number_of_pages,
+  PrintF("[%s]: %d pages, %d (%.1f%%) free\n", space->name(), number_of_pages,
          static_cast<int>(free), static_cast<double>(free) * 100 / reserved);
 }
 
@@ -712,9 +711,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
                      "fragmentation_limit_kb=%" PRIuS
                      " fragmentation_limit_percent=%d sum_compaction_kb=%zu "
                      "compaction_limit_kb=%zu\n",
-                     AllocationSpaceName(space->identity()), free_bytes / KB,
-                     free_bytes_threshold / KB, target_fragmentation_percent,
-                     total_live_bytes / KB, max_evacuated_bytes / KB);
+                     space->name(), free_bytes / KB, free_bytes_threshold / KB,
+                     target_fragmentation_percent, total_live_bytes / KB,
+                     max_evacuated_bytes / KB);
       }
     }
     // How many pages we will allocated for the evacuated objects
@@ -736,8 +735,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     PrintIsolate(isolate(),
                  "compaction-selection: space=%s reduce_memory=%d pages=%d "
                  "total_live_bytes=%zu\n",
-                 AllocationSpaceName(space->identity()), reduce_memory,
-                 candidate_count, total_live_bytes / KB);
+                 space->name(), reduce_memory, candidate_count,
+                 total_live_bytes / KB);
   }
 }
 
@@ -3349,7 +3348,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
   if (FLAG_gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
-                 AllocationSpaceName(space->identity()), will_be_swept);
+                 space->name(), will_be_swept);
   }
 }
 

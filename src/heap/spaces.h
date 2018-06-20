@@ -897,6 +897,8 @@ class Space : public Malloced {
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
 
+  const char* name() { return AllocationSpaceName(id_); }
+
   V8_EXPORT_PRIVATE virtual void AddAllocationObserver(
       AllocationObserver* observer);
 
