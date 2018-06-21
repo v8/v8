@@ -576,7 +576,7 @@ namespace internal {
   F(WasmExceptionGetElement, 1, 1)   \
   F(WasmExceptionSetElement, 2, 1)   \
   F(WasmGetExceptionRuntimeId, 0, 1) \
-  F(WasmGrowMemory, 1, 1)            \
+  F(WasmGrowMemory, 2, 1)            \
   F(WasmRunInterpreter, 2, 1)        \
   F(WasmStackGuard, 0, 1)            \
   F(WasmThrow, 0, 1)                 \

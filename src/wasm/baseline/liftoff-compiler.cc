@@ -1590,39 +1590,6 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, mem_size);
   }
 
-  void Int32ToSmi(LiftoffRegister dst, Register src, Register scratch) {
-    constexpr int kTotalSmiShift = kSmiTagSize + kSmiShiftSize;
-    // TODO(clemensh): Shift by immediate directly.
-    if (SmiValuesAre32Bits()) {
-      __ LoadConstant(LiftoffRegister(scratch),
-                      WasmValue(int64_t{kTotalSmiShift}));
-      __ emit_i64_shl(dst, LiftoffRegister(src), scratch);
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      __ LoadConstant(LiftoffRegister(scratch),
-                      WasmValue(int32_t{kTotalSmiShift}));
-      __ emit_i32_shl(dst.gp(), src, scratch);
-      if (kPointerSize == kInt64Size) {
-        __ emit_i32_to_intptr(dst.gp(), dst.gp());
-      }
-    }
-  }
-
-  void SmiToInt32(Register dst, LiftoffRegister src, Register scratch) {
-    constexpr int kTotalSmiShift = kSmiTagSize + kSmiShiftSize;
-    // TODO(clemensh): Shift by immediate directly.
-    if (SmiValuesAre32Bits()) {
-      __ LoadConstant(LiftoffRegister(scratch),
-                      WasmValue(int64_t{kTotalSmiShift}));
-      __ emit_i64_shr(LiftoffRegister(dst), src, scratch);
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      __ LoadConstant(LiftoffRegister(scratch),
-                      WasmValue(int32_t{kTotalSmiShift}));
-      __ emit_i32_sar(dst, src.gp(), scratch);
-    }
-  }
-
   void GrowMemory(Decoder* decoder, const Value& value, Value* result_val) {
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
@@ -1635,28 +1602,23 @@ class LiftoffCompiler {
                   "complex code here otherwise)");
     LiftoffRegister result = pinned.set(LiftoffRegister(kGpReturnReg));
 
-    LiftoffRegister tmp_const =
-        pinned.set(__ cache_state()->unused_register(kGpReg, pinned));
+    WasmGrowMemoryDescriptor descriptor;
+    DCHECK_EQ(0, descriptor.GetStackParameterCount());
+    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+    DCHECK_EQ(ValueTypes::MachineTypeFor(kWasmI32),
+              descriptor.GetParameterType(0));
 
-    Label done;
-    Label do_runtime_call;
-    // TODO(clemensh): Compare to immediate directly.
-    __ LoadConstant(tmp_const, WasmValue(uint32_t{FLAG_wasm_max_mem_pages}));
-    __ emit_cond_jump(kUnsignedLessEqual, &do_runtime_call, kWasmI32,
-                      input.gp(), tmp_const.gp());
-    __ LoadConstant(result, WasmValue(int32_t{-1}));
-    __ emit_jump(&done);
+    Register param_reg = descriptor.GetRegisterParameter(0);
+    if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
-    // TODO(clemensh): Introduce new builtin for smi-conversion, runtime call,
-    // and conversion back. Use in TF and here.
-    __ bind(&do_runtime_call);
-    LiftoffRegister input_smi = input;
-    Int32ToSmi(input_smi, input.gp(), tmp_const.gp());
-    Register args[] = {input_smi.gp()};
-    GenerateRuntimeCall(Runtime::kWasmGrowMemory, arraysize(args), args);
-    SmiToInt32(result.gp(), result, tmp_const.gp());
+    __ CallRuntimeStub(wasm::WasmCode::kWasmGrowMemory);
+    safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                             Safepoint::kNoLazyDeopt);
 
-    __ bind(&done);
+    if (kReturnRegister0 != result.gp()) {
+      __ Move(result.gp(), kReturnRegister0, kWasmI32);
+    }
+
     __ PushRegister(kWasmI32, result);
   }
 

@@ -21,8 +21,7 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
   }
 
   TNode<Code> LoadBuiltinFromFrame(Builtins::Name id) {
-    TNode<Object> instance = UncheckedCast<Object>(
-        LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
+    TNode<Object> instance = LoadInstanceFromFrame();
     TNode<IntPtrT> roots = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), instance,
              IntPtrConstant(WasmInstanceObject::kRootsArrayAddressOffset -
@@ -31,6 +30,22 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
         MachineType::TaggedPointer(), roots,
         IntPtrConstant(Heap::roots_to_builtins_offset() + id * kPointerSize)));
     return target;
+  }
+
+  TNode<Object> LoadInstanceFromFrame() {
+    return UncheckedCast<Object>(
+        LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
+  }
+
+  TNode<Code> LoadCEntryFromInstance(TNode<Object> instance) {
+    return UncheckedCast<Code>(
+        Load(MachineType::AnyTagged(), instance,
+             IntPtrConstant(WasmInstanceObject::kCEntryStubOffset -
+                            kHeapObjectTag)));
+  }
+
+  TNode<Code> LoadCEntryFromFrame() {
+    return LoadCEntryFromInstance(LoadInstanceFromFrame());
   }
 };
 
@@ -67,27 +82,40 @@ TF_BUILTIN(WasmToNumber, WasmBuiltinsAssembler) {
   TailCallStub(TypeConversionDescriptor(), target, context, argument);
 }
 
-TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {
-  TNode<Object> instance = UncheckedCast<Object>(
-      LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
-  TNode<Code> centry = UncheckedCast<Code>(Load(
-      MachineType::AnyTagged(), instance,
-      IntPtrConstant(WasmInstanceObject::kCEntryStubOffset - kHeapObjectTag)));
+TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
+  TNode<Code> centry = LoadCEntryFromFrame();
   TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry,
                             NoContextConstant());
 }
 
-#define DECLARE_ENUM(name)                                                     \
-  TF_BUILTIN(ThrowWasm##name, CodeStubAssembler) {                             \
-    TNode<Object> instance = UncheckedCast<Object>(                            \
-        LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset)); \
-    TNode<Code> centry = UncheckedCast<Code>(                                  \
-        Load(MachineType::AnyTagged(), instance,                               \
-             IntPtrConstant(WasmInstanceObject::kCEntryStubOffset -            \
-                            kHeapObjectTag)));                                 \
-    int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name);  \
-    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry,                \
-                              NoContextConstant(), SmiConstant(message_id));   \
+TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
+  TNode<Int32T> num_pages =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kNumPages));
+  Label num_pages_out_of_range(this, Label::kDeferred);
+
+  TNode<BoolT> num_pages_fits_in_smi =
+      IsValidPositiveSmi(ChangeInt32ToIntPtr(num_pages));
+  GotoIfNot(num_pages_fits_in_smi, &num_pages_out_of_range);
+
+  TNode<Smi> num_pages_smi = SmiFromInt32(num_pages);
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Smi> ret_smi = UncheckedCast<Smi>(
+      CallRuntimeWithCEntry(Runtime::kWasmGrowMemory, centry,
+                            NoContextConstant(), instance, num_pages_smi));
+  TNode<Int32T> ret = SmiToInt32(ret_smi);
+  ReturnRaw(ret);
+
+  BIND(&num_pages_out_of_range);
+  ReturnRaw(Int32Constant(-1));
+}
+
+#define DECLARE_ENUM(name)                                                    \
+  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                        \
+    TNode<Code> centry = LoadCEntryFromFrame();                               \
+    int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
+    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry,               \
+                              NoContextConstant(), SmiConstant(message_id));  \
   }
 FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
 #undef DECLARE_ENUM

@@ -36,6 +36,7 @@ struct WasmModule;
   V(WasmAllocateHeapNumber)              \
   V(WasmArgumentsAdaptor)                \
   V(WasmCallJavaScript)                  \
+  V(WasmGrowMemory)                      \
   V(WasmStackGuard)                      \
   V(WasmToNumber)                        \
   V(DoubleToI)

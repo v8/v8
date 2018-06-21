@@ -409,6 +409,10 @@ void CodeAssembler::ReturnIf(Node* condition, Node* value) {
   Bind(&if_continue);
 }
 
+void CodeAssembler::ReturnRaw(Node* value) {
+  return raw_assembler()->Return(value);
+}
+
 void CodeAssembler::DebugAbort(Node* message) {
   raw_assembler()->DebugAbort(message);
 }
@@ -1072,16 +1076,22 @@ class NodeArray {
 TNode<Object> CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
+  int result_size = Runtime::FunctionForId(function)->result_size;
+  TNode<Code> centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
+  return CallRuntimeWithCEntryImpl(function, centry, context, args);
+}
+
+TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
+    Runtime::FunctionId function, TNode<Code> centry, TNode<Object> context,
+    std::initializer_list<TNode<Object>> args) {
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(call_descriptor->ReturnCount());
 
-  Node* centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
   Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
 

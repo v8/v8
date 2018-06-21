@@ -2009,28 +2009,26 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
 
 Node* WasmGraphBuilder::GrowMemory(Node* input) {
   SetNeedsStackCheck();
-  Diamond check_input_range(
-      graph(), mcgraph()->common(),
-      graph()->NewNode(mcgraph()->machine()->Uint32LessThanOrEqual(), input,
-                       mcgraph()->Uint32Constant(FLAG_wasm_max_mem_pages)),
-      BranchHint::kTrue);
 
-  check_input_range.Chain(*control_);
+  WasmGrowMemoryDescriptor interface_descriptor;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      mcgraph()->zone(),                              // zone
+      interface_descriptor,                           // descriptor
+      interface_descriptor.GetStackParameterCount(),  // stack parameter count
+      CallDescriptor::kNoFlags,                       // flags
+      Operator::kNoProperties,                        // properties
+      Linkage::kNoContext,                            // context specification
+      StubCallMode::kCallWasmRuntimeStub);            // stub call mode
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+      wasm::WasmCode::kWasmGrowMemory, RelocInfo::WASM_STUB_CALL);
+  Node* call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
+                                call_target, input, *effect_, *control_);
 
-  Node* parameters[] = {BuildChangeUint31ToSmi(input)};
-  Node* old_effect = *effect_;
-  *control_ = check_input_range.if_true;
-  Node* call = BuildCallToRuntime(Runtime::kWasmGrowMemory, parameters,
-                                  arraysize(parameters));
-
-  Node* result = BuildChangeSmiToInt32(call);
-
-  result = check_input_range.Phi(MachineRepresentation::kWord32, result,
-                                 mcgraph()->Int32Constant(-1));
-  *effect_ = graph()->NewNode(mcgraph()->common()->EffectPhi(2), *effect_,
-                              old_effect, check_input_range.merge);
-  *control_ = check_input_range.merge;
-  return result;
+  *effect_ = call;
+  *control_ = call;
+  return call;
 }
 
 uint32_t WasmGraphBuilder::GetExceptionEncodedSize(

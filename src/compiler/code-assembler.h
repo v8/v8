@@ -749,6 +749,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void ReturnIf(Node* condition, Node* value);
 
+  void ReturnRaw(Node* value);
+
   void DebugAbort(Node* message);
   void DebugBreak();
   void Unreachable();
@@ -988,6 +990,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   template <class... TArgs>
+  TNode<Object> CallRuntimeWithCEntry(Runtime::FunctionId function,
+                                      TNode<Code> centry,
+                                      SloppyTNode<Object> context,
+                                      TArgs... args) {
+    return CallRuntimeWithCEntryImpl(function, centry, context, {args...});
+  }
+
+  template <class... TArgs>
   void TailCallRuntime(Runtime::FunctionId function,
                        SloppyTNode<Object> context, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
@@ -1007,7 +1017,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void TailCallRuntimeWithCEntry(Runtime::FunctionId function,
                                  TNode<Code> centry, TNode<Object> context,
                                  TArgs... args) {
-    int argc = static_cast<int>(sizeof...(args));
+    int argc = sizeof...(args);
     TNode<Int32T> arity = Int32Constant(argc);
     return TailCallRuntimeWithCEntryImpl(
         function, arity, centry, context,
@@ -1192,6 +1202,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> CallRuntimeImpl(Runtime::FunctionId function,
                                 TNode<Object> context,
                                 std::initializer_list<TNode<Object>> args);
+
+  TNode<Object> CallRuntimeWithCEntryImpl(
+      Runtime::FunctionId function, TNode<Code> centry, TNode<Object> context,
+      std::initializer_list<TNode<Object>> args);
 
   void TailCallRuntimeImpl(Runtime::FunctionId function, TNode<Int32T> arity,
                            TNode<Object> context,

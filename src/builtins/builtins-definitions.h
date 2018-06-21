@@ -1205,8 +1205,9 @@ namespace internal {
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
   TFC(WasmArgumentsAdaptor, ArgumentAdaptor, 1)                                \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
-  TFC(WasmToNumber, TypeConversion, 1)                                         \
+  TFC(WasmGrowMemory, WasmGrowMemory, 1)                                       \
   TFS(WasmStackGuard)                                                          \
+  TFC(WasmToNumber, TypeConversion, 1)                                         \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \
   TFS(ThrowWasmTrapDivByZero)                                                  \

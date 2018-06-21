@@ -269,8 +269,10 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-
+void WasmGrowMemoryDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
 
 }  // namespace internal
 }  // namespace v8

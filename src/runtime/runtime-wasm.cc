@@ -67,10 +67,11 @@ class ClearThreadInWasmScope {
 
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
-                                      isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  // {delta_pages} is checked to be a positive smi in the WasmGrowMemory builtin
+  // which calls this runtime function.
+  CONVERT_UINT32_ARG_CHECKED(delta_pages, 1);
 
   // This runtime function is always being called from wasm code.
   ClearThreadInWasmScope flag_scope(true);

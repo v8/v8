@@ -460,14 +460,16 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         iterator->isolate()->wasm_engine()->code_manager()->LookupCode(pc);
     if (wasm_code != nullptr) {
       switch (wasm_code->kind()) {
-        case wasm::WasmCode::kInterpreterEntry:
-          return WASM_INTERPRETER_ENTRY;
         case wasm::WasmCode::kFunction:
           return WASM_COMPILED;
-        case wasm::WasmCode::kLazyStub:
-          return WASM_COMPILE_LAZY;
         case wasm::WasmCode::kWasmToJsWrapper:
           return WASM_TO_JS;
+        case wasm::WasmCode::kLazyStub:
+          return WASM_COMPILE_LAZY;
+        case wasm::WasmCode::kRuntimeStub:
+          return STUB;
+        case wasm::WasmCode::kInterpreterEntry:
+          return WASM_INTERPRETER_ENTRY;
         default:
           UNREACHABLE();
       }
