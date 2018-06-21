@@ -618,8 +618,10 @@ class Scanner {
   }
 
   void HandleLeadSurrogate() {
+    DCHECK(!unibrow::Utf16::IsLeadSurrogate(kEndOfInput));
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
+      DCHECK(!unibrow::Utf16::IsTrailSurrogate(kEndOfInput));
       if (!unibrow::Utf16::IsTrailSurrogate(c1)) {
         source_->Back();
       } else {
