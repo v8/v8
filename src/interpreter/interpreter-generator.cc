@@ -3112,8 +3112,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
       Bytecodes::ToString(bytecode),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison,
-      Bytecodes::ReturnCount(bytecode));
+          : PoisoningMitigationLevel::kDontPoison);
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \
@@ -3173,7 +3172,6 @@ class DeserializeLazyAssembler : public InterpreterAssembler {
 Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
                                             OperandScale operand_scale) {
   Zone zone(isolate->allocator(), ZONE_NAME);
-  const size_t return_count = 0;
 
   std::string debug_name = std::string("DeserializeLazy");
   if (operand_scale > OperandScale::kSingle) {
@@ -3187,8 +3185,7 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
       debug_name.c_str(),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison,
-      return_count);
+          : PoisoningMitigationLevel::kDontPoison);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);

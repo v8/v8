@@ -22,14 +22,16 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 }
 
 void CallInterfaceDescriptorData::InitializePlatformIndependent(
-    int parameter_count, int extra_parameter_count,
-    const MachineType* machine_types) {
+    int return_count, int parameter_count, const MachineType* machine_types,
+    int machine_types_length) {
   // InterfaceDescriptor owns a copy of the MachineType array.
   // We only care about parameters, not receiver and result.
-  param_count_ = parameter_count + extra_parameter_count;
-  machine_types_ = NewArray<MachineType>(param_count_);
-  for (int i = 0; i < param_count_; i++) {
-    if (machine_types == nullptr || i >= parameter_count) {
+  return_count_ = return_count;
+  param_count_ = parameter_count;
+  int types_length = return_count_ + param_count_;
+  machine_types_ = NewArray<MachineType>(types_length);
+  for (int i = 0; i < types_length; i++) {
+    if (machine_types == nullptr || i >= machine_types_length) {
       machine_types_[i] = MachineType::AnyTagged();
     } else {
       machine_types_[i] = machine_types[i];

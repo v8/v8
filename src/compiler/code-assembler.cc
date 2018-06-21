@@ -44,15 +44,14 @@ static_assert(
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     Code::Kind kind, const char* name, PoisoningMitigationLevel poisoning_level,
-    size_t result_size, uint32_t stub_key, int32_t builtin_index)
+    uint32_t stub_key, int32_t builtin_index)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
               zone, descriptor, descriptor.GetStackParameterCount(),
-              CallDescriptor::kNoFlags, Operator::kNoProperties,
-              MachineType::AnyTagged(), result_size),
+              CallDescriptor::kNoFlags, Operator::kNoProperties),
           kind, name, poisoning_level, stub_key, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
@@ -1142,9 +1141,10 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
+  DCHECK_EQ(result_size, descriptor.GetReturnCount());
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
-      Operator::kNoProperties, MachineType::AnyTagged(), result_size,
+      Operator::kNoProperties,
       pass_context ? Linkage::kPassContext : Linkage::kNoContext);
 
   CallPrologue();
@@ -1160,11 +1160,9 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
   constexpr size_t kMaxNumArgs = 11;
   DCHECK_GE(kMaxNumArgs, args.size());
   DCHECK_EQ(descriptor.GetParameterCount(), args.size());
-  size_t result_size = 1;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
 
   NodeArray<kMaxNumArgs + 2> inputs;
   inputs.Add(target);
@@ -1203,7 +1201,7 @@ Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
-      Operator::kNoProperties, MachineType::AnyTagged(), 0);
+      Operator::kNoProperties);
 
   NodeArray<kMaxNumArgs + 2> inputs;
   inputs.Add(target);
@@ -1238,11 +1236,9 @@ TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
                                             TNode<Object> new_target,
                                             TNode<Int32T> arg_count) {
   JSTrampolineDescriptor descriptor;
-  size_t result_size = 1;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
+      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties);
 
   Node* nodes[] = {code, function, new_target, arg_count, context};
   CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));

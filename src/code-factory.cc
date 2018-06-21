@@ -318,7 +318,12 @@ Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   // save fpregs too.
   Handle<Code> code = CodeFactory::CEntry(isolate, result_size, kDontSaveFPRegs,
                                           kArgvInRegister);
-  return Callable(code, InterpreterCEntryDescriptor{});
+  if (result_size == 1) {
+    return Callable(code, InterpreterCEntry1Descriptor{});
+  } else {
+    DCHECK_EQ(result_size, 2);
+    return Callable(code, InterpreterCEntry2Descriptor{});
+  }
 }
 
 // static

@@ -67,7 +67,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterDispatch)              \
   V(InterpreterPushArgsThenCall)      \
   V(InterpreterPushArgsThenConstruct) \
-  V(InterpreterCEntry)                \
+  V(InterpreterCEntry1)               \
+  V(InterpreterCEntry2)               \
   V(ResumeGenerator)                  \
   V(FrameDropperTrampoline)           \
   V(RunMicrotasks)                    \
@@ -85,27 +86,37 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
       PlatformInterfaceDescriptor* platform_descriptor = nullptr);
 
   // if machine_types is null, then an array of size
-  // (parameter_count + extra_parameter_count) will be created with
+  // (return_count + parameter_count) will be created with
   // MachineType::AnyTagged() for each member.
   //
   // if machine_types is not null, then it should be of the size
-  // parameter_count. Those members of the parameter array will be initialized
-  // from {machine_types}, and the rest initialized to MachineType::AnyTagged().
-  void InitializePlatformIndependent(int parameter_count,
-                                     int extra_parameter_count,
-                                     const MachineType* machine_types);
+  // (return_count + parameter_count). Those members of the parameter array will
+  // be initialized from {machine_types}, and the rest initialized to
+  // MachineType::AnyTagged().
+  void InitializePlatformIndependent(int return_count, int parameter_count,
+                                     const MachineType* machine_types,
+                                     int machine_types_length);
 
   void Reset();
 
   bool IsInitialized() const {
-    return register_param_count_ >= 0 && param_count_ >= 0;
+    return register_param_count_ >= 0 && return_count_ >= 0 &&
+           param_count_ >= 0;
   }
 
+  int return_count() const { return return_count_; }
   int param_count() const { return param_count_; }
   int register_param_count() const { return register_param_count_; }
   Register register_param(int index) const { return register_params_[index]; }
   Register* register_params() const { return register_params_; }
-  MachineType param_type(int index) const { return machine_types_[index]; }
+  MachineType return_type(int index) const {
+    DCHECK_LT(index, return_count_);
+    return machine_types_[index];
+  }
+  MachineType param_type(int index) const {
+    DCHECK_LT(index, param_count_);
+    return machine_types_[return_count_ + index];
+  }
   PlatformInterfaceDescriptor* platform_specific_descriptor() const {
     return platform_specific_descriptor_;
   }
@@ -122,16 +133,19 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
  private:
   int register_param_count_ = -1;
+  int return_count_ = -1;
   int param_count_ = -1;
 
   // Specifying the set of registers that could be used by the register
   // allocator. Currently, it's only used by RecordWrite code stub.
   RegList allocatable_registers_ = 0;
 
-  // The Register params are allocated dynamically by the
-  // InterfaceDescriptor, and freed on destruction. This is because static
-  // arrays of Registers cause creation of runtime static initializers
-  // which we don't want.
+  // |registers_params_| defines registers that are used for parameter passing.
+  // |machine_types_| defines machine types for resulting values and incomping
+  // parameters.
+  // Both arrays are allocated dynamically by the InterfaceDescriptor and
+  // freed on destruction. This is because static arrays cause creation of
+  // runtime static initializers which we don't want.
   Register* register_params_ = nullptr;
   MachineType* machine_types_ = nullptr;
 
@@ -177,6 +191,13 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   CallInterfaceDescriptor(CallDescriptors::Key key)
       : data_(CallDescriptors::call_descriptor_data(key)) {}
 
+  int GetReturnCount() const { return data()->return_count(); }
+
+  MachineType GetReturnType(int index) const {
+    DCHECK_LT(index, data()->return_count());
+    return data()->return_type(index);
+  }
+
   int GetParameterCount() const { return data()->param_count(); }
 
   int GetRegisterParameterCount() const {
@@ -192,7 +213,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   }
 
   MachineType GetParameterType(int index) const {
-    DCHECK(index < data()->param_count());
+    DCHECK_LT(index, data()->param_count());
     return data()->param_type(index);
   }
 
@@ -218,8 +239,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
 
   virtual void InitializePlatformIndependent(
       CallInterfaceDescriptorData* data) {
-    data->InitializePlatformIndependent(data->register_param_count(), 0,
-                                        nullptr);
+    // Default descriptor configuration: one result, all parameters are passed
+    // in registers and all parameters have MachineType::AnyTagged() type.
+    data->InitializePlatformIndependent(1, data->register_param_count(),
+                                        nullptr, 0);
   }
 
   // Initializes |data| using the platform dependent default set of registers.
@@ -271,8 +294,8 @@ constexpr int kMaxBuiltinRegisterParams = 5;
   }                                                                           \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
       override {                                                              \
-    data->InitializePlatformIndependent(kRegisterParams, kStackParams,        \
-                                        nullptr);                             \
+    data->InitializePlatformIndependent(kReturnCount, parameter_count,        \
+                                        nullptr, 0);                          \
   }                                                                           \
   name(CallDescriptors::Key key) : base(key) {}                               \
                                                                               \
@@ -290,7 +313,8 @@ constexpr int kMaxBuiltinRegisterParams = 5;
                                                                             \
  public:
 
-#define DEFINE_PARAMETERS(...)                            \
+#define DEFINE_RESULT_AND_PARAMETERS(return_count, ...)   \
+  static constexpr int kReturnCount = return_count;       \
   enum ParameterIndices {                                 \
     __dummy = -1, /* to be able to pass zero arguments */ \
     ##__VA_ARGS__,                                        \
@@ -299,27 +323,34 @@ constexpr int kMaxBuiltinRegisterParams = 5;
     kContext = kParameterCount /* implicit parameter */   \
   };
 
-#define DEFINE_PARAMETERS_NO_CONTEXT(...)                 \
-  enum ParameterIndices {                                 \
-    __dummy = -1, /* to be able to pass zero arguments */ \
-    ##__VA_ARGS__,                                        \
-                                                          \
-    kParameterCount                                       \
+#define DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(return_count, ...) \
+  static constexpr int kReturnCount = return_count;                \
+  enum ParameterIndices {                                          \
+    __dummy = -1, /* to be able to pass zero arguments */          \
+    ##__VA_ARGS__,                                                 \
+                                                                   \
+    kParameterCount                                                \
   };
 
-#define DEFINE_PARAMETER_TYPES(...)                                           \
+#define DEFINE_PARAMETERS(...) DEFINE_RESULT_AND_PARAMETERS(1, ##__VA_ARGS__)
+
+#define DEFINE_RESULT_AND_PARAMETER_TYPES(...)                                \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
       override {                                                              \
-    /* First element is here to workaround empty __VA_ARGS__ case */          \
-    MachineType machine_types[] = {MachineType::None(), ##__VA_ARGS__};       \
+    MachineType machine_types[] = {__VA_ARGS__};                              \
     static_assert(                                                            \
-        kParameterCount == arraysize(machine_types) - 1,                      \
+        kReturnCount + kParameterCount == arraysize(machine_types),           \
         "Parameter names definition is not consistent with parameter types"); \
-    data->InitializePlatformIndependent(kParameterCount, 0,                   \
-                                        &machine_types[1]);                   \
+    data->InitializePlatformIndependent(kReturnCount, kParameterCount,        \
+                                        machine_types,                        \
+                                        arraysize(machine_types));            \
   }
 
+#define DEFINE_PARAMETER_TYPES(...)                                        \
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */, \
+                                    ##__VA_ARGS__)
 #define DEFINE_JS_PARAMETERS(...)                       \
+  static constexpr int kReturnCount = 1;                \
   enum ParameterIndices {                               \
     kTarget,                                            \
     kNewTarget,                                         \
@@ -353,8 +384,9 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
 
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32())
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kRequestedSize)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 0
+                                    MachineType::Int32())  // kRequestedSize
   DECLARE_DESCRIPTOR(AllocateDescriptor, CallInterfaceDescriptor)
 };
 
@@ -781,9 +813,10 @@ class BinaryOpDescriptor : public CallInterfaceDescriptor {
 class StringAtDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kPosition)
-  // TODO(turbofan): Allow builtins to return untagged values.
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
-                         MachineType::IntPtr())     // kPosition
+  // TODO(turbofan): Return untagged value here.
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedSigned(),  // result 0
+                                    MachineType::AnyTagged(),     // kReceiver
+                                    MachineType::IntPtr())        // kPosition
   DECLARE_DESCRIPTOR(StringAtDescriptor, CallInterfaceDescriptor)
 };
 
@@ -852,8 +885,8 @@ class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
-                    kDispatchTable)
+  DEFINE_RESULT_AND_PARAMETERS(1, kAccumulator, kBytecodeOffset, kBytecodeArray,
+                               kDispatchTable)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kAccumulator
                          MachineType::IntPtr(),     // kBytecodeOffset
                          MachineType::AnyTagged(),  // kBytecodeArray
@@ -863,7 +896,7 @@ class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
 
 class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunction)
+  DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kFirstArgument, kFunction)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
                          MachineType::Pointer(),    // kFirstArgument
                          MachineType::AnyTagged())  // kFunction
@@ -874,8 +907,8 @@ class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
 class InterpreterPushArgsThenConstructDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kNumberOfArguments, kNewTarget, kConstructor,
-                    kFeedbackElement, kFirstArgument)
+  DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kNewTarget, kConstructor,
+                               kFeedbackElement, kFirstArgument)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
                          MachineType::AnyTagged(),  // kNewTarget
                          MachineType::AnyTagged(),  // kConstructor
@@ -885,13 +918,27 @@ class InterpreterPushArgsThenConstructDescriptor
                      CallInterfaceDescriptor)
 };
 
-class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
+class InterpreterCEntry1Descriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunctionEntry)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),    // kNumberOfArguments
-                         MachineType::Pointer(),  // kFirstArgument
-                         MachineType::Pointer())  // kFunctionEntry
-  DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
+  DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kFirstArgument,
+                               kFunctionEntry)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 0
+                                    MachineType::Int32(),  // kNumberOfArguments
+                                    MachineType::Pointer(),  // kFirstArgument
+                                    MachineType::Pointer())  // kFunctionEntry
+  DECLARE_DESCRIPTOR(InterpreterCEntry1Descriptor, CallInterfaceDescriptor)
+};
+
+class InterpreterCEntry2Descriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(2, kNumberOfArguments, kFirstArgument,
+                               kFunctionEntry)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 0
+                                    MachineType::AnyTagged(),  // result 1
+                                    MachineType::Int32(),  // kNumberOfArguments
+                                    MachineType::Pointer(),  // kFirstArgument
+                                    MachineType::Pointer())  // kFunctionEntry
+  DECLARE_DESCRIPTOR(InterpreterCEntry2Descriptor, CallInterfaceDescriptor)
 };
 
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
@@ -930,8 +977,10 @@ BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR
 #undef DECLARE_JS_COMPATIBLE_DESCRIPTOR
+#undef DEFINE_RESULT_AND_PARAMETERS
+#undef DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT
 #undef DEFINE_PARAMETERS
-#undef DEFINE_PARAMETERS_NO_CONTEXT
+#undef DEFINE_RESULT_AND_PARAMETER_TYPES
 #undef DEFINE_PARAMETER_TYPES
 #undef DEFINE_JS_PARAMETERS
 #undef DEFINE_JS_PARAMETER_TYPES

@@ -101,12 +101,11 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags,
-                                            Operator::Properties properties,
-                                            int result_size) {
+                                            Operator::Properties properties) {
   const CallInterfaceDescriptor& descriptor = callable.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-      properties, MachineType::AnyTagged(), result_size);
+      properties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
@@ -362,8 +361,7 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   Handle<AllocationSite> const site = p.site();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), ArrayConstructorDescriptor{}, arity + 1,
-      CallDescriptor::kNeedsFrameState, node->op()->properties(),
-      MachineType::AnyTagged());
+      CallDescriptor::kNeedsFrameState, node->op()->properties());
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
   Node* stub_arity = jsgraph()->Int32Constant(arity);
   Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()

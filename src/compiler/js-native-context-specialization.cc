@@ -1767,7 +1767,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
       call_interface_descriptor.GetStackParameterCount() + argc +
           1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
-      MachineType::AnyTagged(), 1, Linkage::kNoContext);
+      Linkage::kNoContext);
 
   Node* data = jsgraph()->Constant(call_data_object);
   ApiFunction function(v8::ToCData<Address>(call_handler_info->callback()));

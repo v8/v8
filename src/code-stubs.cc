@@ -261,7 +261,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeAssemblerState state(
       isolate(), &zone, descriptor, Code::STUB, name,
-      PoisoningMitigationLevel::kDontPoison, 1, GetKey());
+      PoisoningMitigationLevel::kDontPoison, GetKey());
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }

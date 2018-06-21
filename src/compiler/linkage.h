@@ -393,8 +393,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
-      MachineType return_type = MachineType::AnyTagged(),
-      size_t return_count = 1, ContextSpecification context_spec = kPassContext,
+      ContextSpecification context_spec = kPassContext,
       StubCallMode stub_mode = StubCallMode::kCallOnHeapBuiltin);
 
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(

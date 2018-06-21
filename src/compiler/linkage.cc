@@ -346,8 +346,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
-    Operator::Properties properties, MachineType return_type,
-    size_t return_count, Linkage::ContextSpecification context_spec,
+    Operator::Properties properties, Linkage::ContextSpecification context_spec,
     StubCallMode stub_mode) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
@@ -356,17 +355,18 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
 
+  size_t return_count = descriptor.GetReturnCount();
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
   // Add returns.
   if (locations.return_count_ > 0) {
-    locations.AddReturn(regloc(kReturnRegister0, return_type));
+    locations.AddReturn(regloc(kReturnRegister0, descriptor.GetReturnType(0)));
   }
   if (locations.return_count_ > 1) {
-    locations.AddReturn(regloc(kReturnRegister1, return_type));
+    locations.AddReturn(regloc(kReturnRegister1, descriptor.GetReturnType(1)));
   }
   if (locations.return_count_ > 2) {
-    locations.AddReturn(regloc(kReturnRegister2, return_type));
+    locations.AddReturn(regloc(kReturnRegister2, descriptor.GetReturnType(2)));
   }
 
   // Add parameters in registers and on the stack.
@@ -417,7 +417,10 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int parameter_count = register_parameter_count + stack_parameter_count;
 
-  LocationSignature::Builder locations(zone, 0, parameter_count);
+  DCHECK_EQ(descriptor.GetReturnCount(), 1);
+  LocationSignature::Builder locations(zone, 1, parameter_count);
+
+  locations.AddReturn(regloc(kReturnRegister0, descriptor.GetReturnType(0)));
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < parameter_count; i++) {
