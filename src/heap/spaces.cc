@@ -909,6 +909,15 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
 void Page::ResetAllocatedBytes() { allocated_bytes_ = area_size(); }
 
+void Page::AllocateLocalTracker() {
+  DCHECK_NULL(local_tracker_);
+  local_tracker_ = new LocalArrayBufferTracker(this);
+}
+
+bool Page::contains_array_buffers() {
+  return local_tracker_ != nullptr && !local_tracker_->IsEmpty();
+}
+
 void Page::ResetFreeListStatistics() {
   wasted_memory_ = 0;
 }
@@ -1251,10 +1260,6 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
 // -----------------------------------------------------------------------------
 // MemoryChunk implementation
 
-bool MemoryChunk::contains_array_buffers() {
-  return local_tracker() != nullptr && !local_tracker()->IsEmpty();
-}
-
 void MemoryChunk::ReleaseAllocatedMemory() {
   if (skip_list_ != nullptr) {
     delete skip_list_;
@@ -1370,11 +1375,6 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
     int old_size = (*invalidated_slots())[object];
     (*invalidated_slots())[object] = std::max(old_size, size);
   }
-}
-
-void MemoryChunk::AllocateLocalTracker() {
-  DCHECK_NULL(local_tracker_);
-  local_tracker_ = new LocalArrayBufferTracker(owner());
 }
 
 void MemoryChunk::ReleaseLocalTracker() {
@@ -1494,10 +1494,12 @@ void PagedSpace::RefillFreeList() {
 void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   base::LockGuard<base::Mutex> guard(mutex());
 
+  IncrementExternalBackingStoreBytes(other->ExternalBackingStoreBytes());
+  other->DecrementExternalBackingStoreBytes(other->ExternalBackingStoreBytes());
+
   DCHECK(identity() == other->identity());
   // Unmerged fields:
   //   area_size_
-
   other->FreeLinearAllocationArea();
 
   // The linear allocation area of {other} should be destroyed now.
@@ -2571,6 +2573,10 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->committed_, to->committed_);
   std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
+
+  size_t from_backing_bytes = from->ExternalBackingStoreBytes();
+  from->external_backing_store_bytes_ = to->ExternalBackingStoreBytes();
+  to->external_backing_store_bytes_ = from_backing_bytes;
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
   from->FixPagesFlags(0, 0);

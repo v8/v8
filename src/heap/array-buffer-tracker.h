@@ -67,7 +67,7 @@ class LocalArrayBufferTracker {
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
   enum FreeMode { kFreeDead, kFreeAll };
 
-  explicit LocalArrayBufferTracker(Space* space) : space_(space) {}
+  explicit LocalArrayBufferTracker(Page* page) : page_(page) {}
   ~LocalArrayBufferTracker();
 
   inline void Add(JSArrayBuffer* buffer, size_t length);
@@ -118,7 +118,9 @@ class LocalArrayBufferTracker {
   typedef std::unordered_map<JSArrayBuffer*, BackingStoreAndLength, Hasher>
       TrackingData;
 
-  Space* space_;
+  inline Space* space();
+
+  Page* page_;
   // The set contains raw heap pointers which are removed by the GC upon
   // processing the tracker through its owning page.
   TrackingData array_buffers_;

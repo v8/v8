@@ -257,7 +257,7 @@ class MemoryChunk {
     IS_EXECUTABLE = 1u << 0,
     POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
     POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
-    // A page in new space has one of the next to flags set.
+    // A page in new space has one of the next two flags set.
     IN_FROM_SPACE = 1u << 3,
     IN_TO_SPACE = 1u << 4,
     NEW_SPACE_BELOW_AGE_MARK = 1u << 5,
@@ -499,10 +499,7 @@ class MemoryChunk {
   void RegisterObjectWithInvalidatedSlots(HeapObject* object, int size);
   InvalidatedSlots* invalidated_slots() { return invalidated_slots_; }
 
-  void AllocateLocalTracker();
   void ReleaseLocalTracker();
-  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
-  bool contains_array_buffers();
 
   void AllocateYoungGenerationBitmap();
   void ReleaseYoungGenerationBitmap();
@@ -796,6 +793,10 @@ class Page : public MemoryChunk {
     DCHECK(SweepingDone());
   }
 
+  void AllocateLocalTracker();
+  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
+  bool contains_array_buffers();
+
   void ResetFreeListStatistics();
 
   size_t AvailableInFreeList();
@@ -883,12 +884,12 @@ class LargePage : public MemoryChunk {
 class Space : public Malloced {
  public:
   Space(Heap* heap, AllocationSpace id)
-      : allocation_observers_paused_(false),
+      : external_backing_store_bytes_(0),
+        allocation_observers_paused_(false),
         heap_(heap),
         id_(id),
         committed_(0),
-        max_committed_(0),
-        external_backing_store_bytes_(0) {}
+        max_committed_(0) {}
 
   virtual ~Space() {}
 
@@ -989,6 +990,9 @@ class Space : public Malloced {
   // The List manages the pages that belong to the given space.
   base::List<MemoryChunk> memory_chunk_list_;
 
+  // Tracks off-heap memory used by this space.
+  std::atomic<size_t> external_backing_store_bytes_;
+
  private:
   bool allocation_observers_paused_;
   Heap* heap_;
@@ -997,9 +1001,6 @@ class Space : public Malloced {
   // Keeps track of committed memory in a space.
   size_t committed_;
   size_t max_committed_;
-
-  // Tracks off-heap memory used by this space.
-  std::atomic<size_t> external_backing_store_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(Space);
 };

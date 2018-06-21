@@ -62,10 +62,10 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   }
   if (moved_memory || freed_memory) {
     // Update the Space with any moved or freed backing-store bytes.
-    space_->DecrementExternalBackingStoreBytes(freed_memory + moved_memory);
+    space()->DecrementExternalBackingStoreBytes(freed_memory + moved_memory);
 
     // TODO(wez): Remove backing-store from external memory accounting.
-    space_->heap()->update_external_memory_concurrently_freed(
+    page_->heap()->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
   }
 
@@ -73,7 +73,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
 
   // Pass the backing stores that need to be freed to the main thread for later
   // distribution.
-  space_->heap()->array_buffer_collector()->AddGarbageAllocations(
+  page_->heap()->array_buffer_collector()->AddGarbageAllocations(
       std::move(backing_stores_to_free));
 }
 
