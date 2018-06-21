@@ -64,26 +64,22 @@ class WasmSerializationTest {
     builder->WriteTo(*buffer);
   }
 
-  void ClearSerializedData() {
-    serialized_bytes_.first = nullptr;
-    serialized_bytes_.second = 0;
-  }
+  void ClearSerializedData() { serialized_bytes_ = {nullptr, 0}; }
 
   void InvalidateVersion() {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.first) +
+        const_cast<uint8_t*>(serialized_bytes_.start) +
         SerializedCodeData::kVersionHashOffset);
     *slot = Version::Hash() + 1;
   }
 
   void InvalidateWireBytes() {
-    memset(const_cast<uint8_t*>(wire_bytes_.first), '\0',
-           wire_bytes_.second / 2);
+    memset(const_cast<uint8_t*>(wire_bytes_.start), 0, wire_bytes_.size / 2);
   }
 
   void InvalidateLength() {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.first) +
+        const_cast<uint8_t*>(serialized_bytes_.start) +
         SerializedCodeData::kPayloadLengthOffset);
     *slot = 0u;
   }
@@ -92,7 +88,7 @@ class WasmSerializationTest {
     ErrorThrower thrower(current_isolate(), "");
     v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
         v8::WasmCompiledModule::DeserializeOrCompile(
-            current_isolate_v8(), serialized_bytes(), wire_bytes());
+            current_isolate_v8(), serialized_bytes_, wire_bytes_);
     return deserialized;
   }
 
@@ -106,7 +102,7 @@ class WasmSerializationTest {
       DisallowHeapAllocation assume_no_gc;
       CHECK_EQ(memcmp(reinterpret_cast<const uint8_t*>(
                           module_object->module_bytes()->GetCharsAddress()),
-                      wire_bytes().first, wire_bytes().second),
+                      wire_bytes_.start, wire_bytes_.size),
                0);
     }
     Handle<WasmInstanceObject> instance =
@@ -138,13 +134,6 @@ class WasmSerializationTest {
   static const char* kFunctionName;
 
   Zone* zone() { return &zone_; }
-  const v8::WasmCompiledModule::CallerOwnedBuffer& wire_bytes() const {
-    return wire_bytes_;
-  }
-
-  const v8::WasmCompiledModule::CallerOwnedBuffer& serialized_bytes() const {
-    return serialized_bytes_;
-  }
 
   void SetUp() {
     ZoneBuffer buffer(&zone_);
@@ -208,8 +197,8 @@ class WasmSerializationTest {
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
   v8::WasmCompiledModule::SerializedModule data_;
-  v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes_;
-  v8::WasmCompiledModule::CallerOwnedBuffer serialized_bytes_;
+  v8::WasmCompiledModule::BufferReference wire_bytes_ = {nullptr, 0};
+  v8::WasmCompiledModule::BufferReference serialized_bytes_ = {nullptr, 0};
   v8::Isolate* current_isolate_v8_;
 };
 

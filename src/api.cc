@@ -7481,8 +7481,8 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
     Isolate* isolate,
     const WasmCompiledModule::TransferrableModule& transferrable_module) {
   MaybeLocal<WasmCompiledModule> ret =
-      Deserialize(isolate, AsCallerOwned(transferrable_module.compiled_code),
-                  AsCallerOwned(transferrable_module.wire_bytes));
+      Deserialize(isolate, AsReference(transferrable_module.compiled_code),
+                  AsReference(transferrable_module.wire_bytes));
   return ret;
 }
 
@@ -7500,14 +7500,13 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
-    Isolate* isolate,
-    const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
-    const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
+    Isolate* isolate, WasmCompiledModule::BufferReference serialized_module,
+    WasmCompiledModule::BufferReference wire_bytes) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::MaybeHandle<i::WasmModuleObject> maybe_module_object =
       i::wasm::DeserializeNativeModule(
-          i_isolate, {serialized_module.first, serialized_module.second},
-          {wire_bytes.first, wire_bytes.second});
+          i_isolate, {serialized_module.start, serialized_module.size},
+          {wire_bytes.start, wire_bytes.size});
   i::Handle<i::WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return MaybeLocal<WasmCompiledModule>();
@@ -7517,15 +7516,14 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
-    Isolate* isolate,
-    const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
-    const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
+    Isolate* isolate, WasmCompiledModule::BufferReference serialized_module,
+    WasmCompiledModule::BufferReference wire_bytes) {
   MaybeLocal<WasmCompiledModule> ret =
       Deserialize(isolate, serialized_module, wire_bytes);
   if (!ret.IsEmpty()) {
     return ret;
   }
-  return Compile(isolate, wire_bytes.first, wire_bytes.second);
+  return Compile(isolate, wire_bytes.start, wire_bytes.size);
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,

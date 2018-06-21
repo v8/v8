@@ -4308,10 +4308,29 @@ class V8_EXPORT Proxy : public Object {
 class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
+
+// The COMMA macro allows us to use ',' inside of the V8_DEPRECATE_SOON macro.
+#define COMMA ,
+  V8_DEPRECATE_SOON(
+      "Use BufferReference.",
+      typedef std::pair<const uint8_t * COMMA size_t> CallerOwnedBuffer);
+#undef COMMA
+
   /**
-   * A buffer that is owned by the caller.
+   * A unowned reference to a byte buffer.
    */
-  typedef std::pair<const uint8_t*, size_t> CallerOwnedBuffer;
+  struct BufferReference {
+    const uint8_t* start;
+    size_t size;
+    BufferReference(const uint8_t* start, size_t size)
+        : start(start), size(size) {}
+    // Temporarily allow conversion to and from CallerOwnedBuffer.
+    V8_DEPRECATE_SOON(
+        "Use BufferReference directly.",
+        inline BufferReference(CallerOwnedBuffer));  // NOLINT(runtime/explicit)
+    V8_DEPRECATE_SOON("Use BufferReference directly.",
+                      inline operator CallerOwnedBuffer());
+  };
 
   /**
    * An opaque, native heap object for transferring wasm modules. It
@@ -4328,7 +4347,7 @@ class V8_EXPORT WasmCompiledModule : public Object {
    private:
     typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> OwnedBuffer;
     friend class WasmCompiledModule;
-    TransferrableModule(OwnedBuffer&& code, OwnedBuffer&& bytes)
+    TransferrableModule(OwnedBuffer code, OwnedBuffer bytes)
         : compiled_code(std::move(code)), wire_bytes(std::move(bytes)) {}
 
     OwnedBuffer compiled_code = {nullptr, 0};
@@ -4365,18 +4384,18 @@ class V8_EXPORT WasmCompiledModule : public Object {
    * uncompiled bytes.
    */
   static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
-      Isolate* isolate, const CallerOwnedBuffer& serialized_module,
-      const CallerOwnedBuffer& wire_bytes);
+      Isolate* isolate, BufferReference serialized_module,
+      BufferReference wire_bytes);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
   static MaybeLocal<WasmCompiledModule> Deserialize(
-      Isolate* isolate, const CallerOwnedBuffer& serialized_module,
-      const CallerOwnedBuffer& wire_bytes);
+      Isolate* isolate, BufferReference serialized_module,
+      BufferReference wire_bytes);
   static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
                                                 const uint8_t* start,
                                                 size_t length);
-  static CallerOwnedBuffer AsCallerOwned(
+  static BufferReference AsReference(
       const TransferrableModule::OwnedBuffer& buff) {
     return {buff.first.get(), buff.second};
   }
@@ -4384,6 +4403,15 @@ class V8_EXPORT WasmCompiledModule : public Object {
   WasmCompiledModule();
   static void CheckCast(Value* obj);
 };
+
+// TODO(clemensh): Remove after M69 branch.
+WasmCompiledModule::BufferReference::BufferReference(
+    WasmCompiledModule::CallerOwnedBuffer buf)
+    : BufferReference(buf.first, buf.second) {}
+WasmCompiledModule::BufferReference::
+operator WasmCompiledModule::CallerOwnedBuffer() {
+  return {start, size};
+}
 
 // TODO(mtrofin): when streaming compilation is done, we can rename this
 // to simply WasmModuleObjectBuilder
