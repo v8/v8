@@ -534,9 +534,18 @@ DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
             "maximum memory size of a wasm instance")
 DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
-DEFINE_BOOL(wasm_tier_up, false,
-            "enable basic tiering up to the optimizing compiler")
+// Enable liftoff by default on ia32 and x64. More architectures will follow
+// once they are implemented and sufficiently tested.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+DEFINE_BOOL(
+    wasm_tier_up, true,
+    "enable wasm baseline compilation and tier up to the optimizing compiler")
+#else
+DEFINE_BOOL(
+    wasm_tier_up, false,
+    "enable wasm baseline compilation and tier up to the optimizing compiler")
 DEFINE_IMPLICATION(future, wasm_tier_up)
+#endif
 DEFINE_IMPLICATION(wasm_tier_up, liftoff)
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_decode_time, false,
