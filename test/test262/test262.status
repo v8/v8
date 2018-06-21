@@ -649,6 +649,10 @@
   'built-ins/Atomics/wake/count-defaults-to-infinity-undefined': [SKIP],
   'built-ins/Atomics/wake/undefined-index-defaults-to-zero': [SKIP],
 
+  # Flaky failure
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7876
+  'built-ins/Atomics/wait/waiterlist-block-indexedposition-wake': [SKIP],
+
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
   # https://github.com/tc39/ecma262/pull/889
