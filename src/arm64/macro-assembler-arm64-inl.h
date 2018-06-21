@@ -1054,10 +1054,6 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   DCHECK(dst.Is64Bits());
   if (SmiValuesAre32Bits()) {
     if (src.IsImmediateOffset() && src.shift_amount() == 0) {
-      if (FLAG_enable_slow_asserts) {
-        Ldr(dst, src);
-        AssertSmi(dst);
-      }
       // Load value directly from the upper half-word.
       // Assumes that Smis are shifted by 32 bits and little endianness.
       DCHECK_EQ(kSmiShift, 32);
