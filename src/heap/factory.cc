@@ -1515,13 +1515,18 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 }
 
 Handle<Script> Factory::NewScript(Handle<String> source, PretenureFlag tenure) {
+  return NewScriptWithId(source, isolate()->heap()->NextScriptId(), tenure);
+}
+
+Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
+                                        PretenureFlag tenure) {
   DCHECK(tenure == TENURED || tenure == TENURED_READ_ONLY);
   // Create and initialize script object.
   Heap* heap = isolate()->heap();
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE, tenure));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
-  script->set_id(isolate()->heap()->NextScriptId());
+  script->set_id(script_id);
   script->set_line_offset(0);
   script->set_column_offset(0);
   script->set_context_data(heap->undefined_value());
@@ -1535,6 +1540,7 @@ Handle<Script> Factory::NewScript(Handle<String> source, PretenureFlag tenure) {
   script->set_flags(0);
   script->set_host_defined_options(*empty_fixed_array());
   heap->set_script_list(*FixedArrayOfWeakCells::Add(script_list(), script));
+  LOG(isolate(), ScriptEvent("create", script_id));
   return script;
 }
 
