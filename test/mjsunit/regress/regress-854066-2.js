@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 oobArray = [];
+delete oobArray.__proto__[Symbol.iterator];
 for (let i = 0; i < 1e5; ++i) {
   oobArray[i] = 1.1;
 }
