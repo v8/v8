@@ -30,11 +30,6 @@ expression: Object(Symbol(42))
         description : Symbol
         overflow : false
         properties : [
-            [0] : {
-                name : description
-                type : string
-                value : 42
-            }
         ]
         type : object
     }

@@ -401,12 +401,9 @@ InjectedScript.prototype = {
                     var isAccessorProperty = descriptor && ("get" in descriptor || "set" in descriptor);
                     if (accessorPropertiesOnly && !isAccessorProperty)
                         continue;
-                    // Special case for Symbol.prototype.description where the receiver of the getter is not an actual object.
-                    // Should only occur for nested previews.
-                    var isSymbolDescription = isSymbol(object) && name === 'description';
-                    if (isSymbolDescription || (descriptor && "get" in descriptor && "set" in descriptor && name !== "__proto__" &&
+                    if (descriptor && "get" in descriptor && "set" in descriptor && name !== "__proto__" &&
                             InjectedScriptHost.formatAccessorsAsProperties(object, descriptor.get) &&
-                            !doesAttributeHaveObservableSideEffectOnGet(object, name))) {
+                            !doesAttributeHaveObservableSideEffectOnGet(object, name)) {
                         descriptor.value = object[property];
                         descriptor.isOwn = true;
                         delete descriptor.get;
