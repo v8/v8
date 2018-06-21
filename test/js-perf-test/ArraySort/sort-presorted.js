@@ -57,6 +57,12 @@ function SawSeq3(a, tooth, length) {
   }
 }
 
+function Random(a, length) {
+  for (let i = 0; i < length; ++i) {
+    a.push(Math.floor(Math.random() * length));
+  }
+}
+
 function TearDown() {
   // Sanity check that the array is sorted.
   let length = array_to_sort.length - 1;
@@ -85,6 +91,8 @@ let SetupUpUp = () => SetupPreSortedHalfs(Up, Up);
 let SetupDownDown = () => SetupPreSortedHalfs(Down, Down);
 let SetupDownUp = () => SetupPreSortedHalfs(Down, Up);
 
+createSortSuite(
+    'Random', 1000, SortAsc, () => Random(array_to_sort, kLength), TearDown);
 createSortSuite(
     'Up', 1000, SortAsc, () => Up(array_to_sort, kLength), TearDown);
 createSortSuite(

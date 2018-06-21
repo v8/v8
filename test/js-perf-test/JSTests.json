@@ -781,6 +781,7 @@
         "--allow-natives-syntax"
       ],
       "tests": [
+        {"name": "Random"},
         {"name": "Up"},
         {"name": "Down"},
         {"name": "Saw1000"},
