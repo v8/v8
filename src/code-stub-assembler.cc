@@ -1882,9 +1882,9 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
     SloppyTNode<HeapObject> array, int array_header_size, Node* index_node,
     int additional_offset, ParameterMode parameter_mode,
     LoadSensitivity needs_poisoning) {
-  CSA_SLOW_ASSERT(this, IntPtrGreaterThanOrEqual(
-                            ParameterToIntPtr(index_node, parameter_mode),
-                            IntPtrConstant(0)));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
+                       ParameterToIntPtr(index_node, parameter_mode),
+                       IntPtrConstant(0)));
   DCHECK_EQ(additional_offset % kPointerSize, 0);
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
@@ -2228,11 +2228,11 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
-  CSA_SLOW_ASSERT(
-      this, IsOffsetInBounds(
-                offset,
-                LoadAndUntagObjectField(object, FixedArrayBase::kLengthOffset),
-                FixedArray::kHeaderSize + endian_correction));
+  CSA_ASSERT(this,
+             IsOffsetInBounds(
+                 offset,
+                 LoadAndUntagObjectField(object, FixedArrayBase::kLengthOffset),
+                 FixedArray::kHeaderSize + endian_correction));
   if (SmiValuesAre32Bits()) {
     return UncheckedCast<Int32T>(Load(MachineType::Int32(), object, offset));
   } else {
@@ -2267,9 +2267,8 @@ TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
       FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset = ElementOffsetFromIndex(
       index_node, HOLEY_DOUBLE_ELEMENTS, parameter_mode, header_size);
-  CSA_SLOW_ASSERT(
-      this,
-      IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
+  CSA_ASSERT(this, IsOffsetInBounds(
+                       offset, LoadAndUntagFixedArrayBaseLength(object),
                        FixedDoubleArray::kHeaderSize, HOLEY_DOUBLE_ELEMENTS));
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
@@ -4164,7 +4163,7 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
                                                        ElementsKind from_kind,
                                                        ElementsKind to_kind,
                                                        Label* if_hole) {
-  CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(array, from_kind));
+  CSA_ASSERT(this, IsFixedArrayWithKind(array, from_kind));
   if (IsDoubleElementsKind(from_kind)) {
     Node* value =
         LoadDoubleWithHoleCheck(array, offset, if_hole, MachineType::Float64());

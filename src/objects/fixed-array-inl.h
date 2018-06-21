@@ -56,7 +56,7 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 Object* FixedArray::get(int index) const {
-  SLOW_DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < this->length());
   return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
@@ -221,7 +221,7 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject* WeakFixedArray::Get(int index) const {
-  SLOW_DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < this->length());
   return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
 }
 
@@ -255,7 +255,7 @@ MaybeObject** WeakFixedArray::GetFirstElementAddress() {
 }
 
 MaybeObject* WeakArrayList::Get(int index) const {
-  SLOW_DCHECK(index >= 0 && index < this->capacity());
+  DCHECK(index >= 0 && index < this->capacity());
   return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
 }
 
@@ -406,12 +406,12 @@ byte* ByteArray::GetDataStartAddress() {
 
 template <class T>
 PodArray<T>* PodArray<T>::cast(Object* object) {
-  SLOW_DCHECK(object->IsByteArray());
+  DCHECK(object->IsByteArray());
   return reinterpret_cast<PodArray<T>*>(object);
 }
 template <class T>
 const PodArray<T>* PodArray<T>::cast(const Object* object) {
-  SLOW_DCHECK(object->IsByteArray());
+  DCHECK(object->IsByteArray());
   return reinterpret_cast<const PodArray<T>*>(object);
 }
 
@@ -762,18 +762,18 @@ STATIC_CONST_MEMBER_DEFINITION const InstanceType
 
 template <class Traits>
 FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
-  SLOW_DCHECK(object->IsHeapObject() &&
-              HeapObject::cast(object)->map()->instance_type() ==
-                  Traits::kInstanceType);
+  DCHECK(object->IsHeapObject() &&
+         HeapObject::cast(object)->map()->instance_type() ==
+             Traits::kInstanceType);
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
 }
 
 template <class Traits>
 const FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(
     const Object* object) {
-  SLOW_DCHECK(object->IsHeapObject() &&
-              HeapObject::cast(object)->map()->instance_type() ==
-                  Traits::kInstanceType);
+  DCHECK(object->IsHeapObject() &&
+         HeapObject::cast(object)->map()->instance_type() ==
+             Traits::kInstanceType);
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
 }
 
