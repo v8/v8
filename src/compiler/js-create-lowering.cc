@@ -1440,10 +1440,10 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* prototype = NodeProperties::GetValueInput(node, 0);
-  HeapObjectMatcher m(prototype);
-  if (!m.IsHeapConstant()) return NoChange();
+  Type prototype_type = NodeProperties::GetType(prototype);
+  if (!prototype_type.IsHeapConstant()) return NoChange();
 
-  Handle<HeapObject> prototype_const = m.Value();
+  Handle<HeapObject> prototype_const = prototype_type.AsHeapConstant()->Value();
   Handle<Map> instance_map;
   MaybeHandle<Map> maybe_instance_map =
       Map::TryGetObjectCreateMap(prototype_const);
