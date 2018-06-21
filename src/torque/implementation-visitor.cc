@@ -1344,25 +1344,19 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 VisitResult ImplementationVisitor::GenerateCall(
     const std::string& callable_name, Arguments arguments, bool is_tailcall) {
   Callable* callable = LookupCall(callable_name, arguments);
-  // Operators used in a bit context can also be function calls that never
+  if (callable == nullptr) {
+    std::stringstream stream;
+    stream << "no matching declaration found for " << callable_name;
+    ReportError(stream.str());
+  }
+  // Operators used in a branching context can also be function calls that never
   // return but have a True and False label
-  if (callable == nullptr && arguments.labels.size() == 0) {
+  if (arguments.labels.size() == 0 &&
+      callable->signature().labels.size() == 2) {
     Label* true_label = declarations()->LookupLabel(kTrueLabelName);
     arguments.labels.push_back(true_label);
     Label* false_label = declarations()->LookupLabel(kFalseLabelName);
     arguments.labels.push_back(false_label);
-    callable = LookupCall(callable_name, arguments);
-    if (callable == nullptr) {
-      std::stringstream stream;
-      stream << "no matching declaration found for callable " << callable_name;
-      ReportError(stream.str());
-    }
-    if (!callable->signature().return_type->IsNever()) {
-      std::stringstream stream;
-      stream << "macthing macro declaration for " << callable_name
-             << " matches if-branch protocol but isn't of type 'never'";
-      ReportError(stream.str());
-    }
   }
 
   const Type* result_type = callable->signature().return_type;

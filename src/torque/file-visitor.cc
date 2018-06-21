@@ -30,7 +30,7 @@ namespace {
 void PrintMacroSignatures(std::stringstream& s,
                           const std::vector<Macro*>& macros) {
   for (Macro* m : macros) {
-    s << "\n    " << m->signature();
+    s << "\n    " << m->name() << m->signature();
   }
 }
 
@@ -49,10 +49,22 @@ Callable* FileVisitor::LookupCall(const std::string& name,
     std::vector<Macro*> candidates;
     std::vector<Macro*> macros_with_same_name;
     for (Macro* m : MacroList::cast(declarable)->list()) {
+      bool try_bool_context =
+          arguments.labels.size() == 0 &&
+          m->signature().return_type == TypeOracle::GetNeverType();
+      Label* true_label = nullptr;
+      Label* false_label = nullptr;
+      if (try_bool_context) {
+        true_label = declarations()->TryLookupLabel(kTrueLabelName);
+        false_label = declarations()->TryLookupLabel(kFalseLabelName);
+      }
       if (IsCompatibleSignature(m->signature(), parameter_types,
-                                arguments.labels)) {
+                                arguments.labels) ||
+          (true_label && false_label &&
+           IsCompatibleSignature(m->signature(), parameter_types,
+                                 {true_label, false_label}))) {
         candidates.push_back(m);
-      } else if (m->name() == name) {
+      } else {
         macros_with_same_name.push_back(m);
       }
     }

@@ -65,6 +65,10 @@ class Declarations {
 
   Builtin* LookupBuiltin(const std::string& name);
 
+  Label* TryLookupLabel(const std::string& name) {
+    Declarable* d = TryLookup(name);
+    return d && d->IsLabel() ? Label::cast(d) : nullptr;
+  }
   Label* LookupLabel(const std::string& name);
 
   GenericList* LookupGeneric(const std::string& name);
