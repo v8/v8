@@ -11,23 +11,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void JumpTableAssembler::EmitJumpTrampoline(Address target) {
-#if V8_TARGET_ARCH_X64
-  movq(kScratchRegister, static_cast<uint64_t>(target));
-  jmp(kScratchRegister);
-#elif V8_TARGET_ARCH_ARM64
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Mov(scratch, static_cast<uint64_t>(target));
-  Br(scratch);
-#elif V8_TARGET_ARCH_S390X
-  mov(ip, Operand(bit_cast<intptr_t, Address>(target)));
-  b(ip);
-#else
-  UNIMPLEMENTED();
-#endif
-}
-
 // The implementation is compact enough to implement it inline here. If it gets
 // much bigger, we might want to split it in a separate file per architecture.
 #if V8_TARGET_ARCH_X64

@@ -27,9 +27,6 @@ class JumpTableAssembler : public TurboAssembler {
                        reinterpret_cast<void*>(slot_addr), size,
                        CodeObjectRequired::kNo) {}
 
-  // Emit a trampoline to a possibly far away code target.
-  void EmitJumpTrampoline(Address target);
-
 #if V8_TARGET_ARCH_X64
   static constexpr int kJumpTableSlotSize = 18;
 #elif V8_TARGET_ARCH_IA32
