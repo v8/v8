@@ -940,11 +940,30 @@ class WasmDecoder : public Decoder {
   inline bool Validate(const byte* pc,
                        Simd8x16ShuffleImmediate<validate>& imm) {
     uint8_t max_lane = 0;
-    for (uint32_t i = 0; i < kSimd128Size; ++i)
+    for (uint32_t i = 0; i < kSimd128Size; ++i) {
       max_lane = std::max(max_lane, imm.shuffle[i]);
+    }
     // Shuffle indices must be in [0..31] for a 16 lane shuffle.
     if (!VALIDATE(max_lane <= 2 * kSimd128Size)) {
       error(pc_ + 2, "invalid shuffle mask");
+      return false;
+    }
+    return true;
+  }
+
+  inline bool Complete(BlockTypeImmediate<validate>& imm) {
+    if (imm.type != kWasmVar) return true;
+    if (!VALIDATE((module_ && imm.sig_index < module_->signatures.size()))) {
+      return false;
+    }
+    imm.sig = module_->signatures[imm.sig_index];
+    return true;
+  }
+
+  inline bool Validate(BlockTypeImmediate<validate>& imm) {
+    if (!Complete(imm)) {
+      errorf(pc_, "block type index %u out of bounds (%zu signatures)",
+             imm.sig_index, module_ ? module_->signatures.size() : 0);
       return false;
     }
     return true;
@@ -1410,7 +1429,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           case kExprBlock: {
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             PopArgs(imm.sig);
             auto* block = PushBlock();
             SetBlockType(block, imm);
@@ -1439,7 +1458,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprTry: {
             CHECK_PROTOTYPE_OPCODE(eh);
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             PopArgs(imm.sig);
             auto* try_block = PushTry();
             SetBlockType(try_block, imm);
@@ -1492,7 +1511,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprLoop: {
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             PopArgs(imm.sig);
             auto* block = PushLoop();
             SetBlockType(&control_.back(), imm);
@@ -1503,7 +1522,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprIf: {
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             auto cond = Pop(0, kWasmI32);
             PopArgs(imm.sig);
             if (!VALIDATE(this->ok())) break;
@@ -2004,22 +2023,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     stack_.resize(current->stack_depth);
     CALL_INTERFACE_IF_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
-  }
-
-  bool LookupBlockType(BlockTypeImmediate<validate>* imm) {
-    if (imm->type == kWasmVar) {
-      if (!VALIDATE(this->module_ &&
-                    imm->sig_index < this->module_->signatures.size())) {
-        this->errorf(
-            this->pc_, "block type index %u out of bounds (%d signatures)",
-            imm->sig_index,
-            static_cast<int>(this->module_ ? this->module_->signatures.size()
-                                           : 0));
-        return false;
-      }
-      imm->sig = this->module_->signatures[imm->sig_index];
-    }
-    return true;
   }
 
   template<typename func>

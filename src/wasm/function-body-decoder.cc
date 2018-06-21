@@ -1017,8 +1017,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << "   // @" << i.pc_offset();
-        for (unsigned i = 0; i < imm.out_arity(); i++) {
-          os << " " << ValueTypes::TypeName(imm.out_type(i));
+        if (decoder.Complete(imm)) {
+          for (unsigned i = 0; i < imm.out_arity(); i++) {
+            os << " " << ValueTypes::TypeName(imm.out_type(i));
+          }
         }
         control_depth++;
         break;
