@@ -308,7 +308,6 @@ class V8_EXPORT_PRIVATE UsePosition final
 class SpillRange;
 class RegisterAllocationData;
 class TopLevelLiveRange;
-class LiveRangeGroup;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
@@ -472,21 +471,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
 
-
-class LiveRangeGroup final : public ZoneObject {
- public:
-  explicit LiveRangeGroup(Zone* zone) : ranges_(zone) {}
-  ZoneVector<LiveRange*>& ranges() { return ranges_; }
-  const ZoneVector<LiveRange*>& ranges() const { return ranges_; }
-
-  int assigned_register() const { return assigned_register_; }
-  void set_assigned_register(int reg) { assigned_register_ = reg; }
-
- private:
-  ZoneVector<LiveRange*> ranges_;
-  int assigned_register_;
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeGroup);
-};
 
 class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
  public:
