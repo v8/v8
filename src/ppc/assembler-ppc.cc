@@ -1299,7 +1299,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != nullptr && assembler->predictable_code_size()) return true;
-    return assembler->options().record_reloc_info_for_exrefs;
+    return assembler->options().record_reloc_info_for_serialization;
   } else if (RelocInfo::IsNone(rmode_)) {
     return false;
   }
@@ -2071,8 +2071,8 @@ void Assembler::dp(uintptr_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
-      (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-       !options().record_reloc_info_for_exrefs && !emit_debug_code())) {
+      (RelocInfo::IsOnlyForSerializer(rmode) &&
+       !options().record_reloc_info_for_serialization && !emit_debug_code())) {
     return;
   }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);

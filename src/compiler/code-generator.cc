@@ -41,7 +41,7 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 Assembler::Options AssemblerOptions(Isolate* isolate, Code::Kind kind) {
   Assembler::Options options = Assembler::DefaultOptions(isolate);
   if (kind == Code::JS_TO_WASM_FUNCTION || kind == Code::WASM_FUNCTION) {
-    options.record_reloc_info_for_exrefs = true;
+    options.record_reloc_info_for_serialization = true;
     options.enable_root_array_delta_access = false;
   }
   return options;

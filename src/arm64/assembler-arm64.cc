@@ -311,8 +311,8 @@ void Immediate::InitializeHandle(Handle<HeapObject> handle) {
 bool Operand::NeedsRelocation(const Assembler* assembler) const {
   RelocInfo::Mode rmode = immediate_.rmode();
 
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-    return assembler->options().record_reloc_info_for_exrefs;
+  if (RelocInfo::IsOnlyForSerializer(rmode)) {
+    return assembler->options().record_reloc_info_for_serialization;
   }
 
   return !RelocInfo::IsNone(rmode);
@@ -4784,8 +4784,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
 
   if (!RelocInfo::IsNone(rmode) && write_reloc_info) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-        !options().record_reloc_info_for_exrefs && !emit_debug_code()) {
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
       return;
     }
     DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here

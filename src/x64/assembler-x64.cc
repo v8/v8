@@ -4831,8 +4831,8 @@ void Assembler::dq(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   DCHECK(!RelocInfo::IsNone(rmode));
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-      !options().record_reloc_info_for_exrefs && !emit_debug_code()) {
+  if (RelocInfo::IsOnlyForSerializer(rmode) &&
+      !options().record_reloc_info_for_serialization && !emit_debug_code()) {
     return;
   }
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);

@@ -58,7 +58,7 @@ AssemblerBase::Options AssemblerBase::DefaultOptions(
   Options options;
   bool serializer =
       isolate->serializer_enabled() || explicitly_support_serialization;
-  options.record_reloc_info_for_exrefs = serializer;
+  options.record_reloc_info_for_serialization = serializer;
   options.enable_root_array_delta_access = !serializer;
 #ifdef USE_SIMULATOR
   // Don't generate simulator specific code if we are building a snapshot, which
