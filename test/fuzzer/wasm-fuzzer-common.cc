@@ -348,6 +348,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   int32_t result_liftoff;
   {
     FlagScope<bool> liftoff(&FLAG_liftoff, true);
+    FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
     ErrorThrower compiler_thrower(i_isolate, "Liftoff");
     // Re-compile with Liftoff.
     MaybeHandle<WasmInstanceObject> compiled_instance =
