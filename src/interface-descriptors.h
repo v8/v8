@@ -268,20 +268,20 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
 
 constexpr int kMaxBuiltinRegisterParams = 5;
 
-#define DECLARE_DEFAULT_DESCRIPTOR(name, base, parameter_count)               \
+#define DECLARE_DEFAULT_DESCRIPTOR(name, base)                                \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                    \
  protected:                                                                   \
   static const int kRegisterParams =                                          \
-      parameter_count > kMaxBuiltinRegisterParams ? kMaxBuiltinRegisterParams \
-                                                  : parameter_count;          \
-  static const int kStackParams = parameter_count - kRegisterParams;          \
+      kParameterCount > kMaxBuiltinRegisterParams ? kMaxBuiltinRegisterParams \
+                                                  : kParameterCount;          \
+  static const int kStackParams = kParameterCount - kRegisterParams;          \
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data)          \
       override {                                                              \
     DefaultInitializePlatformSpecific(data, kRegisterParams);                 \
   }                                                                           \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
       override {                                                              \
-    data->InitializePlatformIndependent(kReturnCount, parameter_count,        \
+    data->InitializePlatformIndependent(kReturnCount, kParameterCount,        \
                                         nullptr, 0);                          \
   }                                                                           \
   name(CallDescriptors::Key key) : base(key) {}                               \
@@ -608,8 +608,7 @@ class TypeConversionStackParameterDescriptor final
 class GetPropertyDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject, kKey)
-  DECLARE_DEFAULT_DESCRIPTOR(GetPropertyDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
+  DECLARE_DEFAULT_DESCRIPTOR(GetPropertyDescriptor, CallInterfaceDescriptor)
 };
 
 class TypeofDescriptor : public CallInterfaceDescriptor {
@@ -946,16 +945,14 @@ class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
 class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS()
-  DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor,
-                             0)
+  DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor)
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                          \
   class Name##Descriptor : public CallInterfaceDescriptor {               \
    public:                                                                \
     DEFINE_PARAMETERS(__VA_ARGS__)                                        \
-    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor, CallInterfaceDescriptor, \
-                               kParameterCount)                           \
+    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor, CallInterfaceDescriptor) \
   };
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_TFS_BUILTIN_DESCRIPTOR
