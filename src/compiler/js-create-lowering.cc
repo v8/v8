@@ -1492,7 +1492,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
 
   int const instance_size = instance_map->instance_size();
   if (instance_size > kMaxRegularHeapObjectSize) return NoChange();
-  dependencies()->AssumeInitialMapCantChange(instance_map);
+  CHECK(!instance_map->IsInobjectSlackTrackingInProgress());
 
   // Emit code to allocate the JSObject instance for the given
   // {instance_map}.
