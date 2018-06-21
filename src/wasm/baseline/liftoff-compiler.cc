@@ -136,7 +136,7 @@ class LiftoffCompiler {
                   SourcePositionTableBuilder* source_position_table_builder,
                   std::vector<trap_handler::ProtectedInstructionData>*
                       protected_instructions,
-                  Zone* compilation_zone, WasmCode* const* code_table_entry)
+                  Zone* compilation_zone)
       : asm_(liftoff_asm),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -149,8 +149,7 @@ class LiftoffCompiler {
         source_position_table_builder_(source_position_table_builder),
         protected_instructions_(protected_instructions),
         compilation_zone_(compilation_zone),
-        safepoint_table_builder_(compilation_zone_),
-        code_table_entry_(code_table_entry) {}
+        safepoint_table_builder_(compilation_zone_) {}
 
   ~LiftoffCompiler() { BindUnboundLabels(nullptr); }
 
@@ -295,61 +294,6 @@ class LiftoffCompiler {
     __ bind(ool.continuation.get());
   }
 
-  // Inserts a check whether the optimized version of this code already exists.
-  // If so, it redirects execution to the optimized code.
-  void JumpToOptimizedCodeIfExisting(LiftoffRegList param_regs) {
-    // We need one register to keep the address of the optimized
-    // code that is not used to keep parameters.
-    LiftoffRegister address_tmp = LiftoffRegister(kNoParamRegister);
-    DCHECK(!param_regs.has(address_tmp));
-
-    LiftoffRegList available_regs = kGpCacheRegList & ~param_regs;
-    // We already use the {address_tmp} later, so remove it too.
-    available_regs.clear(address_tmp);
-
-    // We require one general purpose register.
-    if (available_regs.is_empty()) {
-      LiftoffRegList taken_gp_regs = kGpCacheRegList & param_regs;
-      LiftoffRegister reg = taken_gp_regs.GetFirstRegSet();
-      available_regs.set(reg);
-    }
-
-    LiftoffRegister tmp = available_regs.GetFirstRegSet();
-    if (param_regs.has(tmp)) __ PushRegisters(LiftoffRegList::ForRegs(tmp));
-
-    static LoadType kPointerLoadType =
-        LoadType::ForValueType(LiftoffAssembler::kWasmIntPtr);
-    using int_t = std::conditional<kPointerSize == 8, uint64_t, uint32_t>::type;
-    static_assert(sizeof(int_t) == sizeof(uintptr_t), "weird uintptr_t");
-    // Get the address of the WasmCode* currently stored in the code table.
-    __ LoadConstant(address_tmp,
-                    WasmValue(reinterpret_cast<int_t>(code_table_entry_)),
-                    RelocInfo::WASM_CODE_TABLE_ENTRY);
-    // Load the corresponding WasmCode*.
-    LiftoffRegister wasm_code_address = tmp;
-    __ Load(wasm_code_address, address_tmp.gp(), Register::no_reg(), 0,
-            kPointerLoadType, param_regs);
-    // Load its target address ({instuctions_.start()}).
-    __ Load(address_tmp, wasm_code_address.gp(), Register::no_reg(),
-            WasmCode::kInstructionStartOffset, kPointerLoadType, param_regs);
-    // Get the current code's target address ({instructions_.start()}).
-    LiftoffRegister code_start_address = tmp;
-    __ ComputeCodeStartAddress(code_start_address.gp());
-
-    // If the current code's target address is the same as the
-    // target address of the stored WasmCode, then continue executing, otherwise
-    // jump to the updated WasmCode.
-    Label cont;
-    __ emit_cond_jump(kEqual, &cont, LiftoffAssembler::kWasmIntPtr,
-                      address_tmp.gp(), code_start_address.gp());
-
-    if (param_regs.has(tmp)) __ PopRegisters(LiftoffRegList::ForRegs(tmp));
-    __ emit_jump(address_tmp.gp());
-
-    __ bind(&cont);
-    if (param_regs.has(tmp)) __ PopRegisters(LiftoffRegList::ForRegs(tmp));
-  }
-
   void StartFunctionBody(Decoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
@@ -369,21 +313,6 @@ class LiftoffCompiler {
     // Parameter 0 is the instance parameter.
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
-
-    if (FLAG_wasm_tier_up) {
-      if (!kNoParamRegister.is_valid()) {
-        unsupported(decoder, "Please define kNoParamRegister.");
-        return;
-      }
-
-      // Collect all registers that are allocated on function entry.
-      LiftoffRegList param_regs;
-      param_regs.set(instance_reg);
-
-      CollectReservedRegsForParameters(kInstanceParameterIndex + 1, num_params,
-                                       param_regs);
-      JumpToOptimizedCodeIfExisting(param_regs);
-    }
 
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
@@ -1864,10 +1793,6 @@ class LiftoffCompiler {
   // patch the actually needed stack size in the end.
   uint32_t pc_offset_stack_frame_construction_ = 0;
 
-  // Points to the cell within the {code_table_} of the NativeModule,
-  // which  corresponds to the currently compiled function
-  WasmCode* const* code_table_entry_ = nullptr;
-
   void TraceCacheState(Decoder* decoder) const {
 #ifdef DEBUG
     if (!FLAG_trace_liftoff || !FLAG_trace_wasm_decoder) return;
@@ -1905,18 +1830,13 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
       compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, wasm_unit_->counters_->liftoff_compile_time());
-  // TODO(clemensh): Remove this once we have the jump table (issue 7758).
-  wasm::WasmCode** code_table_entry =
-      &wasm_unit_->native_module_
-           ->code_table()[wasm_unit_->func_index_ -
-                          wasm_unit_->native_module_->num_imported_functions()];
   DCHECK(!protected_instructions_);
   protected_instructions_.reset(
       new std::vector<trap_handler::ProtectedInstructionData>());
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, wasm_unit_->func_body_, &asm_, call_descriptor,
               wasm_unit_->env_, &source_position_table_builder_,
-              protected_instructions_.get(), &zone, code_table_entry);
+              protected_instructions_.get(), &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {

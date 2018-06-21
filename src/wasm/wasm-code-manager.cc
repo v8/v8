@@ -189,7 +189,6 @@ void WasmCode::Validate() const {
         CHECK(contains(target));
         break;
       }
-      case RelocInfo::WASM_CODE_TABLE_ENTRY:
       case RelocInfo::WASM_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
@@ -334,12 +333,6 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
 
 void NativeModule::SetNumFunctionsForTesting(uint32_t num_functions) {
   num_functions_ = num_functions;
-}
-
-void NativeModule::SetCodeForTesting(uint32_t index, WasmCode* code) {
-  DCHECK_LT(index, num_functions_);
-  DCHECK_LE(num_imported_functions_, index);
-  code_table_[index - num_imported_functions_] = code;
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate) {

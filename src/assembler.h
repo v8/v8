@@ -461,10 +461,6 @@ class RelocInfo {
     // cannot be encoded as part of another record.
     PC_JUMP,
 
-    // Points to a wasm code table entry.
-    // TODO(clemensh): Remove this once we have the jump table (issue 7758).
-    WASM_CODE_TABLE_ENTRY,
-
     // Pseudo-types
     NUMBER_OF_MODES,
     NONE,  // never recorded value
@@ -619,8 +615,6 @@ class RelocInfo {
   INLINE(void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(void set_wasm_code_table_entry(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 

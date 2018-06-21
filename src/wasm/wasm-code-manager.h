@@ -306,7 +306,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
   void SetNumFunctionsForTesting(uint32_t num_functions);
-  void SetCodeForTesting(uint32_t index, WasmCode* code);
 
   void LogWasmCodes(Isolate* isolate);
 

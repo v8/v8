@@ -137,15 +137,6 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-void RelocInfo::set_wasm_code_table_entry(Address target,
-                                          ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
-  Memory::Address_at(pc_) = target;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
-  }
-}
-
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));
   return static_cast<Address>(*reinterpret_cast<int32_t*>(pc_));

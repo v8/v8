@@ -199,13 +199,6 @@ void RelocInfo::set_target_external_reference(
                                    icache_flush_mode);
 }
 
-void RelocInfo::set_wasm_code_table_entry(Address target,
-                                          ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
-  Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
-}
-
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));
   return target_address();
