@@ -1443,13 +1443,15 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   Type prototype_type = NodeProperties::GetType(prototype);
   if (!prototype_type.IsHeapConstant()) return NoChange();
 
-  Handle<HeapObject> prototype_const = prototype_type.AsHeapConstant()->Value();
   Handle<Map> instance_map;
+  Handle<HeapObject> prototype_const = prototype_type.AsHeapConstant()->Value();
   MaybeHandle<Map> maybe_instance_map =
       Map::TryGetObjectCreateMap(prototype_const);
   if (!maybe_instance_map.ToHandle(&instance_map)) return NoChange();
+
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   if (instance_map->is_dictionary_map()) {
+    DCHECK(prototype_const->IsNull());
     // Allocated an empty NameDictionary as backing store for the properties.
     Handle<Map> map(isolate()->heap()->name_dictionary_map(), isolate());
     int capacity =
