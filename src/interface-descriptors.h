@@ -19,6 +19,7 @@ namespace internal {
   V(Allocate)                         \
   V(Void)                             \
   V(ContextOnly)                      \
+  V(NoContext)                        \
   V(Load)                             \
   V(LoadWithVector)                   \
   V(LoadGlobal)                       \
@@ -75,6 +76,12 @@ namespace internal {
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
+  enum Flag {
+    kNoFlags = 0u,
+    kNoContext = 1u << 0,
+  };
+  typedef base::Flags<Flag> Flags;
+
   CallInterfaceDescriptorData() = default;
 
   // A copy of the passed in registers and param_representations is made
@@ -91,7 +98,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // (return_count + parameter_count). Those members of the parameter array will
   // be initialized from {machine_types}, and the rest initialized to
   // MachineType::AnyTagged().
-  void InitializePlatformIndependent(int return_count, int parameter_count,
+  void InitializePlatformIndependent(Flags flags, int return_count,
+                                     int parameter_count,
                                      const MachineType* machine_types,
                                      int machine_types_length);
 
@@ -102,6 +110,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
            param_count_ >= 0;
   }
 
+  Flags flags() const { return flags_; }
   int return_count() const { return return_count_; }
   int param_count() const { return param_count_; }
   int register_param_count() const { return register_param_count_; }
@@ -130,6 +139,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   int register_param_count_ = -1;
   int return_count_ = -1;
   int param_count_ = -1;
+  Flags flags_ = kNoFlags;
 
   // Specifying the set of registers that could be used by the register
   // allocator. Currently, it's only used by RecordWrite code stub.
@@ -178,11 +188,19 @@ class V8_EXPORT_PRIVATE CallDescriptors : public AllStatic {
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
  public:
+  typedef CallInterfaceDescriptorData::Flags Flags;
+
   CallInterfaceDescriptor() : data_(nullptr) {}
   virtual ~CallInterfaceDescriptor() {}
 
   CallInterfaceDescriptor(CallDescriptors::Key key)
       : data_(CallDescriptors::call_descriptor_data(key)) {}
+
+  Flags flags() const { return data()->flags(); }
+
+  bool HasContextParameter() const {
+    return (flags() & CallInterfaceDescriptorData::kNoContext) == 0;
+  }
 
   int GetReturnCount() const { return data()->return_count(); }
 
@@ -229,7 +247,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
       CallInterfaceDescriptorData* data) {
     // Default descriptor configuration: one result, all parameters are passed
     // in registers and all parameters have MachineType::AnyTagged() type.
-    data->InitializePlatformIndependent(1, data->register_param_count(),
+    data->InitializePlatformIndependent(CallInterfaceDescriptorData::kNoFlags,
+                                        1, data->register_param_count(),
                                         nullptr, 0);
   }
 
@@ -269,24 +288,24 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
 
 constexpr int kMaxBuiltinRegisterParams = 5;
 
-#define DECLARE_DEFAULT_DESCRIPTOR(name, base)                                \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                    \
- protected:                                                                   \
-  static const int kRegisterParams =                                          \
-      kParameterCount > kMaxBuiltinRegisterParams ? kMaxBuiltinRegisterParams \
-                                                  : kParameterCount;          \
-  static const int kStackParams = kParameterCount - kRegisterParams;          \
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)          \
-      override {                                                              \
-    DefaultInitializePlatformSpecific(data, kRegisterParams);                 \
-  }                                                                           \
-  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
-      override {                                                              \
-    data->InitializePlatformIndependent(kReturnCount, kParameterCount,        \
-                                        nullptr, 0);                          \
-  }                                                                           \
-  name(CallDescriptors::Key key) : base(key) {}                               \
-                                                                              \
+#define DECLARE_DEFAULT_DESCRIPTOR(name, base)                                 \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
+ protected:                                                                    \
+  static const int kRegisterParams =                                           \
+      kParameterCount > kMaxBuiltinRegisterParams ? kMaxBuiltinRegisterParams  \
+                                                  : kParameterCount;           \
+  static const int kStackParams = kParameterCount - kRegisterParams;           \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)           \
+      override {                                                               \
+    DefaultInitializePlatformSpecific(data, kRegisterParams);                  \
+  }                                                                            \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)        \
+      override {                                                               \
+    data->InitializePlatformIndependent(Flags(kDescriptorFlags), kReturnCount, \
+                                        kParameterCount, nullptr, 0);          \
+  }                                                                            \
+  name(CallDescriptors::Key key) : base(key) {}                                \
+                                                                               \
  public:
 
 #define DECLARE_JS_COMPATIBLE_DESCRIPTOR(name, base,                        \
@@ -302,6 +321,8 @@ constexpr int kMaxBuiltinRegisterParams = 5;
  public:
 
 #define DEFINE_RESULT_AND_PARAMETERS(return_count, ...)   \
+  static constexpr int kDescriptorFlags =                 \
+      CallInterfaceDescriptorData::kNoFlags;              \
   static constexpr int kReturnCount = return_count;       \
   enum ParameterIndices {                                 \
     __dummy = -1, /* to be able to pass zero arguments */ \
@@ -312,6 +333,8 @@ constexpr int kMaxBuiltinRegisterParams = 5;
   };
 
 #define DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(return_count, ...) \
+  static constexpr int kDescriptorFlags =                          \
+      CallInterfaceDescriptorData::kNoContext;                     \
   static constexpr int kReturnCount = return_count;                \
   enum ParameterIndices {                                          \
     __dummy = -1, /* to be able to pass zero arguments */          \
@@ -322,22 +345,28 @@ constexpr int kMaxBuiltinRegisterParams = 5;
 
 #define DEFINE_PARAMETERS(...) DEFINE_RESULT_AND_PARAMETERS(1, ##__VA_ARGS__)
 
-#define DEFINE_RESULT_AND_PARAMETER_TYPES(...)                                \
-  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
-      override {                                                              \
-    MachineType machine_types[] = {__VA_ARGS__};                              \
-    static_assert(                                                            \
-        kReturnCount + kParameterCount == arraysize(machine_types),           \
-        "Parameter names definition is not consistent with parameter types"); \
-    data->InitializePlatformIndependent(kReturnCount, kParameterCount,        \
-                                        machine_types,                        \
-                                        arraysize(machine_types));            \
+#define DEFINE_PARAMETERS_NO_CONTEXT(...) \
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, ##__VA_ARGS__)
+
+#define DEFINE_RESULT_AND_PARAMETER_TYPES(...)                                 \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)        \
+      override {                                                               \
+    MachineType machine_types[] = {__VA_ARGS__};                               \
+    static_assert(                                                             \
+        kReturnCount + kParameterCount == arraysize(machine_types),            \
+        "Parameter names definition is not consistent with parameter types");  \
+    data->InitializePlatformIndependent(Flags(kDescriptorFlags), kReturnCount, \
+                                        kParameterCount, machine_types,        \
+                                        arraysize(machine_types));             \
   }
 
 #define DEFINE_PARAMETER_TYPES(...)                                        \
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */, \
                                     ##__VA_ARGS__)
+
 #define DEFINE_JS_PARAMETERS(...)                       \
+  static constexpr int kDescriptorFlags =               \
+      CallInterfaceDescriptorData::kNoFlags;            \
   static constexpr int kReturnCount = 1;                \
   enum ParameterIndices {                               \
     kTarget,                                            \
@@ -372,8 +401,8 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
 
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kRequestedSize)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 0
+  DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
                                     MachineType::Int32())  // kRequestedSize
   DECLARE_DESCRIPTOR(AllocateDescriptor, CallInterfaceDescriptor)
 };
@@ -396,6 +425,13 @@ class ContextOnlyDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
+};
+
+class NoContextDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(NoContextDescriptor, CallInterfaceDescriptor)
 };
 
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
@@ -721,7 +757,7 @@ class AbortJSDescriptor : public CallInterfaceDescriptor {
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS()
+  DEFINE_PARAMETERS_NO_CONTEXT()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
@@ -801,7 +837,7 @@ class StringAtDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kPosition)
   // TODO(turbofan): Return untagged value here.
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedSigned(),  // result 0
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedSigned(),  // result 1
                                     MachineType::AnyTagged(),     // kReceiver
                                     MachineType::IntPtr())        // kPosition
   DECLARE_DESCRIPTOR(StringAtDescriptor, CallInterfaceDescriptor)
@@ -827,7 +863,8 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTargetContext, kCallData, kHolder, kApiFunctionAddress)
+  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext, kCallData, kHolder,
+                               kApiFunctionAddress)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext
                          MachineType::AnyTagged(),  // kCallData
                          MachineType::AnyTagged(),  // kHolder
@@ -872,8 +909,8 @@ class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_RESULT_AND_PARAMETERS(1, kAccumulator, kBytecodeOffset, kBytecodeArray,
-                               kDispatchTable)
+  DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
+                    kDispatchTable)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kAccumulator
                          MachineType::IntPtr(),     // kBytecodeOffset
                          MachineType::AnyTagged(),  // kBytecodeArray
@@ -883,7 +920,7 @@ class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
 
 class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kFirstArgument, kFunction)
+  DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunction)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
                          MachineType::Pointer(),    // kFirstArgument
                          MachineType::AnyTagged())  // kFunction
@@ -894,8 +931,8 @@ class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
 class InterpreterPushArgsThenConstructDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kNewTarget, kConstructor,
-                               kFeedbackElement, kFirstArgument)
+  DEFINE_PARAMETERS(kNumberOfArguments, kNewTarget, kConstructor,
+                    kFeedbackElement, kFirstArgument)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
                          MachineType::AnyTagged(),  // kNewTarget
                          MachineType::AnyTagged(),  // kConstructor
@@ -909,7 +946,7 @@ class InterpreterCEntry1Descriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kFirstArgument,
                                kFunctionEntry)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 0
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
                                     MachineType::Int32(),  // kNumberOfArguments
                                     MachineType::Pointer(),  // kFirstArgument
                                     MachineType::Pointer())  // kFunctionEntry
@@ -920,8 +957,8 @@ class InterpreterCEntry2Descriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_RESULT_AND_PARAMETERS(2, kNumberOfArguments, kFirstArgument,
                                kFunctionEntry)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 0
-                                    MachineType::AnyTagged(),  // result 1
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
+                                    MachineType::AnyTagged(),  // result 2
                                     MachineType::Int32(),  // kNumberOfArguments
                                     MachineType::Pointer(),  // kFirstArgument
                                     MachineType::Pointer())  // kFunctionEntry
@@ -951,9 +988,9 @@ class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
 
 class WasmGrowMemoryDescriptor final : public CallInterfaceDescriptor {
  public:
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1 /* result size */, kNumPages)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32() /* result */,
-                                    MachineType::Int32() /* kNumPages */)
+  DEFINE_PARAMETERS_NO_CONTEXT(kNumPages)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),  // result 1
+                                    MachineType::Int32())  // kNumPages
   DECLARE_DESCRIPTOR(WasmGrowMemoryDescriptor, CallInterfaceDescriptor)
 };
 
@@ -973,6 +1010,7 @@ BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_RESULT_AND_PARAMETERS
 #undef DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT
 #undef DEFINE_PARAMETERS
+#undef DEFINE_PARAMETERS_NO_CONTEXT
 #undef DEFINE_RESULT_AND_PARAMETER_TYPES
 #undef DEFINE_PARAMETER_TYPES
 #undef DEFINE_JS_PARAMETERS

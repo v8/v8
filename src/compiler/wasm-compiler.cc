@@ -266,11 +266,10 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
     // representing the stack check code.
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(),                    // zone
-        WasmStackGuardDescriptor{},           // descriptor
+        NoContextDescriptor{},                // descriptor
         0,                                    // stack parameter count
         CallDescriptor::kNoFlags,             // flags
         Operator::kNoProperties,              // properties
-        Linkage::kNoContext,                  // context specification
         StubCallMode::kCallWasmRuntimeStub);  // stub call mode
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
@@ -2017,7 +2016,6 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
       interface_descriptor.GetStackParameterCount(),  // stack parameter count
       CallDescriptor::kNoFlags,                       // flags
       Operator::kNoProperties,                        // properties
-      Linkage::kNoContext,                            // context specification
       StubCallMode::kCallWasmRuntimeStub);            // stub call mode
   // A direct call to a wasm runtime stub defined in this module.
   // Just encode the stub index. This will be patched at relocation.
@@ -4030,8 +4028,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (!allocate_heap_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), AllocateHeapNumberDescriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoThrow, Linkage::kNoContext,
-          stub_mode_);
+          CallDescriptor::kNoFlags, Operator::kNoThrow, stub_mode_);
       allocate_heap_number_operator_.set(common->Call(call_descriptor));
     }
     Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
@@ -4191,9 +4188,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* BuildJavaScriptToNumber(Node* node, Node* js_context) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(), TypeConversionDescriptor(), 0,
-        CallDescriptor::kNoFlags, Operator::kNoProperties,
-        Linkage::kPassContext, stub_mode_);
+        mcgraph()->zone(), TypeConversionDescriptor{}, 0,
+        CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
     Node* stub_code =
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
             ? mcgraph()->RelocatableIntPtrConstant(
@@ -4513,7 +4509,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           call_descriptor = Linkage::GetStubCallDescriptor(
               mcgraph()->zone(), ArgumentAdaptorDescriptor{}, 1 + wasm_count,
               CallDescriptor::kNoFlags, Operator::kNoProperties,
-              Linkage::kPassContext, StubCallMode::kCallWasmRuntimeStub);
+              StubCallMode::kCallWasmRuntimeStub);
 
           // Convert wasm numbers to JS values.
           pos = AddArgumentNodes(args, pos, wasm_count, sig_);
@@ -4538,7 +4534,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       call_descriptor = Linkage::GetStubCallDescriptor(
           graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
           CallDescriptor::kNoFlags, Operator::kNoProperties,
-          Linkage::kPassContext, StubCallMode::kCallWasmRuntimeStub);
+          StubCallMode::kCallWasmRuntimeStub);
 
       // Convert wasm numbers to JS values.
       pos = AddArgumentNodes(args, pos, wasm_count, sig_);

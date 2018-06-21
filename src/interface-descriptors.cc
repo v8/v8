@@ -19,10 +19,9 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 }
 
 void CallInterfaceDescriptorData::InitializePlatformIndependent(
-    int return_count, int parameter_count, const MachineType* machine_types,
-    int machine_types_length) {
-  // InterfaceDescriptor owns a copy of the MachineType array.
-  // We only care about parameters, not receiver and result.
+    Flags flags, int return_count, int parameter_count,
+    const MachineType* machine_types, int machine_types_length) {
+  flags_ = flags;
   return_count_ = return_count;
   param_count_ = parameter_count;
   int types_length = return_count_ + param_count_;
@@ -52,6 +51,11 @@ void CallDescriptors::InitializeOncePerProcess() {
   name##Descriptor().Initialize(&call_descriptor_data_[CallDescriptors::name]);
   INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
 #undef INTERFACE_DESCRIPTOR
+
+  DCHECK(ContextOnlyDescriptor{}.HasContextParameter());
+  DCHECK(!NoContextDescriptor{}.HasContextParameter());
+  DCHECK(!AllocateDescriptor{}.HasContextParameter());
+  DCHECK(!AllocateHeapNumberDescriptor{}.HasContextParameter());
 }
 
 void CallDescriptors::TearDown() {
@@ -229,6 +233,11 @@ void ApiGetterDescriptor::InitializePlatformSpecific(
 }
 
 void ContextOnlyDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
+
+void NoContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   data->InitializePlatformSpecific(0, nullptr);
 }

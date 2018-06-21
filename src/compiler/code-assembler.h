@@ -1050,8 +1050,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   Node* CallStubN(const CallInterfaceDescriptor& descriptor, size_t result_size,
-                  int input_count, Node* const* inputs,
-                  bool pass_context = true);
+                  int input_count, Node* const* inputs);
 
   template <class... TArgs>
   void TailCallStub(Callable const& callable, SloppyTNode<Object> context,

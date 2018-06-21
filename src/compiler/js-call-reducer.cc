@@ -2910,8 +2910,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), cid,
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
-      CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
-      Linkage::kNoContext);
+      CallDescriptor::kNeedsFrameState);
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
   Node* holder = lookup == CallOptimization::kHolderFound
                      ? jsgraph()->HeapConstant(api_holder)

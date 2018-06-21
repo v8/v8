@@ -1142,9 +1142,9 @@ void CodeAssembler::TailCallRuntimeWithCEntryImpl(
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
                                size_t result_size, int input_count,
-                               Node* const* inputs, bool pass_context) {
+                               Node* const* inputs) {
   // implicit nodes are target and optionally context.
-  int implicit_nodes = pass_context ? 2 : 1;
+  int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
   int argc = input_count - implicit_nodes;
   DCHECK_LE(descriptor.GetParameterCount(), argc);
@@ -1152,10 +1152,10 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
   DCHECK_EQ(result_size, descriptor.GetReturnCount());
+
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
-      Operator::kNoProperties,
-      pass_context ? Linkage::kPassContext : Linkage::kNoContext);
+      Operator::kNoProperties);
 
   CallPrologue();
   Node* return_value =
@@ -1177,7 +1177,9 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
   NodeArray<kMaxNumArgs + 2> inputs;
   inputs.Add(target);
   for (auto arg : args) inputs.Add(arg);
-  inputs.Add(context);
+  if (descriptor.HasContextParameter()) {
+    inputs.Add(context);
+  }
 
   raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
@@ -1192,10 +1194,11 @@ Node* CodeAssembler::CallStubRImpl(const CallInterfaceDescriptor& descriptor,
   NodeArray<kMaxNumArgs + 2> inputs;
   inputs.Add(target);
   for (auto arg : args) inputs.Add(arg);
-  if (context) inputs.Add(context);
+  if (descriptor.HasContextParameter()) {
+    inputs.Add(context);
+  }
 
-  return CallStubN(descriptor, result_size, inputs.size(), inputs.data(),
-                   context != nullptr);
+  return CallStubN(descriptor, result_size, inputs.size(), inputs.data());
 }
 
 Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(

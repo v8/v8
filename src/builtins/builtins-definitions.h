@@ -1206,7 +1206,7 @@ namespace internal {
   TFC(WasmArgumentsAdaptor, ArgumentAdaptor, 1)                                \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
   TFC(WasmGrowMemory, WasmGrowMemory, 1)                                       \
-  TFS(WasmStackGuard)                                                          \
+  TFC(WasmStackGuard, NoContext, 1)                                            \
   TFC(WasmToNumber, TypeConversion, 1)                                         \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \

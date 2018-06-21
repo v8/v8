@@ -340,18 +340,15 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       "js-call");
 }
 
-// TODO(all): Add support for return representations/locations to
-// CallInterfaceDescriptor.
 // TODO(turbofan): cache call descriptors for code stub calls.
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
-    Operator::Properties properties, Linkage::ContextSpecification context_spec,
-    StubCallMode stub_mode) {
+    Operator::Properties properties, StubCallMode stub_mode) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
       register_parameter_count + stack_parameter_count;
-  const int context_count = context_spec == kPassContext ? 1 : 0;
+  const int context_count = descriptor.HasContextParameter() ? 1 : 0;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
 

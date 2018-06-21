@@ -50,9 +50,8 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(WasmAllocateHeapNumber, WasmBuiltinsAssembler) {
-  TNode<Object> context = UncheckedParameter(Descriptor::kContext);
   TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
-  TailCallStub(AllocateHeapNumberDescriptor(), target, context);
+  TailCallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant());
 }
 
 TF_BUILTIN(WasmArgumentsAdaptor, WasmBuiltinsAssembler) {

@@ -366,8 +366,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 // Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  enum ContextSpecification { kNoContext, kPassContext };
-
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
 
   static CallDescriptor* ComputeIncoming(Zone* zone,
@@ -393,7 +391,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
-      ContextSpecification context_spec = kPassContext,
       StubCallMode stub_mode = StubCallMode::kCallOnHeapBuiltin);
 
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(
