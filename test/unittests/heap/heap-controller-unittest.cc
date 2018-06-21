@@ -74,22 +74,29 @@ TEST_F(HeapControllerTest, OldGenerationAllocationLimit) {
   double factor =
       HeapController::HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
 
-  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
-                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kDefault));
+  EXPECT_EQ(
+      static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+      heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+          old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
+          new_space_capacity, Heap::HeapGrowingMode(false, false, false)));
 
   factor = Min(factor, HeapController::kConservativeHeapGrowingFactor);
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             heap->heap_controller()->CalculateOldGenerationAllocationLimit(
                 old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kConservative));
+                new_space_capacity, Heap::HeapGrowingMode(true, false, false)));
+
+  factor = Min(factor, HeapController::kConservativeHeapGrowingFactor);
+  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
+                new_space_capacity, Heap::HeapGrowingMode(false, false, true)));
 
   factor = HeapController::kMinHeapGrowingFactor;
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             heap->heap_controller()->CalculateOldGenerationAllocationLimit(
                 old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kMinimal));
+                new_space_capacity, Heap::HeapGrowingMode(false, true, false)));
 }
 
 TEST(HeapController, MaxOldGenerationSize) {

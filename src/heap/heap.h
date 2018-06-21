@@ -2112,7 +2112,20 @@ class Heap {
 
   bool ShouldExpandOldGenerationOnSlowAllocation();
 
-  enum class HeapGrowingMode { kDefault, kConservative, kMinimal };
+  class HeapGrowingMode {
+   public:
+    HeapGrowingMode(bool kConservative, bool kMinimal, bool kSlow)
+        : kConservative_(kConservative), kMinimal_(kMinimal), kSlow_(kSlow) {}
+    bool kConservative() { return kConservative_; }
+    bool kMinimal() { return kMinimal_; }
+    bool kSlow() { return kSlow_; }
+
+   private:
+    bool kConservative_;
+    bool kMinimal_;
+    bool kSlow_;
+  };
+
   HeapGrowingMode CurrentHeapGrowingMode();
 
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };

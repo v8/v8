@@ -4323,14 +4323,9 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
-  if (ShouldReduceMemory()) return HeapGrowingMode::kMinimal;
-
-  if (memory_reducer()->ShouldGrowHeapSlowly() ||
-      ShouldOptimizeForMemoryUsage()) {
-    return HeapGrowingMode::kConservative;
-  }
-
-  return HeapGrowingMode::kDefault;
+  return Heap::HeapGrowingMode(ShouldOptimizeForMemoryUsage(),
+                               ShouldReduceMemory(),
+                               memory_reducer()->ShouldGrowHeapSlowly());
 }
 
 // This function returns either kNoLimit, kSoftLimit, or kHardLimit.

@@ -115,12 +115,11 @@ size_t HeapController::CalculateOldGenerationAllocationLimit(
         mutator_speed);
   }
 
-  if (growing_mode == Heap::HeapGrowingMode::kConservative) {
+  if (growing_mode.kConservative() || growing_mode.kSlow()) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
-  if (FLAG_stress_compaction ||
-      growing_mode == Heap::HeapGrowingMode::kMinimal) {
+  if (FLAG_stress_compaction || growing_mode.kMinimal()) {
     factor = kMinHeapGrowingFactor;
   }
 
@@ -153,8 +152,7 @@ size_t HeapController::MinimumAllocationLimitGrowingStep(
   const size_t kRegularAllocationLimitGrowingStep = 8;
   const size_t kLowMemoryAllocationLimitGrowingStep = 2;
   size_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
-  return limit * (growing_mode == Heap::HeapGrowingMode::kConservative ||
-                          growing_mode == Heap::HeapGrowingMode::kMinimal
+  return limit * (growing_mode.kConservative()
                       ? kLowMemoryAllocationLimitGrowingStep
                       : kRegularAllocationLimitGrowingStep);
 }
