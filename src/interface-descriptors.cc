@@ -7,11 +7,8 @@
 namespace v8 {
 namespace internal {
 
-
 void CallInterfaceDescriptorData::InitializePlatformSpecific(
-    int register_parameter_count, const Register* registers,
-    PlatformInterfaceDescriptor* platform_descriptor) {
-  platform_specific_descriptor_ = platform_descriptor;
+    int register_parameter_count, const Register* registers) {
   register_param_count_ = register_parameter_count;
 
   // InterfaceDescriptor owns a copy of the registers array.

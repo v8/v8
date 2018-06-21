@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arm64/interface-descriptors-arm64.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/interface-descriptors.h"
@@ -181,7 +179,7 @@ void AbortJSDescriptor::InitializePlatformSpecific(
 
 void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  data->InitializePlatformSpecific(0, nullptr, nullptr);
+  data->InitializePlatformSpecific(0, nullptr);
 }
 
 void CompareDescriptor::InitializePlatformSpecific(
@@ -202,32 +200,24 @@ void BinaryOpDescriptor::InitializePlatformSpecific(
 
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  static PlatformInterfaceDescriptor default_descriptor =
-      PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
-
   Register registers[] = {
       x1,  // JSFunction
       x3,  // the new target
       x0,  // actual number of arguments
       x2,  // expected number of arguments
   };
-  data->InitializePlatformSpecific(arraysize(registers), registers,
-                                   &default_descriptor);
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  static PlatformInterfaceDescriptor default_descriptor =
-      PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
-
   Register registers[] = {
       JavaScriptFrame::context_register(),  // callee context
       x4,                                   // call_data
       x2,                                   // holder
       x1,                                   // api_function_address
   };
-  data->InitializePlatformSpecific(arraysize(registers), registers,
-                                   &default_descriptor);
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void InterpreterDispatchDescriptor::InitializePlatformSpecific(

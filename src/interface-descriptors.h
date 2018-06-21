@@ -15,8 +15,6 @@
 namespace v8 {
 namespace internal {
 
-class PlatformInterfaceDescriptor;
-
 #define INTERFACE_DESCRIPTOR_LIST(V)  \
   V(Allocate)                         \
   V(Void)                             \
@@ -81,9 +79,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptorData.
 
-  void InitializePlatformSpecific(
-      int register_parameter_count, const Register* registers,
-      PlatformInterfaceDescriptor* platform_descriptor = nullptr);
+  void InitializePlatformSpecific(int register_parameter_count,
+                                  const Register* registers);
 
   // if machine_types is null, then an array of size
   // (return_count + parameter_count) will be created with
@@ -117,9 +114,6 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
     DCHECK_LT(index, param_count_);
     return machine_types_[return_count_ + index];
   }
-  PlatformInterfaceDescriptor* platform_specific_descriptor() const {
-    return platform_specific_descriptor_;
-  }
 
   void RestrictAllocatableRegisters(const Register* registers, int num) {
     DCHECK_EQ(allocatable_registers_, 0);
@@ -148,8 +142,6 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // runtime static initializers which we don't want.
   Register* register_params_ = nullptr;
   MachineType* machine_types_ = nullptr;
-
-  PlatformInterfaceDescriptor* platform_specific_descriptor_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(CallInterfaceDescriptorData);
 };
@@ -215,11 +207,6 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   MachineType GetParameterType(int index) const {
     DCHECK_LT(index, data()->param_count());
     return data()->param_type(index);
-  }
-
-  // Some platforms have extra information to associate with the descriptor.
-  PlatformInterfaceDescriptor* platform_specific_descriptor() const {
-    return data()->platform_specific_descriptor();
   }
 
   RegList allocatable_registers() const {
@@ -993,12 +980,5 @@ INTERFACE_DESCRIPTOR_LIST(DEF_KEY)
 #undef DEF_KEY
 }  // namespace internal
 }  // namespace v8
-
-
-#if V8_TARGET_ARCH_ARM64
-#include "src/arm64/interface-descriptors-arm64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "src/arm/interface-descriptors-arm.h"
-#endif
 
 #endif  // V8_INTERFACE_DESCRIPTORS_H_
