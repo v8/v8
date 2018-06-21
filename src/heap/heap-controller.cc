@@ -10,8 +10,6 @@ namespace internal {
 
 const double HeapController::kMinHeapGrowingFactor = 1.1;
 const double HeapController::kMaxHeapGrowingFactor = 4.0;
-const double HeapController::kMaxHeapGrowingFactorMemoryConstrained = 2.0;
-const double HeapController::kMaxHeapGrowingFactorIdle = 1.5;
 const double HeapController::kConservativeHeapGrowingFactor = 1.3;
 const double HeapController::kTargetMutatorUtilization = 0.97;
 
@@ -115,11 +113,12 @@ size_t HeapController::CalculateOldGenerationAllocationLimit(
         mutator_speed);
   }
 
-  if (growing_mode.kConservative() || growing_mode.kSlow()) {
+  if (growing_mode == Heap::HeapGrowingMode::kConservative ||
+      growing_mode == Heap::HeapGrowingMode::kSlow) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
-  if (FLAG_stress_compaction || growing_mode.kMinimal()) {
+  if (growing_mode == Heap::HeapGrowingMode::kMinimal) {
     factor = kMinHeapGrowingFactor;
   }
 
@@ -152,7 +151,7 @@ size_t HeapController::MinimumAllocationLimitGrowingStep(
   const size_t kRegularAllocationLimitGrowingStep = 8;
   const size_t kLowMemoryAllocationLimitGrowingStep = 2;
   size_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
-  return limit * (growing_mode.kConservative()
+  return limit * (growing_mode == Heap::HeapGrowingMode::kConservative
                       ? kLowMemoryAllocationLimitGrowingStep
                       : kRegularAllocationLimitGrowingStep);
 }

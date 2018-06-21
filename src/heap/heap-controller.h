@@ -44,8 +44,6 @@ class HeapController {
                                                     double mutator_speed,
                                                     double max_factor);
 
-  static const double kMaxHeapGrowingFactorMemoryConstrained;
-  static const double kMaxHeapGrowingFactorIdle;
   static const double kTargetMutatorUtilization;
 
   Heap* heap_;

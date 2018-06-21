@@ -2112,19 +2112,7 @@ class Heap {
 
   bool ShouldExpandOldGenerationOnSlowAllocation();
 
-  class HeapGrowingMode {
-   public:
-    HeapGrowingMode(bool kConservative, bool kMinimal, bool kSlow)
-        : kConservative_(kConservative), kMinimal_(kMinimal), kSlow_(kSlow) {}
-    bool kConservative() { return kConservative_; }
-    bool kMinimal() { return kMinimal_; }
-    bool kSlow() { return kSlow_; }
-
-   private:
-    bool kConservative_;
-    bool kMinimal_;
-    bool kSlow_;
-  };
+  enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
