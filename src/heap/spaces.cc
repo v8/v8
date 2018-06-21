@@ -2573,10 +2573,8 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->committed_, to->committed_);
   std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
-
-  size_t from_backing_bytes = from->ExternalBackingStoreBytes();
-  from->external_backing_store_bytes_ = to->ExternalBackingStoreBytes();
-  to->external_backing_store_bytes_ = from_backing_bytes;
+  std::swap(from->external_backing_store_bytes_,
+            to->external_backing_store_bytes_);
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
   from->FixPagesFlags(0, 0);
