@@ -1994,13 +1994,27 @@ int DescriptorArray::Search(Name* name, int valid_descriptors) {
                                          valid_descriptors, nullptr);
 }
 
+int DescriptorArray::Search(Name* name, Map* map) {
+  DCHECK(name->IsUniqueName());
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) return kNotFound;
+  return Search(name, number_of_own_descriptors);
+}
+
 int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
   DCHECK(name->IsUniqueName());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
 
-  // TODO(neis): As an experiment, don't actually use the cache.
-  return Search(name, number_of_own_descriptors);
+  DescriptorLookupCache* cache = isolate->descriptor_lookup_cache();
+  int number = cache->Lookup(map, name);
+
+  if (number == DescriptorLookupCache::kAbsent) {
+    number = Search(name, number_of_own_descriptors);
+    cache->Update(map, name, number);
+  }
+
+  return number;
 }
 
 

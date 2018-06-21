@@ -113,6 +113,7 @@ class DescriptorArray : public WeakFixedArray {
 
   // Search the instance descriptors for given name.
   INLINE(int Search(Name* name, int number_of_own_descriptors));
+  INLINE(int Search(Name* name, Map* map));
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
