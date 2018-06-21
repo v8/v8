@@ -311,11 +311,6 @@ class DebugWrapper {
     return scopes;
   }
 
-  get LiveEdit() {
-    const debugContext = %GetDebugContext();
-    return debugContext.Debug.LiveEdit;
-  }
-
   // --- Internal methods. -----------------------------------------------------
 
   getNextMessageId() {

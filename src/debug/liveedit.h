@@ -29,6 +29,9 @@
 #include "src/ast/ast-traversal-visitor.h"
 
 namespace v8 {
+namespace debug {
+struct LiveEditResult;
+}
 namespace internal {
 
 class JavaScriptFrame;
@@ -140,6 +143,8 @@ class LiveEdit : AllStatic {
                              std::vector<SourceChangeRange>* changes);
   static int TranslatePosition(const std::vector<SourceChangeRange>& changed,
                                int position);
+  static void PatchScript(Handle<Script> script, Handle<String> source,
+                          debug::LiveEditResult* result);
 
   // A copy of this is in liveedit.js.
   enum FunctionPatchabilityStatus {

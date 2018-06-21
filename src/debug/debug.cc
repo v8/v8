@@ -601,7 +601,7 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
 
 MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
                                         Handle<Object> args[],
-                                        bool catch_exceptions) {
+                                        MaybeHandle<Object>* maybe_exception) {
   AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   AssertDebugContext();
@@ -610,16 +610,10 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(isolate_, holder, name).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
-  if (catch_exceptions) {
-    MaybeHandle<Object> maybe_exception;
-    return Execution::TryCall(isolate_, fun, undefined, argc, args,
-                              Execution::MessageHandling::kReport,
-                              &maybe_exception);
-  } else {
-    return Execution::Call(isolate_, fun, undefined, argc, args);
-  }
+  return Execution::TryCall(isolate_, fun, undefined, argc, args,
+                            Execution::MessageHandling::kReport,
+                            maybe_exception);
 }
-
 
 // Check whether a single break point object is triggered.
 bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
@@ -1907,11 +1901,16 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 }
 
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, bool* stack_changed) {
+                            bool preview, debug::LiveEditResult* output) {
   SaveContext save(isolate_);
+  StackFrame::Id frame_id = break_frame_id();
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return false;
   isolate_->set_context(*debug_context());
+
+  if (frame_id != StackFrame::NO_ID) {
+    thread_local_.break_frame_id_ = frame_id;
+  }
 
   set_live_edit_enabled(true);
   Handle<Object> script_wrapper = Script::GetWrapper(script);
@@ -1919,10 +1918,35 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
                            isolate_->factory()->ToBoolean(preview),
                            isolate_->factory()->NewJSArray(0)};
   Handle<Object> result;
-  if (!CallFunction("SetScriptSource", arraysize(argv), argv, false)
+  MaybeHandle<Object> maybe_exception;
+  if (!CallFunction("SetScriptSource", arraysize(argv), argv, &maybe_exception)
            .ToHandle(&result)) {
-    isolate_->OptionalRescheduleException(false);
+    Handle<Object> pending_exception = maybe_exception.ToHandleChecked();
     set_live_edit_enabled(false);
+    if (pending_exception->IsJSObject()) {
+      Handle<JSObject> exception = Handle<JSObject>::cast(pending_exception);
+      Handle<String> message = Handle<String>::cast(
+          JSReceiver::GetProperty(isolate_, exception, "message")
+              .ToHandleChecked());
+      Handle<String> blocked_message =
+          isolate_->factory()->NewStringFromAsciiChecked(
+              "Blocked by functions on stack");
+      if (blocked_message->Equals(*message)) {
+        output->status = debug::LiveEditResult::
+            BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME;
+      } else {
+        Handle<JSObject> details = Handle<JSObject>::cast(
+            JSReceiver::GetProperty(isolate_, exception, "details")
+                .ToHandleChecked());
+        Handle<String> error = Handle<String>::cast(
+            JSReceiver::GetProperty(isolate_, details, "syntaxErrorMessage")
+                .ToHandleChecked());
+        output->status = debug::LiveEditResult::COMPILE_ERROR;
+        output->line_number = kNoSourcePosition;
+        output->column_number = kNoSourcePosition;
+        output->message = Utils::ToLocal(error);
+      }
+    }
     return false;
   }
   set_live_edit_enabled(false);
@@ -1930,7 +1954,8 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
       JSReceiver::GetProperty(isolate_, Handle<JSObject>::cast(result),
                               "stack_modified")
           .ToHandleChecked();
-  *stack_changed = stack_changed_value->IsTrue(isolate_);
+  output->stack_changed = stack_changed_value->IsTrue(isolate_);
+  output->status = debug::LiveEditResult::OK;
   return true;
 }
 

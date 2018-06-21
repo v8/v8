@@ -898,5 +898,43 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, script_function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, new_source, 1);
+
+  Handle<Script> script(Script::cast(script_function->shared()->script()),
+                        isolate);
+  v8::debug::LiveEditResult result;
+  LiveEdit::PatchScript(script, new_source, &result);
+  switch (result.status) {
+    case v8::debug::LiveEditResult::COMPILE_ERROR:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: COMPILE_ERROR"));
+    case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR"));
+    case v8::debug::LiveEditResult::BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME"));
+    case v8::debug::LiveEditResult::
+        BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME"));
+    case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION"));
+    case v8::debug::LiveEditResult::BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME"));
+    case v8::debug::LiveEditResult::FRAME_RESTART_IS_NOT_SUPPORTED:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: FRAME_RESTART_IS_NOT_SUPPORTED"));
+    case v8::debug::LiveEditResult::OK:
+      return isolate->heap()->undefined_value();
+  }
+  return isolate->heap()->undefined_value();
+}
 }  // namespace internal
 }  // namespace v8

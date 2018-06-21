@@ -313,7 +313,7 @@ class Debug {
   // change. stack_changed is true if after editing script on pause stack is
   // changed and client should request stack trace again.
   bool SetScriptSource(Handle<Script> script, Handle<String> source,
-                       bool preview, bool* stack_changed);
+                       bool preview, debug::LiveEditResult* result);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -467,7 +467,7 @@ class Debug {
   bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
                                    Handle<Object> args[],
-                                   bool catch_exceptions = true);
+                                   MaybeHandle<Object>* maybe_exception);
 
   inline void AssertDebugContext() {
     DCHECK(in_debug_scope());

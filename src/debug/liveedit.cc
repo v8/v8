@@ -1597,5 +1597,10 @@ int LiveEdit::TranslatePosition(const std::vector<SourceChangeRange>& changes,
   return position + (it->new_end_position - it->end_position);
 }
 
+void LiveEdit::PatchScript(Handle<Script> script, Handle<String> new_source,
+                           debug::LiveEditResult* result) {
+  script->GetIsolate()->debug()->SetScriptSource(script, new_source, false,
+                                                 result);
+}
 }  // namespace internal
 }  // namespace v8

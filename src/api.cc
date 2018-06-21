@@ -33,6 +33,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
+#include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
 #include "src/detachable-vector.h"
 #include "src/execution.h"
@@ -9404,11 +9405,12 @@ v8::debug::Location debug::Script::GetSourceLocation(int offset) const {
 }
 
 bool debug::Script::SetScriptSource(v8::Local<v8::String> newSource,
-                                    bool preview, bool* stack_changed) const {
+                                    bool preview,
+                                    debug::LiveEditResult* result) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
   return isolate->debug()->SetScriptSource(
-      script, Utils::OpenHandle(*newSource), preview, stack_changed);
+      script, Utils::OpenHandle(*newSource), preview, result);
 }
 
 bool debug::Script::SetBreakpoint(v8::Local<v8::String> condition,

@@ -155,7 +155,8 @@ namespace internal {
   F(ScriptLocationFromLine, 4, 1)               \
   F(ScriptPositionInfo2, 3, 1)                  \
   F(ScriptPositionInfo, 3, 1)                   \
-  F(SetGeneratorScopeVariableValue, 4, 1)
+  F(SetGeneratorScopeVariableValue, 4, 1)       \
+  F(LiveEditPatchScript, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInEnumerate, 1, 1)           \
