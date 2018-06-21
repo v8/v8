@@ -734,7 +734,8 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
+bool NormalizedMapCache::IsNormalizedMapCache(Isolate* isolate,
+                                              const HeapObject* obj) {
   if (!obj->IsFixedArray()) return false;
   if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;
@@ -742,7 +743,7 @@ bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj))
-        ->NormalizedMapCacheVerify();
+        ->NormalizedMapCacheVerify(isolate);
   }
 #endif
   return true;

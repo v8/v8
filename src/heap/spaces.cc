@@ -1871,7 +1871,7 @@ void PagedSpace::Print() {}
 #endif
 
 #ifdef VERIFY_HEAP
-void PagedSpace::Verify(ObjectVisitor* visitor) {
+void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
   for (Page* page : *this) {
@@ -1898,7 +1898,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       VerifyObject(object);
 
       // The object itself should look OK.
-      object->ObjectVerify();
+      object->ObjectVerify(isolate);
 
       if (!FLAG_verify_heap_skip_remembered_set) {
         heap()->VerifyRememberedSetFor(object);
@@ -2336,7 +2336,7 @@ std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator() {
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
-void NewSpace::Verify() {
+void NewSpace::Verify(Isolate* isolate) {
   // The allocation pointer should be in the space or at the very end.
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
@@ -2365,7 +2365,7 @@ void NewSpace::Verify() {
       CHECK(!object->IsAbstractCode());
 
       // The object itself should look OK.
-      object->ObjectVerify();
+      object->ObjectVerify(isolate);
 
       // All the interior pointers should be contained in the heap.
       VerifyPointersVisitor visitor(heap());
@@ -3446,7 +3446,7 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator() {
 #ifdef VERIFY_HEAP
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
-void LargeObjectSpace::Verify() {
+void LargeObjectSpace::Verify(Isolate* isolate) {
   for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
     // Each chunk contains an object that starts at the large object page's
@@ -3472,7 +3472,7 @@ void LargeObjectSpace::Verify() {
           object->IsFreeSpace());
 
     // The object itself should look OK.
-    object->ObjectVerify();
+    object->ObjectVerify(isolate);
 
     if (!FLAG_verify_heap_skip_remembered_set) {
       heap()->VerifyRememberedSetFor(object);

@@ -3744,18 +3744,18 @@ void Heap::Verify() {
   VerifySmisVisitor smis_visitor;
   IterateSmiRoots(&smis_visitor);
 
-  new_space_->Verify();
+  new_space_->Verify(isolate());
 
-  old_space_->Verify(&visitor);
-  map_space_->Verify(&visitor);
+  old_space_->Verify(isolate(), &visitor);
+  map_space_->Verify(isolate(), &visitor);
 
   VerifyPointersVisitor no_dirty_regions_visitor(this);
-  code_space_->Verify(&no_dirty_regions_visitor);
+  code_space_->Verify(isolate(), &no_dirty_regions_visitor);
 
-  lo_space_->Verify();
+  lo_space_->Verify(isolate());
 
   VerifyReadOnlyPointersVisitor read_only_visitor(this);
-  read_only_space_->Verify(&read_only_visitor);
+  read_only_space_->Verify(isolate(), &read_only_visitor);
 }
 
 class SlotVerifyingVisitor : public ObjectVisitor {

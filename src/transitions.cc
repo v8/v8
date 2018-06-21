@@ -151,7 +151,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
       }
       array->SetKey(index, *name);
       array->SetRawTarget(index, HeapObjectReference::Weak(*target));
-      SLOW_DCHECK(array->IsSortedNoDuplicates());
+      SLOW_DCHECK(array->IsSortedNoDuplicates(isolate_));
       return;
     }
   }
@@ -202,7 +202,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
 
-  SLOW_DCHECK(result->IsSortedNoDuplicates());
+  SLOW_DCHECK(result->IsSortedNoDuplicates(isolate_));
   ReplaceTransitions(MaybeObject::FromObject(*result));
 }
 
@@ -632,7 +632,7 @@ void TransitionArray::Sort(Isolate* isolate) {
     SetKey(j + 1, key);
     SetRawTarget(j + 1, target);
   }
-  DCHECK(IsSortedNoDuplicates());
+  DCHECK(IsSortedNoDuplicates(isolate));
 }
 
 }  // namespace internal

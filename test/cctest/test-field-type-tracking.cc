@@ -530,7 +530,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, 0);
   CHECK(obj->RawFastPropertyAt(index)->IsUninitialized(isolate));
 #ifdef VERIFY_HEAP
-  obj->ObjectVerify();
+  obj->ObjectVerify(isolate);
 #endif
 }
 

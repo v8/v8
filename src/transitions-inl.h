@@ -148,8 +148,8 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
   DCHECK(name->IsUniqueName());
-  return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
-                                       out_insertion_index);
+  return internal::Search<ALL_ENTRIES>(
+      GetIsolate(), this, name, number_of_entries(), out_insertion_index);
 }
 
 int TransitionArray::number_of_transitions() const {

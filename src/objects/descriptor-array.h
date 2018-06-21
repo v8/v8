@@ -162,7 +162,7 @@ class DescriptorArray : public WeakFixedArray {
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
-  bool IsSortedNoDuplicates(int valid_descriptors = -1);
+  bool IsSortedNoDuplicates(Isolate* isolate, int valid_descriptors = -1);
 
   // Are two DescriptorArrays equal?
   bool IsEqualTo(DescriptorArray* other);

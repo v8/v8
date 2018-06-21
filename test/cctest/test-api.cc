@@ -2819,9 +2819,9 @@ TEST(InternalFieldsSubclassing) {
       i::Handle<i::JSObject> i_value =
           i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*value));
 #ifdef VERIFY_HEAP
-      i_value->HeapObjectVerify();
-      i_value->map()->HeapObjectVerify();
-      i_value->map()->FindRootMap()->HeapObjectVerify();
+      i_value->HeapObjectVerify(i_value->GetIsolate());
+      i_value->map()->HeapObjectVerify(i_value->GetIsolate());
+      i_value->map()->FindRootMap()->HeapObjectVerify(i_value->GetIsolate());
 #endif
       CHECK_EQ(nof_embedder_fields, value->InternalFieldCount());
       if (in_object_only) {

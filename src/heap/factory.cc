@@ -100,7 +100,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   code->clear_padding();
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) code->ObjectVerify();
+  if (FLAG_verify_heap) code->ObjectVerify(heap->isolate());
 #endif
 }
 
@@ -1163,7 +1163,7 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
 Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
                                            int end) {
 #if VERIFY_HEAP
-  if (FLAG_verify_heap) str->StringVerify();
+  if (FLAG_verify_heap) str->StringVerify(isolate());
 #endif
   DCHECK(begin > 0 || end < str->length());
 
@@ -2635,7 +2635,7 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
   heap->RecordWritesIntoCode(*new_code);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) new_code->ObjectVerify();
+  if (FLAG_verify_heap) new_code->ObjectVerify(isolate());
 #endif
   DCHECK(IsAligned(new_code->address(), kCodeAlignment));
   DCHECK(
@@ -3440,7 +3440,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
   DCHECK_EQ(SharedFunctionInfo::kNoDebuggingId, share->debugging_id());
 #ifdef VERIFY_HEAP
-  share->SharedFunctionInfoVerify();
+  share->SharedFunctionInfoVerify(isolate());
 #endif
   return share;
 }

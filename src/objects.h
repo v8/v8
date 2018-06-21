@@ -1577,6 +1577,9 @@ class Object {
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
   static void VerifyPointer(Object* p);
+  // Special non-isolate overload for cases where we don't have an isolate.
+  // TODO(v8:7786): Remove this overload.
+  void ObjectVerify();
 #endif
 
   inline void VerifyApiCallResultType();
@@ -2782,7 +2785,7 @@ class JSObject: public JSReceiver {
     int number_of_slow_unused_elements_;
   };
 
-  void IncrementSpillStatistics(SpillInformation* info);
+  void IncrementSpillStatistics(Isolate* isolate, SpillInformation* info);
 #endif
 
 #ifdef VERIFY_HEAP

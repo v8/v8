@@ -982,7 +982,7 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 #ifdef VERIFY_HEAP
-  object->ObjectVerify();
+  object->ObjectVerify(isolate);
 #else
   CHECK(object->IsObject());
   if (object->IsHeapObject()) {

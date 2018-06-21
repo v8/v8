@@ -157,7 +157,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    value->ObjectVerify();
+    value->ObjectVerify(isolate);
   }
 #endif
 

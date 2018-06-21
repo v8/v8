@@ -642,7 +642,7 @@ class Map : public HeapObject {
                                     int in_object_properties,
                                     int unused_property_fields);
   static Handle<Map> CopyInitialMapNormalized(
-      Handle<Map> map,
+      Isolate* isolate, Handle<Map> map,
       PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   static Handle<Map> CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
@@ -783,7 +783,7 @@ class Map : public HeapObject {
   DECL_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP
-  void DictionaryMapVerify();
+  void DictionaryMapVerify(Isolate* isolate);
 #endif
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
@@ -921,7 +921,7 @@ class Map : public HeapObject {
       Handle<Map> map, int descriptor, PropertyKind kind,
       PropertyAttributes attributes, const char** reason);
 
-  static Handle<Map> CopyNormalized(Handle<Map> map,
+  static Handle<Map> CopyNormalized(Isolate* isolate, Handle<Map> map,
                                     PropertyNormalizationMode mode);
 
   // TODO(ishell): Move to MapUpdater.
@@ -981,9 +981,11 @@ class NormalizedMapCache : public FixedArray {
 
   DECL_CAST(NormalizedMapCache)
 
-  static inline bool IsNormalizedMapCache(const HeapObject* obj);
+  static inline bool IsNormalizedMapCache(Isolate* isolate,
+                                          const HeapObject* obj);
 
   DECL_VERIFIER(NormalizedMapCache)
+
  private:
   static const int kEntries = 64;
 

@@ -2198,7 +2198,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
-  virtual void Verify(ObjectVisitor* visitor);
+  virtual void Verify(Isolate* isolate, ObjectVisitor* visitor);
 
   void VerifyLiveBytes();
 
@@ -2725,7 +2725,7 @@ class NewSpace : public SpaceWithLinearArea {
 
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
-  virtual void Verify();
+  virtual void Verify(Isolate* isolate);
 #endif
 
 #ifdef DEBUG
@@ -3004,7 +3004,7 @@ class LargeObjectSpace : public Space {
   base::Mutex* chunk_map_mutex() { return &chunk_map_mutex_; }
 
 #ifdef VERIFY_HEAP
-  virtual void Verify();
+  virtual void Verify(Isolate* isolate);
 #endif
 
 #ifdef DEBUG

@@ -202,8 +202,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // Finally, perform the map rollback.
   receiver->synchronized_set_map(Map::cast(backpointer));
 #if VERIFY_HEAP
-  receiver->HeapObjectVerify();
-  receiver->property_array()->PropertyArrayVerify();
+  receiver->HeapObjectVerify(isolate);
+  receiver->property_array()->PropertyArrayVerify(isolate);
 #endif
   return true;
 }

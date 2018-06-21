@@ -793,7 +793,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
     // Set up slow map for Object.create(null) instances without in-object
     // properties.
     Handle<Map> map(object_fun->initial_map(), isolate_);
-    map = Map::CopyInitialMapNormalized(map);
+    map = Map::CopyInitialMapNormalized(isolate(), map);
     Map::SetPrototype(map, factory->null_value());
     native_context()->set_slow_object_with_null_prototype_map(*map);
 

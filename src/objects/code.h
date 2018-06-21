@@ -342,7 +342,8 @@ class Code : public HeapObject {
 
 #ifdef DEBUG
   enum VerifyMode { kNoContextSpecificPointers, kNoContextRetainingPointers };
-  void VerifyEmbeddedObjects(VerifyMode mode = kNoContextRetainingPointers);
+  void VerifyEmbeddedObjects(Isolate* isolate,
+                             VerifyMode mode = kNoContextRetainingPointers);
 #endif  // DEBUG
 
 #ifdef V8_EMBEDDED_BUILTINS

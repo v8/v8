@@ -511,7 +511,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    holder->HeapObjectVerify();
+    holder->HeapObjectVerify(isolate());
   }
 #endif
 }
@@ -736,7 +736,7 @@ void LookupIterator::TransitionToAccessorProperty(
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    receiver->JSObjectVerify();
+    receiver->JSObjectVerify(isolate());
   }
 #endif
 }

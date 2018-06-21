@@ -5128,7 +5128,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    receiver->HeapObjectVerify();
+    receiver->HeapObjectVerify(it->isolate());
   }
 #endif
   return Just(true);
@@ -5210,7 +5210,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
 
 #if VERIFY_HEAP
     if (FLAG_verify_heap) {
-      receiver->HeapObjectVerify();
+      receiver->HeapObjectVerify(isolate);
     }
 #endif
   }
@@ -6015,7 +6015,7 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
   }
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    object->JSObjectVerify();
+    object->JSObjectVerify(object->GetIsolate());
   }
 #endif
 }
@@ -6036,7 +6036,7 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
   }
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    object->JSObjectVerify();
+    object->JSObjectVerify(isolate);
   }
 #endif
   return true;
@@ -9142,14 +9142,14 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
   Handle<Map> new_map;
   if (use_cache && cache->Get(fast_map, mode).ToHandle(&new_map)) {
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) new_map->DictionaryMapVerify();
+    if (FLAG_verify_heap) new_map->DictionaryMapVerify(isolate);
 #endif
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ICs which can be
       // applied to the shared map, dependent code and weak cell cache.
-      Handle<Map> fresh = Map::CopyNormalized(fast_map, mode);
+      Handle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
 
       if (new_map->is_prototype_map()) {
         // For prototype maps, the PrototypeInfo is not copied.
@@ -9179,7 +9179,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
     }
 #endif
   } else {
-    new_map = Map::CopyNormalized(fast_map, mode);
+    new_map = Map::CopyNormalized(isolate, fast_map, mode);
     if (use_cache) {
       Handle<WeakCell> cell = Map::WeakCellForMap(new_map);
       cache->Set(fast_map, new_map, cell);
@@ -9193,8 +9193,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
   return new_map;
 }
 
-
-Handle<Map> Map::CopyNormalized(Handle<Map> map,
+Handle<Map> Map::CopyNormalized(Isolate* isolate, Handle<Map> map,
                                 PropertyNormalizationMode mode) {
   int new_instance_size = map->instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
@@ -9213,7 +9212,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
   result->set_construction_counter(kNoSlackTracking);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) result->DictionaryMapVerify();
+  if (FLAG_verify_heap) result->DictionaryMapVerify(isolate);
 #endif
 
   return result;
@@ -9261,10 +9260,10 @@ void EnsureInitialMap(Handle<Map> map) {
 }  // namespace
 
 // static
-Handle<Map> Map::CopyInitialMapNormalized(Handle<Map> map,
+Handle<Map> Map::CopyInitialMapNormalized(Isolate* isolate, Handle<Map> map,
                                           PropertyNormalizationMode mode) {
   EnsureInitialMap(map);
-  return CopyNormalized(map, mode);
+  return CopyNormalized(isolate, map, mode);
 }
 
 // static
@@ -9396,7 +9395,9 @@ Handle<Map> Map::CopyReplaceDescriptors(
     Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
     MaybeHandle<Name> maybe_name, const char* reason,
     SimpleTransitionFlag simple_flag) {
-  DCHECK(descriptors->IsSortedNoDuplicates());
+  Isolate* isolate = map->GetIsolate();
+
+  DCHECK(descriptors->IsSortedNoDuplicates(isolate));
 
   Handle<Map> result = CopyDropDescriptors(map);
 
@@ -9406,7 +9407,6 @@ Handle<Map> Map::CopyReplaceDescriptors(
     result->set_may_have_interesting_symbols(true);
   }
 
-  Isolate* isolate = map->GetIsolate();
   if (!map->is_prototype_map()) {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
@@ -9441,7 +9441,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
 Handle<Map> Map::AddMissingTransitions(
     Handle<Map> split_map, Handle<DescriptorArray> descriptors,
     Handle<LayoutDescriptor> full_layout_descriptor) {
-  DCHECK(descriptors->IsSortedNoDuplicates());
+  DCHECK(descriptors->IsSortedNoDuplicates(split_map->GetIsolate()));
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
   DCHECK_LT(split_nof, nof_descriptors);
@@ -9485,7 +9485,7 @@ void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
                              int new_descriptor,
                              Handle<DescriptorArray> descriptors,
                              Handle<LayoutDescriptor> full_layout_descriptor) {
-  DCHECK(descriptors->IsSortedNoDuplicates());
+  DCHECK(descriptors->IsSortedNoDuplicates(parent->GetIsolate()));
 
   child->set_instance_descriptors(*descriptors);
   child->SetNumberOfOwnDescriptors(new_descriptor + 1);
@@ -10564,7 +10564,7 @@ void DescriptorArray::Sort() {
       parent_index = child_index;
     }
   }
-  DCHECK(IsSortedNoDuplicates());
+  DCHECK(IsSortedNoDuplicates(GetIsolate()));
 }
 
 

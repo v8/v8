@@ -518,7 +518,7 @@ bool HeapObject::IsStringSet() const { return IsHashTable(); }
 bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
 
 bool HeapObject::IsNormalizedMapCache() const {
-  return NormalizedMapCache::IsNormalizedMapCache(this);
+  return NormalizedMapCache::IsNormalizedMapCache(GetIsolate(), this);
 }
 
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
@@ -1963,10 +1963,10 @@ int LinearSearch(T* array, Name* name, int valid_entries,
   }
 }
 
-
 template <SearchMode search_mode, typename T>
-int Search(T* array, Name* name, int valid_entries, int* out_insertion_index) {
-  SLOW_DCHECK(array->IsSortedNoDuplicates());
+int Search(Isolate* isolate, T* array, Name* name, int valid_entries,
+           int* out_insertion_index) {
+  SLOW_DCHECK(array->IsSortedNoDuplicates(isolate));
 
   if (valid_entries == 0) {
     if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
@@ -1990,8 +1990,8 @@ int Search(T* array, Name* name, int valid_entries, int* out_insertion_index) {
 
 int DescriptorArray::Search(Name* name, int valid_descriptors) {
   DCHECK(name->IsUniqueName());
-  return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors,
-                                         nullptr);
+  return internal::Search<VALID_ENTRIES>(GetIsolate(), this, name,
+                                         valid_descriptors, nullptr);
 }
 
 int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {

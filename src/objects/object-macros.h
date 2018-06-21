@@ -337,7 +337,7 @@
                       static_cast<base::Atomic8>(value));
 
 #ifdef VERIFY_HEAP
-#define DECL_VERIFIER(Name) void Name##Verify();
+#define DECL_VERIFIER(Name) void Name##Verify(Isolate* isolate);
 #else
 #define DECL_VERIFIER(Name)
 #endif

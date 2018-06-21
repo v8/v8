@@ -60,7 +60,7 @@ TEST(Create) {
     symbols[i]->Print(os);
 #endif
 #if VERIFY_HEAP
-    symbols[i]->ObjectVerify();
+    symbols[i]->ObjectVerify(isolate);
 #endif
   }
 

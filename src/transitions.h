@@ -118,7 +118,7 @@ class TransitionsAccessor {
   void CheckNewTransitionsAreConsistent(TransitionArray* old_transitions,
                                         Object* transitions);
   bool IsConsistentWithBackPointers();
-  bool IsSortedNoDuplicates();
+  bool IsSortedNoDuplicates(Isolate* isolate);
 #endif
 
  protected:
@@ -231,7 +231,7 @@ class TransitionArray : public WeakFixedArray {
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
   inline int number_of_entries() const { return number_of_transitions(); }
 #ifdef DEBUG
-  bool IsSortedNoDuplicates(int valid_entries = -1);
+  bool IsSortedNoDuplicates(Isolate* isolate, int valid_entries = -1);
 #endif
 
   void Sort(Isolate* isolate);

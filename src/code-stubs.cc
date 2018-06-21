@@ -88,7 +88,7 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
   Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->raw_instruction_size());
 #ifdef DEBUG
-  code->VerifyEmbeddedObjects();
+  code->VerifyEmbeddedObjects(isolate());
 #endif
 }
 
