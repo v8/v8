@@ -183,12 +183,16 @@ void WasmCode::Validate() const {
         CHECK_EQ(target, code->instruction_start());
         break;
       }
+      case RelocInfo::INTERNAL_REFERENCE:
+      case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
+        Address target = it.rinfo()->target_internal_reference();
+        CHECK(contains(target));
+        break;
+      }
       case RelocInfo::WASM_CODE_TABLE_ENTRY:
       case RelocInfo::WASM_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
-      case RelocInfo::INTERNAL_REFERENCE:
-      case RelocInfo::INTERNAL_REFERENCE_ENCODED:
       case RelocInfo::OFF_HEAP_TARGET:
       case RelocInfo::COMMENT:
       case RelocInfo::CONST_POOL:
