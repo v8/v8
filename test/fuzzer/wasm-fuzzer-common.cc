@@ -144,6 +144,7 @@ struct PrintName {
 std::ostream& operator<<(std::ostream& os, const PrintName& name) {
   return os.write(name.name.start(), name.name.size());
 }
+}  // namespace
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
@@ -236,7 +237,6 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
   os << "})();\n";
 }
-}  // namespace
 
 int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
                                         bool require_valid) {
