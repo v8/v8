@@ -811,6 +811,29 @@
       ]
     },
     {
+      "name": "ArraySortDifferentLengths",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-lengths.js"],
+      "test_flags": ["sort-lengths"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Random10"},
+        {"name": "Sorted10"},
+        {"name": "Random100"},
+        {"name": "Sorted100"},
+        {"name": "Random1000"},
+        {"name": "Sorted1000"},
+        {"name": "Random10000"},
+        {"name": "Sorted10000"},
+        {"name": "Random100000"},
+        {"name": "Sorted100000"}
+      ]
+    },
+    {
       "name": "ForLoops",
       "path": ["ForLoops"],
       "main": "run.js",
