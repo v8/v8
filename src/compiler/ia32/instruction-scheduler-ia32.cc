@@ -285,12 +285,30 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32S8x16Shuffle:
     case kIA32S32x4Swizzle:
     case kIA32S32x4Shuffle:
-    case kSSES16x8Blend:
-    case kAVXS16x8Blend:
+    case kIA32S16x8Blend:
     case kIA32S16x8HalfShuffle1:
     case kIA32S16x8HalfShuffle2:
-    case kSSES8x16Alignr:
-    case kAVXS8x16Alignr:
+    case kIA32S8x16Alignr:
+    case kSSES16x8UnzipHigh:
+    case kAVXS16x8UnzipHigh:
+    case kSSES16x8UnzipLow:
+    case kAVXS16x8UnzipLow:
+    case kSSES8x16UnzipHigh:
+    case kAVXS8x16UnzipHigh:
+    case kSSES8x16UnzipLow:
+    case kAVXS8x16UnzipLow:
+    case kIA32S64x2UnpackHigh:
+    case kIA32S32x4UnpackHigh:
+    case kIA32S16x8UnpackHigh:
+    case kIA32S8x16UnpackHigh:
+    case kIA32S64x2UnpackLow:
+    case kIA32S32x4UnpackLow:
+    case kIA32S16x8UnpackLow:
+    case kIA32S8x16UnpackLow:
+    case kSSES8x16TransposeLow:
+    case kAVXS8x16TransposeLow:
+    case kSSES8x16TransposeHigh:
+    case kAVXS8x16TransposeHigh:
     case kIA32S1x4AnyTrue:
     case kIA32S1x4AllTrue:
     case kIA32S1x8AnyTrue:

@@ -42,8 +42,14 @@
   V(psubsw, 66, 0F, E9)          \
   V(psubusb, 66, 0F, D8)         \
   V(psubusw, 66, 0F, D9)         \
-  V(punpckhdq, 66, 0F, 6A)       \
+  V(punpcklbw, 66, 0F, 60)       \
+  V(punpcklwd, 66, 0F, 61)       \
   V(punpckldq, 66, 0F, 62)       \
+  V(punpcklqdq, 66, 0F, 6C)      \
+  V(punpckhbw, 66, 0F, 68)       \
+  V(punpckhwd, 66, 0F, 69)       \
+  V(punpckhdq, 66, 0F, 6A)       \
+  V(punpckhqdq, 66, 0F, 6D)      \
   V(pxor, 66, 0F, EF)
 
 #define SSSE3_INSTRUCTION_LIST(V) \

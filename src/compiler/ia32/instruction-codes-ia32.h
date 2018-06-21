@@ -303,12 +303,30 @@ namespace compiler {
   V(IA32S8x16Shuffle)              \
   V(IA32S32x4Swizzle)              \
   V(IA32S32x4Shuffle)              \
-  V(SSES16x8Blend)                 \
-  V(AVXS16x8Blend)                 \
+  V(IA32S16x8Blend)                \
   V(IA32S16x8HalfShuffle1)         \
   V(IA32S16x8HalfShuffle2)         \
-  V(SSES8x16Alignr)                \
-  V(AVXS8x16Alignr)                \
+  V(IA32S8x16Alignr)               \
+  V(SSES16x8UnzipHigh)             \
+  V(AVXS16x8UnzipHigh)             \
+  V(SSES16x8UnzipLow)              \
+  V(AVXS16x8UnzipLow)              \
+  V(SSES8x16UnzipHigh)             \
+  V(AVXS8x16UnzipHigh)             \
+  V(SSES8x16UnzipLow)              \
+  V(AVXS8x16UnzipLow)              \
+  V(IA32S64x2UnpackHigh)           \
+  V(IA32S32x4UnpackHigh)           \
+  V(IA32S16x8UnpackHigh)           \
+  V(IA32S8x16UnpackHigh)           \
+  V(IA32S64x2UnpackLow)            \
+  V(IA32S32x4UnpackLow)            \
+  V(IA32S16x8UnpackLow)            \
+  V(IA32S8x16UnpackLow)            \
+  V(SSES8x16TransposeLow)          \
+  V(AVXS8x16TransposeLow)          \
+  V(SSES8x16TransposeHigh)         \
+  V(AVXS8x16TransposeHigh)         \
   V(IA32S1x4AnyTrue)               \
   V(IA32S1x4AllTrue)               \
   V(IA32S1x8AnyTrue)               \

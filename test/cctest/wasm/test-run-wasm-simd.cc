@@ -1874,6 +1874,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8TransposeRight) {
       {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31}});
 }
 
+// TODO(simd) 'Reverse' tests should be 2-operand shuffles, not swizzles.
 WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x4Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,

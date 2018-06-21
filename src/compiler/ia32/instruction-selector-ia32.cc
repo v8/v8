@@ -2059,16 +2059,123 @@ uint8_t PackBlend4(const uint8_t* shuffle32x4) {
   return result;
 }
 
-// Returns true if shuffle can be separated into two half shuffles, i.e.lanes
-// don't move from low 4 lanes to high 4 lanes or vice versa) and a blend.
+// Returns true if shuffle can be decomposed into two 16x4 half shuffles
+// followed by a 16x8 blend.
 // E.g. [3 2 1 0 15 14 13 12].
-bool Is16x8BlendedShuffle(uint8_t* shuffle16x8, uint8_t* blend_mask) {
+bool TryMatch16x8HalfShuffle(uint8_t* shuffle16x8, uint8_t* blend_mask) {
   *blend_mask = 0;
   for (int i = 0; i < 8; i++) {
-    *blend_mask |= (shuffle16x8[i] > 7 ? 1 : 0) << i;
     if ((shuffle16x8[i] & 0x4) != (i & 0x4)) return false;
+    *blend_mask |= (shuffle16x8[i] > 7 ? 1 : 0) << i;
   }
   return true;
+}
+
+struct ShuffleEntry {
+  uint8_t shuffle[kSimd128Size];
+  ArchOpcode opcode;
+  ArchOpcode avx_opcode;
+  bool src0_needs_reg;
+  bool src1_needs_reg;
+};
+
+// Shuffles that map to architecture-specific instruction sequences. These are
+// matched very early, so we shouldn't include shuffles that match better in
+// later tests, like 32x4 and 16x8 shuffles. In general, these patterns should
+// map to either a single instruction, or be finer grained, such as zip/unzip or
+// transpose patterns.
+static const ShuffleEntry arch_shuffles[] = {
+    {{0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23},
+     kIA32S64x2UnpackLow,
+     kIA32S64x2UnpackLow,
+     true,
+     false},
+    {{8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31},
+     kIA32S64x2UnpackHigh,
+     kIA32S64x2UnpackHigh,
+     true,
+     false},
+    {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
+     kIA32S32x4UnpackLow,
+     kIA32S32x4UnpackLow,
+     true,
+     false},
+    {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
+     kIA32S32x4UnpackHigh,
+     kIA32S32x4UnpackHigh,
+     true,
+     false},
+    {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
+     kIA32S16x8UnpackLow,
+     kIA32S16x8UnpackLow,
+     true,
+     false},
+    {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
+     kIA32S16x8UnpackHigh,
+     kIA32S16x8UnpackHigh,
+     true,
+     false},
+    {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
+     kIA32S8x16UnpackLow,
+     kIA32S8x16UnpackLow,
+     true,
+     false},
+    {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
+     kIA32S8x16UnpackHigh,
+     kIA32S8x16UnpackHigh,
+     true,
+     false},
+
+    {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
+     kSSES16x8UnzipLow,
+     kAVXS16x8UnzipLow,
+     true,
+     false},
+    {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
+     kSSES16x8UnzipHigh,
+     kAVXS16x8UnzipHigh,
+     true,
+     true},
+    {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+     kSSES8x16UnzipLow,
+     kAVXS8x16UnzipLow,
+     true,
+     true},
+    {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
+     kSSES8x16UnzipHigh,
+     kAVXS8x16UnzipHigh,
+     true,
+     true},
+
+    {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
+     kSSES8x16TransposeLow,
+     kAVXS8x16TransposeLow,
+     true,
+     true},
+    {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
+     kSSES8x16TransposeHigh,
+     kAVXS8x16TransposeHigh,
+     true,
+     true}};
+
+bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
+                         size_t num_entries, bool is_swizzle,
+                         const ShuffleEntry** arch_shuffle) {
+  uint8_t mask = is_swizzle ? kSimd128Size - 1 : 2 * kSimd128Size - 1;
+  for (size_t i = 0; i < num_entries; ++i) {
+    const ShuffleEntry& entry = table[i];
+    int j = 0;
+    for (; j < kSimd128Size; ++j) {
+      if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
+        break;
+      }
+    }
+    if (j == kSimd128Size) {
+      *arch_shuffle = &entry;
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace
@@ -2090,40 +2197,51 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   bool use_avx = CpuFeatures::IsSupported(AVX);
   // AVX and swizzles don't generally need DefineSameAsFirst to avoid a move.
   bool no_same_as_first = use_avx || is_swizzle;
-  // We generally need UseRegister for the first source.
-  bool no_use_register = false;
+  // We generally need UseRegister for input0, Use for input1.
+  bool src0_needs_reg = true;
+  bool src1_needs_reg = false;
   ArchOpcode opcode = kIA32S8x16Shuffle;  // general shuffle is the default
 
   uint8_t offset;
   uint8_t shuffle32x4[4];
   uint8_t shuffle16x8[8];
+  const ShuffleEntry* arch_shuffle;
   if (TryMatchConcat(shuffle, &offset)) {
     // Swap inputs from the normal order for (v)palignr.
     SwapShuffleInputs(node);
     is_swizzle = false;  // It's simpler to just handle the general case.
     no_same_as_first = use_avx;  // SSE requires same-as-first.
-    opcode = use_avx ? kAVXS8x16Alignr : kSSES8x16Alignr;
+    opcode = kIA32S8x16Alignr;
     // palignr takes a single imm8 offset.
     imms[imm_count++] = offset;
+  } else if (TryMatchArchShuffle(shuffle, arch_shuffles,
+                                 arraysize(arch_shuffles), is_swizzle,
+                                 &arch_shuffle)) {
+    opcode = use_avx ? arch_shuffle->avx_opcode : arch_shuffle->opcode;
+    src0_needs_reg = arch_shuffle->src0_needs_reg;
+    // SSE can't take advantage of both operands in registers and needs
+    // same-as-first.
+    src1_needs_reg = use_avx && arch_shuffle->src1_needs_reg;
+    no_same_as_first = use_avx;
   } else if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     uint8_t shuffle_mask = PackShuffle4(shuffle32x4);
     if (is_swizzle) {
       // pshufd takes a single imm8 shuffle mask.
       opcode = kIA32S32x4Swizzle;
       no_same_as_first = true;
-      no_use_register = true;
+      src0_needs_reg = false;
       imms[imm_count++] = shuffle_mask;
     } else {
       // 2 operand shuffle
       // A blend is more efficient than a general 32x4 shuffle; try it first.
       if (TryMatchBlend(shuffle)) {
-        opcode = use_avx ? kAVXS16x8Blend : kSSES16x8Blend;
+        opcode = kIA32S16x8Blend;
         uint8_t blend_mask = PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
       } else {
         opcode = kIA32S32x4Shuffle;
         no_same_as_first = true;
-        no_use_register = true;
+        src0_needs_reg = false;
         imms[imm_count++] = shuffle_mask;
         int8_t blend_mask = PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
@@ -2132,14 +2250,14 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   } else if (TryMatch16x8Shuffle(shuffle, shuffle16x8)) {
     uint8_t blend_mask;
     if (TryMatchBlend(shuffle)) {
-      opcode = use_avx ? kAVXS16x8Blend : kSSES16x8Blend;
+      opcode = kIA32S16x8Blend;
       blend_mask = PackBlend8(shuffle16x8);
       imms[imm_count++] = blend_mask;
-    } else if (Is16x8BlendedShuffle(shuffle16x8, &blend_mask)) {
+    } else if (TryMatch16x8HalfShuffle(shuffle16x8, &blend_mask)) {
       opcode = is_swizzle ? kIA32S16x8HalfShuffle1 : kIA32S16x8HalfShuffle2;
       // Half-shuffles don't need DefineSameAsFirst or UseRegister(src0).
       no_same_as_first = true;
-      no_use_register = true;
+      src0_needs_reg = false;
       uint8_t mask_lo = PackShuffle4(shuffle16x8);
       uint8_t mask_hi = PackShuffle4(shuffle16x8 + 4);
       imms[imm_count++] = mask_lo;
@@ -2150,7 +2268,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   if (opcode == kIA32S8x16Shuffle) {
     // Use same-as-first for general swizzle, but not shuffle.
     no_same_as_first = !is_swizzle;
-    no_use_register = no_same_as_first;
+    src0_needs_reg = !no_same_as_first;
     imms[imm_count++] = Pack4Lanes(shuffle);
     imms[imm_count++] = Pack4Lanes(shuffle + 4);
     imms[imm_count++] = Pack4Lanes(shuffle + 8);
@@ -2164,13 +2282,15 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   InstructionOperand dst =
       no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   InstructionOperand src0 =
-      no_use_register ? g.Use(input0) : g.UseRegister(input0);
+      src0_needs_reg ? g.UseRegister(input0) : g.Use(input0);
 
   int input_count = 0;
   InstructionOperand inputs[2 + kMaxImms + kMaxTemps];
   inputs[input_count++] = src0;
   if (!is_swizzle) {
-    inputs[input_count++] = g.Use(node->InputAt(1));
+    Node* input1 = node->InputAt(1);
+    inputs[input_count++] =
+        src1_needs_reg ? g.UseRegister(input1) : g.Use(input1);
   }
   for (int i = 0; i < imm_count; ++i) {
     inputs[input_count++] = g.UseImmediate(imms[i]);

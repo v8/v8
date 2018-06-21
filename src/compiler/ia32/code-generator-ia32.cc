@@ -420,6 +420,30 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                       \
   } while (0)
 
+#define ASSEMBLE_SIMD_PUNPCK_SHUFFLE(opcode)                         \
+  do {                                                               \
+    XMMRegister src0 = i.InputSimd128Register(0);                    \
+    Operand src1 = i.InputOperand(instr->InputCount() == 2 ? 1 : 0); \
+    if (CpuFeatures::IsSupported(AVX)) {                             \
+      CpuFeatureScope avx_scope(tasm(), AVX);                        \
+      __ v##opcode(i.OutputSimd128Register(), src0, src1);           \
+    } else {                                                         \
+      DCHECK_EQ(i.OutputSimd128Register(), src0);                    \
+      __ opcode(i.OutputSimd128Register(), src1);                    \
+    }                                                                \
+  } while (false)
+
+#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, SSELevel, imm)               \
+  if (CpuFeatures::IsSupported(AVX)) {                                 \
+    CpuFeatureScope avx_scope(tasm(), AVX);                            \
+    __ v##opcode(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+                 i.InputOperand(1), imm);                              \
+  } else {                                                             \
+    CpuFeatureScope sse_scope(tasm(), SSELevel);                       \
+    DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));   \
+    __ opcode(i.OutputSimd128Register(), i.InputOperand(1), imm);      \
+  }
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -3195,23 +3219,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32S32x4Shuffle: {
       DCHECK_EQ(4, instr->InputCount());  // Swizzles should be handled above.
-      __ Pshufd(kScratchDoubleReg, i.InputOperand(1), i.InputInt8(2));
-      __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), i.InputInt8(2));
+      int8_t shuffle = i.InputInt8(2);
+      DCHECK_NE(0xe4, shuffle);  // A simple blend should be handled below.
+      __ Pshufd(kScratchDoubleReg, i.InputOperand(1), shuffle);
+      __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), shuffle);
       __ Pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputInt8(3));
       break;
     }
-    case kSSES16x8Blend: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pblendw(i.OutputSimd128Register(), i.InputOperand(1), i.InputInt8(2));
+    case kIA32S16x8Blend:
+      ASSEMBLE_SIMD_IMM_SHUFFLE(pblendw, SSE4_1, i.InputInt8(2));
       break;
-    }
-    case kAVXS16x8Blend: {
-      CpuFeatureScope sse_scope(tasm(), AVX);
-      __ vpblendw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1), i.InputInt8(2));
-      break;
-    }
     case kIA32S16x8HalfShuffle1: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Pshuflw(dst, i.InputOperand(0), i.InputInt8(1));
@@ -3227,18 +3244,202 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pblendw(dst, kScratchDoubleReg, i.InputInt8(4));
       break;
     }
-    case kSSES8x16Alignr: {
-      CpuFeatureScope sse_scope(tasm(), SSSE3);
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ palignr(i.OutputSimd128Register(), i.InputOperand(1), i.InputInt8(2));
+    case kIA32S8x16Alignr:
+      ASSEMBLE_SIMD_IMM_SHUFFLE(palignr, SSSE3, i.InputInt8(2));
+      break;
+    case kIA32S64x2UnpackHigh:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhqdq);
+      break;
+    case kIA32S32x4UnpackHigh:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhdq);
+      break;
+    case kIA32S16x8UnpackHigh:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhwd);
+      break;
+    case kIA32S8x16UnpackHigh:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhbw);
+      break;
+    case kIA32S64x2UnpackLow:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklqdq);
+      break;
+    case kIA32S32x4UnpackLow:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckldq);
+      break;
+    case kIA32S16x8UnpackLow:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklwd);
+      break;
+    case kIA32S8x16UnpackLow:
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklbw);
+      break;
+    case kSSES16x8UnzipHigh: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      if (instr->InputCount() == 2) {
+        __ movups(kScratchDoubleReg, i.InputOperand(1));
+        __ psrld(kScratchDoubleReg, 16);
+        src2 = kScratchDoubleReg;
+      }
+      __ psrld(dst, 16);
+      __ packusdw(dst, src2);
       break;
     }
-    case kAVXS8x16Alignr: {
+    case kAVXS16x8UnzipHigh: {
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpalignr(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1), i.InputInt8(2));
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      if (instr->InputCount() == 2) {
+        __ vpsrld(kScratchDoubleReg, i.InputSimd128Register(1), 16);
+        src2 = kScratchDoubleReg;
+      }
+      __ vpsrld(dst, i.InputSimd128Register(0), 16);
+      __ vpackusdw(dst, dst, src2);
       break;
     }
+    case kSSES16x8UnzipLow: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      if (instr->InputCount() == 2) {
+        __ pblendw(kScratchDoubleReg, i.InputOperand(1), 0x55);
+        src2 = kScratchDoubleReg;
+      }
+      __ pblendw(dst, kScratchDoubleReg, 0xaa);
+      __ packusdw(dst, src2);
+      break;
+    }
+    case kAVXS16x8UnzipLow: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      __ vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      if (instr->InputCount() == 2) {
+        __ vpblendw(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(1),
+                    0x55);
+        src2 = kScratchDoubleReg;
+      }
+      __ vpblendw(dst, kScratchDoubleReg, i.InputSimd128Register(0), 0x55);
+      __ vpackusdw(dst, dst, src2);
+      break;
+    }
+    case kSSES8x16UnzipHigh: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      if (instr->InputCount() == 2) {
+        __ movups(kScratchDoubleReg, i.InputOperand(1));
+        __ psrlw(kScratchDoubleReg, 8);
+        src2 = kScratchDoubleReg;
+      }
+      __ psrlw(dst, 8);
+      __ packuswb(dst, src2);
+      break;
+    }
+    case kAVXS8x16UnzipHigh: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      if (instr->InputCount() == 2) {
+        __ vpsrlw(kScratchDoubleReg, i.InputSimd128Register(1), 8);
+        src2 = kScratchDoubleReg;
+      }
+      __ vpsrlw(dst, i.InputSimd128Register(0), 8);
+      __ vpackuswb(dst, dst, src2);
+      break;
+    }
+    case kSSES8x16UnzipLow: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      if (instr->InputCount() == 2) {
+        __ movups(kScratchDoubleReg, i.InputOperand(1));
+        __ psllw(kScratchDoubleReg, 8);
+        __ psrlw(kScratchDoubleReg, 8);
+        src2 = kScratchDoubleReg;
+      }
+      __ psllw(dst, 8);
+      __ psrlw(dst, 8);
+      __ packuswb(dst, src2);
+      break;
+    }
+    case kAVXS8x16UnzipLow: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src2 = dst;
+      if (instr->InputCount() == 2) {
+        __ vpsllw(kScratchDoubleReg, i.InputSimd128Register(1), 8);
+        __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 8);
+        src2 = kScratchDoubleReg;
+      }
+      __ vpsllw(dst, i.InputSimd128Register(0), 8);
+      __ vpsrlw(dst, dst, 8);
+      __ vpackuswb(dst, dst, src2);
+      break;
+    }
+    case kSSES8x16TransposeLow: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ psllw(dst, 8);
+      if (instr->InputCount() == 1) {
+        __ movups(kScratchDoubleReg, dst);
+      } else {
+        DCHECK_EQ(2, instr->InputCount());
+        __ movups(kScratchDoubleReg, i.InputOperand(1));
+        __ psllw(kScratchDoubleReg, 8);
+      }
+      __ psrlw(dst, 8);
+      __ por(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXS8x16TransposeLow: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      if (instr->InputCount() == 1) {
+        __ vpsllw(kScratchDoubleReg, i.InputSimd128Register(0), 8);
+        __ vpsrlw(dst, kScratchDoubleReg, 8);
+      } else {
+        DCHECK_EQ(2, instr->InputCount());
+        __ vpsllw(kScratchDoubleReg, i.InputSimd128Register(1), 8);
+        __ vpsllw(dst, i.InputSimd128Register(0), 8);
+        __ vpsrlw(dst, dst, 8);
+      }
+      __ vpor(dst, dst, kScratchDoubleReg);
+      break;
+    }
+    case kSSES8x16TransposeHigh: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ psrlw(dst, 8);
+      if (instr->InputCount() == 1) {
+        __ movups(kScratchDoubleReg, dst);
+      } else {
+        DCHECK_EQ(2, instr->InputCount());
+        __ movups(kScratchDoubleReg, i.InputOperand(1));
+        __ psrlw(kScratchDoubleReg, 8);
+      }
+      __ psllw(kScratchDoubleReg, 8);
+      __ por(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXS8x16TransposeHigh: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      if (instr->InputCount() == 1) {
+        __ vpsrlw(dst, i.InputSimd128Register(0), 8);
+        __ vpsllw(kScratchDoubleReg, dst, 8);
+      } else {
+        DCHECK_EQ(2, instr->InputCount());
+        __ vpsrlw(kScratchDoubleReg, i.InputSimd128Register(1), 8);
+        __ vpsrlw(dst, i.InputSimd128Register(0), 8);
+        __ vpsllw(kScratchDoubleReg, kScratchDoubleReg, 8);
+      }
+      __ vpor(dst, dst, kScratchDoubleReg);
+      break;
+    }
+
     case kIA32S1x4AnyTrue:
     case kIA32S1x8AnyTrue:
     case kIA32S1x16AnyTrue: {
@@ -4136,6 +4337,8 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 #undef ASSEMBLE_BINOP
 #undef ASSEMBLE_ATOMIC_BINOP
 #undef ASSEMBLE_MOVX
+#undef ASSEMBLE_SIMD_PUNPCK_SHUFFLE
+#undef ASSEMBLE_SIMD_IMM_SHUFFLE
 
 }  // namespace compiler
 }  // namespace internal
