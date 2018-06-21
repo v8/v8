@@ -1827,8 +1827,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kMips64ByteSwap32: {
-      __ ByteSwapUnsigned(i.OutputRegister(0), i.InputRegister(0), 4);
-      __ dsrl32(i.OutputRegister(0), i.OutputRegister(0), 0);
+      __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
     case kWord32AtomicLoadInt8:

@@ -1125,15 +1125,7 @@ int TruncUlDLatency() {
 
 int PushLatency() { return DadduLatency() + AlignedMemoryLatency(); }
 
-int ByteSwapSignedLatency() {
-  // Estimated max.
-  return 4;
-}
-
-int ByteSwapUnsignedLatency() {
-  // Estimated max.
-  return 4;
-}
+int ByteSwapSignedLatency() { return 2; }
 
 int LlLatency(int offset) {
   bool is_one_instruction =
@@ -1648,7 +1640,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kMips64ByteSwap64:
       return ByteSwapSignedLatency();
     case kMips64ByteSwap32:
-      return ByteSwapUnsignedLatency() + 1;
+      return ByteSwapSignedLatency();
     case kWord32AtomicLoadInt8:
     case kWord32AtomicLoadUint8:
     case kWord32AtomicLoadInt16:

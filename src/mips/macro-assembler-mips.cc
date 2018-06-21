@@ -973,71 +973,66 @@ void TurboAssembler::Bnvc(Register rs, Register rt, Label* L) {
 // Word Swap Byte
 void TurboAssembler::ByteSwapSigned(Register dest, Register src,
                                     int operand_size) {
-  DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
-
-  Register input = src;
-  if (operand_size == 2) {
-    input = dest;
-    Seh(dest, src);
-  } else if (operand_size == 1) {
-    input = dest;
-    Seb(dest, src);
-  }
-  // No need to do any preparation if operand_size is 4
+  DCHECK(operand_size == 2 || operand_size == 4);
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-    wsbh(dest, input);
-    rotr(dest, dest, 16);
+    if (operand_size == 2) {
+      wsbh(dest, src);
+      seh(dest, dest);
+    } else {
+      wsbh(dest, src);
+      rotr(dest, dest, 16);
+    }
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
-    Register tmp = at;
-    Register tmp2 = t8;
-    DCHECK(dest != tmp && dest != tmp2);
-    DCHECK(src != tmp && src != tmp2);
+    if (operand_size == 2) {
+      DCHECK(src != at && dest != at);
+      srl(at, src, 8);
+      andi(at, at, 0xFF);
+      sll(dest, src, 8);
+      or_(dest, dest, at);
 
-    andi(tmp2, input, 0xFF);
-    sll(tmp, tmp2, 24);
+      // Sign-extension
+      sll(dest, dest, 16);
+      sra(dest, dest, 16);
+    } else {
+      Register tmp = at;
+      Register tmp2 = t8;
+      DCHECK(dest != tmp && dest != tmp2);
+      DCHECK(src != tmp && src != tmp2);
 
-    andi(tmp2, input, 0xFF00);
-    sll(tmp2, tmp2, 8);
-    or_(tmp, tmp, tmp2);
+      andi(tmp2, src, 0xFF);
+      sll(tmp, tmp2, 24);
 
-    srl(tmp2, input, 8);
-    andi(tmp2, tmp2, 0xFF00);
-    or_(tmp, tmp, tmp2);
+      andi(tmp2, src, 0xFF00);
+      sll(tmp2, tmp2, 8);
+      or_(tmp, tmp, tmp2);
 
-    srl(tmp2, input, 24);
-    or_(dest, tmp, tmp2);
+      srl(tmp2, src, 8);
+      andi(tmp2, tmp2, 0xFF00);
+      or_(tmp, tmp, tmp2);
+
+      srl(tmp2, src, 24);
+      or_(dest, tmp, tmp2);
+    }
   }
 }
 
 void TurboAssembler::ByteSwapUnsigned(Register dest, Register src,
                                       int operand_size) {
-  DCHECK(operand_size == 1 || operand_size == 2);
+  DCHECK_EQ(operand_size, 2);
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-    Register input = src;
-    if (operand_size == 1) {
-      input = dest;
-      andi(dest, src, 0xFF);
-    } else {
-      input = dest;
-      andi(dest, src, 0xFFFF);
-    }
-    // No need to do any preparation if operand_size is 4
-
-    wsbh(dest, input);
-    rotr(dest, dest, 16);
+    wsbh(dest, src);
+    andi(dest, dest, 0xFFFF);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
-    if (operand_size == 1) {
-      sll(dest, src, 24);
-    } else {
-      Register tmp = at;
+    DCHECK(src != at && dest != at);
+    srl(at, src, 8);
+    andi(at, at, 0xFF);
+    sll(dest, src, 8);
+    or_(dest, dest, at);
 
-      andi(tmp, src, 0xFF00);
-      sll(dest, src, 24);
-      sll(tmp, tmp, 8);
-      or_(dest, tmp, dest);
-    }
+    // Zero-extension
+    andi(dest, dest, 0xFFFF);
   }
 }
 
