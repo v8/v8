@@ -504,8 +504,6 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(DefaultOptions(isolate), buffer, buffer_size) {}
   Assembler(const Options& options, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 

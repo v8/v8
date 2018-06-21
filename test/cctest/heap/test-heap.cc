@@ -211,7 +211,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   // Test FindCodeObject
 #define __ assm.
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   __ nop();  // supported on all architectures
 
@@ -5779,7 +5779,7 @@ HEAP_TEST(Regress670675) {
 
 namespace {
 Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
-  Assembler assm(isolate, nullptr, 256);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   const int kNumberOfNops = 1 << 10;
   for (int i = 0; i < kNumberOfNops; i++) {

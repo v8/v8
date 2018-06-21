@@ -128,7 +128,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
-  Assembler patching_assembler(isolate(), buffer_ + offset, kAvailableSpace);
+  Assembler patching_assembler(Assembler::Options{}, buffer_ + offset,
+                               kAvailableSpace);
   patching_assembler.sub_sp_32(bytes);
 }
 
