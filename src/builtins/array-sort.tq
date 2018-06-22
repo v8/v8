@@ -12,6 +12,11 @@ module array {
   type FastDoubleElements;
   type DictionaryElements;
 
+  // This is a special type, used to access the work array which is always
+  // PACKED_ELEMENTS. As a result, we do not need a sanity check for it,
+  // otherwise we might wrongly bail to the slow path.
+  type WorkArrayElements;
+
   macro Load<ElementsAccessor : type>(
       context: Context, receiver: Object, index: Smi): Object labels Bailout {
     return GetProperty(context, receiver, index);
@@ -19,12 +24,14 @@ module array {
 
   Load<FastPackedSmiElements>(
       context: Context, elements: Object, index: Smi): Object labels Bailout {
+    assert(IsFixedArray(unsafe_cast<HeapObject>(elements)));
     let elems: FixedArray = unsafe_cast<FixedArray>(elements);
     return elems[index];
   }
 
   Load<FastSmiOrObjectElements>(
       context: Context, elements: Object, index: Smi): Object labels Bailout {
+    assert(IsFixedArray(unsafe_cast<HeapObject>(elements)));
     let elems: FixedArray = unsafe_cast<FixedArray>(elements);
     let result: Object = elems[index];
     if (IsTheHole(result)) goto Bailout;
@@ -47,6 +54,13 @@ module array {
         BasicLoadNumberDictionaryElement(dictionary, intptr_index)
     otherwise Bailout, Bailout;
     return value;
+  }
+
+  Load<WorkArrayElements>(
+      context: Context, elements: Object, index: Smi): Object labels Bailout {
+    assert(IsFixedArray(unsafe_cast<HeapObject>(elements)));
+    let elems: FixedArray = unsafe_cast<FixedArray>(elements);
+    return elems[index];
   }
 
   macro Store<ElementsAccessor : type>(
@@ -75,12 +89,6 @@ module array {
     StoreFixedDoubleArrayElementWithSmiIndex(elems, index, val);
   }
 
-  type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
-  extern macro UnsafeCastObjectToCompareBuiltinFn(Object): CompareBuiltinFn;
-  unsafe_cast<CompareBuiltinFn>(o: Object): CompareBuiltinFn {
-    return UnsafeCastObjectToCompareBuiltinFn(o);
-  }
-
   Store<DictionaryElements>(
       context: Context, elements: Object, index: Smi, value: Object) {
     try {
@@ -94,6 +102,18 @@ module array {
     label Fail {
       unreachable;
     }
+  }
+
+  Store<WorkArrayElements>(
+      context: Context, elements: Object, index: Smi, value: Object) {
+    let elems: FixedArray = unsafe_cast<FixedArray>(elements);
+    elems[index] = value;
+  }
+
+  type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
+  extern macro UnsafeCastObjectToCompareBuiltinFn(Object): CompareBuiltinFn;
+  unsafe_cast<CompareBuiltinFn>(o: Object): CompareBuiltinFn {
+    return UnsafeCastObjectToCompareBuiltinFn(o);
   }
 
   builtin SortCompareDefault(
@@ -149,6 +169,7 @@ module array {
     let a: JSArray = unsafe_cast<JSArray>(receiver);
     if (a.map != initialReceiverMap) return false;
 
+    assert(TaggedIsSmi(initialReceiverLength));
     let originalLength: Smi = unsafe_cast<Smi>(initialReceiverLength);
     if (a.length_fast != originalLength) return false;
 
@@ -171,6 +192,14 @@ module array {
     return obj.map == initialReceiverMap;
   }
 
+  CanUseSameAccessor<WorkArrayElements>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
+    // Do nothing for the work array. Otherwise we might bail to the slow path
+    // even if we are already on the slow path.
+    return true;
+  }
+
   macro CallCompareFn<E : type>(
       context: Context, receiver: Object, elements: Object,
       initialReceiverMap: Object, initialReceiverLength: Number,
@@ -182,39 +211,6 @@ module array {
             initialReceiverLength))
       goto Bailout;
     return result;
-  }
-
-  // InsertionSort is used for smaller arrays.
-  macro ArrayInsertionSort<E : type>(
-      context: Context, receiver: Object, elements: Object,
-      initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
-      to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn)
-  labels Bailout {
-    for (let i: Smi = from + 1; i < to; ++i) {
-      assert(CanUseSameAccessor<E>(
-          context, receiver, elements, initialReceiverMap,
-          initialReceiverLength));
-
-      let element: Object = Load<E>(context, elements, i) otherwise Bailout;
-      let j: Smi = i - 1;
-      for (; j >= from; --j) {
-        assert(CanUseSameAccessor<E>(
-            context, receiver, elements, initialReceiverMap,
-            initialReceiverLength));
-
-        let tmp: Object = Load<E>(context, elements, j) otherwise Bailout;
-        let order: Number = CallCompareFn<E>(
-            context, receiver, elements, initialReceiverMap,
-            initialReceiverLength, userCmpFn, sortCompare, tmp, element)
-        otherwise Bailout;
-        if (order > 0) {
-          Store<E>(context, elements, j + 1, tmp);
-        } else {
-          break;
-        }
-      }
-      Store<E>(context, elements, j + 1, element);
-    }
   }
 
   // TODO(szuend): Replace these with constants when Torque has them.
@@ -233,129 +229,278 @@ module array {
   macro kInitialReceiverLengthIdx(): constexpr int31 {
     return 4;
   }
-  macro kElementsOrReceiverIdx(): constexpr int31 {
+  macro kElementsIdx(): constexpr int31 {
     return 5;
   }
-  macro kRandomStateIdx(): constexpr int31 {
+  macro kRunBaseStackIdx(): constexpr int31 {
     return 6;
   }
+  macro kRunLensStackIdx(): constexpr int31 {
+    return 7;
+  }
+  macro kStackSizeIdx(): constexpr int31 {
+    return 8;
+  }
+  macro kWorkArrayIdx(): constexpr int31 {
+    return 9;
+  }
+  macro kWorkArraySizeIdx(): constexpr int31 {
+    return 10;
+  }
+  macro kMinGallopIdx(): constexpr int31 {
+    return 11;
+  }
   macro kSortStateSize(): intptr {
-    return IntPtrConstant(7);
+    return IntPtrConstant(12);
   }
 
-  macro kFailure(): Smi {
-    return SmiConstant(-1);
-  }
-  macro kSuccess(): Smi {
-    return SmiConstant(0);
-  }
+  // Re-loading the stack-size is done in a few places. The small macro allows
+  // for easier invariant checks at all use sites.
+  macro GetStackSize(sortState: FixedArray): Smi {
+    assert(TaggedIsSmi(sortState[kStackSizeIdx()]));
+    let stack_size: Smi = unsafe_cast<Smi>(sortState[kStackSizeIdx()]);
 
-  // Returns a random positive Smi in the range of [0, range).
-  macro Rand(sortState: FixedArray, range: Smi): Smi {
-    assert(TaggedIsPositiveSmi(range));
-
-    let current_state_smi: Smi = unsafe_cast<Smi>(sortState[kRandomStateIdx()]);
-    let current_state: int32 = convert<int32>(current_state_smi);
-
-    let a: int32 = 1103515245;
-    let c: int32 = 12345;
-    let m: int32 = 0x3fffffff;  // 2^30 bitmask.
-
-    let new_state: int32 = ((current_state * a) + c) & m;
-    sortState[kRandomStateIdx()] = convert<Smi>(new_state);
-
-    let r: int32 = convert<int32>(range);
-    return convert<Smi>(new_state % r);
+    assert(stack_size >= 0);
+    return stack_size;
   }
 
-  macro CalculatePivot<E : type>(
-      sortState: FixedArray, context: Context, receiver: Object,
-      elements: Object, initialReceiverMap: Object,
-      initialReceiverLength: Number, from: Smi, to: Smi, userCmpFn: Object,
-      sortCompare: CompareBuiltinFn): Object
-  labels Bailout {
-    let random: Smi = Rand(sortState, to - from - 2);
-    assert(TaggedIsPositiveSmi(random));
+  // Returns the length of the run beginning at the specified position in the
+  // array and reverses the run if it is descending (ensuring that the run will
+  // always be ascending when the method returns).
+  //
+  // A run is the longest ascending sequence with:
+  //
+  //   a[from] <= a[from + 1] <= a[from + 2] <= ...
+  //
+  // or the longest descending sequence with:
+  //
+  //  a[from] > a[from + 1] > a[from + 2] > ...
+  builtin CountRunAndMakeAscending<E : type>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
+      to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn): Smi {
+    assert(from < to);
 
-    let third_index: Smi = from + 1 + random;
-    assert(third_index > from);
-    assert(third_index <= to - 1);
+    let run_high: Smi = from + 1;
+    if (run_high == to) return 1;
 
-    // Find a pivot as the median of first, last and a random middle element.
-    // Always using the middle element as the third index causes the quicksort
-    // to degrade to O(n^2) for certain data configurations.
-    // The previous solution was to sample larger arrays and use the median
-    // element of the sorted sample. This causes more overhead than just
-    // choosing a random middle element, which also mitigates the worst cases
-    // in all relevant benchmarks.
-    let v0: Object = Load<E>(context, elements, from) otherwise Bailout;
-    let v1: Object = Load<E>(context, elements, to - 1) otherwise Bailout;
-    let v2: Object = Load<E>(context, elements, third_index) otherwise Bailout;
-
-    let c01: Number = CallCompareFn<E>(
-        context, receiver, elements, initialReceiverMap, initialReceiverLength,
-        userCmpFn, sortCompare, v0, v1)
-    otherwise Bailout;
-    if (c01 > 0) {
-      // v0 > v1, so swap them.
-      let tmp: Object = v0;
-      v0 = v1;
-      v1 = tmp;
-    }
-    // Current state: v0 <= v1.
-    let c02: Number = CallCompareFn<E>(
-        context, receiver, elements, initialReceiverMap, initialReceiverLength,
-        userCmpFn, sortCompare, v0, v2)
-    otherwise Bailout;
-    if (c02 >= 0) {
-      // v0 <= v1 and v0 >= v2, hence swap to v2 <= v0 <= v1.
-      let tmp: Object = v0;
-      v0 = v2;
-      v2 = v1;
-      v1 = tmp;
-    } else {
-      // v0 <= v1 and v0 < v2.
-      let c12: Number = CallCompareFn<E>(
+    try {
+      // Find end of run, and reverse range if descending.
+      let lo_elem: Object = Load<E>(context, elements, from) otherwise Bailout;
+      let hi_elem: Object =
+          Load<E>(context, elements, run_high++) otherwise Bailout;
+      let order: Number = CallCompareFn<E>(
           context, receiver, elements, initialReceiverMap,
-          initialReceiverLength, userCmpFn, sortCompare, v1, v2)
-      otherwise Bailout;
-      if (c12 > 0) {
-        // v0 <= v1 and v0 < v2 and v1 > v2, hence swap to v0 <= v2 < v1.
-        let tmp: Object = v1;
-        v1 = v2;
-        v2 = tmp;
+          initialReceiverLength, userCmpFn, sortCompare, lo_elem, hi_elem)
+          otherwise Bailout;
+      if (order > 0) {  // Descending.
+        while (run_high < to) {
+          let run_high_elem: Object =
+              Load<E>(context, elements, run_high) otherwise Bailout;
+          let run_next_elem: Object =
+              Load<E>(context, elements, run_high - 1) otherwise Bailout;
+          order = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, run_high_elem,
+              run_next_elem)
+          otherwise Bailout;
+          if (order >= 0) break;
+          run_high++;
+        }
+        ReverseRange<E>(context, elements, from, run_high) otherwise Bailout;
+      } else {  // Ascending.
+        while (run_high < to) {
+          let run_high_elem: Object =
+              Load<E>(context, elements, run_high) otherwise Bailout;
+          let run_next_elem: Object =
+              Load<E>(context, elements, run_high - 1) otherwise Bailout;
+          order = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, run_high_elem,
+              run_next_elem)
+          otherwise Bailout;
+          if (order < 0) break;
+          run_high++;
+        }
       }
+      return run_high - from;
     }
-
-    // v0 <= v1 <= v2.
-    Store<E>(context, elements, from, v0);
-    Store<E>(context, elements, to - 1, v2);
-
-    // Move pivot element to a place on the left.
-    Swap<E>(context, elements, from + 1, third_index, v1) otherwise Bailout;
-    assert(CanUseSameAccessor<E>(
-        context, receiver, elements, initialReceiverMap,
-        initialReceiverLength));
-
-    return v1;
+    label Bailout {
+      return SmiConstant(-1);
+    }
   }
 
-  // elements[indexB] = elements[indexA].
-  // elements[indexA] = value.
-  macro Swap<E : type>(
-      context: Context, elements: Object, indexA: Smi, indexB: Smi,
-      value: Object)
+  // Reverses the specified range of the given array.
+  macro ReverseRange<E : type>(
+      context: Context, elements: Object, from: Smi, to: Smi)
   labels Bailout {
-    let tmp: Object = Load<E>(context, elements, indexA) otherwise Bailout;
-    Store<E>(context, elements, indexB, tmp);
-    Store<E>(context, elements, indexA, value);
+    let high: Smi = to - 1;
+    let low: Smi = from;
+
+    while (low < high) {
+      let loElem: Object = Load<E>(context, elements, low) otherwise Bailout;
+      let hiElem: Object = Load<E>(context, elements, high) otherwise Bailout;
+      Store<E>(context, elements, low++, hiElem);
+      Store<E>(context, elements, high--, loElem);
+    }
   }
 
-  macro ArrayQuickSortImpl<E : type>(
-      context: Context, sortState: FixedArray, fromArg: Smi, toArg: Smi)
-  labels Bailout {
-    let from: Smi = fromArg;
-    let to: Smi = toArg;
+  // Sorts the specified portion of the array using a binary insertion sort.
+  // This is the best method for sorting small number of elements.
+  // If the initial part of the specified range is already sorted,
+  // this method can take advantage of it: the builtin assumes that the elements
+  // in [from, start) are already sorted.
+  builtin BinaryInsertionSort<E : type>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number, fromArg: Smi,
+      toArg: Smi, startArg: Smi, userCmpFn: Object,
+      sortCompare: CompareBuiltinFn): Smi {
+    assert(fromArg <= startArg && startArg <= toArg);
+
+    let start: Smi = startArg == fromArg ? startArg + 1 : startArg;
+
+    try {
+      for (; start < toArg; start++) {
+        let pivot: Object = Load<E>(context, elements, start) otherwise Bailout;
+
+        // Set left (and right) to the index where a[start] (pivot) belongs.
+        let left: Smi = fromArg;
+        let right: Smi = start;
+        assert(left <= right);
+
+        // Invariants:
+        //   pivot >= all in [from, left).
+        //   pivot <  all in [right, start).
+        while (left < right) {
+          let mid: Smi = (left + right) >>> 1;
+          let mid_elem: Object =
+              Load<E>(context, elements, mid) otherwise Bailout;
+          let order: Number = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, pivot, mid_elem)
+              otherwise Bailout;
+          if (order < 0)
+            right = mid;
+          else
+            left = mid + 1;
+        }
+        assert(left == right);
+
+        // The invariants still hold, so pivot belongs at left. Note that if
+        // there are elements equal to pivot, left points to the first slot
+        // after them -- thats why this sort is stable.
+        // Slide elements over to make room for pivot.
+        let n: Smi = start - left;  // The number of elements to move.
+        for (let j: Smi = left + n - 1; j >= left; --j) {
+          let tmp: Object = Load<E>(context, elements, j) otherwise Bailout;
+          Store<E>(context, elements, j + 1, tmp);
+        }
+        Store<E>(context, elements, left, pivot);
+      }
+      return SmiConstant(0);
+    }
+    label Bailout {
+      return SmiConstant(-1);
+    }
+  }
+
+  // Returns the minimum acceptable run length for an array of the specified
+  // length. Natural runs shorter than this will be extended with
+  // BinaryInsertionSort.
+  macro MinRunLength(nArg: Smi, kMinMerge: Smi): Smi {
+    assert(nArg >= 0);
+    let n: Smi = nArg;
+    let r: Smi = 0;  // Becomes 1 if any 1 bits are shifted off.
+    while (n >= kMinMerge) {
+      r = r | (n & 1);
+      n = n >>> 1;
+    }
+    return n + r;
+  }
+
+  // Merges the two runs at stack indices i and i + 1. Run i must be the
+  // penultimate or antepenultimate run on the stack. In other words, i must be
+  // equal to stack_size - 2 or stack_size - 3.
+  builtin MergeAt<E : type>(
+      context: Context, sortState: FixedArray, i: Smi): Smi {
+    let stack_size: Smi = GetStackSize(sortState);
+    let run_base: FixedArray =
+        unsafe_cast<FixedArray>(sortState[kRunBaseStackIdx()]);
+    let run_lens: FixedArray =
+        unsafe_cast<FixedArray>(sortState[kRunLensStackIdx()]);
+    let elements: Object = sortState[kElementsIdx()];
+
+    assert(stack_size >= 2);
+    assert(i >= 0);
+    assert(i == stack_size - 2 || i == stack_size - 3);
+
+    let base1: Smi = unsafe_cast<Smi>(run_base[i]);
+    let len1: Smi = unsafe_cast<Smi>(run_lens[i]);
+    let base2: Smi = unsafe_cast<Smi>(run_base[i + 1]);
+    let len2: Smi = unsafe_cast<Smi>(run_lens[i + 1]);
+    assert(len1 > 0 && len2 > 0);
+    assert(base1 + len1 == base2);
+
+    // Record the length of the combined runs; if i is the 3rd-last run now,
+    // also slide over the last run (which isn't involved in this merge).
+    // The current run (i + 1) goes away in any case.
+    run_lens[i] = len1 + len2;
+    if (i == stack_size - 3) {
+      run_base[i + 1] = run_base[i + 2];
+      run_lens[i + 1] = run_lens[i + 2];
+    }
+    stack_size--;
+    sortState[kStackSizeIdx()] = stack_size;
+    try {
+      // Find where the first element of run2 goes in run1. Prior elements in
+      // run1 can be ignored (because the are already in place).
+      let key_right: Object = Load<E>(context, elements, base2)
+      otherwise Bailout;
+
+      let k: Smi = GallopRight<E>(
+          context, sortState, key_right, elements, base1, len1, 0);
+      if (k < 0) goto Bailout;
+      assert(k >= 0);
+      base1 = base1 + k;
+      len1 = len1 - k;
+      if (len1 == 0) return SmiConstant(0);
+
+      // Find where the last element of run1 goes in run2. Subsequent elements
+      // in run2 can be ignored (because they are already in place).
+      let key_left: Object = Load<E>(context, elements, base1 + len1 - 1)
+      otherwise Bailout;
+
+      len2 = GallopLeft<E>(
+          context, sortState, key_left, elements, base2, len2, len2 - 1);
+      if (len2 < 0) goto Bailout;
+      assert(len2 >= 0);
+      if (len2 == 0) return SmiConstant(0);
+
+      // Merge remaining runs, using tmp array with min(len1, len2) elements.
+      if (len1 <= len2)
+        MergeLow<E>(context, sortState, base1, len1, base2, len2)
+        otherwise Bailout;
+      else
+        MergeHigh<E>(context, sortState, base1, len1, base2, len2)
+        otherwise Bailout;
+      return SmiConstant(0);
+    }
+    label Bailout {
+      return SmiConstant(-1);
+    }
+  }
+
+  // Locates the position at which to insert the specified key into the
+  // specified sorted range; if the range contains an element equal to key,
+  // returns the index of the leftmost equal element.
+  //
+  // Returns the Smi k, 0 <= k <= n such that a[b + k - 1] < key <= a[b + k],
+  // pretending that a[b - 1] is minus infinity and a[b + n] is infinity.
+  // In other words, key belongs at index b + k.
+  builtin GallopLeft<E : type>(
+      context: Context, sortState: FixedArray, key: Object, elements: Object,
+      base: Smi, len: Smi, hint: Smi): Smi {
+    assert(len > 0 && hint >= 0 && hint < len);
 
     let receiver: Object = sortState[kReceiverIdx()];
     let userCmpFn: Object = sortState[kUserCmpFnIdx()];
@@ -364,133 +509,859 @@ module array {
     let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
     let initialReceiverLength: Number =
         unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
-    let elements: Object = sortState[kElementsOrReceiverIdx()];
 
-    while (to - from > 1) {
-      if (to - from <= 10) {
-        ArrayInsertionSort<E>(
-            context, receiver, elements, initialReceiverMap,
-            initialReceiverLength, from, to, userCmpFn, sortCompare)
-        otherwise Bailout;
-        break;
-      }
+    let last_ofs: Smi = 0;
+    let ofs: Smi = 1;
 
-      let pivot: Object = CalculatePivot<E>(
-          sortState, context, receiver, elements, initialReceiverMap,
-          initialReceiverLength, from, to, userCmpFn, sortCompare)
+    try {
+      let base_hint: Object = Load<E>(context, elements, base + hint)
+      otherwise Bailout;
+      let order: Number = CallCompareFn<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, userCmpFn, sortCompare, key, base_hint)
       otherwise Bailout;
 
-      let low_end: Smi = from + 1;   // Upper bound of elems lower than pivot.
-      let high_start: Smi = to - 1;  // Lower bound of elems greater than pivot.
+      if (order > 0) {
+        // Gallop right until a[base+hint+last_ofs] < key <= a[base+hint+ofs].
+        let max_ofs: Smi = len - hint;
+        while (ofs < max_ofs) {
+          let base_hint_ofs: Object =
+              Load<E>(context, elements, base + hint + ofs)
+          otherwise Bailout;
+          order = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, key, base_hint_ofs)
+          otherwise Bailout;
 
-      // From low_end to idx are elements equal to pivot.
-      // From idx to high_start are elements that haven"t been compared yet.
-      for (let idx: Smi = low_end + 1; idx < high_start; idx++) {
-        assert(CanUseSameAccessor<E>(
+          if (order <= 0) break;
+
+          last_ofs = ofs;
+          ofs = (ofs * SmiConstant(2)) + 1;
+
+          // integer overflow.
+          if (ofs <= 0) ofs = max_ofs;
+        }
+
+        if (ofs > max_ofs) ofs = max_ofs;
+
+        // Make offsets relative to base.
+        last_ofs = last_ofs + hint;
+        ofs = ofs + hint;
+      } else {  // key <= a[base + hint]
+        // Gallop left until a[base+hint-ofs] < key <= a[base+hint-lastOfs]
+        let max_ofs: Smi = hint + 1;
+        while (ofs < max_ofs) {
+          let base_hint_ofs: Object =
+              Load<E>(context, elements, base + hint - ofs)
+          otherwise Bailout;
+          order = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, key, base_hint_ofs)
+          otherwise Bailout;
+
+          if (order > 0) break;
+
+          last_ofs = ofs;
+          ofs = (ofs * 2) + 1;
+
+          // integer overflow.
+          if (ofs <= 0) ofs = max_ofs;
+        }
+
+        if (ofs > max_ofs) ofs = max_ofs;
+
+        // Make offsets relative to base.
+        let tmp: Smi = last_ofs;
+        last_ofs = hint - ofs;
+        ofs = hint - tmp;
+      }
+      assert(-1 <= last_ofs && last_ofs < ofs && ofs <= len);
+
+      // Now a[base+last_ofs] < key <= a[base+ofs], so key belongs somewhere to
+      // the right of last_ofs but no farther right than ofs. Do a binary
+      // search, with invariant a[base + last_ofs - 1] < key <= a[base + ofs].
+      last_ofs++;
+      while (last_ofs < ofs) {
+        let m: Smi = last_ofs + ((ofs - last_ofs) >>> 1);
+
+        let base_m: Object = Load<E>(context, elements, base + m)
+        otherwise Bailout;
+        order = CallCompareFn<E>(
             context, receiver, elements, initialReceiverMap,
-            initialReceiverLength));
+            initialReceiverLength, userCmpFn, sortCompare, key, base_m)
+        otherwise Bailout;
 
-        let element: Object = Load<E>(context, elements, idx) otherwise Bailout;
+        if (order > 0)
+          last_ofs = m + 1;  // a[base + m] < key
+        else
+          ofs = m;  // key <= a[base + m]
+      }
+      assert(last_ofs == ofs);  // so a[base + ofs - 1] <= key < a[b + ofs]
+      return ofs;
+    }
+    label Bailout {
+      return SmiConstant(-1);
+    }
+  }
+
+  // Like GallopLeft, except that if the range contains an element equal to
+  // key, GallopRight returns the index after the rightmost equal element.
+  builtin GallopRight<E : type>(
+      context: Context, sortState: FixedArray, key: Object, elements: Object,
+      base: Smi, len: Smi, hint: Smi): Smi {
+    assert(len > 0 && hint >= 0 && hint < len);
+
+    let receiver: Object = sortState[kReceiverIdx()];
+    let userCmpFn: Object = sortState[kUserCmpFnIdx()];
+    let sortCompare: CompareBuiltinFn =
+        unsafe_cast<CompareBuiltinFn>(sortState[kSortComparePtrIdx()]);
+    let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
+    let initialReceiverLength: Number =
+        unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
+
+    let last_ofs: Smi = 0;
+    let ofs: Smi = 1;
+
+    try {
+      let base_hint: Object = Load<E>(context, elements, base + hint)
+      otherwise Bailout;
+      let order: Number = CallCompareFn<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, userCmpFn, sortCompare, key, base_hint)
+      otherwise Bailout;
+
+      if (order < 0) {
+        // Gallop left until a[base+hint-ofs] <= key < a[base+hint-last_ofs].
+        let max_ofs: Smi = hint + 1;
+        while (ofs < max_ofs) {
+          let base_hint_ofs: Object =
+              Load<E>(context, elements, base + hint - ofs)
+          otherwise Bailout;
+          order = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, key, base_hint_ofs)
+          otherwise Bailout;
+
+          if (order >= 0) break;
+
+          last_ofs = ofs;
+          ofs = (ofs * SmiConstant(2)) + 1;
+
+          // integer overflow.
+          if (ofs <= 0) ofs = max_ofs;
+        }
+
+        if (ofs > max_ofs) ofs = max_ofs;
+
+        // Make offsets relative to base.
+        let tmp: Smi = last_ofs;
+        last_ofs = hint - ofs;
+        ofs = hint - tmp;
+      } else {  // a[base + hint] <= key
+        // Gallop right until a[base+hint+last_ofs] <= key < a[base+hint+ofs].
+        let max_ofs: Smi = len - hint;
+        while (ofs < max_ofs) {
+          let base_hint_ofs: Object =
+              Load<E>(context, elements, base + hint + ofs)
+          otherwise Bailout;
+          order = CallCompareFn<E>(
+              context, receiver, elements, initialReceiverMap,
+              initialReceiverLength, userCmpFn, sortCompare, key, base_hint_ofs)
+          otherwise Bailout;
+
+          if (order < 0) break;
+
+          last_ofs = ofs;
+          ofs = (ofs * 2) + 1;
+
+          // integer overflow.
+          if (ofs <= 0) ofs = max_ofs;
+        }
+
+        if (ofs > max_ofs) ofs = max_ofs;
+
+        // Make offsets relative to base.
+        last_ofs = last_ofs + hint;
+        ofs = ofs + hint;
+      }
+      assert(-1 <= last_ofs && last_ofs < ofs && ofs <= len);
+
+      // Now a[base+last_ofs] <= key < a[base+ofs], so key belongs somewhere to
+      // the right of last_ofs but no farther right than ofs. Do a binary
+      // search, with invariant a[base + last_ofs - 1] < key <= a[base + ofs].
+      last_ofs++;
+      while (last_ofs < ofs) {
+        let m: Smi = last_ofs + ((ofs - last_ofs) >>> 1);
+
+        let base_m: Object = Load<E>(context, elements, base + m)
+        otherwise Bailout;
+        order = CallCompareFn<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, userCmpFn, sortCompare, key, base_m)
+        otherwise Bailout;
+
+        if (order < 0)
+          ofs = m;  // key < a[base + m].
+        else
+          last_ofs = m + 1;  // a[base + m] <= key.
+      }
+      assert(last_ofs == ofs);  // so a[base + ofs - 1] <= key < a[b + ofs]
+      return ofs;
+    }
+    label Bailout {
+      return SmiConstant(-1);
+    }
+  }
+
+  // Ensures that the work_array has at least the specified number of elements,
+  // increasing its size if necessary. Thie size increases exponentially to
+  // ensure amortized linear time complexity.
+  macro EnsureWorkArrayCapacity(sortState: FixedArray, minCapacity: Smi) {
+    assert(TaggedIsSmi(sortState[kWorkArraySizeIdx()]));
+    let work_array_size: Smi = unsafe_cast<Smi>(sortState[kWorkArraySizeIdx()]);
+    if (work_array_size < minCapacity) {
+      let new_size: Smi = minCapacity;
+      new_size = new_size | (new_size >>> 1);
+      new_size = new_size | (new_size >>> 2);
+      new_size = new_size | (new_size >>> 4);
+      new_size = new_size | (new_size >>> 8);
+      new_size = new_size | (new_size >>> 16);
+      new_size++;
+
+      if (new_size < 0)
+        new_size = minCapacity;
+      else {
+        let half_length: Smi =
+            unsafe_cast<Smi>(sortState[kInitialReceiverLengthIdx()]) >>> 1;
+        new_size = new_size < half_length ? new_size : half_length;
+      }
+
+      sortState[kWorkArrayIdx()] =
+          AllocateFixedArray(PACKED_ELEMENTS, convert<intptr>(new_size));
+      sortState[kWorkArraySizeIdx()] = new_size;
+      FillFixedArrayWithZero(
+          unsafe_cast<FixedArray>(sortState[kWorkArrayIdx()]), new_size);
+    }
+  }
+
+  macro CopyToWorkArray<E : type>(
+      context: Context, srcElements: Object, srcPos: Smi, workArray: FixedArray,
+      dstPos: Smi, length: Smi)
+  labels Bailout {
+    let src_idx: Smi = srcPos;
+    let dst_idx: Smi = dstPos;
+    let to: Smi = srcPos + length;
+    assert(dst_idx + length <= workArray.length);
+    while (src_idx < to) {
+      let element: Object = Load<E>(context, srcElements, src_idx++)
+      otherwise Bailout;
+      workArray[dst_idx++] = element;
+    }
+  }
+
+  builtin CopyFromWorkArray<E : type>(
+      context: Context, dstElements: Object, dstPos: Smi, workArray: FixedArray,
+      srcPos: Smi, length: Smi): Smi {
+    assert(srcPos >= 0);
+    assert(dstPos >= 0);
+
+    let src_idx: Smi = srcPos;
+    let dst_idx: Smi = dstPos;
+    let to: Smi = srcPos + length;
+    while (src_idx < to) {
+      Store<E>(context, dstElements, dst_idx++, workArray[src_idx++]);
+    }
+    return SmiConstant(0);
+  }
+
+  builtin CopyWithinSortArray<E : type>(
+      context: Context, elements: Object, srcPos: Smi, dstPos: Smi,
+      length: Smi): Smi {
+    assert(srcPos >= 0);
+    assert(dstPos >= 0);
+    try {
+      if (srcPos < dstPos) {
+        let src_idx: Smi = srcPos + length - 1;
+        let dst_idx: Smi = dstPos + length - 1;
+        while (src_idx >= srcPos) {
+          let element: Object = Load<E>(context, elements, src_idx--)
+          otherwise Bailout;
+          Store<E>(context, elements, dst_idx--, element);
+        }
+      } else {
+        let src_idx: Smi = srcPos;
+        let dst_idx: Smi = dstPos;
+        let to: Smi = srcPos + length;
+        while (src_idx < to) {
+          let element: Object = Load<E>(context, elements, src_idx++)
+          otherwise Bailout;
+          Store<E>(context, elements, dst_idx++, element);
+        }
+      }
+      return SmiConstant(0);
+    }
+    label Bailout {
+      return SmiConstant(-1);
+    }
+  }
+
+  // Merges two adjacent runs in place, in a stable fashion. The first element
+  // of the first run must be greater than the first element of the second run
+  // (a[base1] > a[base2]), and the last element of the first run
+  // (a[base1 + len1-1]) must be greater than all elements of the second run.
+  //
+  // For performance, this method should be called only when len1 <= len2;
+  // its twin, MergeHigh should be clled if len1 >= len2.
+  macro MergeLow<E : type>(
+      context: Context, sortState: FixedArray, base1: Smi, len1Arg: Smi,
+      base2: Smi, len2Arg: Smi): Object
+  labels Bailout {
+    assert(len1Arg > 0 && len2Arg > 0 && base1 + len1Arg == base2);
+
+    let len1: Smi = len1Arg;
+    let len2: Smi = len2Arg;
+    let receiver: Object = sortState[kReceiverIdx()];
+    let userCmpFn: Object = sortState[kUserCmpFnIdx()];
+    let sortCompare: CompareBuiltinFn =
+        unsafe_cast<CompareBuiltinFn>(sortState[kSortComparePtrIdx()]);
+    let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
+    let initialReceiverLength: Number =
+        unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
+    let elements: Object = sortState[kElementsIdx()];
+
+    // Copy first run into temp array.
+    EnsureWorkArrayCapacity(sortState, len1);
+    let work_array: FixedArray =
+        unsafe_cast<FixedArray>(sortState[kWorkArrayIdx()]);
+
+    let cursor1: Smi = 0;      // Indexes into work array.
+    let cursor2: Smi = base2;  // Indexes into a.
+    let dest: Smi = base1;     // Indexes into a.
+    CopyToWorkArray<E>(context, elements, base1, work_array, cursor1, len1)
+    otherwise Bailout;
+
+    // Move first element of second run and deal with degenerate cases.
+    let elem_cursor2: Object = Load<E>(context, elements, cursor2++)
+    otherwise Bailout;
+    Store<E>(context, elements, dest++, elem_cursor2);
+
+    if (--len2 == 0) {
+      CopyFromWorkArray<E>(context, elements, dest, work_array, cursor1, len1);
+      return SmiConstant(0);
+    }
+    if (len1 == 1) {
+      let r: Smi =
+          CopyWithinSortArray<E>(context, elements, cursor2, dest, len2);
+      if (r < 0) goto Bailout;
+      // Last element of run 1 to end of merge.
+      Store<E>(context, elements, dest + len2, work_array[cursor1]);
+      return SmiConstant(0);
+    }
+
+    assert(TaggedIsSmi(sortState[kMinGallopIdx()]));
+    let min_gallop: Smi = unsafe_cast<Smi>(sortState[kMinGallopIdx()]);
+    while (True == True) {
+      let break_outer: bool = false;
+      let count1: Smi = 0;  // Number of times in a row that first run won.
+      let count2: Smi = 0;  // Number of times in a row that second run won.
+
+      // Do the straightforward thing until (if ever) one run starts
+      // winning consistantly.
+      let first_iteration: bool = true;
+      while (((count1 | count2) < min_gallop) || first_iteration) {
+        first_iteration = false;
+
+        assert(len1 > 1 && len2 > 0);
+        let elem_a: Object = Load<E>(context, elements, cursor2)
+        otherwise Bailout;
+        let elem_work: Object = work_array[cursor1];
         let order: Number = CallCompareFn<E>(
             context, receiver, elements, initialReceiverMap,
-            initialReceiverLength, userCmpFn, sortCompare, element, pivot)
+            initialReceiverLength, userCmpFn, sortCompare, elem_a, elem_work)
         otherwise Bailout;
 
         if (order < 0) {
-          Swap<E>(context, elements, low_end, idx, element) otherwise Bailout;
-          low_end++;
-        } else if (order > 0) {
-          let break_for: bool = false;
-
-          // Start looking for high_start to find the first value that is
-          // smaller than pivot.
-          while (order > 0) {
+          let tmp: Object = Load<E>(context, elements, cursor2++)
+          otherwise Bailout;
+          Store<E>(context, elements, dest++, tmp);
+          count2++;
+          count1 = 0;
+          if (--len2 == 0) {
+            break_outer = true;
             assert(CanUseSameAccessor<E>(
                 context, receiver, elements, initialReceiverMap,
                 initialReceiverLength));
 
-            high_start--;
-            if (high_start == idx) {
-              break_for = true;
-              break;
-            }
-
-            let top_elem: Object =
-                Load<E>(context, elements, high_start) otherwise Bailout;
-            order = CallCompareFn<E>(
-                context, receiver, elements, initialReceiverMap,
-                initialReceiverLength, userCmpFn, sortCompare, top_elem, pivot)
-            otherwise Bailout;
-          }
-
-          if (break_for) {
             break;
           }
-
-          Swap<E>(context, elements, high_start, idx, element)
-          otherwise Bailout;
-
-          if (order < 0) {
-            element = Load<E>(context, elements, idx) otherwise Bailout;
-
-            Swap<E>(context, elements, low_end, idx, element) otherwise Bailout;
-            low_end++;
+        } else {
+          Store<E>(context, elements, dest++, work_array[cursor1++]);
+          count1++;
+          count2 = 0;
+          if (--len1 == 1) {
+            break_outer = true;
+            break;
           }
         }
       }
 
-      if ((to - high_start) < (low_end - from)) {
-        let bailed: Smi = ArrayQuickSort<E>(context, sortState, high_start, to);
-        if (bailed != kSuccess()) goto Bailout;
+      if (break_outer) break;
 
-        to = low_end;
-      } else {
-        let bailed: Smi = ArrayQuickSort<E>(context, sortState, from, low_end);
-        if (bailed != kSuccess()) goto Bailout;
+      // One run is winning so consistently that galloping may be a huge win.
+      // So try that, and continue galloping until (if ever) neither run
+      // appears to be winning consistentyl anymore.
+      first_iteration = false;
+      while ((count1 >= 7 || count2 >= 7) || first_iteration) {
+        first_iteration = false;
+        assert(len1 > 1 && len2 > 0);
 
-        from = high_start;
+        let key_right: Object = Load<E>(context, elements, cursor2)
+        otherwise Bailout;
+        count1 = GallopRight<WorkArrayElements>(
+            context, sortState, key_right, work_array, cursor1, len1, 0);
+        if (count1 < 0) goto Bailout;
+        if (count1 != 0) {
+          CopyFromWorkArray<E>(
+              context, elements, dest, work_array, cursor1, count1);
+          dest = dest + count1;
+          cursor1 = cursor1 + count1;
+          len1 = len1 - count1;
+          if (len1 <= 1) {
+            break_outer = true;
+            break;
+          }
+        }
+        let tmp: Object = Load<E>(context, elements, cursor2++)
+        otherwise Bailout;
+        Store<E>(context, elements, dest++, tmp);
+        if (--len2 == 0) {
+          break_outer = true;
+          break;
+        }
+
+        count2 = GallopLeft<E>(
+            context, sortState, work_array[cursor1], elements, cursor2, len2,
+            0);
+        if (count2 < 0) goto Bailout;
+        if (count2 != 0) {
+          let r: Smi =
+              CopyWithinSortArray<E>(context, elements, cursor2, dest, count2);
+          if (r < 0) goto Bailout;
+          dest = dest + count2;
+          cursor2 = cursor2 + count2;
+          len2 = len2 - count2;
+          if (len2 == 0) {
+            break_outer = true;
+            break;
+          }
+        }
+        Store<E>(context, elements, dest++, work_array[cursor1++]);
+        if (--len1 == 1) {
+          break_outer = true;
+          break;
+        }
+        min_gallop--;
       }
+      if (break_outer) break;
+      if (min_gallop < 0) min_gallop = 0;
+      min_gallop = min_gallop + 2;  // Penalize for leaving gallop mode
+    }
+    sortState[kMinGallopIdx()] = min_gallop < 1 ? SmiConstant(1) : min_gallop;
+    assert(TaggedIsSmi(sortState[kMinGallopIdx()]));
+
+    if (len1 == 1) {
+      assert(len2 > 0);
+      let r: Smi =
+          CopyWithinSortArray<E>(context, elements, cursor2, dest, len2);
+      if (r < 0) goto Bailout;
+      // Last element of run1 to end of merge
+      Store<E>(context, elements, dest + len2, work_array[cursor1]);
+    } else if (len1 == 0) {
+      // Comparison function does not behave well.
+      // Do nothing.
+    } else {
+      assert(len2 == 0);
+      assert(len1 > 0);
+      CopyFromWorkArray<E>(context, elements, dest, work_array, cursor1, len1);
+    }
+
+    return SmiConstant(0);
+  }
+
+  // Like MergeLow, except that this method should be called only if
+  // len1 >= len2.
+  macro MergeHigh<E : type>(
+      context: Context, sortState: FixedArray, base1: Smi, len1Arg: Smi,
+      base2: Smi, len2Arg: Smi): Object
+  labels Bailout {
+    assert(len1Arg > 0 && len2Arg > 0 && base1 + len1Arg == base2);
+
+    let len1: Smi = len1Arg;
+    let len2: Smi = len2Arg;
+    let receiver: Object = sortState[kReceiverIdx()];
+    let userCmpFn: Object = sortState[kUserCmpFnIdx()];
+    let sortCompare: CompareBuiltinFn =
+        unsafe_cast<CompareBuiltinFn>(sortState[kSortComparePtrIdx()]);
+    let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
+    let initialReceiverLength: Number =
+        unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
+    let elements: Object = sortState[kElementsIdx()];
+
+    // Copy second run into temp array.
+    EnsureWorkArrayCapacity(sortState, len2);
+    let work_array: FixedArray =
+        unsafe_cast<FixedArray>(sortState[kWorkArrayIdx()]);
+    let cursor1: Smi = base1 + len1 - 1;  // Indexes into a.
+    let cursor2: Smi = len2 - 1;          // Indexes into work array.
+    let dest: Smi = base2 + len2 - 1;     // Indexes into a.
+    CopyToWorkArray<E>(context, elements, base2, work_array, 0, len2)
+    otherwise Bailout;
+
+    // Move last element of first run and deal with degenerate cases.
+    let tmp: Object = Load<E>(context, elements, cursor1--)
+    otherwise Bailout;
+    Store<E>(context, elements, dest--, tmp);
+    if (--len1 == 0) {
+      CopyFromWorkArray<E>(
+          context, elements, dest - (len2 - 1), work_array, 0, len2);
+      return SmiConstant(0);
+    }
+    if (len2 == 1) {
+      dest = dest - len1;
+      cursor1 = cursor1 - len1;
+      let r: Smi = CopyWithinSortArray<E>(
+          context, elements, cursor1 + 1, dest + 1, len1);
+      if (r < 0) goto Bailout;
+      Store<E>(context, elements, dest, work_array[cursor2]);
+      return SmiConstant(0);
+    }
+
+    assert(TaggedIsSmi(sortState[kMinGallopIdx()]));
+    let min_gallop: Smi = unsafe_cast<Smi>(sortState[kMinGallopIdx()]);
+    while (True == True) {
+      let break_outer: bool = false;
+      let count1: Smi = 0;  // Number of times in a row that first run won.
+      let count2: Smi = 0;  // Number of times in a row that second run won.
+
+      // Do the straightforward thing until (if ever) one run starts
+      // winning consistantly.
+      let first_iteration: bool = true;
+      while (((count1 | count2) < min_gallop) || first_iteration) {
+        first_iteration = false;
+
+        assert(len1 > 0 && len2 > 1);
+        let elem_work: Object = work_array[cursor2];
+        let elem_a: Object = Load<E>(context, elements, cursor1)
+        otherwise Bailout;
+
+        let order: Number = CallCompareFn<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, userCmpFn, sortCompare, elem_work, elem_a)
+        otherwise Bailout;
+
+        if (order < 0) {
+          let tmp: Object = Load<E>(context, elements, cursor1--)
+          otherwise Bailout;
+          Store<E>(context, elements, dest--, tmp);
+          count1++;
+          count2 = 0;
+          if (--len1 == 0) {
+            break_outer = true;
+            break;
+          }
+        } else {
+          Store<E>(context, elements, dest--, work_array[cursor2--]);
+          count2++;
+          count1 = 0;
+          if (--len2 == 1) {
+            break_outer = true;
+            break;
+          }
+        }
+      }
+
+      if (break_outer) break;
+
+      // One run is winning so consistently that galloping may be a huge win.
+      // So try that, and continue galloping until (if ever) neither run
+      // appears to be winning consistently anymore.
+      first_iteration = false;
+      while ((count1 >= 7 || count2 >= 7) || first_iteration) {
+        first_iteration = false;
+        assert(len1 > 0 && len2 > 1);
+
+        let gallop: Smi = GallopRight<E>(
+            context, sortState, work_array[cursor2], elements, base1, len1,
+            len1 - 1);
+        if (gallop < 0) goto Bailout;
+        count1 = len1 - gallop;
+        if (count1 != 0) {
+          dest = dest - count1;
+          cursor1 = cursor1 - count1;
+          len1 = len1 - count1;
+          let r: Smi = CopyWithinSortArray<E>(
+              context, elements, cursor1 + 1, dest + 1, count1);
+          if (r < 0) goto Bailout;
+          if (len1 == 0) {
+            break_outer = true;
+            break;
+          }
+        }
+        Store<E>(context, elements, dest--, work_array[cursor2--]);
+        if (--len2 == 1) {
+          break_outer = true;
+          break;
+        }
+
+        let key_left: Object = Load<E>(context, elements, cursor1)
+        otherwise Bailout;
+        let gallopl: Smi = GallopLeft<WorkArrayElements>(
+            context, sortState, key_left, work_array, 0, len2, len2 - 1);
+        if (gallopl < 0) goto Bailout;
+        count2 = len2 - gallopl;
+        if (count2 != 0) {
+          dest = dest - count2;
+          cursor2 = cursor2 - count2;
+          len2 = len2 - count2;
+          CopyFromWorkArray<E>(
+              context, elements, dest + 1, work_array, cursor2 + 1, count2);
+          if (len2 <= 1) {
+            break_outer = true;
+            break;
+          }
+        }
+        let tmp: Object = Load<E>(context, elements, cursor1--)
+        otherwise Bailout;
+        Store<E>(context, elements, dest--, tmp);
+        if (--len1 == 0) {
+          break_outer = true;
+          break;
+        }
+        min_gallop--;
+      }
+      if (break_outer) break;
+      if (min_gallop < 0) min_gallop = 0;
+      min_gallop = min_gallop + 2;  // Penalize for leaving gallop mode
+    }
+    sortState[kMinGallopIdx()] = min_gallop < 1 ? SmiConstant(1) : min_gallop;
+    assert(TaggedIsSmi(sortState[kMinGallopIdx()]));
+
+    if (len2 == 1) {
+      assert(len1 > 0);
+      dest = dest - len1;
+      cursor1 = cursor1 - len1;
+      let r: Smi = CopyWithinSortArray<E>(
+          context, elements, cursor1 + 1, dest + 1, len1);
+      if (r < 0) goto Bailout;
+      Store<E>(context, elements, dest, work_array[cursor2]);
+    } else if (len2 == 0) {
+      // Comparison function does not behave well.
+      // Do nothing.
+    } else {
+      assert(len1 == 0);
+      assert(len2 > 0);
+      CopyFromWorkArray<E>(
+          context, elements, dest - (len2 - 1), work_array, 0, len2);
+    }
+    return SmiConstant(0);
+  }
+
+  extern macro FillFixedArrayWithZero(FixedArray, Smi);
+
+  // Examines the stack of runs waiting to be merged and merges adjacent runs
+  // until the stack invariants are reestablished:
+  //
+  //   1. run_lens[i - 3] > run_lens[i - 2] + run_lens[i - 1]
+  //   2. run_lens[i - 2] > run_lens[i - 1]
+  //
+  // This macro is called each time a new run is pushed onto the stack,
+  // so the invariants are guaranteed to hold for i < stack_size upon entry
+  // of the macro.
+  macro MergeCollapse<E : type>(context: Context, sortState: FixedArray)
+  labels Bailout {
+    let stack_size: Smi = GetStackSize(sortState);
+    let run_lens: FixedArray =
+        unsafe_cast<FixedArray>(sortState[kRunLensStackIdx()]);
+    while (stack_size > 1) {
+      let n: Smi = stack_size - 2;
+      assert(n >= 0);
+
+      let rl_n: Smi = unsafe_cast<Smi>(run_lens[n]);
+      let rl_np: Smi = unsafe_cast<Smi>(run_lens[n + 1]);
+      if (n > 0) {
+        let rl_nm: Smi = unsafe_cast<Smi>(run_lens[n - 1]);
+        if (rl_nm <= rl_n + rl_np) {
+          if (rl_nm < rl_np) n--;
+          let r: Smi = MergeAt<E>(context, sortState, n);
+          if (r < 0) goto Bailout;
+          // Reload because MergeAt might have changed it.
+          stack_size = GetStackSize(sortState);
+          continue;
+        }
+      }
+
+      if (rl_n <= rl_np) {
+        let r: Smi = MergeAt<E>(context, sortState, n);
+        if (r < 0) goto Bailout;
+      } else {
+        break;  // Invariant is established.
+      }
+
+      // Reload because MergeAt might have changed it.
+      stack_size = GetStackSize(sortState);
     }
   }
 
-  // Returns -1 iff we bailed to the slow path, 0 otherwise.
-  builtin ArrayQuickSort<ElementsAccessor : type>(
-      context: Context, sortState: FixedArray, from: Smi, to: Smi): Smi {
+  macro ArrayTimSortImpl<E : type>(
+      context: Context, sortState: FixedArray, fromArg: Smi, toArg: Smi)
+  labels Bailout {
+    let receiver: Object = sortState[kReceiverIdx()];
+    let userCmpFn: Object = sortState[kUserCmpFnIdx()];
+    let sortCompare: CompareBuiltinFn =
+        unsafe_cast<CompareBuiltinFn>(sortState[kSortComparePtrIdx()]);
+    let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
+    let initialReceiverLength: Number =
+        unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
+    let elements: Object = sortState[kElementsIdx()];
+
+    // This is the minimum sequence that will be merged. Shorter
+    // sequences will be lengthened by calling BinaryInsertionSort.
+    // This constant should be a tower of 2, otherwise MinRunLength macro
+    // must be changed.
+    let kMinMerge: int32 = 32;
+
+    let kMinGallop: int32 = 7;
+    let kInitialTmpStorageLength: int32 = 256;
+
+    let remaining: Smi = toArg - fromArg;
+    if (remaining < 2) return;
+
+    // Use InsertionSort for small arrays.
+    if (remaining < convert<Smi>(kMinMerge)) {
+      let init_run_len: Smi = CountRunAndMakeAscending<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, fromArg, toArg, userCmpFn, sortCompare);
+      if (init_run_len < 0) goto Bailout;
+      let r: Smi = BinaryInsertionSort<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, fromArg, toArg, fromArg + init_run_len,
+          userCmpFn, sortCompare);
+      if (r < 0) goto Bailout;
+      return;
+    }
+
+    let temporary_len: Smi =
+        (toArg < convert<Smi>(Int32Constant(2) * kInitialTmpStorageLength)) ?
+        toArg >>> 1 :
+        convert<Smi>(kInitialTmpStorageLength);
+    sortState[kWorkArrayIdx()] =
+        AllocateFixedArray(PACKED_ELEMENTS, convert<intptr>(temporary_len));
+    sortState[kWorkArraySizeIdx()] = temporary_len;
+    sortState[kMinGallopIdx()] = convert<Smi>(kMinGallop);
+    FillFixedArrayWithZero(
+        unsafe_cast<FixedArray>(sortState[kWorkArrayIdx()]), temporary_len);
+
+    // Allocate runs-to-be-merged stack (which cannot be expanded). The
+    // "magic numbers" in the computation below must be changed if kMinMerge
+    // is decreased.
+    // More explanations are given in section 4 of:
+    // http://envisage-project.eu/wp-content/uploads/2015/02/sorting.pdf
+    let stack_len: intptr =
+        (toArg < 120 ? 5 : (toArg < 1542 ? 10 : (toArg < 119151 ? 24 : 49)));
+    let run_base: FixedArray =
+        AllocateFixedArray(PACKED_SMI_ELEMENTS, stack_len);
+    FillFixedArrayWithZero(run_base, convert<Smi>(stack_len));
+
+    let run_lens: FixedArray =
+        AllocateFixedArray(PACKED_SMI_ELEMENTS, stack_len);
+    FillFixedArrayWithZero(run_lens, convert<Smi>(stack_len));
+
+    sortState[kRunBaseStackIdx()] = run_base;
+    sortState[kRunLensStackIdx()] = run_lens;
+    sortState[kStackSizeIdx()] = SmiConstant(0);
+
+    let from: Smi = fromArg;
+    let min_run: Smi = MinRunLength(remaining, convert<Smi>(kMinMerge));
+    while (remaining != 0) {
+      // Identify next run.
+      let run_len: Smi = CountRunAndMakeAscending<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, from, toArg, userCmpFn, sortCompare);
+      if (run_len < 0) goto Bailout;
+
+      // If run is short, extend to min(minRun, remaining).
+      if (run_len < min_run) {
+        let force: Smi = min_run < remaining ? min_run : remaining;
+        let r: Smi = BinaryInsertionSort<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, from, from + force, from + run_len,
+            userCmpFn, sortCompare);
+        if (r < 0) goto Bailout;
+        run_len = force;
+      }
+
+      // Push run onto pending-run stack, and maybe merge.
+      let stack_size: Smi = GetStackSize(sortState);
+      assert(stack_size >= 0);
+      run_base[stack_size] = from;
+      run_lens[stack_size] = run_len;
+      stack_size++;
+      sortState[kStackSizeIdx()] = stack_size;
+
+      MergeCollapse<E>(context, sortState) otherwise Bailout;
+
+      // Advance to find next run.
+      from = from + run_len;
+      remaining = remaining - run_len;
+    }
+
+    // Merge all remaining runs to complete sort.
+    assert(from == toArg);
+    let stack_size: Smi = GetStackSize(sortState);
+    while (stack_size > 1) {
+      let n: Smi = stack_size - 2;
+      if (n > 0) {
+        assert(TaggedIsSmi(run_lens[n - 1]));
+        assert(TaggedIsSmi(run_lens[n + 1]));
+        let rl_nm: Smi = unsafe_cast<Smi>(run_lens[n - 1]);
+        let rl_np: Smi = unsafe_cast<Smi>(run_lens[n + 1]);
+
+        if (rl_nm < rl_np) n--;
+      }
+
+      let r: Smi = MergeAt<E>(context, sortState, n);
+      if (r < 0) goto Bailout;
+      // Reload because MergeAt might have changed it.
+      stack_size = GetStackSize(sortState);
+    }
+
+    assert(stack_size == 1);
+  }
+
+  builtin ArrayTimSort<ElementsAccessor : type>(
+      context: Context, sortState: FixedArray, from: Smi, to: Smi): Object {
     try {
-      ArrayQuickSortImpl<ElementsAccessor>(context, sortState, from, to)
+      ArrayTimSortImpl<ElementsAccessor>(context, sortState, from, to)
       otherwise Slow;
     }
     label Slow {
-      return kFailure();
+      sortState[kElementsIdx()] = sortState[kReceiverIdx()];
+      ArrayTimSort<GenericElementsAccessor>(context, sortState, from, to);
     }
-    return kSuccess();
+    return SmiConstant(0);
   }
 
-  // The specialization is needed since we would end up in an endless loop
-  // when the ElementsAccessor fails and bails to the ElementsAccessor again.
-  ArrayQuickSort<GenericElementsAccessor>(
-      context: Context, sortState: FixedArray, from: Smi, to: Smi): Smi {
+  ArrayTimSort<GenericElementsAccessor>(
+      context: Context, sortState: FixedArray, from: Smi, to: Smi): Object {
     try {
-      ArrayQuickSortImpl<GenericElementsAccessor>(context, sortState, from, to)
-      otherwise Error;
+      ArrayTimSortImpl<GenericElementsAccessor>(context, sortState, from, to)
+      otherwise Slow;
     }
-    label Error {
-      // The generic baseline path must not fail.
+    label Slow {
+      // We are already on the slow path.
       unreachable;
     }
-    return kSuccess();
-  }
-
-  macro TryFastArrayQuickSort<ElementsAccessor : type>(
-      context: Context, sortState: FixedArray, from: Smi, to: Smi) {
-    let bailed: Smi =
-        ArrayQuickSort<ElementsAccessor>(context, sortState, from, to);
-    if (bailed != 0) {
-      // Generic version uses Set- and GetProperty, replace elements with
-      // the receiver itself.
-      sortState[kElementsOrReceiverIdx()] = sortState[kReceiverIdx()];
-      ArrayQuickSort<GenericElementsAccessor>(context, sortState, from, to);
-    }
+    return SmiConstant(0);
   }
 
   // For compatibility with JSC, we also sort elements inherited from
@@ -533,8 +1404,13 @@ module array {
     // Initialize the remaining fields with Undefined.
     // Needed for heap verification.
     sort_state[kInitialReceiverLengthIdx()] = Undefined;
-    sort_state[kElementsOrReceiverIdx()] = Undefined;
-    sort_state[kRandomStateIdx()] = Undefined;
+    sort_state[kElementsIdx()] = Undefined;
+    sort_state[kRunBaseStackIdx()] = Undefined;
+    sort_state[kRunLensStackIdx()] = Undefined;
+    sort_state[kStackSizeIdx()] = Undefined;
+    sort_state[kWorkArrayIdx()] = Undefined;
+    sort_state[kWorkArraySizeIdx()] = Undefined;
+    sort_state[kMinGallopIdx()] = Undefined;
 
     try {
       let a: JSArray = cast<JSArray>(obj) otherwise slow;
@@ -551,18 +1427,17 @@ module array {
       assert(a.map == map);
 
       sort_state[kInitialReceiverLengthIdx()] = len;
-      sort_state[kElementsOrReceiverIdx()] = a.elements;
-      sort_state[kRandomStateIdx()] = nofNonUndefined;
+      sort_state[kElementsIdx()] = a.elements;
 
       if (IsDoubleElementsKind(elementsKind)) {
-        TryFastArrayQuickSort<FastDoubleElements>(
+        ArrayTimSort<FastDoubleElements>(
             context, sort_state, 0, nofNonUndefined);
       } else {
         if (elementsKind == PACKED_SMI_ELEMENTS) {
-          TryFastArrayQuickSort<FastPackedSmiElements>(
+          ArrayTimSort<FastPackedSmiElements>(
               context, sort_state, 0, nofNonUndefined);
         } else {
-          TryFastArrayQuickSort<FastSmiOrObjectElements>(
+          ArrayTimSort<FastSmiOrObjectElements>(
               context, sort_state, 0, nofNonUndefined);
         }
       }
@@ -576,7 +1451,6 @@ module array {
       let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
 
       sort_state[kInitialReceiverLengthIdx()] = len;
-      sort_state[kRandomStateIdx()] = nofNonUndefined;
 
       // Reload the map, PrepareElementsForSort might have changed the
       // elements kind.
@@ -585,14 +1459,14 @@ module array {
       if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
           !IsCustomElementsReceiverInstanceType(map.instance_type)) {
         let jsobj: JSObject = unsafe_cast<JSObject>(obj);
-        sort_state[kElementsOrReceiverIdx()] = jsobj.elements;
-        TryFastArrayQuickSort<DictionaryElements>(
+        sort_state[kElementsIdx()] = jsobj.elements;
+        ArrayTimSort<DictionaryElements>(
             context, sort_state, 0, nofNonUndefined);
         return receiver;
       }
 
-      sort_state[kElementsOrReceiverIdx()] = obj;
-      ArrayQuickSort<GenericElementsAccessor>(
+      sort_state[kElementsIdx()] = obj;
+      ArrayTimSort<GenericElementsAccessor>(
           context, sort_state, 0, nofNonUndefined);
     }
 
