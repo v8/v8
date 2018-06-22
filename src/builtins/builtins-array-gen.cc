@@ -1009,8 +1009,8 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   {
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
-    TailCallStub(CodeFactory::ArrayPop(isolate()), context, target,
-                 UndefinedConstant(), argc);
+    TailCallBuiltin(Builtins::kArrayPop, context, target, UndefinedConstant(),
+                    argc);
   }
 }
 
@@ -1141,8 +1141,8 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   {
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
-    TailCallStub(CodeFactory::ArrayPush(isolate()), context, target,
-                 UndefinedConstant(), argc);
+    TailCallBuiltin(Builtins::kArrayPush, context, target, UndefinedConstant(),
+                    argc);
   }
 }
 
@@ -1183,8 +1183,8 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
 
     CSA_ASSERT(this, SmiGreaterThanOrEqual(CAST(from), SmiConstant(0)));
 
-    result.Bind(CallStub(CodeFactory::ExtractFastJSArray(isolate()), context,
-                         array, from, count));
+    result.Bind(CallBuiltin(Builtins::kExtractFastJSArray, context, array, from,
+                            count));
     Goto(&done);
 
     BIND(&try_fast_arguments);
@@ -1339,7 +1339,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   BIND(&clone);
 
   args.PopAndReturn(
-      CallStub(CodeFactory::CloneFastJSArray(isolate()), context, receiver));
+      CallBuiltin(Builtins::kCloneFastJSArray, context, receiver));
 
   BIND(&check_arguments_length);
 
@@ -1638,8 +1638,8 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
   {
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
-    TailCallStub(CodeFactory::ArrayShift(isolate()), context, target,
-                 UndefinedConstant(), argc);
+    TailCallBuiltin(Builtins::kArrayShift, context, target, UndefinedConstant(),
+                    argc);
   }
 }
 

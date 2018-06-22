@@ -186,8 +186,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   BIND(&slow);
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
-  TailCallStub(CodeFactory::FunctionPrototypeBind(isolate()), context, target,
-               new_target, argc);
+  TailCallBuiltin(Builtins::kFunctionPrototypeBind, context, target, new_target,
+                  argc);
 }
 
 // ES6 #sec-function.prototype-@@hasinstance

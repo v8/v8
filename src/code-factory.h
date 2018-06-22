@@ -102,13 +102,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                                      ElementsKind kind);
   static Callable InternalArraySingleArgumentConstructor(Isolate* isolate,
                                                          ElementsKind kind);
-
-  static Callable ArrayPop(Isolate* isolate);
-  static Callable ArrayPush(Isolate* isolate);
-  static Callable ArrayShift(Isolate* isolate);
-  static Callable ExtractFastJSArray(Isolate* isolate);
-  static Callable CloneFastJSArray(Isolate* isolate);
-  static Callable FunctionPrototypeBind(Isolate* isolate);
 };
 
 }  // namespace internal
