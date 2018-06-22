@@ -1530,80 +1530,45 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
 
 namespace {
 void AppendFunctionMessage(Log::MessageBuilder& msg, const char* reason,
-                           int script_id, double time_delta, int start_position,
-                           int end_position, base::ElapsedTimer* timer) {
-  msg << "function" << Logger::kNext << reason << Logger::kNext << script_id
-      << Logger::kNext << start_position << Logger::kNext << end_position
+                           Script* script, int script_id, double time_delta,
+                           int start_position, int end_position,
+                           base::ElapsedTimer* timer) {
+  msg << "function" << Logger::kNext << reason << Logger::kNext;
+  if (script) {
+    if (script->name()->IsString()) {
+      msg << String::cast(script->name());
+    }
+    msg << Logger::kNext << script->id();
+  } else {
+    msg << Logger::kNext << script_id;
+  }
+  msg << Logger::kNext << start_position << Logger::kNext << end_position
       << Logger::kNext << time_delta << Logger::kNext
       << timer->Elapsed().InMicroseconds() << Logger::kNext;
 }
 }  // namespace
 
-void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
-                           int start_position, int end_position,
-                           String* function_name) {
+void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
+                           double time_delta, int start_position,
+                           int end_position, String* function_name) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   Log::MessageBuilder msg(log_);
-  AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
-                        end_position, &timer_);
+  AppendFunctionMessage(msg, reason, script, script_id, time_delta,
+                        start_position, end_position, &timer_);
   if (function_name) msg << function_name;
   msg.WriteToLogFile();
 }
 
-void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
-                           int start_position, int end_position,
-                           const char* function_name,
+void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
+                           double time_delta, int start_position,
+                           int end_position, const char* function_name,
                            size_t function_name_length) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   Log::MessageBuilder msg(log_);
-  AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
-                        end_position, &timer_);
+  AppendFunctionMessage(msg, reason, script, script_id, time_delta,
+                        start_position, end_position, &timer_);
   if (function_name_length > 0) {
     msg.AppendStringPart(function_name, function_name_length);
-  }
-  msg.WriteToLogFile();
-}
-
-namespace {
-void AppendCompilationCacheMessage(Log::MessageBuilder& msg,
-                                   SharedFunctionInfo* sfi) {
-  int script_id = -1;
-  if (sfi->script()->IsScript()) {
-    script_id = Script::cast(sfi->script())->id();
-  }
-  msg << script_id << Logger::kNext << sfi->StartPosition() << Logger::kNext
-      << sfi->EndPosition();
-}
-}  // namespace
-
-void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
-                                   SharedFunctionInfo* sfi) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
-  Log::MessageBuilder msg(log_);
-  msg << "compilation-cache" << Logger::kNext << action << Logger::kNext
-      << cache_type << Logger::kNext;
-  AppendCompilationCacheMessage(msg, sfi);
-  msg.WriteToLogFile();
-}
-
-void Logger::ScriptEvent(const char* event_name, int script_id) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
-  Log::MessageBuilder msg(log_);
-  msg << "script" << Logger::kNext << event_name << Logger::kNext << script_id;
-  msg.WriteToLogFile();
-}
-
-void Logger::ScriptDetails(Script* script) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
-  Log::MessageBuilder msg(log_);
-  msg << "script-details" << Logger::kNext << script->id() << Logger::kNext;
-  if (script->name()->IsString()) {
-    msg << String::cast(script->name());
-  }
-  msg << Logger::kNext << script->line_offset() << Logger::kNext
-      << script->column_offset() << Logger::kNext;
-  if (script->source_mapping_url()->IsString()) {
-    msg << String::cast(script->source_mapping_url());
   }
   msg.WriteToLogFile();
 }

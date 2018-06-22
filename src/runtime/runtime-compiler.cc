@@ -67,9 +67,9 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
             OptimizationMarker::kLogFirstExecution);
   DCHECK(FLAG_log_function_events);
   Handle<SharedFunctionInfo> sfi(function->shared());
-  LOG(isolate, FunctionEvent(
-                   "first-execution", Script::cast(sfi->script())->id(), 0,
-                   sfi->StartPosition(), sfi->EndPosition(), sfi->DebugName()));
+  LOG(isolate, FunctionEvent("first-execution", Script::cast(sfi->script()), -1,
+                             0, sfi->StartPosition(), sfi->EndPosition(),
+                             sfi->DebugName()));
   function->feedback_vector()->ClearOptimizationMarker();
   // Return the code to continue execution, we don't care at this point whether
   // this is for lazy compilation or has been eagerly complied.

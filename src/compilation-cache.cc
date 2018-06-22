@@ -160,7 +160,6 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
                      resource_options));
 #endif
     isolate()->counters()->compilation_cache_hits()->Increment();
-    LOG(isolate(), CompilationCacheEvent("hit", "script", *function_info));
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
   }
@@ -275,23 +274,14 @@ InfoCellPair CompilationCache::LookupEval(Handle<String> source,
   InfoCellPair result;
   if (!IsEnabled()) return result;
 
-  const char* cache_type;
-
   if (context->IsNativeContext()) {
     result = eval_global_.Lookup(source, outer_info, context, language_mode,
                                  position);
-    cache_type = "eval-global";
-
   } else {
     DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     result = eval_contextual_.Lookup(source, outer_info, native_context,
                                      language_mode, position);
-    cache_type = "eval-contextual";
-  }
-
-  if (result.has_shared()) {
-    LOG(isolate(), CompilationCacheEvent("hit", cache_type, result.shared()));
   }
 
   return result;
@@ -309,7 +299,6 @@ void CompilationCache::PutScript(Handle<String> source,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) return;
-  LOG(isolate(), CompilationCacheEvent("put", "script", *function_info));
 
   script_.Put(source, native_context, language_mode, function_info);
 }
@@ -322,26 +311,24 @@ void CompilationCache::PutEval(Handle<String> source,
                                int position) {
   if (!IsEnabled()) return;
 
-  const char* cache_type;
   HandleScope scope(isolate());
   if (context->IsNativeContext()) {
     eval_global_.Put(source, outer_info, function_info, context, feedback_cell,
                      position);
-    cache_type = "eval-global";
   } else {
     DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     eval_contextual_.Put(source, outer_info, function_info, native_context,
                          feedback_cell, position);
-    cache_type = "eval-contextual";
   }
-  LOG(isolate(), CompilationCacheEvent("put", cache_type, *function_info));
 }
 
 void CompilationCache::PutRegExp(Handle<String> source,
                                  JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
-  if (!IsEnabled()) return;
+  if (!IsEnabled()) {
+    return;
+  }
 
   reg_exp_.Put(source, flags, data);
 }

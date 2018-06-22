@@ -401,8 +401,6 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<Script> NewScript(Handle<String> source,
                            PretenureFlag tenure = TENURED);
-  Handle<Script> NewScriptWithId(Handle<String> source, int script_id,
-                                 PretenureFlag tenure = TENURED);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
