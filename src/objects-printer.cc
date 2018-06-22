@@ -2391,7 +2391,7 @@ extern void _v8_internal_Print_Code(void* object) {
       isolate->wasm_engine()->code_manager()->LookupCode(address);
   if (wasm_code) {
     i::StdoutStream os;
-    wasm_code->Disassemble(nullptr, isolate, os, address);
+    wasm_code->Disassemble(nullptr, os, address);
     return;
   }
 

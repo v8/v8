@@ -205,14 +205,14 @@ void WasmCode::Validate() const {
 #endif
 }
 
-void WasmCode::Print(Isolate* isolate) const {
+void WasmCode::Print(const char* name) const {
   StdoutStream os;
   os << "--- WebAssembly code ---\n";
-  Disassemble(nullptr, isolate, os);
+  Disassemble(name, os);
   os << "--- End code ---\n";
 }
 
-void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
+void WasmCode::Disassemble(const char* name, std::ostream& os,
                            Address current_pc) const {
   if (name) os << "name: " << name << "\n";
   if (index_.IsJust()) os << "index: " << index_.FromJust() << "\n";
@@ -231,9 +231,7 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
   }
   DCHECK_LT(0, instruction_size);
   os << "Instructions (size = " << instruction_size << ")\n";
-  // TODO(mtrofin): rework the dependency on isolate and code in
-  // Disassembler::Decode.
-  Disassembler::Decode(isolate, &os, instructions().start(),
+  Disassembler::Decode(nullptr, &os, instructions().start(),
                        instructions().start() + instruction_size,
                        CodeReference(this), current_pc);
   os << "\n";
@@ -252,7 +250,7 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate, std::ostream& os,
   os << "RelocInfo (size = " << reloc_size_ << ")\n";
   for (RelocIterator it(instructions(), reloc_info(), constant_pool());
        !it.done(); it.next()) {
-    it.rinfo()->Print(isolate, os);
+    it.rinfo()->Print(nullptr, os);
   }
   os << "\n";
 #endif  // ENABLE_DISASSEMBLER
@@ -514,10 +512,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  if (FLAG_print_code || FLAG_print_wasm_code) {
-    // TODO(mstarzinger): don't need the isolate here.
-    ret->Print(code->GetIsolate());
-  }
+  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print();
   ret->Validate();
   return ret;
 }
@@ -572,10 +567,7 @@ WasmCode* NativeModule::AddCode(
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  if (FLAG_print_code || FLAG_print_wasm_code) {
-    // TODO(mstarzinger): don't need the isolate here.
-    ret->Print(module_object()->GetIsolate());
-  }
+  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print();
   ret->Validate();
   return ret;
 }

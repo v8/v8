@@ -585,10 +585,13 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   } else if (rmode_ == EMBEDDED_OBJECT) {
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
-    ExternalReferenceEncoder ref_encoder(isolate);
-    os << " ("
-       << ref_encoder.NameOfAddress(isolate, target_external_reference())
-       << ")  (" << reinterpret_cast<const void*>(target_external_reference())
+    if (isolate) {
+      ExternalReferenceEncoder ref_encoder(isolate);
+      os << " ("
+         << ref_encoder.NameOfAddress(isolate, target_external_reference())
+         << ") ";
+    }
+    os << " (" << reinterpret_cast<const void*>(target_external_reference())
        << ")";
   } else if (IsCodeTarget(rmode_)) {
     const Address code_target = target_address();
@@ -600,8 +603,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     } else if (code->kind() == Code::STUB) {
       os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
     }
-    os << ") ";
-    os << " (" << reinterpret_cast<const void*>(target_address()) << ")";
+    os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
