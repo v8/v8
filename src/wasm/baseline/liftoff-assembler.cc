@@ -4,8 +4,6 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#include <sstream>
-
 #include "src/assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
@@ -592,34 +590,6 @@ void LiftoffAssembler::ParallelRegisterMove(
     if (tuple.dst == tuple.src) continue;
     stack_transfers.MoveRegister(tuple.dst, tuple.src, tuple.type);
   }
-}
-
-bool LiftoffAssembler::ValidateCacheState() const {
-  uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
-  LiftoffRegList used_regs;
-  for (const VarState& var : cache_state_.stack_state) {
-    if (!var.is_reg()) continue;
-    ++register_use_count[var.reg().liftoff_code()];
-    used_regs.set(var.reg());
-  }
-  bool valid = memcmp(register_use_count, cache_state_.register_use_count,
-                      sizeof(register_use_count)) == 0 &&
-               used_regs == cache_state_.used_registers;
-  if (valid) return true;
-  std::ostringstream os;
-  os << "Error in LiftoffAssembler::ValidateCacheState().\n";
-  os << "expected: used_regs " << used_regs << ", counts [";
-  for (int reg = 0; reg < kAfterMaxLiftoffRegCode; ++reg) {
-    os << (reg == 0 ? "" : ", ") << register_use_count[reg];
-  }
-  os << "]\n";
-  os << "found:    used_regs " << cache_state_.used_registers << ", counts [";
-  for (int reg = 0; reg < kAfterMaxLiftoffRegCode; ++reg) {
-    os << (reg == 0 ? "" : ", ") << cache_state_.register_use_count[reg];
-  }
-  os << "]\n";
-  os << "Use --trace-liftoff to debug.\n";
-  FATAL("%s", os.str().c_str());
 }
 
 LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,

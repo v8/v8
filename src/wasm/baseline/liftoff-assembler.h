@@ -330,9 +330,6 @@ class LiftoffAssembler : public TurboAssembler {
   };
   void ParallelRegisterMove(std::initializer_list<ParallelRegisterMoveTuple>);
 
-  // Validate that the register use counts reflect the state of the cache.
-  bool ValidateCacheState() const;
-
   ////////////////////////////////////
   // Platform-specific part.        //
   ////////////////////////////////////
