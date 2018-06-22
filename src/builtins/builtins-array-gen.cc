@@ -1007,8 +1007,10 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
   BIND(&runtime);
   {
-    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                                 MachineType::TaggedPointer());
+    // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+    // from the current frame here in order to reduce register pressure on the
+    // fast path.
+    TNode<JSFunction> target = LoadTargetFromFrame();
     TailCallBuiltin(Builtins::kArrayPop, context, target, UndefinedConstant(),
                     argc);
   }
@@ -1139,8 +1141,10 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 
   BIND(&runtime);
   {
-    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                                 MachineType::TaggedPointer());
+    // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+    // from the current frame here in order to reduce register pressure on the
+    // fast path.
+    TNode<JSFunction> target = LoadTargetFromFrame();
     TailCallBuiltin(Builtins::kArrayPush, context, target, UndefinedConstant(),
                     argc);
   }
@@ -1636,8 +1640,10 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
   BIND(&runtime);
   {
-    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                                 MachineType::TaggedPointer());
+    // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+    // from the current frame here in order to reduce register pressure on the
+    // fast path.
+    TNode<JSFunction> target = LoadTargetFromFrame();
     TailCallBuiltin(Builtins::kArrayShift, context, target, UndefinedConstant(),
                     argc);
   }

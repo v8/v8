@@ -2028,7 +2028,7 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  Node* function = LoadFromFrame(StandardFrameConstants::kFunctionOffset);
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
 
   Label already_called(this, Label::kDeferred), resolve_promise(this);
 

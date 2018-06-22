@@ -640,8 +640,7 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
       return_result(this);
   GotoIf(IsUndefined(new_target), &if_notsubclass);
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
   Branch(WordEqual(new_target, target), &if_notsubclass, &if_subclass);
 
   BIND(&if_subclass);
@@ -718,8 +717,11 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
       //    "%NumberPrototype%", « [[NumberData]] »).
       // 5. Set O.[[NumberData]] to n.
       // 6. Return O.
-      Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                                   MachineType::TaggedPointer());
+
+      // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+      // from the current frame here in order to reduce register pressure on the
+      // fast path.
+      TNode<JSFunction> target = LoadTargetFromFrame();
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
       StoreObjectField(result, JSValue::kValueOffset, n_value);
@@ -735,9 +737,7 @@ TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* new_target = Parameter(Descriptor::kJSNewTarget);
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
 
   // 1. If no arguments were passed to this function invocation, let s be "".
   VARIABLE(var_s, MachineRepresentation::kTagged, EmptyStringConstant());
@@ -778,6 +778,11 @@ TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
 
     BIND(&constructstring);
     {
+      // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+      // from the current frame here in order to reduce register pressure on the
+      // fast path.
+      TNode<JSFunction> target = LoadTargetFromFrame();
+
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
       StoreObjectField(result, JSValue::kValueOffset, s_value);

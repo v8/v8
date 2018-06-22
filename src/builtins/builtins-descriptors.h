@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_DESCRIPTORS_H_
 
 #include "src/builtins/builtins.h"
+#include "src/compiler/code-assembler.h"
 #include "src/interface-descriptors.h"
 #include "src/objects/shared-function-info.h"
 
@@ -16,7 +17,7 @@ namespace internal {
 #define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...)                \
   struct Builtin_##Name##_InterfaceDescriptor {                         \
     enum ParameterIndices {                                             \
-      kJSTarget = -1,                                                   \
+      kJSTarget = compiler::CodeAssembler::kTargetParameterIndex,       \
       ##__VA_ARGS__,                                                    \
       kJSNewTarget,                                                     \
       kJSActualArgumentsCount,                                          \
@@ -25,6 +26,7 @@ namespace internal {
     };                                                                  \
     static_assert((Argc) == static_cast<uint16_t>(kParameterCount - 4), \
                   "Inconsistent set of arguments");                     \
+    static_assert(kJSTarget == -1, "Unexpected kJSTarget index value"); \
   };
 
 // Define interface descriptors for builtins with StubCall linkage.

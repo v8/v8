@@ -184,10 +184,14 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   }
 
   BIND(&slow);
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
-  TailCallBuiltin(Builtins::kFunctionPrototypeBind, context, target, new_target,
-                  argc);
+  {
+    // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+    // from the current frame here in order to reduce register pressure on the
+    // fast path.
+    TNode<JSFunction> target = LoadTargetFromFrame();
+    TailCallBuiltin(Builtins::kFunctionPrototypeBind, context, target,
+                    new_target, argc);
+  }
 }
 
 // ES6 #sec-function.prototype-@@hasinstance

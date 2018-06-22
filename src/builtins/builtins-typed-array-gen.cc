@@ -757,10 +757,9 @@ TF_BUILTIN(TypedArrayConstructorLazyDeoptContinuation,
 
 // ES #sec-typedarray-constructors
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
-  Node* new_target = Parameter(Descriptor::kJSNewTarget);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);

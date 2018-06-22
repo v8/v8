@@ -28,8 +28,10 @@ TF_BUILTIN(FastConsoleAssert, CodeStubAssembler) {
 
   BIND(&runtime);
   {
-    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                                 MachineType::TaggedPointer());
+    // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+    // from the current frame here in order to reduce register pressure on the
+    // fast path.
+    TNode<JSFunction> target = LoadTargetFromFrame();
     TailCallBuiltin(Builtins::kConsoleAssert, context, target, new_target,
                     argc);
   }

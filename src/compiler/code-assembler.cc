@@ -371,8 +371,14 @@ bool CodeAssembler::IsNullConstant(TNode<Object> node) {
   return m.Is(isolate()->factory()->null_value());
 }
 
-Node* CodeAssembler::Parameter(int value) {
-  return raw_assembler()->Parameter(value);
+Node* CodeAssembler::Parameter(int index) {
+  if (index == kTargetParameterIndex) return raw_assembler()->TargetParameter();
+  return raw_assembler()->Parameter(index);
+}
+
+bool CodeAssembler::IsJSFunctionCall() const {
+  auto call_descriptor = raw_assembler()->call_descriptor();
+  return call_descriptor->IsJSFunctionCall();
 }
 
 TNode<Context> CodeAssembler::GetJSContextParameter() {

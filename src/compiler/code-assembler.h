@@ -738,6 +738,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<UintPtrT>(x);
   }
 
+  static constexpr int kTargetParameterIndex = -1;
+
   Node* Parameter(int value);
 
   TNode<Context> GetJSContextParameter();
@@ -1196,6 +1198,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   bool Word32ShiftIsSafe() const;
   PoisoningMitigationLevel poisoning_level() const;
+
+  bool IsJSFunctionCall() const;
 
  private:
   TNode<Object> CallRuntimeImpl(Runtime::FunctionId function,

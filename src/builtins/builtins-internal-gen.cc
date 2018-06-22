@@ -180,8 +180,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
   TNode<Int32T> arg_count =
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<JSFunction> function = CAST(LoadFromFrame(
-      StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer()));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
 
   // Check break-at-entry flag on the debug info.
   TNode<SharedFunctionInfo> shared =

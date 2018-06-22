@@ -1337,6 +1337,12 @@ Node* CodeStubAssembler::LoadFromParentFrame(int offset, MachineType rep) {
   return Load(rep, frame_pointer, IntPtrConstant(offset));
 }
 
+TNode<JSFunction> CodeStubAssembler::LoadTargetFromFrame() {
+  DCHECK(IsJSFunctionCall());
+  return CAST(LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                            MachineType::TaggedPointer()));
+}
+
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
                                           MachineType rep) {
   return Load(rep, buffer, IntPtrConstant(offset));

@@ -727,6 +727,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFromParentFrame(int offset,
                             MachineType rep = MachineType::AnyTagged());
 
+  // Load target function from the current JS frame.
+  // This is an alternative way of getting the target function in addition to
+  // Parameter(Descriptor::kJSTarget). The latter should be used near the
+  // beginning of builtin code while the target value is still in the register
+  // and the former should be used in slow paths in order to reduce register
+  // pressure on the fast path.
+  TNode<JSFunction> LoadTargetFromFrame();
+
   // Load an object pointer from a buffer that isn't in the heap.
   Node* LoadBufferObject(Node* buffer, int offset,
                          MachineType rep = MachineType::AnyTagged());
