@@ -1687,27 +1687,9 @@ void TypedArrayBuiltinsAssembler::IterableToListSlowPath(
   created_list->Bind(js_array_values);
 }
 
-// Unlike IterableToListUnsafe, this builtin always returns a new JSArray
-// and is thus safe to use even in the presence of code that may call back
-// into user-JS.
+// This builtin always returns a new JSArray and is thus safe to use even in the
+// presence of code that may call back into user-JS.
 TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
-
-  TVARIABLE(JSArray, created_list);
-  IterableToListSlowPath(context, iterable, iterator_fn, &created_list);
-
-  Return(created_list.value());
-}
-
-// This verison of IterableToList does not follow the spec, in that it returns
-// the input array if the iteration would be unobservable. This means that if
-// input iterable is still available in user-JS, it can be modified and make the
-// following code incorrect and potentially unsafe. We do this as an
-// optimization for spread calls, where the elements are pushed to the stack
-// with no user-JS being run inbetween.
-TF_BUILTIN(IterableToListUnsafe, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
   TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
@@ -1717,7 +1699,7 @@ TF_BUILTIN(IterableToListUnsafe, TypedArrayBuiltinsAssembler) {
   TVARIABLE(JSArray, created_list);
 
   // This is a fast-path for ignoring the iterator.
-  // TODO(petermarshall): Port to CSA.
+  // TODO(petermarshall): Port IterableToListCanBeElided to CSA.
   Node* elided =
       CallRuntime(Runtime::kIterableToListCanBeElided, context, iterable);
   CSA_ASSERT(this, IsBoolean(elided));
@@ -1725,7 +1707,9 @@ TF_BUILTIN(IterableToListUnsafe, TypedArrayBuiltinsAssembler) {
 
   BIND(&fast_path);
   {
-    created_list = CAST(iterable);
+    TNode<JSArray> input_array = CAST(iterable);
+    TNode<JSArray> new_array = CAST(CloneFastJSArray(context, input_array));
+    created_list = new_array;
     Goto(&done);
   }
 
