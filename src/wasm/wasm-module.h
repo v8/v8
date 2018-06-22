@@ -172,7 +172,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);
 
-  WireBytesRef LookupName(const ModuleWireBytes* wire_bytes,
+  WireBytesRef LookupName(const ModuleWireBytes& wire_bytes,
                           uint32_t function_index) const;
   WireBytesRef LookupName(SeqOneByteString* wire_bytes,
                           uint32_t function_index) const;

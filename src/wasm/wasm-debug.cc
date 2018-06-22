@@ -133,9 +133,9 @@ class InterpreterHandle {
   static Vector<const byte> GetBytes(WasmDebugInfo* debug_info) {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
-    SeqOneByteString* bytes_str =
-        debug_info->wasm_instance()->module_object()->module_bytes();
-    return {bytes_str->GetChars(), static_cast<size_t>(bytes_str->length())};
+    NativeModule* native_module =
+        debug_info->wasm_instance()->module_object()->native_module();
+    return native_module->wire_bytes();
   }
 
  public:

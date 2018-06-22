@@ -7450,11 +7450,19 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   RETURN_ESCAPED(result);
 }
 
-Local<String> WasmCompiledModule::GetWasmWireBytes() {
+WasmCompiledModule::BufferReference WasmCompiledModule::GetWasmWireBytesRef() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::String> wire_bytes(obj->module_bytes(), obj->GetIsolate());
-  return Local<String>::Cast(Utils::ToLocal(wire_bytes));
+  i::Vector<const uint8_t> bytes_vec = obj->native_module()->wire_bytes();
+  return {bytes_vec.start(), bytes_vec.size()};
+}
+
+Local<String> WasmCompiledModule::GetWasmWireBytes() {
+  BufferReference ref = GetWasmWireBytesRef();
+  CHECK_LE(ref.size, String::kMaxLength);
+  return String::NewFromOneByte(GetIsolate(), ref.start, NewStringType::kNormal,
+                                static_cast<int>(ref.size))
+      .ToLocalChecked();
 }
 
 // Currently, wasm modules are bound, both to Isolate and to
@@ -7466,16 +7474,13 @@ WasmCompiledModule::GetTransferrableModule() {
   i::DisallowHeapAllocation no_gc;
   WasmCompiledModule::SerializedModule compiled_part = Serialize();
 
-  Local<String> wire_bytes = GetWasmWireBytes();
-  size_t wire_size = static_cast<size_t>(wire_bytes->Length());
-  uint8_t* bytes = new uint8_t[wire_size];
-  wire_bytes->WriteOneByte(bytes, 0, wire_bytes->Length());
+  BufferReference wire_bytes_ref = GetWasmWireBytesRef();
+  size_t wire_size = wire_bytes_ref.size;
+  std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
+  memcpy(wire_bytes_copy.get(), wire_bytes_ref.start, wire_size);
 
-  return TransferrableModule(
-      std::move(compiled_part),
-      std::make_pair(
-          std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(bytes)),
-          wire_size));
+  return TransferrableModule(std::move(compiled_part),
+                             {std::move(wire_bytes_copy), wire_size});
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
@@ -9491,9 +9496,8 @@ uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
   i::wasm::WasmFunction& func = module->functions[function_index];
-  i::SeqOneByteString* module_bytes = module_object->module_bytes();
   i::wasm::ModuleWireBytes wire_bytes(
-      module_bytes->GetFlatContent().ToOneByteVector());
+      module_object->native_module()->wire_bytes());
   i::Vector<const i::byte> function_bytes = wire_bytes.GetFunctionBytes(&func);
   // TODO(herhut): Maybe also take module, name and signature into account.
   return i::StringHasher::HashSequentialString(function_bytes.start(),

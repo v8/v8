@@ -4371,7 +4371,9 @@ class V8_EXPORT WasmCompiledModule : public Object {
   /**
    * Get the wasm-encoded bytes that were used to compile this module.
    */
-  Local<String> GetWasmWireBytes();
+  BufferReference GetWasmWireBytesRef();
+  V8_DEPRECATE_SOON("Use GetWasmWireBytesRef version.",
+                    Local<String> GetWasmWireBytes());
 
   /**
    * Serialize the compiled module. The serialized data does not include the

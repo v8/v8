@@ -241,14 +241,13 @@ iterate_compiled_module_instance_chain(Isolate* isolate,
 }
 
 #ifdef DEBUG
-bool IsBreakablePosition(WasmModuleObject* module_object, int func_index,
+bool IsBreakablePosition(wasm::NativeModule* native_module, int func_index,
                          int offset_in_func) {
-  DisallowHeapAllocation no_gc;
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
   wasm::BodyLocalDecls locals(&tmp);
-  const byte* module_start = module_object->module_bytes()->GetChars();
-  WasmFunction& func = module_object->module()->functions[func_index];
+  const byte* module_start = native_module->wire_bytes().start();
+  const WasmFunction& func = native_module->module()->functions[func_index];
   wasm::BytecodeIterator iterator(module_start + func.code.offset(),
                                   module_start + func.code.end_offset(),
                                   &locals);
@@ -274,8 +273,8 @@ enum DispatchTableElements : int {
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<FixedArray> export_wrappers,
     std::shared_ptr<wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
-    Handle<SeqOneByteString> module_bytes, Handle<Script> script,
-    Handle<ByteArray> asm_js_offset_table) {
+    std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
+    Handle<Script> script, Handle<ByteArray> asm_js_offset_table) {
   WasmModule* module = shared_module.get();
   DCHECK_EQ(module, env.module);
   size_t module_size = EstimateWasmModuleSize(module);
@@ -300,9 +299,6 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     script->set_wasm_module_object(*module_object);
   }
   module_object->set_managed_module(*managed_module);
-  if (!module_bytes.is_null()) {
-    module_object->set_module_bytes(*module_bytes);
-  }
   if (!script.is_null()) {
     module_object->set_script(*script);
   }
@@ -317,6 +313,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   auto native_module =
       isolate->wasm_engine()->code_manager()->NewNativeModule(isolate, env);
   native_module->SetModuleObject(module_object);
+  native_module->set_wire_bytes(std::move(wire_bytes), wire_bytes_len);
   native_module->SetRuntimeStubs(isolate);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
@@ -339,7 +336,8 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
 
   // According to the current design, we should only be called with valid
   // breakable positions.
-  DCHECK(IsBreakablePosition(*module_object, func_index, offset_in_func));
+  DCHECK(IsBreakablePosition(module_object->native_module(), func_index,
+                             offset_in_func));
 
   // Insert new break point into break_positions of module object.
   WasmModuleObject::AddBreakpoint(module_object, *position, break_point);
@@ -611,14 +609,12 @@ v8::debug::WasmDisassembly WasmModuleObject::DisassembleFunction(
       static_cast<uint32_t>(func_index) >= module()->functions.size())
     return {};
 
-  SeqOneByteString* module_bytes_str = module_bytes();
-  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
-                                  module_bytes_str->length());
+  Vector<const byte> wire_bytes = native_module()->wire_bytes();
 
   std::ostringstream disassembly_os;
   v8::debug::WasmDisassembly::OffsetTable offset_table;
 
-  PrintWasmText(module(), module_bytes, static_cast<uint32_t>(func_index),
+  PrintWasmText(module(), wire_bytes, static_cast<uint32_t>(func_index),
                 disassembly_os, &offset_table);
 
   return {disassembly_os.str(), std::move(offset_table)};
@@ -671,7 +667,7 @@ bool WasmModuleObject::GetPossibleBreakpoints(
 
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
-  const byte* module_start = module_bytes()->GetChars();
+  const byte* module_start = native_module()->wire_bytes().start();
 
   for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {
@@ -728,24 +724,20 @@ MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     wasm::WireBytesRef ref) {
   // TODO(wasm): cache strings from modules if it's a performance win.
-  Handle<SeqOneByteString> module_bytes(module_object->module_bytes(), isolate);
-  return ExtractUtf8StringFromModuleBytes(isolate, module_bytes, ref);
+  Vector<const uint8_t> wire_bytes =
+      module_object->native_module()->wire_bytes();
+  return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref);
 }
 
 MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-    Isolate* isolate, Handle<SeqOneByteString> module_bytes,
+    Isolate* isolate, Vector<const uint8_t> wire_bytes,
     wasm::WireBytesRef ref) {
-  DCHECK_GE(module_bytes->length(), ref.end_offset());
+  Vector<const uint8_t> name_vec = wire_bytes + ref.offset();
+  name_vec.Truncate(ref.length());
   // UTF8 validation happens at decode time.
-  DCHECK(unibrow::Utf8::ValidateEncoding(
-      reinterpret_cast<const byte*>(module_bytes->GetCharsAddress() +
-                                    ref.offset()),
-      ref.length()));
-  DCHECK_GE(kMaxInt, ref.offset());
-  DCHECK_GE(kMaxInt, ref.length());
-  return isolate->factory()->NewStringFromUtf8SubString(
-      module_bytes, static_cast<int>(ref.offset()),
-      static_cast<int>(ref.length()));
+  DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.start(), name_vec.length()));
+  return isolate->factory()->NewStringFromUtf8(
+      Vector<const char>::cast(name_vec));
 }
 
 MaybeHandle<String> WasmModuleObject::GetModuleNameOrNull(
@@ -760,7 +752,8 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     uint32_t func_index) {
   DCHECK_LT(func_index, module_object->module()->functions.size());
   wasm::WireBytesRef name = module_object->module()->LookupName(
-      module_object->module_bytes(), func_index);
+      wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
+      func_index);
   if (!name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, module_object, name);
 }
@@ -777,12 +770,10 @@ Handle<String> WasmModuleObject::GetFunctionName(
 Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
     uint32_t func_index) {
   DCHECK_GT(module()->functions.size(), func_index);
-  SeqOneByteString* bytes = module_bytes();
-  wasm::WireBytesRef name = module()->LookupName(bytes, func_index);
-  DCHECK_GE(bytes->length(), name.end_offset());
-  return Vector<const uint8_t>(
-      reinterpret_cast<uint8_t*>(bytes->GetCharsAddress() + name.offset()),
-      name.length());
+  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  wasm::WireBytesRef name_ref = module()->LookupName(wire_bytes, func_index);
+  wasm::WasmName name = wire_bytes.GetName(name_ref);
+  return Vector<const uint8_t>::cast(name);
 }
 
 int WasmModuleObject::GetFunctionOffset(uint32_t func_index) {

@@ -678,6 +678,10 @@ Address NativeModule::AllocateForCode(size_t size) {
   return mem.start;
 }
 
+const WasmModule* NativeModule::module() const {
+  return GetModuleEnv(compilation_state_.get())->module;
+}
+
 WasmCode* NativeModule::Lookup(Address pc) const {
   if (owned_code_.empty()) return nullptr;
   auto iter = std::upper_bound(owned_code_.begin(), owned_code_.end(), pc,

@@ -392,8 +392,7 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
 
   ModuleEnv* module_env = native_module->compilation_state()->module_env();
 
-  const uint8_t* module_start =
-      native_module->module_object()->module_bytes()->GetChars();
+  const uint8_t* module_start = native_module->wire_bytes().start();
 
   const WasmFunction* func = &module_env->module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(),
@@ -796,9 +795,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          Handle<WasmModuleObject> module_object,
                          const WasmModule* wasm_module, ModuleEnv* env) {
   NativeModule* const native_module = module_object->native_module();
-  auto* byte_string = module_object->module_bytes();
-  const ModuleWireBytes wire_bytes(
-      byte_string->GetChars(), byte_string->GetChars() + byte_string->length());
+  ModuleWireBytes wire_bytes(native_module->wire_bytes());
 
   if (compile_lazy(wasm_module)) {
     if (wasm_module->origin == kWasmOrigin) {
@@ -976,12 +973,10 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   }
   // TODO(wasm): only save the sections necessary to deserialize a
   // {WasmModule}. E.g. function bodies could be omitted.
-  Handle<String> module_bytes =
-      factory
-          ->NewStringFromOneByte({wire_bytes.start(), wire_bytes.length()},
-                                 TENURED)
-          .ToHandleChecked();
-  DCHECK(module_bytes->IsSeqOneByteString());
+  CHECK_GE(kMaxUInt32, wire_bytes.length());
+  size_t wire_bytes_len = wire_bytes.length();
+  std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_bytes_len]);
+  memcpy(wire_bytes_copy.get(), wire_bytes.start(), wire_bytes_len);
 
   // Create the module object.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -1002,10 +997,9 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, export_wrappers, std::move(module), env,
-                            Handle<SeqOneByteString>::cast(module_bytes),
-                            script, asm_js_offset_table);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, export_wrappers, std::move(module), env,
+      std::move(wire_bytes_copy), wire_bytes_len, script, asm_js_offset_table);
   CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
   if (thrower->error()) return {};
 
@@ -1473,8 +1467,8 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
 
 // Load data segments into the memory.
 void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
-  Handle<SeqOneByteString> module_bytes(module_object_->module_bytes(),
-                                        isolate_);
+  Vector<const uint8_t> wire_bytes =
+      module_object_->native_module()->wire_bytes();
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t source_size = segment.source.length();
     // Segments of size == 0 are just nops.
@@ -1482,8 +1476,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
     DCHECK(in_bounds(dest_offset, source_size, instance->memory_size()));
     byte* dest = instance->memory_start() + dest_offset;
-    const byte* src = reinterpret_cast<const byte*>(
-        module_bytes->GetCharsAddress() + segment.source.offset());
+    const byte* src = wire_bytes.start() + segment.source.offset();
     memcpy(dest, src, source_size);
   }
 }
@@ -1548,14 +1541,15 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
 }
 
 void InstanceBuilder::SanitizeImports() {
-  Handle<SeqOneByteString> module_bytes(module_object_->module_bytes());
+  Vector<const uint8_t> wire_bytes =
+      module_object_->native_module()->wire_bytes();
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     WasmImport& import = module_->import_table[index];
 
     Handle<String> module_name;
     MaybeHandle<String> maybe_module_name =
-        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, module_bytes, import.module_name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(isolate_, wire_bytes,
+                                                           import.module_name);
     if (!maybe_module_name.ToHandle(&module_name)) {
       thrower_->LinkError("Could not resolve module name for import %zu",
                           index);
@@ -1564,8 +1558,8 @@ void InstanceBuilder::SanitizeImports() {
 
     Handle<String> import_name;
     MaybeHandle<String> maybe_import_name =
-        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, module_bytes, import.field_name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(isolate_, wire_bytes,
+                                                           import.field_name);
     if (!maybe_import_name.ToHandle(&import_name)) {
       thrower_->LinkError("Could not resolve import name for import %zu",
                           index);
@@ -2053,7 +2047,8 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           if (is_asm_js) {
             // For modules arising from asm.js, honor the names section.
             WireBytesRef func_name_ref = module_->LookupName(
-                module_object_->module_bytes(), function.func_index);
+                module_object_->native_module()->wire_bytes(),
+                function.func_index);
             func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                             isolate_, module_object_, func_name_ref)
                             .ToHandleChecked();
@@ -2235,8 +2230,8 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             MaybeHandle<String> func_name;
             if (module_->origin == kAsmJsOrigin) {
               // For modules arising from asm.js, honor the names section.
-              WireBytesRef func_name_ref = module_->LookupName(
-                  module_object_->module_bytes(), func_index);
+              WireBytesRef func_name_ref =
+                  module_->LookupName(native_module->wire_bytes(), func_index);
               func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                               isolate_, module_object_, func_name_ref)
                               .ToHandleChecked();
@@ -2281,7 +2276,7 @@ AsyncCompileJob::AsyncCompileJob(
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-  // The handles for the context and promise must be deferred.
+  // The handle for the context must be deferred.
   DeferredHandleScope deferred(isolate);
   context_ = Handle<Context>(*context);
   deferred_handles_.push_back(deferred.Detach());
@@ -2545,18 +2540,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     int export_wrapper_size = static_cast<int>(module->num_exported_functions);
     Handle<FixedArray> export_wrappers =
         job_->isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
-    // TODO(wasm): Improve efficiency of storing module wire bytes.
-    //   1. Only store relevant sections, not function bodies
-    //   2. Don't make a second copy of the bytes here; reuse the copy made
-    //      for asynchronous compilation and store it as an external one
-    //      byte string for serialization/deserialization.
-    Handle<String> module_bytes =
-        job_->isolate_->factory()
-            ->NewStringFromOneByte(
-                {job_->wire_bytes_.start(), job_->wire_bytes_.length()},
-                TENURED)
-            .ToHandleChecked();
-    DCHECK(module_bytes->IsSeqOneByteString());
+    // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
+    // relevant sections, not function bodies
 
     // Create the module object and populate with compiled functions and
     // information needed at instantiation time.
@@ -2564,10 +2549,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // only have one {WasmModuleObject}. Otherwise, we might only set
     // breakpoints on a (potentially empty) subset of the instances.
     // Create the module object.
-    job_->module_object_ =
-        WasmModuleObject::New(job_->isolate_, export_wrappers, job_->module_,
-                              env, Handle<SeqOneByteString>::cast(module_bytes),
-                              script, asm_js_offset_table);
+    job_->module_object_ = WasmModuleObject::New(
+        job_->isolate_, export_wrappers, job_->module_, env,
+        std::move(job_->bytes_copy_), job_->wire_bytes_.length(), script,
+        asm_js_offset_table);
     job_->native_module_ = job_->module_object_->native_module();
 
     {
@@ -2869,20 +2854,11 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 // Finish the processing of the stream.
 void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
                                                size_t length) {
+  CHECK_LE(length, kMaxUInt32);
   TRACE_STREAMING("Finish stream...\n");
-  // TODO(clemensh): Move wire bytes to the NativeModule, remove code below.
-  job_->bytes_copy_ = std::move(bytes);
-  job_->wire_bytes_ = ModuleWireBytes(job_->bytes_copy_.get(),
-                                      job_->bytes_copy_.get() + length);
-  Handle<String> module_bytes =
-      job_->isolate_->factory()
-          ->NewStringFromOneByte(
-              {job_->wire_bytes_.start(), job_->wire_bytes_.length()}, TENURED)
-          .ToHandleChecked();
-  DCHECK(module_bytes->IsSeqOneByteString());
-  if (!job_->module_object_.is_null()) {
-    job_->module_object_->set_module_bytes(
-        SeqOneByteString::cast(*module_bytes));
+  if (job_->native_module_) {
+    job_->wire_bytes_ = ModuleWireBytes(bytes.get(), bytes.get() + length);
+    job_->native_module_->set_wire_bytes(std::move(bytes), length);
   }
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());

@@ -111,7 +111,6 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(managed_module, Managed<wasm::WasmModule>)
   inline wasm::WasmModule* module() const;
-  DECL_ACCESSORS(module_bytes, SeqOneByteString)
   DECL_ACCESSORS(script, Script)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
@@ -127,7 +126,6 @@ class WasmModuleObject : public JSObject {
   V(kCompiledModuleOffset, kPointerSize)   \
   V(kExportWrappersOffset, kPointerSize)   \
   V(kManagedModuleOffset, kPointerSize)    \
-  V(kModuleBytesOffset, kPointerSize)      \
   V(kScriptOffset, kPointerSize)           \
   V(kAsmJsOffsetTableOffset, kPointerSize) \
   V(kBreakPointInfosOffset, kPointerSize)  \
@@ -137,13 +135,11 @@ class WasmModuleObject : public JSObject {
                                 WASM_MODULE_OBJECT_FIELDS)
 #undef WASM_MODULE_OBJECT_FIELDS
 
-  static Handle<WasmModuleObject> New(Isolate* isolate,
-                                      Handle<FixedArray> export_wrappers,
-                                      std::shared_ptr<wasm::WasmModule> module,
-                                      wasm::ModuleEnv& env,
-                                      Handle<SeqOneByteString> module_bytes,
-                                      Handle<Script> script,
-                                      Handle<ByteArray> asm_js_offset_table);
+  static Handle<WasmModuleObject> New(
+      Isolate* isolate, Handle<FixedArray> export_wrappers,
+      std::shared_ptr<wasm::WasmModule> module, wasm::ModuleEnv& env,
+      std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
+      Handle<Script> script, Handle<ByteArray> asm_js_offset_table);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
@@ -223,7 +219,7 @@ class WasmModuleObject : public JSObject {
   static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate* isolate, Handle<WasmModuleObject>, wasm::WireBytesRef ref);
   static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Handle<SeqOneByteString> module_bytes,
+      Isolate* isolate, Vector<const uint8_t> wire_byte,
       wasm::WireBytesRef ref);
 
   // Get a list of all possible breakpoints within a given range of this module.

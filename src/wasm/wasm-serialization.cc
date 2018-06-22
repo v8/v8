@@ -532,13 +532,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!decode_result.ok()) return {};
   CHECK_NOT_NULL(decode_result.val);
   WasmModule* module = decode_result.val.get();
-  Handle<String> module_bytes =
-      isolate->factory()
-          ->NewStringFromOneByte(
-              {wire_bytes.start(), static_cast<size_t>(wire_bytes.length())},
-              TENURED)
-          .ToHandleChecked();
-  DCHECK(module_bytes->IsSeqOneByteString());
   Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
   int export_wrappers_size = static_cast<int>(module->num_exported_functions);
   Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
@@ -550,10 +543,15 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
   wasm::ModuleEnv env(module, use_trap_handler,
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
+
+  CHECK_LT(wire_bytes.size(), kMaxUInt32);
+  size_t wire_size = wire_bytes.size();
+  std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
+  memcpy(wire_bytes_copy.get(), wire_bytes.start(), wire_size);
+
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, export_wrappers, std::move(decode_result.val), env,
-      Handle<SeqOneByteString>::cast(module_bytes), script,
-      Handle<ByteArray>::null());
+      std::move(wire_bytes_copy), wire_size, script, Handle<ByteArray>::null());
   Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
                                              isolate);
   NativeModule* native_module = module_object->native_module();

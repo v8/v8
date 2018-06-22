@@ -184,19 +184,16 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
 }
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
-  Handle<WasmModuleObject> module_object(instance_object_->module_object(),
-                                         isolate_);
-  Handle<SeqOneByteString> old_bytes(module_object->module_bytes(), isolate_);
-  uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
+  Vector<const uint8_t> old_bytes = native_module_->wire_bytes();
+  uint32_t old_size = static_cast<uint32_t>(old_bytes.size());
   // Avoid placing strings at offset 0, this might be interpreted as "not
   // set", e.g. for function names.
   uint32_t bytes_offset = old_size ? old_size : 1;
-  ScopedVector<byte> new_bytes(bytes_offset + bytes.length());
-  memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
-  memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
-  Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
-      isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
-  module_object->set_module_bytes(*new_bytes_str);
+  size_t new_size = bytes_offset + bytes.size();
+  std::unique_ptr<uint8_t[]> new_bytes(new uint8_t[new_size]);
+  memcpy(new_bytes.get(), old_bytes.start(), old_size);
+  memcpy(new_bytes.get() + bytes_offset, bytes.start(), bytes.length());
+  native_module_->set_wire_bytes(std::move(new_bytes), new_size);
   return bytes_offset;
 }
 
@@ -219,8 +216,6 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 }
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
-  Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
-      isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
@@ -228,7 +223,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   ModuleEnv env = CreateModuleEnv();
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, export_wrappers, test_module_, env,
-                            empty_string, script, Handle<ByteArray>::null());
+                            nullptr, 0, script, Handle<ByteArray>::null());
   Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
                                              isolate_);
   // This method is called when we initialize TestEnvironment. We don't
@@ -416,19 +411,20 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
   }
 
-  Handle<SeqOneByteString> wire_bytes(
-      builder_->instance_object()->module_object()->module_bytes(), isolate());
+  Vector<const uint8_t> wire_bytes = builder_->instance_object()
+                                         ->module_object()
+                                         ->native_module()
+                                         ->wire_bytes();
 
   ModuleEnv module_env = builder_->CreateModuleEnv();
   ErrorThrower thrower(isolate(), "WasmFunctionCompiler::Build");
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
-  memcpy(func_wire_bytes.start(),
-         wire_bytes->GetChars() + function_->code.offset(),
+  memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());
   WireBytesRef func_name_ref =
-      module_env.module->LookupName(*wire_bytes, function_->func_index);
+      module_env.module->LookupName(wire_bytes, function_->func_index);
   ScopedVector<char> func_name(func_name_ref.length());
-  memcpy(func_name.start(), wire_bytes->GetChars() + func_name_ref.offset(),
+  memcpy(func_name.start(), wire_bytes.start() + func_name_ref.offset(),
          func_name_ref.length());
 
   FunctionBody func_body{function_->sig, function_->code.offset(),

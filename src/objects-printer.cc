@@ -1770,7 +1770,6 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - module: " << module();
   os << "\n - native module: " << native_module();
   os << "\n - export wrappers: " << Brief(export_wrappers());
-  os << "\n - module bytes: " << Brief(module_bytes());
   os << "\n - script: " << Brief(script());
   os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
   os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());

@@ -46,9 +46,9 @@ class PatchDirectCallsHelper {
   PatchDirectCallsHelper(NativeModule* native_module, const WasmCode* code)
       : source_pos_it(code->source_positions()), decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
-    WasmModuleObject* module_object = native_module->module_object();
-    func_bytes = module_object->module_bytes()->GetChars() +
-                 module_object->module()->functions[func_index].code.offset();
+    const WasmModule* module = native_module->module();
+    func_bytes = native_module->wire_bytes().start() +
+                 module->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;

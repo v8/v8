@@ -100,9 +100,11 @@ class WasmSerializationTest {
         v8::Utils::OpenHandle(*deserialized_module));
     {
       DisallowHeapAllocation assume_no_gc;
-      CHECK_EQ(memcmp(reinterpret_cast<const uint8_t*>(
-                          module_object->module_bytes()->GetCharsAddress()),
-                      wire_bytes_.start, wire_bytes_.size),
+      Vector<const byte> deserialized_module_wire_bytes =
+          module_object->native_module()->wire_bytes();
+      CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size);
+      CHECK_EQ(memcmp(deserialized_module_wire_bytes.start(), wire_bytes_.start,
+                      wire_bytes_.size),
                0);
     }
     Handle<WasmInstanceObject> instance =
@@ -141,8 +143,6 @@ class WasmSerializationTest {
 
     Isolate* serialization_isolate = CcTest::InitIsolateOnce();
     ErrorThrower thrower(serialization_isolate, "");
-    uint8_t* bytes = nullptr;
-    size_t bytes_size = 0;
     {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
@@ -163,17 +163,14 @@ class WasmSerializationTest {
 
       v8::Local<v8::WasmCompiledModule> v8_compiled_module =
           v8_module_obj.As<v8::WasmCompiledModule>();
-      v8::Local<v8::String> uncompiled_bytes =
-          v8_compiled_module->GetWasmWireBytes();
-      bytes_size = static_cast<size_t>(uncompiled_bytes->Length());
-      bytes = zone()->NewArray<uint8_t>(bytes_size);
-      uncompiled_bytes->WriteOneByte(bytes, 0, uncompiled_bytes->Length(),
-                                     v8::String::NO_NULL_TERMINATION);
+      v8::WasmCompiledModule::BufferReference uncompiled_bytes =
+          v8_compiled_module->GetWasmWireBytesRef();
+      uint8_t* bytes_copy = zone()->NewArray<uint8_t>(uncompiled_bytes.size);
+      memcpy(bytes_copy, uncompiled_bytes.start, uncompiled_bytes.size);
+      wire_bytes_ = {bytes_copy, uncompiled_bytes.size};
       // keep alive data_ until the end
       data_ = v8_compiled_module->Serialize();
     }
-
-    wire_bytes_ = {const_cast<const uint8_t*>(bytes), bytes_size};
 
     serialized_bytes_ = {data_.first.get(), data_.second};
 

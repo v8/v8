@@ -36,11 +36,11 @@ constexpr const char* WasmException::kRuntimeIdStr;
 // static
 constexpr const char* WasmException::kRuntimeValuesStr;
 
-WireBytesRef WasmModule::LookupName(const ModuleWireBytes* wire_bytes,
+WireBytesRef WasmModule::LookupName(const ModuleWireBytes& wire_bytes,
                                     uint32_t function_index) const {
   if (!names_) {
     names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-    wasm::DecodeFunctionNames(wire_bytes->start(), wire_bytes->end(),
+    wasm::DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
                               names_.get());
   }
   auto it = names_->find(function_index);
@@ -53,7 +53,7 @@ WireBytesRef WasmModule::LookupName(SeqOneByteString* wire_bytes,
   DisallowHeapAllocation no_gc;
   uint8_t* chars = wire_bytes->GetChars();
   ModuleWireBytes module_wire_bytes(chars, chars + wire_bytes->length());
-  return LookupName(&module_wire_bytes, function_index);
+  return LookupName(module_wire_bytes, function_index);
 }
 
 void WasmModule::AddNameForTesting(int function_index, WireBytesRef name) {
@@ -74,7 +74,7 @@ WasmName ModuleWireBytes::GetName(WireBytesRef ref) const {
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetName(const WasmFunction* function,
                                   const WasmModule* module) const {
-  return GetName(module->LookupName(this, function->func_index));
+  return GetName(module->LookupName(*this, function->func_index));
 }
 
 // Get a string stored in the module bytes representing a name.
@@ -88,7 +88,7 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->LookupName(this, function->func_index));
+  return GetNameOrNull(module->LookupName(*this, function->func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
@@ -258,16 +258,10 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<String> name, ErrorThrower* thrower) {
   Factory* factory = isolate->factory();
 
-  std::vector<CustomSectionOffset> custom_sections;
-  {
-    DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-    Handle<SeqOneByteString> module_bytes(module_object->module_bytes(),
-                                          isolate);
-    const byte* start =
-        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
-    const byte* end = start + module_bytes->length();
-    custom_sections = DecodeCustomSections(start, end);
-  }
+  Vector<const uint8_t> wire_bytes =
+      module_object->native_module()->wire_bytes();
+  std::vector<CustomSectionOffset> custom_sections =
+      DecodeCustomSections(wire_bytes.start(), wire_bytes.end());
 
   std::vector<Handle<Object>> matching_sections;
 
@@ -291,12 +285,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
     constexpr bool is_external = false;
     JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
-    DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-    Handle<SeqOneByteString> module_bytes(module_object->module_bytes(),
-                                          isolate);
-    const byte* start =
-        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
-    memcpy(memory, start + section.payload.offset(), section.payload.length());
+    memcpy(memory, wire_bytes.start() + section.payload.offset(),
+           section.payload.length());
 
     matching_sections.push_back(buffer);
   }
@@ -316,14 +306,10 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 
 Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
                                     Handle<WasmModuleObject> module_object) {
-  Handle<SeqOneByteString> wire_bytes(module_object->module_bytes(), isolate);
+  Vector<const uint8_t> wire_bytes =
+      module_object->native_module()->wire_bytes();
   LocalNames decoded_locals;
-  {
-    DisallowHeapAllocation no_gc;
-    DecodeLocalNames(wire_bytes->GetChars(),
-                     wire_bytes->GetChars() + wire_bytes->length(),
-                     &decoded_locals);
-  }
+  DecodeLocalNames(wire_bytes.start(), wire_bytes.end(), &decoded_locals);
   Handle<FixedArray> locals_names =
       isolate->factory()->NewFixedArray(decoded_locals.max_function_index + 1);
   for (LocalNamesPerFunction& func : decoded_locals.names) {

@@ -56,7 +56,6 @@ ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(WasmModuleObject, managed_module, Managed<wasm::WasmModule>,
           kManagedModuleOffset)
-ACCESSORS(WasmModuleObject, module_bytes, SeqOneByteString, kModuleBytesOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
