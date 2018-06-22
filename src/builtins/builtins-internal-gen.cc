@@ -688,7 +688,60 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                         TheHoleConstant());
   }
+
+  template <typename Descriptor>
+  void GenerateAdaptorWithExitFrameType(
+      Builtins::ExitFrameType exit_frame_type);
 };
+
+template <typename Descriptor>
+void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
+    Builtins::ExitFrameType exit_frame_type) {
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<WordT> c_function =
+      UncheckedCast<WordT>(Parameter(Descriptor::kCFunction));
+
+  // The logic contained here is mirrored for TurboFan inlining in
+  // JSTypedLowering::ReduceJSCall{Function,Construct}. Keep these in sync.
+
+  // Make sure we operate in the context of the called function (for example
+  // ConstructStubs implemented in C++ will be run in the context of the caller
+  // instead of the callee, due to the way that [[Construct]] is defined for
+  // ordinary functions).
+  TNode<Context> context =
+      CAST(LoadObjectField(target, JSFunction::kContextOffset));
+
+  // Update arguments count for CEntry to contain the number of arguments
+  // including the receiver and the extra arguments.
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  argc = Int32Add(
+      argc,
+      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
+
+  TNode<Code> code = HeapConstant(
+      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                          exit_frame_type == Builtins::BUILTIN_EXIT));
+
+  // Unconditionally push argc, target and new target as extra stack arguments.
+  // They will be used by stack frame iterators when constructing stack trace.
+  TailCallStub(CEntry1ArgvOnStackDescriptor{},  // descriptor
+               code, context,       // standard arguments for TailCallStub
+               argc, c_function,    // register arguments
+               TheHoleConstant(),   // additional stack argument 1 (padding)
+               SmiFromInt32(argc),  // additional stack argument 2
+               target,              // additional stack argument 3
+               new_target);         // additional stack argument 4
+}
+
+TF_BUILTIN(AdaptorWithExitFrame, InternalBuiltinsAssembler) {
+  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::EXIT);
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
+  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
+}
 
 TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
   auto ref = ExternalReference::pending_microtask_count_address(isolate());

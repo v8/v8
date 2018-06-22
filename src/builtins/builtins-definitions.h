@@ -31,8 +31,8 @@ namespace internal {
   TFC(RecordWrite, RecordWrite, 1)                                             \
                                                                                \
   /* Adaptors for CPP/API builtin */                                           \
-  ASM(AdaptorWithExitFrame)                                                    \
-  ASM(AdaptorWithBuiltinExitFrame)                                             \
+  TFC(AdaptorWithExitFrame, CppBuiltinAdaptor, 1)                              \
+  TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor, 1)                       \
                                                                                \
   /* Calls */                                                                  \
   ASM(ArgumentsAdaptorTrampoline)                                              \

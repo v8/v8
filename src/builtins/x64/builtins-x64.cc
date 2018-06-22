@@ -21,7 +21,8 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
-  __ LoadAddress(rbx, ExternalReference::Create(address));
+  __ LoadAddress(kJavaScriptCallExtraArg1Register,
+                 ExternalReference::Create(address));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -30,64 +31,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithExitFrame),
             RelocInfo::CODE_TARGET);
   }
-}
-
-namespace {
-
-void AdaptorWithExitFrameType(MacroAssembler* masm,
-                              Builtins::ExitFrameType exit_frame_type) {
-  // ----------- S t a t e -------------
-  //  -- rax                 : number of arguments excluding receiver
-  //  -- rbx                 : entry point
-  //  -- rdi                 : target
-  //  -- rdx                 : new.target
-  //  -- rsp[0]              : return address
-  //  -- rsp[8]              : last argument
-  //  -- ...
-  //  -- rsp[8 * argc]       : first argument
-  //  -- rsp[8 * (argc + 1)] : receiver
-  // -----------------------------------
-  __ AssertFunction(rdi);
-
-  // The logic contained here is mirrored for TurboFan inlining in
-  // JSTypedLowering::ReduceJSCall{Function,Construct}. Keep these in sync.
-
-  // Make sure we operate in the context of the called function (for example
-  // ConstructStubs implemented in C++ will be run in the context of the caller
-  // instead of the callee, due to the way that [[Construct]] is defined for
-  // ordinary functions).
-  __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-
-  // CEntry expects rax to contain the number of arguments including the
-  // receiver and the extra arguments.
-  __ addp(rax, Immediate(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
-
-  // Unconditionally insert argc, target and new target as extra arguments. They
-  // will be used by stack frame iterators when constructing the stack trace.
-  __ PopReturnAddressTo(kScratchRegister);
-  __ SmiTag(rax, rax);
-  __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
-  __ Push(rax);
-  __ SmiUntag(rax, rax);
-  __ Push(rdi);
-  __ Push(rdx);
-  __ PushReturnAddressFrom(kScratchRegister);
-
-  // Jump to the C entry runtime stub directly here instead of using
-  // JumpToExternalReference because rbx is loaded by Generate_adaptor.
-  Handle<Code> code =
-      CodeFactory::CEntry(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                          exit_frame_type == Builtins::BUILTIN_EXIT);
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-}  // namespace
-
-void Builtins::Generate_AdaptorWithExitFrame(MacroAssembler* masm) {
-  AdaptorWithExitFrameType(masm, EXIT);
-}
-
-void Builtins::Generate_AdaptorWithBuiltinExitFrame(MacroAssembler* masm) {
-  AdaptorWithExitFrameType(masm, BUILTIN_EXIT);
 }
 
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,

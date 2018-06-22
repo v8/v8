@@ -16,6 +16,8 @@ namespace v8 {
 namespace internal {
 
 #define INTERFACE_DESCRIPTOR_LIST(V)  \
+  V(CppBuiltinAdaptor)                \
+  V(CEntry1ArgvOnStack)               \
   V(Allocate)                         \
   V(Void)                             \
   V(ContextOnly)                      \
@@ -859,6 +861,31 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
   DEFINE_JS_PARAMETERS(kExpectedArgumentsCount)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
   DECLARE_DESCRIPTOR(ArgumentAdaptorDescriptor, CallInterfaceDescriptor)
+};
+
+class CppBuiltinAdaptorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_JS_PARAMETERS(kCFunction)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::Pointer())
+  DECLARE_JS_COMPATIBLE_DESCRIPTOR(CppBuiltinAdaptorDescriptor,
+                                   CallInterfaceDescriptor, 1)
+};
+
+class CEntry1ArgvOnStackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kArity,          // register argument
+                    kCFunction,      // register argument
+                    kPadding,        // stack argument 1 (just padding)
+                    kArgcSmi,        // stack argument 2
+                    kTargetCopy,     // stack argument 3
+                    kNewTargetCopy)  // stack argument 4
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kArity
+                         MachineType::Pointer(),    // kCFunction
+                         MachineType::AnyTagged(),  // kPadding
+                         MachineType::AnyTagged(),  // kArgcSmi
+                         MachineType::AnyTagged(),  // kTargetCopy
+                         MachineType::AnyTagged())  // kNewTargetCopy
+  DECLARE_DESCRIPTOR(CEntry1ArgvOnStackDescriptor, CallInterfaceDescriptor)
 };
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {

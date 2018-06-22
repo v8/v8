@@ -112,6 +112,13 @@ void AllocateDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CEntry1ArgvOnStackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {kRuntimeCallArgCountRegister,
+                          kRuntimeCallFunctionRegister};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ScopeInfoRegister(), SlotsRegister()};
