@@ -172,10 +172,15 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   if (module->has_memory) {
     os << "  builder.addMemory(" << module->initial_pages;
     if (module->has_maximum_pages) {
-      os << ", " << module->maximum_pages << ");\n";
+      os << ", " << module->maximum_pages;
     } else {
-      os << ");\n";
+      os << ", undefined";
     }
+    os << ", " << (module->mem_export ? "true" : "false");
+    if (FLAG_experimental_wasm_threads && module->has_shared_memory) {
+      os << ", shared";
+    }
+    os << ");\n";
   }
 
   for (WasmGlobal& glob : module->globals) {
