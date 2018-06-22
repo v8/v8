@@ -183,6 +183,43 @@ class ScopedVector : public Vector<T> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
 };
 
+template <typename T>
+class OwnedVector {
+ public:
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(OwnedVector);
+  OwnedVector(std::unique_ptr<T[]> data, size_t length)
+      : data_(std::move(data)), length_(length) {
+    DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
+  }
+
+  // Returns the length of the vector as a size_t.
+  constexpr size_t size() const { return length_; }
+
+  // Returns whether or not the vector is empty.
+  constexpr bool is_empty() const { return length_ == 0; }
+
+  // Returns the pointer to the start of the data in the vector.
+  T* start() const {
+    DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
+    return data_.get();
+  }
+
+  // Returns a {Vector<T>} view of the data in this vector.
+  Vector<T> as_vector() const { return Vector<T>(start(), size()); }
+
+  // Releases the backing data from this vector and transfers ownership to the
+  // caller. This vectors data can no longer be used afterwards.
+  std::unique_ptr<T[]> ReleaseData() { return std::move(data_); }
+
+  // Allocates a new vector of the specified size via the default allocator.
+  static OwnedVector<T> New(size_t size) {
+    return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
+  }
+
+ private:
+  std::unique_ptr<T[]> data_;
+  size_t length_ = 0;
+};
 
 inline int StrLength(const char* string) {
   size_t length = strlen(string);

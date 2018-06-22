@@ -1874,14 +1874,13 @@ wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
   CodeDesc desc;
   asm_.GetCode(wasm_unit_->isolate_, &desc);
 
-  Handle<ByteArray> source_positions =
-      source_position_table_builder_.ToSourcePositionTable(
-          wasm_unit_->isolate_);
+  OwnedVector<byte> source_positions =
+      source_position_table_builder_.ToSourcePositionTableVector();
 
   wasm::WasmCode* code = wasm_unit_->native_module_->AddCode(
       desc, asm_.GetTotalFrameSlotCount(), wasm_unit_->func_index_,
       safepoint_table_offset_, 0, std::move(protected_instructions_),
-      source_positions, wasm::WasmCode::kLiftoff);
+      std::move(source_positions), wasm::WasmCode::kLiftoff);
 
   return code;
 }

@@ -239,7 +239,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     std::unique_ptr<ProtectedInstructions>,
-                    Handle<ByteArray> source_position_table,
+                    OwnedVector<byte> source_position_table,
                     WasmCode::Tier tier);
 
   // A way to copy over JS-allocated code. This is because we compile

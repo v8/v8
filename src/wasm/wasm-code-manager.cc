@@ -525,25 +525,19 @@ WasmCode* NativeModule::AddCode(
     const CodeDesc& desc, uint32_t frame_slots, uint32_t index,
     size_t safepoint_table_offset, size_t handler_table_offset,
     std::unique_ptr<ProtectedInstructions> protected_instructions,
-    Handle<ByteArray> source_pos_table, WasmCode::Tier tier) {
+    OwnedVector<byte> source_pos_table, WasmCode::Tier tier) {
   std::unique_ptr<byte[]> reloc_info;
   if (desc.reloc_size) {
     reloc_info.reset(new byte[desc.reloc_size]);
     memcpy(reloc_info.get(), desc.buffer + desc.buffer_size - desc.reloc_size,
            desc.reloc_size);
   }
-  std::unique_ptr<byte[]> source_pos;
-  if (source_pos_table->length() > 0) {
-    source_pos.reset(new byte[source_pos_table->length()]);
-    source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());
-  }
   WasmCode* ret = AddOwnedCode(
       {desc.buffer, static_cast<size_t>(desc.instr_size)},
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size),
-      std::move(source_pos), static_cast<size_t>(source_pos_table->length()),
-      Just(index), WasmCode::kFunction,
-      desc.instr_size - desc.constant_pool_size, frame_slots,
-      safepoint_table_offset, handler_table_offset,
+      source_pos_table.ReleaseData(), source_pos_table.size(), Just(index),
+      WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
+      frame_slots, safepoint_table_offset, handler_table_offset,
       std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
 
   // Apply the relocation delta by iterating over the RelocInfo.
@@ -579,7 +573,7 @@ WasmCode* NativeModule::AddCode(
                          ret->instructions().size());
   if (FLAG_print_code || FLAG_print_wasm_code) {
     // TODO(mstarzinger): don't need the isolate here.
-    ret->Print(source_pos_table->GetIsolate());
+    ret->Print(module_object()->GetIsolate());
   }
   ret->Validate();
   return ret;

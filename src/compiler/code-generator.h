@@ -92,7 +92,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleCode();  // Does not need to run on main thread.
   MaybeHandle<Code> FinalizeCode();
 
-  Handle<ByteArray> GetSourcePositionTable();
+  OwnedVector<byte> GetSourcePositionTable();
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }

@@ -3438,13 +3438,11 @@ TEST(Liftoff_tier_up) {
     memcpy(buffer.get(), sub_code->instructions().start(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
-    Isolate* isolate = CcTest::InitIsolateOnce();
-    Handle<ByteArray> source_pos = isolate->factory()->empty_byte_array();
     std::unique_ptr<ProtectedInstructions> protected_instructions(
         new ProtectedInstructions(sub_code->protected_instructions()));
     native_module->AddCode(desc, 0, add.function_index(), 0, 0,
-                           std::move(protected_instructions), source_pos,
-                           WasmCode::kOther);
+                           std::move(protected_instructions),
+                           OwnedVector<byte>(), WasmCode::kOther);
 
     // Second run should now execute {sub}.
     CHECK_EQ(4, r.Call(11, 7));

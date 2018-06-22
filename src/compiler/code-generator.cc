@@ -378,8 +378,8 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
 }
 
-Handle<ByteArray> CodeGenerator::GetSourcePositionTable() {
-  return source_position_table_builder_.ToSourcePositionTable(isolate());
+OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
+  return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {
