@@ -170,7 +170,7 @@ void ConstructStubDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void AbortJSDescriptor::InitializePlatformSpecific(
+void AbortDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a0};
   data->InitializePlatformSpecific(arraysize(registers), registers);

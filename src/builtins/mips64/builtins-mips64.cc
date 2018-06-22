@@ -2219,17 +2219,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-// static
-void Builtins::Generate_Abort(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : message_id as Smi
-  //  -- ra : return address
-  // -----------------------------------
-  __ Push(a0);
-  __ Move(cp, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbort);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // State setup as expected by MacroAssembler::InvokePrologue.
   // ----------- S t a t e -------------

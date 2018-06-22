@@ -47,7 +47,7 @@ namespace internal {
   V(ConstructWithSpread)              \
   V(ConstructWithArrayLike)           \
   V(JSTrampoline)                     \
-  V(AbortJS)                          \
+  V(Abort)                            \
   V(AllocateHeapNumber)               \
   V(ArrayConstructor)                 \
   V(ArrayNoArgumentConstructor)       \
@@ -748,11 +748,11 @@ class CallFunctionDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
 };
 
-class AbortJSDescriptor : public CallInterfaceDescriptor {
+class AbortDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kObject)
+  DEFINE_PARAMETERS_NO_CONTEXT(kMessageOrMessageId)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
-  DECLARE_DESCRIPTOR(AbortJSDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(AbortDescriptor, CallInterfaceDescriptor)
 };
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {

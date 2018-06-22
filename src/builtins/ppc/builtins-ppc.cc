@@ -2223,17 +2223,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-// static
-void Builtins::Generate_Abort(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r4 : message_id as Smi
-  //  -- lr : return address
-  // -----------------------------------
-  __ push(r4);
-  __ LoadSmiLiteral(cp, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbort);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : actual number of arguments

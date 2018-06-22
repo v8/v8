@@ -2540,19 +2540,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-// static
-void Builtins::Generate_Abort(MacroAssembler* masm) {
-  ASM_LOCATION("Builtins::Generate_Abort");
-  // ----------- S t a t e -------------
-  //  -- x1 : message_id as Smi
-  //  -- lr : return address
-  // -----------------------------------
-  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
-  __ PushArgument(x1);
-  __ Move(cp, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbort);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   ASM_LOCATION("Builtins::Generate_ArgumentsAdaptorTrampoline");
   // ----------- S t a t e -------------

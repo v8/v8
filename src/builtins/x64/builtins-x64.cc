@@ -1732,19 +1732,6 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
 }
 
-// static
-void Builtins::Generate_Abort(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rdx    : message_id as Smi
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  __ PopReturnAddressTo(rcx);
-  __ Push(rdx);
-  __ PushReturnAddressFrom(rcx);
-  __ Move(rsi, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbort);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments

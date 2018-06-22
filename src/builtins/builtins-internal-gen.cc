@@ -1105,10 +1105,14 @@ TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
                   SmiFromInt32(requested_size), SmiConstant(flags));
 }
 
+TF_BUILTIN(Abort, CodeStubAssembler) {
+  TNode<Smi> message_id = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbort, NoContextConstant(), message_id);
+}
+
 TF_BUILTIN(AbortJS, CodeStubAssembler) {
-  Node* message = Parameter(Descriptor::kObject);
-  Node* reason = SmiConstant(0);
-  TailCallRuntime(Runtime::kAbortJS, reason, message);
+  TNode<String> message = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbortJS, NoContextConstant(), message);
 }
 
 void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(

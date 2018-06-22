@@ -56,6 +56,7 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(!NoContextDescriptor{}.HasContextParameter());
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
   DCHECK(!AllocateHeapNumberDescriptor{}.HasContextParameter());
+  DCHECK(!AbortDescriptor{}.HasContextParameter());
 }
 
 void CallDescriptors::TearDown() {

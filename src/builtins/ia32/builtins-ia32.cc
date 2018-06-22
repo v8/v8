@@ -2294,19 +2294,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-// static
-void Builtins::Generate_Abort(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- edx    : message_id as Smi
-  //  -- esp[0] : return address
-  // -----------------------------------
-  __ PopReturnAddressTo(ecx);
-  __ Push(edx);
-  __ PushReturnAddressFrom(ecx);
-  __ Move(esi, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbort);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments

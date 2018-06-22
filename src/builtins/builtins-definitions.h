@@ -223,8 +223,8 @@ namespace internal {
   TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
                                                                                \
   /* Abort */                                                                  \
-  ASM(Abort)                                                                   \
-  TFC(AbortJS, AbortJS, 1)                                                     \
+  TFC(Abort, Abort, 1)                                                         \
+  TFC(AbortJS, Abort, 1)                                                       \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \
