@@ -226,7 +226,9 @@ void Code::set_next_code_link(Object* value) {
 
 int Code::InstructionSize() const {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionSize();
+  if (is_off_heap_trampoline()) {
+    return OffHeapInstructionSize();
+  }
 #endif
   return raw_instruction_size();
 }
@@ -237,7 +239,9 @@ Address Code::raw_instruction_start() const {
 
 Address Code::InstructionStart() const {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionStart();
+  if (is_off_heap_trampoline()) {
+    return OffHeapInstructionStart();
+  }
 #endif
   return raw_instruction_start();
 }
@@ -248,7 +252,9 @@ Address Code::raw_instruction_end() const {
 
 Address Code::InstructionEnd() const {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionEnd();
+  if (is_off_heap_trampoline()) {
+    return OffHeapInstructionEnd();
+  }
 #endif
   return raw_instruction_end();
 }
@@ -315,7 +321,7 @@ Address Code::entry() const { return raw_instruction_start(); }
 
 bool Code::contains(Address inner_pointer) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) {
+  if (is_off_heap_trampoline()) {
     return (OffHeapInstructionStart() <= inner_pointer) &&
            (inner_pointer < OffHeapInstructionEnd());
   }
@@ -337,13 +343,15 @@ Code::Kind Code::kind() const {
 }
 
 void Code::initialize_flags(Kind kind, bool has_unwinding_info,
-                            bool is_turbofanned, int stack_slots) {
+                            bool is_turbofanned, int stack_slots,
+                            bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
   static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
                    KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
-                   StackSlotsField::encode(stack_slots);
+                   StackSlotsField::encode(stack_slots) |
+                   IsOffHeapTrampoline::encode(is_off_heap_trampoline);
   WRITE_UINT32_FIELD(this, kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
@@ -435,6 +443,10 @@ inline void Code::set_is_exception_caught(bool value) {
   int previous = code_data_container()->kind_specific_flags();
   int updated = IsExceptionCaughtField::update(previous, value);
   code_data_container()->set_kind_specific_flags(updated);
+}
+
+inline bool Code::is_off_heap_trampoline() const {
+  return IsOffHeapTrampoline::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {

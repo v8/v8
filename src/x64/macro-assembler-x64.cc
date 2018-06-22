@@ -1515,7 +1515,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
 // TODO(X64): Inline this
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && options().isolate_independent_code &&
-      !Builtins::IsEmbeddedBuiltin(*code_object)) {
+      !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
     // Calls to embedded targets are initially generated as standard
     // pc-relative calls below. When creating the embedded blob, call offsets
     // are patched up to point directly to the off-heap instruction start.
@@ -1589,7 +1589,7 @@ void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && options().isolate_independent_code &&
-      !Builtins::IsEmbeddedBuiltin(*code_object)) {
+      !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
     // Calls to embedded targets are initially generated as standard
     // pc-relative calls below. When creating the embedded blob, call offsets
     // are patched up to point directly to the off-heap instruction start.

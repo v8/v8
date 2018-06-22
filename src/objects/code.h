@@ -184,6 +184,10 @@ class Code : public HeapObject {
   // Use GetBuiltinCatchPrediction to access this.
   inline void set_is_exception_caught(bool flag);
 
+  // [is_off_heap_trampoline]: For kind BUILTIN tells whether
+  // this is a trampoline to an off-heap builtin.
+  inline bool is_off_heap_trampoline() const;
+
   // [constant_pool]: The constant pool for this function.
   inline Address constant_pool() const;
 
@@ -205,7 +209,8 @@ class Code : public HeapObject {
   // Initialize the flags field. Similar to clear_padding above this ensure that
   // the snapshot content is deterministic.
   inline void initialize_flags(Kind kind, bool has_unwinding_info,
-                               bool is_turbofanned, int stack_slots);
+                               bool is_turbofanned, int stack_slots,
+                               bool is_off_heap_trampoline);
 
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
@@ -347,7 +352,7 @@ class Code : public HeapObject {
 #endif  // DEBUG
 
 #ifdef V8_EMBEDDED_BUILTINS
-  bool IsProcessIndependent(Isolate* isolate);
+  bool IsIsolateIndependent(Isolate* isolate);
 #endif
 
   inline bool CanContainWeakObjects();
@@ -418,11 +423,13 @@ class Code : public HeapObject {
   V(HasUnwindingInfoField, bool, 1, _) \
   V(KindField, Kind, 5, _)             \
   V(IsTurbofannedField, bool, 1, _)    \
-  V(StackSlotsField, int, 24, _)
+  V(StackSlotsField, int, 24, _)       \
+  V(IsOffHeapTrampoline, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
   static_assert(NUMBER_OF_KINDS <= KindField::kMax, "Code::KindField size");
-  static_assert(StackSlotsField::kNext <= 32, "Code::flags field exhausted");
+  static_assert(IsOffHeapTrampoline::kNext <= 32,
+                "Code::flags field exhausted");
 
   // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
 #define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \

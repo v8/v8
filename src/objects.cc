@@ -14119,21 +14119,21 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 #ifdef V8_EMBEDDED_BUILTINS
 int Code::OffHeapInstructionSize() const {
-  DCHECK(Builtins::IsEmbeddedBuiltin(this));
+  DCHECK(is_off_heap_trampoline());
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_size();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
-  DCHECK(Builtins::IsEmbeddedBuiltin(this));
+  DCHECK(is_off_heap_trampoline());
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionEnd() const {
-  DCHECK(Builtins::IsEmbeddedBuiltin(this));
+  DCHECK(is_off_heap_trampoline());
   if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index()) +
@@ -14277,7 +14277,7 @@ const char* AbstractCode::Kind2String(Kind kind) {
 }
 
 #ifdef V8_EMBEDDED_BUILTINS
-bool Code::IsProcessIndependent(Isolate* isolate) {
+bool Code::IsIsolateIndependent(Isolate* isolate) {
   constexpr int all_real_modes_mask =
       (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
   constexpr int mode_mask = all_real_modes_mask &
@@ -14309,7 +14309,7 @@ bool Code::IsProcessIndependent(Isolate* isolate) {
 
       Code* target = Code::GetCodeFromTargetAddress(target_address);
       CHECK(target->IsCode());
-      if (Builtins::IsEmbeddedBuiltin(target)) continue;
+      if (Builtins::IsIsolateIndependentBuiltin(target)) continue;
     }
     is_process_independent = false;
   }

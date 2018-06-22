@@ -68,7 +68,9 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
 
   code->set_raw_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
-  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
+  const bool is_off_heap_trampoline = false;
+  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots,
+                         is_off_heap_trampoline);
   code->set_safepoint_table_offset(safepoint_table_offset);
   code->set_handler_table_offset(handler_table_offset);
   code->set_code_data_container(*data_container);
@@ -2586,7 +2588,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   CHECK(isolate()->serializer_enabled());
   CHECK_NOT_NULL(isolate()->embedded_blob());
   CHECK_NE(0, isolate()->embedded_blob_size());
-  CHECK(Builtins::IsEmbeddedBuiltin(*code));
+  CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
   Handle<Code> result =
       Builtins::GenerateOffHeapTrampolineFor(isolate(), off_heap_entry);
@@ -2594,9 +2596,11 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   // The trampoline code object must inherit specific flags from the original
   // builtin (e.g. the safepoint-table offset). We set them manually here.
 
+  const bool set_is_off_heap_trampoline = true;
   const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
   result->initialize_flags(code->kind(), code->has_unwinding_info(),
-                           code->is_turbofanned(), stack_slots);
+                           code->is_turbofanned(), stack_slots,
+                           set_is_off_heap_trampoline);
   result->set_builtin_index(code->builtin_index());
   result->set_handler_table_offset(code->handler_table_offset());
   result->code_data_container()->set_kind_specific_flags(
