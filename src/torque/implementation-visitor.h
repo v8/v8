@@ -92,7 +92,7 @@ class ImplementationVisitor : public FileVisitor {
   }
   void Visit(TypeDeclaration* decl) {}
   void Visit(TypeAliasDeclaration* decl) {}
-  void Visit(ConstDeclaration* decl) {}
+  void Visit(ExternConstDeclaration* decl) {}
   void Visit(StandardDeclaration* decl);
   void Visit(GenericDeclaration* decl) {}
   void Visit(SpecializationDeclaration* decl);

@@ -216,8 +216,8 @@ class TorqueVisitor : public antlr4::tree::AbstractParseTreeVisitor {
   virtual antlrcpp::Any visitMacroDeclaration(
       TorqueParser::MacroDeclarationContext* context) = 0;
 
-  virtual antlrcpp::Any visitConstDeclaration(
-      TorqueParser::ConstDeclarationContext* context) = 0;
+  virtual antlrcpp::Any visitExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* context) = 0;
 
   virtual antlrcpp::Any visitDeclaration(
       TorqueParser::DeclarationContext* context) = 0;

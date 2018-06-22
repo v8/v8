@@ -301,10 +301,10 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void exitMacroDeclaration(
       TorqueParser::MacroDeclarationContext* ctx) = 0;
 
-  virtual void enterConstDeclaration(
-      TorqueParser::ConstDeclarationContext* ctx) = 0;
-  virtual void exitConstDeclaration(
-      TorqueParser::ConstDeclarationContext* ctx) = 0;
+  virtual void enterExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* ctx) = 0;
+  virtual void exitExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* ctx) = 0;
 
   virtual void enterDeclaration(TorqueParser::DeclarationContext* ctx) = 0;
   virtual void exitDeclaration(TorqueParser::DeclarationContext* ctx) = 0;

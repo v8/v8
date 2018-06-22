@@ -318,10 +318,10 @@ class TorqueBaseListener : public TorqueListener {
   void exitMacroDeclaration(
       TorqueParser::MacroDeclarationContext* /*ctx*/) override {}
 
-  void enterConstDeclaration(
-      TorqueParser::ConstDeclarationContext* /*ctx*/) override {}
-  void exitConstDeclaration(
-      TorqueParser::ConstDeclarationContext* /*ctx*/) override {}
+  void enterExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* /*ctx*/) override {}
+  void exitExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* /*ctx*/) override {}
 
   void enterDeclaration(TorqueParser::DeclarationContext* /*ctx*/) override {}
   void exitDeclaration(TorqueParser::DeclarationContext* /*ctx*/) override {}

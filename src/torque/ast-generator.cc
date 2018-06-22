@@ -291,13 +291,15 @@ antlrcpp::Any AstGenerator::visitGenericSpecialization(
       context->helperBody()->accept(this).as<Statement*>()}));
 }
 
-antlrcpp::Any AstGenerator::visitConstDeclaration(
-    TorqueParser::ConstDeclarationContext* context) {
-  return implicit_cast<Declaration*>(RegisterNode(new ConstDeclaration{
+antlrcpp::Any AstGenerator::visitExternConstDeclaration(
+    TorqueParser::ExternConstDeclarationContext* context) {
+  return implicit_cast<Declaration*>(RegisterNode(new ExternConstDeclaration{
       Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
       GetType(context->type()),
-      StringLiteralUnquote(
-          context->STRING_LITERAL()->getSymbol()->getText())}));
+      StringLiteralUnquote(context->generatesDeclaration()
+                               ->STRING_LITERAL()
+                               ->getSymbol()
+                               ->getText())}));
 }
 
 antlrcpp::Any AstGenerator::visitTypeDeclaration(

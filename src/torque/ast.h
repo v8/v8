@@ -68,7 +68,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(StandardDeclaration)                  \
   V(GenericDeclaration)                   \
   V(SpecializationDeclaration)            \
-  V(ConstDeclaration)                     \
+  V(ExternConstDeclaration)               \
   V(DefaultModuleDeclaration)             \
   V(ExplicitModuleDeclaration)
 
@@ -664,10 +664,10 @@ struct SpecializationDeclaration : Declaration {
   Statement* body;
 };
 
-struct ConstDeclaration : Declaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ConstDeclaration)
-  ConstDeclaration(SourcePosition p, std::string n, TypeExpression* t,
-                   std::string l)
+struct ExternConstDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternConstDeclaration)
+  ExternConstDeclaration(SourcePosition p, std::string n, TypeExpression* t,
+                         std::string l)
       : Declaration(kKind, p),
         name(std::move(n)),
         type(t),

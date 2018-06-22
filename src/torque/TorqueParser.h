@@ -162,7 +162,7 @@ class TorqueParser : public antlr4::Parser {
     RuleBuiltinDeclaration = 63,
     RuleGenericSpecialization = 64,
     RuleMacroDeclaration = 65,
-    RuleConstDeclaration = 66,
+    RuleExternConstDeclaration = 66,
     RuleDeclaration = 67,
     RuleModuleDeclaration = 68,
     RuleFile = 69
@@ -245,7 +245,7 @@ class TorqueParser : public antlr4::Parser {
   class BuiltinDeclarationContext;
   class GenericSpecializationContext;
   class MacroDeclarationContext;
-  class ConstDeclarationContext;
+  class ExternConstDeclarationContext;
   class DeclarationContext;
   class ModuleDeclarationContext;
   class FileContext;
@@ -1397,14 +1397,14 @@ class TorqueParser : public antlr4::Parser {
 
   MacroDeclarationContext* macroDeclaration();
 
-  class ConstDeclarationContext : public antlr4::ParserRuleContext {
+  class ExternConstDeclarationContext : public antlr4::ParserRuleContext {
    public:
-    ConstDeclarationContext(antlr4::ParserRuleContext* parent,
-                            size_t invokingState);
+    ExternConstDeclarationContext(antlr4::ParserRuleContext* parent,
+                                  size_t invokingState);
     size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode* IDENTIFIER();
     TypeContext* type();
-    antlr4::tree::TerminalNode* STRING_LITERAL();
+    GeneratesDeclarationContext* generatesDeclaration();
 
     void enterRule(antlr4::tree::ParseTreeListener* listener) override;
     void exitRule(antlr4::tree::ParseTreeListener* listener) override;
@@ -1412,7 +1412,7 @@ class TorqueParser : public antlr4::Parser {
     antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor* visitor) override;
   };
 
-  ConstDeclarationContext* constDeclaration();
+  ExternConstDeclarationContext* externConstDeclaration();
 
   class DeclarationContext : public antlr4::ParserRuleContext {
    public:
@@ -1426,7 +1426,7 @@ class TorqueParser : public antlr4::Parser {
     ExternalMacroContext* externalMacro();
     ExternalBuiltinContext* externalBuiltin();
     ExternalRuntimeContext* externalRuntime();
-    ConstDeclarationContext* constDeclaration();
+    ExternConstDeclarationContext* externConstDeclaration();
 
     void enterRule(antlr4::tree::ParseTreeListener* listener) override;
     void exitRule(antlr4::tree::ParseTreeListener* listener) override;
