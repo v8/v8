@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   static inline int ComputeCapacity(int at_least_space_for);
 
   // Compute the probe offset (quadratic probing).
-  INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
+  V8_INLINE static uint32_t GetProbeOffset(uint32_t n) {
     return (n + n * n) >> 1;
   }
 

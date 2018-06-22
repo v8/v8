@@ -58,13 +58,13 @@ class HeapGraphEdge BASE_EMBEDDED {
            type() == kInternal || type() == kShortcut || type() == kWeak);
     return name_;
   }
-  INLINE(HeapEntry* from() const);
+  V8_INLINE HeapEntry* from() const;
   HeapEntry* to() const { return to_entry_; }
 
-  INLINE(Isolate* isolate() const);
+  V8_INLINE Isolate* isolate() const;
 
  private:
-  INLINE(HeapSnapshot* snapshot() const);
+  V8_INLINE HeapSnapshot* snapshot() const;
   int from_index() const { return FromIndexField::decode(bit_field_); }
 
   class TypeField : public BitField<Type, 0, 3> {};
@@ -121,14 +121,14 @@ class HeapEntry BASE_EMBEDDED {
   SnapshotObjectId id() const { return id_; }
   size_t self_size() const { return self_size_; }
   unsigned trace_node_id() const { return trace_node_id_; }
-  INLINE(int index() const);
+  V8_INLINE int index() const;
   int children_count() const { return children_count_; }
-  INLINE(int set_children_index(int index));
+  V8_INLINE int set_children_index(int index);
   void add_child(HeapGraphEdge* edge) {
     *(children_begin() + children_count_++) = edge;
   }
   HeapGraphEdge* child(int i) { return *(children_begin() + i); }
-  INLINE(Isolate* isolate() const);
+  V8_INLINE Isolate* isolate() const;
 
   void SetIndexedReference(
       HeapGraphEdge::Type type, int index, HeapEntry* entry);
@@ -139,8 +139,8 @@ class HeapEntry BASE_EMBEDDED {
       const char* prefix, const char* edge_name, int max_depth, int indent);
 
  private:
-  INLINE(std::deque<HeapGraphEdge*>::iterator children_begin());
-  INLINE(std::deque<HeapGraphEdge*>::iterator children_end());
+  V8_INLINE std::deque<HeapGraphEdge*>::iterator children_begin();
+  V8_INLINE std::deque<HeapGraphEdge*>::iterator children_end();
   const char* TypeAsString();
 
   unsigned type_: 4;
@@ -583,12 +583,12 @@ class HeapSnapshotJSONSerializer {
   void Serialize(v8::OutputStream* stream);
 
  private:
-  INLINE(static bool StringsMatch(void* key1, void* key2)) {
+  V8_INLINE static bool StringsMatch(void* key1, void* key2) {
     return strcmp(reinterpret_cast<char*>(key1),
                   reinterpret_cast<char*>(key2)) == 0;
   }
 
-  INLINE(static uint32_t StringHash(const void* string)) {
+  V8_INLINE static uint32_t StringHash(const void* string) {
     const char* s = reinterpret_cast<const char*>(string);
     int len = static_cast<int>(strlen(s));
     return StringHasher::HashSequentialString(

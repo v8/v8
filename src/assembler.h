@@ -557,7 +557,7 @@ class RelocInfo {
   // relative addresses have to be updated as well as absolute addresses
   // inside the code (internal references).
   // Do not forget to flush the icache afterwards!
-  INLINE(void apply(intptr_t delta));
+  V8_INLINE void apply(intptr_t delta);
 
   // Is the pointer this relocation info refers to coded like a plain pointer
   // or is it strange in some way (e.g. relative or patched into a series of
@@ -597,30 +597,30 @@ class RelocInfo {
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
-  INLINE(Address target_address());
-  INLINE(HeapObject* target_object());
-  INLINE(Handle<HeapObject> target_object_handle(Assembler* origin));
-  INLINE(void set_target_object(
+  V8_INLINE Address target_address();
+  V8_INLINE HeapObject* target_object();
+  V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
+  V8_INLINE void set_target_object(
       Heap* heap, HeapObject* target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Address target_runtime_entry(Assembler* origin));
-  INLINE(void set_target_runtime_entry(
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  V8_INLINE Address target_runtime_entry(Assembler* origin);
+  V8_INLINE void set_target_runtime_entry(
       Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Address target_off_heap_target());
-  INLINE(Cell* target_cell());
-  INLINE(Handle<Cell> target_cell_handle());
-  INLINE(void set_target_cell(
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  V8_INLINE Address target_off_heap_target();
+  V8_INLINE Cell* target_cell();
+  V8_INLINE Handle<Cell> target_cell_handle();
+  V8_INLINE void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(void set_target_external_reference(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  V8_INLINE void set_target_external_reference(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.
-  INLINE(Address constant_pool_entry_address());
+  V8_INLINE Address constant_pool_entry_address();
 
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
@@ -628,7 +628,7 @@ class RelocInfo {
   // The serializer uses it to find out how many raw bytes of instruction to
   // output before the next target.  Architecture-independent code shouldn't
   // dereference the pointer it gets back from this.
-  INLINE(Address target_address_address());
+  V8_INLINE Address target_address_address();
 
   // This indicates how much space a target takes up when deserializing a code
   // stream.  For most architectures this is just the size of a pointer.  For
@@ -639,23 +639,23 @@ class RelocInfo {
   // should return the end of the instructions to be patched, allowing the
   // deserializer to deserialize the instructions as raw bytes and put them in
   // place, ready to be patched with the target.
-  INLINE(int target_address_size());
+  V8_INLINE int target_address_size();
 
   // Read the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is EXTERNAL_REFERENCE.
-  INLINE(Address target_external_reference());
+  V8_INLINE Address target_external_reference();
 
   // Read the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is INTERNAL_REFERENCE.
-  INLINE(Address target_internal_reference());
+  V8_INLINE Address target_internal_reference();
 
   // Return the reference address this relocation applies to;
   // can only be called if rmode_ is INTERNAL_REFERENCE.
-  INLINE(Address target_internal_reference_address());
+  V8_INLINE Address target_internal_reference_address();
 
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
-  INLINE(void WipeOut());
+  V8_INLINE void WipeOut();
 
   template <typename ObjectVisitor>
   inline void Visit(ObjectVisitor* v);

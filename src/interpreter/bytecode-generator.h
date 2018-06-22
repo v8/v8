@@ -247,7 +247,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   V8_WARN_UNUSED_RESULT Register VisitForRegisterValue(Expression* expr);
-  INLINE(void VisitForRegisterValue(Expression* expr, Register destination));
+  V8_INLINE void VisitForRegisterValue(Expression* expr, Register destination);
   void VisitAndPushIntoRegisterList(Expression* expr, RegisterList* reg_list);
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,

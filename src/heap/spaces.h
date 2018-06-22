@@ -1604,25 +1604,21 @@ class LinearAllocationArea {
     set_limit(limit);
   }
 
-  INLINE(void set_top(Address top)) {
+  V8_INLINE void set_top(Address top) {
     SLOW_DCHECK(top == kNullAddress || (top & kHeapObjectTagMask) == 0);
     top_ = top;
   }
 
-  INLINE(Address top()) const {
+  V8_INLINE Address top() const {
     SLOW_DCHECK(top_ == kNullAddress || (top_ & kHeapObjectTagMask) == 0);
     return top_;
   }
 
   Address* top_address() { return &top_; }
 
-  INLINE(void set_limit(Address limit)) {
-    limit_ = limit;
-  }
+  V8_INLINE void set_limit(Address limit) { limit_ = limit; }
 
-  INLINE(Address limit()) const {
-    return limit_;
-  }
+  V8_INLINE Address limit() const { return limit_; }
 
   Address* limit_address() { return &limit_; }
 
@@ -2689,14 +2685,14 @@ class NewSpace : public SpaceWithLinearArea {
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
-  V8_WARN_UNUSED_RESULT INLINE(AllocationResult AllocateRawAligned(
-      int size_in_bytes, AllocationAlignment alignment));
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment);
 
-  V8_WARN_UNUSED_RESULT INLINE(
-      AllocationResult AllocateRawUnaligned(int size_in_bytes));
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRawUnaligned(int size_in_bytes);
 
-  V8_WARN_UNUSED_RESULT INLINE(AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationAlignment alignment));
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRaw(int size_in_bytes, AllocationAlignment alignment);
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
       int size_in_bytes, AllocationAlignment alignment);

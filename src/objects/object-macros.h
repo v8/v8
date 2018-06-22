@@ -33,9 +33,9 @@
   inline void set_##name(type* value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#define DECL_CAST(type)                      \
-  INLINE(static type* cast(Object* object)); \
-  INLINE(static const type* cast(const Object* object));
+#define DECL_CAST(type)                        \
+  V8_INLINE static type* cast(Object* object); \
+  V8_INLINE static const type* cast(const Object* object);
 
 #define CAST_ACCESSOR(type)                       \
   type* type::cast(Object* object) {              \

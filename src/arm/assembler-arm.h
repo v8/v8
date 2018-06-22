@@ -397,26 +397,26 @@ enum Coprocessor {
 class Operand BASE_EMBEDDED {
  public:
   // immediate
-  INLINE(explicit Operand(int32_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE));
-  INLINE(static Operand Zero());
-  INLINE(explicit Operand(const ExternalReference& f));
+  V8_INLINE explicit Operand(int32_t immediate,
+                             RelocInfo::Mode rmode = RelocInfo::NONE);
+  V8_INLINE static Operand Zero();
+  V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
+  V8_INLINE explicit Operand(Smi* value);
 
   // rm
-  INLINE(explicit Operand(Register rm));
+  V8_INLINE explicit Operand(Register rm);
 
   // rm <shift_op> shift_imm
   explicit Operand(Register rm, ShiftOp shift_op, int shift_imm);
-  INLINE(static Operand SmiUntag(Register rm)) {
+  V8_INLINE static Operand SmiUntag(Register rm) {
     return Operand(rm, ASR, kSmiTagSize);
   }
-  INLINE(static Operand PointerOffsetFromSmiKey(Register key)) {
+  V8_INLINE static Operand PointerOffsetFromSmiKey(Register key) {
     STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
   }
-  INLINE(static Operand DoubleOffsetFromSmiKey(Register key)) {
+  V8_INLINE static Operand DoubleOffsetFromSmiKey(Register key) {
     STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
     return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
   }
@@ -519,9 +519,9 @@ class MemOperand BASE_EMBEDDED {
   // [rn], +/- rm <shift_op> shift_imm     PostIndex/NegPostIndex
   explicit MemOperand(Register rn, Register rm,
                       ShiftOp shift_op, int shift_imm, AddrMode am = Offset);
-  INLINE(static MemOperand PointerAddressFromSmiKey(Register array,
-                                                    Register key,
-                                                    AddrMode am = Offset)) {
+  V8_INLINE static MemOperand PointerAddressFromSmiKey(Register array,
+                                                       Register key,
+                                                       AddrMode am = Offset) {
     STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
   }
@@ -660,27 +660,27 @@ class Assembler : public AssemblerBase {
 
   // Returns true if the given pc address is the start of a constant pool load
   // instruction sequence.
-  INLINE(static bool is_constant_pool_load(Address pc));
+  V8_INLINE static bool is_constant_pool_load(Address pc);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address constant_pool_entry_address(Address pc,
-                                                    Address constant_pool));
+  V8_INLINE static Address constant_pool_entry_address(Address pc,
+                                                       Address constant_pool);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
-  INLINE(static Address target_address_at(Address pc, Address constant_pool));
-  INLINE(static void set_target_address_at(
+  V8_INLINE static Address target_address_at(Address pc, Address constant_pool);
+  V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
-  INLINE(static Address target_address_from_return_address(Address pc));
+  V8_INLINE static Address target_address_from_return_address(Address pc);
 
   // Given the address of the beginning of a call, return the address
   // in the instruction stream that the call will return from.
-  INLINE(static Address return_address_from_call_start(Address pc));
+  V8_INLINE static Address return_address_from_call_start(Address pc);
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
@@ -1715,7 +1715,7 @@ class Assembler : public AssemblerBase {
 
 class EnsureSpace BASE_EMBEDDED {
  public:
-  INLINE(explicit EnsureSpace(Assembler* assembler));
+  V8_INLINE explicit EnsureSpace(Assembler* assembler);
 };
 
 class PatchingAssembler : public Assembler {

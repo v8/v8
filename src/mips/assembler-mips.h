@@ -387,20 +387,21 @@ constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 class Operand BASE_EMBEDDED {
  public:
   // Immediate.
-  INLINE(explicit Operand(int32_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE))
+  V8_INLINE explicit Operand(int32_t immediate,
+                             RelocInfo::Mode rmode = RelocInfo::NONE)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
-  INLINE(explicit Operand(const ExternalReference& f))
+  V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<int32_t>(f.address());
   }
-  INLINE(explicit Operand(const char* s));
-  INLINE(explicit Operand(Object** opp));
-  INLINE(explicit Operand(Context** cpp));
+  V8_INLINE explicit Operand(const char* s);
+  V8_INLINE explicit Operand(Object** opp);
+  V8_INLINE explicit Operand(Context** cpp);
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value)) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi* value)
+      : rm_(no_reg), rmode_(RelocInfo::NONE) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 
@@ -408,10 +409,10 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Register.
-  INLINE(explicit Operand(Register rm)) : rm_(rm) {}
+  V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  V8_INLINE bool is_reg() const;
 
   inline int32_t immediate() const;
 
@@ -564,18 +565,19 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
-  INLINE(static void set_target_address_at)
-  (Address pc, Address target,
-   ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
+  V8_INLINE static void set_target_address_at(
+      Address pc, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     set_target_value_at(pc, static_cast<uint32_t>(target), icache_flush_mode);
   }
   // On MIPS there is no Constant Pool so we skip that parameter.
-  INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
+  V8_INLINE static Address target_address_at(Address pc,
+                                             Address constant_pool) {
     return target_address_at(pc);
   }
-  INLINE(static void set_target_address_at(
+  V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     set_target_address_at(pc, target, icache_flush_mode);
   }
 

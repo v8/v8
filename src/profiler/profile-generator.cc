@@ -347,13 +347,13 @@ class Position {
  public:
   explicit Position(ProfileNode* node)
       : node(node), child_idx_(0) { }
-  INLINE(ProfileNode* current_child()) {
+  V8_INLINE ProfileNode* current_child() {
     return node->children()->at(child_idx_);
   }
-  INLINE(bool has_current_child()) {
+  V8_INLINE bool has_current_child() {
     return child_idx_ < static_cast<int>(node->children()->size());
   }
-  INLINE(void next_child()) { ++child_idx_; }
+  V8_INLINE void next_child() { ++child_idx_; }
 
   ProfileNode* node;
  private:

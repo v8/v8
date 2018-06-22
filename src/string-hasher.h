@@ -39,13 +39,13 @@ class V8_EXPORT_PRIVATE StringHasher {
   static const int kZeroHash = 27;
 
   // Reusable parts of the hashing algorithm.
-  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c));
-  INLINE(static uint32_t GetHashCore(uint32_t running_hash));
-  INLINE(static uint32_t ComputeRunningHash(uint32_t running_hash,
-                                            const uc16* chars, int length));
-  INLINE(static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
-                                                   const char* chars,
-                                                   int length));
+  V8_INLINE static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c);
+  V8_INLINE static uint32_t GetHashCore(uint32_t running_hash);
+  V8_INLINE static uint32_t ComputeRunningHash(uint32_t running_hash,
+                                               const uc16* chars, int length);
+  V8_INLINE static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
+                                                      const char* chars,
+                                                      int length);
 
  protected:
   // Returns the value to store in the hash field of a string with

@@ -155,7 +155,7 @@ class String : public Name {
   };
 
   template <typename Char>
-  INLINE(Vector<const Char> GetCharVector());
+  V8_INLINE Vector<const Char> GetCharVector();
 
   // Get and set the length of the string.
   inline int length() const;
@@ -187,7 +187,7 @@ class String : public Name {
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  INLINE(uint16_t Get(int index));
+  V8_INLINE uint16_t Get(int index);
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
   static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);

@@ -57,7 +57,7 @@ class CodeCreateEventRecord : public CodeEventRecord {
   CodeEntry* entry;
   unsigned size;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
@@ -66,7 +66,7 @@ class CodeMoveEventRecord : public CodeEventRecord {
   Address from;
   Address to;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
@@ -75,7 +75,7 @@ class CodeDisableOptEventRecord : public CodeEventRecord {
   Address start;
   const char* bailout_reason;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
@@ -89,7 +89,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   CpuProfileDeoptFrame* deopt_frames;
   int deopt_frame_count;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
@@ -98,7 +98,7 @@ class ReportBuiltinEventRecord : public CodeEventRecord {
   Address start;
   Builtins::Name builtin_id;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
@@ -140,7 +140,7 @@ class ProfilerEventsProcessor : public base::Thread {
   // Thread control.
   virtual void Run();
   void StopSynchronously();
-  INLINE(bool running()) { return !!base::Relaxed_Load(&running_); }
+  V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.

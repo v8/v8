@@ -141,17 +141,17 @@ class RegExpImpl {
                 Handle<String> subject,
                 Isolate* isolate);
 
-    INLINE(~GlobalCache());
+    V8_INLINE ~GlobalCache();
 
     // Fetch the next entry in the cache for global regexp match results.
     // This does not set the last match info.  Upon failure, nullptr is
     // returned. The cause can be checked with Result().  The previous result is
     // still in available in memory when a failure happens.
-    INLINE(int32_t* FetchNext());
+    V8_INLINE int32_t* FetchNext();
 
-    INLINE(int32_t* LastSuccessfulMatch());
+    V8_INLINE int32_t* LastSuccessfulMatch();
 
-    INLINE(bool HasException()) { return num_matches_ < 0; }
+    V8_INLINE bool HasException() { return num_matches_ < 0; }
 
    private:
     int AdvanceZeroLength(int last_index);

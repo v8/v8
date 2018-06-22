@@ -112,12 +112,12 @@ class DescriptorArray : public WeakFixedArray {
   void Sort();
 
   // Search the instance descriptors for given name.
-  INLINE(int Search(Name* name, int number_of_own_descriptors));
-  INLINE(int Search(Name* name, Map* map));
+  V8_INLINE int Search(Name* name, int number_of_own_descriptors);
+  V8_INLINE int Search(Name* name, Map* map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  INLINE(int SearchWithCache(Isolate* isolate, Name* name, Map* map));
+  V8_INLINE int SearchWithCache(Isolate* isolate, Name* name, Map* map);
 
   bool IsEqualUpTo(DescriptorArray* desc, int nof_descriptors);
 

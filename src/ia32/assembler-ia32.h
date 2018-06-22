@@ -323,22 +323,22 @@ enum ScaleFactor {
 class Operand {
  public:
   // reg
-  INLINE(explicit Operand(Register reg)) { set_modrm(3, reg); }
+  V8_INLINE explicit Operand(Register reg) { set_modrm(3, reg); }
 
   // XMM reg
-  INLINE(explicit Operand(XMMRegister xmm_reg)) {
+  V8_INLINE explicit Operand(XMMRegister xmm_reg) {
     Register reg = Register::from_code(xmm_reg.code());
     set_modrm(3, reg);
   }
 
   // [disp/r]
-  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode)) {
+  V8_INLINE explicit Operand(int32_t disp, RelocInfo::Mode rmode) {
     set_modrm(0, ebp);
     set_dispr(disp, rmode);
   }
 
   // [disp/r]
-  INLINE(explicit Operand(Immediate imm)) {
+  V8_INLINE explicit Operand(Immediate imm) {
     set_modrm(0, ebp);
     set_dispr(imm.immediate(), imm.rmode_);
   }

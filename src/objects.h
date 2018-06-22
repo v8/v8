@@ -1230,28 +1230,28 @@ class Object {
   // Type testing.
   bool IsObject() const { return true; }
 
-#define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
+#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  INLINE(bool IsExternal(Isolate* isolate) const);
+  V8_INLINE bool IsExternal(Isolate* isolate) const;
 
 #define IS_TYPE_FUNCTION_DECL(Type, Value) \
-  INLINE(bool Is##Type(Isolate* isolate) const);
+  V8_INLINE bool Is##Type(Isolate* isolate) const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  INLINE(bool IsNullOrUndefined(Isolate* isolate) const);
+  V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
 
 // Non-isolate version of oddball check. This is slower than the above check,
 // so it should only be used for DCHECKS.
 #ifdef DEBUG
-#define IS_TYPE_FUNCTION_DECL(Type, Value) INLINE(bool Is##Type() const);
+#define IS_TYPE_FUNCTION_DECL(Type, Value) V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  INLINE(bool IsNullOrUndefined() const);
+  V8_INLINE bool IsNullOrUndefined() const;
 #endif
 
   // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
@@ -1280,20 +1280,20 @@ class Object {
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) INLINE(bool Is##Name() const);
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
-  INLINE(
-      V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object));
+  V8_INLINE
+  V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object);
 
-  INLINE(bool IsSmallOrderedHashTable() const);
+  V8_INLINE bool IsSmallOrderedHashTable() const;
 
   // Extract the number.
   inline double Number() const;
-  INLINE(bool IsNaN() const);
-  INLINE(bool IsMinusZero() const);
+  V8_INLINE bool IsNaN() const;
+  V8_INLINE bool IsMinusZero() const;
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value) const;
 
@@ -1828,30 +1828,30 @@ class HeapObject: public Object {
       inline Isolate*
       GetIsolate() const;
 
-#define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
+#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  INLINE(bool IsExternal(Isolate* isolate) const);
+  V8_INLINE bool IsExternal(Isolate* isolate) const;
 
 #define IS_TYPE_FUNCTION_DECL(Type, Value) \
-  INLINE(bool Is##Type(Isolate* isolate) const);
+  V8_INLINE bool Is##Type(Isolate* isolate) const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  INLINE(bool IsNullOrUndefined(Isolate* isolate) const);
+  V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
 
 // Non-isolate version of oddball check. This is slower than the above check,
 // so it should only be used for DCHECKS.
 #ifdef DEBUG
-#define IS_TYPE_FUNCTION_DECL(Type, Value) INLINE(bool Is##Type() const);
+#define IS_TYPE_FUNCTION_DECL(Type, Value) V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  INLINE(bool IsNullOrUndefined() const);
+  V8_INLINE bool IsNullOrUndefined() const;
 #endif
 
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) INLINE(bool Is##Name() const);
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
@@ -4334,7 +4334,7 @@ class JSProxy: public JSReceiver {
 
   DECL_CAST(JSProxy)
 
-  INLINE(bool IsRevoked() const);
+  V8_INLINE bool IsRevoked() const;
   static void Revoke(Handle<JSProxy> proxy);
 
   // ES6 9.5.1

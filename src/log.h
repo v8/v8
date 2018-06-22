@@ -246,8 +246,8 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  INLINE(static void CallEventLogger(Isolate* isolate, const char* name,
-                                     StartEnd se, bool expose_to_api));
+  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
+                                        StartEnd se, bool expose_to_api);
 
   bool is_logging() {
     return is_logging_;
@@ -278,8 +278,8 @@ class Logger : public CodeEventListener {
   void LogMaps();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
-  INLINE(static CodeEventListener::LogEventsAndTags ToNativeByScript(
-      CodeEventListener::LogEventsAndTags, Script*));
+  V8_INLINE static CodeEventListener::LogEventsAndTags ToNativeByScript(
+      CodeEventListener::LogEventsAndTags, Script*);
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();

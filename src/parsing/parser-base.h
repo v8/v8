@@ -683,7 +683,7 @@ class ParserBase {
   int script_id() { return script_id_; }
   void set_script_id(int id) { script_id_ = id; }
 
-  INLINE(Token::Value peek()) {
+  V8_INLINE Token::Value peek() {
     if (stack_overflow()) return Token::ILLEGAL;
     return scanner()->peek();
   }
@@ -695,12 +695,12 @@ class ParserBase {
                                         : scanner_->location().end_pos;
   }
 
-  INLINE(Token::Value PeekAhead()) {
+  V8_INLINE Token::Value PeekAhead() {
     if (stack_overflow()) return Token::ILLEGAL;
     return scanner()->PeekAhead();
   }
 
-  INLINE(Token::Value Next()) {
+  V8_INLINE Token::Value Next() {
     if (stack_overflow()) return Token::ILLEGAL;
     {
       if (GetCurrentStackPosition() < stack_limit_) {

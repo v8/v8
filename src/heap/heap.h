@@ -1909,9 +1909,9 @@ class Heap {
 
   // These five Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
-  NO_INLINE(void CreateJSEntryStub());
-  NO_INLINE(void CreateJSConstructEntryStub());
-  NO_INLINE(void CreateJSRunMicrotasksEntryStub());
+  V8_NOINLINE void CreateJSEntryStub();
+  V8_NOINLINE void CreateJSConstructEntryStub();
+  V8_NOINLINE void CreateJSRunMicrotasksEntryStub();
 
   void CreateFixedStubs();
 

@@ -254,12 +254,12 @@ class ThreadId {
   static ThreadId Invalid() { return ThreadId(kInvalidId); }
 
   // Compares ThreadIds for equality.
-  INLINE(bool Equals(const ThreadId& other) const) {
+  V8_INLINE bool Equals(const ThreadId& other) const {
     return base::Relaxed_Load(&id_) == base::Relaxed_Load(&other.id_);
   }
 
   // Checks whether this ThreadId refers to any thread.
-  INLINE(bool IsValid() const) {
+  V8_INLINE bool IsValid() const {
     return base::Relaxed_Load(&id_) != kInvalidId;
   }
 
@@ -525,7 +525,7 @@ class Isolate : private HiddenFactory {
   }
 
   // Returns the isolate inside which the current thread is running.
-  INLINE(static Isolate* Current()) {
+  V8_INLINE static Isolate* Current() {
     DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
@@ -721,10 +721,10 @@ class Isolate : private HiddenFactory {
   Handle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
-  NO_INLINE(void PushStackTraceAndDie(void* ptr1 = nullptr,
-                                      void* ptr2 = nullptr,
-                                      void* ptr3 = nullptr,
-                                      void* ptr4 = nullptr));
+  V8_NOINLINE void PushStackTraceAndDie(void* ptr1 = nullptr,
+                                        void* ptr2 = nullptr,
+                                        void* ptr3 = nullptr,
+                                        void* ptr4 = nullptr);
   Handle<FixedArray> CaptureCurrentStackTrace(
       int frame_limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
