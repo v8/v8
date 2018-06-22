@@ -295,16 +295,6 @@ class LiftoffAssembler : public TurboAssembler {
     return SpillOneRegister(candidates, pinned);
   }
 
-  void DropStackSlot(VarState* slot) {
-    // The only loc we care about is register. Other types don't occupy
-    // anything.
-    if (!slot->is_reg()) return;
-    // Free the register, then set the loc to "stack".
-    // No need to write back, the value should be dropped.
-    cache_state_.dec_used(slot->reg());
-    slot->MakeStack();
-  }
-
   void MergeFullStackWith(CacheState&);
   void MergeStackWith(CacheState&, uint32_t arity);
 

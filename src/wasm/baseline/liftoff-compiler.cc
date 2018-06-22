@@ -1014,7 +1014,9 @@ class LiftoffCompiler {
   }
 
   void Drop(Decoder* decoder, const Value& value) {
-    __ DropStackSlot(&__ cache_state()->stack_state.back());
+    auto& slot = __ cache_state()->stack_state.back();
+    // If the dropped slot contains a register, decrement it's use count.
+    if (slot.is_reg()) __ cache_state()->dec_used(slot.reg());
     __ cache_state()->stack_state.pop_back();
   }
 
@@ -1089,12 +1091,12 @@ class LiftoffCompiler {
     auto& target_slot = state.stack_state[local_index];
     switch (source_slot.loc()) {
       case kRegister:
-        __ DropStackSlot(&target_slot);
+        if (target_slot.is_reg()) state.dec_used(target_slot.reg());
         target_slot = source_slot;
         if (is_tee) state.inc_used(target_slot.reg());
         break;
       case KIntConst:
-        __ DropStackSlot(&target_slot);
+        if (target_slot.is_reg()) state.dec_used(target_slot.reg());
         target_slot = source_slot;
         break;
       case kStack:
