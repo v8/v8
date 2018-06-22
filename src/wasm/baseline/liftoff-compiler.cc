@@ -430,6 +430,7 @@ class LiftoffCompiler {
 
   void NextInstruction(Decoder* decoder, WasmOpcode opcode) {
     TraceCacheState(decoder);
+    SLOW_DCHECK(__ ValidateCacheState());
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
   }
 
@@ -1076,6 +1077,7 @@ class LiftoffCompiler {
         return;
       }
       state.dec_used(slot_reg);
+      dst_slot.MakeStack();
     }
     DCHECK_EQ(type, __ local_type(local_index));
     RegClass rc = reg_class_for(type);
