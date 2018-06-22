@@ -248,6 +248,94 @@ void DeclarationVisitor::Visit(ReturnStatement* stmt) {
   }
 }
 
+void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
+  std::string variable_name = stmt->name;
+  const Type* type = declarations()->GetType(stmt->type);
+  if (type->IsConstexpr()) {
+    ReportError("cannot declare variable with constexpr type");
+  }
+  declarations()->DeclareVariable(variable_name, type);
+  if (global_context_.verbose()) {
+    std::cout << "declared variable " << variable_name << " with type " << type
+              << "\n";
+  }
+  if (stmt->initializer) {
+    Visit(*stmt->initializer);
+    if (global_context_.verbose()) {
+      std::cout << "variable has initialization expression at "
+                << CurrentPositionAsString() << "\n";
+    }
+  }
+}
+
+void DeclarationVisitor::Visit(LogicalOrExpression* expr) {
+  {
+    Declarations::NodeScopeActivator scope(declarations(), expr->left);
+    declarations()->DeclareLabel(kFalseLabelName);
+    Visit(expr->left);
+  }
+  Visit(expr->right);
+}
+
+void DeclarationVisitor::Visit(LogicalAndExpression* expr) {
+  {
+    Declarations::NodeScopeActivator scope(declarations(), expr->left);
+    declarations()->DeclareLabel(kTrueLabelName);
+    Visit(expr->left);
+  }
+  Visit(expr->right);
+}
+
+void DeclarationVisitor::DeclareExpressionForBranch(Expression* node) {
+  Declarations::NodeScopeActivator scope(declarations(), node);
+  // Conditional expressions can either explicitly return a bit
+  // type, or they can be backed by macros that don't return but
+  // take a true and false label. By declaring the labels before
+  // visiting the conditional expression, those label-based
+  // macro conditionals will be able to find them through normal
+  // label lookups.
+  declarations()->DeclareLabel(kTrueLabelName);
+  declarations()->DeclareLabel(kFalseLabelName);
+  Visit(node);
+}
+
+void DeclarationVisitor::Visit(ConditionalExpression* expr) {
+  DeclareExpressionForBranch(expr->condition);
+  PushControlSplit();
+  Visit(expr->if_true);
+  Visit(expr->if_false);
+  auto changed_vars = PopControlSplit();
+  global_context_.AddControlSplitChangedVariables(
+      expr, declarations()->GetCurrentSpecializationTypeNamesVector(),
+      changed_vars);
+}
+
+void DeclarationVisitor::Visit(IfStatement* stmt) {
+  if (!stmt->is_constexpr) {
+    PushControlSplit();
+  }
+  DeclareExpressionForBranch(stmt->condition);
+  Visit(stmt->if_true);
+  if (stmt->if_false) Visit(*stmt->if_false);
+  if (!stmt->is_constexpr) {
+    auto changed_vars = PopControlSplit();
+    global_context_.AddControlSplitChangedVariables(
+        stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+        changed_vars);
+  }
+}
+
+void DeclarationVisitor::Visit(WhileStatement* stmt) {
+  Declarations::NodeScopeActivator scope(declarations(), stmt);
+  DeclareExpressionForBranch(stmt->condition);
+  PushControlSplit();
+  Visit(stmt->body);
+  auto changed_vars = PopControlSplit();
+  global_context_.AddControlSplitChangedVariables(
+      stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+      changed_vars);
+}
+
 void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
   // Scope for for iteration variable
   Declarations::NodeScopeActivator scope(declarations(), stmt);
@@ -257,6 +345,19 @@ void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
   if (stmt->end) Visit(*stmt->end);
   PushControlSplit();
   Visit(stmt->body);
+  auto changed_vars = PopControlSplit();
+  global_context_.AddControlSplitChangedVariables(
+      stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
+      changed_vars);
+}
+
+void DeclarationVisitor::Visit(ForLoopStatement* stmt) {
+  Declarations::NodeScopeActivator scope(declarations(), stmt);
+  if (stmt->var_declaration) Visit(*stmt->var_declaration);
+  PushControlSplit();
+  DeclareExpressionForBranch(stmt->test);
+  Visit(stmt->body);
+  Visit(stmt->action);
   auto changed_vars = PopControlSplit();
   global_context_.AddControlSplitChangedVariables(
       stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
@@ -301,6 +402,55 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
   }
 }
 
+void DeclarationVisitor::GenerateHeader(std::string& file_name) {
+  std::stringstream new_contents_stream;
+  new_contents_stream
+      << "#ifndef V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
+         "#define V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
+         "\n"
+         "#define BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) "
+         "\\\n";
+  for (auto builtin : torque_builtins_) {
+    int firstParameterIndex = 1;
+    bool declareParameters = true;
+    if (builtin->IsStub()) {
+      new_contents_stream << "TFS(" << builtin->name();
+    } else {
+      new_contents_stream << "TFJ(" << builtin->name();
+      if (builtin->IsVarArgsJavaScript()) {
+        new_contents_stream
+            << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
+        declareParameters = false;
+      } else {
+        assert(builtin->IsFixedArgsJavaScript());
+        // FixedArg javascript builtins need to offer the parameter
+        // count.
+        assert(builtin->parameter_names().size() >= 2);
+        new_contents_stream << ", " << (builtin->parameter_names().size() - 2);
+        // And the receiver is explicitly declared.
+        new_contents_stream << ", kReceiver";
+        firstParameterIndex = 2;
+      }
+    }
+    if (declareParameters) {
+      int index = 0;
+      for (auto parameter : builtin->parameter_names()) {
+        if (index >= firstParameterIndex) {
+          new_contents_stream << ", k" << CamelifyString(parameter);
+        }
+        index++;
+      }
+    }
+    new_contents_stream << ") \\\n";
+  }
+  new_contents_stream
+      << "\n"
+         "#endif  // V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n";
+
+  std::string new_contents(new_contents_stream.str());
+  ReplaceFileContentsIfDifferent(file_name, new_contents);
+}
+
 void DeclarationVisitor::Visit(IdentifierExpression* expr) {
   if (expr->generic_arguments.size() != 0) {
     TypeVector specialization_types;
@@ -325,6 +475,70 @@ void DeclarationVisitor::Visit(IdentifierExpression* expr) {
 void DeclarationVisitor::Visit(CallExpression* expr) {
   Visit(&expr->callee);
   for (Expression* arg : expr->arguments) Visit(arg);
+}
+
+void DeclarationVisitor::Visit(TypeDeclaration* decl) {
+  std::string extends = decl->extends ? *decl->extends : std::string("");
+  std::string* extends_ptr = decl->extends ? &extends : nullptr;
+
+  std::string generates = decl->generates ? *decl->generates : std::string("");
+  declarations()->DeclareAbstractType(decl->name, generates, extends_ptr);
+
+  if (decl->constexpr_generates) {
+    std::string constexpr_name =
+        std::string(CONSTEXPR_TYPE_PREFIX) + decl->name;
+    declarations()->DeclareAbstractType(
+        constexpr_name, *decl->constexpr_generates, &(decl->name));
+  }
+}
+
+void DeclarationVisitor::MarkLocationModified(Expression* location) {
+  if (IdentifierExpression* id = IdentifierExpression::cast(location)) {
+    const Value* value = declarations()->LookupValue(id->name);
+    if (value->IsVariable()) {
+      const Variable* variable = Variable::cast(value);
+      bool was_live = MarkVariableModified(variable);
+      if (was_live && global_context_.verbose()) {
+        std::cout << *variable << " was modified in control split at "
+                  << PositionAsString(id->pos) << "\n";
+      }
+    }
+  }
+}
+
+bool DeclarationVisitor::MarkVariableModified(const Variable* variable) {
+  auto e = live_and_changed_variables_.rend();
+  auto c = live_and_changed_variables_.rbegin();
+  bool was_live_in_preceeding_split = false;
+  while (c != e) {
+    if (c->live.find(variable) != c->live.end()) {
+      c->changed.insert(variable);
+      was_live_in_preceeding_split = true;
+    }
+    c++;
+  }
+  return was_live_in_preceeding_split;
+}
+
+void DeclarationVisitor::DeclareSignature(const Signature& signature) {
+  auto type_iterator = signature.parameter_types.types.begin();
+  for (auto name : signature.parameter_names) {
+    const Type* t(*type_iterator++);
+    if (name.size() != 0) {
+      declarations()->DeclareParameter(name, GetParameterVariableFromName(name),
+                                       t);
+    }
+  }
+  for (auto& label : signature.labels) {
+    auto label_params = label.types;
+    Label* new_label = declarations()->DeclareLabel(label.name);
+    size_t i = 0;
+    for (auto var_type : label_params) {
+      std::string var_name = label.name + std::to_string(i++);
+      new_label->AddVariable(
+          declarations()->DeclareVariable(var_name, var_type));
+    }
+  }
 }
 
 void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
