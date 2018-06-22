@@ -348,11 +348,6 @@ class Debug {
   }
   inline Handle<Context> debug_context() { return debug_context_; }
 
-  void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
-  bool live_edit_enabled() const {
-    return FLAG_enable_liveedit && live_edit_enabled_;
-  }
-
   inline bool is_active() const { return is_active_; }
   inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool in_debug_scope() const {
@@ -499,8 +494,8 @@ class Debug {
   bool hook_on_function_call_;
   // Suppress debug events.
   bool is_suppressed_;
-  // LiveEdit is enabled.
-  bool live_edit_enabled_;
+  // Running liveedit.
+  bool running_live_edit_ = false;
   // Do not trigger debug break events.
   bool break_disabled_;
   // Do not break on break points.

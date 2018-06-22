@@ -34,13 +34,6 @@ int GetContextId(Local<Context> context);
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
-/**
- * Enable/disable LiveEdit functionality for the given Isolate
- * (default Isolate if not provided). V8 will abort if LiveEdit is
- * unexpectedly used. LiveEdit is enabled by default.
- */
-V8_EXPORT_PRIVATE void SetLiveEditEnabled(Isolate* isolate, bool enable);
-
 // Schedule a debugger break to happen when function is called inside given
 // isolate.
 void SetBreakOnNextFunctionCall(Isolate* isolate);

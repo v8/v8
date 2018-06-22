@@ -3660,24 +3660,6 @@ TEST(DebuggerCreatesContextIffActive) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }
 
-
-TEST(LiveEditEnabled) {
-  v8::internal::FLAG_allow_natives_syntax = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::debug::SetLiveEditEnabled(env->GetIsolate(), true);
-  CompileRun("%LiveEditCompareStrings('', '')");
-}
-
-
-TEST(LiveEditDisabled) {
-  v8::internal::FLAG_allow_natives_syntax = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::debug::SetLiveEditEnabled(env->GetIsolate(), false);
-  CompileRun("%LiveEditCompareStrings('', '')");
-}
-
 class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,

@@ -83,7 +83,6 @@ Debug::Debug(Isolate* isolate)
       is_active_(false),
       hook_on_function_call_(false),
       is_suppressed_(false),
-      live_edit_enabled_(false),
       break_disabled_(false),
       break_points_active_(true),
       break_on_exception_(false),
@@ -1912,17 +1911,16 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
     thread_local_.break_frame_id_ = frame_id;
   }
 
-  set_live_edit_enabled(true);
   Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = {script_wrapper, source,
                            isolate_->factory()->ToBoolean(preview),
                            isolate_->factory()->NewJSArray(0)};
   Handle<Object> result;
   MaybeHandle<Object> maybe_exception;
+  running_live_edit_ = true;
   if (!CallFunction("SetScriptSource", arraysize(argv), argv, &maybe_exception)
            .ToHandle(&result)) {
     Handle<Object> pending_exception = maybe_exception.ToHandleChecked();
-    set_live_edit_enabled(false);
     if (pending_exception->IsJSObject()) {
       Handle<JSObject> exception = Handle<JSObject>::cast(pending_exception);
       Handle<String> message = Handle<String>::cast(
@@ -1947,15 +1945,16 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
         output->message = Utils::ToLocal(error);
       }
     }
+    running_live_edit_ = false;
     return false;
   }
-  set_live_edit_enabled(false);
   Handle<Object> stack_changed_value =
       JSReceiver::GetProperty(isolate_, Handle<JSObject>::cast(result),
                               "stack_modified")
           .ToHandleChecked();
   output->stack_changed = stack_changed_value->IsTrue(isolate_);
   output->status = debug::LiveEditResult::OK;
+  running_live_edit_ = false;
   return true;
 }
 
@@ -1984,7 +1983,7 @@ void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   DisableBreak no_recursive_break(this);
   AllowJavascriptExecution allow_script(isolate_);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
-                                  live_edit_enabled(), has_compile_error);
+                                  running_live_edit_, has_compile_error);
 }
 
 

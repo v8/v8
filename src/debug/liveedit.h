@@ -135,8 +135,7 @@ class LiveEdit : AllStatic {
       bool do_drop);
 
   // Restarts the call frame and completely drops all frames above it.
-  // Return error message or nullptr.
-  static const char* RestartFrame(JavaScriptFrame* frame);
+  static bool RestartFrame(JavaScriptFrame* frame);
 
   static void CompareStrings(Isolate* isolate, Handle<String> a,
                              Handle<String> b,

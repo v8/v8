@@ -1419,63 +1419,37 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   return result;
 }
 
-
-// Describes a single callframe a target. Not finding this frame
-// means an error.
-class SingleFrameTarget {
- public:
-  explicit SingleFrameTarget(JavaScriptFrame* frame)
-      : m_frame(frame),
-        m_saved_status(LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH) {}
-
-  bool MatchActivation(StackFrame* frame,
-      LiveEdit::FunctionPatchabilityStatus status) {
-    if (frame->fp() == m_frame->fp()) {
-      m_saved_status = status;
-      return true;
+bool LiveEdit::RestartFrame(JavaScriptFrame* frame) {
+  if (!LiveEdit::kFrameDropperSupported) return false;
+  Isolate* isolate = frame->isolate();
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
+  StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
+  bool break_frame_found = break_frame_id == StackFrame::NO_ID;
+  for (StackFrame* current : frames) {
+    break_frame_found = break_frame_found || break_frame_id == current->id();
+    if (current->fp() == frame->fp()) {
+      if (break_frame_found) {
+        isolate->debug()->ScheduleFrameRestart(current);
+        return true;
+      } else {
+        return false;
+      }
     }
-    return false;
+    if (!break_frame_found) continue;
+    if (current->is_exit() || current->is_builtin_exit()) {
+      return false;
+    }
+    if (!current->is_java_script()) continue;
+    std::vector<Handle<SharedFunctionInfo>> shareds;
+    JavaScriptFrame::cast(current)->GetFunctions(&shareds);
+    for (auto& shared : shareds) {
+      if (IsResumableFunction(shared->kind())) {
+        return false;
+      }
+    }
   }
-  const char* GetNotFoundMessage() const {
-    return "Failed to found requested frame";
-  }
-  LiveEdit::FunctionPatchabilityStatus saved_status() {
-    return m_saved_status;
-  }
-  void set_status(LiveEdit::FunctionPatchabilityStatus status) {
-    m_saved_status = status;
-  }
-
-  bool FrameUsesNewTarget(StackFrame* frame) {
-    if (!frame->is_java_script()) return false;
-    JavaScriptFrame* jsframe = JavaScriptFrame::cast(frame);
-    Handle<SharedFunctionInfo> shared(jsframe->function()->shared(),
-                                      jsframe->isolate());
-    return shared->scope_info()->HasNewTarget();
-  }
-
- private:
-  JavaScriptFrame* m_frame;
-  LiveEdit::FunctionPatchabilityStatus m_saved_status;
-};
-
-// Finds a drops required frame and all frames above.
-// Returns error message or nullptr.
-const char* LiveEdit::RestartFrame(JavaScriptFrame* frame) {
-  SingleFrameTarget target(frame);
-
-  const char* result =
-      DropActivationsInActiveThreadImpl(frame->isolate(), target, true);
-  if (result != nullptr) {
-    return result;
-  }
-  if (target.saved_status() == LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE) {
-    return "Function is blocked under native code";
-  }
-  if (target.saved_status() == LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR) {
-    return "Function is blocked under a generator activation";
-  }
-  return nullptr;
+  return false;
 }
 
 Handle<JSArray> LiveEditFunctionTracker::Collect(FunctionLiteral* node,
