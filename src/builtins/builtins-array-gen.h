@@ -77,9 +77,6 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
     return StoreFixedArrayElement(array, index, value);
   }
 
-  // Uses memset to effectively initialize the given FixedArray with Smi zeroes.
-  void FillFixedArrayWithZero(TNode<FixedArray> array, TNode<Smi> smi_length);
-
  protected:
   TNode<Context> context() { return context_; }
   TNode<Object> receiver() { return receiver_; }
