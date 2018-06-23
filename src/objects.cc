@@ -2034,8 +2034,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
       dictionary = GlobalDictionary::Add(dictionary, name, value, details);
       global_obj->set_global_dictionary(*dictionary);
     } else {
-      Handle<PropertyCell> cell =
-          PropertyCell::PrepareForValue(dictionary, entry, value, details);
+      Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
+          isolate, dictionary, entry, value, details);
       cell->set_value(*value);
     }
   } else {
@@ -6687,7 +6687,7 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
         JSGlobalObject::cast(*object)->global_dictionary(), isolate);
     DCHECK_NE(GlobalDictionary::kNotFound, entry);
 
-    auto cell = PropertyCell::InvalidateEntry(dictionary, entry);
+    auto cell = PropertyCell::InvalidateEntry(isolate, dictionary, entry);
     cell->set_value(isolate->heap()->the_hole_value());
     cell->set_property_details(
         PropertyDetails::Empty(PropertyCellType::kUninitialized));
@@ -16879,7 +16879,7 @@ void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
   auto dictionary = handle(global->global_dictionary(), global->GetIsolate());
   int entry = dictionary->FindEntry(name);
   if (entry == GlobalDictionary::kNotFound) return;
-  PropertyCell::InvalidateEntry(dictionary, entry);
+  PropertyCell::InvalidateEntry(global->GetIsolate(), dictionary, entry);
 }
 
 Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
@@ -16898,7 +16898,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
            original_cell_type == PropertyCellType::kUninitialized);
     DCHECK(cell->value()->IsTheHole(isolate));
     if (original_cell_type == PropertyCellType::kInvalidated) {
-      cell = PropertyCell::InvalidateEntry(dictionary, entry);
+      cell = PropertyCell::InvalidateEntry(isolate, dictionary, entry);
     }
     PropertyDetails details(kData, NONE, cell_type);
     cell->set_property_details(details);
@@ -18682,8 +18682,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 }
 
 Handle<PropertyCell> PropertyCell::InvalidateEntry(
-    Handle<GlobalDictionary> dictionary, int entry) {
-  Isolate* isolate = dictionary->GetIsolate();
+    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry) {
   // Swap with a copy.
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   Handle<Name> name(cell->name(), isolate);
@@ -18729,12 +18728,11 @@ static bool RemainsConstantType(Handle<PropertyCell> cell,
   return false;
 }
 
-
-PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
+PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
+                                           Handle<PropertyCell> cell,
                                            Handle<Object> value,
                                            PropertyDetails details) {
   PropertyCellType type = details.cell_type();
-  Isolate* isolate = cell->GetIsolate();
   DCHECK(!value->IsTheHole(isolate));
   if (cell->value()->IsTheHole(isolate)) {
     switch (type) {
@@ -18766,9 +18764,8 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
 }
 
 Handle<PropertyCell> PropertyCell::PrepareForValue(
-    Handle<GlobalDictionary> dictionary, int entry, Handle<Object> value,
-    PropertyDetails details) {
-  Isolate* isolate = dictionary->GetIsolate();
+    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
+    Handle<Object> value, PropertyDetails details) {
   DCHECK(!value->IsTheHole(isolate));
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   const PropertyDetails original_details = cell->property_details();
@@ -18789,8 +18786,11 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   DCHECK_LT(0, index);
   details = details.set_index(index);
 
-  PropertyCellType new_type = UpdatedType(cell, value, original_details);
-  if (invalidate) cell = PropertyCell::InvalidateEntry(dictionary, entry);
+  PropertyCellType new_type =
+      UpdatedType(isolate, cell, value, original_details);
+  if (invalidate) {
+    cell = PropertyCell::InvalidateEntry(isolate, dictionary, entry);
+  }
 
   // Install new property details.
   details = details.set_cell_type(new_type);
@@ -18815,11 +18815,11 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
 
 
 // static
-void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
+void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
+                                            Handle<PropertyCell> cell,
                                             Handle<Object> new_value) {
   if (cell->value() != *new_value) {
     cell->set_value(*new_value);
-    Isolate* isolate = cell->GetIsolate();
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
   }

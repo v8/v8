@@ -407,8 +407,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     Handle<PropertyCell> cell(dictionary->CellAt(dictionary_entry()),
                               isolate());
     property_details_ = cell->property_details();
-    PropertyCell::PrepareForValue(dictionary, dictionary_entry(), value,
-                                  property_details_);
+    PropertyCell::PrepareForValue(isolate(), dictionary, dictionary_entry(),
+                                  value, property_details_);
     return;
   }
   if (!holder_obj->HasFastProperties()) return;
@@ -492,7 +492,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
           JSGlobalObject::cast(*holder_obj)->global_dictionary(), isolate());
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
-          dictionary, dictionary_entry(), value, details);
+          isolate(), dictionary, dictionary_entry(), value, details);
       cell->set_value(*value);
       property_details_ = cell->property_details();
     } else {
@@ -560,7 +560,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       property_details_ = PropertyDetails(
           kData, attributes, PropertyCellType::kUninitialized, index);
       PropertyCellType new_type =
-          PropertyCell::UpdatedType(cell, value, property_details_);
+          PropertyCell::UpdatedType(isolate(), cell, value, property_details_);
       property_details_ = property_details_.set_cell_type(new_type);
       cell->set_property_details(property_details_);
       number_ = entry;
