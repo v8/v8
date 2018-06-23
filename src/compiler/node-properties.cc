@@ -416,7 +416,8 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
             Handle<JSFunction> original_constructor =
                 Handle<JSFunction>::cast(mnewtarget.Value());
             if (original_constructor->has_initial_map()) {
-              Handle<Map> initial_map(original_constructor->initial_map());
+              Handle<Map> initial_map(original_constructor->initial_map(),
+                                      isolate);
               if (initial_map->constructor_or_backpointer() ==
                   *mtarget.Value()) {
                 *maps_return = ZoneHandleSet<Map>(initial_map);

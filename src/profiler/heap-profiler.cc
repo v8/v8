@@ -209,7 +209,8 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }
   }
-  return object != nullptr ? Handle<HeapObject>(object) : Handle<HeapObject>();
+  return object != nullptr ? Handle<HeapObject>(object, isolate())
+                           : Handle<HeapObject>();
 }
 
 

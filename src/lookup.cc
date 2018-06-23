@@ -403,8 +403,9 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   if (holder_obj->IsJSGlobalObject()) {
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*holder_obj)->global_dictionary());
-    Handle<PropertyCell> cell(dictionary->CellAt(dictionary_entry()));
+        JSGlobalObject::cast(*holder_obj)->global_dictionary(), isolate());
+    Handle<PropertyCell> cell(dictionary->CellAt(dictionary_entry()),
+                              isolate());
     property_details_ = cell->property_details();
     PropertyCell::PrepareForValue(dictionary, dictionary_entry(), value,
                                   property_details_);
@@ -460,7 +461,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   if (IsElement()) {
     DCHECK(!holder_obj->HasFixedTypedArrayElements());
     DCHECK(attributes != NONE || !holder_obj->HasFastElements());
-    Handle<FixedArrayBase> elements(holder_obj->elements());
+    Handle<FixedArrayBase> elements(holder_obj->elements(), isolate());
     holder_obj->GetElementsAccessor()->Reconfigure(holder_obj, elements,
                                                    number_, value, attributes);
     ReloadPropertyInformation<true>();
@@ -488,14 +489,15 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     }
     if (holder_obj->IsJSGlobalObject()) {
       Handle<GlobalDictionary> dictionary(
-          JSGlobalObject::cast(*holder_obj)->global_dictionary());
+          JSGlobalObject::cast(*holder_obj)->global_dictionary(), isolate());
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
           dictionary, dictionary_entry(), value, details);
       cell->set_value(*value);
       property_details_ = cell->property_details();
     } else {
-      Handle<NameDictionary> dictionary(holder_obj->property_dictionary());
+      Handle<NameDictionary> dictionary(holder_obj->property_dictionary(),
+                                        isolate());
       PropertyDetails original_details =
           dictionary->DetailsAt(dictionary_entry());
       int enumeration_index = original_details.dictionary_index();

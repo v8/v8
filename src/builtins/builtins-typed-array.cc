@@ -95,7 +95,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   DCHECK_GE(len - count, 0);
 
   Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()));
+      FixedTypedArrayBase::cast(array->elements()), isolate);
   size_t element_size = array->element_size();
   to = to * element_size;
   from = from * element_size;

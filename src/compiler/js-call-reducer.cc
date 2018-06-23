@@ -1629,10 +1629,12 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                      &check_fail, &control);
   }
 
-  Handle<Map> double_map(Map::cast(
-      native_context()->get(Context::ArrayMapIndex(HOLEY_DOUBLE_ELEMENTS))));
+  Handle<Map> double_map(Map::cast(native_context()->get(
+                             Context::ArrayMapIndex(HOLEY_DOUBLE_ELEMENTS))),
+                         isolate());
   Handle<Map> fast_map(
-      Map::cast(native_context()->get(Context::ArrayMapIndex(HOLEY_ELEMENTS))));
+      Map::cast(native_context()->get(Context::ArrayMapIndex(HOLEY_ELEMENTS))),
+      isolate());
   effect = graph()->NewNode(
       simplified()->TransitionAndStoreElement(double_map, fast_map), a, k,
       callback_value, effect, control);
@@ -1712,7 +1714,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
   dependencies()->AssumePropertyCell(factory()->array_species_protector());
 
   Handle<Map> initial_map(
-      Map::cast(native_context()->GetInitialJSArrayMap(packed_kind)));
+      Map::cast(native_context()->GetInitialJSArrayMap(packed_kind)),
+      isolate());
 
   Node* k = jsgraph()->ZeroConstant();
   Node* to = jsgraph()->ZeroConstant();
@@ -2842,7 +2845,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Node* control = NodeProperties::GetControlInput(node);
 
   Handle<FunctionTemplateInfo> function_template_info(
-      FunctionTemplateInfo::cast(shared->function_data()));
+      FunctionTemplateInfo::cast(shared->function_data()), isolate());
 
   // CallApiCallbackStub expects the target in a register, so we count it out,
   // and counts the receiver as an implicit argument, so we count the receiver

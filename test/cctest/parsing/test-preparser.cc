@@ -740,7 +740,7 @@ TEST(PreParserScopeAnalysis) {
 
       CHECK(shared->HasPreParsedScopeData());
       i::Handle<i::PreParsedScopeData> produced_data_on_heap(
-          i::PreParsedScopeData::cast(shared->preparsed_scope_data()));
+          i::PreParsedScopeData::cast(shared->preparsed_scope_data()), isolate);
 
       // Parse the lazy function using the scope data.
       i::ParseInfo using_scope_data(isolate, shared);

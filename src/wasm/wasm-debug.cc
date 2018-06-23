@@ -642,7 +642,8 @@ void WasmDebugInfo::PrepareStep(StepAction step_action) {
 bool WasmDebugInfo::RunInterpreter(Address frame_pointer, int func_index,
                                    Address arg_buffer) {
   DCHECK_LE(0, func_index);
-  Handle<WasmInstanceObject> instance(wasm_instance());
+  Handle<WasmInstanceObject> instance(wasm_instance(),
+                                      wasm_instance()->GetIsolate());
   return GetInterpreterHandle(this)->Execute(
       instance, frame_pointer, static_cast<uint32_t>(func_index), arg_buffer);
 }

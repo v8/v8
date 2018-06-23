@@ -578,7 +578,7 @@ class WasmCompiledModule : public Struct {
   bool has_instance() const;
 
   void InsertInChain(WasmModuleObject*);
-  void RemoveFromChain();
+  void RemoveFromChain(Isolate* isolate);
 
   DECL_ACCESSORS(raw_next_instance, Object);
   DECL_ACCESSORS(raw_prev_instance, Object);

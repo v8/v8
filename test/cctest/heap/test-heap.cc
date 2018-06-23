@@ -90,12 +90,14 @@ static void VerifyStoredPrototypeMap(Isolate* isolate,
                                      int stored_ctor_context_index) {
   Handle<Context> context = isolate->native_context();
 
-  Handle<Map> this_map(Map::cast(context->get(stored_map_context_index)));
+  Handle<Map> this_map(Map::cast(context->get(stored_map_context_index)),
+                       isolate);
 
   Handle<JSFunction> fun(
-      JSFunction::cast(context->get(stored_ctor_context_index)));
-  Handle<JSObject> proto(JSObject::cast(fun->initial_map()->prototype()));
-  Handle<Map> that_map(proto->map());
+      JSFunction::cast(context->get(stored_ctor_context_index)), isolate);
+  Handle<JSObject> proto(JSObject::cast(fun->initial_map()->prototype()),
+                         isolate);
+  Handle<Map> that_map(proto->map(), isolate);
 
   CHECK(proto->HasFastProperties());
   CHECK_EQ(*this_map, *that_map);
@@ -309,8 +311,8 @@ TEST(HeapObjects) {
   CHECK_EQ(10, s->length());
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
-  Handle<JSGlobalObject> global(
-      CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
+                                isolate);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(global, object_string));
 
   // Check ToString for oddballs
@@ -349,8 +351,8 @@ TEST(GarbageCollection) {
   // Check GC.
   CcTest::CollectGarbage(NEW_SPACE);
 
-  Handle<JSGlobalObject> global(
-      CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
+                                isolate);
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
@@ -954,7 +956,8 @@ TEST(ObjectProperties) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()));
+  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()),
+                               isolate);
   Handle<Object> object = Object::GetProperty(
       CcTest::i_isolate()->global_object(), object_string).ToHandleChecked();
   Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
@@ -1034,7 +1037,7 @@ TEST(JSObjectMaps) {
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  Handle<Map> initial_map(function->initial_map());
+  Handle<Map> initial_map(function->initial_map(), isolate);
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
@@ -1107,7 +1110,8 @@ TEST(JSObjectCopy) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()));
+  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()),
+                               isolate);
   Handle<Object> object = Object::GetProperty(
       CcTest::i_isolate()->global_object(), object_string).ToHandleChecked();
   Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
@@ -1254,7 +1258,8 @@ TEST(Iteration) {
   delete[] str;
 
   // Add a Map object to look for.
-  objs[next_objs_index++] = Handle<Map>(HeapObject::cast(*objs[0])->map());
+  objs[next_objs_index++] =
+      Handle<Map>(HeapObject::cast(*objs[0])->map(), isolate);
 
   CHECK_EQ(objs_count, next_objs_index);
   CHECK_EQ(objs_count, ObjectsFoundInHeap(CcTest::heap(), objs, objs_count));
@@ -3057,7 +3062,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
@@ -3077,7 +3082,8 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
 
 static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>(f->feedback_vector());
+  Handle<FeedbackVector> vector =
+      Handle<FeedbackVector>(f->feedback_vector(), f->GetIsolate());
   FeedbackVectorHelper helper(vector);
   FeedbackSlot slot = helper.slot(slot_index);
   FeedbackNexus nexus(vector, slot);
@@ -3099,7 +3105,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<FeedbackVector> vector(f->feedback_vector());
+  Handle<FeedbackVector> vector(f->feedback_vector(), f->GetIsolate());
   CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrClearedHeapObject());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
@@ -3727,7 +3733,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code(), isolate));
   }
 
   // Now make sure that a gc should get rid of the function
@@ -3769,7 +3775,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code(), isolate));
   }
 
   // Now make sure that a gc should get rid of the function
@@ -3830,7 +3836,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
     heap->Verify();
 #endif
     CHECK(!bar->code()->marked_for_deoptimization());
-    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code(), isolate));
   }
 
   // Now make sure that a gc should get rid of the function
@@ -3890,7 +3896,7 @@ TEST(NextCodeLinkIsWeak) {
     CHECK_EQ(immortal->code()->next_code_link(), mortal->code());
     code_chain_length_before = GetCodeChainLength(immortal->code());
     // Keep the immortal code and let the mortal code die.
-    code = scope.CloseAndEscape(Handle<Code>(immortal->code()));
+    code = scope.CloseAndEscape(Handle<Code>(immortal->code(), isolate));
     CompileRun("mortal = null; immortal = null;");
   }
   CcTest::CollectAllAvailableGarbage();
@@ -3916,8 +3922,8 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
     Handle<JSFunction> mortal2 =
         OptimizeDummyFunction(CcTest::isolate(), "mortal2");
     CHECK_EQ(mortal2->code()->next_code_link(), mortal1->code());
-    code_data_container = scope.CloseAndEscape(
-        Handle<CodeDataContainer>(mortal2->code()->code_data_container()));
+    code_data_container = scope.CloseAndEscape(Handle<CodeDataContainer>(
+        mortal2->code()->code_data_container(), isolate));
     CompileRun("mortal1 = null; mortal2 = null;");
   }
   CcTest::CollectAllAvailableGarbage();
@@ -4606,7 +4612,8 @@ TEST(Regress3631) {
   // Incrementally mark the backing store.
   Handle<JSReceiver> obj =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-  Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
+  Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj),
+                                    isolate);
   HeapObject* weak_map_table = HeapObject::cast(weak_map->table());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   while (!marking_state->IsBlack(weak_map_table) && !marking->IsStopped()) {
@@ -4631,8 +4638,8 @@ TEST(Regress442710) {
   Factory* factory = isolate->factory();
 
   HandleScope sc(isolate);
-  Handle<JSGlobalObject> global(
-      CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
+                                isolate);
   Handle<JSArray> array = factory->NewJSArray(2);
 
   Handle<String> name = factory->InternalizeUtf8String("testArray");
@@ -5291,7 +5298,7 @@ TEST(Regress598319) {
         // bar, meaning that we will miss marking it.
         v8::HandleScope scope(CcTest::isolate());
         Handle<JSArray> js_array = isolate->factory()->NewJSArrayWithElements(
-            Handle<FixedArray>(arr.get()));
+            Handle<FixedArray>(arr.get(), isolate));
         js_array->GetElementsAccessor()->Shift(js_array);
       }
       break;

@@ -179,7 +179,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Isolate* isolate, Handle<JSRegExp> re,
   DCHECK(re->data()->IsFixedArray());
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
-  Handle<FixedArray> data(FixedArray::cast(re->data()));
+  Handle<FixedArray> data(FixedArray::cast(re->data()), isolate);
   compilation_cache->PutRegExp(pattern, flags, data);
 
   return re;
@@ -324,7 +324,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
 
   JSRegExp::Flags flags = re->GetFlags();
 
-  Handle<String> pattern(re->Pattern());
+  Handle<String> pattern(re->Pattern(), isolate);
   pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);

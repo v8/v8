@@ -459,7 +459,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     memcpy(reloc_info.get(), code->relocation_start(), code->relocation_size());
   }
   std::unique_ptr<byte[]> source_pos;
-  Handle<ByteArray> source_pos_table(code->SourcePositionTable());
+  Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
+                                     code->GetIsolate());
   if (source_pos_table->length() > 0) {
     source_pos.reset(new byte[source_pos_table->length()]);
     source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());

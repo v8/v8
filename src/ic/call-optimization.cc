@@ -48,8 +48,9 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     return Handle<JSObject>::null();
   }
   if (object_map->has_hidden_prototype()) {
-    Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
-    object_map = handle(prototype->map());
+    JSObject* raw_prototype = JSObject::cast(object_map->prototype());
+    Handle<JSObject> prototype(raw_prototype, raw_prototype->GetIsolate());
+    object_map = handle(prototype->map(), prototype->GetIsolate());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
       *holder_lookup = kHolderFound;
       return prototype;
@@ -64,7 +65,7 @@ bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
                                             Handle<JSObject> holder) const {
   DCHECK(is_simple_api_call());
   if (!receiver->IsHeapObject()) return false;
-  Handle<Map> map(HeapObject::cast(*receiver)->map());
+  Handle<Map> map(HeapObject::cast(*receiver)->map(), holder->GetIsolate());
   return IsCompatibleReceiverMap(map, holder);
 }
 

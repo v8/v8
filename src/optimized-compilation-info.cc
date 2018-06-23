@@ -106,12 +106,12 @@ void OptimizedCompilationInfo::set_deferred_handles(
   deferred_handles_.reset(deferred_handles);
 }
 
-void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope() {
+void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
   if (!shared_info_.is_null()) {
-    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_);
+    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
   }
   if (!closure_.is_null()) {
-    closure_ = Handle<JSFunction>(*closure_);
+    closure_ = Handle<JSFunction>(*closure_, isolate);
   }
 }
 

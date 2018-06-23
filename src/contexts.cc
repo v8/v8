@@ -22,7 +22,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + kFirstContextSlotIndex == length) {
     CHECK(length < Smi::kMaxValue / 2);
-    Isolate* isolate = table->GetIsolate();
+    Isolate* isolate = script_context->GetIsolate();
     Handle<FixedArray> copy =
         isolate->factory()->CopyFixedArrayAndGrow(table, length);
     copy->set_map(isolate->heap()->script_context_table_map());
@@ -43,7 +43,7 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
   for (int i = 0; i < table->used(); i++) {
     Handle<Context> context = GetContext(table, i);
     DCHECK(context->IsScriptContext());
-    Handle<ScopeInfo> scope_info(context->scope_info());
+    Handle<ScopeInfo> scope_info(context->scope_info(), context->GetIsolate());
     int slot_index = ScopeInfo::ContextSlotIndex(
         scope_info, name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag);
@@ -212,7 +212,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
          (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
         context->extension_receiver() != nullptr) {
-      Handle<JSReceiver> object(context->extension_receiver());
+      Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
         if (FLAG_trace_contexts) {
@@ -220,7 +220,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         }
         // Try other script contexts.
         Handle<ScriptContextTable> script_contexts(
-            context->global_object()->native_context()->script_context_table());
+            context->global_object()->native_context()->script_context_table(),
+            isolate);
         ScriptContextTable::LookupResult r;
         if (ScriptContextTable::Lookup(script_contexts, name, &r)) {
           if (FLAG_trace_contexts) {
@@ -290,7 +291,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         context->IsModuleContext() || context->IsCatchContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
-      Handle<ScopeInfo> scope_info(context->scope_info());
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
@@ -357,7 +358,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       // Check materialized locals.
       Object* ext = context->get(EXTENSION_INDEX);
       if (ext->IsJSReceiver()) {
-        Handle<JSReceiver> extension(JSReceiver::cast(ext));
+        Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
         LookupIterator it(extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
         if (found.FromMaybe(false)) {

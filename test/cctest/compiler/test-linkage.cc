@@ -47,7 +47,7 @@ static Handle<JSFunction> Compile(const char* source) {
 TEST(TestLinkageCreate) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
-  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
                                 shared, function);
   auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
@@ -64,7 +64,8 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(
             *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
-    Handle<SharedFunctionInfo> shared(function->shared());
+    Handle<SharedFunctionInfo> shared(function->shared(),
+                                      handles.main_isolate());
     OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
                                   shared, function);
     auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
@@ -81,7 +82,7 @@ TEST(TestLinkageJSFunctionIncoming) {
 TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
-  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
                                 shared, function);
 

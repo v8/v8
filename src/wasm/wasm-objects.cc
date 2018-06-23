@@ -235,7 +235,8 @@ class CompiledModuleInstancesIterator
 v8::base::iterator_range<CompiledModuleInstancesIterator>
 iterate_compiled_module_instance_chain(Isolate* isolate,
                                        Handle<WasmModuleObject> module_object) {
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module());
+  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
+                                             isolate);
   return {CompiledModuleInstancesIterator(isolate, compiled_module, false),
           CompiledModuleInstancesIterator(isolate, compiled_module, true)};
 }
@@ -290,7 +291,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
-      isolate->native_context()->wasm_module_constructor());
+      isolate->native_context()->wasm_module_constructor(), isolate);
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
   module_object->set_compiled_module(*compiled_module);
@@ -826,7 +827,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
                                              int64_t maximum,
                                              Handle<FixedArray>* js_functions) {
   Handle<JSFunction> table_ctor(
-      isolate->native_context()->wasm_table_constructor());
+      isolate->native_context()->wasm_table_constructor(), isolate);
   auto table_obj = Handle<WasmTableObject>::cast(
       isolate->factory()->NewJSObject(table_ctor));
 
@@ -848,7 +849,7 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
                                        Handle<WasmTableObject> table_obj,
                                        Handle<WasmInstanceObject> instance,
                                        int table_index) {
-  Handle<FixedArray> dispatch_tables(table_obj->dispatch_tables());
+  Handle<FixedArray> dispatch_tables(table_obj->dispatch_tables(), isolate);
   int old_length = dispatch_tables->length();
   DCHECK_EQ(0, old_length % kDispatchTableNumElements);
 
@@ -871,7 +872,7 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
 void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
   if (count == 0) return;  // Degenerate case: nothing to do.
 
-  Handle<FixedArray> dispatch_tables(this->dispatch_tables());
+  Handle<FixedArray> dispatch_tables(this->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
   uint32_t old_size = functions()->length();
 
@@ -904,7 +905,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   // TODO(titzer): Change this to MaybeHandle<WasmExportedFunction>
   DCHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exported_function = Handle<WasmExportedFunction>::cast(function);
-  Handle<WasmInstanceObject> other_instance(exported_function->instance());
+  Handle<WasmInstanceObject> other_instance(exported_function->instance(),
+                                            isolate);
   int func_index = exported_function->function_index();
   auto* wasm_function = &other_instance->module()->functions[func_index];
   DCHECK_NOT_NULL(wasm_function);
@@ -1054,7 +1056,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
   // that the memory will match the style of the compiled wasm module.
   // See issue v8:7143
   Handle<JSFunction> memory_ctor(
-      isolate->native_context()->wasm_memory_constructor());
+      isolate->native_context()->wasm_memory_constructor(), isolate);
   auto memory_obj = Handle<WasmMemoryObject>::cast(
       isolate->factory()->NewJSObject(memory_ctor, TENURED));
 
@@ -1130,7 +1132,7 @@ void WasmMemoryObject::RemoveInstance(Isolate* isolate,
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
-  Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer());
+  Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
   if (!old_buffer->is_growable()) return -1;
   uint32_t old_size = 0;
   CHECK(old_buffer->byte_length()->ToUint32(&old_size));
@@ -1167,7 +1169,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
     wasm::ValueType type, int32_t offset, bool is_mutable) {
   Handle<JSFunction> global_ctor(
-      isolate->native_context()->wasm_global_constructor());
+      isolate->native_context()->wasm_global_constructor(), isolate);
   auto global_obj = Handle<WasmGlobalObject>::cast(
       isolate->factory()->NewJSObject(global_ctor));
 
@@ -1296,7 +1298,9 @@ WasmModule* WasmInstanceObject::module() { return module_object()->module(); }
 
 Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
     Handle<WasmInstanceObject> instance) {
-  if (instance->has_debug_info()) return handle(instance->debug_info());
+  if (instance->has_debug_info()) {
+    return handle(instance->debug_info(), instance->GetIsolate());
+  }
   Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(instance);
   DCHECK(instance->has_debug_info());
   return new_info;
@@ -1306,7 +1310,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     Handle<WasmCompiledModule> compiled_module) {
   Handle<JSFunction> instance_cons(
-      isolate->native_context()->wasm_instance_constructor());
+      isolate->native_context()->wasm_instance_constructor(), isolate);
   Handle<JSObject> instance_object =
       isolate->factory()->NewJSObject(instance_cons, TENURED);
 
@@ -1417,7 +1421,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   // Free raw C++ memory associated with the instance.
   GetNativeAllocations(instance)->free();
 
-  compiled_module->RemoveFromChain();
+  compiled_module->RemoveFromChain(isolate);
 
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
   TRACE("}\n");
@@ -1527,9 +1531,8 @@ void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {
   original->set_prev_instance(this);
 }
 
-void WasmCompiledModule::RemoveFromChain() {
+void WasmCompiledModule::RemoveFromChain(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
 
   Object* next = raw_next_instance();
   Object* prev = raw_prev_instance();

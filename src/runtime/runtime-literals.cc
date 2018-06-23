@@ -106,7 +106,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   // Deep copy own properties. Arrays only have 1 property "length".
   if (!copy->IsJSArray()) {
     if (copy->HasFastProperties()) {
-      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
+      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors(),
+                                          isolate);
       int limit = copy->map()->NumberOfOwnDescriptors();
       for (int i = 0; i < limit; i++) {
         DCHECK_EQ(kField, descriptors->GetDetails(i).location());
@@ -128,7 +129,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      Handle<NameDictionary> dict(copy->property_dictionary());
+      Handle<NameDictionary> dict(copy->property_dictionary(), isolate);
       for (int i = 0; i < dict->Capacity(); i++) {
         Object* raw = dict->ValueAt(i);
         if (!raw->IsJSObject()) continue;
@@ -148,7 +149,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   switch (copy->GetElementsKind()) {
     case PACKED_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
+      Handle<FixedArray> elements(FixedArray::cast(copy->elements()), isolate);
       if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
@@ -168,7 +169,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> element_dictionary(copy->element_dictionary());
+      Handle<NumberDictionary> element_dictionary(copy->element_dictionary(),
+                                                  isolate);
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* raw = element_dictionary->ValueAt(i);
@@ -395,8 +397,8 @@ struct ArrayBoilerplate {
     ElementsKind constant_elements_kind =
         static_cast<ElementsKind>(elements->elements_kind());
 
-    Handle<FixedArrayBase> constant_elements_values(
-        elements->constant_values());
+    Handle<FixedArrayBase> constant_elements_values(elements->constant_values(),
+                                                    isolate);
     Handle<FixedArrayBase> copied_elements_values;
     if (IsDoubleElementsKind(constant_elements_kind)) {
       copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
@@ -427,7 +429,8 @@ struct ArrayBoilerplate {
                 // boilerplate description of a simple object or
                 // array literal.
                 Handle<FixedArray> compile_time_value(
-                    FixedArray::cast(fixed_array_values->get(i)));
+                    FixedArray::cast(fixed_array_values->get(i)),
+                    for_with_handle_isolate);
                 Handle<Object> result = InnerCreateBoilerplate(
                     isolate, compile_time_value, pretenure_flag);
                 fixed_array_values_copy->set(i, *result);

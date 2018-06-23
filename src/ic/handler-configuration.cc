@@ -200,7 +200,8 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
 #ifdef DEBUG
   if (!is_dictionary_map) {
     int descriptor = transition_map->LastAdded();
-    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
+    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors(),
+                                        isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor)->IsPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());

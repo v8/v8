@@ -872,7 +872,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   DCHECK(result->HasObjectElements());
 
-  Handle<FixedArray> elements(FixedArray::cast(result->elements()));
+  Handle<FixedArray> elements(FixedArray::cast(result->elements()), isolate);
 
   if (part_count == 1 && indices->at(0) == subject_length) {
     elements->set(0, *subject);
@@ -1108,7 +1108,8 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const int name_ix = i * 2;
     const int index_ix = i * 2 + 1;
 
-    Handle<String> capture_name(String::cast(capture_map->get(name_ix)));
+    Handle<String> capture_name(String::cast(capture_map->get(name_ix)),
+                                isolate);
     const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
     DCHECK(1 <= capture_ix && capture_ix <= capture_count);
 
@@ -1167,8 +1168,8 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
   // Ensured in Runtime_RegExpExecMultiple.
   DCHECK(result_array->HasObjectElements());
-  Handle<FixedArray> result_elements(
-      FixedArray::cast(result_array->elements()));
+  Handle<FixedArray> result_elements(FixedArray::cast(result_array->elements()),
+                                     isolate);
   if (result_elements->length() < 16) {
     result_elements = isolate->factory()->NewFixedArrayWithHoles(16);
   }

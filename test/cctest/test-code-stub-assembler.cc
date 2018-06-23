@@ -906,7 +906,8 @@ TEST(TransitionLookup) {
 
   CHECK(root_map->raw_transitions()->ToStrongHeapObject()->IsTransitionArray());
   Handle<TransitionArray> transitions(
-      TransitionArray::cast(root_map->raw_transitions()->ToStrongHeapObject()));
+      TransitionArray::cast(root_map->raw_transitions()->ToStrongHeapObject()),
+      isolate);
   DCHECK(transitions->IsSortedNoDuplicates(isolate));
 
   // Ensure we didn't overflow transition array and therefore all the
@@ -2554,7 +2555,7 @@ TEST(NewPromiseCapability) {
         handle(JSFunction::cast(result->reject()), isolate)};
 
     for (auto&& callback : callbacks) {
-      Handle<Context> context(Context::cast(callback->context()));
+      Handle<Context> context(Context::cast(callback->context()), isolate);
       CHECK_EQ(isolate->native_context()->scope_info(), context->scope_info());
       CHECK_EQ(isolate->heap()->the_hole_value(), context->extension());
       CHECK_EQ(*isolate->native_context(), context->native_context());
@@ -2597,7 +2598,7 @@ TEST(NewPromiseCapability) {
         Handle<PromiseCapability>::cast(result_obj);
 
     CHECK(result->promise()->IsJSObject());
-    Handle<JSObject> promise(JSObject::cast(result->promise()));
+    Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
     CHECK_EQ(constructor_fn->prototype_or_initial_map(), promise->map());
     CHECK(result->resolve()->IsJSFunction());
     CHECK(result->reject()->IsJSFunction());
@@ -2817,7 +2818,8 @@ TEST(LoadJSArrayElementsMap) {
         ft.CallChecked<Map>(handle(Smi::FromInt(kind), isolate));
     ElementsKind elements_kind = static_cast<ElementsKind>(kind);
     Handle<Map> result(
-        isolate->native_context()->GetInitialJSArrayMap(elements_kind));
+        isolate->native_context()->GetInitialJSArrayMap(elements_kind),
+        isolate);
     CHECK_EQ(*csa_result, *result);
   }
 }

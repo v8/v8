@@ -1132,7 +1132,7 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
   }
   DCHECK(types->ValueAt(entry)->IsArrayList());
   Handle<ArrayList> position_specific_types =
-      Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)));
+      Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)), isolate);
   for (int i = 0; i < position_specific_types->Length(); i++) {
     Object* t = position_specific_types->Get(i);
     types_for_position.push_back(Handle<String>(String::cast(t), isolate));
@@ -1157,7 +1157,7 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
       int value_index = index + SimpleNumberDictionary::kEntryValueIndex;
 
       Handle<ArrayList> position_specific_types(
-          ArrayList::cast(feedback->get(value_index)));
+          ArrayList::cast(feedback->get(value_index)), isolate);
 
       int position = Smi::ToInt(key);
       JSObject::AddDataElement(

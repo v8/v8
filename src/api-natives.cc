@@ -122,7 +122,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
 
 
 void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
-  Handle<Map> old_map(object->map());
+  Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
   new_map->set_is_access_check_needed(false);
@@ -131,7 +131,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
 
 
 void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
-  Handle<Map> old_map(object->map());
+  Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
@@ -202,7 +202,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     Handle<FixedArray> array =
         isolate->factory()->NewFixedArray(max_number_of_properties);
 
-    for (Handle<TemplateInfoT> temp(*data); *temp != nullptr;
+    for (Handle<TemplateInfoT> temp(*data, isolate); *temp != nullptr;
          temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
       Object* maybe_properties = temp->property_accessors();
@@ -214,7 +214,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
     // Install accumulated accessors.
     for (int i = 0; i < valid_descriptors; i++) {
-      Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
+      Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)), isolate);
       Handle<Name> name(Name::cast(accessor->name()), isolate);
       JSObject::SetAccessor(obj, name, accessor,
                             accessor->initial_property_attributes())
@@ -544,8 +544,8 @@ MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateObject(
-    Handle<ObjectTemplateInfo> data, Handle<JSReceiver> new_target) {
-  Isolate* isolate = data->GetIsolate();
+    Isolate* isolate, Handle<ObjectTemplateInfo> data,
+    Handle<JSReceiver> new_target) {
   InvokeScope invoke_scope(isolate);
   return ::v8::internal::InstantiateObject(isolate, data, new_target, false,
                                            false);
@@ -557,7 +557,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   InvokeScope invoke_scope(isolate);
 
   Handle<FunctionTemplateInfo> constructor(
-      FunctionTemplateInfo::cast(data->constructor()));
+      FunctionTemplateInfo::cast(data->constructor()), isolate);
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
@@ -663,7 +663,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   bool immutable_proto = false;
   if (!obj->instance_template()->IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
-        ObjectTemplateInfo::cast(obj->instance_template()));
+        ObjectTemplateInfo::cast(obj->instance_template()), isolate);
     embedder_field_count = instance_template->embedder_field_count();
     immutable_proto = instance_template->immutable_proto();
   }

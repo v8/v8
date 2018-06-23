@@ -85,7 +85,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
   CONVERT_ARG_HANDLE_CHECKED(Object, old_script_name, 2);
 
   CHECK(original_script_value->value()->IsScript());
-  Handle<Script> original_script(Script::cast(original_script_value->value()));
+  Handle<Script> original_script(Script::cast(original_script_value->value()),
+                                 isolate);
 
   Handle<Object> old_script = LiveEdit::ChangeScriptSource(
       isolate, original_script, new_source, old_script_name);
@@ -107,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFixupScript) {
   CONVERT_INT32_ARG_CHECKED(max_function_literal_id, 1);
 
   CHECK(script_value->value()->IsScript());
-  Handle<Script> script(Script::cast(script_value->value()));
+  Handle<Script> script(Script::cast(script_value->value()), isolate);
 
   LiveEdit::FixupScript(isolate, script, max_function_literal_id);
   return isolate->heap()->undefined_value();

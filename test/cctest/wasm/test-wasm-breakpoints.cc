@@ -120,8 +120,10 @@ void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   Handle<WasmInstanceObject> instance = runner.builder().instance_object();
-  Handle<WasmCompiledModule> compiled_module(instance->compiled_module());
-  Handle<WasmModuleObject> module_object(instance->module_object());
+  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
+                                             runner.main_isolate());
+  Handle<WasmModuleObject> module_object(instance->module_object(),
+                                         runner.main_isolate());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
       runner.main_isolate()->factory()->NewBreakPoint(

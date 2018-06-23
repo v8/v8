@@ -779,7 +779,7 @@ class CaptureStackTraceHelper {
       int entry = cache->FindEntry(code_offset);
       if (entry != NumberDictionary::kNotFound) {
         Handle<StackFrameInfo> frame(
-            StackFrameInfo::cast(cache->ValueAt(entry)));
+            StackFrameInfo::cast(cache->ValueAt(entry)), isolate_);
         return frame;
       }
     }
@@ -1586,7 +1586,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       } break;
 
       case StackFrame::STUB: {
-        Handle<Code> code(frame->LookupCode());
+        Handle<Code> code(frame->LookupCode(), this);
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
             !code->handler_table_offset() || !code->is_turbofanned()) {
           break;
@@ -1597,7 +1597,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       } break;
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-        Handle<Code> code(frame->LookupCode());
+        Handle<Code> code(frame->LookupCode(), this);
         CatchType prediction = ToCatchType(code->GetBuiltinCatchPrediction());
         if (prediction != NOT_CAUGHT) return prediction;
       } break;
@@ -1702,8 +1702,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   }
 
   if (summary.IsJavaScript()) {
-    shared =
-        handle(summary.AsJavaScript().function()->shared(), frame->isolate());
+    shared = handle(summary.AsJavaScript().function()->shared(), this);
   }
   *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, shared);
   return true;
@@ -1730,7 +1729,7 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
       Handle<JSObject>::cast(exception), script_symbol);
   if (!script->IsScript()) return false;
 
-  Handle<Script> cast_script(Script::cast(*script));
+  Handle<Script> cast_script(Script::cast(*script), this);
   *target = MessageLocation(cast_script, start_pos_value, end_pos_value);
   return true;
 }
@@ -1745,12 +1744,13 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   if (!property->IsJSArray()) return false;
   Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
 
-  Handle<FrameArray> elements(FrameArray::cast(simple_stack_trace->elements()));
+  Handle<FrameArray> elements(FrameArray::cast(simple_stack_trace->elements()),
+                              this);
 
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
-      Handle<WasmInstanceObject> instance(elements->WasmInstance(i));
+      Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
       uint32_t func_index =
           static_cast<uint32_t>(elements->WasmFunctionIndex(i)->value());
       int code_offset = elements->Offset(i)->value();
@@ -1768,7 +1768,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       int pos = WasmModuleObject::GetSourcePosition(
           handle(instance->module_object(), this), func_index, byte_offset,
           is_at_number_conversion);
-      Handle<Script> script(instance->module_object()->script());
+      Handle<Script> script(instance->module_object()->script(), this);
 
       *target = MessageLocation(script, pos, pos + 1);
       return true;
@@ -1784,7 +1784,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       const int code_offset = elements->Offset(i)->value();
       const int pos = abstract_code->SourcePosition(code_offset);
 
-      Handle<Script> casted_script(Script::cast(script));
+      Handle<Script> casted_script(Script::cast(script), this);
       *target = MessageLocation(casted_script, pos, pos + 1);
       return true;
     }
@@ -3674,7 +3674,7 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
         UNREACHABLE();
     }
   } else {
-    symbol = Handle<Symbol>(Symbol::cast(dictionary->ValueAt(entry)));
+    symbol = Handle<Symbol>(Symbol::cast(dictionary->ValueAt(entry)), this);
   }
   return symbol;
 }
@@ -4144,7 +4144,7 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
 SaveContext::SaveContext(Isolate* isolate)
     : isolate_(isolate), prev_(isolate->save_context()) {
   if (isolate->context() != nullptr) {
-    context_ = Handle<Context>(isolate->context());
+    context_ = Handle<Context>(isolate->context(), isolate);
   }
   isolate->set_save_context(this);
 

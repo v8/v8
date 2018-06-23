@@ -217,8 +217,8 @@ void BreakPointInfo::ClearBreakPoint(Isolate* isolate,
   }
   // If there are multiple break points shrink the array
   DCHECK(break_point_info->break_points()->IsFixedArray());
-  Handle<FixedArray> old_array =
-      Handle<FixedArray>(FixedArray::cast(break_point_info->break_points()));
+  Handle<FixedArray> old_array = Handle<FixedArray>(
+      FixedArray::cast(break_point_info->break_points()), isolate);
   Handle<FixedArray> new_array =
       isolate->factory()->NewFixedArray(old_array->length() - 1);
   int found_count = 0;
@@ -254,8 +254,8 @@ void BreakPointInfo::SetBreakPoint(Isolate* isolate,
     return;
   }
   // If there was more than one break point before extend array.
-  Handle<FixedArray> old_array =
-      Handle<FixedArray>(FixedArray::cast(break_point_info->break_points()));
+  Handle<FixedArray> old_array = Handle<FixedArray>(
+      FixedArray::cast(break_point_info->break_points()), isolate);
   Handle<FixedArray> new_array =
       isolate->factory()->NewFixedArray(old_array->length() + 1);
   for (int i = 0; i < old_array->length(); i++) {

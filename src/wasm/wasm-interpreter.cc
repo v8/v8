@@ -2343,7 +2343,8 @@ class ThreadImpl {
           MemoryIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
-          Handle<WasmMemoryObject> memory(instance_object_->memory_object());
+          Handle<WasmMemoryObject> memory(instance_object_->memory_object(),
+                                          instance_object_->GetIsolate());
           Isolate* isolate = memory->GetIsolate();
           int32_t result = WasmMemoryObject::Grow(isolate, memory, delta_pages);
           Push(WasmValue(result));

@@ -29,7 +29,7 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
       : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), &info_,
                                 "BlockingCompilationJob",
                                 State::kReadyToExecute),
-        shared_(function->shared()),
+        shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),
         info_(&zone_, isolate, shared_, function),
         blocking_(false),

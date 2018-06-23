@@ -434,7 +434,7 @@ TEST(WeakArrayListBasic) {
   Heap* heap = isolate->heap();
   HandleScope outer_scope(isolate);
 
-  Handle<WeakArrayList> array(heap->empty_weak_array_list());
+  Handle<WeakArrayList> array(heap->empty_weak_array_list(), isolate);
   CHECK(array->IsWeakArrayList());
   CHECK(!array->IsFixedArray());
   CHECK(!array->IsWeakFixedArray());

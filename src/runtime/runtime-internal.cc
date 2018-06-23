@@ -49,13 +49,13 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
   CHECK(array->HasFastElements());
   CHECK(isolate->bootstrapper()->IsActive());
   Handle<Context> native_context = isolate->native_context();
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
   int length = Smi::ToInt(array->length());
   for (int i = 0; i < length; i += 2) {
     CHECK(fixed_array->get(i)->IsString());
-    Handle<String> name(String::cast(fixed_array->get(i)));
+    Handle<String> name(String::cast(fixed_array->get(i)), isolate);
     CHECK(fixed_array->get(i + 1)->IsJSObject());
-    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
+    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)), isolate);
     int index = Context::ImportedFieldIndexForName(name);
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
@@ -330,7 +330,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     std::vector<FrameSummary> frames;
     it.frame()->Summarize(&frames);
     auto& summary = frames.back().AsJavaScript();
-    Handle<SharedFunctionInfo> shared(summary.function()->shared());
+    Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&

@@ -30,7 +30,7 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
   }
 
   if (ok != nullptr) *ok = true;
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   return isolate->factory()->NewSubString(last_subject, match_start, match_end);
 }
 

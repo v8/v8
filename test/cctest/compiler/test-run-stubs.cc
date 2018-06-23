@@ -46,14 +46,16 @@ class StubTester {
         graph_(zone_),
         common_(zone_),
         tester_(InitializeFunctionTester(
-                    Handle<Code>(isolate->builtins()->builtin(name))),
+                    Handle<Code>(isolate->builtins()->builtin(name), isolate)),
                 GetParameterCountWithContext()) {}
 
   template <typename... Args>
   Handle<Object> Call(Args... args) {
     DCHECK_EQ(interface_descriptor_.GetParameterCount(), sizeof...(args));
     MaybeHandle<Object> result =
-        tester_.Call(args..., Handle<HeapObject>(tester_.function->context()))
+        tester_
+            .Call(args...,
+                  Handle<HeapObject>(tester_.function->context(), ft().isolate))
             .ToHandleChecked();
     return result.ToHandleChecked();
   }

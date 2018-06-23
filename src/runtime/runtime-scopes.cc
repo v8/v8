@@ -50,7 +50,7 @@ Object* DeclareGlobal(
     Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>(),
     FeedbackSlot slot = FeedbackSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table());
+      global->native_context()->script_context_table(), isolate);
   ScriptContextTable::LookupResult lookup;
   if (ScriptContextTable::Lookup(script_contexts, name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
@@ -135,7 +135,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
                        int flags, Handle<FeedbackVector> feedback_vector) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
-  Handle<Context> context(isolate->context());
+  Handle<Context> context(isolate->context(), isolate);
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
@@ -413,7 +413,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
-      Handle<Context> context(isolate->context());
+      Handle<Context> context(isolate->context(), isolate);
       Handle<FixedArray> arguments =
           isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
       parameter_map->set(0, *context);
@@ -630,7 +630,7 @@ static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
                              Handle<JSGlobalObject> global_object,
                              Handle<ScriptContextTable> script_context) {
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
-    Handle<String> name(scope_info->ContextLocalName(var));
+    Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
     ScriptContextTable::LookupResult lookup;
     if (ScriptContextTable::Lookup(script_context, name, &lookup)) {
@@ -672,9 +672,10 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
   Handle<Context> native_context(isolate->context(), isolate);
   DCHECK(native_context->IsNativeContext());
-  Handle<JSGlobalObject> global_object(native_context->global_object());
+  Handle<JSGlobalObject> global_object(native_context->global_object(),
+                                       isolate);
   Handle<ScriptContextTable> script_context_table(
-      native_context->script_context_table());
+      native_context->script_context_table(), isolate);
 
   Object* name_clash_result =
       FindNameClash(isolate, scope_info, global_object, script_context_table);
@@ -707,7 +708,7 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
-  Handle<Context> current(isolate->context());
+  Handle<Context> current(isolate->context(), isolate);
   Handle<Context> context =
       isolate->factory()->NewWithContext(current, scope_info, extension_object);
   isolate->set_context(*context);

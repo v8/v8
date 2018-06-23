@@ -2362,7 +2362,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol());
+      Handle<Symbol> frozen_symbol(isolate->heap()->frozen_symbol(), isolate);
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
       return Map::CopyForPreventExtensions(isolate, map, NONE, frozen_symbol,
                                            "CopyForPreventExtensions");

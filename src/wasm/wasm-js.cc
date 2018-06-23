@@ -994,7 +994,7 @@ void WebAssemblyInstanceGetExports(
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance.exports()");
   EXTRACT_THIS(receiver, WasmInstanceObject);
-  i::Handle<i::JSObject> exports_object(receiver->exports_object());
+  i::Handle<i::JSObject> exports_object(receiver->exports_object(), i_isolate);
   args.GetReturnValue().Set(Utils::ToLocal(exports_object));
 }
 
@@ -1121,7 +1121,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
     max_size64 = i::FLAG_wasm_max_mem_pages;
   }
-  i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer());
+  i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
   if (!old_buffer->is_growable()) {
     thrower.RangeError("This memory cannot be grown");
     return;
@@ -1155,7 +1155,8 @@ void WebAssemblyMemoryGetBuffer(
 
   i::Handle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
   DCHECK(buffer_obj->IsJSArrayBuffer());
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(*buffer_obj));
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(*buffer_obj),
+                                     i_isolate);
   if (buffer->is_shared()) {
     // TODO(gdeepti): More needed here for when cached buffer, and current
     // buffer are out of sync, handle that here when bounds checks, and Grow
@@ -1374,7 +1375,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   context->set_wasm_module_constructor(*module_constructor);
   JSFunction::EnsureHasInitialMap(module_constructor);
   Handle<JSObject> module_proto(
-      JSObject::cast(module_constructor->instance_prototype()));
+      JSObject::cast(module_constructor->instance_prototype()), isolate);
   i::Handle<i::Map> module_map =
       isolate->factory()->NewMap(i::WASM_MODULE_TYPE, WasmModuleObject::kSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
@@ -1393,7 +1394,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   context->set_wasm_instance_constructor(*instance_constructor);
   JSFunction::EnsureHasInitialMap(instance_constructor);
   Handle<JSObject> instance_proto(
-      JSObject::cast(instance_constructor->instance_prototype()));
+      JSObject::cast(instance_constructor->instance_prototype()), isolate);
   i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
       i::WASM_INSTANCE_TYPE, WasmInstanceObject::kSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
@@ -1409,7 +1410,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   context->set_wasm_table_constructor(*table_constructor);
   JSFunction::EnsureHasInitialMap(table_constructor);
   Handle<JSObject> table_proto(
-      JSObject::cast(table_constructor->instance_prototype()));
+      JSObject::cast(table_constructor->instance_prototype()), isolate);
   i::Handle<i::Map> table_map =
       isolate->factory()->NewMap(i::WASM_TABLE_TYPE, WasmTableObject::kSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
@@ -1426,7 +1427,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   context->set_wasm_memory_constructor(*memory_constructor);
   JSFunction::EnsureHasInitialMap(memory_constructor);
   Handle<JSObject> memory_proto(
-      JSObject::cast(memory_constructor->instance_prototype()));
+      JSObject::cast(memory_constructor->instance_prototype()), isolate);
   i::Handle<i::Map> memory_map =
       isolate->factory()->NewMap(i::WASM_MEMORY_TYPE, WasmMemoryObject::kSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
@@ -1442,7 +1443,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     context->set_wasm_global_constructor(*global_constructor);
     JSFunction::EnsureHasInitialMap(global_constructor);
     Handle<JSObject> global_proto(
-        JSObject::cast(global_constructor->instance_prototype()));
+        JSObject::cast(global_constructor->instance_prototype()), isolate);
     i::Handle<i::Map> global_map = isolate->factory()->NewMap(
         i::WASM_GLOBAL_TYPE, WasmGlobalObject::kSize);
     JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
@@ -1457,17 +1458,17 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   // Setup errors
   attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(
-      isolate->native_context()->wasm_compile_error_function());
+      isolate->native_context()->wasm_compile_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->CompileError_string(),
                         compile_error, attributes);
   Handle<JSFunction> link_error(
-      isolate->native_context()->wasm_link_error_function());
+      isolate->native_context()->wasm_link_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->LinkError_string(), link_error,
                         attributes);
   Handle<JSFunction> runtime_error(
-      isolate->native_context()->wasm_runtime_error_function());
+      isolate->native_context()->wasm_runtime_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->RuntimeError_string(),
                         runtime_error, attributes);

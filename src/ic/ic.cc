@@ -207,7 +207,7 @@ JSFunction* IC::GetHostFunction() const {
   return frame->function();
 }
 
-static void LookupForRead(LookupIterator* it) {
+static void LookupForRead(Isolate* isolate, LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -218,8 +218,7 @@ static void LookupForRead(LookupIterator* it) {
       case LookupIterator::INTERCEPTOR: {
         // If there is a getter, return; otherwise loop to perform the lookup.
         Handle<JSObject> holder = it->GetHolder<JSObject>();
-        if (!holder->GetNamedInterceptor()->getter()->IsUndefined(
-                it->isolate())) {
+        if (!holder->GetNamedInterceptor()->getter()->IsUndefined(isolate)) {
           return;
         }
         break;
@@ -256,7 +255,7 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
     if (!receiver_map()->IsJSObjectMap()) return false;
     Map* first_map = FirstTargetMap();
     if (first_map == nullptr) return false;
-    Handle<Map> old_map(first_map);
+    Handle<Map> old_map(first_map, isolate());
     if (old_map->is_deprecated()) return true;
     return IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
                                                receiver_map()->elements_kind());
@@ -444,7 +443,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   }
   // Named lookup in the object.
   LookupIterator it(object, name);
-  LookupForRead(&it);
+  LookupForRead(isolate(), &it);
 
   if (name->IsPrivate()) {
     if (name->IsPrivateField() && !it.IsFound()) {
@@ -485,7 +484,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
     Handle<ScriptContextTable> script_contexts(
-        global->native_context()->script_context_table());
+        global->native_context()->script_context_table(), isolate());
 
     ScriptContextTable::LookupResult lookup_result;
     if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
@@ -852,7 +851,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               isolate(), holder_lookup == CallOptimization::kHolderIsReceiver);
 
           Handle<Context> context(
-              call_optimization.GetAccessorContext(holder->map()));
+              call_optimization.GetAccessorContext(holder->map()), isolate());
           Handle<WeakCell> context_cell =
               isolate()->factory()->NewWeakCell(context);
           Handle<WeakCell> data_cell = isolate()->factory()->NewWeakCell(
@@ -1183,7 +1182,8 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
   return index >= length;
 }
 
-KeyedAccessLoadMode GetLoadMode(Handle<Object> receiver, uint32_t index) {
+KeyedAccessLoadMode GetLoadMode(Isolate* isolate, Handle<Object> receiver,
+                                uint32_t index) {
   if (IsOutOfBoundsAccess(receiver, index)) {
     if (receiver->IsJSTypedArray()) {
       // For JSTypedArray we never lookup elements in the prototype chain.
@@ -1191,7 +1191,6 @@ KeyedAccessLoadMode GetLoadMode(Handle<Object> receiver, uint32_t index) {
     }
 
     // For other {receiver}s we need to check the "no elements" protector.
-    Isolate* isolate = Handle<HeapObject>::cast(receiver)->GetIsolate();
     if (isolate->IsNoElementsProtectorIntact()) {
       if (receiver->IsString()) {
         // ToObject(receiver) will have the initial String.prototype.
@@ -1242,7 +1241,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
   } else if (ConvertKeyToIndex(object, key, &index)) {
-    KeyedAccessLoadMode load_mode = GetLoadMode(object, index);
+    KeyedAccessLoadMode load_mode = GetLoadMode(isolate(), object, index);
     UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
     if (is_vector_set()) {
       TraceIC("LoadIC", key);
@@ -1286,9 +1285,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
           InterceptorInfo* info = holder->GetNamedInterceptor();
           if (it->HolderIsReceiverOrHiddenPrototype()) {
             return !info->non_masking() && receiver.is_identical_to(holder) &&
-                   !info->setter()->IsUndefined(it->isolate());
-          } else if (!info->getter()->IsUndefined(it->isolate()) ||
-                     !info->query()->IsUndefined(it->isolate())) {
+                   !info->setter()->IsUndefined(isolate());
+          } else if (!info->getter()->IsUndefined(isolate()) ||
+                     !info->query()->IsUndefined(isolate())) {
             return false;
           }
           break;
@@ -1313,7 +1312,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 
           // Receiver != holder.
           if (receiver->IsJSGlobalProxy()) {
-            PrototypeIterator iter(it->isolate(), receiver);
+            PrototypeIterator iter(isolate(), receiver);
             return it->GetHolder<Object>().is_identical_to(
                 PrototypeIterator::GetCurrent(iter));
           }
@@ -1343,7 +1342,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
   Handle<String> str_name = Handle<String>::cast(name);
   Handle<JSGlobalObject> global = isolate()->global_object();
   Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table());
+      global->native_context()->script_context_table(), isolate());
 
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
@@ -1581,7 +1580,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                 holder_lookup == CallOptimization::kHolderIsReceiver);
 
             Handle<Context> context(
-                call_optimization.GetAccessorContext(holder->map()));
+                call_optimization.GetAccessorContext(holder->map()), isolate());
             Handle<WeakCell> context_cell =
                 isolate()->factory()->NewWeakCell(context);
             Handle<WeakCell> data_cell = isolate()->factory()->NewWeakCell(
@@ -1914,7 +1913,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange();
           }
-          transition = handle(tmap, tmap->GetIsolate());
+          transition = handle(tmap, isolate());
         }
       }
 
@@ -2104,12 +2103,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 }
 
 namespace {
-void StoreOwnElement(Handle<JSArray> array, Handle<Object> index,
-                     Handle<Object> value) {
+void StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
+                     Handle<Object> index, Handle<Object> value) {
   DCHECK(index->IsNumber());
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(
-      array->GetIsolate(), array, index, &success, LookupIterator::OWN);
+      isolate, array, index, &success, LookupIterator::OWN);
   DCHECK(success);
 
   CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE,
@@ -2124,7 +2123,7 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   DCHECK(index->IsNumber());
 
   if (!FLAG_use_ic || MigrateDeprecated(array)) {
-    StoreOwnElement(array, index, value);
+    StoreOwnElement(isolate(), array, index, value);
     TraceIC("StoreInArrayLiteralIC", index);
     return;
   }
@@ -2140,7 +2139,7 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
 
   Handle<Map> old_array_map(array->map(), isolate());
   bool array_was_cow = array->elements()->IsCowArray();
-  StoreOwnElement(array, index, value);
+  StoreOwnElement(isolate(), array, index, value);
 
   if (index->IsSmi()) {
     DCHECK(!old_array_map->is_abandoned_prototype_map());
@@ -2217,7 +2216,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
 
   Handle<Context> native_context = isolate->native_context();
   Handle<ScriptContextTable> script_contexts(
-      native_context->script_context_table());
+      native_context->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
@@ -2333,7 +2332,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> native_context = isolate->native_context();
   Handle<ScriptContextTable> script_contexts(
-      native_context->script_context_table());
+      native_context->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
@@ -2417,7 +2416,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
   Handle<Object> value = args.at(0);
   Handle<Object> array = args.at(1);
   Handle<Object> index = args.at(2);
-  StoreOwnElement(Handle<JSArray>::cast(array), index, value);
+  StoreOwnElement(isolate, Handle<JSArray>::cast(array), index, value);
   return *value;
 }
 
@@ -2440,7 +2439,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   }
 
   if (IsStoreInArrayLiteralICKind(kind)) {
-    StoreOwnElement(Handle<JSArray>::cast(object), key, value);
+    StoreOwnElement(isolate, Handle<JSArray>::cast(object), key, value);
     return *value;
   } else {
     DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind));
@@ -2470,7 +2469,8 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<AccessorInfo> info(
       callback_or_cell->IsWeakCell()
           ? AccessorInfo::cast(WeakCell::cast(*callback_or_cell)->value())
-          : AccessorInfo::cast(*callback_or_cell));
+          : AccessorInfo::cast(*callback_or_cell),
+      isolate);
 
   DCHECK(info->IsCompatibleReceiver(*receiver));
 

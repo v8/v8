@@ -364,7 +364,7 @@ class ArrayConcatVisitor {
       // Fall-through to dictionary mode.
     }
     DCHECK(!fast_elements());
-    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_));
+    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_), isolate_);
     // The object holding this backing store has just been allocated, so
     // it cannot yet be used as a prototype.
     Handle<JSObject> not_a_prototype_holder;
@@ -582,7 +582,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
         break;
       }
       Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(object->elements()));
+          FixedDoubleArray::cast(object->elements()), isolate);
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
@@ -735,7 +735,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
-      Handle<FixedArray> elements(FixedArray::cast(array->elements()));
+      Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
@@ -768,7 +768,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         break;
       }
       Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(array->elements()));
+          FixedDoubleArray::cast(array->elements()), isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
@@ -795,7 +795,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
 
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> dict(array->element_dictionary());
+      Handle<NumberDictionary> dict(array->element_dictionary(), isolate);
       std::vector<uint32_t> indices;
       indices.reserve(dict->Capacity() / 2);
 

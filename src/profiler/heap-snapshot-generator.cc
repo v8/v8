@@ -1900,7 +1900,8 @@ class GlobalObjectsEnumerator : public RootVisitor {
       if (!proxy->IsJSGlobalProxy()) continue;
       Object* global = proxy->map()->prototype();
       if (!global->IsJSGlobalObject()) continue;
-      objects_.push_back(Handle<JSGlobalObject>(JSGlobalObject::cast(global)));
+      objects_.push_back(Handle<JSGlobalObject>(JSGlobalObject::cast(global),
+                                                proxy->GetIsolate()));
     }
   }
   int count() const { return static_cast<int>(objects_.size()); }

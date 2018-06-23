@@ -2085,10 +2085,11 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
     if (sfis[i]->function_data()->IsInterpreterData()) {
-      LogExistingFunction(sfis[i],
-                          Handle<AbstractCode>(AbstractCode::cast(
-                              sfis[i]->InterpreterTrampoline())),
-                          CodeEventListener::INTERPRETED_FUNCTION_TAG);
+      LogExistingFunction(
+          sfis[i],
+          Handle<AbstractCode>(
+              AbstractCode::cast(sfis[i]->InterpreterTrampoline()), isolate_),
+          CodeEventListener::INTERPRETED_FUNCTION_TAG);
     }
     if (code_objects[i].is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
       continue;
@@ -2140,12 +2141,12 @@ void ExistingCodeLogger::LogExistingFunction(
     Handle<SharedFunctionInfo> shared, Handle<AbstractCode> code,
     CodeEventListener::LogEventsAndTags tag) {
   if (shared->script()->IsScript()) {
-    Handle<Script> script(Script::cast(shared->script()));
+    Handle<Script> script(Script::cast(shared->script()), isolate_);
     int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
     int column_num =
         Script::GetColumnNumber(script, shared->StartPosition()) + 1;
     if (script->name()->IsString()) {
-      Handle<String> script_name(String::cast(script->name()));
+      Handle<String> script_name(String::cast(script->name()), isolate_);
       if (line_num > 0) {
         CALL_CODE_EVENT_HANDLER(
             CodeCreateEvent(Logger::ToNativeByScript(tag, *script), *code,

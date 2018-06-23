@@ -502,7 +502,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     // Allocate a register file.
     DCHECK(js_function->shared()->HasBytecodeArray());
     Handle<BytecodeArray> bytecode_array(
-        js_function->shared()->GetBytecodeArray());
+        js_function->shared()->GetBytecodeArray(), isolate());
     int parameter_count_no_receiver = bytecode_array->parameter_count() - 1;
     DCHECK_EQ(parameter_count_no_receiver,
               js_function->shared()->internal_formal_parameter_count());
@@ -1053,7 +1053,8 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   }
 
   Handle<Map> function_map(
-      Map::cast(native_context()->get(shared->function_map_index())));
+      Map::cast(native_context()->get(shared->function_map_index())),
+      isolate());
   DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
   DCHECK(!function_map->is_dictionary_map());
 
@@ -1176,7 +1177,8 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreatePromise, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Handle<Map> promise_map(native_context()->promise_function()->initial_map());
+  Handle<Map> promise_map(native_context()->promise_function()->initial_map(),
+                          isolate());
 
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(promise_map->instance_size());

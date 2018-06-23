@@ -5282,7 +5282,7 @@ Local<Value> Function::GetDebugName() const {
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
   i::Handle<i::String> name = i::JSFunction::GetDebugName(func);
-  return Utils::ToLocal(i::Handle<i::Object>(*name, name->GetIsolate()));
+  return Utils::ToLocal(i::Handle<i::Object>(*name, self->GetIsolate()));
 }
 
 
@@ -6453,9 +6453,10 @@ i::Object** Context::GetDataFromSnapshotOnce(size_t index) {
 MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ObjectTemplate, NewInstance, Object);
   auto self = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
   Local<Object> result;
-  has_pending_exception =
-      !ToLocal<Object>(i::ApiNatives::InstantiateObject(self), &result);
+  has_pending_exception = !ToLocal<Object>(
+      i::ApiNatives::InstantiateObject(i_isolate, self), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
@@ -7747,7 +7748,8 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
     i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*obj),
                                        obj->GetIsolate());
     DCHECK(data_view->buffer()->IsJSArrayBuffer());
-    buffer = i::handle(i::JSArrayBuffer::cast(data_view->buffer()));
+    buffer = i::handle(i::JSArrayBuffer::cast(data_view->buffer()),
+                       data_view->GetIsolate());
   } else {
     DCHECK(obj->IsJSTypedArray());
     buffer = i::JSTypedArray::cast(*obj)->GetBuffer();
@@ -9720,7 +9722,7 @@ MaybeLocal<debug::Script> debug::GeneratorObject::Script() {
 
 Local<Function> debug::GeneratorObject::Function() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
-  return Utils::ToLocal(handle(obj->function()));
+  return Utils::ToLocal(handle(obj->function(), obj->GetIsolate()));
 }
 
 debug::Location debug::GeneratorObject::SuspendedLocation() {
@@ -9844,7 +9846,7 @@ int debug::GetDebuggingId(v8::Local<v8::Function> function) {
   i::SharedFunctionInfo* shared = fun->shared();
   int id = shared->debugging_id();
   if (id == i::SharedFunctionInfo::kNoDebuggingId) {
-    id = shared->GetHeap()->NextDebuggingId();
+    id = callable->GetHeap()->NextDebuggingId();
     shared->set_debugging_id(id);
   }
   DCHECK_NE(i::SharedFunctionInfo::kNoDebuggingId, id);

@@ -139,8 +139,9 @@ TEST(StressJS) {
   factory->NewJSObject(function);
 
   // Patch the map to have an accessor for "get".
-  Handle<Map> map(function->initial_map());
-  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
+  Handle<Map> map(function->initial_map(), isolate);
+  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors(),
+                                               isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;
@@ -148,7 +149,7 @@ TEST(StressJS) {
   Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
-      Handle<Name>(Name::cast(foreign->name())), foreign, attrs);
+      Handle<Name>(Name::cast(foreign->name()), isolate), foreign, attrs);
   map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.

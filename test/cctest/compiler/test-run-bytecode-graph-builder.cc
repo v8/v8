@@ -118,14 +118,14 @@ class BytecodeGraphTester {
     CHECK(function->shared()->HasBytecodeArray());
 
     Zone zone(isolate_->allocator(), ZONE_NAME);
-    Handle<SharedFunctionInfo> shared(function->shared());
+    Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared,
                                               function);
 
     // Compiler relies on canonicalized handles, let's create
     // a canonicalized scope and migrate existing handles there.
     CanonicalHandleScope canonical(isolate_);
-    compilation_info.ReopenHandlesInNewHandleScope();
+    compilation_info.ReopenHandlesInNewHandleScope(isolate_);
 
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)

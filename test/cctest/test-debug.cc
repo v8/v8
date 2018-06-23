@@ -72,7 +72,7 @@ static v8::Local<v8::Function> CompileFunction(LocalContext* env,
 static bool HasBreakInfo(v8::Local<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f =
       Handle<v8::internal::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  Handle<v8::internal::SharedFunctionInfo> shared(f->shared());
+  Handle<v8::internal::SharedFunctionInfo> shared(f->shared(), f->GetIsolate());
   return shared->HasBreakInfo();
 }
 
@@ -2685,7 +2685,8 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()));
+      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      isolate);
   i::Handle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
   int id;
@@ -3834,13 +3835,13 @@ TEST(BreakLocationIterator) {
       "f");
   Handle<i::Object> function_obj = v8::Utils::OpenHandle(*result);
   Handle<i::JSFunction> function = Handle<i::JSFunction>::cast(function_obj);
-  Handle<i::SharedFunctionInfo> shared(function->shared());
+  Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
 
   EnableDebugger(isolate);
   CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
   i_isolate->debug()->PrepareFunctionForDebugExecution(shared);
 
-  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
+  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo(), i_isolate);
 
   {
     i::BreakIterator iterator(debug_info);

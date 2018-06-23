@@ -350,7 +350,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   CHECK(array->HasObjectElements());
   CHECK_GE(array_length, 0);
 
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
   if (fixed_array->length() < array_length) {
     array_length = fixed_array->length();
   }

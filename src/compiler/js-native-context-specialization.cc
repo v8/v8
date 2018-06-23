@@ -65,8 +65,9 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker),
       flags_(flags),
-      global_object_(native_context->global_object()),
-      global_proxy_(JSGlobalProxy::cast(native_context->global_proxy())),
+      global_object_(native_context->global_object(), jsgraph->isolate()),
+      global_proxy_(JSGlobalProxy::cast(native_context->global_proxy()),
+                    jsgraph->isolate()),
       native_context_(native_context),
       dependencies_(dependencies),
       zone_(zone),
@@ -389,7 +390,8 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // invocation of the instanceof operator again.
     // ES6 section 7.3.19 OrdinaryHasInstance (C, O) step 2.
     Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(m.Value());
-    Handle<JSReceiver> bound_target_function(function->bound_target_function());
+    Handle<JSReceiver> bound_target_function(function->bound_target_function(),
+                                             isolate());
     NodeProperties::ReplaceValueInput(node, object, 0);
     NodeProperties::ReplaceValueInput(
         node, jsgraph()->HeapConstant(bound_target_function), 1);

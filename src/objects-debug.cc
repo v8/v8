@@ -586,7 +586,7 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   MapVerify(isolate);
   CHECK(is_dictionary_map());
   CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
-  CHECK_EQ(GetHeap()->empty_descriptor_array(), instance_descriptors());
+  CHECK_EQ(isolate->heap()->empty_descriptor_array(), instance_descriptors());
   CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
@@ -616,7 +616,7 @@ void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   if (length() == 0) {
-    CHECK_EQ(this, this->GetHeap()->empty_property_array());
+    CHECK_EQ(this, isolate->heap()->empty_property_array());
     return;
   }
   // There are no empty PropertyArrays.
@@ -644,7 +644,7 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
   if (slot_count() == 0) {
-    CHECK_EQ(GetHeap()->empty_feedback_metadata(), this);
+    CHECK_EQ(isolate->heap()->empty_feedback_metadata(), this);
   } else {
     FeedbackMetadataIterator iter(this);
     while (iter.HasNext()) {
@@ -660,7 +660,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
   WeakFixedArrayVerify(isolate);
   int nof_descriptors = number_of_descriptors();
   if (number_of_descriptors_storage() == 0) {
-    Heap* heap = GetHeap();
+    Heap* heap = isolate->heap();
     CHECK_EQ(heap->empty_descriptor_array(), this);
     CHECK_EQ(2, length());
     CHECK_EQ(0, nof_descriptors);
@@ -856,9 +856,9 @@ void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
 void String::StringVerify(Isolate* isolate) {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
-  CHECK_IMPLIES(length() == 0, this == GetHeap()->empty_string());
+  CHECK_IMPLIES(length() == 0, this == isolate->heap()->empty_string());
   if (IsInternalizedString()) {
-    CHECK(!GetHeap()->InNewSpace(this));
+    CHECK(!isolate->heap()->InNewSpace(this));
   }
   if (IsConsString()) {
     ConsString::cast(this)->ConsStringVerify(isolate);
@@ -871,7 +871,7 @@ void String::StringVerify(Isolate* isolate) {
 
 void ConsString::ConsStringVerify(Isolate* isolate) {
   CHECK(this->first()->IsString());
-  CHECK(this->second() == GetHeap()->empty_string() ||
+  CHECK(this->second() == isolate->heap()->empty_string() ||
         this->second()->IsString());
   CHECK_GE(this->length(), ConsString::kMinLength);
   CHECK(this->length() == this->first()->length() + this->second()->length());
@@ -935,7 +935,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
         value->IsScopeInfo());
   if (value->IsScopeInfo()) {
     CHECK_LT(0, ScopeInfo::cast(value)->length());
-    CHECK_NE(value, GetHeap()->empty_scope_info());
+    CHECK_NE(value, isolate->heap()->empty_scope_info());
   }
 
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
@@ -1000,7 +1000,7 @@ void JSGlobalObject::JSGlobalObjectVerify(Isolate* isolate) {
 
 void Oddball::OddballVerify(Isolate* isolate) {
   CHECK(IsOddball());
-  Heap* heap = GetHeap();
+  Heap* heap = isolate->heap();
   VerifyHeapPointer(to_string());
   Object* number = to_number();
   if (number->IsHeapObject()) {
@@ -1527,7 +1527,7 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
 
 void Tuple2::Tuple2Verify(Isolate* isolate) {
   CHECK(IsTuple2());
-  Heap* heap = GetHeap();
+  Heap* heap = isolate->heap();
   if (this == heap->empty_enum_cache()) {
     CHECK_EQ(heap->empty_fixed_array(), EnumCache::cast(this)->keys());
     CHECK_EQ(heap->empty_fixed_array(), EnumCache::cast(this)->indices());
@@ -1652,9 +1652,11 @@ void AccessCheckInfo::AccessCheckInfoVerify(Isolate* isolate) {
 
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   CHECK(IsCallHandlerInfo());
-  CHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-        map() == GetHeap()->side_effect_free_call_handler_info_map() ||
-        map() == GetHeap()->next_call_side_effect_free_call_handler_info_map());
+  CHECK(
+      map() == isolate->heap()->side_effect_call_handler_info_map() ||
+      map() == isolate->heap()->side_effect_free_call_handler_info_map() ||
+      map() ==
+          isolate->heap()->next_call_side_effect_free_call_handler_info_map());
   VerifyPointer(callback());
   VerifyPointer(js_callback());
   VerifyPointer(data());

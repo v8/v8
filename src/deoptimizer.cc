@@ -556,10 +556,10 @@ void Deoptimizer::PrintFunctionName() {
 }
 
 Handle<JSFunction> Deoptimizer::function() const {
-  return Handle<JSFunction>(function_);
+  return Handle<JSFunction>(function_, isolate());
 }
 Handle<Code> Deoptimizer::compiled_code() const {
-  return Handle<Code>(compiled_code_);
+  return Handle<Code>(compiled_code_, isolate());
 }
 
 Deoptimizer::~Deoptimizer() {
@@ -2179,7 +2179,8 @@ int MaterializedObjectStore::StackIdToIndex(Address fp) {
 
 
 Handle<FixedArray> MaterializedObjectStore::GetStackEntries() {
-  return Handle<FixedArray>(isolate()->heap()->materialized_objects());
+  return Handle<FixedArray>(isolate()->heap()->materialized_objects(),
+                            isolate());
 }
 
 
@@ -3626,7 +3627,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
   properties_slot->set_storage(object_storage);
 
   // Set markers for the double properties.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   int field_count = map->NumberOfOwnDescriptors();
   for (int i = 0; i < field_count; i++) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
@@ -3659,7 +3660,7 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
 
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
   // Now we handle the interesting (JSObject) case.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   int field_count = map->NumberOfOwnDescriptors();
 
   // Set markers for the double properties.

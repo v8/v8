@@ -669,7 +669,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       TransitionsAccessor(isolate(), map).SearchTransition(*name, kData, NONE);
   if (transition == nullptr) return false;
 
-  Handle<Map> transition_map(transition);
+  Handle<Map> transition_map(transition, isolate());
   int const number = transition_map->LastAdded();
   PropertyDetails const details =
       transition_map->instance_descriptors()->GetDetails(number);

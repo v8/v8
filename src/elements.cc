@@ -141,9 +141,8 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase* from_base,
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        Heap* heap = from_base->GetHeap();
         MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
-                      heap->the_hole_value(), length);
+                      isolate->heap()->the_hole_value(), length);
       }
     }
   }
@@ -180,9 +179,8 @@ static void CopyDictionaryToObjectElements(
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        Heap* heap = from->GetHeap();
         MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
-                      heap->the_hole_value(), length);
+                      isolate->heap()->the_hole_value(), length);
       }
     }
   }
@@ -230,9 +228,8 @@ static void CopyDoubleToObjectElements(Isolate* isolate,
       int start = to_start;
       int length = to_base->length() - start;
       if (length > 0) {
-        Heap* heap = from_base->GetHeap();
         MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
-                      heap->the_hole_value(), length);
+                      isolate->heap()->the_hole_value(), length);
       }
     }
   }
@@ -2017,7 +2014,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // has too few used values, normalize it.
     const int kMinLengthForSparsenessCheck = 64;
     if (backing_store->length() < kMinLengthForSparsenessCheck) return;
-    if (backing_store->GetHeap()->InNewSpace(*backing_store)) return;
+    if (isolate->heap()->InNewSpace(*backing_store)) return;
     uint32_t length = 0;
     if (obj->IsJSArray()) {
       JSArray::cast(*obj)->length()->ToArrayLength(&length);

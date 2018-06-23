@@ -179,7 +179,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
   if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
-    Handle<NumberDictionary> dict(object->element_dictionary());
+    Handle<NumberDictionary> dict(object->element_dictionary(), isolate);
     if (object->IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
       return RemoveArrayHolesGeneric(isolate, receiver, limit);
@@ -208,7 +208,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.
 
-  Handle<FixedArrayBase> elements_base(object->elements());
+  Handle<FixedArrayBase> elements_base(object->elements(), isolate);
   uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
   if (limit > elements_length) {
     limit = elements_length;
@@ -401,7 +401,7 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
   JSObject::ValidateElements(*from);
   JSObject::ValidateElements(*to);
 
-  Handle<FixedArrayBase> new_elements(from->elements());
+  Handle<FixedArrayBase> new_elements(from->elements(), isolate);
   ElementsKind from_kind = from->GetElementsKind();
   Handle<Map> new_map = JSObject::GetElementsTransitionMap(to, from_kind);
   JSObject::SetMapAndElements(to, new_map, new_elements);

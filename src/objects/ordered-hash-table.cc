@@ -72,7 +72,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 
   Handle<Derived> new_table =
       Allocate(isolate, kMinCapacity,
-               table->GetHeap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
+               isolate->heap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
 
   table->SetNextTable(*new_table);
   table->SetNumberOfDeletedElements(kClearedTableSentinel);

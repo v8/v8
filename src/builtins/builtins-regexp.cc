@@ -125,7 +125,7 @@ BUILTIN(RegExpLeftContextGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int start_index = match_info->Capture(0);
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   return *isolate->factory()->NewSubString(last_subject, 0, start_index);
 }
 
@@ -133,7 +133,7 @@ BUILTIN(RegExpRightContextGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int start_index = match_info->Capture(1);
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
 }

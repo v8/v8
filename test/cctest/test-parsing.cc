@@ -1206,7 +1206,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Extract exception from the parser.
     CHECK(isolate->has_pending_exception());
     i::Handle<i::JSObject> exception_handle(
-        i::JSObject::cast(isolate->pending_exception()));
+        i::JSObject::cast(isolate->pending_exception()), isolate);
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(
         i::JSReceiver::GetProperty(isolate, exception_handle, "message")
             .ToHandleChecked());
@@ -6194,7 +6194,7 @@ TEST(BasicImportExportParsing) {
       info.set_module();
       if (!i::parsing::ParseProgram(&info, isolate)) {
         i::Handle<i::JSObject> exception_handle(
-            i::JSObject::cast(isolate->pending_exception()));
+            i::JSObject::cast(isolate->pending_exception()), isolate);
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
             i::JSReceiver::GetProperty(isolate, exception_handle, "message")
                 .ToHandleChecked());

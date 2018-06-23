@@ -214,7 +214,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     return deferred_handles_;
   }
 
-  void ReopenHandlesInNewHandleScope();
+  void ReopenHandlesInNewHandleScope(Isolate* isolate);
 
   void AbortOptimization(BailoutReason reason) {
     DCHECK_NE(reason, BailoutReason::kNoReason);

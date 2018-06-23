@@ -228,7 +228,7 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
   Handle<JSFunction> constructor(
-      isolate->native_context()->intl_date_time_format_function());
+      isolate->native_context()->intl_date_time_format_function(), isolate);
 
   Handle<JSObject> local_object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
@@ -287,7 +287,7 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
   Handle<JSFunction> constructor(
-      isolate->native_context()->intl_number_format_function());
+      isolate->native_context()->intl_number_format_function(), isolate);
 
   Handle<JSObject> local_object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
@@ -359,7 +359,7 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
   Handle<JSFunction> constructor(
-      isolate->native_context()->intl_collator_function());
+      isolate->native_context()->intl_collator_function(), isolate);
 
   Handle<JSObject> collator_holder;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_holder,
@@ -419,7 +419,7 @@ RUNTIME_FUNCTION(Runtime_CreatePluralRules) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
   Handle<JSFunction> constructor(
-      isolate->native_context()->intl_plural_rules_function());
+      isolate->native_context()->intl_plural_rules_function(), isolate);
 
   Handle<JSObject> local_object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
@@ -495,7 +495,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
   Handle<JSFunction> constructor(
-      isolate->native_context()->intl_v8_break_iterator_function());
+      isolate->native_context()->intl_v8_break_iterator_function(), isolate);
 
   Handle<JSObject> local_object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,

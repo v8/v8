@@ -2278,7 +2278,7 @@ AsyncCompileJob::AsyncCompileJob(
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
   // The handle for the context must be deferred.
   DeferredHandleScope deferred(isolate);
-  context_ = Handle<Context>(*context);
+  context_ = Handle<Context>(*context, isolate);
   deferred_handles_.push_back(deferred.Detach());
 }
 

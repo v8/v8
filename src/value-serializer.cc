@@ -736,7 +736,7 @@ void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
 
 Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   // First copy the key-value pairs, since getters could mutate them.
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()), isolate_);
   int length = table->NumberOfElements() * 2;
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
@@ -767,7 +767,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
 
 Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   // First copy the element pointers, since getters could mutate them.
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()), isolate_);
   int length = table->NumberOfElements();
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {

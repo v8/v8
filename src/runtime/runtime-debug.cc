@@ -385,7 +385,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
 
-  Handle<SharedFunctionInfo> shared(fun->shared());
+  Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
   // Find the number of break points
   Handle<Object> break_locations =
       Debug::GetSourceBreakLocations(isolate, shared);
