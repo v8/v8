@@ -614,9 +614,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7818
-  'built-ins/Object/keys/property-traps-order-with-proxied-array': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7781
   'built-ins/Date/parse/time-value-maximum-range': [FAIL],
 

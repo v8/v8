@@ -942,7 +942,8 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, keys,
-      KeyAccumulator::GetKeys(target, KeyCollectionMode::kOwnOnly, filter_,
+      KeyAccumulator::GetKeys(target, KeyCollectionMode::kOwnOnly,
+                              ALL_PROPERTIES,
                               GetKeysConversion::kConvertToString, is_for_in_),
       Nothing<bool>());
   Maybe<bool> result = AddKeysFromJSProxy(proxy, keys);
