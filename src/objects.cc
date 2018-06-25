@@ -18637,6 +18637,10 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   void* backing_store =
       isolate->array_buffer_allocator()->AllocateUninitialized(
           fixed_typed_array->DataSize());
+  if (backing_store == nullptr) {
+    isolate->heap()->FatalProcessOutOfMemory(
+        "JSTypedArray::MaterializeArrayBuffer");
+  }
   buffer->set_is_external(false);
   DCHECK(buffer->byte_length()->IsSmi() ||
          buffer->byte_length()->IsHeapNumber());
