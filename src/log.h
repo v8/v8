@@ -74,7 +74,6 @@ class PerfJitLogger;
 class Profiler;
 class RuntimeCallTimer;
 class Ticker;
-class WasmCompiledModule;
 
 namespace interpreter {
 enum class Bytecode : uint8_t;
@@ -269,7 +268,6 @@ class Logger : public CodeEventListener {
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
-  void LogCompiledModule(Handle<WasmCompiledModule> module);
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.

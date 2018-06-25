@@ -1805,10 +1805,6 @@ WasmModuleObject* WasmCompiledFrame::module_object() const {
   return wasm_instance()->module_object();
 }
 
-WasmCompiledModule* WasmCompiledFrame::compiled_module() const {
-  return wasm_instance()->compiled_module();
-}
-
 uint32_t WasmCompiledFrame::function_index() const {
   return FrameSummary::GetSingle(this).AsWasmCompiled().function_index();
 }
@@ -1899,10 +1895,6 @@ WasmDebugInfo* WasmInterpreterEntryFrame::debug_info() const {
 
 WasmModuleObject* WasmInterpreterEntryFrame::module_object() const {
   return wasm_instance()->module_object();
-}
-
-WasmCompiledModule* WasmInterpreterEntryFrame::compiled_module() const {
-  return wasm_instance()->compiled_module();
 }
 
 Script* WasmInterpreterEntryFrame::script() const {

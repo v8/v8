@@ -26,7 +26,6 @@ class RootVisitor;
 class StackFrameIteratorBase;
 class StringStream;
 class ThreadLocalTop;
-class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
 class WasmModuleObject;
@@ -998,7 +997,6 @@ class WasmCompiledFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmCompiledModule* compiled_module() const;
   WasmModuleObject* module_object() const;
 };
 
@@ -1038,7 +1036,6 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmCompiledModule* compiled_module() const;
   WasmModuleObject* module_object() const;
 };
 

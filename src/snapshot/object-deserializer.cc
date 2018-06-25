@@ -9,7 +9,6 @@
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -31,38 +30,6 @@ ObjectDeserializer::DeserializeSharedFunctionInfo(
   return d.Deserialize(isolate).ToHandle(&result)
              ? Handle<SharedFunctionInfo>::cast(result)
              : MaybeHandle<SharedFunctionInfo>();
-}
-
-MaybeHandle<WasmCompiledModule>
-ObjectDeserializer::DeserializeWasmCompiledModule(
-    Isolate* isolate, const SerializedCodeData* data,
-    Vector<const byte> wire_bytes) {
-  ObjectDeserializer d(data);
-
-  d.AddAttachedObject(isolate->native_context());
-
-  MaybeHandle<String> maybe_wire_bytes_as_string =
-      isolate->factory()->NewStringFromOneByte(wire_bytes, TENURED);
-  Handle<String> wire_bytes_as_string;
-  if (!maybe_wire_bytes_as_string.ToHandle(&wire_bytes_as_string)) {
-    return MaybeHandle<WasmCompiledModule>();
-  }
-  d.AddAttachedObject(wire_bytes_as_string);
-
-  Vector<const uint32_t> code_stub_keys = data->CodeStubKeys();
-  for (int i = 0; i < code_stub_keys.length(); i++) {
-    d.AddAttachedObject(
-        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked());
-  }
-
-  Handle<HeapObject> result;
-  if (!d.Deserialize(isolate).ToHandle(&result))
-    return MaybeHandle<WasmCompiledModule>();
-
-  if (!result->IsWasmCompiledModule()) return MaybeHandle<WasmCompiledModule>();
-
-  // Cast without type checks, as the module wrapper is not there yet.
-  return handle(static_cast<WasmCompiledModule*>(*result), isolate);
 }
 
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
