@@ -9592,7 +9592,8 @@ void debug::ResetBlackboxedStateCache(Isolate* v8_isolate,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::DisallowHeapAllocation no_gc;
-  i::SharedFunctionInfo::ScriptIterator iter(Utils::OpenHandle(*script));
+  i::SharedFunctionInfo::ScriptIterator iter(isolate,
+                                             *Utils::OpenHandle(*script));
   while (i::SharedFunctionInfo* info = iter.Next()) {
     info->set_computed_debug_is_blackboxed(false);
   }

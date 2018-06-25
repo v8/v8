@@ -1786,7 +1786,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     if (maybe_result.is_null()) isolate->ReportPendingMessages();
     ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level, maybe_result, JSFunction);
 
-    SharedFunctionInfo::ScriptIterator infos(script);
+    SharedFunctionInfo::ScriptIterator infos(isolate, *script);
     while (SharedFunctionInfo* info = infos.Next()) {
       if (info->is_wrapped()) {
         wrapped = Handle<SharedFunctionInfo>(info, isolate);

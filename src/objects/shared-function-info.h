@@ -435,13 +435,13 @@ class SharedFunctionInfo : public HeapObject {
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
    public:
-    explicit ScriptIterator(Handle<Script> script);
+    ScriptIterator(Isolate* isolate, Script* script);
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
     SharedFunctionInfo* Next();
 
     // Reset the iterator to run on |script|.
-    void Reset(Handle<Script> script);
+    void Reset(Script* script);
 
    private:
     Isolate* isolate_;

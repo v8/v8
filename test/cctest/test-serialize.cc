@@ -2018,8 +2018,8 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
 
 void CheckDeserializedFlag(v8::Local<v8::UnboundScript> script) {
   i::Handle<i::SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
-  i::Handle<i::Script> i_script(Script::cast(sfi->script()));
-  i::SharedFunctionInfo::ScriptIterator iterator(i_script);
+  i::SharedFunctionInfo::ScriptIterator iterator(sfi->GetIsolate(),
+                                                 Script::cast(sfi->script()));
   while (SharedFunctionInfo* next = iterator.Next()) {
     CHECK_EQ(next->is_compiled(), next->deserialized());
   }

@@ -13364,7 +13364,7 @@ bool Script::IsUserJavaScript() { return type() == Script::TYPE_NORMAL; }
 
 bool Script::ContainsAsmModule() {
   DisallowHeapAllocation no_gc;
-  SharedFunctionInfo::ScriptIterator iter(Handle<Script>(this));
+  SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), this);
   while (SharedFunctionInfo* info = iter.Next()) {
     if (info->HasAsmWasmData()) return true;
   }
@@ -13561,10 +13561,10 @@ Script::Iterator::Iterator(Isolate* isolate)
 
 Script* Script::Iterator::Next() { return iterator_.Next<Script>(); }
 
-
-SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<Script> script)
-    : ScriptIterator(script->GetIsolate(),
-                     handle(script->shared_function_infos())) {}
+SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
+                                                   Script* script)
+    : ScriptIterator(isolate,
+                     handle(script->shared_function_infos(), isolate)) {}
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(
     Isolate* isolate, Handle<WeakFixedArray> shared_function_infos)
@@ -13585,7 +13585,7 @@ SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
   return nullptr;
 }
 
-void SharedFunctionInfo::ScriptIterator::Reset(Handle<Script> script) {
+void SharedFunctionInfo::ScriptIterator::Reset(Script* script) {
   shared_function_infos_ = handle(script->shared_function_infos(), isolate_);
   index_ = 0;
 }
@@ -13593,7 +13593,7 @@ void SharedFunctionInfo::ScriptIterator::Reset(Handle<Script> script) {
 SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
     : script_iterator_(isolate),
       noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
-      sfi_iterator_(handle(script_iterator_.Next(), isolate)) {}
+      sfi_iterator_(isolate, script_iterator_.Next()) {}
 
 SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
   SharedFunctionInfo* next = noscript_sfi_iterator_.Next<SharedFunctionInfo>();
@@ -13603,7 +13603,7 @@ SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
     if (next != nullptr) return next;
     Script* next_script = script_iterator_.Next();
     if (next_script == nullptr) return nullptr;
-    sfi_iterator_.Reset(handle(next_script, next_script->GetIsolate()));
+    sfi_iterator_.Reset(next_script);
   }
 }
 

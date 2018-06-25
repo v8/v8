@@ -1371,7 +1371,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
   while (true) {
     HandleScope scope(isolate_);
     std::vector<Handle<SharedFunctionInfo>> candidates;
-    SharedFunctionInfo::ScriptIterator iterator(script);
+    SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
     for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
          info = iterator.Next()) {
       if (info->EndPosition() < start_position ||
@@ -1478,7 +1478,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     SharedFunctionInfo* shared;
     {
       SharedFunctionInfoFinder finder(position);
-      SharedFunctionInfo::ScriptIterator iterator(script);
+      SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
       for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
            info = iterator.Next()) {
         finder.NewCandidate(info);
