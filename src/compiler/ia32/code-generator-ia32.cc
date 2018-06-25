@@ -2010,6 +2010,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(2), i.InputInt8(1));
       break;
     }
+    case kIA32I32x4SConvertI16x8Low: {
+      __ Pmovsxwd(i.OutputSimd128Register(), i.InputOperand(0));
+      break;
+    }
+    case kIA32I32x4SConvertI16x8High: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Palignr(dst, i.InputOperand(0), 8);
+      __ Pmovsxwd(dst, dst);
+      break;
+    }
     case kIA32I32x4Neg: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(0);
@@ -2169,6 +2179,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
+    case kIA32I32x4UConvertI16x8Low: {
+      __ Pmovzxwd(i.OutputSimd128Register(), i.InputOperand(0));
+      break;
+    }
+    case kIA32I32x4UConvertI16x8High: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Palignr(dst, i.InputOperand(0), 8);
+      __ Pmovzxwd(dst, dst);
+      break;
+    }
     case kSSEI32x4ShrU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psrld(i.OutputSimd128Register(), i.InputInt8(1));
@@ -2265,6 +2285,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpinsrw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kIA32I16x8SConvertI8x16Low: {
+      __ Pmovsxbw(i.OutputSimd128Register(), i.InputOperand(0));
+      break;
+    }
+    case kIA32I16x8SConvertI8x16High: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Palignr(dst, i.InputOperand(0), 8);
+      __ Pmovsxbw(dst, dst);
       break;
     }
     case kIA32I16x8Neg: {
@@ -2453,6 +2483,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand src2 = i.InputOperand(1);
       __ vpminsw(kScratchDoubleReg, src1, src2);
       __ vpcmpeqw(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      break;
+    }
+    case kIA32I16x8UConvertI8x16Low: {
+      __ Pmovzxbw(i.OutputSimd128Register(), i.InputOperand(0));
+      break;
+    }
+    case kIA32I16x8UConvertI8x16High: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Palignr(dst, i.InputOperand(0), 8);
+      __ Pmovzxbw(dst, dst);
       break;
     }
     case kSSEI16x8ShrU: {

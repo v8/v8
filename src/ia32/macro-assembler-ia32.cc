@@ -1330,20 +1330,6 @@ void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
   UNREACHABLE();
 }
 
-void TurboAssembler::Ptest(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vptest(dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    ptest(dst, src);
-    return;
-  }
-  UNREACHABLE();
-}
-
 void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -1367,6 +1353,20 @@ void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pblendw(dst, src, imm8);
+    return;
+  }
+  UNREACHABLE();
+}
+
+void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpalignr(dst, dst, src, imm8);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSSE3)) {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    palignr(dst, src, imm8);
     return;
   }
   UNREACHABLE();

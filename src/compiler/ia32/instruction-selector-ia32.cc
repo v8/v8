@@ -1794,12 +1794,20 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) \
-  V(F32x4SConvertI32x4)   \
-  V(F32x4RecipApprox)     \
-  V(F32x4RecipSqrtApprox) \
-  V(I32x4Neg)             \
-  V(I16x8Neg)             \
+#define SIMD_UNOP_LIST(V)   \
+  V(F32x4SConvertI32x4)     \
+  V(F32x4RecipApprox)       \
+  V(F32x4RecipSqrtApprox)   \
+  V(I32x4SConvertI16x8Low)  \
+  V(I32x4SConvertI16x8High) \
+  V(I32x4Neg)               \
+  V(I32x4UConvertI16x8Low)  \
+  V(I32x4UConvertI16x8High) \
+  V(I16x8SConvertI8x16Low)  \
+  V(I16x8SConvertI8x16High) \
+  V(I16x8Neg)               \
+  V(I16x8UConvertI8x16Low)  \
+  V(I16x8UConvertI8x16High) \
   V(I8x16Neg)
 
 #define SIMD_UNOP_PREFIX_LIST(V) \

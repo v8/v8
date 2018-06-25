@@ -284,9 +284,34 @@ class TurboAssembler : public TurboAssemblerBase {
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
 
-  // Non-SSE2 instructions.
-  void Ptest(XMMRegister dst, XMMRegister src) { Ptest(dst, Operand(src)); }
-  void Ptest(XMMRegister dst, Operand src);
+// Non-SSE2 instructions.
+#define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
+                                sse_scope)                            \
+  void macro_name(dst_type dst, src_type src) {                       \
+    if (CpuFeatures::IsSupported(AVX)) {                              \
+      CpuFeatureScope scope(this, AVX);                               \
+      v##name(dst, src);                                              \
+      return;                                                         \
+    }                                                                 \
+    if (CpuFeatures::IsSupported(sse_scope)) {                        \
+      CpuFeatureScope scope(this, sse_scope);                         \
+      name(dst, src);                                                 \
+      return;                                                         \
+    }                                                                 \
+    UNREACHABLE();                                                    \
+  }
+#define AVX_OP2_XO_SSE4(macro_name, name)                                     \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
+
+  AVX_OP2_XO_SSE4(Ptest, ptest)
+  AVX_OP2_XO_SSE4(Pmovsxbw, pmovsxbw)
+  AVX_OP2_XO_SSE4(Pmovsxwd, pmovsxwd)
+  AVX_OP2_XO_SSE4(Pmovzxbw, pmovzxbw)
+  AVX_OP2_XO_SSE4(Pmovzxwd, pmovzxwd)
+
+#undef AVX_OP2_WITH_TYPE_SCOPE
+#undef AVX_OP2_XO_SSE4
 
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
   void Pshufb(XMMRegister dst, Operand src);
@@ -301,6 +326,11 @@ class TurboAssembler : public TurboAssemblerBase {
   void Psignw(XMMRegister dst, Operand src);
   void Psignd(XMMRegister dst, XMMRegister src) { Psignd(dst, Operand(src)); }
   void Psignd(XMMRegister dst, Operand src);
+
+  void Palignr(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+    Palignr(dst, Operand(src), imm8);
+  }
+  void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Pextrb(Register dst, XMMRegister src, int8_t imm8);
   void Pextrw(Register dst, XMMRegister src, int8_t imm8);

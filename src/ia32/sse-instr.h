@@ -72,4 +72,11 @@
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
 
+#define SSE4_RM_INSTRUCTION_LIST(V) \
+  V(pmovsxbw, 66, 0F, 38, 20)       \
+  V(pmovsxwd, 66, 0F, 38, 23)       \
+  V(pmovzxbw, 66, 0F, 38, 30)       \
+  V(pmovzxwd, 66, 0F, 38, 33)       \
+  V(ptest, 66, 0F, 38, 17)
+
 #endif  // V8_IA32_SSE_INSTR_H_

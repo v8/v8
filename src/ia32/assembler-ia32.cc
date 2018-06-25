@@ -2598,16 +2598,6 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(imm8);
 }
 
-void Assembler::ptest(XMMRegister dst, Operand src) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x38);
-  EMIT(0x17);
-  emit_sse_operand(dst, src);
-}
-
 void Assembler::psllw(XMMRegister reg, int8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
