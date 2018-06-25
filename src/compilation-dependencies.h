@@ -15,7 +15,7 @@ namespace internal {
 
 // Collects dependencies for this compilation, e.g. assumptions about
 // stable maps, constant globals, etc.
-class CompilationDependencies {
+class V8_EXPORT_PRIVATE CompilationDependencies {
  public:
   CompilationDependencies(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
