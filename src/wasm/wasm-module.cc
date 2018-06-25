@@ -48,14 +48,6 @@ WireBytesRef WasmModule::LookupName(const ModuleWireBytes& wire_bytes,
   return it->second;
 }
 
-WireBytesRef WasmModule::LookupName(SeqOneByteString* wire_bytes,
-                                    uint32_t function_index) const {
-  DisallowHeapAllocation no_gc;
-  uint8_t* chars = wire_bytes->GetChars();
-  ModuleWireBytes module_wire_bytes(chars, chars + wire_bytes->length());
-  return LookupName(module_wire_bytes, function_index);
-}
-
 void WasmModule::AddNameForTesting(int function_index, WireBytesRef name) {
   if (!names_) {
     names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());

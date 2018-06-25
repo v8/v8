@@ -21,10 +21,13 @@
 
 namespace v8 {
 namespace internal {
-namespace wasm {
 
 // Forward declarations.
-struct ModuleEnv;
+namespace compiler {
+class CallDescriptor;
+}
+
+namespace wasm {
 
 class LiftoffAssembler : public TurboAssembler {
  public:

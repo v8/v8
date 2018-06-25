@@ -31,6 +31,7 @@ class CompilationResultResolver;
 class CompilationState;
 class ErrorThrower;
 class ModuleCompiler;
+class NativeModule;
 class WasmCode;
 struct ModuleEnv;
 struct WasmModule;

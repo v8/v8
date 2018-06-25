@@ -7,11 +7,8 @@
 
 #include <memory>
 
-#include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/objects/managed.h"
-#include "src/parsing/preparse-data.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-constants.h"
@@ -20,22 +17,12 @@
 namespace v8 {
 namespace internal {
 
-class WasmCompiledModule;
 class WasmDebugInfo;
-class WasmGlobalObject;
-class WasmInstanceObject;
-class WasmMemoryObject;
 class WasmModuleObject;
-class WasmTableObject;
-
-namespace compiler {
-class CallDescriptor;
-}
 
 namespace wasm {
+
 class ErrorThrower;
-class NativeModule;
-class TestingModuleBuilder;
 
 // Static representation of a wasm function.
 struct WasmFunction {
@@ -173,8 +160,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WasmModule(std::unique_ptr<Zone> owned);
 
   WireBytesRef LookupName(const ModuleWireBytes& wire_bytes,
-                          uint32_t function_index) const;
-  WireBytesRef LookupName(SeqOneByteString* wire_bytes,
                           uint32_t function_index) const;
   void AddNameForTesting(int function_index, WireBytesRef name);
 };
