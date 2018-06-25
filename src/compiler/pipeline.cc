@@ -1646,8 +1646,8 @@ struct InstructionSelectionPhase {
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
         data->isolate()->serializer_enabled()
-            ? InstructionSelector::kEnableSerialization
-            : InstructionSelector::kDisableSerialization,
+            ? InstructionSelector::kDisableRootsRelativeAddressing
+            : InstructionSelector::kEnableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),
         data->info()->trace_turbo_json_enabled()
             ? InstructionSelector::kEnableTraceTurboJson

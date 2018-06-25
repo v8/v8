@@ -27,7 +27,7 @@ InstructionSelector::InstructionSelector(
     EnableSwitchJumpTable enable_switch_jump_table,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
-    EnableSerialization enable_serialization,
+    EnableRootsRelativeAddressing enable_roots_relative_addressing,
     PoisoningMitigationLevel poisoning_level, EnableTraceTurboJson trace_turbo)
     : zone_(zone),
       linkage_(linkage),
@@ -48,7 +48,7 @@ InstructionSelector::InstructionSelector(
       virtual_register_rename_(zone),
       scheduler_(nullptr),
       enable_scheduling_(enable_scheduling),
-      enable_serialization_(enable_serialization),
+      enable_roots_relative_addressing_(enable_roots_relative_addressing),
       enable_switch_jump_table_(enable_switch_jump_table),
       poisoning_level_(poisoning_level),
       frame_(frame),
@@ -420,7 +420,7 @@ void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
 }
 
 bool InstructionSelector::CanAddressRelativeToRootsRegister() const {
-  return enable_serialization_ == kDisableSerialization &&
+  return enable_roots_relative_addressing_ == kEnableRootsRelativeAddressing &&
          CanUseRootsRegister();
 }
 

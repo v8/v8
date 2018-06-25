@@ -41,13 +41,13 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSequence sequence(test_->isolate(), test_->zone(),
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
-                               schedule, &source_position_table, nullptr,
-                               InstructionSelector::kEnableSwitchJumpTable,
-                               source_position_mode, features,
-                               InstructionSelector::kDisableScheduling,
-                               InstructionSelector::kDisableSerialization,
-                               PoisoningMitigationLevel::kPoisonAll);
+  InstructionSelector selector(
+      test_->zone(), node_count, &linkage, &sequence, schedule,
+      &source_position_table, nullptr,
+      InstructionSelector::kEnableSwitchJumpTable, source_position_mode,
+      features, InstructionSelector::kDisableScheduling,
+      InstructionSelector::kEnableRootsRelativeAddressing,
+      PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     PrintableInstructionSequence printable = {RegisterConfiguration::Default(),

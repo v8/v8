@@ -251,7 +251,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
   enum EnableScheduling { kDisableScheduling, kEnableScheduling };
-  enum EnableSerialization { kDisableSerialization, kEnableSerialization };
+  enum EnableRootsRelativeAddressing {
+    kDisableRootsRelativeAddressing,
+    kEnableRootsRelativeAddressing
+  };
   enum EnableSwitchJumpTable {
     kDisableSwitchJumpTable,
     kEnableSwitchJumpTable
@@ -268,7 +271,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
-      EnableSerialization enable_serialization = kDisableSerialization,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing =
+          kDisableRootsRelativeAddressing,
       PoisoningMitigationLevel poisoning_level =
           PoisoningMitigationLevel::kDontPoison,
       EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
@@ -433,8 +437,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
-  // to the roots register, i.e. if both a root register is available for this
-  // compilation unit and the serializer is disabled.
+  // to the roots register.
   bool CanAddressRelativeToRootsRegister() const;
   // Check if we can use the roots register to access GC roots.
   bool CanUseRootsRegister() const;
@@ -706,7 +709,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
-  EnableSerialization enable_serialization_;
+  EnableRootsRelativeAddressing enable_roots_relative_addressing_;
   EnableSwitchJumpTable enable_switch_jump_table_;
 
   PoisoningMitigationLevel poisoning_level_;
