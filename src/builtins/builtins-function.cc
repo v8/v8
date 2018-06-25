@@ -135,7 +135,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         JSFunction::GetDerivedMap(isolate, target, new_target), Object);
 
     Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
-    Handle<Map> map = Map::AsLanguageMode(initial_map, shared_info);
+    Handle<Map> map = Map::AsLanguageMode(isolate, initial_map, shared_info);
 
     Handle<Context> context(function->context(), isolate);
     function = isolate->factory()->NewFunctionFromSharedFunctionInfo(

@@ -441,8 +441,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                    ->NowContains(value)) {
             Handle<FieldType> value_type(
                 value->OptimalType(isolate(), expected_representation));
-            Map::GeneralizeField(target, descriptor, details.constness(),
-                                 expected_representation, value_type);
+            Map::GeneralizeField(isolate(), target, descriptor,
+                                 details.constness(), expected_representation,
+                                 value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)

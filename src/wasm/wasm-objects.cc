@@ -1114,7 +1114,7 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
           ? Handle<FixedArrayOfWeakCells>(memory->instances(), isolate)
           : Handle<FixedArrayOfWeakCells>::null();
   Handle<FixedArrayOfWeakCells> new_instances =
-      FixedArrayOfWeakCells::Add(old_instances, instance);
+      FixedArrayOfWeakCells::Add(isolate, old_instances, instance);
   memory->set_instances(*new_instances);
   Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
   SetInstanceMemory(isolate, instance, buffer);

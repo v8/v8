@@ -1943,8 +1943,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                    ->NowContains(value)) {
             Handle<FieldType> value_type =
                 value->OptimalType(isolate_, expected_representation);
-            Map::GeneralizeField(target, descriptor, details.constness(),
-                                 expected_representation, value_type);
+            Map::GeneralizeField(isolate_, target, descriptor,
+                                 details.constness(), expected_representation,
+                                 value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)

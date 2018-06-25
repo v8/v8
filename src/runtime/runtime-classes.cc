@@ -449,9 +449,9 @@ bool InitClassPrototype(Isolate* isolate,
                         Handle<Object> prototype_parent,
                         Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(prototype->map(), isolate);
-  map = Map::CopyDropDescriptors(map);
+  map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
-  Map::SetPrototype(map, prototype_parent);
+  Map::SetPrototype(isolate, map, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype);
   map->SetConstructor(*constructor);
   Handle<FixedArray> computed_properties(
@@ -496,13 +496,13 @@ bool InitClassConstructor(Isolate* isolate,
                           Handle<Object> constructor_parent,
                           Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(constructor->map(), isolate);
-  map = Map::CopyDropDescriptors(map);
+  map = Map::CopyDropDescriptors(isolate, map);
   DCHECK(map->is_prototype_map());
 
   if (!constructor_parent.is_null()) {
     // Set map's prototype without enabling prototype setup mode for superclass
     // because it does not make sense.
-    Map::SetPrototype(map, constructor_parent, false);
+    Map::SetPrototype(isolate, map, constructor_parent, false);
   }
 
   Handle<NumberDictionary> elements_dictionary_template(

@@ -626,7 +626,8 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   if (more_general_transition) {
     MapHandles map_list;
     map_list.push_back(handle(target_map, isolate_));
-    transitioned_map = source_map->FindElementsKindTransitionedMap(map_list);
+    transitioned_map =
+        source_map->FindElementsKindTransitionedMap(isolate(), map_list);
   }
   return transitioned_map == target_map;
 }
@@ -1132,7 +1133,8 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // among receiver_maps as unstable because the optimizing compilers may
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
-      Map* tmap = receiver_map->FindElementsKindTransitionedMap(*receiver_maps);
+      Map* tmap = receiver_map->FindElementsKindTransitionedMap(isolate(),
+                                                                *receiver_maps);
       if (tmap != nullptr) {
         receiver_map->NotifyLeafMapLayoutChange();
       }
@@ -1809,14 +1811,14 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
       ElementsKind kind = IsHoleyElementsKind(map->elements_kind())
                               ? HOLEY_ELEMENTS
                               : PACKED_ELEMENTS;
-      return Map::TransitionElementsTo(map, kind);
+      return Map::TransitionElementsTo(isolate(), map, kind);
     }
     case STORE_TRANSITION_TO_DOUBLE:
     case STORE_AND_GROW_TRANSITION_TO_DOUBLE: {
       ElementsKind kind = IsHoleyElementsKind(map->elements_kind())
                               ? HOLEY_DOUBLE_ELEMENTS
                               : PACKED_DOUBLE_ELEMENTS;
-      return Map::TransitionElementsTo(map, kind);
+      return Map::TransitionElementsTo(isolate(), map, kind);
     }
     case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
       DCHECK(map->has_fixed_typed_array_elements());
@@ -1907,8 +1909,8 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 
     } else {
       {
-        Map* tmap =
-            receiver_map->FindElementsKindTransitionedMap(*receiver_maps);
+        Map* tmap = receiver_map->FindElementsKindTransitionedMap(
+            isolate(), *receiver_maps);
         if (tmap != nullptr) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange();
@@ -2029,7 +2031,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     // expect to be able to trap element sets to objects with those maps in
     // the runtime to enable optimization of element hole access.
     Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
-    if (heap_object->map()->IsMapInArrayPrototypeChain()) {
+    if (heap_object->map()->IsMapInArrayPrototypeChain(isolate())) {
       set_slow_stub_reason("map in array prototype");
       use_ic = false;
     }
@@ -2119,7 +2121,7 @@ void StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
 
 void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
                                   Handle<Object> value) {
-  DCHECK(!array->map()->IsMapInArrayPrototypeChain());
+  DCHECK(!array->map()->IsMapInArrayPrototypeChain(isolate()));
   DCHECK(index->IsNumber());
 
   if (!FLAG_use_ic || MigrateDeprecated(array)) {

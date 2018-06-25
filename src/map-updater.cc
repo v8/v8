@@ -163,8 +163,8 @@ void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  Handle<FieldType> new_field_type) {
-  Map::GeneralizeField(map, modify_index, new_constness, new_representation,
-                       new_field_type);
+  Map::GeneralizeField(isolate_, map, modify_index, new_constness,
+                       new_representation, new_field_type);
 
   DCHECK_EQ(*old_descriptors_, old_map_->instance_descriptors());
 }
@@ -199,13 +199,13 @@ MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
   DCHECK_EQ(kField, old_details.location());
   if (FLAG_trace_generalization) {
     old_map_->PrintGeneralization(
-        stdout, "uninitialized field", modified_descriptor_, old_nof_, old_nof_,
-        false, old_representation, new_representation_,
+        isolate_, stdout, "uninitialized field", modified_descriptor_, old_nof_,
+        old_nof_, false, old_representation, new_representation_,
         handle(old_descriptors_->GetFieldType(modified_descriptor_), isolate_),
         MaybeHandle<Object>(), new_field_type_, MaybeHandle<Object>());
   }
-  Handle<Map> field_owner(old_map_->FindFieldOwner(modified_descriptor_),
-                          isolate_);
+  Handle<Map> field_owner(
+      old_map_->FindFieldOwner(isolate_, modified_descriptor_), isolate_);
 
   GeneralizeField(field_owner, modified_descriptor_, new_constness_,
                   new_representation_, new_field_type_);
@@ -224,7 +224,7 @@ MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
 MapUpdater::State MapUpdater::FindRootMap() {
   DCHECK_EQ(kInitialized, state_);
   // Check the state of the root map.
-  root_map_ = handle(old_map_->FindRootMap(), isolate_);
+  root_map_ = handle(old_map_->FindRootMap(isolate_), isolate_);
   ElementsKind from_kind = root_map_->elements_kind();
   ElementsKind to_kind = new_elements_kind_;
   if (root_map_->is_deprecated()) {
@@ -645,7 +645,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   Map* maybe_transition = transitions.SearchTransition(
       GetKey(split_nof), split_details.kind(), split_details.attributes());
   if (maybe_transition != nullptr) {
-    maybe_transition->DeprecateTransitionTree();
+    maybe_transition->DeprecateTransitionTree(isolate_);
   }
 
   // If |maybe_transition| is not nullptr then the transition array already
@@ -682,7 +682,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
     }
 
     old_map_->PrintGeneralization(
-        stdout, "", modified_descriptor_, split_nof, old_nof_,
+        isolate_, stdout, "", modified_descriptor_, split_nof, old_nof_,
         old_details.location() == kDescriptor && new_location_ == kField,
         old_details.representation(), new_details.representation(),
         old_field_type, old_value, new_field_type, new_value);
@@ -691,13 +691,14 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   Handle<LayoutDescriptor> new_layout_descriptor =
       LayoutDescriptor::New(split_map, new_descriptors, old_nof_);
 
-  Handle<Map> new_map = Map::AddMissingTransitions(split_map, new_descriptors,
-                                                   new_layout_descriptor);
+  Handle<Map> new_map = Map::AddMissingTransitions(
+      isolate_, split_map, new_descriptors, new_layout_descriptor);
 
   // Deprecated part of the transition tree is no longer reachable, so replace
   // current instance descriptors in the "survived" part of the tree with
   // the new descriptors to maintain descriptors sharing invariant.
-  split_map->ReplaceDescriptors(*new_descriptors, *new_layout_descriptor);
+  split_map->ReplaceDescriptors(isolate_, *new_descriptors,
+                                *new_layout_descriptor);
 
   result_map_ = new_map;
   state_ = kEnd;

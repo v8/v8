@@ -342,7 +342,7 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
     v8::internal::Handle<Map> map(
         internal_isolate->heap()->one_byte_internalized_string_map(),
         internal_isolate);
-    Map::WeakCellForMap(map);
+    Map::WeakCellForMap(internal_isolate, map);
     // Need to avoid DCHECKs inside SnapshotCreator.
     snapshot_creator.SetDefaultContext(v8::Context::New(isolate));
   }

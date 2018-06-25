@@ -771,7 +771,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   // This method calls LayoutDescriptor::AppendIfFastOrUseFull() internally
   // and does all the required map-descriptors related book keeping.
   Handle<Map> last_map = Map::AddMissingTransitionsForTesting(
-      initial_map, descriptors, full_layout_descriptor);
+      isolate, initial_map, descriptors, full_layout_descriptor);
 
   // Follow back pointers to construct a sequence of maps from |map|
   // to |last_map|.
@@ -952,7 +952,7 @@ TEST(Regress436816) {
   CHECK(!object->map()->HasFastPointerLayout());
 
   Handle<Map> normalized_map =
-      Map::Normalize(map, KEEP_INOBJECT_PROPERTIES, "testing");
+      Map::Normalize(isolate, map, KEEP_INOBJECT_PROPERTIES, "testing");
   JSObject::MigrateToMap(object, normalized_map);
   CHECK(!object->HasFastProperties());
   CHECK(object->map()->HasFastPointerLayout());
@@ -1584,7 +1584,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
 
   // Shift fields right by turning constant property to a field.
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::Tagged(), any_type);
+      isolate, map, 0, kData, NONE, Representation::Tagged(), any_type);
 
   if (write_barrier_kind == OLD_TO_NEW_WRITE_BARRIER) {
     TestWriteBarrier(map, new_map, 2, 1);

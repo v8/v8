@@ -2078,7 +2078,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   }
 
   Handle<Map> receiver_map(map, isolate());
-  if (!Map::TryUpdate(receiver_map).ToHandle(&receiver_map)) return NoChange();
+  if (!Map::TryUpdate(isolate(), receiver_map).ToHandle(&receiver_map))
+    return NoChange();
 
   Handle<Name> cached_name = handle(
       Name::cast(nexus.GetFeedbackExtra()->ToStrongHeapObject()), isolate());
@@ -2842,11 +2843,12 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
       DCHECK(!receiver_map->is_abandoned_prototype_map());
+      Isolate* isolate = this->isolate();
       receiver_maps->erase(
           std::remove_if(receiver_maps->begin(), receiver_maps->end(),
-                         [receiver_map](const Handle<Map>& map) {
+                         [receiver_map, isolate](const Handle<Map>& map) {
                            return map->is_abandoned_prototype_map() ||
-                                  map->FindRootMap() != *receiver_map;
+                                  map->FindRootMap(isolate) != *receiver_map;
                          }),
           receiver_maps->end());
     }
@@ -2884,7 +2886,7 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
     Node* receiver) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
-    return handle(m.Value()->map()->FindRootMap(), isolate());
+    return handle(m.Value()->map()->FindRootMap(isolate()), isolate());
   } else if (m.IsJSCreate()) {
     HeapObjectMatcher mtarget(m.InputAt(0));
     HeapObjectMatcher mnewtarget(m.InputAt(1));
@@ -2894,7 +2896,7 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
       if (constructor->has_initial_map()) {
         Handle<Map> initial_map(constructor->initial_map(), isolate());
         if (initial_map->constructor_or_backpointer() == *mnewtarget.Value()) {
-          DCHECK_EQ(*initial_map, initial_map->FindRootMap());
+          DCHECK_EQ(*initial_map, initial_map->FindRootMap(isolate()));
           return initial_map;
         }
       }

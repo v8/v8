@@ -879,7 +879,7 @@ void LiveEdit::FixupScript(Isolate* isolate, Handle<Script> script,
     Handle<SharedFunctionInfo> info(shared, isolate);
     info->set_script(isolate->heap()->undefined_value());
     Handle<Object> new_noscript_list = FixedArrayOfWeakCells::Add(
-        isolate->factory()->noscript_shared_function_infos(), info);
+        isolate, isolate->factory()->noscript_shared_function_infos(), info);
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*new_noscript_list);
 
     // Put the SharedFunctionInfo at its new, correct location.

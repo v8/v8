@@ -242,7 +242,6 @@ class ApiTestFuzzer: public v8::base::Thread {
   RegisterThreadedTest register_##Name(Test##Name, #Name);           \
   /* */ TEST(Name)
 
-
 class RegisterThreadedTest {
  public:
   explicit RegisterThreadedTest(CcTest::TestFunction* callback,

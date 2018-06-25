@@ -108,8 +108,9 @@ LookupIterator LookupIterator::ForTransitionHandler(
 
   if (!transition_map->is_dictionary_map()) {
     int descriptor_number = transition_map->LastAdded();
-    Handle<Map> new_map = Map::PrepareForDataProperty(
-        transition_map, descriptor_number, PropertyConstness::kConst, value);
+    Handle<Map> new_map =
+        Map::PrepareForDataProperty(isolate, transition_map, descriptor_number,
+                                    PropertyConstness::kConst, value);
     // Reload information; this is no-op if nothing changed.
     it.property_details_ =
         new_map->instance_descriptors()->GetDetails(descriptor_number);
@@ -428,7 +429,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   Handle<Map> old_map(holder_obj->map(), isolate_);
   Handle<Map> new_map = Map::PrepareForDataProperty(
-      old_map, descriptor_number(), new_constness, value);
+      isolate(), old_map, descriptor_number(), new_constness, value);
 
   if (old_map.is_identical_to(new_map)) {
     // Update the property details if the representation was None.
@@ -471,8 +472,9 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
         isolate_, old_map, descriptor_number(), i::kData, attributes);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
-    new_map = Map::PrepareForDataProperty(new_map, descriptor_number(),
-                                          PropertyConstness::kMutable, value);
+    new_map =
+        Map::PrepareForDataProperty(isolate(), new_map, descriptor_number(),
+                                    PropertyConstness::kMutable, value);
     JSObject::MigrateToMap(holder_obj, new_map);
     ReloadPropertyInformation<false>();
   }
@@ -908,7 +910,8 @@ Handle<Map> LookupIterator::GetFieldOwnerMap() const {
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
   Map* holder_map = holder_->map();
-  return handle(holder_map->FindFieldOwner(descriptor_number()), isolate_);
+  return handle(holder_map->FindFieldOwner(isolate(), descriptor_number()),
+                isolate_);
 }
 
 FieldIndex LookupIterator::GetFieldIndex() const {

@@ -493,7 +493,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*map));
 
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::None(), none_type);
+      isolate, map, 0, kData, NONE, Representation::None(), none_type);
   // |map| did not change except marked unstable.
   CHECK(!map->is_deprecated());
   CHECK(!map->is_stable());
@@ -508,12 +508,12 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*new_map));
 
   Handle<Map> new_map2 = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::None(), none_type);
+      isolate, map, 0, kData, NONE, Representation::None(), none_type);
   CHECK_EQ(*new_map, *new_map2);
 
   Handle<Object> value(Smi::kZero, isolate);
-  Handle<Map> prepared_map =
-      Map::PrepareForDataProperty(new_map, 0, PropertyConstness::kConst, value);
+  Handle<Map> prepared_map = Map::PrepareForDataProperty(
+      isolate, new_map, 0, PropertyConstness::kConst, value);
   // None to Smi generalization is trivial, map does not change.
   CHECK_EQ(*new_map, *prepared_map);
 
@@ -640,7 +640,7 @@ static void TestGeneralizeField(int detach_property_at_index,
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
-        detach_point_map, detach_property_at_index, kData, NONE,
+        isolate, detach_point_map, detach_property_at_index, kData, NONE,
         Representation::Tagged(), any_type);
     expectations.SetDataField(detach_property_at_index, kDefaultFieldConstness,
                               Representation::Tagged(), any_type);
@@ -650,14 +650,15 @@ static void TestGeneralizeField(int detach_property_at_index,
   }
 
   // Create new maps by generalizing representation of propX field.
-  Handle<Map> field_owner(map->FindFieldOwner(property_index), isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, property_index),
+                          isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
 
   dependencies.AssumeFieldOwner(field_owner);
 
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, property_index, kData, NONE, to.representation, to.type);
+      isolate, map, property_index, kData, NONE, to.representation, to.type);
 
   expectations.SetDataField(property_index, expected.constness,
                             expected.representation, expected.type);
@@ -701,7 +702,7 @@ static void TestGeneralizeField(int detach_property_at_index,
   dependencies.Rollback();  // Properly cleanup compilation info.
 
   // Update all deprecated maps and check that they are now the same.
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 }
 
@@ -932,7 +933,7 @@ TEST(GeneralizeFieldWithAccessorProperties) {
       continue;
     }
     Handle<Map> new_map = Map::ReconfigureProperty(
-        map, i, kData, NONE, Representation::Double(), any_type);
+        isolate, map, i, kData, NONE, Representation::Double(), any_type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, PropertyConstness::kMutable,
@@ -951,10 +952,10 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   CHECK(!active_map->is_deprecated());
 
   // Update all deprecated maps and check that they are now the same.
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*active_map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
-    updated_map = Map::Update(maps[i]);
+    updated_map = Map::Update(isolate, maps[i]);
     CHECK_EQ(*active_map, *updated_map);
   }
 }
@@ -1013,7 +1014,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
   dependencies.AssumeFieldOwner(field_owner);
@@ -1043,7 +1044,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK(expectations.Check(*new_map));
 
   // Update deprecated |map|, it should become |new_map|.
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 }
 
@@ -1098,7 +1099,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
   dependencies.AssumeFieldOwner(field_owner);
@@ -1130,7 +1131,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
 
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 }
 
@@ -1338,7 +1339,7 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjectFieldToTagged) {
 // Checks that given |map| is deprecated and that it updates to given |new_map|
 // which in turn should match expectations.
 struct CheckDeprecated {
-  void Check(Handle<Map> map, Handle<Map> new_map,
+  void Check(Isolate* isolate, Handle<Map> map, Handle<Map> new_map,
              const Expectations& expectations) {
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
@@ -1347,7 +1348,7 @@ struct CheckDeprecated {
     CHECK(expectations.Check(*new_map));
 
     // Update deprecated |map|, it should become |new_map|.
-    Handle<Map> updated_map = Map::Update(map);
+    Handle<Map> updated_map = Map::Update(isolate, map);
     CHECK_EQ(*new_map, *updated_map);
   }
 };
@@ -1356,7 +1357,7 @@ struct CheckDeprecated {
 // Checks that given |map| is NOT deprecated, equals to given |new_map| and
 // matches expectations.
 struct CheckSameMap {
-  void Check(Handle<Map> map, Handle<Map> new_map,
+  void Check(Isolate* isolate, Handle<Map> map, Handle<Map> new_map,
              const Expectations& expectations) {
     // |map| was not reconfigured, therefore it should stay stable.
     CHECK(map->is_stable());
@@ -1367,7 +1368,7 @@ struct CheckSameMap {
     CHECK(expectations.Check(*new_map));
 
     // Update deprecated |map|, it should become |new_map|.
-    Handle<Map> updated_map = Map::Update(map);
+    Handle<Map> updated_map = Map::Update(isolate, map);
     CHECK_EQ(*new_map, *updated_map);
   }
 };
@@ -1376,7 +1377,7 @@ struct CheckSameMap {
 // Checks that given |map| is NOT deprecated and matches expectations.
 // |new_map| is unrelated to |map|.
 struct CheckUnrelated {
-  void Check(Handle<Map> map, Handle<Map> new_map,
+  void Check(Isolate* isolate, Handle<Map> map, Handle<Map> new_map,
              const Expectations& expectations) {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
@@ -1391,7 +1392,8 @@ struct CheckUnrelated {
 // Checks that given |map| is NOT deprecated, and |new_map| is a result of
 // copy-generalize-all-representations.
 struct CheckCopyGeneralizeAllFields {
-  void Check(Handle<Map> map, Handle<Map> new_map, Expectations& expectations) {
+  void Check(Isolate* isolate, Handle<Map> map, Handle<Map> new_map,
+             Expectations& expectations) {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
 
@@ -1494,7 +1496,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   CHECK(expectations2.Check(*map2));
 
   config.UpdateExpectations(kCustomPropIndex, expectations1);
-  checker.Check(map1, new_map, expectations1);
+  checker.Check(isolate, map1, new_map, expectations1);
 }
 
 
@@ -1542,7 +1544,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       Factory* factory = isolate->factory();
       Handle<String> name = factory->empty_string();
       Handle<Map> sloppy_map =
-          Map::CopyInitialMap(isolate->sloppy_function_map());
+          Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
       Handle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
       function_type_ = FieldType::Class(sloppy_map, isolate);
@@ -1774,14 +1776,15 @@ static void TestReconfigureElementsKind_GeneralizeField(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
   dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
-  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, PACKED_ELEMENTS);
+  Handle<Map> new_map =
+      Map::ReconfigureElementsKind(isolate, map2, PACKED_ELEMENTS);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1802,7 +1805,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
   CHECK(expectations.Check(*new_map));
 
   // Update deprecated |map|, it should become |new_map|.
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 
   // Ensure Map::FindElementsKindTransitionedMap() is able to find the
@@ -1810,7 +1813,8 @@ static void TestReconfigureElementsKind_GeneralizeField(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map* transitioned_map = map2->FindElementsKindTransitionedMap(map_list);
+    Map* transitioned_map =
+        map2->FindElementsKindTransitionedMap(isolate, map_list);
     CHECK_EQ(*updated_map, transitioned_map);
   }
 }
@@ -1868,14 +1872,15 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
   dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
-  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, PACKED_ELEMENTS);
+  Handle<Map> new_map =
+      Map::ReconfigureElementsKind(isolate, map2, PACKED_ELEMENTS);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1897,7 +1902,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
 
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 
   // Ensure Map::FindElementsKindTransitionedMap() is able to find the
@@ -1905,7 +1910,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map* transitioned_map = map2->FindElementsKindTransitionedMap(map_list);
+    Map* transitioned_map =
+        map2->FindElementsKindTransitionedMap(isolate, map_list);
     CHECK_EQ(*updated_map, transitioned_map);
   }
 }
@@ -2159,7 +2165,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       map2 = handle(target, isolate);
     }
 
-    map2 = Map::ReconfigureProperty(map2, kSplitProp, kData, NONE,
+    map2 = Map::ReconfigureProperty(isolate, map2, kSplitProp, kData, NONE,
                                     Representation::Double(), any_type);
     expectations.SetDataField(kSplitProp, PropertyConstness::kMutable,
                               Representation::Double(), any_type);
@@ -2188,7 +2194,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 
   // Try to update |map|, since there is no place for propX transition at |map2|
   // |map| should become "copy-generalized".
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK(updated_map->GetBackPointer()->IsUndefined(isolate));
 
   for (int i = 0; i < kPropCount; i++) {
@@ -2262,7 +2268,7 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
   // Create new maps by generalizing representation of propX field.
   Handle<Map> maps[kPropCount];
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> new_map = Map::ReconfigureProperty(map, i, kData, NONE,
+    Handle<Map> new_map = Map::ReconfigureProperty(isolate, map, i, kData, NONE,
                                                    to.representation, to.type);
     maps[i] = new_map;
 
@@ -2274,12 +2280,12 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
     CHECK(i == 0 || maps[i - 1]->is_deprecated());
     CHECK(expectations.Check(*new_map));
 
-    Handle<Map> new_map2 = Map::Update(map2);
+    Handle<Map> new_map2 = Map::Update(isolate, map2);
     CHECK(!new_map2->is_deprecated());
     CHECK(!new_map2->is_dictionary_map());
 
     Handle<Map> tmp_map;
-    if (Map::TryUpdate(map2).ToHandle(&tmp_map)) {
+    if (Map::TryUpdate(isolate, map2).ToHandle(&tmp_map)) {
       // If Map::TryUpdate() manages to succeed the result must match the result
       // of Map::Update().
       CHECK_EQ(*new_map2, *tmp_map);
@@ -2303,10 +2309,10 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
   CHECK(!active_map->is_deprecated());
 
   // Update all deprecated maps and check that they are now the same.
-  Handle<Map> updated_map = Map::Update(map);
+  Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*active_map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
-    updated_map = Map::Update(maps[i]);
+    updated_map = Map::Update(isolate, maps[i]);
     CHECK_EQ(*active_map, *updated_map);
   }
 }
@@ -2577,12 +2583,13 @@ struct FieldGeneralizationChecker {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  void Check(Expectations& expectations2, Handle<Map> map1, Handle<Map> map2) {
+  void Check(Isolate* isolate, Expectations& expectations2, Handle<Map> map1,
+             Handle<Map> map2) {
     CHECK(!map2->is_deprecated());
 
     CHECK(map1->is_deprecated());
     CHECK_NE(*map1, *map2);
-    Handle<Map> updated_map = Map::Update(map1);
+    Handle<Map> updated_map = Map::Update(isolate, map1);
     CHECK_EQ(*map2, *updated_map);
 
     expectations2.SetDataField(descriptor_, attributes_, constness_,
@@ -2594,7 +2601,8 @@ struct FieldGeneralizationChecker {
 
 // Checks that existing transition was taken as is.
 struct SameMapChecker {
-  void Check(Expectations& expectations, Handle<Map> map1, Handle<Map> map2) {
+  void Check(Isolate* isolate, Expectations& expectations, Handle<Map> map1,
+             Handle<Map> map2) {
     CHECK(!map2->is_deprecated());
     CHECK_EQ(*map1, *map2);
     CHECK(expectations.Check(*map2));
@@ -2605,7 +2613,8 @@ struct SameMapChecker {
 // Checks that both |map1| and |map2| should stays non-deprecated, this is
 // the case when property kind is change.
 struct PropertyKindReconfigurationChecker {
-  void Check(Expectations& expectations, Handle<Map> map1, Handle<Map> map2) {
+  void Check(Isolate* isolate, Expectations& expectations, Handle<Map> map1,
+             Handle<Map> map2) {
     CHECK(!map1->is_deprecated());
     CHECK(!map2->is_deprecated());
     CHECK_NE(*map1, *map2);
@@ -2654,7 +2663,7 @@ static void TestTransitionTo(TransitionOp1& transition_op1,
   Handle<Map> map2 = transition_op2.DoTransition(expectations2, map);
 
   // Let the test customization do the check.
-  checker.Check(expectations2, map1, map2);
+  checker.Check(isolate, expectations2, map1, map2);
 }
 
 
@@ -2699,7 +2708,8 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Handle<String> name = factory->empty_string();
-  Handle<Map> sloppy_map = Map::CopyInitialMap(isolate->sloppy_function_map());
+  Handle<Map> sloppy_map =
+      Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
   Handle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
   Handle<FieldType> function_type = FieldType::Class(sloppy_map, isolate);

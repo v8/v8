@@ -783,7 +783,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
   // Complete setting up empty function.
   {
     Handle<Map> empty_function_map(empty_function->map(), isolate_);
-    Map::SetPrototype(empty_function_map, object_function_prototype);
+    Map::SetPrototype(isolate(), empty_function_map, object_function_prototype);
   }
 
   native_context()->set_initial_object_prototype(*object_function_prototype);
@@ -794,12 +794,12 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
     // properties.
     Handle<Map> map(object_fun->initial_map(), isolate_);
     map = Map::CopyInitialMapNormalized(isolate(), map);
-    Map::SetPrototype(map, factory->null_value());
+    Map::SetPrototype(isolate(), map, factory->null_value());
     native_context()->set_slow_object_with_null_prototype_map(*map);
 
     // Set up slow map for literals with too many properties.
     map = Map::Copy(isolate(), map, "slow_object_with_object_prototype_map");
-    Map::SetPrototype(map, object_function_prototype);
+    Map::SetPrototype(isolate(), map, object_function_prototype);
     native_context()->set_slow_object_with_object_prototype_map(*map);
   }
 }
@@ -824,7 +824,7 @@ Handle<Map> CreateNonConstructorMap(Isolate* isolate, Handle<Map> source_map,
     map->SetInObjectUnusedPropertyFields(unused_property_fields);
   }
   map->set_is_constructor(false);
-  Map::SetPrototype(map, prototype);
+  Map::SetPrototype(isolate, map, prototype);
   return map;
 }
 
@@ -912,7 +912,8 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
   Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
-  Map::SetPrototype(generator_object_prototype_map, generator_object_prototype);
+  Map::SetPrototype(isolate(), generator_object_prototype_map,
+                    generator_object_prototype);
   native_context()->set_generator_object_prototype_map(
       *generator_object_prototype_map);
 }
@@ -952,7 +953,7 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
 
   Handle<Map> async_from_sync_iterator_map = factory()->NewMap(
       JS_ASYNC_FROM_SYNC_ITERATOR_TYPE, JSAsyncFromSyncIterator::kSize);
-  Map::SetPrototype(async_from_sync_iterator_map,
+  Map::SetPrototype(isolate(), async_from_sync_iterator_map,
                     async_from_sync_iterator_prototype);
   native_context()->set_async_from_sync_iterator_map(
       *async_from_sync_iterator_map);
@@ -1031,7 +1032,7 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
   Handle<Map> async_generator_object_prototype_map = Map::Create(isolate(), 0);
-  Map::SetPrototype(async_generator_object_prototype_map,
+  Map::SetPrototype(isolate(), async_generator_object_prototype_map,
                     async_generator_object_prototype);
   native_context()->set_async_generator_object_prototype_map(
       *async_generator_object_prototype_map);
@@ -1110,7 +1111,7 @@ void Genesis::CreateJSProxyMaps() {
       map->AppendDescriptor(&d);
     }
 
-    Map::SetPrototype(map, isolate()->initial_object_prototype());
+    Map::SetPrototype(isolate(), map, isolate()->initial_object_prototype());
     map->SetConstructor(native_context()->object_function());
 
     native_context()->set_proxy_revocable_result_map(*map);
@@ -3301,7 +3302,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<Map> map = factory->NewMap(
         JS_MODULE_NAMESPACE_TYPE, JSModuleNamespace::kSize,
         TERMINAL_FAST_ELEMENTS_KIND, JSModuleNamespace::kInObjectFieldCount);
-    Map::SetPrototype(map, isolate_->factory()->null_value());
+    Map::SetPrototype(isolate(), map, isolate_->factory()->null_value());
     Map::EnsureDescriptorSlack(isolate_, map, 1);
     native_context()->set_js_module_namespace_map(*map);
 
@@ -3319,7 +3320,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- I t e r a t o r R e s u l t
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSIteratorResult::kSize,
                                       TERMINAL_FAST_ELEMENTS_KIND, 2);
-    Map::SetPrototype(map, isolate_->initial_object_prototype());
+    Map::SetPrototype(isolate(), map, isolate_->initial_object_prototype());
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // value
@@ -3502,7 +3503,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
     map->set_is_callable(true);
-    Map::SetPrototype(map, empty_function);
+    Map::SetPrototype(isolate(), map, empty_function);
 
     PropertyAttributes roc_attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
@@ -3607,7 +3608,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     DCHECK_EQ(native_context()->object_function()->prototype(),
               *isolate_->initial_object_prototype());
-    Map::SetPrototype(map, isolate_->initial_object_prototype());
+    Map::SetPrototype(isolate(), map, isolate_->initial_object_prototype());
 
     // Copy constructor from the sloppy arguments boilerplate.
     map->SetConstructor(
@@ -4582,7 +4583,7 @@ void Genesis::InitializeGlobal_harmony_await_optimization() {
 
   Handle<Map> async_from_sync_iterator_map = factory()->NewMap(
       JS_ASYNC_FROM_SYNC_ITERATOR_TYPE, JSAsyncFromSyncIterator::kSize);
-  Map::SetPrototype(async_from_sync_iterator_map,
+  Map::SetPrototype(isolate(), async_from_sync_iterator_map,
                     async_from_sync_iterator_prototype);
   native_context()->set_async_from_sync_iterator_map(
       *async_from_sync_iterator_map);
@@ -4970,7 +4971,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
       map->AppendDescriptor(&d);
     }
 
-    Map::SetPrototype(map, isolate()->initial_object_prototype());
+    Map::SetPrototype(isolate(), map, isolate()->initial_object_prototype());
     map->SetConstructor(native_context()->object_function());
 
     native_context()->set_accessor_property_descriptor_map(*map);
@@ -5015,7 +5016,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
       map->AppendDescriptor(&d);
     }
 
-    Map::SetPrototype(map, isolate()->initial_object_prototype());
+    Map::SetPrototype(isolate(), map, isolate()->initial_object_prototype());
     map->SetConstructor(native_context()->object_function());
 
     native_context()->set_data_property_descriptor_map(*map);
@@ -5040,7 +5041,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // Set prototype on map.
     initial_map->set_has_non_instance_prototype(false);
-    Map::SetPrototype(initial_map, array_prototype);
+    Map::SetPrototype(isolate(), initial_map, array_prototype);
 
     // Update map with length accessor from Array and add "index", "input" and
     // "groups".

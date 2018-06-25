@@ -185,7 +185,7 @@ bool HeapObject::IsJSGeneratorObject() const {
 bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsExternal(Isolate* isolate) const {
-  return map()->FindRootMap() == isolate->heap()->external_map();
+  return map()->FindRootMap(isolate) == isolate->heap()->external_map();
 }
 
 #define IS_TYPE_FUNCTION_DEF(type_)                               \
@@ -2541,7 +2541,7 @@ bool JSFunction::IsInOptimizationQueue() {
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   if (!has_prototype_slot()) return;
   if (has_initial_map() && initial_map()->IsInobjectSlackTrackingInProgress()) {
-    initial_map()->CompleteInobjectSlackTracking();
+    initial_map()->CompleteInobjectSlackTracking(GetIsolate());
   }
 }
 

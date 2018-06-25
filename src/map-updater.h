@@ -53,7 +53,9 @@ class MapUpdater {
         is_transitionable_fast_elements_kind_(
             IsTransitionableFastElementsKind(new_elements_kind_)) {
     // We shouldn't try to update remote objects.
-    DCHECK(!old_map->FindRootMap()->GetConstructor()->IsFunctionTemplateInfo());
+    DCHECK(!old_map->FindRootMap(isolate)
+                ->GetConstructor()
+                ->IsFunctionTemplateInfo());
   }
 
   // Prepares for reconfiguring of a property at |descriptor| to data field

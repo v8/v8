@@ -1448,7 +1448,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   Handle<Map> instance_map;
   Handle<HeapObject> prototype_const = prototype_type.AsHeapConstant()->Value();
   MaybeHandle<Map> maybe_instance_map =
-      Map::TryGetObjectCreateMap(prototype_const);
+      Map::TryGetObjectCreateMap(isolate(), prototype_const);
   if (!maybe_instance_map.ToHandle(&instance_map)) return NoChange();
 
   Node* properties = jsgraph()->EmptyFixedArrayConstant();

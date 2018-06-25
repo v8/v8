@@ -116,7 +116,7 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
     script->set_id(isolate()->heap()->NextScriptId());
     // Add script to list.
     Handle<Object> list =
-        FixedArrayOfWeakCells::Add(factory->script_list(), script);
+        FixedArrayOfWeakCells::Add(isolate(), factory->script_list(), script);
     heap->SetRootScriptList(*list);
   }
 }

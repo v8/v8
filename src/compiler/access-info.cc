@@ -277,7 +277,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
+    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       if (CanInlineElementAccess(map) &&
           IsFastElementsKind(map->elements_kind()) &&
           GetInitialFastElementsKind() != map->elements_kind()) {
@@ -291,12 +291,12 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   receiver_maps.reserve(maps.size());
   MapTransitionList transitions(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
+    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       // Don't generate elements kind transitions from stable maps.
-      Map* transition_target = map->is_stable()
-                                   ? nullptr
-                                   : map->FindElementsKindTransitionedMap(
-                                         possible_transition_targets);
+      Map* transition_target =
+          map->is_stable() ? nullptr
+                           : map->FindElementsKindTransitionedMap(
+                                 isolate(), possible_transition_targets);
       if (transition_target == nullptr) {
         receiver_maps.push_back(map);
       } else {
@@ -396,8 +396,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
               // Add proper code dependencies in case of stable field map(s).
-              Handle<Map> field_owner_map(map->FindFieldOwner(number),
-                                          isolate());
+              Handle<Map> field_owner_map(
+                  map->FindFieldOwner(isolate(), number), isolate());
               dependencies()->AssumeFieldOwner(field_owner_map);
 
               // Remember the field map, and try to infer a useful type.
@@ -561,7 +561,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
     MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
+    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       PropertyAccessInfo access_info;
       if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
         return false;
@@ -702,8 +702,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       return false;
     } else if (descriptors_field_type->IsClass()) {
       // Add proper code dependencies in case of stable field map(s).
-      Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
-                                  isolate());
+      Handle<Map> field_owner_map(
+          transition_map->FindFieldOwner(isolate(), number), isolate());
       dependencies()->AssumeFieldOwner(field_owner_map);
 
       // Remember the field map, and try to infer a useful type.

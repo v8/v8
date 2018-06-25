@@ -372,7 +372,8 @@ class FixedArrayOfWeakCells : public FixedArray {
   // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be
   // allocated. This function does not check if the value exists already,
   // callers must ensure this themselves if necessary.
-  static Handle<FixedArrayOfWeakCells> Add(Handle<Object> maybe_array,
+  static Handle<FixedArrayOfWeakCells> Add(Isolate* isolate,
+                                           Handle<Object> maybe_array,
                                            Handle<HeapObject> value,
                                            int* assigned_index = nullptr);
 
@@ -424,8 +425,8 @@ class FixedArrayOfWeakCells : public FixedArray {
       Isolate* isolate, int size,
       Handle<FixedArrayOfWeakCells> initialize_from);
 
-  static void Set(Handle<FixedArrayOfWeakCells> array, int index,
-                  Handle<HeapObject> value);
+  static void Set(Isolate* isolate, Handle<FixedArrayOfWeakCells> array,
+                  int index, Handle<HeapObject> value);
   inline void clear(int index);
 
   inline int last_used_index() const;

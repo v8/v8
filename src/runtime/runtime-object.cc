@@ -414,7 +414,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   // TODO(bmeurer): Use a dedicated cache for Object.create; think about
   // slack tracking for Object.create.
   Handle<Map> map =
-      Map::GetObjectCreateMap(Handle<HeapObject>::cast(prototype));
+      Map::GetObjectCreateMap(isolate, Handle<HeapObject>::cast(prototype));
 
   // Actually allocate the object.
   Handle<JSObject> object;
@@ -770,7 +770,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Map, initial_map, 0);
-  initial_map->CompleteInobjectSlackTracking();
+  initial_map->CompleteInobjectSlackTracking(isolate);
 
   return isolate->heap()->undefined_value();
 }

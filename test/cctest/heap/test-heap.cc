@@ -4699,7 +4699,7 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
       CompileRun("(function () { return {x : 10}; })();");
   Handle<JSReceiver> proto =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-  Map::SetPrototype(map, proto);
+  Map::SetPrototype(isolate, map, proto);
   heap->AddRetainedMap(map);
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
   array->Set(0, HeapObjectReference::Weak(*map));
@@ -4748,13 +4748,14 @@ TEST(WritableVsImmortalRoots) {
 TEST(FixedArrayOfWeakCells) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
 
-  Handle<HeapNumber> number = CcTest::i_isolate()->factory()->NewHeapNumber(1);
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1);
   Handle<FixedArrayOfWeakCells> array =
-      FixedArrayOfWeakCells::Add(Handle<Object>(), number);
+      FixedArrayOfWeakCells::Add(isolate, Handle<Object>(), number);
   array->Remove(number);
   array->Compact<FixedArrayOfWeakCells::NullCallback>();
-  FixedArrayOfWeakCells::Add(array, number);
+  FixedArrayOfWeakCells::Add(isolate, array, number);
 }
 
 

@@ -498,7 +498,7 @@ void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
   } else {
     int index = 0;
     Handle<FixedArrayOfWeakCells> array = FixedArrayOfWeakCells::Add(
-        handle(retaining_path_targets(), isolate()), object, &index);
+        isolate(), handle(retaining_path_targets(), isolate()), object, &index);
     set_retaining_path_targets(*array);
     retaining_path_target_option_[index] = option;
   }

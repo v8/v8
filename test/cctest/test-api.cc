@@ -99,7 +99,6 @@ using ::v8::Value;
   }                                                                  \
   THREADED_TEST(Name)
 
-
 void RunWithProfiler(void (*test)()) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2742,6 +2741,7 @@ THREADED_TEST(InternalFields) {
 TEST(InternalFieldsSubclassing) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   for (int nof_embedder_fields = 0;
        nof_embedder_fields < i::JSObject::kMaxEmbedderFields;
@@ -2819,9 +2819,9 @@ TEST(InternalFieldsSubclassing) {
       i::Handle<i::JSObject> i_value =
           i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*value));
 #ifdef VERIFY_HEAP
-      i_value->HeapObjectVerify(i_value->GetIsolate());
-      i_value->map()->HeapObjectVerify(i_value->GetIsolate());
-      i_value->map()->FindRootMap()->HeapObjectVerify(i_value->GetIsolate());
+      i_value->HeapObjectVerify(i_isolate);
+      i_value->map()->HeapObjectVerify(i_isolate);
+      i_value->map()->FindRootMap(i_isolate)->HeapObjectVerify(i_isolate);
 #endif
       CHECK_EQ(nof_embedder_fields, value->InternalFieldCount());
       if (in_object_only) {
@@ -2831,7 +2831,8 @@ TEST(InternalFieldsSubclassing) {
       }
 
       // Make Sure we get the precise property count.
-      i_value->map()->FindRootMap()->CompleteInobjectSlackTracking();
+      i_value->map()->FindRootMap(i_isolate)->CompleteInobjectSlackTracking(
+          i_isolate);
       // TODO(cbruni): fix accounting to make this condition true.
       // CHECK_EQ(0, i_value->map()->UnusedPropertyFields());
       if (in_object_only) {
