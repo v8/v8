@@ -164,6 +164,8 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
       return kBigInt;
     case ODDBALL_TYPE:
       switch (type.oddball_type()) {
+        case OddballType::kNone:
+          break;
         case OddballType::kHole:
           return kHole;
         case OddballType::kBoolean:
@@ -172,14 +174,14 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
           return kNull;
         case OddballType::kUndefined:
           return kUndefined;
+        case OddballType::kUninitialized:
         case OddballType::kOther:
           // TODO(neis): We should add a kOtherOddball type.
           return kOtherInternal;
         case OddballType::kAny:
           return kOddball | kOtherInternal;
-        default:
-          UNREACHABLE();
       }
+      UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
     case JS_OBJECT_TYPE:

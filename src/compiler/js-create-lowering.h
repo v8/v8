@@ -24,6 +24,7 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class JSHeapBroker;
+class JSObjectRef;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
@@ -97,10 +98,9 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                          std::vector<Node*> const& values,
                          PretenureFlag pretenure);
   Node* AllocateFastLiteral(Node* effect, Node* control,
-                            Handle<JSObject> boilerplate,
-                            PretenureFlag pretenure);
+                            JSObjectRef boilerplate, PretenureFlag pretenure);
   Node* AllocateFastLiteralElements(Node* effect, Node* control,
-                                    Handle<JSObject> boilerplate,
+                                    JSObjectRef boilerplate,
                                     PretenureFlag pretenure);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
                               Handle<JSRegExp> boilerplate);

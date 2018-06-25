@@ -20,6 +20,7 @@ enum class OddballType : uint8_t {
   kUndefined,
   kNull,
   kHole,
+  kUninitialized,
   kOther,  // Oddball, but none of the above.
   kAny     // Any Oddball.
 };
@@ -53,13 +54,22 @@ class HeapObjectType {
 };
 
 #define HEAP_BROKER_DATA_LIST(V) \
+  V(AllocationSite)              \
   V(Context)                     \
+  V(FeedbackVector)              \
+  V(FixedArray)                  \
+  V(FixedArrayBase)              \
+  V(FixedDoubleArray)            \
   V(HeapNumber)                  \
   V(HeapObject)                  \
+  V(JSArray)                     \
   V(JSFunction)                  \
+  V(JSObject)                    \
+  V(MutableHeapNumber)           \
   V(Name)                        \
   V(NativeContext)               \
-  V(ScriptContextTable)
+  V(ScriptContextTable)          \
+  V(Map)
 
 #define HEAP_BROKER_KIND_LIST(V) \
   HEAP_BROKER_DATA_LIST(V)       \
@@ -105,6 +115,8 @@ class HeapObjectRef : public ObjectRef {
   explicit HeapObjectRef(Handle<Object> object);
   HeapObjectType type(const JSHeapBroker* broker) const;
 
+  MapRef map(const JSHeapBroker* broker) const;
+
  private:
   friend class JSHeapBroker;
 };
@@ -129,7 +141,20 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   Isolate* const isolate_;
 };
 
-class JSFunctionRef : public HeapObjectRef {
+class JSObjectRef : public HeapObjectRef {
+ public:
+  explicit JSObjectRef(Handle<Object> object) : HeapObjectRef(object) {}
+
+  bool IsUnboxedDoubleField(FieldIndex index) const;
+  double RawFastDoublePropertyAt(FieldIndex index) const;
+  ObjectRef RawFastPropertyAt(const JSHeapBroker* broker,
+                              FieldIndex index) const;
+
+  FixedArrayBaseRef elements(const JSHeapBroker* broker) const;
+  void EnsureElementsTenured(const JSHeapBroker* broker);
+};
+
+class JSFunctionRef : public JSObjectRef {
  public:
   explicit JSFunctionRef(Handle<Object> object);
   bool HasBuiltinFunctionId() const;
@@ -139,6 +164,12 @@ class JSFunctionRef : public HeapObjectRef {
 class HeapNumberRef : public HeapObjectRef {
  public:
   explicit HeapNumberRef(Handle<Object> object);
+  double value() const;
+};
+
+class MutableHeapNumberRef : public HeapObjectRef {
+ public:
+  explicit MutableHeapNumberRef(Handle<Object> object);
   double value() const;
 };
 
@@ -171,6 +202,73 @@ class ScriptContextTableRef : public HeapObjectRef {
   };
 
   base::Optional<LookupResult> lookup(const NameRef& name) const;
+};
+
+class FeedbackVectorRef : public HeapObjectRef {
+ public:
+  explicit FeedbackVectorRef(Handle<Object> object) : HeapObjectRef(object) {}
+  ObjectRef get(const JSHeapBroker* broker, FeedbackSlot slot) const;
+};
+
+class AllocationSiteRef : public HeapObjectRef {
+ public:
+  explicit AllocationSiteRef(Handle<HeapObject> object)
+      : HeapObjectRef(object) {}
+
+  JSObjectRef boilerplate(const JSHeapBroker* broker) const;
+  PretenureFlag GetPretenureMode() const;
+
+  bool IsFastLiteral(const JSHeapBroker* broker);
+};
+
+class MapRef : public HeapObjectRef {
+ public:
+  explicit MapRef(Handle<HeapObject> object) : HeapObjectRef(object) {}
+
+  int instance_size() const;
+  InstanceType instance_type() const;
+  int GetInObjectProperties() const;
+  int NumberOfOwnDescriptors() const;
+  PropertyDetails GetPropertyDetails(int i) const;
+  NameRef GetPropertyKey(const JSHeapBroker* broker, int i) const;
+  FieldIndex GetFieldIndexFor(int i) const;
+
+  bool IsJSArrayMap() const;
+  bool IsFixedCowArrayMap(const JSHeapBroker* broker) const;
+};
+
+class FixedArrayBaseRef : public HeapObjectRef {
+ public:
+  explicit FixedArrayBaseRef(Handle<HeapObject> object)
+      : HeapObjectRef(object) {}
+
+  int length() const;
+};
+
+class FixedArrayRef : public FixedArrayBaseRef {
+ public:
+  explicit FixedArrayRef(Handle<HeapObject> object)
+      : FixedArrayBaseRef(object) {}
+
+  bool is_the_hole(const JSHeapBroker* broker, int i) const;
+  ObjectRef get(const JSHeapBroker* broker, int i) const;
+};
+
+class FixedDoubleArrayRef : public FixedArrayBaseRef {
+ public:
+  explicit FixedDoubleArrayRef(Handle<HeapObject> object)
+      : FixedArrayBaseRef(object) {}
+
+  bool is_the_hole(int i) const;
+  double get_scalar(int i) const;
+};
+
+class JSArrayRef : public JSObjectRef {
+ public:
+  explicit JSArrayRef(Handle<Object> object) : JSObjectRef(object) {}
+
+  ElementsKind GetElementsKind() const;
+  ObjectRef length(const JSHeapBroker* broker) const;
 };
 
 }  // namespace compiler
