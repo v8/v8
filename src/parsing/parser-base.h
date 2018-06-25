@@ -4479,9 +4479,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     const char* event_name =
         is_lazy_top_level_function ? "preparse-no-resolution" : "parse";
     const char* name = "arrow function";
-    logger_->FunctionEvent(event_name, nullptr, script_id(), ms,
-                           scope->start_position(), scope->end_position(), name,
-                           strlen(name));
+    logger_->FunctionEvent(event_name, script_id(), ms, scope->start_position(),
+                           scope->end_position(), name, strlen(name));
   }
 
   return function_literal;

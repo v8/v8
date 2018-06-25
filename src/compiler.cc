@@ -119,7 +119,7 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
       UNREACHABLE();
   }
 
-  LOG(isolate, FunctionEvent(name.c_str(), nullptr, script->id(), time_taken_ms,
+  LOG(isolate, FunctionEvent(name.c_str(), script->id(), time_taken_ms,
                              shared->StartPosition(), shared->EndPosition(),
                              shared->DebugName()));
 }
@@ -973,8 +973,8 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  ParseInfo* info = new ParseInfo(isolate->allocator());
-  info->InitFromIsolate(isolate);
+  ParseInfo* info = new ParseInfo(isolate);
+  LOG(isolate, ScriptEvent("background-compile", info->script_id()));
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
   } else {
@@ -1280,18 +1280,16 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     script = Handle<Script>(Script::cast(shared_info->script()), isolate);
     allow_eval_cache = true;
   } else {
-    script = isolate->factory()->NewScript(source);
-    if (isolate->NeedsSourcePositionsForProfiling()) {
-      Script::InitLineEnds(script);
-    }
+    ParseInfo parse_info(isolate);
+    script = parse_info.CreateScript(isolate, source, options);
     if (!script_name.is_null()) {
+      // TODO(cbruni): check whether we can store this data in options
       script->set_name(*script_name);
       script->set_line_offset(line_offset);
       script->set_column_offset(column_offset);
+      LOG(isolate, ScriptDetails(*script));
     }
-    script->set_origin_options(options);
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
-
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
       // If the position is missing, attempt to get the code offset by
@@ -1309,7 +1307,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
     script->set_eval_from_position(eval_position);
 
-    ParseInfo parse_info(isolate, script);
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
@@ -1603,29 +1600,20 @@ struct ScriptCompileTimerScope {
   }
 };
 
-Handle<Script> NewScript(Isolate* isolate, Handle<String> source,
+Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
+                         Handle<String> source,
                          Compiler::ScriptDetails script_details,
                          ScriptOriginOptions origin_options,
                          NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script = isolate->factory()->NewScript(source);
-  if (isolate->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(script);
-  }
-  if (natives == NATIVES_CODE) {
-    script->set_type(Script::TYPE_NATIVE);
-  } else if (natives == EXTENSION_CODE) {
-    script->set_type(Script::TYPE_EXTENSION);
-  } else if (natives == INSPECTOR_CODE) {
-    script->set_type(Script::TYPE_INSPECTOR);
-  }
+  Handle<Script> script =
+      parse_info->CreateScript(isolate, source, origin_options, natives);
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
     script->set_name(*script_name);
     script->set_line_offset(script_details.line_offset);
     script->set_column_offset(script_details.column_offset);
   }
-  script->set_origin_options(origin_options);
   Handle<Object> source_map_url;
   if (script_details.source_map_url.ToHandle(&source_map_url)) {
     script->set_source_mapping_url(*source_map_url);
@@ -1634,6 +1622,7 @@ Handle<Script> NewScript(Isolate* isolate, Handle<String> source,
   if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
     script->set_host_defined_options(*host_defined_options);
   }
+  LOG(isolate, ScriptDetails(*script));
   return script;
 }
 
@@ -1705,12 +1694,12 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   }
 
   if (maybe_result.is_null()) {
+    ParseInfo parse_info(isolate);
     // No cache entry found compile the script.
-    Handle<Script> script =
-        NewScript(isolate, source, script_details, origin_options, natives);
+    NewScript(isolate, &parse_info, source, script_details, origin_options,
+              natives);
 
     // Compile the function and add it to the isolate cache.
-    ParseInfo parse_info(isolate, script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
     if (origin_options.IsModule()) parse_info.set_module();
     parse_info.set_extension(extension);
@@ -1778,11 +1767,11 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   Handle<SharedFunctionInfo> wrapped;
   Handle<Script> script;
   if (!maybe_result.ToHandle(&wrapped)) {
-    script = NewScript(isolate, source, script_details, origin_options,
-                       NOT_NATIVES_CODE);
+    ParseInfo parse_info(isolate);
+    script = NewScript(isolate, &parse_info, source, script_details,
+                       origin_options, NOT_NATIVES_CODE);
     script->set_wrapped_arguments(*arguments);
 
-    ParseInfo parse_info(isolate, script);
     parse_info.set_eval();  // Use an eval scope as declaration scope.
     parse_info.set_wrapped_as_function();
     // parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
@@ -1849,9 +1838,9 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   if (maybe_result.is_null()) {
     // No cache entry found, finalize compilation of the script and add it to
     // the isolate cache.
-    Handle<Script> script = NewScript(isolate, source, script_details,
-                                      origin_options, NOT_NATIVES_CODE);
-    parse_info->set_script(script);
+    Handle<Script> script =
+        NewScript(isolate, parse_info, source, script_details, origin_options,
+                  NOT_NATIVES_CODE);
     streaming_data->parser->UpdateStatistics(isolate, script);
     streaming_data->parser->HandleSourceURLComments(isolate, script);
 

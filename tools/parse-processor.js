@@ -65,12 +65,12 @@ function timestampMin(list) {
 
 // ===========================================================================
 class Script {
-  constructor(file, id) {
-    this.file = file;
-    this.isNative = false;
+  constructor(id) {
+    this.file = '';
     this.id = id;
+    this.isNative = false;
     if (id === void 0 || id <= 0) {
-      throw new Error(`Invalid id=${id} for script with file='${file}'`);
+      throw new Error(`Invalid id=${id} for script`);
     }
     this.isEval = false;
     this.funktions = [];
@@ -91,7 +91,6 @@ class Script {
     this.ownBytes = -1;
     this.finalized = false;
     this.summary = '';
-    this.setFile(file);
   }
 
   setFile(name) {
@@ -691,21 +690,30 @@ class ParseProcessor extends LogReader {
       // Avoid accidental leaking of __proto__ properties and force this object
       // to be in dictionary-mode.
       __proto__: null,
-      // "function", {event type},
-      // {script file},{script id},{start position},{end position},
-      // {time},{timestamp},{function name}
+      // "function",{event type},
+      // {script id},{start position},{end position},{time},{timestamp},
+      // {function name}
       'function': {
         parsers: [
-          parseString, parseString, parseInt, parseInt, parseInt, parseFloat,
-          parseInt, parseString
+          parseString, parseInt, parseInt, parseInt, parseFloat, parseInt,
+          parseString
         ],
         processor: this.processFunctionEvent
       },
       // "compilation-cache", "hit"|"put", {type}, {start position},
       // {end position}
-      'compilation-cache' : {
-        parsers: [parseString, parseString, parseString, parseInt, parseInt],
+      'compilation-cache': {
+        parsers: [parseString, parseString, parseInt, parseInt],
         processor: this.processCompilationCacheEvent
+      },
+      'script': {
+        parsers: [parseString, parseInt],
+        processor: this.processScriptEvent
+      },
+      // "script-details", {script_id}, {file}, {line}, {column}, {size}
+      'script-details': {
+        parsers: [parseInt, parseString, parseInt, parseInt, parseInt],
+        processor: this.processScriptDetails
       }
     };
     this.functionEventDispatchTable_ = {
@@ -801,14 +809,14 @@ class ParseProcessor extends LogReader {
   }
 
   processFunctionEvent(
-      eventName, file, scriptId, startPosition, endPosition, duration,
-      timestamp, functionName) {
+      eventName, scriptId, startPosition, endPosition, duration, timestamp,
+      functionName) {
     let handlerFn = this.functionEventDispatchTable_[eventName];
     if (handlerFn === undefined) {
       console.error('Couldn\'t find handler for function event:' + eventName);
     }
     handlerFn(
-        file, scriptId, startPosition, endPosition, duration, timestamp,
+        scriptId, startPosition, endPosition, duration, timestamp,
         functionName);
   }
 
@@ -816,28 +824,16 @@ class ParseProcessor extends LogReader {
     this.entries.push(entry);
   }
 
-  lookupScript(file, id) {
-    // During preparsing we only have the temporary ranges and no script yet.
-    let script;
-    if (this.idToScript.has(id)) {
-      script = this.idToScript.get(id);
-    } else {
-      script = new Script(file, id);
-      this.idToScript.set(id, script);
-    }
-    if (file.length > 0 && script.file.length === 0) {
-      script.setFile(file);
-      this.fileToScript.set(file, script);
-    }
-    return script;
+  lookupScript(id) {
+    return this.idToScript.get(id);
   }
 
-  lookupFunktion(file, scriptId,
-      startPosition, endPosition, duration, timestamp, functionName) {
-    if (file == "" && scriptId == -1) {
+  getOrCreateFunction(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    if (scriptId == -1) {
       return this.lookupFunktionByRange(startPosition, endPosition);
     }
-    let script = this.lookupScript(file, scriptId);
+    let script = this.lookupScript(scriptId);
     let funktion = script.funktionAtPosition(startPosition);
     if (funktion === void 0) {
       funktion = new Funktion(functionName, startPosition, endPosition, script);
@@ -863,21 +859,36 @@ class ParseProcessor extends LogReader {
     return results[0];
   }
 
-  processEval(file, scriptId, startPosition,
-      endPosition, duration, timestamp, functionName) {
-    let script = this.lookupScript(file, scriptId);
+  processScriptEvent(eventName, scriptId) {
+    if (eventName == 'create' || eventName == 'reserve-id') {
+      if (this.idToScript.has(scriptId)) return;
+      let script = new Script(scriptId);
+      this.idToScript.set(scriptId, script);
+    } else {
+      console.log('Unhandled script event: ' + eventName);
+    }
+  }
+
+  processScriptDetails(scriptId, file, startLine, startColumn, size) {
+    let script = this.lookupScript(scriptId);
+    script.setFile(file);
+  }
+
+  processEval(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let script = this.lookupScript(scriptId);
     script.isEval = true;
   }
 
-  processFull(file, scriptId, startPosition,
-      endPosition, duration, timestamp, functionName) {
+  processFull(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
     if (startPosition == 0) {
       // This should only happen for eval.
-      let script = this.lookupScript(file, scriptId);
+      let script = this.lookupScript(scriptId);
       script.isEval = true;
       return;
     }
-    let funktion = this.lookupFunktion(...arguments);
+    let funktion = this.getOrCreateFunction(...arguments);
     // TODO(cbruni): this should never happen, emit differen event from the
     // parser.
     if (funktion.parseTimestamp > 0) return;
@@ -885,17 +896,17 @@ class ParseProcessor extends LogReader {
     funktion.parseTime = duration;
   }
 
-  processParseFunction(file, scriptId, startPosition,
-      endPosition, duration, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
+  processParseFunction(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
     funktion.parseTimestamp = startOf(timestamp, duration);
     funktion.parseTime = duration;
   }
 
-  processScript(file, scriptId, startPosition,
-    endPosition, duration, timestamp, functionName) {
+  processScript(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
     // TODO timestamp and duration
-    let script = this.lookupScript(file, scriptId);
+    let script = this.lookupScript(scriptId);
     let ts = startOf(timestamp, duration);
     script.parseTimestamp = ts;
     script.firstEventTimestamp = ts;
@@ -903,9 +914,9 @@ class ParseProcessor extends LogReader {
     script.parseTime = duration;
   }
 
-  processPreparseResolution(file, scriptId,
-      startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
+  processPreparseResolution(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
     // TODO(cbruni): this should never happen, emit different event from the
     // parser.
     if (funktion.resolutionTimestamp > 0) return;
@@ -913,16 +924,16 @@ class ParseProcessor extends LogReader {
     funktion.resolutionTime = duration;
   }
 
-  processPreparseNoResolution(file, scriptId,
-      startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
+  processPreparseNoResolution(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
     funktion.preparseTimestamp = startOf(timestamp, duration);
     funktion.preparseTime = duration;
   }
 
-  processFirstExecution(file, scriptId,
-      startPosition, endPosition, duration, timestamp, functionName) {
-    let script = this.lookupScript(file, scriptId);
+  processFirstExecution(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let script = this.lookupScript(scriptId);
     if (startPosition === 0) {
       // undefined = eval fn execution
       if (script) {
@@ -938,17 +949,16 @@ class ParseProcessor extends LogReader {
     }
   }
 
-  processCompileLazy(file, scriptId,
-      startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
+  processCompileLazy(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
     funktion.lazyCompileTimestamp = startOf(timestamp, duration);
     funktion.lazyCompileTime = duration;
   }
 
-  processCompile(file, scriptId,
-    startPosition, endPosition, duration, timestamp, functionName) {
-
-    let script = this.lookupScript(file, scriptId);
+  processCompile(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let script = this.lookupScript(scriptId);
     if (startPosition === 0) {
       script.compileTimestamp = startOf(timestamp, duration);
       script.compileTime = duration;
@@ -964,12 +974,12 @@ class ParseProcessor extends LogReader {
     }
   }
 
-  processCompileEval(file, scriptId,
-    startPosition, endPosition, duration, timestamp, functionName) {
+  processCompileEval(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
   }
 
-  processOptimizeLazy(file, scriptId,
-    startPosition, endPosition, duration, timestamp, functionName) {
+  processOptimizeLazy(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
   }
 
   processCompilationCacheEvent(eventType, cacheType, startPosition,

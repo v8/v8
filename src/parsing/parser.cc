@@ -523,7 +523,8 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
       start = 0;
       end = String::cast(script->source())->length();
     }
-    LOG(isolate, FunctionEvent(event_name, script, -1, ms, start, end, "", 0));
+    LOG(isolate,
+        FunctionEvent(event_name, script->id(), ms, start, end, "", 0));
   }
   return result;
 }
@@ -714,10 +715,9 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     // We need to make sure that the debug-name is available.
     ast_value_factory()->Internalize(isolate);
     DeclarationScope* function_scope = result->scope();
-    Script* script = *info->script();
     std::unique_ptr<char[]> function_name = result->GetDebugName();
     LOG(isolate,
-        FunctionEvent("parse-function", script, -1, ms,
+        FunctionEvent("parse-function", info->script()->id(), ms,
                       function_scope->start_position(),
                       function_scope->end_position(), function_name.get(),
                       strlen(function_name.get())));
@@ -2655,7 +2655,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                                    : "preparse-resolution")
                                    : "full-parse";
       logger_->FunctionEvent(
-          event_name, nullptr, script_id(), ms, scope->start_position(),
+          event_name, script_id(), ms, scope->start_position(),
           scope->end_position(),
           reinterpret_cast<const char*>(function_name->raw_data()),
           function_name->byte_length());
@@ -3436,9 +3436,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   RuntimeCallTimerScope runtimeTimer(
       runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
   parsing_on_main_thread_ = false;
-  if (!info->script().is_null()) {
-    set_script_id(info->script()->id());
-  }
+  set_script_id(info->script_id());
 
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
