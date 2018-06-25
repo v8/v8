@@ -174,8 +174,8 @@ module test {
   }
 
   macro TestVariableRedeclaration(context : Context) : Boolean {
-    let var1 : Number = 42 == 0 ? 0 : 1;
-    let var2 : Number = 42 == 0 ? 1 : 0;
+    let var1 : Number = from_constexpr<bool>(42 == 0) ? 0 : 1;
+    let var2 : Number = from_constexpr<bool>(42 == 0) ? 1 : 0;
     return True;
   }
 
