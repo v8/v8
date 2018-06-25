@@ -42,7 +42,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '8c08316e42a3136b836b2668aab84dd56b4eef05',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + 'b3346657ec3d629c741e7b7eb40b29322a6e35f5',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
