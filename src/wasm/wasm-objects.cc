@@ -1411,9 +1411,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   WasmCompiledModule* current_template = module_object->compiled_module();
   DCHECK(!current_template->has_prev_instance());
   if (current_template == compiled_module) {
-    if (!compiled_module->has_next_instance()) {
-      WasmCompiledModule::Reset(isolate, compiled_module);
-    } else {
+    if (compiled_module->has_next_instance()) {
       module_object->set_compiled_module(compiled_module->next_instance());
     }
   }
@@ -1515,13 +1513,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
 
   return ret;
-}
-
-void WasmCompiledModule::Reset(Isolate* isolate,
-                               WasmCompiledModule* compiled_module) {
-  DisallowHeapAllocation no_gc;
-  compiled_module->reset_prev_instance();
-  compiled_module->reset_next_instance();
 }
 
 void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {

@@ -550,8 +550,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, export_wrappers, std::move(decode_result.val), env,
       std::move(wire_bytes_copy), wire_size, script, Handle<ByteArray>::null());
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
-                                             isolate);
   NativeModule* native_module = module_object->native_module();
 
   if (FLAG_wasm_lazy_compilation) {
@@ -567,10 +565,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // into the allocator.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   CompileJsToWasmWrappers(isolate, module_object, isolate->counters());
-
-  // There are no instances for this module yet, which means we need to reset
-  // the module into a state as if the last instance was collected.
-  WasmCompiledModule::Reset(isolate, *compiled_module);
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);

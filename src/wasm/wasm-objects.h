@@ -573,7 +573,6 @@ class WasmCompiledModule : public Struct {
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
-  static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
   bool has_instance() const;
 
