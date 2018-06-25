@@ -193,7 +193,7 @@ void VisitRROFloat(InstructionSelector* selector, Node* node,
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 = g.Use(node->InputAt(1));
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineSameAsFirst(node), operand0, operand1);
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1);
   } else {
     selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1);
   }
@@ -1765,7 +1765,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Ne)               \
   V(I16x8GtS)              \
   V(I16x8GeS)              \
-  V(I16x8UConvertI32x4)    \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
@@ -1783,7 +1782,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16Ne)               \
   V(I8x16GtS)              \
   V(I8x16GeS)              \
-  V(I8x16UConvertI16x8)    \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
@@ -2013,6 +2011,26 @@ SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+void VisitPack(InstructionSelector* selector, Node* node, ArchOpcode avx_opcode,
+               ArchOpcode sse_opcode) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.Use(node->InputAt(1));
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(avx_opcode, g.DefineSameAsFirst(node), operand0, operand1);
+  } else {
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1);
+  }
+}
+
+void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
+  VisitPack(this, node, kAVXI16x8UConvertI32x4, kSSEI16x8UConvertI32x4);
+}
+
+void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
+  VisitPack(this, node, kAVXI8x16UConvertI16x8, kSSEI8x16UConvertI16x8);
+}
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();
