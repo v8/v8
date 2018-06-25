@@ -367,13 +367,15 @@ class MemoryChunk {
       + kIntptrSize       // std::atomic<intptr_t> live_byte_count_
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
-      + kPointerSize      // InvalidatedSlots* invalidated_slots_
-      + kPointerSize      // SkipList* skip_list_
-      + kPointerSize      // AtomicValue high_water_mark_
-      + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord concurrent_sweeping_
-      + kPointerSize      // base::Mutex* page_protection_change_mutex_
-      + kPointerSize      // unitptr_t write_unprotect_counter_
+      + kPointerSize  // InvalidatedSlots* invalidated_slots_
+      + kPointerSize  // SkipList* skip_list_
+      + kPointerSize  // AtomicValue high_water_mark_
+      + kPointerSize  // base::Mutex* mutex_
+      + kPointerSize  // base::AtomicWord concurrent_sweeping_
+      + kPointerSize  // base::Mutex* page_protection_change_mutex_
+      + kPointerSize  // unitptr_t write_unprotect_counter_
+      + kSizetSize * kNumTypes
+      // std::atomic<size_t> external_backing_store_bytes_
       + kSizetSize        // size_t allocated_bytes_
       + kSizetSize        // size_t wasted_memory_
       + kPointerSize * 2  // base::ListNode
@@ -536,6 +538,15 @@ class MemoryChunk {
     }
   }
 
+  void IncrementExternalBackingStoreBytes(size_t amount,
+                                          ExternalBackingStoreType type) {
+    external_backing_store_bytes_[type] += amount;
+  }
+  void DecrementExternalBackingStoreBytes(size_t amount,
+                                          ExternalBackingStoreType type) {
+    external_backing_store_bytes_[type] -= amount;
+  }
+
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
     return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
   }
@@ -691,6 +702,10 @@ class MemoryChunk {
   // Byte allocated on the page, which includes all objects on the page
   // and the linear allocation area.
   size_t allocated_bytes_;
+
+  // Tracks off-heap memory used by this memory chunk.
+  std::atomic<size_t> external_backing_store_bytes_[kNumTypes];
+
   // Freed memory that was not added to the free list.
   size_t wasted_memory_;
 

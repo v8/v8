@@ -631,6 +631,12 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->young_generation_bitmap_ = nullptr;
   chunk->local_tracker_ = nullptr;
 
+  chunk->external_backing_store_bytes_[ExternalBackingStoreType::kOther] = 0;
+  chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
+      0;
+  chunk->external_backing_store_bytes_
+      [ExternalBackingStoreType::kExternalString] = 0;
+
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
     chunk->categories_[i] = nullptr;
   }
