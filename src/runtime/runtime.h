@@ -357,6 +357,8 @@ namespace internal {
   F(ObjectEntriesSkipFastPath, 1, 1)                            \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectKeys, 1, 1)                                           \
+  F(ObjectGetOwnPropertyNames, 1, 1)                            \
+  F(ObjectGetOwnPropertyNamesTryFast, 1, 1)                     \
   F(ObjectValues, 1, 1)                                         \
   F(ObjectValuesSkipFastPath, 1, 1)                             \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \

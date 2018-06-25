@@ -331,6 +331,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ObjectHasOwnProperty)                \
   V(ObjectValues)                        \
   V(ObjectValuesSkipFastPath)            \
+  V(ObjectGetOwnPropertyNames)           \
+  V(ObjectGetOwnPropertyNamesTryFast)    \
   V(RegExpInitializeAndCompile)          \
   V(StackGuard)                          \
   V(StringAdd)                           \

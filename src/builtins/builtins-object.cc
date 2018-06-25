@@ -326,11 +326,6 @@ Object* GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
 
 }  // namespace
 
-// ES6 section 19.1.2.7 Object.getOwnPropertyNames ( O )
-BUILTIN(ObjectGetOwnPropertyNames) {
-  return GetOwnPropertyKeys(isolate, args, SKIP_SYMBOLS);
-}
-
 // ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
 BUILTIN(ObjectGetOwnPropertySymbols) {
   return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);

@@ -795,7 +795,7 @@ namespace internal {
   TFJ(ObjectGetOwnPropertyDescriptor,                                          \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(ObjectGetOwnPropertyDescriptors)                                         \
-  CPP(ObjectGetOwnPropertyNames)                                               \
+  TFJ(ObjectGetOwnPropertyNames, 1, kReceiver, kObject)                        \
   CPP(ObjectGetOwnPropertySymbols)                                             \
   CPP(ObjectGetPrototypeOf)                                                    \
   CPP(ObjectSetPrototypeOf)                                                    \
