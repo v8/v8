@@ -3406,6 +3406,16 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
+    size_t current_length;
+    DCHECK(source->length()->IsNumber() &&
+           TryNumberToSize(source->length(), &current_length) &&
+           length <= current_length);
+    USE(current_length);
+
+    size_t dest_length = destination->length_value();
+    DCHECK(length + offset <= dest_length);
+    USE(dest_length);
+
     ElementsKind kind = source->GetElementsKind();
     BackingStore* dest = BackingStore::cast(destination->elements());
 
@@ -3551,10 +3561,17 @@ class TypedElementsAccessor
 
     // Fast cases for packed numbers kinds where we don't need to allocate.
     if (source->IsJSArray()) {
-      Handle<JSArray> source_array = Handle<JSArray>::cast(source);
-      if (TryCopyElementsFastNumber(isolate->context(), *source_array,
-                                    *destination_ta, length, offset)) {
-        return *isolate->factory()->undefined_value();
+      Handle<JSArray> source_js_array = Handle<JSArray>::cast(source);
+      size_t current_length;
+      if (source_js_array->length()->IsNumber() &&
+          TryNumberToSize(source_js_array->length(), &current_length)) {
+        if (length <= current_length) {
+          Handle<JSArray> source_array = Handle<JSArray>::cast(source);
+          if (TryCopyElementsFastNumber(isolate->context(), *source_array,
+                                        *destination_ta, length, offset)) {
+            return *isolate->factory()->undefined_value();
+          }
+        }
       }
     }
     // Final generic case that handles prototype chain lookups, getters, proxies
