@@ -8,6 +8,7 @@
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -165,13 +166,10 @@ class X64OperandGenerator final : public OperandGenerator {
     if (selector()->CanAddressRelativeToRootsRegister()) {
       LoadMatcher<ExternalReferenceMatcher> m(operand);
       if (m.index().HasValue() && m.object().HasValue()) {
-        Address const kRootsRegisterValue =
-            kRootRegisterBias +
-            reinterpret_cast<Address>(
-                selector()->isolate()->heap()->roots_array_start());
         ptrdiff_t const delta =
             m.index().Value() +
-            (m.object().Value().address() - kRootsRegisterValue);
+            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+                selector()->isolate(), m.object().Value());
         if (is_int32(delta)) {
           inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
           return kMode_Root;
@@ -1704,7 +1702,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
-          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
           g.UseRegister(m.left().node()), cont);
     } else if (m.left().HasValue() &&
                heap->IsRootHandle(m.left().Value(), &root_index)) {
@@ -1712,7 +1710,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
-          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
           g.UseRegister(m.right().node()), cont);
     }
   }

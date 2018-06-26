@@ -60,7 +60,6 @@ void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
                                         roots_array_start));
 }
 
-
 void MacroAssembler::CompareRoot(Register with,
                                  Register scratch,
                                  Heap::RootListIndex index) {

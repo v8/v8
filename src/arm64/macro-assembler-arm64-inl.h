@@ -1030,6 +1030,7 @@ void TurboAssembler::InitializeRootRegister() {
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
   Mov(kRootRegister, Operand(roots_array_start));
+  Add(kRootRegister, kRootRegister, kRootRegisterBias);
 }
 
 

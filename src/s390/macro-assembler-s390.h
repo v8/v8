@@ -182,10 +182,8 @@ class TurboAssembler : public TurboAssemblerBase {
 #ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
-  void LoadExternalReference(Register destination,
-                             int reference_index) override;
-  void LoadBuiltin(Register destination, int builtin_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions.
@@ -681,6 +679,7 @@ class TurboAssembler : public TurboAssemblerBase {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(kRootRegister, Operand(roots_array_start));
+    AddP(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
   }
 
   // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache

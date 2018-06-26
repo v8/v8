@@ -86,20 +86,7 @@ int64_t TurboAssembler::RootRegisterDelta(ExternalReference other) {
        other.address() >= reinterpret_cast<Address>(isolate() + 1))) {
     return kInvalidRootRegisterDelta;
   }
-  Address roots_register_value =
-      kRootRegisterBias +
-      reinterpret_cast<Address>(isolate()->heap()->roots_array_start());
-
-  int64_t delta = kInvalidRootRegisterDelta;  // Bogus initialization.
-  if (kPointerSize == kInt64Size) {
-    delta = other.address() - roots_register_value;
-  } else {
-    // For x32, zero extend the address to 64-bit and calculate the delta.
-    uint64_t o = static_cast<uint32_t>(other.address());
-    uint64_t r = static_cast<uint32_t>(roots_register_value);
-    delta = o - r;
-  }
-  return delta;
+  return RootRegisterOffsetForExternalReference(isolate(), other);
 }
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
@@ -155,25 +142,6 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                     FixedArray::kHeaderSize + constant_index * kPointerSize));
 }
 
-void TurboAssembler::LoadExternalReference(Register destination,
-                                           int reference_index) {
-  int32_t roots_to_external_reference_offset =
-      Heap::roots_to_external_reference_table_offset() - kRootRegisterBias +
-      ExternalReferenceTable::OffsetOfEntry(reference_index);
-
-  movp(destination, Operand(kRootRegister, roots_to_external_reference_offset));
-}
-
-void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-
-  int32_t roots_to_builtins_offset = Heap::roots_to_builtins_offset() -
-                                     kRootRegisterBias +
-                                     builtin_index * kPointerSize;
-
-  movp(destination, Operand(kRootRegister, roots_to_builtins_offset));
-}
-
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
   DCHECK(is_int32(offset));
@@ -182,6 +150,10 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
   } else {
     leap(destination, Operand(kRootRegister, static_cast<int32_t>(offset)));
   }
+}
+
+void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
+  movp(destination, Operand(kRootRegister, offset));
 }
 #endif  // V8_EMBEDDED_BUILTINS
 
@@ -244,19 +216,17 @@ void MacroAssembler::PushAddress(ExternalReference source) {
 
 void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   DCHECK(root_array_available_);
-  movp(destination, Operand(kRootRegister,
-                            (index << kPointerSizeLog2) - kRootRegisterBias));
+  movp(destination, Operand(kRootRegister, RootRegisterOffset(index)));
 }
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   DCHECK(root_array_available_);
-  Push(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias));
+  Push(Operand(kRootRegister, RootRegisterOffset(index)));
 }
 
 void TurboAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
   DCHECK(root_array_available_);
-  cmpp(with, Operand(kRootRegister,
-                     (index << kPointerSizeLog2) - kRootRegisterBias));
+  cmpp(with, Operand(kRootRegister, RootRegisterOffset(index)));
 }
 
 void TurboAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {

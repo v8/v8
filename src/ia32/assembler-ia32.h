@@ -40,6 +40,7 @@
 #include <deque>
 
 #include "src/assembler.h"
+#include "src/ia32/constants-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
 #include "src/utils.h"

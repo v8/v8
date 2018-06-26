@@ -882,10 +882,8 @@ class TurboAssembler : public TurboAssemblerBase {
 #ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
-  void LoadExternalReference(Register destination,
-                             int reference_index) override;
-  void LoadBuiltin(Register destination, int builtin_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   void Jump(Register target, Condition cond = al);

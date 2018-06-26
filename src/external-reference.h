@@ -285,11 +285,6 @@ class ExternalReference BASE_EMBEDDED {
 
   Address address() const { return address_; }
 
-  // An address is addressable through kRootRegister if it is located within
-  // [isolate, roots_ + root_register_addressable_end_offset[.
-  bool IsAddressableThroughRootRegister(Isolate* isolate) const;
-  intptr_t OffsetFromRootRegister(Isolate* isolate) const;
-
  private:
   explicit ExternalReference(Address address) : address_(address) {}
 

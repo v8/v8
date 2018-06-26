@@ -38,12 +38,14 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
     LoadRoot(destination, root_index);
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
     // Similar to roots, builtins may be loaded from the builtins table.
-    LoadBuiltin(destination, builtin_index);
+    LoadRootRelative(destination,
+                     RootRegisterOffsetForBuiltinIndex(builtin_index));
   } else if (object.is_identical_to(code_object_) &&
              Builtins::IsBuiltinId(maybe_builtin_index_)) {
     // The self-reference loaded through Codevalue() may also be a builtin
     // and thus viable for a fast load.
-    LoadBuiltin(destination, maybe_builtin_index_);
+    LoadRootRelative(destination,
+                     RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
   } else {
     // Ensure the given object is in the builtins constants table and fetch its
     // index.
@@ -61,10 +63,11 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
-  if (reference.IsAddressableThroughRootRegister(isolate())) {
+  if (IsAddressableThroughRootRegister(isolate(), reference)) {
     // Some external references can be efficiently loaded as an offset from
     // kRootRegister.
-    intptr_t offset = reference.OffsetFromRootRegister(isolate());
+    intptr_t offset =
+        RootRegisterOffsetForExternalReference(isolate(), reference);
     LoadRootRegisterOffset(destination, offset);
   } else {
     // Otherwise, do a memory load from the external reference table.
@@ -75,10 +78,46 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
     ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
     CHECK(!v.is_from_api());
 
-    LoadExternalReference(destination, v.index());
+    LoadRootRelative(destination,
+                     RootRegisterOffsetForExternalReferenceIndex(v.index()));
   }
 }
 #endif  // V8_EMBEDDED_BUILTINS
+
+// static
+int32_t TurboAssemblerBase::RootRegisterOffset(Heap::RootListIndex root_index) {
+  return (root_index << kPointerSizeLog2) - kRootRegisterBias;
+}
+
+// static
+int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceIndex(
+    int reference_index) {
+  return Heap::roots_to_external_reference_table_offset() - kRootRegisterBias +
+         ExternalReferenceTable::OffsetOfEntry(reference_index);
+}
+
+// static
+intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+    Isolate* isolate, const ExternalReference& reference) {
+  return static_cast<intptr_t>(reference.address()) - kRootRegisterBias -
+         reinterpret_cast<intptr_t>(isolate->heap()->roots_array_start());
+}
+
+// static
+bool TurboAssemblerBase::IsAddressableThroughRootRegister(
+    Isolate* isolate, const ExternalReference& reference) {
+  Address start = reinterpret_cast<Address>(isolate);
+  Address end = isolate->heap()->root_register_addressable_end();
+  Address address = reference.address();
+  return start <= address && address < end;
+}
+
+// static
+int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
+    int builtin_index) {
+  return Heap::roots_to_builtins_offset() - kRootRegisterBias +
+         builtin_index * kPointerSize;
+}
 
 }  // namespace internal
 }  // namespace v8

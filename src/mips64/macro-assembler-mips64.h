@@ -171,6 +171,7 @@ class TurboAssembler : public TurboAssemblerBase {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     li(kRootRegister, Operand(roots_array_start));
+    daddiu(kRootRegister, kRootRegister, kRootRegisterBias);
   }
 
   // Jump unconditionally to given label.
@@ -270,10 +271,8 @@ class TurboAssembler : public TurboAssemblerBase {
 #ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
-  void LoadExternalReference(Register destination,
-                             int reference_index) override;
-  void LoadBuiltin(Register destination, int builtin_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.

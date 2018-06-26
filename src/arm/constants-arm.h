@@ -51,6 +51,12 @@ const int kNoRegister = -1;
 const int kLdrMaxReachBits = 12;
 const int kVldrMaxReachBits = 10;
 
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values. Loads allow a uint12
+// value with a separate sign bit (range [-4095, +4095]), so the first root
+// is still addressable with a single load instruction.
+constexpr int kRootRegisterBias = 4095;
+
 // -----------------------------------------------------------------------------
 // Conditions.
 

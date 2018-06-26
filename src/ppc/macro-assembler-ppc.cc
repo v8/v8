@@ -139,23 +139,8 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
   LoadP(destination, MemOperand(destination, offset), r0);
 }
 
-void TurboAssembler::LoadExternalReference(Register destination,
-                                           int reference_index) {
-  int32_t roots_to_external_reference_offset =
-      Heap::roots_to_external_reference_table_offset() +
-      ExternalReferenceTable::OffsetOfEntry(reference_index);
-
-  LoadP(destination,
-        MemOperand(kRootRegister, roots_to_external_reference_offset), r0);
-}
-
-void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-
-  int32_t roots_to_builtins_offset =
-      Heap::roots_to_builtins_offset() + builtin_index * kPointerSize;
-
-  LoadP(destination, MemOperand(kRootRegister, roots_to_builtins_offset), r0);
+void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
+  LoadP(destination, MemOperand(kRootRegister, offset), r0);
 }
 
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
@@ -439,7 +424,7 @@ void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
 void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
                               Condition cond) {
   DCHECK(cond == al);
-  LoadP(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), r0);
+  LoadP(destination, MemOperand(kRootRegister, RootRegisterOffset(index)), r0);
 }
 
 void MacroAssembler::RecordWriteField(Register object, int offset,

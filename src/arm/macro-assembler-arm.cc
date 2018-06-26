@@ -156,23 +156,8 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
   }
 }
 
-void TurboAssembler::LoadExternalReference(Register destination,
-                                           int reference_index) {
-  int32_t roots_to_external_reference_offset =
-      Heap::roots_to_external_reference_table_offset() +
-      ExternalReferenceTable::OffsetOfEntry(reference_index);
-
-  ldr(destination,
-      MemOperand(kRootRegister, roots_to_external_reference_offset));
-}
-
-void TurboAssembler::LoadBuiltin(Register destination, int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-
-  int32_t roots_to_builtins_offset =
-      Heap::roots_to_builtins_offset() + builtin_index * kPointerSize;
-
-  ldr(destination, MemOperand(kRootRegister, roots_to_builtins_offset));
+void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
+  ldr(destination, MemOperand(kRootRegister, offset));
 }
 
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
@@ -566,7 +551,7 @@ void MacroAssembler::Store(Register src,
 
 void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
+  ldr(destination, MemOperand(kRootRegister, RootRegisterOffset(index)), cond);
 }
 
 
@@ -1955,6 +1940,7 @@ void TurboAssembler::InitializeRootRegister() {
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
   mov(kRootRegister, Operand(roots_array_start));
+  add(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
 }
 
 void MacroAssembler::SmiTag(Register reg, SBit s) {

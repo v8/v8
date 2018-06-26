@@ -42,14 +42,27 @@ class TurboAssemblerBase : public Assembler {
 
   virtual void LoadFromConstantsTable(Register destination,
                                       int constant_index) = 0;
-  virtual void LoadExternalReference(Register destination,
-                                     int reference_index) = 0;
-  virtual void LoadBuiltin(Register destination, int builtin_index) = 0;
+
   virtual void LoadRootRegisterOffset(Register destination,
                                       intptr_t offset) = 0;
+  virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 #endif  // V8_EMBEDDED_BUILTINS
 
   virtual void LoadRoot(Register destination, Heap::RootListIndex index) = 0;
+
+  static int32_t RootRegisterOffset(Heap::RootListIndex root_index);
+  static int32_t RootRegisterOffsetForExternalReferenceIndex(
+      int reference_index);
+
+  static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);
+
+  static intptr_t RootRegisterOffsetForExternalReference(
+      Isolate* isolate, const ExternalReference& reference);
+
+  // An address is addressable through kRootRegister if it is located within
+  // [isolate, roots_ + root_register_addressable_end_offset[.
+  static bool IsAddressableThroughRootRegister(
+      Isolate* isolate, const ExternalReference& reference);
 
  protected:
   TurboAssemblerBase(Isolate* isolate, const Options& options, void* buffer,

@@ -43,9 +43,7 @@ constexpr Register kWasmInstanceRegister = rsi;
 constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
 constexpr Register kRootRegister = r13;  // callee save
-// Actual value of root register is offset from the root array's start
-// to take advantage of negitive 8-bit displacement values.
-constexpr int kRootRegisterBias = 128;
+
 constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
 // Convenience for platform-independent signatures.
@@ -375,10 +373,8 @@ class TurboAssembler : public TurboAssemblerBase {
 #ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
-  void LoadBuiltin(Register destination, int builtin_index) override;
-  void LoadExternalReference(Register destination,
-                             int reference_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 #endif  // V8_EMBEDDED_BUILTINS
 
   // Operand pointing to an external reference.

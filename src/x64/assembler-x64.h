@@ -42,6 +42,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/x64/constants-x64.h"
 #include "src/x64/sse-instr.h"
 
 namespace v8 {
