@@ -1442,7 +1442,7 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   if (!object->IsJSFunction()) return false;
-  Handle<JSFunction> js_function(JSFunction::cast(object));
+  JSFunction* js_function = JSFunction::cast(object);
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
   DCHECK(js_function->shared()->HasWasmExportedFunctionData());
   return true;

@@ -5313,9 +5313,10 @@ static int AppendUniqueCallbacks(Handle<TemplateList> callbacks,
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
+  Isolate* isolate = callbacks->GetIsolate();
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
-    Handle<Name> key(Name::cast(entry->name()));
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)), isolate);
+    Handle<Name> key(Name::cast(entry->name()), isolate);
     DCHECK(key->IsUniqueName());
     // Check if a descriptor with this name already exists before writing.
     if (!T::Contains(key, entry, valid_descriptors, array)) {
@@ -10577,13 +10578,13 @@ Handle<AccessorPair> AccessorPair::Copy(Handle<AccessorPair> pair) {
 
 Handle<Object> AccessorPair::GetComponent(Handle<AccessorPair> accessor_pair,
                                           AccessorComponent component) {
+  Isolate* isolate = accessor_pair->GetIsolate();
   Object* accessor = accessor_pair->get(component);
   if (accessor->IsFunctionTemplateInfo()) {
     return ApiNatives::InstantiateFunction(
-               handle(FunctionTemplateInfo::cast(accessor)))
+               handle(FunctionTemplateInfo::cast(accessor), isolate))
         .ToHandleChecked();
   }
-  Isolate* isolate = accessor_pair->GetIsolate();
   if (accessor->IsNull(isolate)) {
     return isolate->factory()->undefined_value();
   }
@@ -14169,9 +14170,12 @@ void SetStackFrameCacheCommon(Handle<Code> code,
 void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
                                       Handle<SimpleNumberDictionary> cache) {
   if (abstract_code->IsCode()) {
-    SetStackFrameCacheCommon(handle(abstract_code->GetCode()), cache);
+    SetStackFrameCacheCommon(
+        handle(abstract_code->GetCode(), abstract_code->GetIsolate()), cache);
   } else {
-    SetStackFrameCacheCommon(handle(abstract_code->GetBytecodeArray()), cache);
+    SetStackFrameCacheCommon(
+        handle(abstract_code->GetBytecodeArray(), abstract_code->GetIsolate()),
+        cache);
   }
 }
 
@@ -14326,7 +14330,9 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
 Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
   DCHECK(code->kind() == OPTIMIZED_FUNCTION);
   WeakCell* raw_cell = code->CachedWeakCell();
-  if (raw_cell != nullptr) return Handle<WeakCell>(raw_cell);
+  if (raw_cell != nullptr) {
+    return Handle<WeakCell>(raw_cell, code->GetIsolate());
+  }
   Handle<WeakCell> cell = code->GetIsolate()->factory()->NewWeakCell(code);
   DeoptimizationData::cast(code->deoptimization_data())
       ->SetWeakCellCache(*cell);
@@ -14916,7 +14922,7 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
   }
   if (entries->group() < group) {
     // The group comes later in the list.
-    Handle<DependentCode> old_next(entries->next_link());
+    Handle<DependentCode> old_next(entries->next_link(), entries->GetIsolate());
     Handle<DependentCode> new_next = Insert(old_next, group, object);
     if (!old_next.is_identical_to(new_next)) {
       entries->set_next_link(*new_next);
@@ -18454,7 +18460,7 @@ Script* ScriptFromJSValue(Object* in) {
 int JSMessageObject::GetLineNumber() const {
   if (start_position() == -1) return Message::kNoLineNumberInfo;
 
-  Handle<Script> the_script = handle(ScriptFromJSValue(script()));
+  Handle<Script> the_script = handle(ScriptFromJSValue(script()), GetIsolate());
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
@@ -18469,7 +18475,7 @@ int JSMessageObject::GetLineNumber() const {
 int JSMessageObject::GetColumnNumber() const {
   if (start_position() == -1) return -1;
 
-  Handle<Script> the_script = handle(ScriptFromJSValue(script()));
+  Handle<Script> the_script = handle(ScriptFromJSValue(script()), GetIsolate());
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
@@ -18482,9 +18488,9 @@ int JSMessageObject::GetColumnNumber() const {
 }
 
 Handle<String> JSMessageObject::GetSourceLine() const {
-  Handle<Script> the_script = handle(ScriptFromJSValue(script()));
+  Isolate* isolate = GetIsolate();
+  Handle<Script> the_script = handle(ScriptFromJSValue(script()), isolate);
 
-  Isolate* isolate = the_script->GetIsolate();
   if (the_script->type() == Script::TYPE_WASM) {
     return isolate->factory()->empty_string();
   }
@@ -18668,10 +18674,11 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   if (!is_on_heap()) {
-    Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()));
+    Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()),
+                                       GetIsolate());
     return array_buffer;
   }
-  Handle<JSTypedArray> self(this);
+  Handle<JSTypedArray> self(this, GetIsolate());
   return MaterializeArrayBuffer(self);
 }
 

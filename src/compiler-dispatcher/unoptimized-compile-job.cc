@@ -203,7 +203,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
                                  parse_info_->maybe_outer_scope_info());
 
   // Initailize the name after setting up the ast_value_factory.
-  Handle<String> name(shared_->Name());
+  Handle<String> name(shared_->Name(), isolate);
   parse_info_->set_function_name(
       parse_info_->ast_value_factory()->GetString(name));
 

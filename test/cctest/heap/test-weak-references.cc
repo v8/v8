@@ -17,6 +17,7 @@ namespace heap {
 Handle<FeedbackVector> CreateFeedbackVectorForTest(
     v8::Isolate* isolate, Factory* factory,
     PretenureFlag pretenure_flag = NOT_TENURED) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::Local<v8::Script> script =
       v8::Script::Compile(isolate->GetCurrentContext(),
                           v8::String::NewFromUtf8(isolate, "function foo() {}",
@@ -25,7 +26,7 @@ Handle<FeedbackVector> CreateFeedbackVectorForTest(
           .ToLocalChecked();
   Handle<Object> obj = v8::Utils::OpenHandle(*script);
   Handle<SharedFunctionInfo> shared_function =
-      Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared());
+      Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared(), i_isolate);
   Handle<FeedbackVector> fv =
       factory->NewFeedbackVector(shared_function, pretenure_flag);
   return fv;

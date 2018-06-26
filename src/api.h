@@ -636,7 +636,7 @@ bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
 
 Handle<Context> HandleScopeImplementer::LastEnteredContext() {
   if (entered_contexts_.empty()) return Handle<Context>::null();
-  return Handle<Context>(entered_contexts_.back());
+  return Handle<Context>(entered_contexts_.back(), isolate_);
 }
 
 void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
@@ -651,7 +651,7 @@ void HandleScopeImplementer::LeaveMicrotaskContext() {
 }
 
 Handle<Context> HandleScopeImplementer::MicrotaskContext() {
-  if (microtask_context_) return Handle<Context>(microtask_context_);
+  if (microtask_context_) return Handle<Context>(microtask_context_, isolate_);
   return Handle<Context>::null();
 }
 

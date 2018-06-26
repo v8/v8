@@ -529,7 +529,8 @@ ConsumedPreParsedScopeData::GetDataForSkippableFunction(
     return nullptr;
   }
   Handle<PreParsedScopeData> child_data_handle(
-      PreParsedScopeData::cast(child_data));
+      PreParsedScopeData::cast(child_data),
+      PreParsedScopeData::cast(child_data)->GetIsolate());
   return new (zone) ProducedPreParsedScopeData(child_data_handle, zone);
 }
 

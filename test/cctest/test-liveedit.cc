@@ -202,14 +202,15 @@ void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
                     const char* source_b,
                     v8::debug::LiveEditResult* result = nullptr) {
   v8::Isolate* isolate = context->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Script> script_a =
       v8::Script::Compile(context, v8_str(isolate, source_a)).ToLocalChecked();
   script_a->Run(context).ToLocalChecked();
   i::Handle<i::Script> i_script_a(
-      i::Script::cast(v8::Utils::OpenHandle(*script_a)->shared()->script()));
+      i::Script::cast(v8::Utils::OpenHandle(*script_a)->shared()->script()),
+      i_isolate);
 
-  i::Isolate* i_isolate = i_script_a->GetIsolate();
   if (result) {
     LiveEdit::PatchScript(
         i_script_a, i_isolate->factory()->NewStringFromAsciiChecked(source_b),
@@ -470,14 +471,15 @@ TEST(LiveEditFunctionExpression) {
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Context> context = env.local();
   v8::Isolate* isolate = context->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, v8_str(isolate, original_source))
           .ToLocalChecked();
   v8::Local<v8::Function> f =
       script->Run(context).ToLocalChecked().As<v8::Function>();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()));
-  i::Isolate* i_isolate = i_script->GetIsolate();
+      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      i_isolate);
   debug::LiveEditResult result;
   LiveEdit::PatchScript(
       i_script, i_isolate->factory()->NewStringFromAsciiChecked(updated_source),

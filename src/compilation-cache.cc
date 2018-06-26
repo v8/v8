@@ -115,8 +115,9 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
   if (resource_options.Flags() != script->origin_options().Flags())
     return false;
   // Compare the two name strings for equality.
-  return String::Equals(isolate(), Handle<String>::cast(name),
-                        Handle<String>(String::cast(script->name())));
+  return String::Equals(
+      isolate(), Handle<String>::cast(name),
+      Handle<String>(String::cast(script->name()), isolate()));
 }
 
 // TODO(245): Need to allow identical code from different contexts to

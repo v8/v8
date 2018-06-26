@@ -106,8 +106,9 @@ class ElementsAccessor {
   inline MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArray> keys,
       GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
-    return PrependElementIndices(object, handle(object->elements()), keys,
-                                 convert, filter);
+    return PrependElementIndices(
+        object, handle(object->elements(), object->GetIsolate()), keys, convert,
+        filter);
   }
 
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,

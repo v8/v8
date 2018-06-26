@@ -181,7 +181,7 @@ class JSArrayBasedStruct {
 
   static S cast(Object* object) {
     JSArray* array = JSArray::cast(object);
-    Handle<JSArray> array_handle(array);
+    Handle<JSArray> array_handle(array, array->GetIsolate());
     return S(array_handle);
   }
 

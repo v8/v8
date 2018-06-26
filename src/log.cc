@@ -673,7 +673,8 @@ void JitLogger::LogRecordedBuffer(AbstractCode* code,
   event.code_len = code->InstructionSize();
   Handle<SharedFunctionInfo> shared_function_handle;
   if (shared && shared->script()->IsScript()) {
-    shared_function_handle = Handle<SharedFunctionInfo>(shared);
+    shared_function_handle =
+        Handle<SharedFunctionInfo>(shared, shared->GetIsolate());
   }
   event.script = ToApiHandle<v8::UnboundScript>(shared_function_handle);
   event.name.str = name;
@@ -1745,10 +1746,10 @@ static void AddFunctionAndCode(SharedFunctionInfo* sfi,
                                Handle<SharedFunctionInfo>* sfis,
                                Handle<AbstractCode>* code_objects, int offset) {
   if (sfis != nullptr) {
-    sfis[offset] = Handle<SharedFunctionInfo>(sfi);
+    sfis[offset] = Handle<SharedFunctionInfo>(sfi, sfi->GetIsolate());
   }
   if (code_objects != nullptr) {
-    code_objects[offset] = Handle<AbstractCode>(code_object);
+    code_objects[offset] = Handle<AbstractCode>(code_object, sfi->GetIsolate());
   }
 }
 

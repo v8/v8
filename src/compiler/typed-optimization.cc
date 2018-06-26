@@ -89,7 +89,7 @@ MaybeHandle<Map> GetStableMapFromObjectType(Type object_type) {
   if (object_type.IsHeapConstant()) {
     Handle<HeapObject> object =
         Handle<HeapObject>::cast(object_type.AsHeapConstant()->Value());
-    Handle<Map> object_map(object->map());
+    Handle<Map> object_map(object->map(), object->GetIsolate());
     if (object_map->is_stable()) return object_map;
   }
   return MaybeHandle<Map>();

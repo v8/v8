@@ -46,7 +46,8 @@ int CompileTimeValue::GetLiteralTypeFlags(Handle<FixedArray> value) {
 }
 
 Handle<HeapObject> CompileTimeValue::GetElements(Handle<FixedArray> value) {
-  return Handle<HeapObject>(HeapObject::cast(value->get(kElementsSlot)));
+  return Handle<HeapObject>(HeapObject::cast(value->get(kElementsSlot)),
+                            value->GetIsolate());
 }
 
 }  // namespace internal

@@ -1129,7 +1129,8 @@ void ReportBootstrappingException(Handle<Object> exception,
   // Since comments and empty lines have been stripped from the source of
   // builtins, print the actual source here so that line numbers match.
   if (location->script()->source()->IsString()) {
-    Handle<String> src(String::cast(location->script()->source()));
+    Handle<String> src(String::cast(location->script()->source()),
+                       location->script()->GetIsolate());
     PrintF("Failing script:");
     int len = src->length();
     if (len == 0) {

@@ -2695,7 +2695,8 @@ int TranslatedFrame::GetValueCount() {
 
 void TranslatedFrame::Handlify() {
   if (raw_shared_info_ != nullptr) {
-    shared_info_ = Handle<SharedFunctionInfo>(raw_shared_info_);
+    shared_info_ = Handle<SharedFunctionInfo>(raw_shared_info_,
+                                              raw_shared_info_->GetIsolate());
     raw_shared_info_ = nullptr;
   }
   for (auto& value : values_) {

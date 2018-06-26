@@ -3049,7 +3049,7 @@ TEST(DebugScriptLineEndsAreAscending) {
   CHECK_GT(instances->length(), 0);
   for (int i = 0; i < instances->length(); i++) {
     Handle<v8::internal::Script> script = Handle<v8::internal::Script>(
-        v8::internal::Script::cast(instances->get(i)));
+        v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(script);
     v8::internal::FixedArray* ends =
@@ -4130,7 +4130,7 @@ TEST(DebugEvaluateNoSideEffect) {
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
       i::JSFunction* fun = i::JSFunction::cast(obj);
-      all_functions.emplace_back(fun);
+      all_functions.emplace_back(fun, isolate);
     }
   }
 

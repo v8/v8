@@ -2328,7 +2328,8 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
 
   struct TestConfig {
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol());
+      Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol(),
+                                   CcTest::i_isolate());
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
       return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, NONE,
                                            frozen_symbol,
