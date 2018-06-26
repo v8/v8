@@ -28,7 +28,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   SetFlag(kCalledWithCodeStartRegister);
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
-  if (!FLAG_turbo_disable_switch_jump_table) SetFlag(kSwitchJumpTableEnabled);
+  if (!FLAG_untrusted_code_mitigations) SetFlag(kSwitchJumpTableEnabled);
   if (FLAG_untrusted_code_mitigations) MarkAsPoisoningRegisterArguments();
 
   // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
@@ -62,6 +62,13 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 #endif
   SetTracingFlags(
       PassesFilter(debug_name, CStrVector(FLAG_trace_turbo_filter)));
+  if (!FLAG_untrusted_code_mitigations) {
+    // Embedded builtins don't support embedded absolute code addresses, so we
+    // cannot use jump tables.
+    if (code_kind != Code::BUILTIN) {
+      SetFlag(kSwitchJumpTableEnabled);
+    }
+  }
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(

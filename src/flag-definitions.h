@@ -502,10 +502,6 @@ DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
             "Enable mitigations for executing untrusted code")
 #undef V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS
 
-DEFINE_BOOL(turbo_disable_switch_jump_table, false,
-            "do not emit jump-tables in Turbofan")
-DEFINE_IMPLICATION(untrusted_code_mitigations, turbo_disable_switch_jump_table)
-
 DEFINE_BOOL(branch_load_poisoning, false, "Mask loads with branch conditions.")
 DEFINE_IMPLICATION(future, branch_load_poisoning)
 
