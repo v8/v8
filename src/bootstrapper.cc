@@ -978,6 +978,10 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
                         factory()->prototype_string(),
                         async_generator_object_prototype,
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  JSObject::AddProperty(isolate(), async_generator_object_prototype,
+                        factory()->constructor_string(),
+                        async_generator_function_prototype,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   JSObject::AddProperty(isolate(), async_generator_function_prototype,
                         factory()->to_string_tag_symbol(),
                         AsyncGeneratorFunction_string,
