@@ -10158,6 +10158,9 @@ void FixedArray::Shrink(int new_length) {
 void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos,
                         int len) const {
   DisallowHeapAllocation no_gc;
+  // Return early if len == 0 so that we don't try to read the write barrier off
+  // a canonical read-only empty fixed array.
+  if (len == 0) return;
   WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
   for (int index = 0; index < len; index++) {
     dest->set(dest_pos+index, get(pos+index), mode);

@@ -415,7 +415,7 @@ class MemoryChunk {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromHeapObject(HeapObject* o) {
+  static MemoryChunk* FromHeapObject(const HeapObject* o) {
     return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(o) &
                                           ~kAlignmentMask);
   }
@@ -2911,6 +2911,8 @@ class ReadOnlySpace : public PagedSpace {
   };
 
   explicit ReadOnlySpace(Heap* heap);
+
+  bool writable() const { return !is_marked_read_only_; }
 
   void ClearStringPaddingIfNeeded();
   void MarkAsReadOnly();

@@ -713,7 +713,7 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
 
   if (scope_info->length() == 0) return -1;
 
-  // Inline a GetIsolate-style call here.
+  // Get the Isolate via the heap.
   //
   // Ideally we'd pass Isolate* through to this function, however this is mostly
   // called from the parser, which is otherwise isolate independent. We can't
@@ -723,9 +723,7 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
   // So, we take the least-ugly approach of manually getting the isolate to be
   // able to remove GetIsolate from ScopeInfo in the general case, while
   // allowing it in this one particular case.
-  MemoryChunk* scope_info_chunk = MemoryChunk::FromHeapObject(*scope_info);
-  DCHECK_NE(scope_info_chunk->owner()->identity(), RO_SPACE);
-  Isolate* isolate = scope_info_chunk->heap()->isolate();
+  Isolate* isolate = Heap::FromWritableHeapObject(*scope_info)->isolate();
 
   ContextSlotCache* context_slot_cache = isolate->context_slot_cache();
   int result = context_slot_cache->Lookup(*scope_info, *name, mode, init_flag,

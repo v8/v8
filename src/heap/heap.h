@@ -1398,6 +1398,10 @@ class Heap {
   inline bool InNewSpaceSlow(Address address);
   inline bool InOldSpaceSlow(Address address);
 
+  // Find the heap which owns this HeapObject. Should never be called for
+  // objects in RO space.
+  static inline Heap* FromWritableHeapObject(const HeapObject* obj);
+
   // ===========================================================================
   // Object statistics tracking. ===============================================
   // ===========================================================================
