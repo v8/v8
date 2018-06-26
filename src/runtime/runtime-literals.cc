@@ -49,6 +49,11 @@ class JSObjectWalkVisitor {
  protected:
   V8_WARN_UNUSED_RESULT inline MaybeHandle<JSObject> VisitElementOrProperty(
       Handle<JSObject> object, Handle<JSObject> value) {
+    // Dont create allocation sites for nested object literals
+    if (!value->IsJSArray()) {
+      return StructureWalk(value);
+    }
+
     Handle<AllocationSite> current_site = site_context()->EnterNewScope();
     MaybeHandle<JSObject> copy_of_value = StructureWalk(value);
     site_context()->ExitScope(current_site, value);

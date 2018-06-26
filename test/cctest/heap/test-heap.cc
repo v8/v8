@@ -3683,19 +3683,21 @@ TEST(AllocationSiteCreation) {
                            0, 0);
   CheckNumberOfAllocations(heap, "f7(); ", 1, 0);
 
+  // No Allocation sites are created for object subliterals
   CheckNumberOfAllocations(heap,
                            "function f8() {"
                            "return {a:{}, b:{ a:2, c:{ d:{f:{}}} } }; "
                            "}; f8(); ",
                            0, 0);
-  CheckNumberOfAllocations(heap, "f8(); ", 1, 5);
+  CheckNumberOfAllocations(heap, "f8(); ", 1, 0);
 
   // We currently eagerly create allocation sites if there are sub-arrays.
+  // Allocation sites are created only for array subliterals
   CheckNumberOfAllocations(heap,
                            "function f9() {"
                            "return {a:[1, 2, 3], b:{ a:2, c:{ d:{f:[]} } }}; "
                            "}; f9(); ",
-                           1, 5);
+                           1, 2);
 
   // No new AllocationSites created on the second invocation.
   CheckNumberOfAllocations(heap, "f9(); ", 0, 0);
