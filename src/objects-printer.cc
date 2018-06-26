@@ -89,7 +89,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case MUTABLE_HEAP_NUMBER_TYPE:
       os << "<mutable ";
-      MutableHeapNumber::cast(this)->MutableHeapNumberPrint(os);
+      HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">\n";
       break;
     case BIGINT_TYPE:
@@ -2143,12 +2143,6 @@ void MaybeObject::Print(std::ostream& os) {
 }
 
 #endif  // OBJECT_PRINT
-
-void HeapNumber::HeapNumberPrint(std::ostream& os) { os << value(); }
-
-void MutableHeapNumber::MutableHeapNumberPrint(std::ostream& os) {
-  os << value();
-}
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {

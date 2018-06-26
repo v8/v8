@@ -3449,14 +3449,14 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case HEAP_NUMBER_TYPE: {
-      os << "<HeapNumber ";
+      os << "<Number ";
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">";
       break;
     }
     case MUTABLE_HEAP_NUMBER_TYPE: {
-      os << "<MutableHeapNumber ";
-      MutableHeapNumber::cast(this)->MutableHeapNumberPrint(os);
+      os << "<MutableNumber ";
+      HeapNumber::cast(this)->HeapNumberPrint(os);
       os << '>';
       break;
     }
@@ -3560,6 +3560,10 @@ bool HeapObject::IsValidSlot(Map* map, int offset) {
   DCHECK_NE(0, offset);
   return BodyDescriptorApply<CallIsValidSlot, bool>(map->instance_type(), map,
                                                     this, offset, 0);
+}
+
+void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
+  os << value();
 }
 
 String* JSReceiver::class_name() {
@@ -3999,7 +4003,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
           FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
       DCHECK(details.representation().IsDouble());
       DCHECK(!new_map->IsUnboxedDoubleField(index));
-      auto value = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+      Handle<Object> value = isolate->factory()->NewMutableHeapNumber();
       object->RawFastPropertyAtPut(index, *value);
       object->synchronized_set_map(*new_map);
       return;
@@ -4015,7 +4019,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     // Properly initialize newly added property.
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+      value = isolate->factory()->NewMutableHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -4079,7 +4083,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         // must already be prepared for data of certain type.
         DCHECK(!details.representation().IsNone());
         if (details.representation().IsDouble()) {
-          value = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+          value = isolate->factory()->NewMutableHeapNumber();
         } else {
           value = isolate->factory()->uninitialized_value();
         }
@@ -4093,11 +4097,9 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       FieldIndex index = FieldIndex::ForDescriptor(*old_map, i);
       if (object->IsUnboxedDoubleField(index)) {
         uint64_t old_bits = object->RawFastDoublePropertyAsBitsAt(index);
-        if (representation.IsDouble()) {
-          value = isolate->factory()->NewMutableHeapNumberFromBits(old_bits);
-        } else {
-          value = isolate->factory()->NewHeapNumberFromBits(old_bits);
-        }
+        value = isolate->factory()->NewHeapNumberFromBits(
+            old_bits, representation.IsDouble() ? MUTABLE : IMMUTABLE);
+
       } else {
         value = handle(object->RawFastPropertyAt(index), isolate);
         if (!old_representation.IsDouble() && representation.IsDouble()) {
@@ -4125,7 +4127,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     DCHECK_EQ(kData, details.kind());
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+      value = isolate->factory()->NewMutableHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -4158,7 +4160,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       DCHECK(value->IsMutableHeapNumber());
       // Ensure that all bits of the double value are preserved.
       object->RawFastDoublePropertyAsBitsAtPut(
-          index, MutableHeapNumber::cast(value)->value_as_bits());
+          index, HeapNumber::cast(value)->value_as_bits());
       if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
         // Transition from tagged to untagged slot.
         heap->ClearRecordedSlot(*object,
@@ -4231,8 +4233,8 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
           value = handle(object->RawFastPropertyAt(index), isolate);
           if (details.representation().IsDouble()) {
             DCHECK(value->IsMutableHeapNumber());
-            double old_value = Handle<MutableHeapNumber>::cast(value)->value();
-            value = isolate->factory()->NewHeapNumber(old_value);
+            Handle<HeapNumber> old = Handle<HeapNumber>::cast(value);
+            value = isolate->factory()->NewHeapNumber(old->value());
           }
         }
       } else {
@@ -5974,7 +5976,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
       if (!representation.IsDouble()) continue;
       FieldIndex index = FieldIndex::ForDescriptor(*map, i);
       if (map->IsUnboxedDoubleField(index)) continue;
-      auto box = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+      Handle<HeapNumber> box = isolate->factory()->NewMutableHeapNumber();
       if (index.is_inobject()) {
         storage->set(index.property_index(), *box);
       } else {

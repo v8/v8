@@ -3464,9 +3464,9 @@ void TranslatedState::MaterializeMutableHeapNumber(TranslatedFrame* frame,
   CHECK_NE(TranslatedValue::kCapturedObject,
            frame->values_[*value_index].kind());
   Handle<Object> value = frame->values_[*value_index].GetValue();
+  Handle<HeapNumber> box;
   CHECK(value->IsNumber());
-  Handle<MutableHeapNumber> box =
-      isolate()->factory()->NewMutableHeapNumber(value->Number());
+  box = isolate()->factory()->NewHeapNumber(value->Number(), MUTABLE);
   (*value_index)++;
   slot->set_storage(box);
 }
