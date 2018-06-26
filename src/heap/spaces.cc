@@ -631,6 +631,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->young_generation_bitmap_ = nullptr;
   chunk->local_tracker_ = nullptr;
 
+  chunk->external_backing_store_bytes_[ExternalBackingStoreType::kOther] = 0;
   chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
       0;
   chunk->external_backing_store_bytes_
@@ -1399,19 +1400,6 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
   young_generation_bitmap_ = nullptr;
 }
 
-void MemoryChunk::IncrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-  external_backing_store_bytes_[type] += amount;
-  owner()->IncrementExternalBackingStoreBytes(type, amount);
-}
-
-void MemoryChunk::DecrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-  DCHECK_GE(external_backing_store_bytes_[type], amount);
-  external_backing_store_bytes_[type] -= amount;
-  owner()->DecrementExternalBackingStoreBytes(type, amount);
-}
-
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
@@ -1512,6 +1500,9 @@ void PagedSpace::RefillFreeList() {
 void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   base::LockGuard<base::Mutex> guard(mutex());
 
+  IncrementExternalBackingStoreBytes(other->ExternalBackingStoreBytes());
+  other->DecrementExternalBackingStoreBytes(other->ExternalBackingStoreBytes());
+
   DCHECK(identity() == other->identity());
   // Unmerged fields:
   //   area_size_
@@ -1601,10 +1592,6 @@ size_t PagedSpace::AddPage(Page* page) {
   AccountCommitted(page->size());
   IncreaseCapacity(page->area_size());
   IncreaseAllocatedBytes(page->allocated_bytes(), page);
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
   return RelinkFreeListCategories(page);
 }
 
@@ -1615,10 +1602,6 @@ void PagedSpace::RemovePage(Page* page) {
   DecreaseAllocatedBytes(page->allocated_bytes(), page);
   DecreaseCapacity(page->area_size());
   AccountUncommitted(page->size());
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
 }
 
 size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
@@ -2571,10 +2554,6 @@ void SemiSpace::RemovePage(Page* page) {
     }
   }
   memory_chunk_list_.Remove(page);
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
 }
 
 void SemiSpace::PrependPage(Page* page) {
@@ -2583,10 +2562,6 @@ void SemiSpace::PrependPage(Page* page) {
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
   pages_used_++;
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
 }
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
