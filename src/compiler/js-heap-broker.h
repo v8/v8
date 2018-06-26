@@ -21,8 +21,7 @@ enum class OddballType : uint8_t {
   kNull,
   kHole,
   kUninitialized,
-  kOther,  // Oddball, but none of the above.
-  kAny     // Any Oddball.
+  kOther  // Oddball, but none of the above.
 };
 
 class HeapObjectType {

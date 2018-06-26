@@ -172,8 +172,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     // the hole or undefined. Only if it is neither of these, can we be sure
     // that it won't change anymore.
     OddballType oddball_type = maybe_value->oddball_type(js_heap_broker());
-    if (oddball_type == OddballType::kAny ||
-        oddball_type == OddballType::kUndefined ||
+    if (oddball_type == OddballType::kUndefined ||
         oddball_type == OddballType::kHole) {
       maybe_value.reset();
     }

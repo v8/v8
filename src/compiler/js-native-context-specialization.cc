@@ -742,8 +742,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   if (result) {
     ObjectRef contents = result->context.get(js_heap_broker(), result->index);
     OddballType oddball_type = contents.oddball_type(js_heap_broker());
-    if (oddball_type == OddballType::kHole ||
-        oddball_type == OddballType::kAny) {
+    if (oddball_type == OddballType::kHole) {
       return NoChange();
     }
     Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
@@ -772,8 +771,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   if (result) {
     ObjectRef contents = result->context.get(js_heap_broker(), result->index);
     OddballType oddball_type = contents.oddball_type(js_heap_broker());
-    if (oddball_type == OddballType::kHole ||
-        oddball_type == OddballType::kAny || result->immutable) {
+    if (oddball_type == OddballType::kHole || result->immutable) {
       return NoChange();
     }
     Node* context = jsgraph()->Constant(js_heap_broker(), result->context);

@@ -178,8 +178,6 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
         case OddballType::kOther:
           // TODO(neis): We should add a kOtherOddball type.
           return kOtherInternal;
-        case OddballType::kAny:
-          return kOddball | kOtherInternal;
       }
       UNREACHABLE();
     case HEAP_NUMBER_TYPE:
