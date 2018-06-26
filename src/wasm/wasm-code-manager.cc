@@ -183,10 +183,19 @@ void WasmCode::Validate() const {
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
+      case RelocInfo::WASM_CALL: {
+        Address target = it.rinfo()->wasm_call_address();
+        WasmCode* code = native_module_->Lookup(target);
+        CHECK_NOT_NULL(code);
+        CHECK_EQ(WasmCode::kJumpTable, code->kind());
+        CHECK(code->contains(target));
+        break;
+      }
       case RelocInfo::WASM_STUB_CALL: {
         Address target = it.rinfo()->wasm_stub_call_address();
         WasmCode* code = native_module_->Lookup(target);
-        CHECK(code && code->kind() == WasmCode::kRuntimeStub);
+        CHECK_NOT_NULL(code);
+        CHECK_EQ(WasmCode::kRuntimeStub, code->kind());
         CHECK_EQ(target, code->instruction_start());
         break;
       }
@@ -196,7 +205,6 @@ void WasmCode::Validate() const {
         CHECK(contains(target));
         break;
       }
-      case RelocInfo::WASM_CALL:
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
       case RelocInfo::OFF_HEAP_TARGET:
@@ -490,7 +498,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
        !it.done(); it.next(), orig_it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmStubCall(mode)) {
-      uint32_t stub_call_tag = orig_it.rinfo()->wasm_stub_call_tag();
+      uint32_t stub_call_tag = orig_it.rinfo()->wasm_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
       WasmCode* code =
           runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
@@ -530,16 +538,20 @@ WasmCode* NativeModule::AddCode(
       std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
 
   // Apply the relocation delta by iterating over the RelocInfo.
-  AllowDeferredHandleDereference embedding_raw_address;
   intptr_t delta = ret->instructions().start() - desc.buffer;
   int mode_mask = RelocInfo::kApplyMask |
+                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   for (RelocIterator it(ret->instructions(), ret->reloc_info(),
                         ret->constant_pool(), mode_mask);
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmStubCall(mode)) {
-      uint32_t stub_call_tag = it.rinfo()->wasm_stub_call_tag();
+    if (RelocInfo::IsWasmCall(mode)) {
+      uint32_t call_tag = it.rinfo()->wasm_call_tag();
+      Address target = GetCallTargetForFunction(call_tag);
+      it.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
+    } else if (RelocInfo::IsWasmStubCall(mode)) {
+      uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
       WasmCode* code =
           runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));

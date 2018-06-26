@@ -203,8 +203,8 @@ Address RelocInfo::js_to_wasm_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-uint32_t RelocInfo::wasm_stub_call_tag() const {
-  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
   if (instr->IsLdrLiteralX()) {
     return static_cast<uint32_t>(

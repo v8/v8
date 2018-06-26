@@ -138,8 +138,8 @@ Address RelocInfo::js_to_wasm_address() const {
   return Memory::Address_at(pc_);
 }
 
-uint32_t RelocInfo::wasm_stub_call_tag() const {
-  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   return Memory::uint32_at(pc_);
 }
 

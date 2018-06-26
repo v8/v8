@@ -2447,8 +2447,6 @@ v8_source_set("v8_base") {
     "src/wasm/value-type.h",
     "src/wasm/wasm-code-manager.cc",
     "src/wasm/wasm-code-manager.h",
-    "src/wasm/wasm-code-specialization.cc",
-    "src/wasm/wasm-code-specialization.h",
     "src/wasm/wasm-constants.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-engine.cc",

@@ -478,13 +478,20 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
                                  WasmCode::kFlushICache);
 
   // Relocate the code.
-  int mask = RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+  int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+             RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
                           ret->constant_pool(), mask);
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
+      case RelocInfo::WASM_CALL: {
+        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
+        Address target = native_module_->GetCallTargetForFunction(tag);
+        iter.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
+        break;
+      }
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);

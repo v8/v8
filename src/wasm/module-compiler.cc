@@ -18,7 +18,6 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
@@ -414,10 +413,6 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   // module creation time, and return a function that always traps here.
   CHECK(!thrower.error());
 
-  // Now specialize the generated code for this instance.
-  CodeSpecialization code_specialization;
-  code_specialization.RelocateDirectCalls(native_module);
-  code_specialization.ApplyToWasmCode(wasm_code, SKIP_ICACHE_FLUSH);
   int64_t func_size =
       static_cast<int64_t>(func->code.end_offset() - func->code.offset());
   int64_t compilation_time = compilation_timer.Elapsed().InMicroseconds();
@@ -873,7 +868,6 @@ class FinishCompileTask : public CancelableTask {
       ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
       wasm::WasmCode* result = unit->FinishCompilation(&thrower);
 
-      NativeModule* native_module = unit->native_module();
       if (thrower.error()) {
         DCHECK_NULL(result);
         compilation_state_->OnError(&thrower);
@@ -885,13 +879,9 @@ class FinishCompileTask : public CancelableTask {
       if (compilation_state_->baseline_compilation_finished()) {
         // If Liftoff compilation finishes it will directly start executing.
         // As soon as we have Turbofan-compiled code available, it will
-        // directly be used by Liftoff-compiled code. Therefore we need
-        // to patch the compiled Turbofan function directly after finishing it.
+        // directly be used by Liftoff-compiled code via the jump table.
         DCHECK_EQ(CompileMode::kTiering, compilation_state_->compile_mode());
         DCHECK(!result->is_liftoff());
-        CodeSpecialization code_specialization;
-        code_specialization.RelocateDirectCalls(native_module);
-        code_specialization.ApplyToWasmCode(result);
 
         if (wasm::WasmCode::ShouldBeLogged(isolate)) result->LogCode(isolate);
 
@@ -1299,11 +1289,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Patch all code with the relocations registered in code_specialization.
+  // Flush the processors instruction cache.
   //--------------------------------------------------------------------------
-  CodeSpecialization code_specialization;
-  code_specialization.RelocateDirectCalls(native_module);
-  code_specialization.ApplyToWholeModule(native_module, SKIP_ICACHE_FLUSH);
   FlushICache(native_module);
 
   //--------------------------------------------------------------------------

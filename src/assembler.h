@@ -581,7 +581,7 @@ class RelocInfo {
   Address wasm_stub_call_address() const;
   Address js_to_wasm_address() const;
 
-  uint32_t wasm_stub_call_tag() const;
+  uint32_t wasm_call_tag() const;
 
   void set_wasm_call_address(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
