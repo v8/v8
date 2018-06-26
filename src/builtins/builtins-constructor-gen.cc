@@ -577,7 +577,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
                       {
                         Node* double_value = LoadHeapNumberValue(field);
                         Node* mutable_heap_number =
-                            AllocateHeapNumberWithValue(double_value, MUTABLE);
+                            AllocateMutableHeapNumberWithValue(double_value);
                         StoreObjectField(copy, offset, mutable_heap_number);
                         Goto(&continue_loop);
                       }

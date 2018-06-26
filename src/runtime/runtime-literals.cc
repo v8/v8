@@ -122,9 +122,9 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && raw->IsMutableHeapNumber()) {
           DCHECK(descriptors->GetDetails(i).representation().IsDouble());
-          uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
-          Handle<HeapNumber> value = isolate->factory()->NewHeapNumber(MUTABLE);
-          value->set_value_as_bits(double_value);
+          uint64_t double_value = MutableHeapNumber::cast(raw)->value_as_bits();
+          auto value =
+              isolate->factory()->NewMutableHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
         }
       }

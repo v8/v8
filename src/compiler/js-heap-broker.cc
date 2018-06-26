@@ -42,7 +42,7 @@ double HeapNumberRef::value() const {
 
 double MutableHeapNumberRef::value() const {
   AllowHandleDereference allow_handle_dereference;
-  return object<HeapNumber>()->value();
+  return object<MutableHeapNumber>()->value();
 }
 
 ContextRef::ContextRef(Handle<Object> object) : HeapObjectRef(object) {

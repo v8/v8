@@ -859,7 +859,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object* value) const {
     } else {
       Object* current_value = holder->RawFastPropertyAt(field_index);
       DCHECK(current_value->IsMutableHeapNumber());
-      bits = HeapNumber::cast(current_value)->value_as_bits();
+      bits = MutableHeapNumber::cast(current_value)->value_as_bits();
     }
     // Use bit representation of double to to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with

@@ -1981,10 +1981,11 @@ class FixedBodyDescriptor;
 template <int start_offset>
 class FlexibleBodyDescriptor;
 
-
 // The HeapNumber class describes heap allocated numbers that cannot be
-// represented in a Smi (small integer)
-class HeapNumber: public HeapObject {
+// represented in a Smi (small integer). MutableHeapNumber is the same, but its
+// number value can change over time (it is used only as property storage).
+// HeapNumberBase merely exists to avoid code duplication.
+class HeapNumberBase : public HeapObject {
  public:
   // [value]: number value.
   inline double value() const;
@@ -1992,11 +1993,6 @@ class HeapNumber: public HeapObject {
 
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
-
-  DECL_CAST(HeapNumber)
-
-  V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);  // NOLINT
-  DECL_VERIFIER(HeapNumber)
 
   inline int get_exponent();
   inline int get_sign();
@@ -2031,7 +2027,25 @@ class HeapNumber: public HeapObject {
   static const int kNonMantissaBitsInTopWord = 12;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumberBase)
+};
+
+class HeapNumber : public HeapNumberBase {
+ public:
+  DECL_CAST(HeapNumber)
+  V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber)
+};
+
+class MutableHeapNumber : public HeapNumberBase {
+ public:
+  DECL_CAST(MutableHeapNumber)
+  V8_EXPORT_PRIVATE void MutableHeapNumberPrint(std::ostream& os);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MutableHeapNumber)
 };
 
 enum EnsureElementsMode {

@@ -110,10 +110,8 @@ void Smi::SmiVerify(Isolate* isolate) {
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   VerifyHeapPointer(map());
   CHECK(map()->IsMap());
-  InstanceType instance_type = map()->instance_type();
 
-
-  switch (instance_type) {
+  switch (map()->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, camel_name) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)
 #undef STRING_TYPE_CASE
@@ -126,8 +124,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Map::cast(this)->MapVerify(isolate);
       break;
     case HEAP_NUMBER_TYPE:
+      CHECK(IsHeapNumber());
+      break;
     case MUTABLE_HEAP_NUMBER_TYPE:
-      HeapNumber::cast(this)->HeapNumberVerify(isolate);
+      CHECK(IsMutableHeapNumber());
       break;
     case BIGINT_TYPE:
       BigInt::cast(this)->BigIntVerify(isolate);
@@ -370,10 +370,6 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined(isolate) || name()->IsString());
   CHECK_IMPLIES(IsPrivateField(), IsPrivate());
-}
-
-void HeapNumber::HeapNumberVerify(Isolate* isolate) {
-  CHECK(IsHeapNumber() || IsMutableHeapNumber());
 }
 
 void ByteArray::ByteArrayVerify(Isolate* isolate) { CHECK(IsByteArray()); }

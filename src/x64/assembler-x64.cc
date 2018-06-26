@@ -339,8 +339,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
-            request.heap_number(), IMMUTABLE, TENURED);
+        Handle<HeapNumber> object =
+            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         Memory::Object_Handle_at(pc) = object;
         break;
       }
