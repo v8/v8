@@ -3950,9 +3950,9 @@ class AllocationSite: public Struct {
   DECL_ACCESSORS(nested_site, Object)
 
   // Bitfield containing pretenuring information.
-  DECL_INT_ACCESSORS(pretenure_data)
+  DECL_INT32_ACCESSORS(pretenure_data)
 
-  DECL_INT_ACCESSORS(pretenure_create_count)
+  DECL_INT32_ACCESSORS(pretenure_create_count)
   DECL_ACCESSORS(dependent_code, DependentCode)
 
   // heap->allocation_site_list() points to the last AllocationSite which form
@@ -4039,12 +4039,15 @@ class AllocationSite: public Struct {
   static inline bool CanTrack(InstanceType type);
 
 // Layout description.
+// AllocationSite has to start with TransitionInfoOrboilerPlateOffset
+// and end with WeakNext field.
 #define ALLOCATION_SITE_FIELDS(V)                     \
   V(kTransitionInfoOrBoilerplateOffset, kPointerSize) \
   V(kNestedSiteOffset, kPointerSize)                  \
-  V(kPretenureDataOffset, kPointerSize)               \
-  V(kPretenureCreateCountOffset, kPointerSize)        \
   V(kDependentCodeOffset, kPointerSize)               \
+  V(kCommonPointerFieldEndOffset, 0)                  \
+  V(kPretenureDataOffset, kInt32Size)                 \
+  V(kPretenureCreateCountOffset, kInt32Size)          \
   /* Size of AllocationSite without WeakNext field */ \
   V(kSizeWithoutWeakNext, 0)                          \
   V(kWeakNextOffset, kPointerSize)                    \
@@ -4058,10 +4061,11 @@ class AllocationSite: public Struct {
   template <bool includeWeakNext>
   class BodyDescriptorImpl;
 
-  // BodyDescriptor is used to traverse all the fields including weak_next
+  // BodyDescriptor is used to traverse all the pointer fields including
+  // weak_next
   typedef BodyDescriptorImpl<true> BodyDescriptor;
 
-  // BodyDescriptorWeak is used to traverse all the pointers
+  // BodyDescriptorWeak is used to traverse all the pointer fields
   // except for weak_next
   typedef BodyDescriptorImpl<false> BodyDescriptorWeak;
 

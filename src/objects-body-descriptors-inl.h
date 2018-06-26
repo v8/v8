@@ -152,24 +152,43 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
 template <bool includeWeakNext>
 class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
+  STATIC_ASSERT(AllocationSite::kCommonPointerFieldEndOffset ==
+                AllocationSite::kPretenureDataOffset);
+  STATIC_ASSERT(AllocationSite::kPretenureDataOffset + kInt32Size ==
+                AllocationSite::kPretenureCreateCountOffset);
+  STATIC_ASSERT(AllocationSite::kPretenureCreateCountOffset + kInt32Size ==
+                AllocationSite::kWeakNextOffset);
+
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
-    return offset >= AllocationSite::kStartOffset && offset < GetEndOffset(map);
+    if (offset >= AllocationSite::kStartOffset &&
+        offset < AllocationSite::kCommonPointerFieldEndOffset) {
+      return true;
+    }
+    // check for weak_next offset
+    if (includeWeakNext &&
+        map->instance_size() == AllocationSite::kSizeWithWeakNext &&
+        offset == AllocationSite::kWeakNextOffset) {
+      return true;
+    }
+    return false;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, AllocationSite::kStartOffset, GetEndOffset(map), v);
+    // Iterate over all the common pointer fields
+    IteratePointers(obj, AllocationSite::kStartOffset,
+                    AllocationSite::kCommonPointerFieldEndOffset, v);
+    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields
+    // Visit weak_next only for full body descriptor and if it has weak_next
+    // field
+    if (includeWeakNext && object_size == AllocationSite::kSizeWithWeakNext)
+      IteratePointers(obj, AllocationSite::kWeakNextOffset,
+                      AllocationSite::kSizeWithWeakNext, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
     return map->instance_size();
-  }
-
- private:
-  static inline int GetEndOffset(Map* map) {
-    return includeWeakNext ? map->instance_size()
-                           : AllocationSite::kSizeWithoutWeakNext;
   }
 };
 

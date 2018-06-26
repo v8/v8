@@ -4300,12 +4300,14 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base,
   StoreObjectFieldNoWriteBarrier(
       memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
   if (FLAG_allocation_site_pretenuring) {
-    TNode<Smi> count = CAST(LoadObjectField(
-        allocation_site, AllocationSite::kPretenureCreateCountOffset));
-    TNode<Smi> incremented_count = SmiAdd(count, SmiConstant(1));
-    StoreObjectFieldNoWriteBarrier(allocation_site,
-                                   AllocationSite::kPretenureCreateCountOffset,
-                                   incremented_count);
+    TNode<Int32T> count = UncheckedCast<Int32T>(LoadObjectField(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset,
+        MachineType::Int32()));
+
+    TNode<Int32T> incremented_count = Int32Add(count, Int32Constant(1));
+    StoreObjectFieldNoWriteBarrier(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset,
+        incremented_count, MachineRepresentation::kWord32);
   }
   Comment("]");
 }
@@ -9438,11 +9440,13 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
 
   // Pretenuring calculation field.
   StoreObjectFieldNoWriteBarrier(site, AllocationSite::kPretenureDataOffset,
-                                 zero);
+                                 Int32Constant(0),
+                                 MachineRepresentation::kWord32);
 
   // Pretenuring memento creation count field.
   StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kPretenureCreateCountOffset, zero);
+      site, AllocationSite::kPretenureCreateCountOffset, Int32Constant(0),
+      MachineRepresentation::kWord32);
 
   // Store an empty fixed array for the code dependency.
   StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,

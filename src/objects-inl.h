@@ -1233,7 +1233,7 @@ AllocationSite::PretenureDecision AllocationSite::pretenure_decision() const {
 }
 
 void AllocationSite::set_pretenure_decision(PretenureDecision decision) {
-  int value = pretenure_data();
+  int32_t value = pretenure_data();
   set_pretenure_data(PretenureDecisionBits::update(value, decision));
 }
 
@@ -1242,7 +1242,7 @@ bool AllocationSite::deopt_dependent_code() const {
 }
 
 void AllocationSite::set_deopt_dependent_code(bool deopt) {
-  int value = pretenure_data();
+  int32_t value = pretenure_data();
   set_pretenure_data(DeoptDependentCodeBit::update(value, deopt));
 }
 
@@ -1251,7 +1251,7 @@ int AllocationSite::memento_found_count() const {
 }
 
 inline void AllocationSite::set_memento_found_count(int count) {
-  int value = pretenure_data();
+  int32_t value = pretenure_data();
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
@@ -2449,9 +2449,9 @@ void AllocationSite::set_transition_info(int value) {
 }
 
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-SMI_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
-SMI_ACCESSORS(AllocationSite, pretenure_create_count,
-              kPretenureCreateCountOffset)
+INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
+INT32_ACCESSORS(AllocationSite, pretenure_create_count,
+                kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
