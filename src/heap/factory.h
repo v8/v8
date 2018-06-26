@@ -527,18 +527,21 @@ class V8_EXPORT_PRIVATE Factory {
   inline Handle<Object> NewNumberFromInt64(
       int64_t value, PretenureFlag pretenure = NOT_TENURED);
   inline Handle<HeapNumber> NewHeapNumber(
-      double value, MutableMode mode = IMMUTABLE,
-      PretenureFlag pretenure = NOT_TENURED);
+      double value, PretenureFlag pretenure = NOT_TENURED);
   inline Handle<HeapNumber> NewHeapNumberFromBits(
-      uint64_t bits, MutableMode mode = IMMUTABLE,
-      PretenureFlag pretenure = NOT_TENURED);
-  // Creates mutable heap number object with value field set to hole NaN.
-  inline Handle<HeapNumber> NewMutableHeapNumber(
-      PretenureFlag pretenure = NOT_TENURED);
+      uint64_t bits, PretenureFlag pretenure = NOT_TENURED);
 
   // Creates heap number object with not yet set value field.
-  Handle<HeapNumber> NewHeapNumber(MutableMode mode,
-                                   PretenureFlag pretenure = NOT_TENURED);
+  Handle<HeapNumber> NewHeapNumber(PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<MutableHeapNumber> NewMutableHeapNumber(
+      PretenureFlag pretenure = NOT_TENURED);
+  inline Handle<MutableHeapNumber> NewMutableHeapNumber(
+      double value, PretenureFlag pretenure = NOT_TENURED);
+  inline Handle<MutableHeapNumber> NewMutableHeapNumberFromBits(
+      uint64_t bits, PretenureFlag pretenure = NOT_TENURED);
+  inline Handle<MutableHeapNumber> NewMutableHeapNumberWithHoleNaN(
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.

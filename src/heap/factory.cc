@@ -2112,16 +2112,14 @@ Handle<Object> Factory::NewNumber(double value, PretenureFlag pretenure) {
   if (DoubleToSmiInteger(value, &int_value)) {
     return handle(Smi::FromInt(int_value), isolate());
   }
-
-  // Materialize the value in the heap.
-  return NewHeapNumber(value, IMMUTABLE, pretenure);
+  return NewHeapNumber(value, pretenure);
 }
 
 Handle<Object> Factory::NewNumberFromInt(int32_t value,
                                          PretenureFlag pretenure) {
   if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
   // Bypass NewNumber to avoid various redundant checks.
-  return NewHeapNumber(FastI2D(value), IMMUTABLE, pretenure);
+  return NewHeapNumber(FastI2D(value), pretenure);
 }
 
 Handle<Object> Factory::NewNumberFromUint(uint32_t value,
@@ -2130,16 +2128,24 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
   if (int32v >= 0 && Smi::IsValid(int32v)) {
     return handle(Smi::FromInt(int32v), isolate());
   }
-  return NewHeapNumber(FastUI2D(value), IMMUTABLE, pretenure);
+  return NewHeapNumber(FastUI2D(value), pretenure);
 }
 
-Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
-                                          PretenureFlag pretenure) {
+Handle<HeapNumber> Factory::NewHeapNumber(PretenureFlag pretenure) {
   STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
-  Map* map = mode == MUTABLE ? *mutable_heap_number_map() : *heap_number_map();
+  Map* map = *heap_number_map();
   HeapObject* result = AllocateRawWithImmortalMap(HeapNumber::kSize, pretenure,
                                                   map, kDoubleUnaligned);
   return handle(HeapNumber::cast(result), isolate());
+}
+
+Handle<MutableHeapNumber> Factory::NewMutableHeapNumber(
+    PretenureFlag pretenure) {
+  STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
+  Map* map = *mutable_heap_number_map();
+  HeapObject* result = AllocateRawWithImmortalMap(
+      MutableHeapNumber::kSize, pretenure, map, kDoubleUnaligned);
+  return handle(MutableHeapNumber::cast(result), isolate());
 }
 
 Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,
