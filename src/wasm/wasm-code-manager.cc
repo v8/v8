@@ -442,20 +442,6 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
 #undef COPY_BUILTIN
 }
 
-WasmModuleObject* NativeModule::module_object() const {
-  DCHECK_NOT_NULL(module_object_);
-  return *module_object_;
-}
-
-void NativeModule::SetModuleObject(Handle<WasmModuleObject> module_object) {
-  DCHECK_NULL(module_object_);
-  module_object_ = module_object->GetIsolate()
-                       ->global_handles()
-                       ->Create(*module_object)
-                       .location();
-  GlobalHandles::MakeWeak(reinterpret_cast<Object***>(&module_object_));
-}
-
 WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                                          WasmCode::Kind kind) {
   std::unique_ptr<byte[]> reloc_info;
@@ -732,14 +718,6 @@ void NativeModule::DisableTrapHandler() {
 
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
-  // Clear the handle at the beginning of destructor to make it robust against
-  // potential GCs in the rest of the destructor.
-  if (module_object_ != nullptr) {
-    Isolate* isolate = module_object()->GetIsolate();
-    isolate->global_handles()->Destroy(
-        reinterpret_cast<Object**>(module_object_));
-    module_object_ = nullptr;
-  }
   wasm_code_manager_->FreeNativeModule(this);
 }
 

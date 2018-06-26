@@ -307,13 +307,11 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
 
-  // Create the {NativeModule}, and link it bidirectionally to the
-  // {WasmModuleObject}.
+  // Create the {NativeModule}, and let the {WasmModuleObject} reference it.
   size_t memory_estimate =
       isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(module);
   auto native_module =
       isolate->wasm_engine()->code_manager()->NewNativeModule(isolate, env);
-  native_module->SetModuleObject(module_object);
   native_module->set_wire_bytes(std::move(wire_bytes), wire_bytes_len);
   native_module->SetRuntimeStubs(isolate);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
