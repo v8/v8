@@ -36,6 +36,49 @@ class Deduplicator {
   std::unordered_set<T, base::hash<T>> storage_;
 };
 
+template <class C, class T>
+void PrintCommaSeparatedList(std::ostream& os, const T& list, C transform) {
+  bool first = true;
+  for (auto& e : list) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
+    }
+    os << transform(e);
+  }
+}
+
+template <class T,
+          typename std::enable_if<
+              std::is_pointer<typename T::value_type>::value, int>::type = 0>
+void PrintCommaSeparatedList(std::ostream& os, const T& list) {
+  bool first = true;
+  for (auto& e : list) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
+    }
+    os << *e;
+  }
+}
+
+template <class T,
+          typename std::enable_if<
+              !std::is_pointer<typename T::value_type>::value, int>::type = 0>
+void PrintCommaSeparatedList(std::ostream& os, const T& list) {
+  bool first = true;
+  for (auto& e : list) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
+    }
+    os << e;
+  }
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

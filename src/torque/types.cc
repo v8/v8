@@ -83,15 +83,8 @@ std::string AbstractType::GetGeneratedTNodeTypeName() const {
 std::string FunctionPointerType::ToExplicitString() const {
   std::stringstream result;
   result << "builtin (";
-  bool first = true;
-  for (const Type* t : parameter_types_) {
-    if (!first) {
-      result << ", ";
-      first = false;
-    }
-    result << t;
-  }
-  result << ") => " << return_type_;
+  PrintCommaSeparatedList(result, parameter_types_);
+  result << ") => " << *return_type_;
   return result.str();
 }
 
@@ -116,7 +109,7 @@ std::string UnionType::ToExplicitString() const {
       result << " | ";
     }
     first = false;
-    result << t;
+    result << *t;
   }
   result << ")";
   return result.str();
@@ -148,21 +141,23 @@ std::string UnionType::GetGeneratedTNodeTypeName() const {
   return parent()->GetGeneratedTNodeTypeName();
 }
 
-std::ostream& operator<<(std::ostream& os, const Signature& sig) {
+void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << "(";
   for (size_t i = 0; i < sig.parameter_types.types.size(); ++i) {
     if (i > 0) os << ", ";
-    if (!sig.parameter_names.empty()) os << sig.parameter_names[i] << ": ";
-    os << sig.parameter_types.types[i];
+    if (with_names && !sig.parameter_names.empty()) {
+      os << sig.parameter_names[i] << ": ";
+    }
+    os << *sig.parameter_types.types[i];
   }
   if (sig.parameter_types.var_args) {
     if (sig.parameter_names.size()) os << ", ";
     os << "...";
   }
   os << ")";
-  os << ": " << sig.return_type;
+  os << ": " << *sig.return_type;
 
-  if (sig.labels.empty()) return os;
+  if (sig.labels.empty()) return;
 
   os << " labels ";
   for (size_t i = 0; i < sig.labels.size(); ++i) {
@@ -171,22 +166,20 @@ std::ostream& operator<<(std::ostream& os, const Signature& sig) {
 
     if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
   }
+}
+
+std::ostream& operator<<(std::ostream& os, const Signature& sig) {
+  PrintSignature(os, sig, true);
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const TypeVector& types) {
-  for (size_t i = 0; i < types.size(); ++i) {
-    if (i > 0) os << ", ";
-    os << types[i];
-  }
+  PrintCommaSeparatedList(os, types);
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
-  for (size_t i = 0; i < p.types.size(); ++i) {
-    if (i > 0) os << ", ";
-    os << p.types[i];
-  }
+  PrintCommaSeparatedList(os, p.types);
   if (p.var_args) {
     if (p.types.size() > 0) os << ", ";
     os << "...";

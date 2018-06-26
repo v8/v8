@@ -173,6 +173,8 @@ class ImplementationVisitor : public FileVisitor {
     ImplementationVisitor* visitor_;
   };
 
+  Callable* LookupCall(const std::string& name, const Arguments& arguments);
+
   void GenerateChangedVarsFromControlSplit(AstNode* node);
 
   const Type* GetCommonType(const Type* left, const Type* right);

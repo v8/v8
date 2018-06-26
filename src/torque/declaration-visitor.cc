@@ -90,7 +90,7 @@ Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
           declarations()->LookupGlobalType(OBJECT_TYPE_STRING))) {
       std::stringstream stream;
       stream << "second parameter to javascript builtin " << decl->name
-             << " is " << signature.types()[1] << " but should be Object";
+             << " is " << *signature.types()[1] << " but should be Object";
       ReportError(stream.str());
     }
   }
@@ -256,7 +256,7 @@ void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
   }
   declarations()->DeclareVariable(variable_name, type);
   if (global_context_.verbose()) {
-    std::cout << "declared variable " << variable_name << " with type " << type
+    std::cout << "declared variable " << variable_name << " with type " << *type
               << "\n";
   }
   if (stmt->initializer) {

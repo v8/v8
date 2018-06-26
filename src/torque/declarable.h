@@ -337,9 +337,12 @@ class TypeAlias : public Declarable {
   const Type* type_;
 };
 
+void PrintLabel(std::ostream& os, const Label& l, bool with_names);
+
 std::ostream& operator<<(std::ostream& os, const Callable& m);
 std::ostream& operator<<(std::ostream& os, const Variable& v);
 std::ostream& operator<<(std::ostream& os, const Builtin& b);
+std::ostream& operator<<(std::ostream& os, const Label& l);
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
 std::ostream& operator<<(std::ostream& os, const Generic& g);
 

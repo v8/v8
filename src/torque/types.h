@@ -268,8 +268,8 @@ class UnionType final : public Type {
   std::set<const Type*, TypeLess> types_;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Type* t) {
-  os << t->ToString();
+inline std::ostream& operator<<(std::ostream& os, const Type& t) {
+  os << t.ToString();
   return os;
 }
 
@@ -344,6 +344,7 @@ struct Arguments {
   std::vector<Label*> labels;
 };
 
+void PrintSignature(std::ostream& os, const Signature& sig, bool with_names);
 std::ostream& operator<<(std::ostream& os, const Signature& sig);
 
 bool IsAssignableFrom(const Type* to, const Type* from);

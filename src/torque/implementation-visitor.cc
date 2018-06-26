@@ -392,7 +392,8 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
   if (right_result.type() != left_result.type()) {
     std::stringstream stream;
     stream << "types of left and right expression of logical OR don't match (\""
-           << left_result.type() << "\" vs. \"" << right_result.type() << "\")";
+           << *left_result.type() << "\" vs. \"" << *right_result.type()
+           << "\")";
     ReportError(stream.str());
   }
   if (left_result.type()->IsConstexprBool()) {
@@ -425,7 +426,7 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
     std::stringstream stream;
     stream
         << "types of left and right expression of logical AND don't match (\""
-        << left_result.type() << "\" vs. \"" << right_result.type() << "\")";
+        << *left_result.type() << "\" vs. \"" << *right_result.type() << "\")";
     ReportError(stream.str());
   }
   if (left_result.type()->IsConstexprBool()) {
@@ -567,7 +568,7 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
     if (!(expression_result.type() == TypeOracle::GetConstexprBoolType())) {
       std::stringstream stream;
       stream << "expression should return type constexpr bool "
-             << "but returns type " << expression_result.type();
+             << "but returns type " << *expression_result.type();
       ReportError(stream.str());
     }
 
@@ -738,7 +739,7 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
     } else {
       if (expression_result.type() != TypeOracle::GetNeverType()) {
         std::stringstream s;
-        s << "unexpected return type " << expression_result.type()
+        s << "unexpected return type " << *expression_result.type()
           << " for branch expression";
         ReportError(s.str());
       }
@@ -777,7 +778,7 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
     if (!stmt->value) {
       std::stringstream s;
       s << "return expression needs to be specified for a return type of "
-        << current_callable->signature().return_type;
+        << *current_callable->signature().return_type;
       ReportError(s.str());
     }
     VisitResult expression_result = Visit(*stmt->value);
@@ -1090,6 +1091,116 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
   o << ")";
 }
 
+namespace {
+
+void PrintMacroSignatures(std::stringstream& s, const std::string& name,
+                          const std::vector<Macro*>& macros) {
+  for (Macro* m : macros) {
+    s << "\n  " << name;
+    PrintSignature(s, m->signature(), false);
+  }
+}
+
+void FailMacroLookup(const std::string& reason, const std::string& name,
+                     const Arguments& arguments,
+                     const std::vector<Macro*>& candidates) {
+  std::stringstream stream;
+  stream << "\n"
+         << reason << ": \n  " << name << "("
+         << arguments.parameters.GetTypeVector() << ")";
+  if (arguments.labels.size() != 0) {
+    stream << " labels ";
+    for (auto l : arguments.labels) {
+      PrintLabel(stream, *l, false);
+    }
+  }
+  stream << "\ncandidates are:";
+  PrintMacroSignatures(stream, name, candidates);
+  ReportError(stream.str());
+}
+
+}  // namespace
+
+Callable* ImplementationVisitor::LookupCall(const std::string& name,
+                                            const Arguments& arguments) {
+  Callable* result = nullptr;
+  TypeVector parameter_types(arguments.parameters.GetTypeVector());
+  Declarable* declarable = declarations()->Lookup(name);
+  if (declarable->IsBuiltin()) {
+    result = Builtin::cast(declarable);
+  } else if (declarable->IsRuntimeFunction()) {
+    result = RuntimeFunction::cast(declarable);
+  } else if (declarable->IsMacroList()) {
+    std::vector<Macro*> candidates;
+    std::vector<Macro*> macros_with_same_name;
+    for (Macro* m : MacroList::cast(declarable)->list()) {
+      bool try_bool_context =
+          arguments.labels.size() == 0 &&
+          m->signature().return_type == TypeOracle::GetNeverType();
+      Label* true_label = nullptr;
+      Label* false_label = nullptr;
+      if (try_bool_context) {
+        true_label = declarations()->TryLookupLabel(kTrueLabelName);
+        false_label = declarations()->TryLookupLabel(kFalseLabelName);
+      }
+      if (IsCompatibleSignature(m->signature(), parameter_types,
+                                arguments.labels) ||
+          (true_label && false_label &&
+           IsCompatibleSignature(m->signature(), parameter_types,
+                                 {true_label, false_label}))) {
+        candidates.push_back(m);
+      } else {
+        macros_with_same_name.push_back(m);
+      }
+    }
+
+    if (candidates.empty() && macros_with_same_name.empty()) {
+      std::stringstream stream;
+      stream << "no matching declaration found for " << name;
+      ReportError(stream.str());
+    } else if (candidates.empty()) {
+      FailMacroLookup("cannot find macro with name", name, arguments,
+                      macros_with_same_name);
+    }
+
+    auto is_better_candidate = [&](Macro* a, Macro* b) {
+      return ParameterDifference(a->signature().parameter_types.types,
+                                 parameter_types)
+          .StrictlyBetterThan(ParameterDifference(
+              b->signature().parameter_types.types, parameter_types));
+    };
+
+    Macro* best = *std::min_element(candidates.begin(), candidates.end(),
+                                    is_better_candidate);
+    for (Macro* candidate : candidates) {
+      if (candidate != best && !is_better_candidate(best, candidate)) {
+        FailMacroLookup("ambiguous macro", name, arguments,
+                        macros_with_same_name);
+      }
+    }
+    result = best;
+  } else {
+    std::stringstream stream;
+    stream << "can't call " << declarable->type_name() << " " << name
+           << " because it's not callable"
+           << ": call parameters were (" << parameter_types << ")";
+    ReportError(stream.str());
+  }
+
+  size_t caller_size = parameter_types.size();
+  size_t callee_size = result->signature().types().size();
+  if (caller_size != callee_size &&
+      !result->signature().parameter_types.var_args) {
+    std::stringstream stream;
+    stream << "parameter count mismatch calling " << *result << " - expected "
+           << std::to_string(callee_size) << ", found "
+           << std::to_string(caller_size);
+    ReportError(stream.str());
+  }
+
+  return result;
+}
+
 void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
   const std::set<const Variable*>& changed_vars =
       global_context_.GetControlSplitChangedVariables(
@@ -1117,7 +1228,7 @@ const Type* ImplementationVisitor::GetCommonType(const Type* left,
     common_type = right;
   } else {
     std::stringstream s;
-    s << "illegal combination of types " << left << " and " << right;
+    s << "illegal combination of types " << *left << " and " << *right;
     ReportError(s.str());
   }
   return common_type;
@@ -1270,7 +1381,7 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   if (!callee_result.type()->IsFunctionPointerType()) {
     std::stringstream stream;
     stream << "Expected a function pointer type but found "
-           << callee_result.type();
+           << *callee_result.type();
     ReportError(stream.str());
   }
   const FunctionPointerType* type =
@@ -1279,7 +1390,7 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   if (type->parameter_types().size() != parameter_types.size()) {
     std::stringstream stream;
     stream << "parameter count mismatch calling function pointer with Type: "
-           << type << " - expected "
+           << *type << " - expected "
            << std::to_string(type->parameter_types().size()) << ", found "
            << std::to_string(parameter_types.size());
     ReportError(stream.str());
@@ -1344,11 +1455,7 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 VisitResult ImplementationVisitor::GenerateCall(
     const std::string& callable_name, Arguments arguments, bool is_tailcall) {
   Callable* callable = LookupCall(callable_name, arguments);
-  if (callable == nullptr) {
-    std::stringstream stream;
-    stream << "no matching declaration found for " << callable_name;
-    ReportError(stream.str());
-  }
+
   // Operators used in a branching context can also be function calls that never
   // return but have a True and False label
   if (arguments.labels.size() == 0 &&
@@ -1446,8 +1553,8 @@ VisitResult ImplementationVisitor::GenerateCall(
       Variable* variable = label->GetParameter(j);
       if (!(variable->type() == t)) {
         std::stringstream s;
-        s << "mismatch of label parameters (expected " << t << " got "
-          << label->GetParameter(j)->type() << " for parameter "
+        s << "mismatch of label parameters (expected " << *t << " got "
+          << *label->GetParameter(j)->type() << " for parameter "
           << std::to_string(i + 1) << ")";
         ReportError(s.str());
       }
@@ -1470,7 +1577,8 @@ VisitResult ImplementationVisitor::GenerateCall(
 }
 
 void ImplementationVisitor::Visit(StandardDeclaration* decl) {
-  Visit(decl->callable, {}, decl->body);
+  Signature signature = MakeSignature(decl->callable->signature.get());
+  Visit(decl->callable, signature, decl->body);
 }
 
 void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
@@ -1580,7 +1688,7 @@ bool ImplementationVisitor::GenerateExpressionBranch(
   } else {
     if (expression_result.type() != TypeOracle::GetNeverType()) {
       std::stringstream s;
-      s << "unexpected return type " << expression_result.type()
+      s << "unexpected return type " << *expression_result.type()
         << " for branch expression";
       ReportError(s.str());
     }
@@ -1604,8 +1712,8 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
     return VisitResult(destination_type, source.variable());
   } else {
     std::stringstream s;
-    s << "cannot use expression of type " << source.type()
-      << " as a value of type " << destination_type;
+    s << "cannot use expression of type " << *source.type()
+      << " as a value of type " << *destination_type;
     ReportError(s.str());
   }
   return VisitResult(TypeOracle::GetVoidType(), "");
