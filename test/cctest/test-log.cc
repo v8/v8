@@ -1007,7 +1007,7 @@ TEST(LogMaps) {
       uintptr_t address = reinterpret_cast<uintptr_t>(obj);
       if (map_addresses.find(address) != map_addresses.end()) continue;
       logger.PrintLog(200);
-      i::Map::cast(obj)->Print();
+      i::Map::cast(obj)->Print(heap->isolate());
       V8_Fatal(__FILE__, __LINE__,
                "Map (%p, #%zu) was not logged during startup with --trace-maps!"
                "\n# Expected Log Line: map_details, ... %p"

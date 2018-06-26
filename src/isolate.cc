@@ -1198,7 +1198,7 @@ Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
         printf(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
       }
     }
-    raw_exception->Print();
+    raw_exception->Print(this);
     printf("Stack Trace:\n");
     PrintStack(stdout);
     printf("=========================================================\n");

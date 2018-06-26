@@ -773,10 +773,10 @@ class BytecodeArray : public FixedArrayBase {
   int SourcePosition(int offset);
   int SourceStatementPosition(int offset);
 
-  DECL_PRINTER(BytecodeArray)
+  DECL_PRINTER_WITH_ISOLATE(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)
 
-  void Disassemble(std::ostream& os);
+  void Disassemble(Isolate* isolate, std::ostream& os);
 
   void CopyBytecodesTo(BytecodeArray* to);
 

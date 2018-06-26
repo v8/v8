@@ -305,7 +305,7 @@ class Expectations {
       if (!Check(descriptors, i)) {
         Print();
 #ifdef OBJECT_PRINT
-        descriptors->Print();
+        descriptors->Print(isolate_);
 #endif
         Check(descriptors, i);
         return false;

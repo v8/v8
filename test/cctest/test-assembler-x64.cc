@@ -881,7 +881,7 @@ TEST(AssemblerX64Extractps) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F3>::FromCode(*code);
@@ -918,7 +918,7 @@ TEST(AssemblerX64SSE) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F6>::FromCode(*code);
@@ -949,7 +949,7 @@ TEST(AssemblerX64SSE3) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F6>::FromCode(*code);
@@ -1174,7 +1174,7 @@ TEST(AssemblerX64FMA_sd) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F7>::FromCode(*code);
@@ -1400,7 +1400,7 @@ TEST(AssemblerX64FMA_ss) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F8>::FromCode(*code);
@@ -1475,7 +1475,7 @@ TEST(AssemblerX64SSE_ss) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F8>::FromCode(*code);
@@ -1560,7 +1560,7 @@ TEST(AssemblerX64AVX_ss) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F8>::FromCode(*code);
@@ -1799,7 +1799,7 @@ TEST(AssemblerX64AVX_sd) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F7>::FromCode(*code);
@@ -1991,7 +1991,7 @@ TEST(AssemblerX64BMI1) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(*code);
@@ -2051,7 +2051,7 @@ TEST(AssemblerX64LZCNT) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(*code);
@@ -2111,7 +2111,7 @@ TEST(AssemblerX64POPCNT) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(*code);
@@ -2374,7 +2374,7 @@ TEST(AssemblerX64BMI2) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(*code);
@@ -2418,7 +2418,7 @@ TEST(AssemblerX64JumpTables1) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
 
   auto f = GeneratedCode<F1>::FromCode(*code);
@@ -2467,7 +2467,7 @@ TEST(AssemblerX64JumpTables2) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
 
   auto f = GeneratedCode<F1>::FromCode(*code);
@@ -2526,7 +2526,7 @@ TEST(AssemblerX64vmovups) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   auto f = GeneratedCode<F9>::FromCode(*code);

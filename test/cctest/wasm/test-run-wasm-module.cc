@@ -604,7 +604,7 @@ TEST(InitDataAtTheUpperLimit) {
     CompileAndInstantiateForTesting(
         isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
     if (thrower.error()) {
-      thrower.Reify()->Print();
+      thrower.Reify()->Print(isolate);
       FATAL("compile or instantiate error");
     }
   }

@@ -550,7 +550,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
       DCHECK(!weak);
       // If we have a string, assume it's a code "marker"
       // and print some interesting cpu debugging info.
-      object->Print(os);
+      object->Print(isolate, os);
       JavaScriptFrameIterator it(isolate);
       JavaScriptFrame* frame = it.frame();
       os << "fp = " << reinterpret_cast<void*>(frame->fp())
@@ -562,10 +562,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
       if (weak) {
         os << "[weak] ";
       }
-      object->Print(os);
+      object->Print(isolate, os);
     }
     if (object->IsHeapObject()) {
-      HeapObject::cast(object)->map()->Print(os);
+      HeapObject::cast(object)->map()->Print(isolate, os);
     }
 #else
     if (weak) {
@@ -725,7 +725,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
     return isolate->heap()->exception();
   }
   StdoutStream os;
-  func->code()->Print(os);
+  func->code()->Print(isolate, os);
   os << std::endl;
 #endif  // DEBUG
   return isolate->heap()->undefined_value();

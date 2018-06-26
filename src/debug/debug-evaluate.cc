@@ -870,7 +870,9 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   if (info->HasBytecodeArray()) {
     // Check bytecodes against whitelist.
     Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(), isolate);
-    if (FLAG_trace_side_effect_free_debug_evaluate) bytecode_array->Print();
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      bytecode_array->Print(isolate);
+    }
     bool requires_runtime_checks = false;
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
          it.Advance()) {

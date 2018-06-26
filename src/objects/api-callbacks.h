@@ -194,7 +194,7 @@ class CallHandlerInfo : public Tuple3 {
   inline bool NextCallHasNoSideEffect(Isolate* isolate);
 
   // Dispatched behavior.
-  DECL_PRINTER(CallHandlerInfo)
+  DECL_PRINTER_WITH_ISOLATE(CallHandlerInfo)
   DECL_VERIFIER(CallHandlerInfo)
 
   Address redirected_callback() const;

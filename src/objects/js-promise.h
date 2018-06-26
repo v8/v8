@@ -65,7 +65,7 @@ class JSPromise : public JSObject {
   DECL_CAST(JSPromise)
 
   // Dispatched behavior.
-  DECL_PRINTER(JSPromise)
+  DECL_PRINTER_WITH_ISOLATE(JSPromise)
   DECL_VERIFIER(JSPromise)
 
   // Layout description.

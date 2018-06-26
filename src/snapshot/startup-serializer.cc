@@ -197,7 +197,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
     if (serialized_.find(*p) != serialized_.end()) continue;
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");
-    (*p)->Print();
+    (*p)->Print(isolate_);
     ok_ = false;
   }
 }

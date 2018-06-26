@@ -245,11 +245,6 @@ class FeedbackVector : public HeapObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-#ifdef OBJECT_PRINT
-  // For gdb debugging.
-  void Print();
-#endif  // OBJECT_PRINT
-
   static void AssertNoLegacyTypes(MaybeObject* object);
 
   DECL_PRINTER(FeedbackVector)
@@ -446,11 +441,6 @@ class FeedbackMetadata : public HeapObject {
   // If {spec} is null, then it is considered empty.
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
       Isolate* isolate, const FeedbackVectorSpec* spec = nullptr);
-
-#ifdef OBJECT_PRINT
-  // For gdb debugging.
-  void Print();
-#endif  // OBJECT_PRINT
 
   DECL_PRINTER(FeedbackMetadata)
   DECL_VERIFIER(FeedbackMetadata)

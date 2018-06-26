@@ -66,7 +66,7 @@ TEST(AssemblerIa320) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = f(3, 4);
@@ -103,7 +103,7 @@ TEST(AssemblerIa321) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(100);
@@ -144,7 +144,7 @@ TEST(AssemblerIa322) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(10);
@@ -173,7 +173,7 @@ TEST(AssemblerIa323) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   int res = f(static_cast<float>(-3.1415));
@@ -202,7 +202,7 @@ TEST(AssemblerIa324) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F4 f = FUNCTION_CAST<F4>(code->entry());
   int res = f(2.718281828);
@@ -262,7 +262,7 @@ TEST(AssemblerIa326) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F5 f = FUNCTION_CAST<F5>(code->entry());
   double res = f(2.2, 1.1);
@@ -294,7 +294,7 @@ TEST(AssemblerIa328) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F6 f = FUNCTION_CAST<F6>(code->entry());
   double res = f(12);
@@ -491,7 +491,7 @@ TEST(AssemblerIa32Extractps) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F4 f = FUNCTION_CAST<F4>(code->entry());
@@ -531,7 +531,7 @@ TEST(AssemblerIa32SSE) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F8 f = FUNCTION_CAST<F8>(code->entry());
@@ -564,7 +564,7 @@ TEST(AssemblerIa32SSE3) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F8 f = FUNCTION_CAST<F8>(code->entry());
@@ -792,7 +792,7 @@ TEST(AssemblerX64FMA_sd) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F9 f = FUNCTION_CAST<F9>(code->entry());
@@ -1021,7 +1021,7 @@ TEST(AssemblerX64FMA_ss) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F10 f = FUNCTION_CAST<F10>(code->entry());
@@ -1129,7 +1129,7 @@ TEST(AssemblerIa32BMI1) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -1177,7 +1177,7 @@ TEST(AssemblerIa32LZCNT) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -1225,7 +1225,7 @@ TEST(AssemblerIa32POPCNT) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -1371,7 +1371,7 @@ TEST(AssemblerIa32BMI2) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -1415,7 +1415,7 @@ TEST(AssemblerIa32JumpTables1) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
@@ -1463,7 +1463,7 @@ TEST(AssemblerIa32JumpTables2) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
@@ -1507,7 +1507,7 @@ TEST(Regress621926) {
 
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  code->Print(isolate, os);
 #endif
 
   F0 f = FUNCTION_CAST<F0>(code->entry());

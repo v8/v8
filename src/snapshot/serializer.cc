@@ -142,7 +142,7 @@ void Serializer<AllocatorT>::VisitRootPointers(Root root,
 template <class AllocatorT>
 void Serializer<AllocatorT>::PrintStack() {
   for (const auto o : stack_) {
-    o->Print();
+    o->Print(isolate());
     PrintF("\n");
   }
 }

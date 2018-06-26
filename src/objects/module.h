@@ -198,12 +198,12 @@ class Module : public Struct {
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
   // To set status to kErrored, RecordError should be used.
-  void SetStatus(Status status);
+  void SetStatus(Isolate* isolate, Status status);
   void RecordError(Isolate* isolate);
 
 #ifdef DEBUG
   // For --trace-module-status.
-  void PrintStatusTransition(Status new_status);
+  void PrintStatusTransition(Isolate* isolate, Status new_status);
 #endif  // DEBUG
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
@@ -215,7 +215,7 @@ class Module : public Struct {
 class JSModuleNamespace : public JSObject {
  public:
   DECL_CAST(JSModuleNamespace)
-  DECL_PRINTER(JSModuleNamespace)
+  DECL_PRINTER_WITH_ISOLATE(JSModuleNamespace)
   DECL_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.

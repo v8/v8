@@ -65,7 +65,7 @@ TEST(0) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
@@ -104,7 +104,7 @@ TEST(1) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(100, 0, 0, 0, 0));
@@ -155,7 +155,7 @@ TEST(2) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(10, 0, 0, 0, 0));
@@ -210,7 +210,7 @@ TEST(3) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   USE(code);
   ::exit(0);
@@ -251,7 +251,7 @@ TEST(4) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(
@@ -279,7 +279,7 @@ TEST(5) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res =
@@ -313,7 +313,7 @@ TEST(6) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res =
@@ -345,7 +345,7 @@ TEST(7) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res =
@@ -376,7 +376,7 @@ TEST(8) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   intptr_t res =
@@ -403,7 +403,7 @@ TEST(9) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   intptr_t res =
@@ -488,7 +488,7 @@ TEST(10) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
@@ -542,7 +542,7 @@ TEST(11) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
@@ -610,7 +610,7 @@ TEST(12) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  code->Print(isolate);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));

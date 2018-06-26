@@ -555,7 +555,7 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
     object->ShortPrint();
     PrintF("\n");
 #ifdef OBJECT_PRINT
-    object->Print();
+    object->Print(isolate());
     PrintF("\n");
 #endif
     --distance;
@@ -1192,7 +1192,8 @@ intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
   return 0;
 }
 
-void ReportDuplicates(int size, std::vector<HeapObject*>& objects) {
+void ReportDuplicates(Isolate* isolate, int size,
+                      std::vector<HeapObject*>& objects) {
   if (objects.size() == 0) return;
 
   sort(objects.begin(), objects.end(), [size](HeapObject* a, HeapObject* b) {
@@ -1228,7 +1229,7 @@ void ReportDuplicates(int size, std::vector<HeapObject*>& objects) {
     PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
            duplicate_bytes / KB);
     PrintF("Sample object: ");
-    it->second->Print();
+    it->second->Print(isolate);
     PrintF("============================\n");
   }
 }
@@ -1290,7 +1291,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     }
     for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
          ++it) {
-      ReportDuplicates(it->first, it->second);
+      ReportDuplicates(isolate(), it->first, it->second);
     }
   }
 }

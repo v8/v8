@@ -1682,7 +1682,8 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
 
 }  // namespace compiler
 
-Smi* CheckObjectType(Object* value, Smi* type, String* location) {
+Smi* CheckObjectType(Isolate* isolate, Object* value, Smi* type,
+                     String* location) {
 #ifdef DEBUG
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {
@@ -1705,7 +1706,7 @@ Smi* CheckObjectType(Object* value, Smi* type, String* location) {
 #undef TYPE_STRUCT_CASE
   }
   std::stringstream value_description;
-  value->Print(value_description);
+  value->Print(isolate, value_description);
   V8_Fatal(__FILE__, __LINE__,
            "Type cast failed in %s\n"
            "  Expected %s but found %s",

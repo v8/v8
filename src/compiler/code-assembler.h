@@ -278,7 +278,8 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
-Smi* CheckObjectType(Object* value, Smi* type, String* location);
+Smi* CheckObjectType(Isolate* isolate, Object* value, Smi* type,
+                     String* location);
 
 namespace compiler {
 
@@ -621,10 +622,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         }
         Node* function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
-        code_assembler_->CallCFunction3(
-            MachineType::AnyTagged(), MachineType::AnyTagged(),
-            MachineType::TaggedSigned(), MachineType::AnyTagged(), function,
-            node_,
+        Node* const isolate_ptr = code_assembler_->ExternalConstant(
+            ExternalReference::isolate_address(code_assembler_->isolate()));
+        code_assembler_->CallCFunction4(
+            MachineType::AnyTagged(), MachineType::Pointer(),
+            MachineType::AnyTagged(), MachineType::TaggedSigned(),
+            MachineType::AnyTagged(), function, isolate_ptr, node_,
             code_assembler_->SmiConstant(
                 static_cast<int>(ObjectTypeOf<A>::value)),
             code_assembler_->StringConstant(location_));
