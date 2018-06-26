@@ -1897,6 +1897,12 @@ void PagedSpace::Print() {}
 void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
+  size_t external_backing_store_bytes[kNumTypes];
+
+  for (int i = 0; i < kNumTypes; i++) {
+    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+  }
+
   for (Page* page : *this) {
     CHECK(page->owner() == this);
     if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
@@ -1906,6 +1912,12 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
     HeapObjectIterator it(page);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
+
+    for (int i = 0; i < kNumTypes; i++) {
+      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+      external_backing_store_bytes[t] += page->ExternalBackingStoreBytes(t);
+    }
+
     for (HeapObject* object = it.Next(); object != nullptr;
          object = it.Next()) {
       CHECK(end_of_previous_object <= object->address());
@@ -1933,6 +1945,10 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
+  }
+  for (int i = 0; i < kNumTypes; i++) {
+    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
   }
   CHECK(allocation_pointer_found_in_space);
 #ifdef DEBUG
@@ -2632,6 +2648,12 @@ void SemiSpace::Print() {}
 #ifdef VERIFY_HEAP
 void SemiSpace::Verify() {
   bool is_from_space = (id_ == kFromSpace);
+  size_t external_backing_store_bytes[kNumTypes];
+
+  for (int i = 0; i < kNumTypes; i++) {
+    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+  }
+
   for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
@@ -2650,8 +2672,17 @@ void SemiSpace::Verify() {
             !page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       }
     }
+    for (int i = 0; i < kNumTypes; i++) {
+      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+      external_backing_store_bytes[t] += page->ExternalBackingStoreBytes(t);
+    }
+
     CHECK_IMPLIES(page->list_node().prev(),
                   page->list_node().prev()->list_node().next() == page);
+  }
+  for (int i = 0; i < kNumTypes; i++) {
+    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
   }
 }
 #endif
@@ -3478,6 +3509,12 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator() {
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify(Isolate* isolate) {
+  size_t external_backing_store_bytes[kNumTypes];
+
+  for (int i = 0; i < kNumTypes; i++) {
+    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+  }
+
   for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
     // Each chunk contains an object that starts at the large object page's
@@ -3534,6 +3571,14 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
         }
       }
     }
+    for (int i = 0; i < kNumTypes; i++) {
+      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+      external_backing_store_bytes[t] += chunk->ExternalBackingStoreBytes(t);
+    }
+  }
+  for (int i = 0; i < kNumTypes; i++) {
+    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
   }
 }
 #endif
