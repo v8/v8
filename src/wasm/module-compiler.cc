@@ -377,20 +377,20 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   DCHECK(!native_module->has_code(static_cast<uint32_t>(func_index)));
 
   compilation_timer.Start();
-  // TODO(wasm): Refactor this to only get the name if it is really needed for
-  // tracing / debugging.
-  std::string func_name;
-  {
-    WasmName name = Vector<const char>::cast(
-        native_module->module_object()->GetRawFunctionName(func_index));
-    // Copy to std::string, because the underlying string object might move on
-    // the heap.
-    func_name.assign(name.start(), static_cast<size_t>(name.length()));
-  }
-
-  TRACE_LAZY("Compiling function '%s' (#%d).\n", func_name.c_str(), func_index);
 
   ModuleEnv* module_env = native_module->compilation_state()->module_env();
+  // TODO(wasm): Refactor this to only get the name if it is really needed for
+  // tracing / debugging.
+  WasmName func_name;
+  {
+    ModuleWireBytes wire_bytes(native_module->wire_bytes());
+    WireBytesRef name_ref =
+        module_env->module->LookupName(wire_bytes, func_index);
+    func_name = wire_bytes.GetName(name_ref);
+  }
+
+  TRACE_LAZY("Compiling function '%.*s' (#%d).\n", func_name.length(),
+             func_name.start(), func_index);
 
   const uint8_t* module_start = native_module->wire_bytes().start();
 
@@ -400,8 +400,8 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
                     module_start + func->code.end_offset()};
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
-  WasmCompilationUnit unit(isolate, module_env, native_module, body,
-                           CStrVector(func_name.c_str()), func_index);
+  WasmCompilationUnit unit(isolate, module_env, native_module, body, func_name,
+                           func_index);
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 

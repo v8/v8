@@ -149,11 +149,18 @@ void WasmCode::LogCode(Isolate* isolate) const {
   DCHECK(ShouldBeLogged(isolate));
   if (index_.IsJust()) {
     uint32_t index = this->index();
-    Handle<WasmModuleObject> module_object(native_module()->module_object(),
-                                           isolate);
+    ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+    // TODO(herhut): Allow to log code without on-heap round-trip of the name.
+    ModuleEnv* module_env = GetModuleEnv(native_module()->compilation_state());
+    WireBytesRef name_ref = module_env->module->LookupName(wire_bytes, index);
+    WasmName name_vec = wire_bytes.GetName(name_ref);
+    MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
+        Vector<const char>::cast(name_vec));
+    Handle<String> name;
+    if (!maybe_name.ToHandle(&name)) {
+      name = isolate->factory()->NewStringFromAsciiChecked("<name too long>");
+    }
     int name_length;
-    Handle<String> name(
-        WasmModuleObject::GetFunctionName(isolate, module_object, index));
     auto cname =
         name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
                         RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_length);
