@@ -1100,7 +1100,7 @@ TEST(DoScavenge) {
   double boom_value = bit_cast<double>(fake_object);
 
   FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
-  auto boom_number = factory->NewMutableHeapNumber(boom_value);
+  Handle<HeapNumber> boom_number = factory->NewHeapNumber(boom_value, MUTABLE);
   obj->FastPropertyAtPut(field_index, *boom_number);
 
   // Now |obj| moves to old gen and it has a double field that looks like

@@ -2439,12 +2439,6 @@ void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                                  MachineRepresentation::kFloat64);
 }
 
-void CodeStubAssembler::StoreMutableHeapNumberValue(
-    SloppyTNode<MutableHeapNumber> object, SloppyTNode<Float64T> value) {
-  StoreObjectFieldNoWriteBarrier(object, MutableHeapNumber::kValueOffset, value,
-                                 MachineRepresentation::kFloat64);
-}
-
 Node* CodeStubAssembler::StoreObjectField(
     Node* object, int offset, Node* value) {
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
@@ -2783,31 +2777,19 @@ Node* CodeStubAssembler::StoreCellValue(Node* cell, Node* value,
   }
 }
 
-TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
+TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
   Node* result = Allocate(HeapNumber::kSize, kNone);
-  Heap::RootListIndex heap_map_index = Heap::kHeapNumberMapRootIndex;
+  Heap::RootListIndex heap_map_index =
+      mode == IMMUTABLE ? Heap::kHeapNumberMapRootIndex
+                        : Heap::kMutableHeapNumberMapRootIndex;
   StoreMapNoWriteBarrier(result, heap_map_index);
   return UncheckedCast<HeapNumber>(result);
 }
 
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
-    SloppyTNode<Float64T> value) {
-  TNode<HeapNumber> result = AllocateHeapNumber();
+    SloppyTNode<Float64T> value, MutableMode mode) {
+  TNode<HeapNumber> result = AllocateHeapNumber(mode);
   StoreHeapNumberValue(result, value);
-  return result;
-}
-
-TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumber() {
-  Node* result = Allocate(MutableHeapNumber::kSize, kNone);
-  Heap::RootListIndex heap_map_index = Heap::kMutableHeapNumberMapRootIndex;
-  StoreMapNoWriteBarrier(result, heap_map_index);
-  return UncheckedCast<MutableHeapNumber>(result);
-}
-
-TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumberWithValue(
-    SloppyTNode<Float64T> value) {
-  TNode<MutableHeapNumber> result = AllocateMutableHeapNumber();
-  StoreMutableHeapNumberValue(result, value);
   return result;
 }
 
