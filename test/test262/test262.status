@@ -603,11 +603,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7814
   'built-ins/Array/prototype/splice/property-traps-order-with-species': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7817
-  'language/expressions/async-arrow-function/await-as-param-ident-nested-arrow-parameter-position': [FAIL],
-  'language/expressions/async-arrow-function/await-as-param-nested-arrow-parameter-position': [FAIL],
-  'language/expressions/async-arrow-function/await-as-param-rest-nested-arrow-parameter-position': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 

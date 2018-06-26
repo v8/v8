@@ -8693,6 +8693,14 @@ TEST(AsyncAwait) {
 
     "function* g() { var f = async(yield); }",
     "function* g() { var f = async(x = yield); }",
+
+    // v8:7817 assert that `await` is still allowed in the body of an arrow fn
+    // within formal parameters
+    "async(a = a => { var await = 1; return 1; }) => a()",
+    "async(a = await => 1); async(a) => 1",
+    "(async(a = await => 1), async(a) => 1)",
+    "async(a = await => 1, b = async() => 1);",
+
     nullptr
   };
   // clang-format on
@@ -8839,6 +8847,12 @@ TEST(AsyncAwaitErrors) {
     "async(...a = b) => b",
     "async(...a,) => b",
     "async(...a, b) => b",
+
+    // v8:7817 assert that `await` is an invalid identifier in arrow formal
+    // parameters nested within an async arrow function
+    "async(a = await => 1) => a",
+    "async(a = (await) => 1) => a",
+    "async(a = (...await) => 1) => a",
     nullptr
   };
 
