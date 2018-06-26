@@ -763,7 +763,6 @@ inline void rsy_format(Opcode op, int f1, int f2, int f3, int f4) {
     rsy_format(op_name, r1.code(), r3.code(), b2.code(), d2.immediate());  \
   }                                                                        \
   void name(Register r1, Register r3, Operand d2) {                        \
-    DCHECK_NE(d2.immediate(), 0);                                          \
     name(r1, r3, r0, d2);                                                  \
   }                                                                        \
   void name(Register r1, Register r3, const MemOperand& opnd) {            \
