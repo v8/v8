@@ -3517,24 +3517,27 @@ void Isolate::InvalidateArrayConstructorProtector() {
 void Isolate::InvalidateArraySpeciesProtector() {
   DCHECK(factory()->array_species_protector()->value()->IsSmi());
   DCHECK(IsArraySpeciesLookupChainIntact());
-  factory()->array_species_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->array_species_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArraySpeciesLookupChainIntact());
 }
 
 void Isolate::InvalidateTypedArraySpeciesProtector() {
   DCHECK(factory()->typed_array_species_protector()->value()->IsSmi());
   DCHECK(IsTypedArraySpeciesLookupChainIntact());
-  factory()->typed_array_species_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->typed_array_species_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsTypedArraySpeciesLookupChainIntact());
 }
 
 void Isolate::InvalidatePromiseSpeciesProtector() {
   DCHECK(factory()->promise_species_protector()->value()->IsSmi());
   DCHECK(IsPromiseSpeciesLookupChainIntact());
-  factory()->promise_species_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->promise_species_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseSpeciesLookupChainIntact());
 }
 
