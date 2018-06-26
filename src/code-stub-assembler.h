@@ -1075,6 +1075,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Store the floating point value of a HeapNumber.
   void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                             SloppyTNode<Float64T> value);
+  void StoreMutableHeapNumberValue(SloppyTNode<MutableHeapNumber> object,
+                                   SloppyTNode<Float64T> value);
   // Store a field to an object on the heap.
   Node* StoreObjectField(Node* object, int offset, Node* value);
   Node* StoreObjectField(Node* object, Node* offset, Node* value);
@@ -1160,10 +1162,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Allocate a HeapNumber without initializing its value.
-  TNode<HeapNumber> AllocateHeapNumber(MutableMode mode = IMMUTABLE);
+  TNode<HeapNumber> AllocateHeapNumber();
   // Allocate a HeapNumber with a specific value.
-  TNode<HeapNumber> AllocateHeapNumberWithValue(SloppyTNode<Float64T> value,
-                                                MutableMode mode = IMMUTABLE);
+  TNode<HeapNumber> AllocateHeapNumberWithValue(SloppyTNode<Float64T> value);
+  TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
+    return AllocateHeapNumberWithValue(Float64Constant(value));
+  }
+
+  // Allocate a MutableHeapNumber with a specific value.
+  TNode<MutableHeapNumber> AllocateMutableHeapNumberWithValue(
+      SloppyTNode<Float64T> value);
 
   // Allocate a BigInt with {length} digits. Sets the sign bit to {false}.
   // Does not initialize the digits.
@@ -1175,11 +1183,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                         TNode<UintPtrT> digit);
   TNode<WordT> LoadBigIntBitfield(TNode<BigInt> bigint);
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
-
-  TNode<HeapNumber> AllocateHeapNumberWithValue(double value,
-                                                MutableMode mode = IMMUTABLE) {
-    return AllocateHeapNumberWithValue(Float64Constant(value), mode);
-  }
 
   // Allocate a SeqOneByteString with the given length.
   TNode<String> AllocateSeqOneByteString(int length,
@@ -2739,6 +2742,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<String> AllocateConsString(Heap::RootListIndex map_root_index,
                                    TNode<Smi> length, TNode<String> first,
                                    TNode<String> second, AllocationFlags flags);
+
+  // Allocate a MutableHeapNumber without initializing its value.
+  TNode<MutableHeapNumber> AllocateMutableHeapNumber();
 
   Node* SelectImpl(TNode<BoolT> condition, const NodeGenerator& true_body,
                    const NodeGenerator& false_body, MachineRepresentation rep);

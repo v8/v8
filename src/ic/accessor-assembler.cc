@@ -1091,7 +1091,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         } else {
           if (do_transitioning_store) {
             Node* mutable_heap_number =
-                AllocateHeapNumberWithValue(double_value, MUTABLE);
+                AllocateMutableHeapNumberWithValue(double_value);
             StoreMap(object, object_map);
             StoreObjectField(object, field_offset, mutable_heap_number);
           } else {
@@ -1130,7 +1130,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           {
             Node* double_value = ChangeNumberToFloat64(value);
             Node* mutable_heap_number =
-                AllocateHeapNumberWithValue(double_value, MUTABLE);
+                AllocateMutableHeapNumberWithValue(double_value);
             var_value.Bind(mutable_heap_number);
             Goto(&cont);
           }

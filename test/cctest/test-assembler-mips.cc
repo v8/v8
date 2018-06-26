@@ -3293,7 +3293,7 @@ TEST(jump_tables3) {
   Handle<Object> values[kNumCases];
   for (int i = 0; i < kNumCases; ++i) {
     double value = isolate->random_number_generator()->NextDouble();
-    values[i] = isolate->factory()->NewHeapNumber(value, IMMUTABLE, TENURED);
+    values[i] = isolate->factory()->NewHeapNumber(value, TENURED);
   }
   Label labels[kNumCases];
   Object* obj;

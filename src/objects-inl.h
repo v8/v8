@@ -640,7 +640,9 @@ CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSValue)
+CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(LayoutDescriptor)
+CAST_ACCESSOR(MutableHeapNumber)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(NumberDictionary)
@@ -705,12 +707,13 @@ bool Object::FilterKey(PropertyFilter filter) {
 Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
                                      Representation representation) {
   if (!representation.IsDouble()) return object;
-  Handle<HeapNumber> result = isolate->factory()->NewHeapNumber(MUTABLE);
+  auto result = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
   if (object->IsUninitialized(isolate)) {
     result->set_value_as_bits(kHoleNanInt64);
   } else if (object->IsMutableHeapNumber()) {
     // Ensure that all bits of the double value are preserved.
-    result->set_value_as_bits(HeapNumber::cast(*object)->value_as_bits());
+    result->set_value_as_bits(
+        MutableHeapNumber::cast(*object)->value_as_bits());
   } else {
     result->set_value(object->Number());
   }
@@ -724,7 +727,8 @@ Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
     DCHECK(object->FitsRepresentation(representation));
     return object;
   }
-  return isolate->factory()->NewHeapNumber(HeapNumber::cast(*object)->value());
+  return isolate->factory()->NewHeapNumber(
+      MutableHeapNumber::cast(*object)->value());
 }
 
 Representation Object::OptimalRepresentation() {
@@ -1118,30 +1122,28 @@ void HeapObject::synchronized_set_map_word(MapWord map_word) {
 
 int HeapObject::Size() const { return SizeFromMap(map()); }
 
-double HeapNumber::value() const {
+double HeapNumberBase::value() const {
   return READ_DOUBLE_FIELD(this, kValueOffset);
 }
 
-
-void HeapNumber::set_value(double value) {
+void HeapNumberBase::set_value(double value) {
   WRITE_DOUBLE_FIELD(this, kValueOffset, value);
 }
 
-uint64_t HeapNumber::value_as_bits() const {
+uint64_t HeapNumberBase::value_as_bits() const {
   return READ_UINT64_FIELD(this, kValueOffset);
 }
 
-void HeapNumber::set_value_as_bits(uint64_t bits) {
+void HeapNumberBase::set_value_as_bits(uint64_t bits) {
   WRITE_UINT64_FIELD(this, kValueOffset, bits);
 }
 
-int HeapNumber::get_exponent() {
+int HeapNumberBase::get_exponent() {
   return ((READ_INT_FIELD(this, kExponentOffset) & kExponentMask) >>
           kExponentShift) - kExponentBias;
 }
 
-
-int HeapNumber::get_sign() {
+int HeapNumberBase::get_sign() {
   return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
 }
 
@@ -1624,8 +1626,8 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
   if (IsUnboxedDoubleField(index)) {
     DCHECK(value->IsMutableHeapNumber());
     // Ensure that all bits of the double value are preserved.
-    RawFastDoublePropertyAsBitsAtPut(index,
-                                     HeapNumber::cast(value)->value_as_bits());
+    RawFastDoublePropertyAsBitsAtPut(
+        index, MutableHeapNumber::cast(value)->value_as_bits());
   } else {
     RawFastPropertyAtPut(index, value);
   }
@@ -1656,8 +1658,7 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
     if (IsUnboxedDoubleField(index)) {
       RawFastDoublePropertyAsBitsAtPut(index, bits);
     } else {
-      HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
-      DCHECK(box->IsMutableHeapNumber());
+      auto box = MutableHeapNumber::cast(RawFastPropertyAt(index));
       box->set_value_as_bits(bits);
     }
   } else {
@@ -2728,18 +2729,6 @@ ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
 SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
 
 ACCESSORS(JSValue, value, Object, kValueOffset)
-
-
-HeapNumber* HeapNumber::cast(Object* object) {
-  SLOW_DCHECK(object->IsHeapNumber() || object->IsMutableHeapNumber());
-  return reinterpret_cast<HeapNumber*>(object);
-}
-
-
-const HeapNumber* HeapNumber::cast(const Object* object) {
-  SLOW_DCHECK(object->IsHeapNumber() || object->IsMutableHeapNumber());
-  return reinterpret_cast<const HeapNumber*>(object);
-}
 
 
 ACCESSORS(JSDate, value, Object, kValueOffset)

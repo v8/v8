@@ -2777,10 +2777,10 @@ TEST(HoleyMutableHeapNumber) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<HeapNumber> mhn = isolate->factory()->NewMutableHeapNumber();
+  auto mhn = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
 
-  mhn = isolate->factory()->NewHeapNumber(0.0, MUTABLE);
+  mhn = isolate->factory()->NewMutableHeapNumber(0.0);
   CHECK_EQ(uint64_t{0}, mhn->value_as_bits());
 
   mhn->set_value_as_bits(kHoleNanInt64);
@@ -2793,11 +2793,11 @@ TEST(HoleyMutableHeapNumber) {
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
   CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
+  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj)->value_as_bits());
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
   CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
+  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj)->value_as_bits());
 }
 
 }  // namespace test_field_type_tracking

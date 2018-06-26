@@ -368,7 +368,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FEEDBACK_VECTOR_TYPE, feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
-    ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
+    ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, MutableHeapNumber::kSize,
                  mutable_heap_number)
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
@@ -586,18 +586,16 @@ void Heap::CreateInitialObjects() {
   Factory* factory = isolate()->factory();
 
   // The -0 value must be set before NewNumber works.
-  set_minus_zero_value(
-      *factory->NewHeapNumber(-0.0, IMMUTABLE, TENURED_READ_ONLY));
+  set_minus_zero_value(*factory->NewHeapNumber(-0.0, TENURED_READ_ONLY));
   DCHECK(std::signbit(minus_zero_value()->Number()));
 
   set_nan_value(*factory->NewHeapNumber(
-      std::numeric_limits<double>::quiet_NaN(), IMMUTABLE, TENURED_READ_ONLY));
-  set_hole_nan_value(*factory->NewHeapNumberFromBits(kHoleNanInt64, IMMUTABLE,
-                                                     TENURED_READ_ONLY));
-  set_infinity_value(
-      *factory->NewHeapNumber(V8_INFINITY, IMMUTABLE, TENURED_READ_ONLY));
+      std::numeric_limits<double>::quiet_NaN(), TENURED_READ_ONLY));
+  set_hole_nan_value(
+      *factory->NewHeapNumberFromBits(kHoleNanInt64, TENURED_READ_ONLY));
+  set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, TENURED_READ_ONLY));
   set_minus_infinity_value(
-      *factory->NewHeapNumber(-V8_INFINITY, IMMUTABLE, TENURED_READ_ONLY));
+      *factory->NewHeapNumber(-V8_INFINITY, TENURED_READ_ONLY));
 
   // Allocate cache for single character one byte strings.
   set_single_character_string_cache(
