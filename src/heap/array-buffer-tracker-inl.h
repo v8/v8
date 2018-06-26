@@ -75,8 +75,8 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
     }
   }
   if (freed_memory > 0) {
-    page_->DecrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kArrayBuffer, freed_memory);
+    // Update the Space with any freed backing-store bytes.
+    space()->DecrementExternalBackingStoreBytes(freed_memory);
 
     // TODO(wez): Remove backing-store from external memory accounting.
     page_->heap()->update_external_memory_concurrently_freed(
@@ -98,8 +98,8 @@ void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
 }
 
 void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
-  page_->IncrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, length);
+  // Track the backing-store usage against the owning Space.
+  space()->IncrementExternalBackingStoreBytes(length);
 
   auto ret = array_buffers_.insert({buffer, {buffer->backing_store(), length}});
   USE(ret);
@@ -109,8 +109,8 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
 }
 
 void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
-  page_->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, length);
+  // Remove the backing-store accounting from the owning Space.
+  space()->DecrementExternalBackingStoreBytes(length);
 
   TrackingData::iterator it = array_buffers_.find(buffer);
   // Check that we indeed find a key to remove.
