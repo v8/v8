@@ -353,6 +353,7 @@ extern macro IntPtrConstant(constexpr int31): intptr;
 extern macro IntPtrConstant(constexpr int32): intptr;
 extern macro Int32Constant(constexpr int31): int32;
 extern macro Int32Constant(constexpr int32): int32;
+extern macro Float64Constant(constexpr int31): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr String): String;
@@ -377,6 +378,9 @@ from_constexpr<Smi>(i: constexpr int31): Smi {
 }
 from_constexpr<Number>(i: constexpr int31): Number {
   return SmiConstant(i);
+}
+from_constexpr<float64>(i: constexpr int31): float64 {
+  return Float64Constant(i);
 }
 macro from_constexpr<A : type>(o: constexpr int32): A;
 from_constexpr<intptr>(i: constexpr int32): intptr {

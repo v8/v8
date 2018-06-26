@@ -225,53 +225,78 @@ module data_view {
     let b5: uint32 = LoadUint8(data_pointer, offset + 5);
     let b6: uint32 = LoadUint8(data_pointer, offset + 6);
     let b7: uint32 = LoadUint8(data_pointer, offset + 7);
-    let result: float64 = convert<float64>(0);
+    let low_word: uint32;
+    let high_word: uint32;
 
     if (requested_little_endian) {
-      let low_word: uint32 = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-      let high_word: uint32 = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
-      result = Float64InsertLowWord32(result, low_word);
-      result = Float64InsertHighWord32(result, high_word);
+      low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+      high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
     } else {
-      let high_word: uint32 = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
-      let low_word: uint32 = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
-      result = Float64InsertLowWord32(result, low_word);
-      result = Float64InsertHighWord32(result, high_word);
+      high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
     }
+
+    let result: float64 = 0;
+    result = Float64InsertLowWord32(result, low_word);
+    result = Float64InsertHighWord32(result, high_word);
 
     return convert<Number>(result);
   }
 
   extern macro AllocateBigInt(intptr): BigInt;
-  extern macro AllocateRawBigInt(intptr): BigInt;
   extern macro StoreBigIntBitfield(BigInt, intptr): void;
   extern macro StoreBigIntDigit(BigInt, constexpr int31, uintptr): void;
   extern macro DataViewEncodeBigIntBits(constexpr bool,
       constexpr int31): intptr;
 
+  const kPositiveBigInt: constexpr bool generates 'false';
+  const kNegativeBigInt: constexpr bool generates 'true';
+  const kZeroDigitBigInt: constexpr int31 generates '0';
+  const kOneDigitBigInt: constexpr int31 generates '1';
+  const kTwoDigitBigInt: constexpr int31 generates '2';
+
+  macro CreateEmptyBigInt(is_positive: bool, length: constexpr int31): BigInt {
+    // Allocate a BigInt with the desired length (number of digits).
+    let result: BigInt = AllocateBigInt(length);
+
+    // Write the desired sign and length to the BigInt bitfield.
+    if (is_positive) {
+      StoreBigIntBitfield(result,
+          DataViewEncodeBigIntBits(kPositiveBigInt, length));
+    } else {
+      StoreBigIntBitfield(result,
+          DataViewEncodeBigIntBits(kNegativeBigInt, length));
+    }
+
+    return result;
+  }
+
   // Create a BigInt on a 64-bit architecture from two 32-bit values.
   macro MakeBigIntOn64Bit(low_word: uint32, high_word: uint32,
                           signed: constexpr bool): BigInt {
-    // TODO(theotime): Replace magic numbers for the number of digits in
-    // AllocateRawBigInt and DataViewEncodeBigIntBits with constants.
-    let result: BigInt = AllocateRawBigInt(1);
-    let high_part: intptr = Signed(convert<uintptr>(high_word));
-    let low_part: intptr = Signed(convert<uintptr>(low_word));
-    let value: intptr = (high_part << 32) + low_part;
 
-    if constexpr (signed) {
-      if (value < 0) {
-        StoreBigIntBitfield(result, DataViewEncodeBigIntBits(true, 1));
-        // We have to store the absolute value in the digits.
-        value = 0 - value;
-      } else {
-        StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 1));
-      }
-    } else {
-      StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 1));
+    // 0n is represented by a zero-length BigInt.
+    if (low_word == 0 && high_word == 0) {
+      return AllocateBigInt(kZeroDigitBigInt);
     }
 
-    StoreBigIntDigit(result, 0, Unsigned(value));
+    let is_positive: bool = true;
+    let high_part: intptr = Signed(convert<uintptr>(high_word));
+    let low_part: intptr = Signed(convert<uintptr>(low_word));
+    let raw_value: intptr = (high_part << 32) + low_part;
+
+    if constexpr (signed) {
+      if (raw_value < 0) {
+        is_positive = false;
+        // We have to store the absolute value of raw_value in the digit.
+        raw_value = 0 - raw_value;
+      }
+    }
+
+    // Allocate the BigInt and store the absolute value.
+    let result: BigInt = CreateEmptyBigInt(is_positive, kOneDigitBigInt);
+
+    StoreBigIntDigit(result, 0, Unsigned(raw_value));
 
     return result;
   }
@@ -279,28 +304,31 @@ module data_view {
   // Create a BigInt on a 32-bit architecture from two 32-bit values.
   macro MakeBigIntOn32Bit(low_word: uint32, high_word: uint32,
                           signed: constexpr bool): BigInt {
-    // TODO(theotime): Replace magic numbers for the number of digits in
-    // AllocateRawBigInt and DataViewEncodeBigIntBits with constants.
 
-    let result: BigInt;
+    // 0n is represented by a zero-length BigInt.
+    if (low_word == 0 && high_word == 0) {
+      return AllocateBigInt(kZeroDigitBigInt);
+    }
 
     // On a 32-bit platform, we might need 1 or 2 digits to store the number.
-    let two_digits: bool = false;
+    let need_two_digits: bool = false;
+    let is_positive: bool = true;
 
     // We need to do some math on low_word and high_word,
     // so convert them to int32.
     let low_part: int32 = Signed(low_word);
     let high_part: int32 = Signed(high_word);
 
-    // If high_word == 0, the number is positive, so we only need 1 digit.
-    if (high_word == 0) {
-      result = AllocateRawBigInt(1);
-      StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 1));
-    } else {
-
+    // If high_word == 0, the number is positive, and we only need 1 digit,
+    // so we don't have anything to do.
+    // Otherwise, all cases are possible.
+    if (high_word != 0) {
       if constexpr (signed) {
+
         // If high_part < 0, the number is always negative.
         if (high_part < 0) {
+          is_positive = false;
+
           // We have to compute the absolute value by hand.
           // There will be a negative carry from the low word
           // to the high word iff low != 0.
@@ -310,39 +338,50 @@ module data_view {
           }
           low_part = 0 - low_part;
 
-          // Here, high_part can be 0 again so we might have 1 or 2 digits.
-          if (high_part == 0) {
-            result = AllocateRawBigInt(1);
-            StoreBigIntBitfield(result, DataViewEncodeBigIntBits(true, 1));
-          } else {
-            result = AllocateRawBigInt(2);
-            StoreBigIntBitfield(result, DataViewEncodeBigIntBits(true, 2));
-            two_digits = true;
+          // Here, high_part could be 0 again so we might have 1 or 2 digits.
+          if (high_part != 0) {
+            need_two_digits = true;
           }
 
         } else {
           // In this case, the number is positive, and we need 2 digits.
-          result = AllocateRawBigInt(2);
-          StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 2));
-          two_digits = true;
+          need_two_digits = true;
         }
 
       } else {
         // In this case, the number is positive (unsigned),
         // and we need 2 digits.
-        result = AllocateRawBigInt(2);
-        StoreBigIntBitfield(result, DataViewEncodeBigIntBits(false, 2));
-        two_digits = true;
+        need_two_digits = true;
       }
+    }
+
+    // Allocate the BigInt with the right sign and length.
+    let result: BigInt;
+    if (need_two_digits) {
+      result = CreateEmptyBigInt(is_positive, kTwoDigitBigInt);
+    } else {
+      result = CreateEmptyBigInt(is_positive, kOneDigitBigInt);
     }
 
     // Finally, write the digit(s) to the BigInt.
     StoreBigIntDigit(result, 0, Unsigned(convert<intptr>(low_part)));
-    if (two_digits) {
+
+    if (need_two_digits) {
       StoreBigIntDigit(result, 1, Unsigned(convert<intptr>(high_part)));
     }
 
     return result;
+  }
+
+  macro MakeBigInt(low_word: uint32, high_word: uint32,
+                   signed: constexpr bool): BigInt {
+    // A BigInt digit has the platform word size, so we only need one digit
+    // on 64-bit platforms but may need two on 32-bit.
+    if constexpr (Is64()) {
+      return MakeBigIntOn64Bit(low_word, high_word, signed);
+    } else {
+      return MakeBigIntOn32Bit(low_word, high_word, signed);
+    }
   }
 
   macro LoadDataViewBigInt(buffer: JSArrayBuffer, offset: intptr,
@@ -351,7 +390,6 @@ module data_view {
     let data_pointer: RawPtr = buffer.backing_store;
     let low_word: uint32;
     let high_word: uint32;
-    let result: BigInt;
 
     // If endiannesses match and the pointer is aligned, we can
     // directly load the words.
@@ -384,19 +422,7 @@ module data_view {
       }
     }
 
-    // 0 is a special case (0 BigInt digits), we handle it separately here.
-    if (low_word == 0 && high_word == 0) {
-      result = AllocateBigInt(0);
-    } else {
-      // A BigInt digit has the platform word size, so we only need one digit
-      // on 64-bit platforms but may need two on 32-bit.
-      if constexpr (Is64()) {
-        result = MakeBigIntOn64Bit(low_word, high_word, signed);
-      } else {
-        result = MakeBigIntOn32Bit(low_word, high_word, signed);
-      }
-    }
-    return result;
+    return MakeBigInt(low_word, high_word, signed);
   }
 
   extern macro ToSmiIndex(Object, Context): Smi labels RangeError;
