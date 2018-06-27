@@ -2547,7 +2547,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 // foreground task is currently pending, and no finisher is
                 // outstanding (streaming compilation).
                 if (job->num_pending_foreground_tasks_ == 0 &&
-                    job->outstanding_finishers_.Value() == 0) {
+                    job->outstanding_finishers_.load() == 0) {
                   job->isolate_->wasm_engine()->RemoveCompileJob(job);
                 } else {
                   // If a foreground task was pending or a finsher was pending,
@@ -2766,7 +2766,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
 
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
-  job_->outstanding_finishers_.SetValue(2);
+  job_->outstanding_finishers_.store(2);
   compilation_unit_builder_.reset(
       new CompilationUnitBuilder(job_->native_module_));
   return true;

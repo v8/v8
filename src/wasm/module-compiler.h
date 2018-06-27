@@ -5,10 +5,10 @@
 #ifndef V8_WASM_MODULE_COMPILER_H_
 #define V8_WASM_MODULE_COMPILER_H_
 
+#include <atomic>
 #include <functional>
 #include <memory>
 
-#include "src/base/atomic-utils.h"
 #include "src/cancelable-task.h"
 #include "src/globals.h"
 #include "src/wasm/wasm-module.h"
@@ -162,13 +162,13 @@ class AsyncCompileJob {
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before
   // compilation can be finished.
-  base::AtomicNumber<int32_t> outstanding_finishers_{1};
+  std::atomic<int32_t> outstanding_finishers_{1};
 
   // Decrements the number of outstanding finishers. The last caller of this
   // function should finish the asynchronous compilation, see the comment on
   // {outstanding_finishers_}.
   V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
-    return outstanding_finishers_.Decrement(1) == 0;
+    return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
   // Counts the number of pending foreground tasks.
