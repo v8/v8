@@ -7,7 +7,6 @@
 #include <iomanip>
 
 #include "src/assembler-inl.h"
-#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen.h"
@@ -297,14 +296,11 @@ WasmCode::~WasmCode() {
   }
 }
 
-base::AtomicNumber<size_t> NativeModule::next_id_;
-
 NativeModule::NativeModule(Isolate* isolate, uint32_t num_functions,
                            uint32_t num_imported_functions,
                            bool can_request_more, VirtualMemory* code_space,
                            WasmCodeManager* code_manager, ModuleEnv& env)
-    : instance_id(next_id_.Increment(1)),
-      num_functions_(num_functions),
+    : num_functions_(num_functions),
       num_imported_functions_(num_imported_functions),
       compilation_state_(NewCompilationState(isolate, env)),
       free_code_space_({code_space->address(), code_space->end()}),
@@ -648,8 +644,7 @@ Address NativeModule::AllocateForCode(size_t size) {
   }
   DCHECK(IsAligned(mem.start, kCodeAlignment));
   allocated_code_space_.Merge(std::move(mem));
-  TRACE_HEAP("ID: %zu. Code alloc: %p,+%zu\n", instance_id,
-             reinterpret_cast<void*>(mem.start), size);
+  TRACE_HEAP("Code alloc for %p: %" PRIuPTR ",+%zu\n", this, mem.start, size);
   return mem.start;
 }
 
@@ -829,8 +824,8 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     std::unique_ptr<NativeModule> ret(
         new NativeModule(isolate, num_functions, num_imported_functions,
                          can_request_more, &mem, this, env));
-    TRACE_HEAP("New Module: ID:%zu. Mem: %p,+%zu\n", ret->instance_id,
-               reinterpret_cast<void*>(start), size);
+    TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
+               size);
     AssignRanges(start, end, ret.get());
     ++active_;
     return ret;
@@ -842,8 +837,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
 bool NativeModule::SetExecutable(bool executable) {
   if (is_executable_ == executable) return true;
-  TRACE_HEAP("Setting module %zu as executable: %d.\n", instance_id,
-             executable);
+  TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
   PageAllocator::Permission permission =
       executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
 
@@ -888,7 +882,7 @@ bool NativeModule::SetExecutable(bool executable) {
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   DCHECK_GE(active_, 1);
   --active_;
-  TRACE_HEAP("Freeing %zu\n", native_module->instance_id);
+  TRACE_HEAP("Freeing NativeModule %p\n", this);
   for (auto& vmem : native_module->owned_code_space_) {
     lookup_map_.erase(vmem.address());
     Free(&vmem);

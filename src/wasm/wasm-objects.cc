@@ -1266,8 +1266,8 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   // If a link to shared memory instances exists, update the list of memory
   // instances before the instance is destroyed.
-  TRACE("Finalizing %zu {\n",
-        instance->module_object()->native_module()->instance_id);
+  TRACE("Finalizing instance of %p {\n",
+        instance->module_object()->native_module());
 
   // Since the order of finalizers is not guaranteed, it can be the case
   // that {instance->compiled_module()->module()}, which is a

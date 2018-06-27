@@ -1116,7 +1116,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
   wasm::NativeModule* native_module = module_object_->native_module();
-  TRACE("New module instantiation for %zu\n", native_module->instance_id);
+  TRACE("New module instantiation for %p\n", native_module);
   Handle<WasmInstanceObject> instance =
       WasmInstanceObject::New(isolate_, module_object_);
   wasm::NativeModuleModificationScope native_modification_scope(native_module);
@@ -1309,8 +1309,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   DCHECK(!isolate_->has_pending_exception());
-  TRACE("Successfully built instance %zu\n",
-        module_object_->native_module()->instance_id);
+  TRACE("Successfully built instance for module %p\n",
+        module_object_->native_module());
   return instance;
 }
 

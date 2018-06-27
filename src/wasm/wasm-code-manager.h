@@ -314,7 +314,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* Lookup(Address) const;
 
-  const size_t instance_id = 0;
   ~NativeModule();
 
  private:
@@ -324,7 +323,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class NativeModuleDeserializer;
   friend class NativeModuleModificationScope;
 
-  static base::AtomicNumber<size_t> next_id_;
   NativeModule(Isolate* isolate, uint32_t num_functions,
                uint32_t num_imported_functions, bool can_request_more,
                VirtualMemory* code_space, WasmCodeManager* code_manager,
