@@ -18,17 +18,6 @@ namespace internal {
 bool operator==(const NumberFormatSpan& lhs, const NumberFormatSpan& rhs) {
   return memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
 }
-template <typename _CharT, typename _Traits, typename T>
-std::basic_ostream<_CharT, _Traits>& operator<<(
-    std::basic_ostream<_CharT, _Traits>& self, const std::vector<T>& v) {
-  self << "[";
-  for (auto it = v.begin(); it < v.end();) {
-    self << *it;
-    it++;
-    if (it < v.end()) self << ", ";
-  }
-  return self << "]";
-}
 template <typename _CharT, typename _Traits>
 std::basic_ostream<_CharT, _Traits>& operator<<(
     std::basic_ostream<_CharT, _Traits>& self, const NumberFormatSpan& part) {

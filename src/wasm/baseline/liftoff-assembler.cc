@@ -614,17 +614,11 @@ bool LiftoffAssembler::ValidateCacheState() const {
   if (valid) return true;
   std::ostringstream os;
   os << "Error in LiftoffAssembler::ValidateCacheState().\n";
-  os << "expected: used_regs " << used_regs << ", counts [";
-  for (int reg = 0; reg < kAfterMaxLiftoffRegCode; ++reg) {
-    os << (reg == 0 ? "" : ", ") << register_use_count[reg];
-  }
-  os << "]\n";
-  os << "found:    used_regs " << cache_state_.used_registers << ", counts [";
-  for (int reg = 0; reg < kAfterMaxLiftoffRegCode; ++reg) {
-    os << (reg == 0 ? "" : ", ") << cache_state_.register_use_count[reg];
-  }
-  os << "]\n";
-  os << "Use --trace-liftoff to debug.\n";
+  os << "expected: used_regs " << used_regs << ", counts "
+     << PrintCollection(register_use_count) << "\n";
+  os << "found:    used_regs " << cache_state_.used_registers << ", counts "
+     << PrintCollection(cache_state_.register_use_count) << "\n";
+  os << "Use --trace-liftoff to debug.";
   FATAL("%s", os.str().c_str());
 }
 

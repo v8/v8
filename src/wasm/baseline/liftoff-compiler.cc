@@ -1807,11 +1807,7 @@ class LiftoffCompiler {
           control_depth == -1
               ? asm_->cache_state()
               : &decoder->control_at(control_depth)->label_state;
-      bool first = true;
-      for (LiftoffAssembler::VarState& slot : cache_state->stack_state) {
-        os << (first ? "" : "-") << slot;
-        first = false;
-      }
+      os << PrintCollection(cache_state->stack_state);
       if (control_depth != -1) PrintF("; ");
     }
     os << "\n";
