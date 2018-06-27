@@ -66,13 +66,17 @@ function timestampMin(list) {
 // ===========================================================================
 class Script {
   constructor(id) {
-    this.file = '';
-    this.id = id;
-    this.isNative = false;
     if (id === void 0 || id <= 0) {
       throw new Error(`Invalid id=${id} for script`);
     }
+    this.file = '';
+    this.id = id;
+
+    this.isNative = false;
     this.isEval = false;
+    this.isBackgroundCompiled = false;
+    this.isDeserialized = false;
+
     this.funktions = [];
     this.metrics = new Map();
     this.maxNestingLevel = 0;
@@ -180,6 +184,11 @@ class Script {
 
   getOwnBytes() {
     if (this.ownBytes === -1) {
+      if (this.getBytes() === -1) {
+        if (this.isDeserialized || this.isEval) {
+          return this.ownBytes = 0;
+        }
+      }
       this.ownBytes = this.funktions.reduce(
         (bytes, each) => bytes - (each.isToplevel() ? each.getBytes() : 0),
         this.getBytes());
@@ -234,6 +243,9 @@ class Script {
     };
 
     log("  - file:         " + this.file);
+    log('  - details:      ' +
+        'isEval=' + this.isEval + ' deserialized=' + this.isDeserialized +
+        ' streamed=' + this.isBackgroundCompiled);
     info("scripts", this.getScripts());
     info("functions", all);
     info("toplevel fn", all.filter(each => each.isToplevel()));
@@ -783,8 +795,10 @@ class ParseProcessor extends LogReader {
     this.scripts = Array.from(this.idToScript.values())
       .filter(each => !each.isNative);
 
-    this.scripts.forEach(script => script.finalize());
-    this.scripts.forEach(script => script.calculateMetrics(false));
+    this.scripts.forEach(script => {
+      script.finalize();
+      script.calculateMetrics(false)
+    });
 
     this.firstEvent =
       timestampMin(this.scripts.map(each => each.firstEvent));
@@ -860,13 +874,17 @@ class ParseProcessor extends LogReader {
   }
 
   processScriptEvent(eventName, scriptId) {
-    if (eventName == 'create' || eventName == 'reserve-id') {
+    if (['create', 'reserve-id', 'deserialize'].includes(eventName)) {
       if (this.idToScript.has(scriptId)) return;
       let script = new Script(scriptId);
       this.idToScript.set(scriptId, script);
-    } else {
-      console.log('Unhandled script event: ' + eventName);
+      if (eventName == 'deserialize') script.isDeserialized = true;
+      return;
+    } else if (eventName === 'background-compile') {
+      this.idToScript.get(scriptId).isBackgroundCompiled = true;
+      return;
     }
+    console.error('Unhandled script event: ' + eventName);
   }
 
   processScriptDetails(scriptId, file, startLine, startColumn, size) {

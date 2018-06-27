@@ -1587,10 +1587,25 @@ void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
   msg.WriteToLogFile();
 }
 
-void Logger::ScriptEvent(const char* event_name, int script_id) {
+void Logger::ScriptEvent(ScriptEventType type, int script_id) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   Log::MessageBuilder msg(log_);
-  msg << "script" << Logger::kNext << event_name << Logger::kNext << script_id;
+  msg << "script" << Logger::kNext;
+  switch (type) {
+    case ScriptEventType::kReserveId:
+      msg << "reserve-id";
+      break;
+    case ScriptEventType::kCreate:
+      msg << "create";
+      break;
+    case ScriptEventType::kDeserialize:
+      msg << "deserialize";
+      break;
+    case ScriptEventType::kBackgroundCompile:
+      msg << "background-compile";
+      break;
+  }
+  msg << Logger::kNext << script_id;
   msg.WriteToLogFile();
 }
 

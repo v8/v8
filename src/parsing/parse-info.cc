@@ -51,7 +51,7 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
 ParseInfo::ParseInfo(Isolate* isolate)
     : ParseInfo(isolate, isolate->allocator()) {
   script_id_ = isolate->heap()->NextScriptId();
-  LOG(isolate, ScriptEvent("reserve-id", script_id_));
+  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kReserveId, script_id_));
 }
 
 ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)

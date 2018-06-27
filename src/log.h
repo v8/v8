@@ -124,6 +124,13 @@ class Logger : public CodeEventListener {
  public:
   enum StartEnd { START = 0, END = 1, STAMP = 2 };
 
+  enum class ScriptEventType {
+    kReserveId,
+    kCreate,
+    kDeserialize,
+    kBackgroundCompile
+  };
+
   // The separator is used to write an unescaped "," into the log.
   static const LogSeparator kNext = LogSeparator::kSeparator;
 
@@ -175,7 +182,7 @@ class Logger : public CodeEventListener {
 
   void CompilationCacheEvent(const char* action, const char* cache_type,
                              SharedFunctionInfo* sfi);
-  void ScriptEvent(const char* event_name, int script_id);
+  void ScriptEvent(ScriptEventType type, int script_id);
   void ScriptDetails(Script* script);
 
   // ==== Events logged by --log-api. ====

@@ -1541,7 +1541,7 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
   script->set_host_defined_options(*empty_fixed_array());
   heap->set_script_list(
       *FixedArrayOfWeakCells::Add(isolate(), script_list(), script));
-  LOG(isolate(), ScriptEvent("create", script_id));
+  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;
 }
 
