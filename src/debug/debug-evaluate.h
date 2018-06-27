@@ -39,7 +39,7 @@ class DebugEvaluate : public AllStatic {
   static MaybeHandle<Object> WithTopmostArguments(Isolate* isolate,
                                                   Handle<String> source);
 
-  static SharedFunctionInfo::SideEffectState FunctionGetSideEffectState(
+  static DebugInfo::SideEffectState FunctionGetSideEffectState(
       Isolate* isolate, Handle<SharedFunctionInfo> info);
   static bool CallbackHasNoSideEffect(Isolate* isolate, Object* callback_info);
   static void ApplySideEffectChecks(Handle<BytecodeArray> bytecode_array);

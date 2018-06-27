@@ -524,8 +524,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   }
 }
 
-SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
-    Builtins::Name id) {
+DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
     // Object builtins.
@@ -802,7 +801,7 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kMakeURIError:
     // RegExp builtins.
     case Builtins::kRegExpConstructor:
-      return SharedFunctionInfo::kHasNoSideEffect;
+      return DebugInfo::kHasNoSideEffect;
     // Set builtins.
     case Builtins::kSetIteratorPrototypeNext:
     case Builtins::kSetPrototypeAdd:
@@ -831,13 +830,13 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kRegExpPrototypeDotAllGetter:
     case Builtins::kRegExpPrototypeUnicodeGetter:
     case Builtins::kRegExpPrototypeStickyGetter:
-      return SharedFunctionInfo::kRequiresRuntimeChecks;
+      return DebugInfo::kRequiresRuntimeChecks;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] built-in %s may cause side effect.\n",
                Builtins::name(id));
       }
-      return SharedFunctionInfo::kHasSideEffects;
+      return DebugInfo::kHasSideEffects;
   }
 }
 
@@ -859,7 +858,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
 }  // anonymous namespace
 
 // static
-SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
+DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     Isolate* isolate, Handle<SharedFunctionInfo> info) {
   if (FLAG_trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] Checking function %s for side effect.\n",
@@ -884,7 +883,7 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
                 ? it.GetIntrinsicIdOperand(0)
                 : it.GetRuntimeIdOperand(0);
         if (IntrinsicHasNoSideEffect(id)) continue;
-        return SharedFunctionInfo::kHasSideEffects;
+        return DebugInfo::kHasSideEffects;
       }
 
       if (BytecodeHasNoSideEffect(bytecode)) continue;
@@ -899,15 +898,15 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
       }
 
       // Did not match whitelist.
-      return SharedFunctionInfo::kHasSideEffects;
+      return DebugInfo::kHasSideEffects;
     }
-    return requires_runtime_checks ? SharedFunctionInfo::kRequiresRuntimeChecks
-                                   : SharedFunctionInfo::kHasNoSideEffect;
+    return requires_runtime_checks ? DebugInfo::kRequiresRuntimeChecks
+                                   : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
     if (info->GetCode()->is_builtin()) {
       return info->GetCode()->builtin_index() == Builtins::kHandleApiCall
-                 ? SharedFunctionInfo::kHasNoSideEffect
-                 : SharedFunctionInfo::kHasSideEffects;
+                 ? DebugInfo::kHasNoSideEffect
+                 : DebugInfo::kHasSideEffects;
     }
   } else {
     // Check built-ins against whitelist.
@@ -915,11 +914,11 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
         info->HasBuiltinId() ? info->builtin_id() : Builtins::kNoBuiltinId;
     DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (!Builtins::IsBuiltinId(builtin_index))
-      return SharedFunctionInfo::kHasSideEffects;
-    SharedFunctionInfo::SideEffectState state =
+      return DebugInfo::kHasSideEffects;
+    DebugInfo::SideEffectState state =
         BuiltinGetSideEffectState(static_cast<Builtins::Name>(builtin_index));
 #ifdef DEBUG
-    if (state == SharedFunctionInfo::kHasNoSideEffect) {
+    if (state == DebugInfo::kHasNoSideEffect) {
       Code* code = isolate->builtins()->builtin(builtin_index);
       if (code->builtin_index() == Builtins::kDeserializeLazy) {
         // Target builtin is not yet deserialized. Deserialize it now.
@@ -952,7 +951,7 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     return state;
   }
 
-  return SharedFunctionInfo::kHasSideEffects;
+  return DebugInfo::kHasSideEffects;
 }
 
 // static

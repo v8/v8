@@ -9595,7 +9595,9 @@ void debug::ResetBlackboxedStateCache(Isolate* v8_isolate,
   i::SharedFunctionInfo::ScriptIterator iter(isolate,
                                              *Utils::OpenHandle(*script));
   while (i::SharedFunctionInfo* info = iter.Next()) {
-    info->set_computed_debug_is_blackboxed(false);
+    if (info->HasDebugInfo()) {
+      info->GetDebugInfo()->set_computed_debug_is_blackboxed(false);
+    }
   }
 }
 
@@ -9841,16 +9843,11 @@ int64_t debug::GetNextRandomInt64(v8::Isolate* v8_isolate) {
 }
 
 int debug::GetDebuggingId(v8::Local<v8::Function> function) {
-  i::JSReceiver* callable = *v8::Utils::OpenHandle(*function);
-  if (!callable->IsJSFunction()) return i::SharedFunctionInfo::kNoDebuggingId;
-  i::JSFunction* fun = i::JSFunction::cast(callable);
-  i::SharedFunctionInfo* shared = fun->shared();
-  int id = shared->debugging_id();
-  if (id == i::SharedFunctionInfo::kNoDebuggingId) {
-    id = callable->GetHeap()->NextDebuggingId();
-    shared->set_debugging_id(id);
-  }
-  DCHECK_NE(i::SharedFunctionInfo::kNoDebuggingId, id);
+  i::Handle<i::JSReceiver> callable = v8::Utils::OpenHandle(*function);
+  if (!callable->IsJSFunction()) return i::DebugInfo::kNoDebuggingId;
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(callable);
+  int id = func->GetIsolate()->debug()->GetFunctionDebuggingId(func);
+  DCHECK_NE(i::DebugInfo::kNoDebuggingId, id);
   return id;
 }
 

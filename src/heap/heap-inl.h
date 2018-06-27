@@ -571,8 +571,8 @@ int Heap::NextScriptId() {
 
 int Heap::NextDebuggingId() {
   int last_id = last_debugging_id()->value();
-  if (last_id == SharedFunctionInfo::DebuggingIdBits::kMax) {
-    last_id = SharedFunctionInfo::kNoDebuggingId;
+  if (last_id == DebugInfo::DebuggingIdBits::kMax) {
+    last_id = DebugInfo::kNoDebuggingId;
   }
   last_id++;
   set_last_debugging_id(Smi::FromInt(last_id));

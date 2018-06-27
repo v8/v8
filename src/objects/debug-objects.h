@@ -42,6 +42,9 @@ class DebugInfo : public Struct {
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
 
+  // Function identifier field from shared function info.
+  DECL_ACCESSORS(function_identifier, Object)
+
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
 
@@ -56,7 +59,10 @@ class DebugInfo : public Struct {
   ExecutionMode DebugExecutionMode() const;
   void SetDebugExecutionMode(ExecutionMode value);
 
-  inline bool HasDebugBytecodeArray();
+  // Specifies whether the associated function has an instrumented bytecode
+  // array. If so, OriginalBytecodeArray returns the non-instrumented bytecode,
+  // and DebugBytecodeArray returns the instrumented bytecode.
+  inline bool HasInstrumentedBytecodeArray();
 
   inline BytecodeArray* OriginalBytecodeArray();
   inline BytecodeArray* DebugBytecodeArray();
@@ -66,9 +72,8 @@ class DebugInfo : public Struct {
 
   bool HasBreakInfo() const;
 
-  // Clears all fields related to break points. Returns true iff the
-  // DebugInfo is now empty.
-  bool ClearBreakInfo(Isolate* isolate);
+  // Clears all fields related to break points.
+  void ClearBreakInfo(Isolate* isolate);
 
   // Accessors to flag whether to break before entering the function.
   // This is used to break for functions with no source, e.g. builtins.
@@ -76,8 +81,9 @@ class DebugInfo : public Struct {
   void ClearBreakAtEntry();
   bool BreakAtEntry() const;
 
-  // The instrumented bytecode array for functions with break points.
-  DECL_ACCESSORS(debug_bytecode_array, Object)
+  // The original uninstrumented bytecode array for functions with break
+  // points - the instrumented bytecode is held in the shared function info.
+  DECL_ACCESSORS(original_bytecode_array, Object)
 
   // Fixed array holding status information for each active break point.
   DECL_ACCESSORS(break_points, FixedArray)
@@ -104,14 +110,50 @@ class DebugInfo : public Struct {
   // This is true for functions with no source, e.g. builtins.
   bool CanBreakAtEntry() const;
 
+  // --- Debugger hint flags ---
+  // ---------------------------
+
+  // Indicates that the function should be skipped during stepping.
+  DECL_BOOLEAN_ACCESSORS(debug_is_blackboxed)
+
+  // Indicates that |debug_is_blackboxed| has been computed and set.
+  DECL_BOOLEAN_ACCESSORS(computed_debug_is_blackboxed)
+
+  // Indicates the side effect state.
+  DECL_INT_ACCESSORS(side_effect_state)
+
+  enum SideEffectState {
+    kNotComputed = 0,
+    kHasSideEffects = 1,
+    kRequiresRuntimeChecks = 2,
+    kHasNoSideEffect = 3,
+  };
+
+  SideEffectState GetSideEffectState(Isolate* isolate);
+
+  // Id assigned to the function for debugging.
+  // This could also be implemented as a weak hash table.
+  DECL_INT_ACCESSORS(debugging_id);
+
+// Bit positions in |debugger_hints|.
+#define DEBUGGER_HINTS_BIT_FIELDS(V, _)       \
+  V(SideEffectStateBits, int, 2, _)           \
+  V(DebugIsBlackboxedBit, bool, 1, _)         \
+  V(ComputedDebugIsBlackboxedBit, bool, 1, _) \
+  V(DebuggingIdBits, int, 20, _)
+
+  DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
+#undef DEBUGGER_HINTS_BIT_FIELDS
+
+  static const int kNoDebuggingId = 0;
+
   // --- Block Coverage ---
   // ----------------------
 
   bool HasCoverageInfo() const;
 
-  // Clears all fields related to block coverage. Returns true iff the
-  // DebugInfo is now empty.
-  bool ClearCoverageInfo(Isolate* isolate);
+  // Clears all fields related to block coverage.
+  void ClearCoverageInfo(Isolate* isolate);
   DECL_ACCESSORS(coverage_info, Object)
 
   DECL_CAST(DebugInfo)
@@ -123,10 +165,12 @@ class DebugInfo : public Struct {
   static const int kSharedFunctionInfoOffset = Struct::kHeaderSize;
   static const int kDebuggerHintsOffset =
       kSharedFunctionInfoOffset + kPointerSize;
-  static const int kDebugBytecodeArrayOffset =
+  static const int kFunctionIdentifierOffset =
       kDebuggerHintsOffset + kPointerSize;
+  static const int kOriginalBytecodeArrayOffset =
+      kFunctionIdentifierOffset + kPointerSize;
   static const int kBreakPointsStateOffset =
-      kDebugBytecodeArrayOffset + kPointerSize;
+      kOriginalBytecodeArrayOffset + kPointerSize;
   static const int kFlagsOffset = kBreakPointsStateOffset + kPointerSize;
   static const int kCoverageInfoOffset = kFlagsOffset + kPointerSize;
   static const int kSize = kCoverageInfoOffset + kPointerSize;

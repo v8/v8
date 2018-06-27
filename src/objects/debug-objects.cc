@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/objects/debug-objects.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/objects/debug-objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-bool DebugInfo::IsEmpty() const { return flags() == kNone; }
+bool DebugInfo::IsEmpty() const {
+  return flags() == kNone && debugger_hints() == 0;
+}
 
 bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
 
@@ -21,8 +24,13 @@ void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
                                   : (flags() & ~kDebugExecutionMode));
 }
 
-bool DebugInfo::ClearBreakInfo(Isolate* isolate) {
-  set_debug_bytecode_array(isolate->heap()->undefined_value());
+void DebugInfo::ClearBreakInfo(Isolate* isolate) {
+  if (HasInstrumentedBytecodeArray()) {
+    // Reset function's bytecode array field to point to the original bytecode
+    // array.
+    shared()->SetDebugBytecodeArray(OriginalBytecodeArray());
+    set_original_bytecode_array(isolate->heap()->undefined_value());
+  }
   set_break_points(isolate->heap()->empty_fixed_array());
 
   int new_flags = flags();
@@ -30,8 +38,6 @@ bool DebugInfo::ClearBreakInfo(Isolate* isolate) {
   new_flags &= ~kBreakAtEntry & ~kCanBreakAtEntry;
   new_flags &= ~kDebugExecutionMode;
   set_flags(new_flags);
-
-  return new_flags == kNone;
 }
 
 void DebugInfo::SetBreakAtEntry() {
@@ -185,14 +191,23 @@ bool DebugInfo::HasCoverageInfo() const {
   return (flags() & kHasCoverageInfo) != 0;
 }
 
-bool DebugInfo::ClearCoverageInfo(Isolate* isolate) {
+void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
   if (HasCoverageInfo()) {
     set_coverage_info(isolate->heap()->undefined_value());
 
     int new_flags = flags() & ~kHasCoverageInfo;
     set_flags(new_flags);
   }
-  return flags() == kNone;
+}
+
+DebugInfo::SideEffectState DebugInfo::GetSideEffectState(Isolate* isolate) {
+  if (side_effect_state() == kNotComputed) {
+    SideEffectState has_no_side_effect =
+        DebugEvaluate::FunctionGetSideEffectState(isolate,
+                                                  handle(shared(), isolate));
+    set_side_effect_state(has_no_side_effect);
+  }
+  return static_cast<SideEffectState>(side_effect_state());
 }
 
 namespace {

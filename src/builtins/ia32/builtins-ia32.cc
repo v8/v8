@@ -800,19 +800,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ push(esi);  // Callee's context.
   __ push(edi);  // Callee's JS function.
 
-  // Get the bytecode array from the function object (or from the DebugInfo if
-  // it is present) and load it into kInterpreterBytecodeArrayRegister.
-  Label maybe_load_debug_bytecode_array, bytecode_array_loaded,
-      apply_instrumentation;
+  // Get the bytecode array from the function object and load it into
+  // kInterpreterBytecodeArrayRegister.
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
   __ Push(eax);
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, eax);
   __ Pop(eax);
-  __ JumpIfNotSmi(FieldOperand(eax, SharedFunctionInfo::kDebugInfoOffset),
-                  &maybe_load_debug_bytecode_array);
-  __ bind(&bytecode_array_loaded);
 
   __ inc(FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
@@ -921,35 +916,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in eax.
   LeaveInterpreterFrame(masm, ebx, ecx);
   __ ret(0);
-
-  // Load debug copy of the bytecode array if it exists.
-  // kInterpreterBytecodeArrayRegister is already loaded with
-  // SharedFunctionInfo::kFunctionDataOffset.
-  __ bind(&maybe_load_debug_bytecode_array);
-  __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kDebugInfoOffset));
-  __ mov(ecx, FieldOperand(eax, DebugInfo::kDebugBytecodeArrayOffset));
-  __ JumpIfRoot(ecx, Heap::kUndefinedValueRootIndex, &bytecode_array_loaded);
-
-  __ mov(kInterpreterBytecodeArrayRegister, ecx);
-  __ mov(ecx, FieldOperand(eax, DebugInfo::kFlagsOffset));
-  __ SmiUntag(ecx);
-  __ and_(ecx, Immediate(DebugInfo::kDebugExecutionMode));
-  STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
-                static_cast<int>(DebugInfo::kSideEffects));
-  ExternalReference debug_execution_mode =
-      ExternalReference::debug_execution_mode_address(masm->isolate());
-  __ cmp(ecx, Operand::StaticVariable(debug_execution_mode));
-  __ j(equal, &bytecode_array_loaded);
-
-  __ pop(ecx);  // get JSFunction from stack
-  __ push(ecx);
-  __ push(ebx);  // preserve feedback_vector and bytecode array register
-  __ push(kInterpreterBytecodeArrayRegister);
-  __ push(ecx);  // pass function as argument
-  __ CallRuntime(Runtime::kDebugApplyInstrumentation);
-  __ pop(kInterpreterBytecodeArrayRegister);
-  __ pop(ebx);
-  __ jmp(&bytecode_array_loaded);
 }
 
 

@@ -1394,7 +1394,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - start position: " << StartPosition();
   os << "\n - end position: " << EndPosition();
   if (HasDebugInfo()) {
-    os << "\n - debug info: " << Brief(debug_info());
+    os << "\n - debug info: " << Brief(GetDebugInfo());
   } else {
     os << "\n - no debug info";
   }
@@ -2014,7 +2014,8 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - flags: " << flags();
   os << "\n - debugger_hints: " << debugger_hints();
   os << "\n - shared: " << Brief(shared());
-  os << "\n - debug bytecode array: " << Brief(debug_bytecode_array());
+  os << "\n - function_identifier: " << Brief(function_identifier());
+  os << "\n - original bytecode array: " << Brief(original_bytecode_array());
   os << "\n - break_points: ";
   break_points()->FixedArrayPrint(os);
   os << "\n - coverage_info: " << Brief(coverage_info());

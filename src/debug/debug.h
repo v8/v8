@@ -315,6 +315,8 @@ class Debug {
   bool SetScriptSource(Handle<Script> script, Handle<String> source,
                        bool preview, debug::LiveEditResult* result);
 
+  int GetFunctionDebuggingId(Handle<JSFunction> function);
+
   // Threading support.
   char* ArchiveDebug(char* to);
   char* RestoreDebug(char* from);
@@ -325,9 +327,6 @@ class Debug {
   bool CheckExecutionState() {
     return is_active() && !debug_context().is_null() && break_id() != 0;
   }
-
-  // Apply proper instrumentation depends on debug_execution_mode.
-  void ApplyInstrumentation(Handle<SharedFunctionInfo> shared);
 
   void StartSideEffectCheckMode();
   void StopSideEffectCheckMode();
@@ -405,6 +404,7 @@ class Debug {
   explicit Debug(Isolate* isolate);
   ~Debug();
 
+  void UpdateDebugInfosForExecutionMode();
   void UpdateState();
   void UpdateHookOnFunctionCall();
   void RemoveDebugDelegate();
@@ -472,8 +472,10 @@ class Debug {
 
   void PrintBreakLocation();
 
+  void ClearAllDebuggerHints();
+
   // Wraps logic for clearing and maybe freeing all debug infos.
-  typedef std::function<bool(Handle<DebugInfo>)> DebugInfoClearFunction;
+  typedef std::function<void(Handle<DebugInfo>)> DebugInfoClearFunction;
   void ClearAllDebugInfos(DebugInfoClearFunction clear_function);
 
   void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);

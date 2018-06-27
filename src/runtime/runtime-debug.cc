@@ -113,14 +113,6 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugApplyInstrumentation) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  isolate->debug()->ApplyInstrumentation(handle(function->shared(), isolate));
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

@@ -177,14 +177,17 @@ class SharedFunctionInfo : public HeapObject {
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray() const;
   inline BytecodeArray* GetBytecodeArray() const;
-  inline void set_bytecode_array(class BytecodeArray* bytecode);
+  inline void set_bytecode_array(BytecodeArray* bytecode);
   inline Code* InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
   inline InterpreterData* interpreter_data() const;
   inline void set_interpreter_data(InterpreterData* interpreter_data);
+  inline BytecodeArray* GetDebugBytecodeArray() const;
+  inline void SetDebugBytecodeArray(BytecodeArray* bytecode);
   inline bool HasAsmWasmData() const;
   inline FixedArray* asm_wasm_data() const;
   inline void set_asm_wasm_data(FixedArray* data);
+
   // A brief note to clear up possible confusion:
   // builtin_id corresponds to the auto-generated
   // Builtins::Name id, while builtin_function_id corresponds to
@@ -205,12 +208,13 @@ class SharedFunctionInfo : public HeapObject {
   // function.
   //  - a Smi identifying a builtin function [HasBuiltinFunctionId()].
   //  - a String identifying the function's inferred name [HasInferredName()].
+  //  - a DebugInfo which holds the actual function_identifier [HasDebugInfo()].
   // The inferred_name is inferred from variable or property
   // assignment of this function. It is used to facilitate debugging and
   // profiling of JavaScript code written in OO style, where almost
   // all functions are anonymous but are assigned to object
   // properties.
-  DECL_ACCESSORS(function_identifier, Object)
+  DECL_ACCESSORS(function_identifier_or_debug_info, Object)
 
   inline bool HasBuiltinFunctionId();
   inline BuiltinFunctionId builtin_function_id();
@@ -219,12 +223,10 @@ class SharedFunctionInfo : public HeapObject {
   inline String* inferred_name();
   inline void set_inferred_name(String* inferred_name);
 
-  // [script]: Script from which the function originates.
-  DECL_ACCESSORS(script, Object)
-
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
-  DebugInfo* GetDebugInfo() const;
+  inline DebugInfo* GetDebugInfo() const;
+  inline void SetDebugInfo(DebugInfo* debug_info);
 
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
@@ -236,57 +238,14 @@ class SharedFunctionInfo : public HeapObject {
   bool HasCoverageInfo() const;
   CoverageInfo* GetCoverageInfo() const;
 
-  // [debug info]: Debug information.
-  DECL_ACCESSORS(debug_info, Object)
-
-  // Bit field containing various information collected for debugging.
-  // This field is either stored on the kDebugInfo slot or inside the
-  // debug info struct.
-  int debugger_hints() const;
-  void set_debugger_hints(int value);
-
-  // Indicates that the function was created by the Function function.
-  // Though it's anonymous, toString should treat it as if it had the name
-  // "anonymous".  We don't set the name itself so that the system does not
-  // see a binding for it.
-  DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
-
-  // Indicates that the function is either an anonymous expression
-  // or an arrow function (the name field can be set through the API,
-  // which does not change this flag).
-  DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
-
-  // Indicates that the the shared function info is deserialized from cache.
-  DECL_BOOLEAN_ACCESSORS(deserialized)
-
-  // Indicates that the function should be skipped during stepping.
-  DECL_BOOLEAN_ACCESSORS(debug_is_blackboxed)
-
-  // Indicates that |debug_is_blackboxed| has been computed and set.
-  DECL_BOOLEAN_ACCESSORS(computed_debug_is_blackboxed)
-
-  // Indicates that the function has been reported for binary code coverage.
-  DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
-
-  // Id assigned to the function for debugging.
-  // This could also be implemented as a weak hash table.
-  inline int debugging_id() const;
-  inline void set_debugging_id(int value);
-
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
-  enum SideEffectState {
-    kNotComputed = 0,
-    kHasSideEffects = 1,
-    kRequiresRuntimeChecks = 2,
-    kHasNoSideEffect = 3,
-  };
-  static SideEffectState GetSideEffectState(Isolate* isolate,
-                                            Handle<SharedFunctionInfo> info);
-
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
+
+  // [script]: Script from which the function originates.
+  DECL_ACCESSORS(script, Object)
 
   // Position of the 'function' token in the script source.
   DECL_INT_ACCESSORS(function_token_position)
@@ -343,6 +302,23 @@ class SharedFunctionInfo : public HeapObject {
 
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
+
+  // Indicates that the function was created by the Function function.
+  // Though it's anonymous, toString should treat it as if it had the name
+  // "anonymous".  We don't set the name itself so that the system does not
+  // see a binding for it.
+  DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
+
+  // Indicates that the function is either an anonymous expression
+  // or an arrow function (the name field can be set through the API,
+  // which does not change this flag).
+  DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
+
+  // Indicates that the the shared function info is deserialized from cache.
+  DECL_BOOLEAN_ACCESSORS(deserialized)
+
+  // Indicates that the function has been reported for binary code coverage.
+  DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
 
   inline FunctionKind kind() const;
 
@@ -484,8 +460,7 @@ class SharedFunctionInfo : public HeapObject {
   V(kNameOrScopeInfoOffset, kPointerSize)                  \
   V(kOuterScopeInfoOrFeedbackMetadataOffset, kPointerSize) \
   V(kScriptOffset, kPointerSize)                           \
-  V(kDebugInfoOffset, kPointerSize)                        \
-  V(kFunctionIdentifierOffset, kPointerSize)               \
+  V(kFunctionIdentifierOrDebugInfoOffset, kPointerSize)    \
   V(kEndOfPointerFieldsOffset, 0)                          \
   /* Raw data fields. */                                   \
   V(kFunctionLiteralIdOffset, kInt32Size)                  \
@@ -537,8 +512,11 @@ class SharedFunctionInfo : public HeapObject {
   V(FunctionMapIndexBits, int, 5, _)                     \
   V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
   V(RequiresInstanceFieldsInitializer, bool, 1, _)       \
-  V(ConstructAsBuiltinBit, bool, 1, _)
-
+  V(ConstructAsBuiltinBit, bool, 1, _)                   \
+  V(IsAnonymousExpressionBit, bool, 1, _)                \
+  V(NameShouldPrintAsAnonymousBit, bool, 1, _)           \
+  V(IsDeserializedBit, bool, 1, _)                       \
+  V(HasReportedBinaryCoverageBit, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
@@ -547,22 +525,6 @@ class SharedFunctionInfo : public HeapObject {
                 DisabledOptimizationReasonBits::kMax);
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
-
-// Bit positions in |debugger_hints|.
-#define DEBUGGER_HINTS_BIT_FIELDS(V, _)        \
-  V(IsAnonymousExpressionBit, bool, 1, _)      \
-  V(NameShouldPrintAsAnonymousBit, bool, 1, _) \
-  V(IsDeserializedBit, bool, 1, _)             \
-  V(SideEffectStateBits, int, 2, _)            \
-  V(DebugIsBlackboxedBit, bool, 1, _)          \
-  V(ComputedDebugIsBlackboxedBit, bool, 1, _)  \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)  \
-  V(DebuggingIdBits, int, 20, _)
-
-  DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
-#undef DEBUGGER_HINTS_BIT_FIELDS
-
-  static const int kNoDebuggingId = 0;
 
   // Indicates that this function uses a super property (or an eval that may
   // use a super property).
@@ -578,8 +540,7 @@ class SharedFunctionInfo : public HeapObject {
   // function.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
 
-  inline int side_effect_state() const;
-  inline void set_side_effect_state(int value);
+  inline Object* function_identifier() const;
 
   inline void set_kind(FunctionKind kind);
 

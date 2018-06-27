@@ -819,6 +819,12 @@ void LiveEdit::ReplaceFunctionCode(
       compile_info_wrapper.GetSharedFunctionInfo();
 
   if (shared_info->is_compiled()) {
+    if (shared_info->HasBreakInfo()) {
+      // Existing break points will be re-applied. Reset the debug info here.
+      isolate->debug()->RemoveBreakInfoAndMaybeFree(
+          handle(shared_info->GetDebugInfo(), isolate));
+    }
+
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
     shared_info->FlushCompiled();
@@ -828,11 +834,6 @@ void LiveEdit::ReplaceFunctionCode(
       shared_info->set_bytecode_array(new_shared_info->GetBytecodeArray());
     }
 
-    if (shared_info->HasBreakInfo()) {
-      // Existing break points will be re-applied. Reset the debug info here.
-      isolate->debug()->RemoveBreakInfoAndMaybeFree(
-          handle(shared_info->GetDebugInfo(), isolate));
-    }
     shared_info->set_scope_info(new_shared_info->scope_info());
     shared_info->set_feedback_metadata(new_shared_info->feedback_metadata());
     shared_info->DisableOptimization(BailoutReason::kLiveEdit);

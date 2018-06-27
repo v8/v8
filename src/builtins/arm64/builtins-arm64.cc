@@ -901,10 +901,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(lr, fp, cp, closure);
   __ Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
 
-  // Get the bytecode array from the function object (or from the DebugInfo if
-  // it is present) and load it into kInterpreterBytecodeArrayRegister.
-  Label maybe_load_debug_bytecode_array, bytecode_array_loaded,
-      has_bytecode_array;
+  // Get the bytecode array from the function object and load it into
+  // kInterpreterBytecodeArrayRegister.
+  Label has_bytecode_array;
   __ Ldr(x0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(kInterpreterBytecodeArrayRegister,
          FieldMemOperand(x0, SharedFunctionInfo::kFunctionDataOffset));
@@ -915,9 +914,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          FieldMemOperand(kInterpreterBytecodeArrayRegister,
                          InterpreterData::kBytecodeArrayOffset));
   __ Bind(&has_bytecode_array);
-  __ Ldr(x11, FieldMemOperand(x0, SharedFunctionInfo::kDebugInfoOffset));
-  __ JumpIfNotSmi(x11, &maybe_load_debug_bytecode_array);
-  __ Bind(&bytecode_array_loaded);
 
   // Increment invocation count for the function.
   __ Ldr(x11, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
@@ -1030,31 +1026,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in x0.
   LeaveInterpreterFrame(masm, x2);
   __ Ret();
-
-  // Load debug copy of the bytecode array if it exists.
-  // kInterpreterBytecodeArrayRegister is already loaded with
-  // SharedFunctionInfo::kFunctionDataOffset.
-  __ Bind(&maybe_load_debug_bytecode_array);
-  __ Ldr(x10, FieldMemOperand(x11, DebugInfo::kDebugBytecodeArrayOffset));
-  __ JumpIfRoot(x10, Heap::kUndefinedValueRootIndex, &bytecode_array_loaded);
-
-  __ Mov(kInterpreterBytecodeArrayRegister, x10);
-  __ SmiUntag(x10, FieldMemOperand(x11, DebugInfo::kFlagsOffset));
-  __ And(x10, x10, Immediate(DebugInfo::kDebugExecutionMode));
-
-  STATIC_ASSERT(static_cast<int>(DebugInfo::kDebugExecutionMode) ==
-                static_cast<int>(DebugInfo::kSideEffects));
-  ExternalReference debug_execution_mode =
-      ExternalReference::debug_execution_mode_address(masm->isolate());
-  __ Mov(x11, Operand(debug_execution_mode));
-  __ Ldrsb(x11, MemOperand(x11));
-  __ CompareAndBranch(x10, x11, eq, &bytecode_array_loaded);
-
-  __ Push(closure, feedback_vector);
-  __ PushArgument(closure);
-  __ CallRuntime(Runtime::kDebugApplyInstrumentation);
-  __ Pop(feedback_vector, closure);
-  __ jmp(&bytecode_array_loaded);
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,

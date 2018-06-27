@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
 #include "src/heap/heap-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
@@ -33,9 +34,8 @@ ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
-ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
-ACCESSORS(SharedFunctionInfo, function_identifier, Object,
-          kFunctionIdentifierOffset)
+ACCESSORS(SharedFunctionInfo, function_identifier_or_debug_info, Object,
+          kFunctionIdentifierOrDebugInfoOffset)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, raw_start_position_and_type,
                     is_named_expression,
@@ -115,6 +115,15 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     requires_instance_fields_initializer,
                     SharedFunctionInfo::RequiresInstanceFieldsInitializer)
+
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
+                    SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_anonymous_expression,
+                    SharedFunctionInfo::IsAnonymousExpressionBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, deserialized,
+                    SharedFunctionInfo::IsDeserializedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_reported_binary_coverage,
+                    SharedFunctionInfo::HasReportedBinaryCoverageBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;
@@ -211,26 +220,6 @@ void SharedFunctionInfo::UpdateFunctionMapIndex() {
       language_mode(), kind(), true, HasSharedName(), needs_home_object());
   set_function_map_index(map_index);
 }
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    name_should_print_as_anonymous,
-                    SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
-                    SharedFunctionInfo::IsAnonymousExpressionBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized,
-                    SharedFunctionInfo::IsDeserializedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, side_effect_state,
-                    SharedFunctionInfo::SideEffectStateBits)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
-                    SharedFunctionInfo::DebugIsBlackboxedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    computed_debug_is_blackboxed,
-                    SharedFunctionInfo::ComputedDebugIsBlackboxedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    has_reported_binary_coverage,
-                    SharedFunctionInfo::HasReportedBinaryCoverageBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debugging_id,
-                    SharedFunctionInfo::DebuggingIdBits)
 
 void SharedFunctionInfo::DontAdaptArguments() {
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
@@ -406,12 +395,6 @@ bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info()->HasSimpleParameters();
 }
 
-bool SharedFunctionInfo::HasDebugInfo() const {
-  bool has_debug_info = !debug_info()->IsSmi();
-  DCHECK_EQ(debug_info()->IsStruct(), has_debug_info);
-  return has_debug_info;
-}
-
 bool SharedFunctionInfo::IsApiFunction() const {
   return function_data()->IsFunctionTemplateInfo();
 }
@@ -428,6 +411,19 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
 
 BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   DCHECK(HasBytecodeArray());
+  if (HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray()) {
+    return GetDebugInfo()->OriginalBytecodeArray();
+  } else if (function_data()->IsBytecodeArray()) {
+    return BytecodeArray::cast(function_data());
+  } else {
+    DCHECK(function_data()->IsInterpreterData());
+    return InterpreterData::cast(function_data())->bytecode_array();
+  }
+}
+
+BytecodeArray* SharedFunctionInfo::GetDebugBytecodeArray() const {
+  DCHECK(HasBytecodeArray());
+  DCHECK(HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray());
   if (function_data()->IsBytecodeArray()) {
     return BytecodeArray::cast(function_data());
   } else {
@@ -436,7 +432,17 @@ BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   }
 }
 
-void SharedFunctionInfo::set_bytecode_array(class BytecodeArray* bytecode) {
+void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray* bytecode) {
+  DCHECK(HasBytecodeArray());
+  if (function_data()->IsBytecodeArray()) {
+    set_function_data(bytecode);
+  } else {
+    DCHECK(function_data()->IsInterpreterData());
+    interpreter_data()->set_bytecode_array(bytecode);
+  }
+}
+
+void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
   set_function_data(bytecode);
 }
@@ -524,6 +530,33 @@ WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
   return WasmExportedFunctionData::cast(function_data());
 }
 
+bool SharedFunctionInfo::HasDebugInfo() const {
+  return function_identifier_or_debug_info()->IsDebugInfo();
+}
+
+DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
+  DCHECK(HasDebugInfo());
+  return DebugInfo::cast(function_identifier_or_debug_info());
+}
+
+Object* SharedFunctionInfo::function_identifier() const {
+  Object* result;
+  if (HasDebugInfo()) {
+    result = GetDebugInfo()->function_identifier();
+  } else {
+    result = function_identifier_or_debug_info();
+  }
+  DCHECK(result->IsSmi() || result->IsString() || result->IsUndefined());
+  return result;
+}
+
+void SharedFunctionInfo::SetDebugInfo(DebugInfo* debug_info) {
+  DCHECK(!HasDebugInfo());
+  DCHECK_EQ(debug_info->function_identifier(),
+            function_identifier_or_debug_info());
+  set_function_identifier_or_debug_info(debug_info);
+}
+
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_identifier()->IsSmi();
 }
@@ -534,7 +567,8 @@ BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
 }
 
 void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
-  set_function_identifier(Smi::FromInt(id));
+  DCHECK(!HasDebugInfo());
+  set_function_identifier_or_debug_info(Smi::FromInt(id));
 }
 
 bool SharedFunctionInfo::HasInferredName() {
@@ -550,8 +584,13 @@ String* SharedFunctionInfo::inferred_name() {
 }
 
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
-  DCHECK(function_identifier()->IsUndefined() || HasInferredName());
-  set_function_identifier(inferred_name);
+  DCHECK(function_identifier_or_debug_info()->IsUndefined() ||
+         HasInferredName() || HasDebugInfo());
+  if (HasDebugInfo()) {
+    GetDebugInfo()->set_function_identifier(inferred_name);
+  } else {
+    set_function_identifier_or_debug_info(inferred_name);
+  }
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {

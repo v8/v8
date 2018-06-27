@@ -127,7 +127,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_DEBUG(F)             \
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
-  F(DebugApplyInstrumentation, 1, 1)            \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
   F(DebugGetLoadedScripts, 0, 1)                \

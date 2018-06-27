@@ -30,7 +30,6 @@
 #include "src/counters-inl.h"
 #include "src/counters.h"
 #include "src/date.h"
-#include "src/debug/debug-evaluate.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -13685,21 +13684,21 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 
 bool SharedFunctionInfo::HasBreakInfo() const {
   if (!HasDebugInfo()) return false;
-  DebugInfo* info = DebugInfo::cast(debug_info());
+  DebugInfo* info = DebugInfo::cast(GetDebugInfo());
   bool has_break_info = info->HasBreakInfo();
   return has_break_info;
 }
 
 bool SharedFunctionInfo::BreakAtEntry() const {
   if (!HasDebugInfo()) return false;
-  DebugInfo* info = DebugInfo::cast(debug_info());
+  DebugInfo* info = DebugInfo::cast(GetDebugInfo());
   bool break_at_entry = info->BreakAtEntry();
   return break_at_entry;
 }
 
 bool SharedFunctionInfo::HasCoverageInfo() const {
   if (!HasDebugInfo()) return false;
-  DebugInfo* info = DebugInfo::cast(debug_info());
+  DebugInfo* info = DebugInfo::cast(GetDebugInfo());
   bool has_coverage_info = info->HasCoverageInfo();
   return has_coverage_info;
 }
@@ -13709,40 +13708,11 @@ CoverageInfo* SharedFunctionInfo::GetCoverageInfo() const {
   return CoverageInfo::cast(GetDebugInfo()->coverage_info());
 }
 
-DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
-  DCHECK(HasDebugInfo());
-  return DebugInfo::cast(debug_info());
-}
-
-int SharedFunctionInfo::debugger_hints() const {
-  if (HasDebugInfo()) return GetDebugInfo()->debugger_hints();
-  return Smi::ToInt(debug_info());
-}
-
-void SharedFunctionInfo::set_debugger_hints(int value) {
-  if (HasDebugInfo()) {
-    GetDebugInfo()->set_debugger_hints(value);
-  } else {
-    set_debug_info(Smi::FromInt(value));
-  }
-}
-
 String* SharedFunctionInfo::DebugName() {
   DisallowHeapAllocation no_gc;
   String* function_name = Name();
   if (function_name->length() > 0) return function_name;
   return inferred_name();
-}
-
-// static
-SharedFunctionInfo::SideEffectState SharedFunctionInfo::GetSideEffectState(
-    Isolate* isolate, Handle<SharedFunctionInfo> info) {
-  if (info->side_effect_state() == kNotComputed) {
-    SharedFunctionInfo::SideEffectState has_no_side_effect =
-        DebugEvaluate::FunctionGetSideEffectState(isolate, info);
-    info->set_side_effect_state(has_no_side_effect);
-  }
-  return static_cast<SideEffectState>(info->side_effect_state());
 }
 
 bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {

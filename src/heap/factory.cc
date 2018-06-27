@@ -3429,8 +3429,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
           *empty_feedback_metadata(), SKIP_WRITE_BARRIER);
     }
     share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
-    share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
-    share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
+    share->set_function_identifier_or_debug_info(*undefined_value(),
+                                                 SKIP_WRITE_BARRIER);
     share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
     share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
@@ -3455,7 +3455,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       isolate(), noscript_shared_function_infos(), share);
   isolate()->heap()->set_noscript_shared_function_infos(*new_noscript_list);
 
-  DCHECK_EQ(SharedFunctionInfo::kNoDebuggingId, share->debugging_id());
 #ifdef VERIFY_HEAP
   share->SharedFunctionInfoVerify(isolate());
 #endif
@@ -3534,12 +3533,16 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE, TENURED));
   debug_info->set_flags(DebugInfo::kNone);
   debug_info->set_shared(*shared);
-  debug_info->set_debugger_hints(shared->debugger_hints());
-  debug_info->set_debug_bytecode_array(heap->undefined_value());
+  debug_info->set_debugger_hints(0);
+  DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info->debugging_id());
+  DCHECK(!shared->HasDebugInfo());
+  debug_info->set_function_identifier(
+      shared->function_identifier_or_debug_info());
+  debug_info->set_original_bytecode_array(heap->undefined_value());
   debug_info->set_break_points(heap->empty_fixed_array());
 
   // Link debug info to function.
-  shared->set_debug_info(*debug_info);
+  shared->SetDebugInfo(*debug_info);
 
   return debug_info;
 }

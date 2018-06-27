@@ -185,9 +185,12 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   // Check break-at-entry flag on the debug info.
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Object> maybe_debug_info =
-      LoadObjectField(shared, SharedFunctionInfo::kDebugInfoOffset);
-  GotoIf(TaggedIsSmi(maybe_debug_info), &tailcall_to_shared);
+  TNode<Object> maybe_heap_object_or_smi = LoadObjectField(
+      shared, SharedFunctionInfo::kFunctionIdentifierOrDebugInfoOffset);
+  TNode<HeapObject> maybe_debug_info =
+      TaggedToHeapObject(maybe_heap_object_or_smi, &tailcall_to_shared);
+  GotoIfNot(HasInstanceType(maybe_debug_info, InstanceType::DEBUG_INFO_TYPE),
+            &tailcall_to_shared);
 
   {
     TNode<DebugInfo> debug_info = CAST(maybe_debug_info);
