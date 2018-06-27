@@ -156,11 +156,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
-  // Offset of {instructions_.start()}. It is used for tiering, when
-  // we check if optimized code is available during the prologue
-  // of Liftoff-compiled code.
-  static constexpr int kInstructionStartOffset = 0;
-
  private:
   friend class NativeModule;
 
@@ -187,7 +182,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(safepoint_table_offset, instructions.size());
     DCHECK_LE(constant_pool_offset, instructions.size());
     DCHECK_LE(handler_table_offset, instructions.size());
-    DCHECK_EQ(kInstructionStartOffset, OFFSET_OF(WasmCode, instructions_));
   }
 
   // Code objects that have been registered with the global trap handler within
