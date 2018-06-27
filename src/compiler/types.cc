@@ -316,7 +316,6 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
-    case WASM_COMPILED_MODULE_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case LOAD_HANDLER_TYPE:

@@ -86,7 +86,7 @@ struct ManuallyImportedJSFunction {
 
 // A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
-// objects, i.e. {WasmInstanceObject}, {WasmCompiledModule} and, if necessary,
+// objects, i.e. {WasmInstanceObject}, {WasmModuleObject} and, if necessary,
 // the interpreter.
 class TestingModuleBuilder {
  public:

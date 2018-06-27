@@ -548,7 +548,7 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     if (offset < kMemoryStartOffset) return true;
-    if (offset < kCompiledModuleOffset) return false;
+    if (offset < kModuleObjectOffset) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
 

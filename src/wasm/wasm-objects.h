@@ -36,7 +36,6 @@ class BreakPoint;
 class JSArrayBuffer;
 class FixedArrayOfWeakCells;
 class SeqOneByteString;
-class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
 
@@ -107,11 +106,11 @@ class WasmModuleObject : public JSObject {
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   inline wasm::NativeModule* native_module();
-  DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(managed_module, Managed<wasm::WasmModule>)
   inline wasm::WasmModule* module() const;
   DECL_ACCESSORS(script, Script)
+  DECL_ACCESSORS(weak_instance_list, WeakArrayList)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
   inline void reset_breakpoint_infos();
@@ -123,10 +122,10 @@ class WasmModuleObject : public JSObject {
 // Layout description.
 #define WASM_MODULE_OBJECT_FIELDS(V)       \
   V(kNativeModuleOffset, kPointerSize)     \
-  V(kCompiledModuleOffset, kPointerSize)   \
   V(kExportWrappersOffset, kPointerSize)   \
   V(kManagedModuleOffset, kPointerSize)    \
   V(kScriptOffset, kPointerSize)           \
+  V(kWeakInstanceListOffset, kPointerSize) \
   V(kAsmJsOffsetTableOffset, kPointerSize) \
   V(kBreakPointInfosOffset, kPointerSize)  \
   V(kSize, 0)
@@ -149,9 +148,6 @@ class WasmModuleObject : public JSObject {
   // this function returns false and does not set any breakpoint.
   static bool SetBreakPoint(Handle<WasmModuleObject>, int* position,
                             Handle<BreakPoint> break_point);
-
-  static void ValidateStateForTesting(Isolate* isolate,
-                                      Handle<WasmModuleObject> module);
 
   // Check whether this module was generated from asm.js source.
   inline bool is_asm_js();
@@ -374,7 +370,6 @@ class WasmInstanceObject : public JSObject {
  public:
   DECL_CAST(WasmInstanceObject)
 
-  DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(module_object, WasmModuleObject)
   DECL_ACCESSORS(exports_object, JSObject)
   DECL_ACCESSORS(native_context, Context)
@@ -408,7 +403,6 @@ class WasmInstanceObject : public JSObject {
 
 // Layout description.
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                  \
-  V(kCompiledModuleOffset, kPointerSize)                                \
   V(kModuleObjectOffset, kPointerSize)                                  \
   V(kExportsObjectOffset, kPointerSize)                                 \
   V(kNativeContextOffset, kPointerSize)                                 \
@@ -456,12 +450,7 @@ class WasmInstanceObject : public JSObject {
   // If no debug info exists yet, it is created automatically.
   static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);
 
-  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>,
-                                        Handle<WasmCompiledModule>);
-
-  static void ValidateInstancesChainForTesting(
-      Isolate* isolate, Handle<WasmModuleObject> module_obj,
-      int instance_count);
+  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
   static void InstallFinalizer(Isolate* isolate,
                                Handle<WasmInstanceObject> instance);
@@ -517,73 +506,6 @@ class WasmExportedFunctionData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 #undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
-};
-
-// This represents the set of wasm compiled functions, together
-// with all the information necessary for re-specializing them.
-class WasmCompiledModule : public Struct {
- public:
-  DECL_CAST(WasmCompiledModule)
-
-  // Dispatched behavior.
-  DECL_PRINTER(WasmCompiledModule)
-  DECL_VERIFIER(WasmCompiledModule)
-
-// Layout description.
-#define WASM_COMPILED_MODULE_FIELDS(V)          \
-  V(kNextInstanceOffset, kPointerSize)          \
-  V(kPrevInstanceOffset, kPointerSize)          \
-  V(kOwningInstanceOffset, kPointerSize)        \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                WASM_COMPILED_MODULE_FIELDS)
-#undef WASM_COMPILED_MODULE_FIELDS
-
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, SETTER_MODIFIER) \
- public:                                                \
-  inline TYPE* NAME() const;                            \
-  inline bool has_##NAME() const;                       \
-  inline void reset_##NAME();                           \
-                                                        \
-  SETTER_MODIFIER:                                      \
-  inline void set_##NAME(TYPE* value,                   \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-#define WCM_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, public)
-
-#define WCM_CONST_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, private)
-
-#define WCM_WEAK_LINK(TYPE, NAME)                   \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, public) \
-                                                    \
- public:                                            \
-  inline TYPE* NAME() const;
-
-  // Add values here if they are required for creating new instances or
-  // for deserialization, and if they are serializable.
-  // By default, instance values go to WasmInstanceObject, however, if
-  // we embed the generated code with a value, then we track that value here.
-  WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
-  WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
-  WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
-
- public:
-  static Handle<WasmCompiledModule> New(Isolate* isolate);
-
-  static Handle<WasmCompiledModule> Clone(Isolate* isolate,
-                                          Handle<WasmCompiledModule> module);
-
-  bool has_instance() const;
-
-  void InsertInChain(WasmModuleObject*);
-  void RemoveFromChain(Isolate* isolate);
-
-  DECL_ACCESSORS(raw_next_instance, Object);
-  DECL_ACCESSORS(raw_prev_instance, Object);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };
 
 class WasmDebugInfo : public Struct {
@@ -681,11 +603,6 @@ class WasmDebugInfo : public Struct {
 };
 
 #undef DECL_OPTIONAL_ACCESSORS
-#undef WCM_CONST_OBJECT
-#undef WCM_LARGE_NUMBER
-#undef WCM_OBJECT
-#undef WCM_OBJECT_OR_WEAK
-#undef WCM_WEAK_LINK
 
 }  // namespace internal
 }  // namespace v8

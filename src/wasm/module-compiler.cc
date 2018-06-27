@@ -229,9 +229,8 @@ class JSToWasmWrapperCache {
   std::vector<Handle<Code>> code_cache_;
 };
 
-// A helper class to simplify instantiating a module from a compiled module.
-// It closes over the {Isolate}, the {ErrorThrower}, the {WasmCompiledModule},
-// etc.
+// A helper class to simplify instantiating a module from a module object.
+// It closes over the {Isolate}, the {ErrorThrower}, etc.
 class InstanceBuilder {
  public:
   InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
@@ -1046,7 +1045,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Record build time into correct bucket, then build instance.
   TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
       counters(), module_->origin, wasm_instantiate, module_time));
-  Factory* factory = isolate_->factory();
 
   //--------------------------------------------------------------------------
   // Allocate the memory array buffer.
@@ -1082,6 +1080,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     memory_ = AllocateMemory(initial_pages);
     if (memory_.is_null()) return {};  // failed to allocate memory
   }
+
   //--------------------------------------------------------------------------
   // Recompile module if using trap handlers but could not get guarded memory
   //--------------------------------------------------------------------------
@@ -1114,41 +1113,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Reuse the compiled module (if no owner), otherwise clone.
-  //--------------------------------------------------------------------------
-  wasm::NativeModule* native_module = module_object_->native_module();
-  // Root the old instance, if any, in case later allocation causes GC,
-  // to prevent the finalizer running for the old instance.
-  MaybeHandle<WasmInstanceObject> old_instance;
-
-  TRACE("Starting new module instantiation\n");
-  Handle<WasmCompiledModule> new_compiled_module;
-  {
-    Handle<WasmCompiledModule> original =
-        handle(module_object_->compiled_module(), isolate_);
-    if (original->has_instance()) {
-      old_instance = handle(original->owning_instance(), isolate_);
-      // Clone, but don't insert yet the clone in the instances chain.
-      // We do that last. Since we are holding on to the old instance,
-      // the owner + original state used for cloning and patching
-      // won't be mutated by possible finalizer runs.
-      TRACE("Cloning from %zu\n", native_module->instance_id);
-      new_compiled_module = WasmCompiledModule::Clone(isolate_, original);
-      RecordStats(module_object_->native_module(), counters());
-    } else {
-      // No instance owned the original compiled module.
-      new_compiled_module = original;
-      TRACE("Reusing existing instance %zu\n", native_module->instance_id);
-    }
-  }
-  wasm::NativeModuleModificationScope native_modification_scope(native_module);
-
-  //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
+  wasm::NativeModule* native_module = module_object_->native_module();
+  TRACE("New module instantiation for %zu\n", native_module->instance_id);
   Handle<WasmInstanceObject> instance =
-      WasmInstanceObject::New(isolate_, module_object_, new_compiled_module);
-  Handle<WeakCell> weak_instance = factory->NewWeakCell(instance);
+      WasmInstanceObject::New(isolate_, module_object_);
+  wasm::NativeModuleModificationScope native_modification_scope(native_module);
 
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
@@ -1294,18 +1265,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   FlushICache(native_module);
 
   //--------------------------------------------------------------------------
-  // Insert the compiled module into the weak list of compiled modules.
+  // Install a finalizer on the new instance object.
   //--------------------------------------------------------------------------
-  {
-    if (!old_instance.is_null()) {
-      // Publish the new instance to the instances chain.
-      DisallowHeapAllocation no_gc;
-      new_compiled_module->InsertInChain(*module_object_);
-    }
-    module_object_->set_compiled_module(*new_compiled_module);
-    new_compiled_module->set_weak_owning_instance(*weak_instance);
-    WasmInstanceObject::InstallFinalizer(isolate_, instance);
-  }
+  WasmInstanceObject::InstallFinalizer(isolate_, instance);
 
   //--------------------------------------------------------------------------
   // Debugging support.

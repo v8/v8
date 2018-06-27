@@ -290,11 +290,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
 }
 
 WasmCode::~WasmCode() {
-  // Depending on finalizer order, the WasmCompiledModule finalizer may be
-  // called first, case in which we release here. If the InstanceFinalizer is
-  // called first, the handlers will be cleared in Reset, as-if the NativeModule
-  // may be later used again (which would be the case if the WasmCompiledModule
-  // were still held by a WasmModuleObject)
   if (HasTrapHandlerIndex()) {
     CHECK_LT(trap_handler_index(),
              static_cast<size_t>(std::numeric_limits<int>::max()));

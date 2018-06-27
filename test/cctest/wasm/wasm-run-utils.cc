@@ -224,20 +224,14 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, export_wrappers, test_module_, env,
                             nullptr, 0, script, Handle<ByteArray>::null());
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
-                                             isolate_);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
   native_module_ = module_object->native_module();
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
-  DCHECK(compiled_module->IsWasmCompiledModule());
-  auto instance =
-      WasmInstanceObject::New(isolate_, module_object, compiled_module);
+  auto instance = WasmInstanceObject::New(isolate_, module_object);
   instance->set_globals_start(globals_data_);
-  Handle<WeakCell> weak_instance = isolate()->factory()->NewWeakCell(instance);
-  compiled_module->set_weak_owning_instance(*weak_instance);
   return instance;
 }
 

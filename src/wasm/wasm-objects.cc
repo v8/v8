@@ -144,103 +144,6 @@ WasmInstanceNativeAllocations* GetNativeAllocations(
       ->raw();
 }
 
-// An iterator that returns first the module itself, then all modules linked via
-// next, then all linked via prev.
-class CompiledModulesIterator
-    : public v8::base::iterator<std::input_iterator_tag,
-                                Handle<WasmCompiledModule>> {
- public:
-  CompiledModulesIterator(Isolate* isolate,
-                          Handle<WasmCompiledModule> start_module, bool at_end)
-      : isolate_(isolate),
-        start_module_(start_module),
-        current_(
-            at_end ? Handle<WasmCompiledModule>::null()
-                   : Handle<WasmCompiledModule>::New(*start_module, isolate)) {}
-
-  Handle<WasmCompiledModule> operator*() const {
-    DCHECK(!current_.is_null());
-    return current_;
-  }
-
-  void operator++() { Advance(); }
-
-  bool operator!=(const CompiledModulesIterator& other) {
-    DCHECK(start_module_.is_identical_to(other.start_module_));
-    return !current_.is_identical_to(other.current_);
-  }
-
- private:
-  void Advance() {
-    DCHECK(!current_.is_null());
-    if (!is_backwards_) {
-      if (current_->has_next_instance()) {
-        *current_.location() = current_->next_instance();
-        return;
-      }
-      // No more modules in next-links, now try the previous-links.
-      is_backwards_ = true;
-      current_ = start_module_;
-    }
-    if (current_->has_prev_instance()) {
-      *current_.location() = current_->prev_instance();
-      return;
-    }
-    current_ = Handle<WasmCompiledModule>::null();
-  }
-
-  friend class CompiledModuleInstancesIterator;
-  Isolate* isolate_;
-  Handle<WasmCompiledModule> start_module_;
-  Handle<WasmCompiledModule> current_;
-  bool is_backwards_ = false;
-};
-
-// An iterator based on the CompiledModulesIterator, but it returns all live
-// instances, not the WasmCompiledModules itself.
-class CompiledModuleInstancesIterator
-    : public v8::base::iterator<std::input_iterator_tag,
-                                Handle<WasmInstanceObject>> {
- public:
-  CompiledModuleInstancesIterator(Isolate* isolate,
-                                  Handle<WasmCompiledModule> start_module,
-                                  bool at_end)
-      : it(isolate, start_module, at_end) {
-    while (NeedToAdvance()) ++it;
-  }
-
-  Handle<WasmInstanceObject> operator*() {
-    return handle(
-        WasmInstanceObject::cast((*it)->weak_owning_instance()->value()),
-        it.isolate_);
-  }
-
-  void operator++() {
-    do {
-      ++it;
-    } while (NeedToAdvance());
-  }
-
-  bool operator!=(const CompiledModuleInstancesIterator& other) {
-    return it != other.it;
-  }
-
- private:
-  bool NeedToAdvance() {
-    return !it.current_.is_null() && !it.current_->has_instance();
-  }
-  CompiledModulesIterator it;
-};
-
-v8::base::iterator_range<CompiledModuleInstancesIterator>
-iterate_compiled_module_instance_chain(Isolate* isolate,
-                                       Handle<WasmModuleObject> module_object) {
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
-                                             isolate);
-  return {CompiledModuleInstancesIterator(isolate, compiled_module, false),
-          CompiledModuleInstancesIterator(isolate, compiled_module, true)};
-}
-
 #ifdef DEBUG
 bool IsBreakablePosition(wasm::NativeModule* native_module, int func_index,
                          int offset_in_func) {
@@ -285,24 +188,19 @@ Handle<WasmModuleObject> WasmModuleObject::New(
       Managed<WasmModule>::FromSharedPtr(isolate, module_size,
                                          std::move(shared_module));
 
-  // Create the first {WasmCompiledModule} associated with this
-  // {WasmModuleObject}.
-  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(isolate);
-
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
       isolate->native_context()->wasm_module_constructor(), isolate);
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
-  module_object->set_compiled_module(*compiled_module);
   module_object->set_export_wrappers(*export_wrappers);
+  module_object->set_managed_module(*managed_module);
   if (script->type() == Script::TYPE_WASM) {
     script->set_wasm_module_object(*module_object);
   }
-  module_object->set_managed_module(*managed_module);
-  if (!script.is_null()) {
-    module_object->set_script(*script);
-  }
+  module_object->set_script(*script);
+  module_object->set_weak_instance_list(
+      isolate->heap()->empty_weak_array_list());
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
@@ -342,24 +240,22 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
   WasmModuleObject::AddBreakpoint(module_object, *position, break_point);
 
   // Iterate over all instances of this module and tell them to set this new
-  // breakpoint.
-  for (Handle<WasmInstanceObject> instance :
-       iterate_compiled_module_instance_chain(isolate, module_object)) {
-    Handle<WasmDebugInfo> debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+  // breakpoint. We do this using the weak list of all instances.
+  Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
+                                           isolate);
+  for (int i = 0; i < weak_instance_list->length(); ++i) {
+    MaybeObject* maybe_instance = weak_instance_list->Get(i);
+    if (maybe_instance->IsWeakHeapObject()) {
+      Handle<WasmInstanceObject> instance(
+          WasmInstanceObject::cast(maybe_instance->ToWeakHeapObject()),
+          isolate);
+      Handle<WasmDebugInfo> debug_info =
+          WasmInstanceObject::GetOrCreateDebugInfo(instance);
+      WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+    }
   }
 
   return true;
-}
-
-void WasmModuleObject::ValidateStateForTesting(
-    Isolate* isolate, Handle<WasmModuleObject> module_obj) {
-  DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module = module_obj->compiled_module();
-  CHECK(!compiled_module->has_prev_instance());
-  CHECK(!compiled_module->has_next_instance());
-  CHECK(!compiled_module->has_instance());
 }
 
 namespace {
@@ -1305,8 +1201,7 @@ Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
 }
 
 Handle<WasmInstanceObject> WasmInstanceObject::New(
-    Isolate* isolate, Handle<WasmModuleObject> module_object,
-    Handle<WasmCompiledModule> compiled_module) {
+    Isolate* isolate, Handle<WasmModuleObject> module_object) {
   Handle<JSFunction> instance_cons(
       isolate->native_context()->wasm_instance_constructor(), isolate);
   Handle<JSObject> instance_object =
@@ -1345,36 +1240,22 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_sig_ids(nullptr);
   instance->set_indirect_function_table_targets(nullptr);
-  instance->set_compiled_module(*compiled_module);
   instance->set_native_context(*isolate->native_context());
   instance->set_module_object(*module_object);
   instance->set_undefined_value(isolate->heap()->undefined_value());
   instance->set_null_value(isolate->heap()->null_value());
 
-  return instance;
-}
+  // Insert the new instance into the modules weak list of instances.
+  // TODO(mstarzinger): Allow to reuse holes in the {WeakArrayList} below.
+  Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
+                                           isolate);
+  weak_instance_list = WeakArrayList::AddToEnd(
+      weak_instance_list,
+      MaybeObjectHandle(
+          MaybeObject::MakeWeak(MaybeObject::FromObject(*instance)), isolate));
+  module_object->set_weak_instance_list(*weak_instance_list);
 
-void WasmInstanceObject::ValidateInstancesChainForTesting(
-    Isolate* isolate, Handle<WasmModuleObject> module_obj, int instance_count) {
-  CHECK_GE(instance_count, 0);
-  DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module = module_obj->compiled_module();
-  Object* prev = nullptr;
-  int found_instances = compiled_module->has_instance() ? 1 : 0;
-  WasmCompiledModule* current_instance = compiled_module;
-  while (current_instance->has_next_instance()) {
-    CHECK((prev == nullptr && !current_instance->has_prev_instance()) ||
-          current_instance->prev_instance() == prev);
-    CHECK(current_instance->weak_owning_instance()
-              ->value()
-              ->IsWasmInstanceObject());
-    prev = current_instance;
-    current_instance =
-        WasmCompiledModule::cast(current_instance->next_instance());
-    ++found_instances;
-    CHECK_LE(found_instances, instance_count);
-  }
-  CHECK_EQ(found_instances, instance_count);
+  return instance;
 }
 
 namespace {
@@ -1385,7 +1266,6 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   // If a link to shared memory instances exists, update the list of memory
   // instances before the instance is destroyed.
-  WasmCompiledModule* compiled_module = instance->compiled_module();
   TRACE("Finalizing %zu {\n",
         instance->module_object()->native_module()->instance_id);
 
@@ -1401,23 +1281,8 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
                                      handle(instance, isolate));
   }
 
-  // We want to maintain a link from the {WasmModuleObject} to the first link
-  // within the linked {WasmInstanceObject} list, even if the last instance is
-  // finalized. This allows us to clone new {WasmCompiledModule} objects during
-  // instantiation without having to regenerate the compiled module.
-  WasmModuleObject* module_object = instance->module_object();
-  WasmCompiledModule* current_template = module_object->compiled_module();
-  DCHECK(!current_template->has_prev_instance());
-  if (current_template == compiled_module) {
-    if (compiled_module->has_next_instance()) {
-      module_object->set_compiled_module(compiled_module->next_instance());
-    }
-  }
-
   // Free raw C++ memory associated with the instance.
   GetNativeAllocations(instance)->free();
-
-  compiled_module->RemoveFromChain(isolate);
 
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
   TRACE("}\n");
@@ -1494,44 +1359,6 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 
 Address WasmExportedFunction::GetWasmCallTarget() {
   return instance()->GetCallTarget(function_index());
-}
-
-Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate) {
-  Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
-      isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
-  compiled_module->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
-  return compiled_module;
-}
-
-Handle<WasmCompiledModule> WasmCompiledModule::Clone(
-    Isolate* isolate, Handle<WasmCompiledModule> module) {
-  Handle<FixedArray> code_copy;
-  Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
-      isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
-  ret->set_weak_owning_instance(isolate->heap()->empty_weak_cell());
-
-  return ret;
-}
-
-void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {
-  DisallowHeapAllocation no_gc;
-  WasmCompiledModule* original = module->compiled_module();
-  set_next_instance(original);
-  original->set_prev_instance(this);
-}
-
-void WasmCompiledModule::RemoveFromChain(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
-
-  Object* next = raw_next_instance();
-  Object* prev = raw_prev_instance();
-
-  if (!prev->IsUndefined(isolate)) {
-    WasmCompiledModule::cast(prev)->set_raw_next_instance(next);
-  }
-  if (!next->IsUndefined(isolate)) {
-    WasmCompiledModule::cast(next)->set_raw_prev_instance(prev);
-  }
 }
 
 #undef TRACE

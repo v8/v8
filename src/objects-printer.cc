@@ -1672,11 +1672,6 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void WasmCompiledModule::WasmCompiledModulePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WasmCompiledModule");
-  os << "\n";
-}
-
 void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WasmDebugInfo");
   os << "\n - wasm_instance: " << Brief(wasm_instance());
@@ -1685,7 +1680,6 @@ void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
 
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WasmInstanceObject");
-  os << "\n - compiled_module: " << Brief(compiled_module());
   os << "\n - module_object: " << Brief(module_object());
   os << "\n - exports_object: " << Brief(exports_object());
   os << "\n - native_context: " << Brief(native_context());

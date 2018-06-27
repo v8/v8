@@ -1540,13 +1540,6 @@ void Tuple3::Tuple3Verify(Isolate* isolate) {
   VerifyObjectField(kValue3Offset);
 }
 
-void WasmCompiledModule::WasmCompiledModuleVerify(Isolate* isolate) {
-  CHECK(IsWasmCompiledModule());
-  VerifyObjectField(kNextInstanceOffset);
-  VerifyObjectField(kPrevInstanceOffset);
-  VerifyObjectField(kOwningInstanceOffset);
-}
-
 void WasmDebugInfo::WasmDebugInfoVerify(Isolate* isolate) {
   CHECK(IsWasmDebugInfo());
   VerifyObjectField(kInstanceOffset);
@@ -1586,7 +1579,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 void WasmModuleObject::WasmModuleObjectVerify(Isolate* isolate) {
   CHECK(IsWasmModuleObject());
   VerifyObjectField(kNativeModuleOffset);
-  VerifyObjectField(kCompiledModuleOffset);
   VerifyObjectField(kExportWrappersOffset);
   VerifyObjectField(kManagedModuleOffset);
   CHECK(managed_module()->IsForeign());

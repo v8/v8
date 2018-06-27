@@ -20,7 +20,6 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(WasmCompiledModule)
 CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
@@ -52,12 +51,12 @@ CAST_ACCESSOR(WasmTableObject)
 // WasmModuleObject
 ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
-ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
-          kCompiledModuleOffset)
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(WasmModuleObject, managed_module, Managed<wasm::WasmModule>,
           kManagedModuleOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
+ACCESSORS(WasmModuleObject, weak_instance_list, WeakArrayList,
+          kWeakInstanceListOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
@@ -156,8 +155,6 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
                     Address*, kIndirectFunctionTableTargetsOffset)
 
-ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
-          kCompiledModuleOffset)
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
@@ -220,40 +217,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
                    kCWasmEntryMapOffset)
 
 #undef OPTIONAL_ACCESSORS
-
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, TYPE_CHECK)   \
-  bool WasmCompiledModule::has_##NAME() const {              \
-    Object* value = READ_FIELD(this, OFFSET);                \
-    return TYPE_CHECK;                                       \
-  }                                                          \
-                                                             \
-  void WasmCompiledModule::reset_##NAME() {                  \
-    WRITE_FIELD(this, OFFSET, GetHeap()->undefined_value()); \
-  }                                                          \
-                                                             \
-  ACCESSORS_CHECKED2(WasmCompiledModule, NAME, TYPE, OFFSET, TYPE_CHECK, true)
-
-#define WCM_OBJECT(TYPE, NAME, OFFSET) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, value->Is##TYPE())
-
-#define WCM_WEAK_LINK(TYPE, NAME, OFFSET)                                \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, OFFSET, value->IsWeakCell()) \
-                                                                         \
-  TYPE* WasmCompiledModule::NAME() const {                               \
-    DCHECK(!weak_##NAME()->cleared());                                   \
-    return TYPE::cast(weak_##NAME()->value());                           \
-  }
-
-// WasmCompiledModule
-WCM_OBJECT(WasmCompiledModule, next_instance, kNextInstanceOffset)
-WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)
-WCM_WEAK_LINK(WasmInstanceObject, owning_instance, kOwningInstanceOffset)
-ACCESSORS(WasmCompiledModule, raw_next_instance, Object, kNextInstanceOffset);
-ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
-
-#undef WCM_OBJECT_OR_WEAK
-#undef WCM_OBJECT
-#undef WCM_WEAK_LINK
 #undef READ_PRIMITIVE_FIELD
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
@@ -261,10 +224,6 @@ ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
-
-inline bool WasmCompiledModule::has_instance() const {
-  return !weak_owning_instance()->cleared();
-}
 
 #include "src/objects/object-macros-undef.h"
 
