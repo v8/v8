@@ -806,4 +806,9 @@
   'built-ins/RegExp/property-escapes/generated/*': [SKIP],
 }],  # variant != default or arch == arm or arch == arm64
 
+['system == windows', {
+  # https://crbug.com/856119
+  'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [FAIL],
+}],  # system == windows
+
 ]
