@@ -2705,8 +2705,7 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
-  Address entry_offset =
-      kHeaderSize + GetDataEntryOffset(entry, relative_index);
+  Address entry_offset = GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
   WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
                 static_cast<int>(entry_offset), value);

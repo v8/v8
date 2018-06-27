@@ -3314,6 +3314,80 @@ TEST(SingleInputPhiElimination) {
   // single-input phi is properly eliminated.
 }
 
+TEST(SmallOrderedHashMapAllocate) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    TNode<Smi> capacity = m.CAST(m.Parameter(0));
+    m.Return(m.AllocateSmallOrderedHashTable<SmallOrderedHashMap>(
+        m.SmiToIntPtr(capacity)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Factory* factory = isolate->factory();
+  int capacity = SmallOrderedHashMap::kMinCapacity;
+  while (capacity <= SmallOrderedHashMap::kMaxCapacity) {
+    Handle<SmallOrderedHashMap> expected =
+        factory->NewSmallOrderedHashMap(capacity);
+    Handle<Object> result_raw =
+        ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
+    Handle<SmallOrderedHashMap> actual = Handle<SmallOrderedHashMap>(
+        SmallOrderedHashMap::cast(*result_raw), isolate);
+    CHECK_EQ(capacity, actual->Capacity());
+    CHECK_EQ(0, actual->NumberOfElements());
+    CHECK_EQ(0, actual->NumberOfDeletedElements());
+    CHECK_EQ(capacity / SmallOrderedHashMap::kLoadFactor,
+             actual->NumberOfBuckets());
+    CHECK(memcmp(*expected, *actual, SmallOrderedHashMap::SizeFor(capacity)));
+#ifdef VERIFY_HEAP
+    actual->SmallOrderedHashTableVerify(isolate);
+#endif
+    capacity = capacity << 1;
+  }
+#ifdef VERIFY_HEAP
+  isolate->heap()->Verify();
+#endif
+}
+
+TEST(SmallOrderedHashSetAllocate) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    TNode<Smi> capacity = m.CAST(m.Parameter(0));
+    m.Return(m.AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
+        m.SmiToIntPtr(capacity)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  int capacity = SmallOrderedHashSet::kMinCapacity;
+  Factory* factory = isolate->factory();
+  while (capacity <= SmallOrderedHashSet::kMaxCapacity) {
+    Handle<SmallOrderedHashSet> expected =
+        factory->NewSmallOrderedHashSet(capacity);
+    Handle<Object> result_raw =
+        ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
+    Handle<SmallOrderedHashSet> actual = Handle<SmallOrderedHashSet>(
+        SmallOrderedHashSet::cast(*result_raw), isolate);
+    CHECK_EQ(capacity, actual->Capacity());
+    CHECK_EQ(0, actual->NumberOfElements());
+    CHECK_EQ(0, actual->NumberOfDeletedElements());
+    CHECK_EQ(capacity / SmallOrderedHashSet::kLoadFactor,
+             actual->NumberOfBuckets());
+    CHECK(memcmp(*expected, *actual, SmallOrderedHashSet::SizeFor(capacity)));
+#ifdef VERIFY_HEAP
+    actual->SmallOrderedHashTableVerify(isolate);
+#endif
+    capacity = capacity << 1;
+  }
+#ifdef VERIFY_HEAP
+  isolate->heap()->Verify();
+#endif
+}
+
 TEST(IsDoubleElementsKind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;

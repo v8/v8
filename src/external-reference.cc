@@ -725,9 +725,9 @@ ExternalReference ExternalReference::libc_memmove_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(libc_memmove)));
 }
 
-void* libc_memset(void* dest, int byte, size_t n) {
-  DCHECK_EQ(static_cast<char>(byte), byte);
-  return memset(dest, byte, n);
+void* libc_memset(void* dest, int value, size_t n) {
+  DCHECK_EQ(static_cast<byte>(value), value);
+  return memset(dest, value, n);
 }
 
 ExternalReference ExternalReference::libc_memset_function() {

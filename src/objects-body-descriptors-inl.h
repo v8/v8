@@ -235,7 +235,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
                                  ObjectVisitor* v) {
     Derived* table = reinterpret_cast<Derived*>(obj);
 
-    int offset = kHeaderSize + kDataTableStartOffset;
+    int offset = kDataTableStartOffset;
     int entry = 0;
     for (int i = 0; i < table->Capacity(); i++) {
       for (int j = 0; j < Derived::kEntrySize; j++) {

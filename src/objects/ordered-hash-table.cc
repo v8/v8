@@ -337,7 +337,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
          num_buckets + num_chains);
 
   if (isolate->heap()->InNewSpace(this)) {
-    MemsetPointer(RawField(this, kHeaderSize + kDataTableStartOffset),
+    MemsetPointer(RawField(this, kDataTableStartOffset),
                   isolate->heap()->the_hole_value(),
                   capacity * Derived::kEntrySize);
   } else {

@@ -1072,6 +1072,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* LoadSharedFunctionInfoBytecodeArray(Node* shared);
 
+  void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
+                                     TNode<Word32T> value);
+
   // Store the floating point value of a HeapNumber.
   void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                             SloppyTNode<Float64T> value);
@@ -1253,6 +1256,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* table, Node* hash,
       std::function<void(Node*, Label*, Label*)> key_compare,
       Variable* entry_start_position, Label* entry_found, Label* not_found);
+
+  template <typename CollectionType>
+  TNode<CollectionType> AllocateSmallOrderedHashTable(TNode<IntPtrT> capacity);
 
   Node* AllocateStruct(Node* map, AllocationFlags flags = kNone);
   void InitializeStructBody(Node* object, Node* map, Node* size,
@@ -1554,7 +1560,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                    Variable* var_numeric,
                                    Variable* var_feedback);
 
-  Node* TimesPointerSize(Node* value);
+  SloppyTNode<WordT> TimesPointerSize(Node* value);
 
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,

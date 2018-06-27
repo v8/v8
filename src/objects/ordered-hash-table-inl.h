@@ -19,6 +19,14 @@ int OrderedHashMap::GetMapRootIndex() {
   return Heap::kOrderedHashMapMapRootIndex;
 }
 
+int SmallOrderedHashMap::GetMapRootIndex() {
+  return Heap::kSmallOrderedHashMapMapRootIndex;
+}
+
+int SmallOrderedHashSet::GetMapRootIndex() {
+  return Heap::kSmallOrderedHashSetMapRootIndex;
+}
+
 inline Object* OrderedHashMap::ValueAt(int entry) {
   DCHECK_LT(entry, this->UsedCapacity());
   return get(EntryToIndex(entry) + kValueOffset);

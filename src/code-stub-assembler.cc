@@ -2433,6 +2433,13 @@ Node* CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(Node* shared) {
   return var_result.value();
 }
 
+void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
+                                                      int offset,
+                                                      TNode<Word32T> value) {
+  StoreNoWriteBarrier(MachineRepresentation::kWord8, object,
+                      IntPtrConstant(offset - kHeapObjectTag), value);
+}
+
 void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                                              SloppyTNode<Float64T> value) {
   StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
@@ -3255,6 +3262,87 @@ Node* CodeStubAssembler::AllocateOrderedHashTable() {
 
 template Node* CodeStubAssembler::AllocateOrderedHashTable<OrderedHashMap>();
 template Node* CodeStubAssembler::AllocateOrderedHashTable<OrderedHashSet>();
+
+template <typename CollectionType>
+TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
+    TNode<IntPtrT> capacity) {
+  CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
+  CSA_ASSERT(this, IntPtrLessThan(
+                       capacity, IntPtrConstant(CollectionType::kMaxCapacity)));
+
+  TNode<IntPtrT> data_table_start_offset =
+      IntPtrConstant(CollectionType::kDataTableStartOffset);
+
+  TNode<IntPtrT> data_table_size = IntPtrMul(
+      capacity, IntPtrConstant(CollectionType::kEntrySize * kPointerSize));
+
+  TNode<Int32T> hash_table_size =
+      Int32Div(TruncateIntPtrToInt32(capacity),
+               Int32Constant(CollectionType::kLoadFactor));
+
+  TNode<IntPtrT> hash_table_start_offset =
+      IntPtrAdd(data_table_start_offset, data_table_size);
+
+  TNode<IntPtrT> hash_table_and_chain_table_size =
+      IntPtrAdd(ChangeInt32ToIntPtr(hash_table_size), capacity);
+
+  TNode<IntPtrT> total_size =
+      IntPtrAdd(hash_table_start_offset, hash_table_and_chain_table_size);
+
+  TNode<IntPtrT> total_size_word_aligned =
+      IntPtrAdd(total_size, IntPtrConstant(kPointerSize - 1));
+  total_size_word_aligned = ChangeInt32ToIntPtr(
+      Int32Div(TruncateIntPtrToInt32(total_size_word_aligned),
+               Int32Constant(kPointerSize)));
+  total_size_word_aligned =
+      UncheckedCast<IntPtrT>(TimesPointerSize(total_size_word_aligned));
+
+  // Allocate the table and add the proper map.
+  TNode<Map> small_ordered_hash_map = CAST(LoadRoot(
+      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex())));
+  TNode<Object> table_obj = CAST(AllocateInNewSpace(total_size_word_aligned));
+  StoreMapNoWriteBarrier(table_obj, small_ordered_hash_map);
+  TNode<CollectionType> table = UncheckedCast<CollectionType>(table_obj);
+
+  // Initialize the SmallOrderedHashTable fields.
+  StoreObjectByteNoWriteBarrier(
+      table, CollectionType::kNumberOfBucketsOffset,
+      Word32And(Int32Constant(0xFF), hash_table_size));
+  StoreObjectByteNoWriteBarrier(table, CollectionType::kNumberOfElementsOffset,
+                                Int32Constant(0));
+  StoreObjectByteNoWriteBarrier(
+      table, CollectionType::kNumberOfDeletedElementsOffset, Int32Constant(0));
+
+  TNode<IntPtrT> table_address =
+      IntPtrSub(BitcastTaggedToWord(table), IntPtrConstant(kHeapObjectTag));
+  TNode<IntPtrT> hash_table_start_address =
+      IntPtrAdd(table_address, hash_table_start_offset);
+
+  // Initialize the HashTable part.
+  Node* memset = ExternalConstant(ExternalReference::libc_memset_function());
+  CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
+                 hash_table_start_address, IntPtrConstant(0xFF),
+                 hash_table_and_chain_table_size);
+
+  // Initialize the DataTable part.
+  TNode<HeapObject> filler = TheHoleConstant();
+  TNode<WordT> data_table_start_address =
+      IntPtrAdd(table_address, data_table_start_offset);
+  TNode<WordT> data_table_end_address =
+      IntPtrAdd(data_table_start_address, data_table_size);
+  StoreFieldsNoWriteBarrier(data_table_start_address, data_table_end_address,
+                            filler);
+
+  return table;
+}
+
+template TNode<SmallOrderedHashMap>
+CodeStubAssembler::AllocateSmallOrderedHashTable<SmallOrderedHashMap>(
+    TNode<IntPtrT> capacity);
+template TNode<SmallOrderedHashSet>
+CodeStubAssembler::AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
+    TNode<IntPtrT> capacity);
 
 template <typename CollectionType>
 void CodeStubAssembler::FindOrderedHashTableEntry(
@@ -4700,7 +4788,7 @@ TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
   return result.value();
 }
 
-Node* CodeStubAssembler::TimesPointerSize(Node* value) {
+SloppyTNode<WordT> CodeStubAssembler::TimesPointerSize(Node* value) {
   return WordShl(value, IntPtrConstant(kPointerSizeLog2));
 }
 
