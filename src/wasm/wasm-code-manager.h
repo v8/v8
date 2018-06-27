@@ -86,9 +86,6 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   DISALLOW_COPY_AND_ASSIGN(DisjointAllocationPool)
 };
 
-using ProtectedInstructions =
-    std::vector<trap_handler::ProtectedInstructionData>;
-
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
@@ -144,11 +141,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
            pc < reinterpret_cast<Address>(instructions_.end());
   }
 
-  const ProtectedInstructions& protected_instructions() const {
-    // TODO(mstarzinger): Code that doesn't have trapping instruction should
-    // not be required to have this vector, make it possible to be null.
-    DCHECK_NOT_NULL(protected_instructions_);
-    return *protected_instructions_.get();
+  Vector<trap_handler::ProtectedInstructionData> protected_instructions()
+      const {
+    return protected_instructions_.as_vector();
   }
 
   void Validate() const;
@@ -177,7 +172,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
            Maybe<uint32_t> index, Kind kind, size_t constant_pool_offset,
            uint32_t stack_slots, size_t safepoint_table_offset,
            size_t handler_table_offset,
-           std::unique_ptr<ProtectedInstructions> protected_instructions,
+           OwnedVector<trap_handler::ProtectedInstructionData>
+               protected_instructions,
            Tier tier)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
@@ -225,7 +221,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t safepoint_table_offset_ = 0;
   size_t handler_table_offset_ = 0;
   intptr_t trap_handler_index_ = -1;
-  std::unique_ptr<ProtectedInstructions> protected_instructions_;
+  OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   Tier tier_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmCode);
@@ -238,7 +234,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
  public:
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
                     size_t safepoint_table_offset, size_t handler_table_offset,
-                    std::unique_ptr<ProtectedInstructions>,
+                    OwnedVector<trap_handler::ProtectedInstructionData>
+                        protected_instructions,
                     OwnedVector<byte> source_position_table,
                     WasmCode::Tier tier);
 
@@ -361,8 +358,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          WasmCode::Kind kind, size_t constant_pool_offset,
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
-                         std::unique_ptr<ProtectedInstructions>, WasmCode::Tier,
-                         WasmCode::FlushICache);
+                         OwnedVector<trap_handler::ProtectedInstructionData>,
+                         WasmCode::Tier, WasmCode::FlushICache);
 
   WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
 

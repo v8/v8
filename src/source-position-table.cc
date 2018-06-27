@@ -176,8 +176,7 @@ OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
   if (bytes_.empty()) return OwnedVector<byte>();
   DCHECK(!Omit());
 
-  OwnedVector<byte> table = OwnedVector<byte>::New(bytes_.size());
-  MemCopy(table.start(), bytes_.data(), bytes_.size());
+  OwnedVector<byte> table = OwnedVector<byte>::Of(bytes_);
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode

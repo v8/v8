@@ -131,7 +131,7 @@ void WasmCode::RegisterTrapHandlerData() {
   size_t size = instructions().size();
   const int index =
       RegisterHandlerData(base, size, protected_instructions().size(),
-                          protected_instructions().data());
+                          protected_instructions().start());
 
   // TODO(eholk): if index is negative, fail.
   CHECK_LE(0, index);
@@ -365,7 +365,7 @@ WasmCode* NativeModule::AddOwnedCode(
     Maybe<uint32_t> index, WasmCode::Kind kind, size_t constant_pool_offset,
     uint32_t stack_slots, size_t safepoint_table_offset,
     size_t handler_table_offset,
-    std::unique_ptr<ProtectedInstructions> protected_instructions,
+    OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     WasmCode::Tier tier, WasmCode::FlushICache flush_icache) {
   // both allocation and insertion in owned_code_ happen in the same critical
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
@@ -464,8 +464,6 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     source_pos.reset(new byte[source_pos_table->length()]);
     source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());
   }
-  std::unique_ptr<ProtectedInstructions> protected_instructions(
-      new ProtectedInstructions(0));
   Vector<const byte> orig_instructions(
       reinterpret_cast<byte*>(code->InstructionStart()),
       static_cast<size_t>(code->InstructionSize()));
@@ -478,15 +476,15 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                    static_cast<size_t>(code->relocation_size()),  // reloc_size
                    std::move(source_pos),  // source positions
                    static_cast<size_t>(source_pos_table->length()),
-                   Nothing<uint32_t>(),                // index
-                   kind,                               // kind
-                   code->constant_pool_offset(),       // constant_pool_offset
-                   stack_slots,                        // stack_slots
-                   safepoint_table_offset,             // safepoint_table_offset
-                   code->handler_table_offset(),       // handler_table_offset
-                   std::move(protected_instructions),  // protected_instructions
-                   WasmCode::kOther,                   // kind
-                   WasmCode::kNoFlushICache);          // flush_icache
+                   Nothing<uint32_t>(),           // index
+                   kind,                          // kind
+                   code->constant_pool_offset(),  // constant_pool_offset
+                   stack_slots,                   // stack_slots
+                   safepoint_table_offset,        // safepoint_table_offset
+                   code->handler_table_offset(),  // handler_table_offset
+                   {},                            // protected_instructions
+                   WasmCode::kOther,              // kind
+                   WasmCode::kNoFlushICache);     // flush_icache
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instruction_start() - code->InstructionStart();
@@ -521,7 +519,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
 WasmCode* NativeModule::AddCode(
     const CodeDesc& desc, uint32_t frame_slots, uint32_t index,
     size_t safepoint_table_offset, size_t handler_table_offset,
-    std::unique_ptr<ProtectedInstructions> protected_instructions,
+    OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<byte> source_pos_table, WasmCode::Tier tier) {
   std::unique_ptr<byte[]> reloc_info;
   if (desc.reloc_size) {

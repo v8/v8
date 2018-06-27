@@ -1830,13 +1830,11 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
       compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, wasm_unit_->counters_->liftoff_compile_time());
-  DCHECK(!protected_instructions_);
-  protected_instructions_.reset(
-      new std::vector<trap_handler::ProtectedInstructionData>());
+  DCHECK(protected_instructions_.empty());
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, wasm_unit_->func_body_, &asm_, call_descriptor,
               wasm_unit_->env_, &source_position_table_builder_,
-              protected_instructions_.get(), &zone);
+              &protected_instructions_, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {
@@ -1861,7 +1859,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
   // Record the memory cost this unit places on the system until
   // it is finalized.
   wasm_unit_->memory_cost_ =
-      asm_.pc_offset() + protected_instructions_->size() *
+      asm_.pc_offset() + protected_instructions_.size() *
                              sizeof(trap_handler::ProtectedInstructionData);
 
   safepoint_table_offset_ = decoder.interface().GetSafepointTableOffset();
@@ -1876,10 +1874,12 @@ wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
 
   OwnedVector<byte> source_positions =
       source_position_table_builder_.ToSourcePositionTableVector();
-
+  auto protected_instructions_copy =
+      OwnedVector<trap_handler::ProtectedInstructionData>::Of(
+          protected_instructions_);
   wasm::WasmCode* code = wasm_unit_->native_module_->AddCode(
       desc, asm_.GetTotalFrameSlotCount(), wasm_unit_->func_index_,
-      safepoint_table_offset_, 0, std::move(protected_instructions_),
+      safepoint_table_offset_, 0, std::move(protected_instructions_copy),
       std::move(source_positions), wasm::WasmCode::kLiftoff);
 
   return code;

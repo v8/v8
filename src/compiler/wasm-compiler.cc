@@ -4999,18 +4999,6 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   return code;
 }
 
-WasmCompilationData::WasmCompilationData(
-    wasm::RuntimeExceptionSupport runtime_exception_support)
-    : protected_instructions_(
-          new std::vector<trap_handler::ProtectedInstructionData>()),
-      runtime_exception_support_(runtime_exception_support) {}
-
-void WasmCompilationData::AddProtectedInstruction(uint32_t instr_offset,
-                                                  uint32_t landing_offset) {
-  protected_instructions_->emplace_back(
-      trap_handler::ProtectedInstructionData{instr_offset, landing_offset});
-}
-
 TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
     wasm::WasmCompilationUnit* wasm_unit)
     : wasm_unit_(wasm_unit),

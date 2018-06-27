@@ -301,10 +301,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   // Write the reloc info, source positions, and protected code.
   writer->WriteVector(code->reloc_info());
   writer->WriteVector(code->source_positions());
-  writer->WriteVector(
-      {reinterpret_cast<const byte*>(code->protected_instructions().data()),
-       sizeof(trap_handler::ProtectedInstructionData) *
-           code->protected_instructions().size()});
+  writer->WriteVector(Vector<byte>::cast(code->protected_instructions()));
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
   // On platforms that don't support misaligned word stores, copy to an aligned
   // buffer if necessary so we can relocate the serialized code.
@@ -458,15 +455,10 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     source_pos.reset(new byte[source_position_size]);
     reader->ReadVector({source_pos.get(), source_position_size});
   }
-  std::unique_ptr<ProtectedInstructions> protected_instructions(
-      new ProtectedInstructions(protected_instructions_size));
-  if (protected_instructions_size > 0) {
-    size_t size = sizeof(trap_handler::ProtectedInstructionData) *
-                  protected_instructions->size();
-    Vector<byte> data(reinterpret_cast<byte*>(protected_instructions->data()),
-                      size);
-    reader->ReadVector(data);
-  }
+  auto protected_instructions =
+      OwnedVector<trap_handler::ProtectedInstructionData>::New(
+          protected_instructions_size);
+  reader->ReadVector(Vector<byte>::cast(protected_instructions.as_vector()));
   WasmCode* ret = native_module_->AddOwnedCode(
       code_buffer, std::move(reloc_info), reloc_size, std::move(source_pos),
       source_position_size, Just(fn_index), WasmCode::kFunction,

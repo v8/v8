@@ -52,13 +52,17 @@ namespace compiler {
 class WasmCompilationData {
  public:
   explicit WasmCompilationData(
-      wasm::RuntimeExceptionSupport runtime_exception_support);
+      wasm::RuntimeExceptionSupport runtime_exception_support)
+      : runtime_exception_support_(runtime_exception_support) {}
 
-  void AddProtectedInstruction(uint32_t instr_offset, uint32_t landing_offset);
+  void AddProtectedInstruction(uint32_t instr_offset, uint32_t landing_offset) {
+    protected_instructions_.push_back({instr_offset, landing_offset});
+  }
 
-  std::unique_ptr<std::vector<trap_handler::ProtectedInstructionData>>
-  ReleaseProtectedInstructions() {
-    return std::move(protected_instructions_);
+  OwnedVector<trap_handler::ProtectedInstructionData>
+  GetProtectedInstructions() {
+    return OwnedVector<trap_handler::ProtectedInstructionData>::Of(
+        protected_instructions_);
   }
 
   wasm::RuntimeExceptionSupport runtime_exception_support() const {
@@ -66,8 +70,7 @@ class WasmCompilationData {
   }
 
  private:
-  std::unique_ptr<std::vector<trap_handler::ProtectedInstructionData>>
-      protected_instructions_;
+  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
 
   // See ModuleEnv::runtime_exception_support_.
   wasm::RuntimeExceptionSupport runtime_exception_support_;

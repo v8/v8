@@ -29,8 +29,7 @@ class LiftoffCompilationUnit final {
   wasm::LiftoffAssembler asm_;
   int safepoint_table_offset_;
   SourcePositionTableBuilder source_position_table_builder_;
-  std::unique_ptr<std::vector<trap_handler::ProtectedInstructionData>>
-      protected_instructions_;
+  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
 
   DISALLOW_COPY_AND_ASSIGN(LiftoffCompilationUnit);
 };

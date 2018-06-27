@@ -5,8 +5,9 @@
 #ifndef V8_VECTOR_H_
 #define V8_VECTOR_H_
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
+#include <iterator>
 
 #include "src/allocation.h"
 #include "src/checks.h"
@@ -210,7 +211,22 @@ class OwnedVector {
 
   // Allocates a new vector of the specified size via the default allocator.
   static OwnedVector<T> New(size_t size) {
+    if (size == 0) return {};
     return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
+  }
+
+  // Allocates a new vector containing the specified collection of values.
+  // {Iterator} is the common type of {std::begin} and {std::end} called on a
+  // {const U&}. This function is only instantiable if that type exists.
+  template <typename U, typename Iterator = typename std::common_type<
+                            decltype(std::begin(std::declval<const U&>())),
+                            decltype(std::end(std::declval<const U&>()))>::type>
+  static OwnedVector<T> Of(const U& collection) {
+    Iterator begin = std::begin(collection);
+    Iterator end = std::end(collection);
+    OwnedVector<T> vec = New(std::distance(begin, end));
+    std::copy(begin, end, vec.start());
+    return vec;
   }
 
  private:

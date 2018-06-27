@@ -1051,7 +1051,7 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
       code_desc, code_generator->frame()->GetTotalFrameSlotCount(),
       data_.wasm_function_index(), code_generator->GetSafepointTableOffset(),
       code_generator->GetHandlerTableOffset(),
-      data_.wasm_compilation_data()->ReleaseProtectedInstructions(),
+      data_.wasm_compilation_data()->GetProtectedInstructions(),
       code_generator->GetSourcePositionTable(), wasm::WasmCode::kTurbofan);
 
   if (!code) return FAILED;
