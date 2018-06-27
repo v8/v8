@@ -12,17 +12,17 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '59ac9bda0b8fd61f7bc016be2c0cf58f8c3f714d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '12206d38e09c9de0058529defa5f68105b20032b',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd91a468aa50d111c76cc80381f3a443fcc1bd9d1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a991ac69eb052dfbd460459203d4946168622385',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '172d33141cd16df9d027cfd49bfe940b1dc66f1a',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '5941c1b3df96c1db756a2834343533335c394c4a',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '9c9fd97928dd45a0d9738af90f7c03b082f1216f',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -30,11 +30,11 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/android_tools': {
-    'url': Var('chromium_url') + '/android_tools.git' + '@' + '3545ab5b9883087a54cb9e5337c32617cb2a443d',
+    'url': Var('chromium_url') + '/android_tools.git' + '@' + '130499e25286f4d56acafa252fee09f3cc595c49',
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2e625dcb82db59c137245a55abc5fae34eceb361',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f989b62823cb1b8b2d5bdc0e71730f423391c190',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
