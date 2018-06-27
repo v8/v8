@@ -1059,6 +1059,7 @@ template("run_mksnapshot") {
 
     if (v8_enable_fast_mksnapshot) {
       args += [
+        "--no-enable-slow-asserts",
         "--no-turbo-rewrite-far-jumps",
         "--no-turbo-verify-allocation",
       ]
