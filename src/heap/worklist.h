@@ -78,6 +78,15 @@ class Worklist {
     }
   }
 
+  // Swaps content with the given worklist. Local buffers need to
+  // be empty, not thread safe.
+  void Swap(Worklist<EntryType, SEGMENT_SIZE>& other) {
+    CHECK(AreLocalsEmpty());
+    CHECK(other.AreLocalsEmpty());
+
+    global_pool_.Swap(other.global_pool_);
+  }
+
   bool Push(int task_id, EntryType entry) {
     DCHECK_LT(task_id, num_tasks_);
     DCHECK_NOT_NULL(private_push_segment(task_id));
@@ -120,10 +129,15 @@ class Worklist {
   bool IsGlobalPoolEmpty() { return global_pool_.IsEmpty(); }
 
   bool IsGlobalEmpty() {
+    if (!AreLocalsEmpty()) return false;
+    return global_pool_.IsEmpty();
+  }
+
+  bool AreLocalsEmpty() {
     for (int i = 0; i < num_tasks_; i++) {
       if (!IsLocalEmpty(i)) return false;
     }
-    return global_pool_.IsEmpty();
+    return true;
   }
 
   size_t LocalSize(int task_id) {
@@ -259,6 +273,13 @@ class Worklist {
   class GlobalPool {
    public:
     GlobalPool() : top_(nullptr) {}
+
+    // Swaps contents, not thread safe.
+    void Swap(GlobalPool& other) {
+      Segment* temp = top_;
+      set_top(other.top_);
+      other.set_top(temp);
+    }
 
     V8_INLINE void Push(Segment* segment) {
       base::LockGuard<base::Mutex> guard(&lock_);
