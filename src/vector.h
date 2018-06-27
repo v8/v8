@@ -189,6 +189,14 @@ class OwnedVector {
       : data_(std::move(data)), length_(length) {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
   }
+  // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
+  // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
+  // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
+  template <typename U,
+            typename = typename std::enable_if<std::is_convertible<
+                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  OwnedVector(OwnedVector<U>&& other)
+      : data_(other.ReleaseData()), length_(other.size()) {}
 
   // Returns the length of the vector as a size_t.
   constexpr size_t size() const { return length_; }

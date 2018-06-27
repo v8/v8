@@ -445,26 +445,19 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   Vector<const byte> code_buffer = {reader->current_location(), code_size};
   reader->Skip(code_size);
 
-  std::unique_ptr<byte[]> reloc_info;
-  if (reloc_size > 0) {
-    reloc_info.reset(new byte[reloc_size]);
-    reader->ReadVector({reloc_info.get(), reloc_size});
-  }
-  std::unique_ptr<byte[]> source_pos;
-  if (source_position_size > 0) {
-    source_pos.reset(new byte[source_position_size]);
-    reader->ReadVector({source_pos.get(), source_position_size});
-  }
+  OwnedVector<byte> reloc_info = OwnedVector<byte>::New(reloc_size);
+  reader->ReadVector(reloc_info.as_vector());
+  OwnedVector<byte> source_pos = OwnedVector<byte>::New(source_position_size);
+  reader->ReadVector(source_pos.as_vector());
   auto protected_instructions =
       OwnedVector<trap_handler::ProtectedInstructionData>::New(
           protected_instructions_size);
   reader->ReadVector(Vector<byte>::cast(protected_instructions.as_vector()));
   WasmCode* ret = native_module_->AddOwnedCode(
-      code_buffer, std::move(reloc_info), reloc_size, std::move(source_pos),
-      source_position_size, Just(fn_index), WasmCode::kFunction,
-      constant_pool_offset, stack_slot_count, safepoint_table_offset,
-      handler_table_offset, std::move(protected_instructions), tier,
-      WasmCode::kNoFlushICache);
+      code_buffer, std::move(reloc_info), std::move(source_pos), Just(fn_index),
+      WasmCode::kFunction, constant_pool_offset, stack_slot_count,
+      safepoint_table_offset, handler_table_offset,
+      std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
   native_module_->set_code(fn_index, ret);
   native_module_->PatchJumpTable(fn_index, ret->instruction_start(),
                                  WasmCode::kFlushICache);

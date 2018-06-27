@@ -117,11 +117,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_.start());
   }
-  Vector<const byte> reloc_info() const {
-    return {reloc_info_.get(), reloc_size_};
-  }
+  Vector<const byte> reloc_info() const { return reloc_info_.as_vector(); }
   Vector<const byte> source_positions() const {
-    return {source_position_table_.get(), source_position_size_};
+    return source_position_table_.as_vector();
   }
 
   uint32_t index() const { return index_.ToChecked(); }
@@ -166,9 +164,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
  private:
   friend class NativeModule;
 
-  WasmCode(Vector<byte> instructions, std::unique_ptr<const byte[]> reloc_info,
-           size_t reloc_size, std::unique_ptr<const byte[]> source_pos,
-           size_t source_pos_size, NativeModule* native_module,
+  WasmCode(Vector<byte> instructions, OwnedVector<const byte> reloc_info,
+           OwnedVector<const byte> source_pos, NativeModule* native_module,
            Maybe<uint32_t> index, Kind kind, size_t constant_pool_offset,
            uint32_t stack_slots, size_t safepoint_table_offset,
            size_t handler_table_offset,
@@ -177,9 +174,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            Tier tier)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
-        reloc_size_(reloc_size),
         source_position_table_(std::move(source_pos)),
-        source_position_size_(source_pos_size),
         native_module_(native_module),
         index_(index),
         kind_(kind),
@@ -206,10 +201,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   void RegisterTrapHandlerData();
 
   Vector<byte> instructions_;
-  std::unique_ptr<const byte[]> reloc_info_;
-  size_t reloc_size_ = 0;
-  std::unique_ptr<const byte[]> source_position_table_;
-  size_t source_position_size_ = 0;
+  OwnedVector<const byte> reloc_info_;
+  OwnedVector<const byte> source_position_table_;
   NativeModule* native_module_ = nullptr;
   Maybe<uint32_t> index_;
   Kind kind_;
@@ -351,12 +344,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // code is obtained (CodeDesc vs, as a point in time, Code*), the kind,
   // whether it has an index or is anonymous, etc.
   WasmCode* AddOwnedCode(Vector<const byte> orig_instructions,
-                         std::unique_ptr<const byte[]> reloc_info,
-                         size_t reloc_size,
-                         std::unique_ptr<const byte[]> source_pos,
-                         size_t source_pos_size, Maybe<uint32_t> index,
-                         WasmCode::Kind kind, size_t constant_pool_offset,
-                         uint32_t stack_slots, size_t safepoint_table_offset,
+                         OwnedVector<const byte> reloc_info,
+                         OwnedVector<const byte> source_pos,
+                         Maybe<uint32_t> index, WasmCode::Kind kind,
+                         size_t constant_pool_offset, uint32_t stack_slots,
+                         size_t safepoint_table_offset,
                          size_t handler_table_offset,
                          OwnedVector<trap_handler::ProtectedInstructionData>,
                          WasmCode::Tier, WasmCode::FlushICache);
