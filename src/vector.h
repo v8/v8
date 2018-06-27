@@ -150,9 +150,6 @@ class Vector {
     return true;
   }
 
- protected:
-  void set_start(T* start) { start_ = start; }
-
  private:
   T* start_;
   size_t length_;
