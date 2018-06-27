@@ -2780,7 +2780,7 @@ void LinearScanAllocator::AllocateRegisters() {
     }
   }
   SortUnhandled();
-  DCHECK(UnhandledIsSorted());
+  SLOW_DCHECK(UnhandledIsSorted());
 
   if (mode() == GENERAL_REGISTERS) {
     for (TopLevelLiveRange* current : data()->fixed_live_ranges()) {
@@ -2801,10 +2801,9 @@ void LinearScanAllocator::AllocateRegisters() {
   }
 
   while (!unhandled_live_ranges().empty()) {
-    DCHECK(UnhandledIsSorted());
+    SLOW_DCHECK(UnhandledIsSorted());
     LiveRange* current = unhandled_live_ranges().back();
     unhandled_live_ranges().pop_back();
-    DCHECK(UnhandledIsSorted());
     LifetimePosition position = current->Start();
 #ifdef DEBUG
     allocation_finger_ = position;
@@ -2900,13 +2899,13 @@ void LinearScanAllocator::AddToUnhandledSorted(LiveRange* range) {
           range->TopLevel()->vreg(), range->relative_id(), i + 1);
     auto it = unhandled_live_ranges().begin() + (i + 1);
     unhandled_live_ranges().insert(it, range);
-    DCHECK(UnhandledIsSorted());
+    SLOW_DCHECK(UnhandledIsSorted());
     return;
   }
   TRACE("Add live range %d:%d to unhandled at start\n",
         range->TopLevel()->vreg(), range->relative_id());
   unhandled_live_ranges().insert(unhandled_live_ranges().begin(), range);
-  DCHECK(UnhandledIsSorted());
+  SLOW_DCHECK(UnhandledIsSorted());
 }
 
 
@@ -2938,12 +2937,21 @@ void LinearScanAllocator::SortUnhandled() {
 
 
 bool LinearScanAllocator::UnhandledIsSorted() {
-  size_t len = unhandled_live_ranges().size();
+  // Note: This function is excessively expensive. It doubles time spent in
+  // mksnapshot in debug builds. All related DCHECKs have now been turned into
+  // SLOW_DCHECKs, but we could also investigate whether it is necessary or
+  // could be sped up further. See also: https://crbug.com/v8/7891#c15.
+
+  const size_t len = unhandled_live_ranges().size();
+  if (len < 2) return true;
+
+  int lhs = unhandled_live_ranges_[0]->Start().value();
   for (size_t i = 1; i < len; i++) {
-    LiveRange* a = unhandled_live_ranges().at(i - 1);
-    LiveRange* b = unhandled_live_ranges().at(i);
-    if (a->Start() < b->Start()) return false;
+    int rhs = unhandled_live_ranges_[i]->Start().value();
+    if (lhs < rhs) return false;
+    lhs = rhs;
   }
+
   return true;
 }
 
@@ -3474,7 +3482,7 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
     bool merged = first_op_spill->TryMerge(spill_range);
     if (!merged) return false;
     SpillBetween(range, range->Start(), pos->pos());
-    DCHECK(UnhandledIsSorted());
+    SLOW_DCHECK(UnhandledIsSorted());
     return true;
   }
   return false;
