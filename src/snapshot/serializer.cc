@@ -647,6 +647,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeObject() {
   Map* map = object_->map();
   AllocationSpace space =
       MemoryChunk::FromAddress(object_->address())->owner()->identity();
+  DCHECK(space != NEW_LO_SPACE);
   SerializePrologue(space, size, map);
 
   // Serialize the rest of the object.

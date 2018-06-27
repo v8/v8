@@ -2946,6 +2946,8 @@ class LargeObjectSpace : public Space {
   typedef LargePageIterator iterator;
 
   explicit LargeObjectSpace(Heap* heap);
+  LargeObjectSpace(Heap* heap, AllocationSpace id);
+
   ~LargeObjectSpace() override { TearDown(); }
 
   // Releases internal resources, frees objects in this space.
@@ -3039,6 +3041,13 @@ class LargeObjectSpace : public Space {
   friend class LargeObjectIterator;
 };
 
+class NewLargeObjectSpace : public LargeObjectSpace {
+ public:
+  explicit NewLargeObjectSpace(Heap* heap);
+
+  // Available bytes for objects in this space.
+  size_t Available() override;
+};
 
 class LargeObjectIterator : public ObjectIterator {
  public:

@@ -3250,7 +3250,10 @@ HeapObject* LargeObjectIterator::Next() {
 // LargeObjectSpace
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap)
-    : Space(heap, LO_SPACE),  // Managed on a per-allocation basis
+    : LargeObjectSpace(heap, LO_SPACE) {}
+
+LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
+    : Space(heap, id),
       size_(0),
       page_count_(0),
       objects_size_(0),
@@ -3547,5 +3550,13 @@ void Page::Print() {
 }
 
 #endif  // DEBUG
+
+NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap)
+    : LargeObjectSpace(heap, NEW_LO_SPACE) {}
+
+size_t NewLargeObjectSpace::Available() {
+  // TODO(hpayer): Update as soon as we have a growing strategy.
+  return 0;
+}
 }  // namespace internal
 }  // namespace v8
