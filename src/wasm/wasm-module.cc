@@ -129,7 +129,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Handle<String> global_string = factory->InternalizeUtf8String("global");
 
   // Create the result array.
-  WasmModule* module = module_object->module();
+  const WasmModule* module = module_object->module();
   int num_imports = static_cast<int>(module->import_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_imports);
@@ -141,7 +141,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
   // Populate the result array.
   for (int index = 0; index < num_imports; ++index) {
-    WasmImport& import = module->import_table[index];
+    const WasmImport& import = module->import_table[index];
 
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
@@ -196,7 +196,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> global_string = factory->InternalizeUtf8String("global");
 
   // Create the result array.
-  WasmModule* module = module_object->module();
+  const WasmModule* module = module_object->module();
   int num_exports = static_cast<int>(module->export_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_exports);
@@ -208,7 +208,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
 
   // Populate the result array.
   for (int index = 0; index < num_exports; ++index) {
-    WasmExport& exp = module->export_table[index];
+    const WasmExport& exp = module->export_table[index];
 
     Handle<String> export_kind;
     switch (exp.kind) {

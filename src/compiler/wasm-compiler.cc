@@ -4721,7 +4721,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 }  // namespace
 
 MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate* isolate, wasm::WasmModule* module, Address call_target,
+    Isolate* isolate, const wasm::WasmModule* module, Address call_target,
     uint32_t index, wasm::UseTrapHandler use_trap_handler) {
   const wasm::WasmFunction* func = &module->functions[index];
 

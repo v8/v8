@@ -188,7 +188,7 @@ namespace {
 class JSToWasmWrapperCache {
  public:
   Handle<Code> CloneOrCompileJSToWasmWrapper(
-      Isolate* isolate, wasm::WasmModule* module, Address call_target,
+      Isolate* isolate, const wasm::WasmModule* module, Address call_target,
       uint32_t index, wasm::UseTrapHandler use_trap_handler) {
     const bool is_import = index < module->num_imported_functions;
     DCHECK_EQ(is_import, call_target == kNullAddress);
@@ -259,7 +259,7 @@ class InstanceBuilder {
   };
 
   Isolate* isolate_;
-  WasmModule* const module_;
+  const WasmModule* const module_;
   const std::shared_ptr<Counters> async_counters_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
@@ -320,8 +320,9 @@ class InstanceBuilder {
   // Load data segments into the memory.
   void LoadDataSegments(Handle<WasmInstanceObject> instance);
 
-  void WriteGlobalValue(WasmGlobal& global, double value);
-  void WriteGlobalValue(WasmGlobal& global, Handle<WasmGlobalObject> value);
+  void WriteGlobalValue(const WasmGlobal& global, double value);
+  void WriteGlobalValue(const WasmGlobal& global,
+                        Handle<WasmGlobalObject> value);
 
   void SanitizeImports();
 
@@ -335,7 +336,7 @@ class InstanceBuilder {
   int ProcessImports(Handle<WasmInstanceObject> instance);
 
   template <typename T>
-  T* GetRawGlobalPtr(WasmGlobal& global);
+  T* GetRawGlobalPtr(const WasmGlobal& global);
 
   // Process initialization of globals.
   void InitGlobals();
@@ -934,10 +935,11 @@ class BackgroundCompileTask : public CancelableTask {
 }  // namespace
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, ErrorThrower* thrower, std::shared_ptr<WasmModule> module,
-    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+    Isolate* isolate, ErrorThrower* thrower,
+    std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
+    Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-  WasmModule* wasm_module = module.get();
+  const WasmModule* wasm_module = module.get();
   TimedHistogramScope wasm_compile_module_time_scope(
       SELECT_WASM_COUNTER(isolate->async_counters(), wasm_module->origin,
                           wasm_compile, module_time));
@@ -1218,7 +1220,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Check that indirect function table segments are within bounds.
   //--------------------------------------------------------------------------
-  for (WasmTableInit& table_init : module_->table_inits) {
+  for (const WasmTableInit& table_init : module_->table_inits) {
     DCHECK(table_init.table_index < table_instances_.size());
     uint32_t base = EvalUint32InitExpr(table_init.offset);
     size_t table_size = table_instances_[table_init.table_index].table_size;
@@ -1231,7 +1233,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Check that memory segments are within bounds.
   //--------------------------------------------------------------------------
-  for (WasmDataSegment& seg : module_->data_segments) {
+  for (const WasmDataSegment& seg : module_->data_segments) {
     uint32_t base = EvalUint32InitExpr(seg.dest_addr);
     if (!in_bounds(base, seg.source.length(), instance->memory_size())) {
       thrower_->LinkError("data segment is out of bounds");
@@ -1430,7 +1432,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
   }
 }
 
-void InstanceBuilder::WriteGlobalValue(WasmGlobal& global, double num) {
+void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
         reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset,
         num, ValueTypes::TypeName(global.type));
@@ -1453,7 +1455,7 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global, double num) {
   }
 }
 
-void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
+void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        Handle<WasmGlobalObject> value) {
   TRACE("init [globals_start=%p + %u] = ",
         reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset);
@@ -1493,7 +1495,7 @@ void InstanceBuilder::SanitizeImports() {
   Vector<const uint8_t> wire_bytes =
       module_object_->native_module()->wire_bytes();
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
-    WasmImport& import = module_->import_table[index];
+    const WasmImport& import = module_->import_table[index];
 
     Handle<String> module_name;
     MaybeHandle<String> maybe_module_name =
@@ -1559,7 +1561,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imports = static_cast<int>(module_->import_table.size());
   NativeModule* native_module = instance->module_object()->native_module();
   for (int index = 0; index < num_imports; ++index) {
-    WasmImport& import = module_->import_table[index];
+    const WasmImport& import = module_->import_table[index];
 
     Handle<String> module_name = sanitized_imports_[index].module_name;
     Handle<String> import_name = sanitized_imports_[index].import_name;
@@ -1622,7 +1624,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         }
         uint32_t table_num = import.index;
         DCHECK_EQ(table_num, num_imported_tables);
-        WasmIndirectFunctionTable& table = module_->function_tables[table_num];
+        const WasmIndirectFunctionTable& table =
+            module_->function_tables[table_num];
         TableInstance& table_instance = table_instances_[table_num];
         table_instance.table_object = Handle<WasmTableObject>::cast(value);
         instance->set_table_object(*table_instance.table_object);
@@ -1746,7 +1749,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         // Mutable global imports instead have their backing array buffers
         // referenced by this instance, and store the address of the imported
         // global in the {imported_mutable_globals_} array.
-        WasmGlobal& global = module_->globals[import.index];
+        const WasmGlobal& global = module_->globals[import.index];
 
         // The mutable-global proposal allows importing i64 values, but only if
         // they are passed as a WebAssembly.Global object.
@@ -1839,7 +1842,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 }
 
 template <typename T>
-T* InstanceBuilder::GetRawGlobalPtr(WasmGlobal& global) {
+T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
   return reinterpret_cast<T*>(raw_buffer_ptr(globals_, global.offset));
 }
 
@@ -1931,7 +1934,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     // imported WebAssembly functions into the js_wrappers_ list.
     for (int index = 0, end = static_cast<int>(module_->import_table.size());
          index < end; ++index) {
-      WasmImport& import = module_->import_table[index];
+      const WasmImport& import = module_->import_table[index];
       if (import.kind == kExternalFunction) {
         Handle<Object> value = sanitized_imports_[index].value;
         if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
@@ -1971,7 +1974,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
 
   // Process each export in the export table.
   int export_index = 0;  // Index into {export_wrappers}.
-  for (WasmExport& exp : module_->export_table) {
+  for (const WasmExport& exp : module_->export_table) {
     Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                               isolate_, module_object_, exp.name)
                               .ToHandleChecked();
@@ -1986,7 +1989,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
-        WasmFunction& function = module_->functions[exp.index];
+        const WasmFunction& function = module_->functions[exp.index];
         Handle<JSFunction> js_function = js_wrappers_[exp.index];
         if (js_function.is_null()) {
           // Wrap the exported code as a JSFunction.
@@ -2014,7 +2017,8 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       case kExternalTable: {
         // Export a table as a WebAssembly.Table object.
         TableInstance& table_instance = table_instances_[exp.index];
-        WasmIndirectFunctionTable& table = module_->function_tables[exp.index];
+        const WasmIndirectFunctionTable& table =
+            module_->function_tables[exp.index];
         if (table_instance.table_object.is_null()) {
           uint32_t maximum = table.has_maximum_size ? table.maximum_size
                                                     : FLAG_wasm_max_table_size;
@@ -2035,7 +2039,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalGlobal: {
-        WasmGlobal& global = module_->globals[exp.index];
+        const WasmGlobal& global = module_->globals[exp.index];
         if (FLAG_experimental_wasm_mut_global) {
           Handle<JSArrayBuffer> buffer;
           uint32_t offset;
@@ -2119,7 +2123,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
 void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
   size_t table_count = module_->function_tables.size();
   for (size_t index = 0; index < table_count; ++index) {
-    WasmIndirectFunctionTable& table = module_->function_tables[index];
+    const WasmIndirectFunctionTable& table = module_->function_tables[index];
     TableInstance& table_instance = table_instances_[index];
 
     if (!instance->has_indirect_function_table()) {
@@ -2144,7 +2148,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
       DCHECK(in_bounds(base, num_entries, table_instance.table_size));
       for (uint32_t i = 0; i < num_entries; ++i) {
         uint32_t func_index = table_init.entries[i];
-        WasmFunction* function = &module_->functions[func_index];
+        const WasmFunction* function = &module_->functions[func_index];
         int table_index = static_cast<int>(i + base);
 
         // Update the local dispatch table first.
@@ -2484,7 +2488,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_);
     Handle<ByteArray> asm_js_offset_table;
 
-    WasmModule* module = job_->module_.get();
+    const WasmModule* module = job_->module_.get();
     ModuleEnv env = CreateDefaultModuleEnv(module);
     int export_wrapper_size = static_cast<int>(module->num_exported_functions);
     Handle<FixedArray> export_wrappers =
@@ -3100,7 +3104,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   NativeModule* native_module = module_object->native_module();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  WasmModule* module = module_object->module();
+  const WasmModule* module = module_object->module();
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Address call_target =

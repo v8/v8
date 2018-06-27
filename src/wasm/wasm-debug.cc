@@ -612,7 +612,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   wasm::NativeModule* native_module =
       instance->module_object()->native_module();
-  wasm::WasmModule* module = instance->module();
+  const wasm::WasmModule* module = instance->module();
 
   // We may modify js wrappers, as well as wasm functions. Hence the 2
   // modification scopes.

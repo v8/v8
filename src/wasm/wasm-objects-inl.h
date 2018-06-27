@@ -52,7 +52,7 @@ CAST_ACCESSOR(WasmTableObject)
 ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
-ACCESSORS(WasmModuleObject, managed_module, Managed<wasm::WasmModule>,
+ACCESSORS(WasmModuleObject, managed_module, Managed<const wasm::WasmModule>,
           kManagedModuleOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
 ACCESSORS(WasmModuleObject, weak_instance_list, WeakArrayList,
@@ -61,7 +61,7 @@ OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
                    kBreakPointInfosOffset)
-wasm::WasmModule* WasmModuleObject::module() const {
+const wasm::WasmModule* WasmModuleObject::module() const {
   return managed_module()->raw();
 }
 wasm::NativeModule* WasmModuleObject::native_module() {

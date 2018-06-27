@@ -176,17 +176,17 @@ enum DispatchTableElements : int {
 
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<FixedArray> export_wrappers,
-    std::shared_ptr<wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
+    std::shared_ptr<const wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
     std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
     Handle<Script> script, Handle<ByteArray> asm_js_offset_table) {
-  WasmModule* module = shared_module.get();
+  const WasmModule* module = shared_module.get();
   DCHECK_EQ(module, env.module);
   size_t module_size = EstimateWasmModuleSize(module);
   // The {managed_module} will take shared ownership of the {WasmModule} object,
   // and release it when the GC reclaim the managed.
-  Handle<Managed<WasmModule>> managed_module =
-      Managed<WasmModule>::FromSharedPtr(isolate, module_size,
-                                         std::move(shared_module));
+  Handle<Managed<const WasmModule>> managed_module =
+      Managed<const WasmModule>::FromSharedPtr(isolate, module_size,
+                                               std::move(shared_module));
 
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
@@ -228,7 +228,7 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
   // Find the function for this breakpoint.
   int func_index = module_object->GetContainingFunction(*position);
   if (func_index < 0) return false;
-  WasmFunction& func = module_object->module()->functions[func_index];
+  const WasmFunction& func = module_object->module()->functions[func_index];
   int offset_in_func = *position - func.code.offset();
 
   // According to the current design, we should only be called with valid
@@ -372,7 +372,7 @@ void WasmModuleObject::SetBreakpointsOnNewInstance(
     // Find the function for this breakpoint, and set the breakpoint.
     int func_index = module_object->GetContainingFunction(position);
     DCHECK_LE(0, func_index);
-    WasmFunction& func = module_object->module()->functions[func_index];
+    const WasmFunction& func = module_object->module()->functions[func_index];
     int offset_in_func = position - func.code.offset();
     WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
   }
@@ -431,7 +431,8 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
   module_object->set_asm_js_offset_table(*decoded_table);
 
   int idx = 0;
-  std::vector<WasmFunction>& wasm_funs = module_object->module()->functions;
+  const std::vector<WasmFunction>& wasm_funs =
+      module_object->module()->functions;
   for (int func = 0; func < num_functions; ++func) {
     std::vector<wasm::AsmJsOffsetEntry>& func_asm_offsets =
         asm_offsets.val[func];
@@ -520,7 +521,7 @@ bool WasmModuleObject::GetPossibleBreakpoints(
     std::vector<v8::debug::BreakLocation>* locations) {
   DisallowHeapAllocation no_gc;
 
-  std::vector<WasmFunction>& functions = module()->functions;
+  const std::vector<WasmFunction>& functions = module()->functions;
   if (start.GetLineNumber() < 0 || start.GetColumnNumber() < 0 ||
       (!end.IsEmpty() &&
        (end.GetLineNumber() < 0 || end.GetColumnNumber() < 0)))
@@ -566,7 +567,7 @@ bool WasmModuleObject::GetPossibleBreakpoints(
 
   for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {
-    WasmFunction& func = functions[func_idx];
+    const WasmFunction& func = functions[func_idx];
     if (func.code.length() == 0) continue;
 
     wasm::BodyLocalDecls locals(&tmp);
@@ -637,7 +638,7 @@ MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
 
 MaybeHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, Handle<WasmModuleObject> module_object) {
-  WasmModule* module = module_object->module();
+  const WasmModule* module = module_object->module();
   if (!module->name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, module_object, module->name);
 }
@@ -672,14 +673,14 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 }
 
 int WasmModuleObject::GetFunctionOffset(uint32_t func_index) {
-  std::vector<WasmFunction>& functions = module()->functions;
+  const std::vector<WasmFunction>& functions = module()->functions;
   if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
   DCHECK_GE(kMaxInt, functions[func_index].code.offset());
   return static_cast<int>(functions[func_index].code.offset());
 }
 
 int WasmModuleObject::GetContainingFunction(uint32_t byte_offset) {
-  std::vector<WasmFunction>& functions = module()->functions;
+  const std::vector<WasmFunction>& functions = module()->functions;
 
   // Binary search for a function containing the given position.
   int left = 0;                                    // inclusive
@@ -694,7 +695,7 @@ int WasmModuleObject::GetContainingFunction(uint32_t byte_offset) {
     }
   }
   // If the found function does not contains the given position, return -1.
-  WasmFunction& func = functions[left];
+  const WasmFunction& func = functions[left];
   if (byte_offset < func.code.offset() ||
       byte_offset >= func.code.end_offset()) {
     return -1;
@@ -708,7 +709,7 @@ bool WasmModuleObject::GetPositionInfo(uint32_t position,
   int func_index = GetContainingFunction(position);
   if (func_index < 0) return false;
 
-  WasmFunction& function = module()->functions[func_index];
+  const WasmFunction& function = module()->functions[func_index];
 
   info->line = func_index;
   info->column = position - function.code.offset();
@@ -1188,7 +1189,9 @@ void WasmInstanceObject::SetRawMemory(byte* mem_start, uint32_t mem_size) {
   set_memory_mask(mem_mask64);
 }
 
-WasmModule* WasmInstanceObject::module() { return module_object()->module(); }
+const WasmModule* WasmInstanceObject::module() {
+  return module_object()->module();
+}
 
 Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
     Handle<WasmInstanceObject> instance) {

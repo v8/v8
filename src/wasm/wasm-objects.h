@@ -107,8 +107,8 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   inline wasm::NativeModule* native_module();
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(managed_module, Managed<wasm::WasmModule>)
-  inline wasm::WasmModule* module() const;
+  DECL_ACCESSORS(managed_module, Managed<const wasm::WasmModule>)
+  inline const wasm::WasmModule* module() const;
   DECL_ACCESSORS(script, Script)
   DECL_ACCESSORS(weak_instance_list, WeakArrayList)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
@@ -136,7 +136,7 @@ class WasmModuleObject : public JSObject {
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<FixedArray> export_wrappers,
-      std::shared_ptr<wasm::WasmModule> module, wasm::ModuleEnv& env,
+      std::shared_ptr<const wasm::WasmModule> module, wasm::ModuleEnv& env,
       std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
       Handle<Script> script, Handle<ByteArray> asm_js_offset_table);
 
@@ -437,7 +437,7 @@ class WasmInstanceObject : public JSObject {
                                 WASM_INSTANCE_OBJECT_FIELDS)
 #undef WASM_INSTANCE_OBJECT_FIELDS
 
-  V8_EXPORT_PRIVATE wasm::WasmModule* module();
+  V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 
   static bool EnsureIndirectFunctionTableWithMinimumSize(
       Handle<WasmInstanceObject> instance, uint32_t minimum_size);

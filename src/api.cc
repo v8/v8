@@ -9450,7 +9450,7 @@ int debug::WasmScript::NumFunctions() const {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->module();
+  const i::wasm::WasmModule* module = module_object->module();
   DCHECK_GE(i::kMaxInt, module->functions.size());
   return static_cast<int>(module->functions.size());
 }
@@ -9461,7 +9461,7 @@ int debug::WasmScript::NumImportedFunctions() const {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->module();
+  const i::wasm::WasmModule* module = module_object->module();
   DCHECK_GE(i::kMaxInt, module->num_imported_functions);
   return static_cast<int>(module->num_imported_functions);
 }
@@ -9473,10 +9473,10 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->module();
+  const i::wasm::WasmModule* module = module_object->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
-  i::wasm::WasmFunction& func = module->functions[function_index];
+  const i::wasm::WasmFunction& func = module->functions[function_index];
   DCHECK_GE(i::kMaxInt, func.code.offset());
   DCHECK_GE(i::kMaxInt, func.code.end_offset());
   return std::make_pair(static_cast<int>(func.code.offset()),
@@ -9489,10 +9489,10 @@ uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmModuleObject* module_object =
       i::WasmModuleObject::cast(script->wasm_module_object());
-  i::wasm::WasmModule* module = module_object->module();
+  const i::wasm::WasmModule* module = module_object->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
-  i::wasm::WasmFunction& func = module->functions[function_index];
+  const i::wasm::WasmFunction& func = module->functions[function_index];
   i::wasm::ModuleWireBytes wire_bytes(
       module_object->native_module()->wire_bytes());
   i::Vector<const i::byte> function_bytes = wire_bytes.GetFunctionBytes(&func);

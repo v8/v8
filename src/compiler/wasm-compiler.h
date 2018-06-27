@@ -116,7 +116,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
 
 // Wraps a given wasm code object, producing a code object.
 V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate*, wasm::WasmModule*, Address call_target, uint32_t index,
+    Isolate*, const wasm::WasmModule*, Address call_target, uint32_t index,
     wasm::UseTrapHandler);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
