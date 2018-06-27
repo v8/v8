@@ -653,70 +653,87 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   UpdateWeakReferencesAfterScavenge();
 }
 
+namespace {
+template <typename T>
+T* ForwardingAddress(Heap* heap, T* heap_obj) {
+  MapWord map_word = heap_obj->map_word();
+
+  if (map_word.IsForwardingAddress()) {
+    return T::cast(map_word.ToForwardingAddress());
+  } else if (heap->InNewSpace(heap_obj)) {
+    return nullptr;
+  } else {
+    return heap_obj;
+  }
+}
+}  // namespace
+
 void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
   Heap* heap = heap_;
   weak_objects_->weak_references.Update(
       [heap](std::pair<HeapObject*, HeapObjectReference**> slot_in,
              std::pair<HeapObject*, HeapObjectReference**>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
-        MapWord map_word = heap_obj->map_word();
-        if (map_word.IsForwardingAddress()) {
+        HeapObject* forwarded = ForwardingAddress(heap, heap_obj);
+
+        if (forwarded) {
           ptrdiff_t distance_to_slot =
               reinterpret_cast<Address>(slot_in.second) -
               reinterpret_cast<Address>(slot_in.first);
           Address new_slot =
-              reinterpret_cast<Address>(map_word.ToForwardingAddress()) +
-              distance_to_slot;
-          slot_out->first = map_word.ToForwardingAddress();
+              reinterpret_cast<Address>(forwarded) + distance_to_slot;
+          slot_out->first = forwarded;
           slot_out->second = reinterpret_cast<HeapObjectReference**>(new_slot);
           return true;
         }
-        if (heap->InNewSpace(heap_obj)) {
-          // The new space object containing the weak reference died.
-          return false;
-        }
-        *slot_out = slot_in;
-        return true;
+
+        return false;
       });
   weak_objects_->weak_objects_in_code.Update(
       [heap](std::pair<HeapObject*, Code*> slot_in,
              std::pair<HeapObject*, Code*>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
-        MapWord map_word = heap_obj->map_word();
-        if (map_word.IsForwardingAddress()) {
-          slot_out->first = map_word.ToForwardingAddress();
+        HeapObject* forwarded = ForwardingAddress(heap, heap_obj);
+
+        if (forwarded) {
+          slot_out->first = forwarded;
           slot_out->second = slot_in.second;
           return true;
         }
-        if (heap->InNewSpace(heap_obj)) {
-          // The new space object which is referred weakly is dead (i.e., didn't
-          // get scavenged). Drop references to it.
-          return false;
-        }
-        *slot_out = slot_in;
-        return true;
+
+        return false;
       });
   weak_objects_->ephemeron_hash_tables.Update(
       [heap](EphemeronHashTable* slot_in,
              EphemeronHashTable** slot_out) -> bool {
-        HeapObject* heap_obj = slot_in;
-        MapWord map_word = heap_obj->map_word();
-        if (map_word.IsForwardingAddress()) {
-          *slot_out = EphemeronHashTable::cast(map_word.ToForwardingAddress());
+        EphemeronHashTable* forwarded = ForwardingAddress(heap, slot_in);
+
+        if (forwarded) {
+          *slot_out = forwarded;
           return true;
         }
 
-        if (heap->InNewSpace(heap_obj)) {
-          // An object could die in scavenge even though an earlier full GC's
-          // concurrent marking has already marked it. In the case of an
-          // EphemeronHashTable it would have already been added to the
-          // worklist. If that happens the table needs to be removed again.
-          return false;
-        }
-
-        *slot_out = slot_in;
-        return true;
+        return false;
       });
+
+  auto ephemeron_updater = [heap](Ephemeron slot_in,
+                                  Ephemeron* slot_out) -> bool {
+    HeapObject* key = slot_in.key;
+    HeapObject* value = slot_in.value;
+    HeapObject* forwarded_key = ForwardingAddress(heap, key);
+    HeapObject* forwarded_value = ForwardingAddress(heap, value);
+
+    if (forwarded_key && forwarded_value) {
+      *slot_out = Ephemeron{forwarded_key, forwarded_value};
+      return true;
+    }
+
+    return false;
+  };
+
+  weak_objects_->current_ephemerons.Update(ephemeron_updater);
+  weak_objects_->next_ephemerons.Update(ephemeron_updater);
+  weak_objects_->discovered_ephemerons.Update(ephemeron_updater);
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(

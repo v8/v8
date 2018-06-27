@@ -106,10 +106,17 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
         VisitPointer(table, value_slot);
 
       } else {
-        Object* value = *value_slot;
+        Object* value_obj = *value_slot;
 
-        if (value->IsHeapObject()) {
-          collector_->RecordSlot(table, value_slot, HeapObject::cast(value));
+        if (value_obj->IsHeapObject()) {
+          HeapObject* value = HeapObject::cast(value_obj);
+          collector_->RecordSlot(table, value_slot, value);
+
+          // Revisit ephemerons with both key and value unreachable at end
+          // of concurrent marking cycle.
+          if (marking_state()->IsWhite(value)) {
+            collector_->AddEphemeron(key, value);
+          }
         }
       }
     }

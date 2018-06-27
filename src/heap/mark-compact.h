@@ -411,6 +411,13 @@ class MajorNonAtomicMarkingState final
   }
 };
 
+struct Ephemeron {
+  HeapObject* key;
+  HeapObject* value;
+};
+
+typedef Worklist<Ephemeron, 64> EphemeronWorklist;
+
 // Weak objects encountered during marking.
 struct WeakObjects {
   Worklist<WeakCell*, 64> weak_cells;
@@ -419,6 +426,24 @@ struct WeakObjects {
   // Keep track of all EphemeronHashTables in the heap to process
   // them in the atomic pause.
   Worklist<EphemeronHashTable*, 64> ephemeron_hash_tables;
+
+  // Keep track of all ephemerons for concurrent marking tasks. Only store
+  // ephemerons in these Worklists if both key and value are unreachable at the
+  // moment.
+  //
+  // MarkCompactCollector::ProcessEphemeronsUntilFixpoint drains and fills these
+  // worklists.
+  //
+  // current_ephemerons is used as draining worklist in the current fixpoint
+  // iteration.
+  EphemeronWorklist current_ephemerons;
+
+  // Stores ephemerons to visit in the next fixpoint iteration.
+  EphemeronWorklist next_ephemerons;
+
+  // When draining the marking worklist new discovered ephemerons are pushed
+  // into this worklist.
+  EphemeronWorklist discovered_ephemerons;
 
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
@@ -628,6 +653,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.ephemeron_hash_tables.Push(kMainThread, table);
   }
 
+  void AddEphemeron(HeapObject* key, HeapObject* value) {
+    weak_objects_.discovered_ephemerons.Push(kMainThread,
+                                             Ephemeron{key, value});
+  }
+
   void AddWeakReference(HeapObject* host, HeapObjectReference** slot) {
     weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
@@ -705,9 +735,17 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // if no concurrent threads are running.
   void ProcessMarkingWorklist() override;
 
-  // Drains the main thread marking work list. Will mark all pending objects
-  // if no concurrent threads are running.
-  void ProcessMarkingWorklistInParallel();
+  // Implements ephemeron semantics: Marks value if key is already reachable.
+  // Returns true if value was actually marked.
+  bool VisitEphemeron(HeapObject* key, HeapObject* value);
+
+  // Marks ephemerons and drains marking worklist iteratively
+  // until a fixpoint is reached.
+  void ProcessEphemeronsUntilFixpoint();
+
+  // Drains ephemeron and marking worklists. Single iteration of the
+  // fixpoint iteration.
+  bool ProcessEphemerons();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
