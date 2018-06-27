@@ -335,6 +335,7 @@
   F(MC_MARK_ROOTS)                                   \
   F(MC_MARK_WEAK_CLOSURE)                            \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_VISITING)         \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \

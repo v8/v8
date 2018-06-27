@@ -375,40 +375,17 @@ class ConcurrentMarkingVisitor final
           VisitPointer(table, value_slot);
 
         } else {
-          Object* value_obj = table->ValueAt(i);
+          Object* value = table->ValueAt(i);
 
-          if (value_obj->IsHeapObject()) {
-            HeapObject* value = HeapObject::cast(value_obj);
-            MarkCompactCollector::RecordSlot(table, value_slot, value);
-
-            // Revisit ephemerons with both key and value unreachable at end
-            // of concurrent marking cycle.
-            if (marking_state_.IsWhite(value)) {
-              weak_objects_->discovered_ephemerons.Push(task_id_,
-                                                        Ephemeron{key, value});
-            }
+          if (value->IsHeapObject()) {
+            MarkCompactCollector::RecordSlot(table, value_slot,
+                                             HeapObject::cast(value));
           }
         }
       }
     }
 
     return table->SizeFromMap(map);
-  }
-
-  // Implements ephemeron semantics: Marks value if key is already reachable.
-  // Returns true if value was actually marked.
-  bool VisitEphemeron(HeapObject* key, HeapObject* value) {
-    if (marking_state_.IsBlackOrGrey(key)) {
-      if (marking_state_.WhiteToGrey(value)) {
-        shared_.Push(value);
-        return true;
-      }
-
-    } else if (marking_state_.IsWhite(value)) {
-      weak_objects_->next_ephemerons.Push(task_id_, Ephemeron{key, value});
-    }
-
-    return false;
   }
 
   void MarkObject(HeapObject* object) {
@@ -589,20 +566,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     heap_->isolate()->PrintWithTimestamp(
         "Starting concurrent marking task %d\n", task_id);
   }
-  bool ephemeron_marked = false;
-
   {
     TimedScope scope(&time_ms);
-
-    {
-      Ephemeron ephemeron;
-
-      while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
-        if (visitor.VisitEphemeron(ephemeron.key, ephemeron.value)) {
-          ephemeron_marked = true;
-        }
-      }
-    }
 
     bool done = false;
     while (!done) {
@@ -635,17 +600,6 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         break;
       }
     }
-
-    if (done) {
-      Ephemeron ephemeron;
-
-      while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
-        if (visitor.VisitEphemeron(ephemeron.key, ephemeron.value)) {
-          ephemeron_marked = true;
-        }
-      }
-    }
-
     shared_->FlushToGlobal(task_id);
     bailout_->FlushToGlobal(task_id);
     on_hold_->FlushToGlobal(task_id);
@@ -653,17 +607,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
     weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
-    weak_objects_->current_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->next_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
-
-    if (ephemeron_marked) {
-      set_ephemeron_marked(true);
-    }
-
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
@@ -723,9 +669,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
     base::LockGuard<base::Mutex> guard(&pending_lock_);
     if (pending_task_count_ > 0) return;
   }
-  if (!shared_->IsGlobalPoolEmpty() ||
-      !weak_objects_->current_ephemerons.IsGlobalEmpty() ||
-      !weak_objects_->discovered_ephemerons.IsGlobalEmpty()) {
+  if (!shared_->IsGlobalPoolEmpty()) {
     ScheduleTasks();
   }
 }

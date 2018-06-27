@@ -845,10 +845,6 @@ void MarkCompactCollector::Finish() {
   heap()->VerifyCountersBeforeConcurrentSweeping();
 #endif
 
-  CHECK(weak_objects_.current_ephemerons.IsGlobalEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsGlobalEmpty());
-  weak_objects_.next_ephemerons.Clear();
-
   sweeper()->StartSweeperTasks();
   sweeper()->StartIterabilityTasks();
 
@@ -1468,78 +1464,16 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   ProcessTopOptimizedFrame(custom_root_body_visitor);
 }
 
-void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
-  bool work_to_do = true;
-
-  while (work_to_do) {
-    if (heap_->local_embedder_heap_tracer()->InUse()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
-      heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
-      heap_->local_embedder_heap_tracer()->Trace(
-          0, EmbedderHeapTracer::AdvanceTracingActions(
-                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
-    }
-
-    // Move ephemerons from next_ephemerons into current_ephemerons to
-    // drain them in this iteration.
-    weak_objects_.current_ephemerons.Swap(weak_objects_.next_ephemerons);
-    heap()->concurrent_marking()->set_ephemeron_marked(false);
-
-    {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
-
-      if (FLAG_parallel_marking) {
-        DCHECK(FLAG_concurrent_marking);
-        heap_->concurrent_marking()->RescheduleTasksIfNeeded();
-      }
-
-      work_to_do = ProcessEphemerons();
-      FinishConcurrentMarking(
-          ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
-    }
-
-    CHECK(weak_objects_.current_ephemerons.IsGlobalEmpty());
-    CHECK(weak_objects_.discovered_ephemerons.IsGlobalEmpty());
-
-    work_to_do = work_to_do || !marking_worklist()->IsEmpty() ||
-                 heap()->concurrent_marking()->ephemeron_marked();
+void MarkCompactCollector::ProcessMarkingWorklistInParallel() {
+  if (FLAG_parallel_marking) {
+    DCHECK(FLAG_concurrent_marking);
+    heap_->concurrent_marking()->RescheduleTasksIfNeeded();
   }
-
-  CHECK(marking_worklist()->IsEmpty());
-  CHECK(weak_objects_.current_ephemerons.IsGlobalEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsGlobalEmpty());
-}
-
-bool MarkCompactCollector::ProcessEphemerons() {
-  Ephemeron ephemeron;
-  bool ephemeron_marked = false;
-
-  // Drain current_ephemerons and push ephemerons where key and value are still
-  // unreachable into next_ephemerons.
-  while (weak_objects_.current_ephemerons.Pop(kMainThread, &ephemeron)) {
-    if (VisitEphemeron(ephemeron.key, ephemeron.value)) {
-      ephemeron_marked = true;
-    }
-  }
-
-  // Drain marking worklist and push discovered ephemerons into
-  // discovered_ephemerons.
   ProcessMarkingWorklist();
 
-  // Drain discovered_ephemerons (filled in the drain MarkingWorklist-phase
-  // before) and push ephemerons where key and value are still unreachable into
-  // next_ephemerons.
-  while (weak_objects_.discovered_ephemerons.Pop(kMainThread, &ephemeron)) {
-    if (VisitEphemeron(ephemeron.key, ephemeron.value)) {
-      ephemeron_marked = true;
-    }
-  }
-
-  // Flush local ephemerons for main task to global pool.
-  weak_objects_.next_ephemerons.FlushToGlobal(kMainThread);
-
-  return ephemeron_marked;
+  FinishConcurrentMarking(
+      ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
+  ProcessMarkingWorklist();
 }
 
 void MarkCompactCollector::ProcessMarkingWorklist() {
@@ -1558,29 +1492,30 @@ void MarkCompactCollector::ProcessMarkingWorklist() {
   DCHECK(marking_worklist()->IsBailoutEmpty());
 }
 
-bool MarkCompactCollector::VisitEphemeron(HeapObject* key, HeapObject* value) {
-  if (marking_state()->IsBlackOrGrey(key)) {
-    if (marking_state()->WhiteToGrey(value)) {
-      marking_worklist()->Push(value);
-      return true;
-    }
-
-  } else if (marking_state()->IsWhite(value)) {
-    weak_objects_.next_ephemerons.Push(kMainThread, Ephemeron{key, value});
-  }
-
-  return false;
-}
-
 void MarkCompactCollector::ProcessEphemeronMarking() {
   DCHECK(marking_worklist()->IsEmpty());
+  bool work_to_do = true;
+  while (work_to_do) {
+    if (heap_->local_embedder_heap_tracer()->InUse()) {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
+      heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+      heap_->local_embedder_heap_tracer()->Trace(
+          0, EmbedderHeapTracer::AdvanceTracingActions(
+                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
+    }
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_VISITING);
+      ProcessWeakCollections();
+    }
+    work_to_do = !marking_worklist()->IsEmpty();
 
-  // Incremental marking might leave ephemerons in main task's local
-  // buffer, flush it into global pool.
-  weak_objects_.next_ephemerons.FlushToGlobal(kMainThread);
-
-  ProcessEphemeronsUntilFixpoint();
-
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
+      ProcessMarkingWorklistInParallel();
+    }
+  }
   CHECK(marking_worklist()->IsEmpty());
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
 }
@@ -1946,6 +1881,130 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
   heap_->RightTrimFixedArray(indices, to_trim);
 }
 
+class EphemeronHashTableMarkingItem : public ItemParallelJob::Item {
+ public:
+  explicit EphemeronHashTableMarkingItem(EphemeronHashTable* table, int offset)
+      : table_(table), offset_(offset) {}
+  virtual ~EphemeronHashTableMarkingItem() {}
+  EphemeronHashTable* table() const { return table_; }
+  int offset() const { return offset_; }
+
+ private:
+  EphemeronHashTable* table_;
+  int offset_;
+};
+
+class EphemeronHashTableMarkingTask : public ItemParallelJob::Task {
+ public:
+  EphemeronHashTableMarkingTask(
+      Isolate* isolate, MarkCompactCollector* collector,
+      MarkCompactCollector::MarkingWorklist::ConcurrentMarkingWorklist*
+          worklist,
+      int task_id)
+      : ItemParallelJob::Task(isolate),
+        collector_(collector),
+        worklist_(worklist),
+        task_id_(task_id) {}
+
+  void RunInParallel() override {
+    EphemeronHashTableMarkingItem* item = nullptr;
+    while ((item = GetItem<EphemeronHashTableMarkingItem>()) != nullptr) {
+      EphemeronHashTable* table = item->table();
+      int start = item->offset();
+      int limit = Min(start + MarkCompactCollector::kEphemeronChunkSize,
+                      table->Capacity());
+
+      for (int i = start; i < limit; i++) {
+        HeapObject* key = HeapObject::cast(table->KeyAt(i));
+        if (collector_->marking_state()->IsBlackOrGrey(key)) {
+          Object* value_obj = table->ValueAt(i);
+
+          if (value_obj->IsHeapObject()) {
+            HeapObject* value = HeapObject::cast(value_obj);
+
+            if (collector_->marking_state()->WhiteToGrey(value)) {
+              worklist_->Push(task_id_, value);
+
+              if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+                collector_->heap()->AddEphemeronRetainer(key, value);
+                collector_->heap()->AddRetainer(table, value);
+              }
+            }
+          }
+        }
+
+        // Record slots if that wasn't done already in concurrent or
+        // incremental marking
+        if (V8_UNLIKELY(!FLAG_optimize_ephemerons)) {
+          Object** key_slot =
+              table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+          HeapObject* key = HeapObject::cast(table->KeyAt(i));
+
+          if (collector_->marking_state()->IsBlackOrGrey(key)) {
+            collector_->RecordSlot(table, key_slot, key);
+            Object* value = table->ValueAt(i);
+
+            if (value->IsHeapObject()) {
+              Object** value_slot = table->RawFieldOfElementAt(
+                  EphemeronHashTable::EntryToValueIndex(i));
+              collector_->RecordSlot(table, value_slot,
+                                     HeapObject::cast(value));
+            }
+          }
+        }
+      }
+
+      item->MarkFinished();
+    }
+
+    worklist_->FlushToGlobal(task_id_);
+  }
+
+ private:
+  MarkCompactCollector* collector_;
+  MarkCompactCollector::MarkingWorklist::ConcurrentMarkingWorklist* worklist_;
+  int task_id_;
+};
+
+void MarkCompactCollector::ProcessWeakCollections() {
+  CHECK(heap()->concurrent_marking()->IsStopped());
+  ItemParallelJob marking_job(isolate()->cancelable_task_manager(),
+                              &page_parallel_job_semaphore_);
+  size_t elements = 0;
+
+  // Split EphemeronHashTables into chunks such that we can divide work more
+  // equally between tasks
+  weak_objects_.ephemeron_hash_tables.Iterate([&](EphemeronHashTable* table) {
+    int capacity = table->Capacity();
+    int chunks = (capacity + kEphemeronChunkSize - 1) / kEphemeronChunkSize;
+    elements += static_cast<size_t>(capacity);
+
+    for (int i = 0; i < chunks; i++) {
+      marking_job.AddItem(
+          new EphemeronHashTableMarkingItem(table, i * kEphemeronChunkSize));
+    }
+  });
+
+  int num_tasks = NumberOfParallelEphemeronVisitingTasks(elements);
+  for (int i = 0; i < num_tasks; i++) {
+    marking_job.AddTask(new EphemeronHashTableMarkingTask(
+        isolate(), this, marking_worklist_.shared(), i));
+  }
+
+  marking_job.Run(isolate()->async_counters());
+}
+
+int MarkCompactCollector::NumberOfParallelEphemeronVisitingTasks(
+    size_t elements) {
+  DCHECK_GE(elements, 0);
+  if (!FLAG_parallel_ephemeron_visiting || elements == 0) return 1;
+  size_t chunks = (elements + kEphemeronChunkSize - 1) / kEphemeronChunkSize;
+  const size_t kMaxNumTasks =
+      MarkingWorklist::ConcurrentMarkingWorklist::kMaxNumTasks;
+  return Min(NumberOfAvailableCores(),
+             static_cast<int>(Min(chunks, kMaxNumTasks)));
+}
+
 void MarkCompactCollector::ClearWeakCollections() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
   EphemeronHashTable* table;
@@ -2026,9 +2085,6 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.weak_cells.Clear();
   weak_objects_.transition_arrays.Clear();
   weak_objects_.ephemeron_hash_tables.Clear();
-  weak_objects_.current_ephemerons.Clear();
-  weak_objects_.next_ephemerons.Clear();
-  weak_objects_.discovered_ephemerons.Clear();
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
 }
