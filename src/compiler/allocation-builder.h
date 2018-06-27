@@ -18,8 +18,10 @@ namespace compiler {
 // allocated object and also provides helpers for commonly allocated objects.
 class AllocationBuilder final {
  public:
-  AllocationBuilder(JSGraph* jsgraph, Node* effect, Node* control)
+  AllocationBuilder(JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
+                    Node* effect, Node* control)
       : jsgraph_(jsgraph),
+        js_heap_broker_(js_heap_broker),
         allocation_(nullptr),
         effect_(effect),
         control_(control) {}
@@ -75,6 +77,10 @@ class AllocationBuilder final {
   void Store(const FieldAccess& access, Handle<Object> value) {
     Store(access, jsgraph()->Constant(value));
   }
+  // Compound store of a constant into a field.
+  void Store(const FieldAccess& access, const ObjectRef& value) {
+    Store(access, jsgraph()->Constant(js_heap_broker(), value));
+  }
 
   void FinishAndChange(Node* node) {
     NodeProperties::SetType(allocation_, NodeProperties::GetType(node));
@@ -90,6 +96,7 @@ class AllocationBuilder final {
 
  protected:
   JSGraph* jsgraph() { return jsgraph_; }
+  const JSHeapBroker* js_heap_broker() { return js_heap_broker_; }
   Isolate* isolate() const { return jsgraph_->isolate(); }
   Graph* graph() { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
@@ -97,6 +104,7 @@ class AllocationBuilder final {
 
  private:
   JSGraph* const jsgraph_;
+  const JSHeapBroker* const js_heap_broker_;
   Node* allocation_;
   Node* effect_;
   Node* control_;

@@ -1730,7 +1730,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
 
   Node* a;  // Construct the output array.
   {
-    AllocationBuilder ab(jsgraph(), effect, control);
+    AllocationBuilder ab(jsgraph(), js_heap_broker(), effect, control);
     ab.Allocate(initial_map->instance_size(), NOT_TENURED, Type::Array());
     ab.Store(AccessBuilder::ForMap(), initial_map);
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();

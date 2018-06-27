@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-regexp-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -395,6 +396,33 @@ ElementsKind JSArrayRef::GetElementsKind() const {
 ObjectRef JSArrayRef::length(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<JSArray>()->length(), broker->isolate()));
+}
+
+ObjectRef JSRegExpRef::raw_properties_or_hash(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(
+      handle(object<JSRegExp>()->raw_properties_or_hash(), broker->isolate()));
+}
+
+ObjectRef JSRegExpRef::data(const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(handle(object<JSRegExp>()->data(), broker->isolate()));
+}
+
+ObjectRef JSRegExpRef::source(const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(handle(object<JSRegExp>()->source(), broker->isolate()));
+}
+
+ObjectRef JSRegExpRef::flags(const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(handle(object<JSRegExp>()->flags(), broker->isolate()));
+}
+
+ObjectRef JSRegExpRef::last_index(const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(handle(object<JSRegExp>()->last_index(), broker->isolate()));
 }
 
 int FixedArrayBaseRef::length() const {

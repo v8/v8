@@ -64,6 +64,7 @@ class HeapObjectType {
   V(JSArray)                     \
   V(JSFunction)                  \
   V(JSObject)                    \
+  V(JSRegExp)                    \
   V(MutableHeapNumber)           \
   V(Name)                        \
   V(NativeContext)               \
@@ -158,6 +159,17 @@ class JSFunctionRef : public JSObjectRef {
   explicit JSFunctionRef(Handle<Object> object);
   bool HasBuiltinFunctionId() const;
   BuiltinFunctionId GetBuiltinFunctionId() const;
+};
+
+class JSRegExpRef : public JSObjectRef {
+ public:
+  explicit JSRegExpRef(Handle<Object> object) : JSObjectRef(object) {}
+
+  ObjectRef raw_properties_or_hash(const JSHeapBroker* broker) const;
+  ObjectRef data(const JSHeapBroker* broker) const;
+  ObjectRef source(const JSHeapBroker* broker) const;
+  ObjectRef flags(const JSHeapBroker* broker) const;
+  ObjectRef last_index(const JSHeapBroker* broker) const;
 };
 
 class HeapNumberRef : public HeapObjectRef {

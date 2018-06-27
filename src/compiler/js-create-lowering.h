@@ -23,8 +23,6 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class JSGraph;
-class JSHeapBroker;
-class JSObjectRef;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
@@ -103,7 +101,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                     JSObjectRef boilerplate,
                                     PretenureFlag pretenure);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
-                              Handle<JSRegExp> boilerplate);
+                              JSRegExpRef boilerplate);
 
   Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 

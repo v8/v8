@@ -1913,7 +1913,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
             !FLAG_unbox_double_fields) {
           if (access_info.HasTransitionMap()) {
             // Allocate a MutableHeapNumber for the new property.
-            AllocationBuilder a(jsgraph(), effect, control);
+            AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
             a.Allocate(HeapNumber::kSize, NOT_TENURED, Type::OtherInternal());
             a.Store(AccessBuilder::ForMap(),
                     factory()->mutable_heap_number_map());
@@ -2769,7 +2769,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
                        new_length_and_hash, effect, control);
 
   // Allocate and initialize the new properties.
-  AllocationBuilder a(jsgraph(), effect, control);
+  AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
   a.Allocate(PropertyArray::SizeFor(new_length), NOT_TENURED,
              Type::OtherInternal());
   a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());
