@@ -596,6 +596,7 @@
   'intl402/Locale/prototype/minimize/name': [FAIL],
   'intl402/Locale/prototype/minimize/prop-desc': [FAIL],
   'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
+  'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7813
   'built-ins/Array/prototype/lastIndexOf/calls-only-has-on-prototype-after-length-zeroed': [FAIL],
