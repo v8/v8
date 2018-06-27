@@ -2893,6 +2893,14 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 }
 
 // static
+bool InstructionSelector::TryMatchIdentity(const uint8_t* shuffle) {
+  for (int i = 0; i < kSimd128Size; ++i) {
+    if (shuffle[i] != i) return false;
+  }
+  return true;
+}
+
+// static
 bool InstructionSelector::TryMatch32x4Shuffle(const uint8_t* shuffle,
                                               uint8_t* shuffle32x4) {
   for (int i = 0; i < 4; ++i) {
