@@ -1040,9 +1040,15 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
-  ZoneVector<LiveRange*>& unhandled_live_ranges() {
-    return unhandled_live_ranges_;
-  }
+  struct LiveRangeOrdering {
+    bool operator()(LiveRange* a, LiveRange* b) {
+      return b->ShouldBeAllocatedBefore(a);
+    }
+  };
+  using LiveRangeQueue = std::priority_queue<LiveRange*, ZoneVector<LiveRange*>,
+                                             LiveRangeOrdering>;
+  static LiveRangeQueue MakeLiveRangeQueue(size_t capacity, Zone* local_zone);
+  LiveRangeQueue& unhandled_live_ranges() { return unhandled_live_ranges_; }
   ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
   ZoneVector<LiveRange*>& inactive_live_ranges() {
     return inactive_live_ranges_;
@@ -1053,10 +1059,7 @@ class LinearScanAllocator final : public RegisterAllocator {
   // Helper methods for updating the life range lists.
   void AddToActive(LiveRange* range);
   void AddToInactive(LiveRange* range);
-  void AddToUnhandledSorted(LiveRange* range);
-  void AddToUnhandledUnsorted(LiveRange* range);
-  void SortUnhandled();
-  bool UnhandledIsSorted();
+  void AddToUnhandled(LiveRange* range);
   void ActiveToHandled(LiveRange* range);
   void ActiveToInactive(LiveRange* range);
   void InactiveToHandled(LiveRange* range);
@@ -1090,7 +1093,7 @@ class LinearScanAllocator final : public RegisterAllocator {
 
   void SplitAndSpillIntersecting(LiveRange* range);
 
-  ZoneVector<LiveRange*> unhandled_live_ranges_;
+  LiveRangeQueue unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;
   ZoneVector<LiveRange*> inactive_live_ranges_;
 
