@@ -176,7 +176,7 @@ class WasmCodeManagerTest : public TestWithContext,
     std::unique_ptr<byte[]> exec_buff(new byte[size]);
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
-    return native_module->AddCode(desc, 0, index, 0, 0, {}, OwnedVector<byte>(),
+    return native_module->AddCode(index, desc, 0, 0, 0, {}, OwnedVector<byte>(),
                                   WasmCode::kOther);
   }
 

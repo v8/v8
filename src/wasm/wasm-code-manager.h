@@ -159,17 +159,17 @@ class V8_EXPORT_PRIVATE WasmCode final {
  private:
   friend class NativeModule;
 
-  WasmCode(Vector<byte> instructions, OwnedVector<const byte> reloc_info,
-           OwnedVector<const byte> source_pos, NativeModule* native_module,
-           Maybe<uint32_t> index, Kind kind, size_t constant_pool_offset,
-           uint32_t stack_slots, size_t safepoint_table_offset,
-           size_t handler_table_offset,
+  WasmCode(NativeModule* native_module, Maybe<uint32_t> index,
+           Vector<byte> instructions, uint32_t stack_slots,
+           size_t safepoint_table_offset, size_t handler_table_offset,
+           size_t constant_pool_offset,
            OwnedVector<trap_handler::ProtectedInstructionData>
                protected_instructions,
-           Tier tier)
+           OwnedVector<const byte> reloc_info,
+           OwnedVector<const byte> source_position_table, Kind kind, Tier tier)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
-        source_position_table_(std::move(source_pos)),
+        source_position_table_(std::move(source_position_table)),
         native_module_(native_module),
         index_(index),
         kind_(kind),
@@ -219,12 +219,21 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-  WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
+  WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     OwnedVector<trap_handler::ProtectedInstructionData>
                         protected_instructions,
-                    OwnedVector<byte> source_position_table,
+                    OwnedVector<const byte> source_position_table,
                     WasmCode::Tier tier);
+
+  WasmCode* AddDeserializedCode(
+      uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
+      size_t safepoint_table_offset, size_t handler_table_offset,
+      size_t constant_pool_offset,
+      OwnedVector<trap_handler::ProtectedInstructionData>
+          protected_instructions,
+      OwnedVector<const byte> reloc_info,
+      OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
 
   // A way to copy over JS-allocated code. This is because we compile
   // certain wrappers using a different pipeline.
@@ -233,7 +242,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Add an interpreter entry. For the same reason as AddCodeCopy, we
   // currently compile these using a different pipeline and we can't get a
   // CodeDesc here. When adding interpreter wrappers, we do not insert them in
-  // the code_table, however, we let them self-identify as the {index} function
+  // the code_table, however, we let them self-identify as the {index} function.
   WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
 
   // When starting lazy compilation, provide the WasmLazyCompile builtin by
@@ -319,8 +328,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
  private:
   friend class WasmCode;
   friend class WasmCodeManager;
-  friend class NativeModuleSerializer;
-  friend class NativeModuleDeserializer;
   friend class NativeModuleModificationScope;
 
   NativeModule(Isolate* isolate, uint32_t num_functions,
@@ -335,15 +342,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // module is owned by that module. Various callers get to decide on how the
   // code is obtained (CodeDesc vs, as a point in time, Code*), the kind,
   // whether it has an index or is anonymous, etc.
-  WasmCode* AddOwnedCode(Vector<const byte> orig_instructions,
-                         OwnedVector<const byte> reloc_info,
-                         OwnedVector<const byte> source_pos,
-                         Maybe<uint32_t> index, WasmCode::Kind kind,
-                         size_t constant_pool_offset, uint32_t stack_slots,
-                         size_t safepoint_table_offset,
+  WasmCode* AddOwnedCode(Maybe<uint32_t> index, Vector<const byte> instructions,
+                         uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
+                         size_t constant_pool_offset,
                          OwnedVector<trap_handler::ProtectedInstructionData>,
-                         WasmCode::Tier, WasmCode::FlushICache);
+                         OwnedVector<const byte> reloc_info,
+                         OwnedVector<const byte> source_position_table,
+                         WasmCode::Kind, WasmCode::Tier, WasmCode::FlushICache);
 
   WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
 

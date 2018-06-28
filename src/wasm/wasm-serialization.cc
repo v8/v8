@@ -453,21 +453,19 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       OwnedVector<trap_handler::ProtectedInstructionData>::New(
           protected_instructions_size);
   reader->ReadVector(Vector<byte>::cast(protected_instructions.as_vector()));
-  WasmCode* ret = native_module_->AddOwnedCode(
-      code_buffer, std::move(reloc_info), std::move(source_pos), Just(fn_index),
-      WasmCode::kFunction, constant_pool_offset, stack_slot_count,
-      safepoint_table_offset, handler_table_offset,
-      std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
-  native_module_->set_code(fn_index, ret);
-  native_module_->PatchJumpTable(fn_index, ret->instruction_start(),
-                                 WasmCode::kFlushICache);
+
+  WasmCode* code = native_module_->AddDeserializedCode(
+      fn_index, code_buffer, stack_slot_count, safepoint_table_offset,
+      handler_table_offset, constant_pool_offset,
+      std::move(protected_instructions), std::move(reloc_info),
+      std::move(source_pos), tier);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
-  for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
-                          ret->constant_pool(), mask);
+  for (RelocIterator iter(code->instructions(), code->reloc_info(),
+                          code->constant_pool(), mask);
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
@@ -499,12 +497,13 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     }
   }
 
-  // Flush the i-cache here instead of in AddOwnedCode, to include the changes
-  // made while iterating over the RelocInfo above.
-  Assembler::FlushICache(ret->instructions().start(),
-                         ret->instructions().size());
-  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print();
-  ret->Validate();
+  if (FLAG_print_code || FLAG_print_wasm_code) code->Print();
+  code->Validate();
+
+  // Finally, flush the icache for that code.
+  Assembler::FlushICache(code->instructions().start(),
+                         code->instructions().size());
+
   return true;
 }
 

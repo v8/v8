@@ -3438,7 +3438,7 @@ TEST(Liftoff_tier_up) {
     memcpy(buffer.get(), sub_code->instructions().start(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
-    native_module->AddCode(desc, 0, add.function_index(), 0, 0, {},
+    native_module->AddCode(add.function_index(), desc, 0, 0, 0, {},
                            OwnedVector<byte>(), WasmCode::kOther);
 
     // Second run should now execute {sub}.

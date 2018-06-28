@@ -1880,7 +1880,7 @@ wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
       OwnedVector<trap_handler::ProtectedInstructionData>::Of(
           protected_instructions_);
   wasm::WasmCode* code = wasm_unit_->native_module_->AddCode(
-      desc, asm_.GetTotalFrameSlotCount(), wasm_unit_->func_index_,
+      wasm_unit_->func_index_, desc, asm_.GetTotalFrameSlotCount(),
       safepoint_table_offset_, 0, std::move(protected_instructions_copy),
       std::move(source_positions), wasm::WasmCode::kLiftoff);
 
