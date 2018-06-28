@@ -109,7 +109,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
                 test_module_->num_declared_functions);
   if (name) {
     Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
-    test_module_->AddNameForTesting(
+    test_module_->AddFunctionNameForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
   if (interpreter_) {
@@ -410,7 +410,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());
   WireBytesRef func_name_ref =
-      module_env.module->LookupName(wire_bytes, function_->func_index);
+      module_env.module->LookupFunctionName(wire_bytes, function_->func_index);
   ScopedVector<char> func_name(func_name_ref.length());
   memcpy(func_name.start(), wire_bytes.start() + func_name_ref.offset(),
          func_name_ref.length());

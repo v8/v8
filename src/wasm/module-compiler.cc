@@ -385,7 +385,7 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   {
     ModuleWireBytes wire_bytes(native_module->wire_bytes());
     WireBytesRef name_ref =
-        module_env->module->LookupName(wire_bytes, func_index);
+        module_env->module->LookupFunctionName(wire_bytes, func_index);
     func_name = wire_bytes.GetName(name_ref);
   }
 
@@ -1997,7 +1997,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           MaybeHandle<String> func_name;
           if (is_asm_js) {
             // For modules arising from asm.js, honor the names section.
-            WireBytesRef func_name_ref = module_->LookupName(
+            WireBytesRef func_name_ref = module_->LookupFunctionName(
                 module_object_->native_module()->wire_bytes(),
                 function.func_index);
             func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
@@ -2182,8 +2182,8 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             MaybeHandle<String> func_name;
             if (module_->origin == kAsmJsOrigin) {
               // For modules arising from asm.js, honor the names section.
-              WireBytesRef func_name_ref =
-                  module_->LookupName(native_module->wire_bytes(), func_index);
+              WireBytesRef func_name_ref = module_->LookupFunctionName(
+                  native_module->wire_bytes(), func_index);
               func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                               isolate_, module_object_, func_name_ref)
                               .ToHandleChecked();

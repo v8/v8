@@ -144,7 +144,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   // TODO(herhut): Allow to log code without on-heap round-trip of the name.
   ModuleEnv* module_env = GetModuleEnv(native_module()->compilation_state());
-  WireBytesRef name_ref = module_env->module->LookupName(wire_bytes, index());
+  WireBytesRef name_ref =
+      module_env->module->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetName(name_ref);
   MaybeHandle<String> maybe_name =
       isolate->factory()->NewStringFromUtf8(Vector<const char>::cast(name_vec));

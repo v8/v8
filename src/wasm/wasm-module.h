@@ -154,14 +154,15 @@ struct V8_EXPORT_PRIVATE WasmModule {
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
+  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
+      function_names;
 
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);
 
-  WireBytesRef LookupName(const ModuleWireBytes& wire_bytes,
-                          uint32_t function_index) const;
-  void AddNameForTesting(int function_index, WireBytesRef name);
+  WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
+                                  uint32_t function_index) const;
+  void AddFunctionNameForTesting(int function_index, WireBytesRef name);
 };
 
 size_t EstimateWasmModuleSize(const WasmModule* module);
