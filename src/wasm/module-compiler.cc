@@ -64,7 +64,7 @@ enum class CompileMode : uint8_t { kRegular, kTiering };
 // compilation of functions.
 class CompilationState {
  public:
-  CompilationState(internal::Isolate* isolate, ModuleEnv& env);
+  CompilationState(internal::Isolate*, const ModuleEnv&);
   ~CompilationState();
 
   // Needs to be set before {AddCompilationUnits} is run, which triggers
@@ -134,6 +134,7 @@ class CompilationState {
   }
 
   Isolate* const isolate_;
+  // TODO(clemensh): Remove ModuleEnv, generate it when needed.
   ModuleEnv module_env_;
   const size_t max_memory_;
   const CompileMode compile_mode_;
@@ -2846,7 +2847,7 @@ void CompilationStateDeleter::operator()(
 }
 
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate, ModuleEnv& env) {
+    Isolate* isolate, const ModuleEnv& env) {
   return std::unique_ptr<CompilationState, CompilationStateDeleter>(
       new CompilationState(isolate, env));
 }
@@ -2855,13 +2856,12 @@ ModuleEnv* GetModuleEnv(CompilationState* compilation_state) {
   return compilation_state->module_env();
 }
 
-CompilationState::CompilationState(internal::Isolate* isolate, ModuleEnv& env)
+CompilationState::CompilationState(internal::Isolate* isolate,
+                                   const ModuleEnv& env)
     : isolate_(isolate),
       module_env_(env),
       max_memory_(GetMaxUsableMemorySize(isolate) / 2),
-      // TODO(clemensh): Fix fuzzers such that {env.module} is always non-null.
-      compile_mode_(FLAG_wasm_tier_up &&
-                            (!env.module || env.module->origin == kWasmOrigin)
+      compile_mode_(FLAG_wasm_tier_up && env.module->origin == kWasmOrigin
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       wire_bytes_(ModuleWireBytes(nullptr, nullptr)),

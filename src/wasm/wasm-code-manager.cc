@@ -42,12 +42,6 @@ struct WasmCodeUniquePtrComparator {
   }
 };
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
-constexpr bool kModuleCanAllocateMoreMemory = false;
-#else
-constexpr bool kModuleCanAllocateMoreMemory = true;
-#endif
-
 }  // namespace
 
 void DisjointAllocationPool::Merge(AddressRange range) {
@@ -294,24 +288,25 @@ WasmCode::~WasmCode() {
   }
 }
 
-NativeModule::NativeModule(Isolate* isolate, uint32_t num_functions,
-                           uint32_t num_imported_functions,
-                           bool can_request_more, VirtualMemory* code_space,
-                           WasmCodeManager* code_manager, ModuleEnv& env)
-    : num_functions_(num_functions),
-      num_imported_functions_(num_imported_functions),
+NativeModule::NativeModule(Isolate* isolate, bool can_request_more,
+                           VirtualMemory* code_space,
+                           WasmCodeManager* code_manager,
+                           std::shared_ptr<const WasmModule> module,
+                           const ModuleEnv& env)
+    : module_(std::move(module)),
       compilation_state_(NewCompilationState(isolate, env)),
       free_code_space_({code_space->address(), code_space->end()}),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
       use_trap_handler_(env.use_trap_handler) {
+  DCHECK_EQ(module_.get(), env.module);
+  DCHECK_NOT_NULL(module_);
   VirtualMemory my_mem;
   owned_code_space_.push_back(my_mem);
   owned_code_space_.back().TakeControl(code_space);
-  owned_code_.reserve(num_functions);
+  owned_code_.reserve(num_functions());
 
-  DCHECK_LE(num_imported_functions, num_functions);
-  uint32_t num_wasm_functions = num_functions - num_imported_functions;
+  uint32_t num_wasm_functions = module_->num_declared_functions;
   if (num_wasm_functions > 0) {
     code_table_.reset(new WasmCode*[num_wasm_functions]);
     memset(code_table_.get(), 0, num_wasm_functions * sizeof(WasmCode*));
@@ -321,20 +316,15 @@ NativeModule::NativeModule(Isolate* isolate, uint32_t num_functions,
 }
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
-  DCHECK_LE(num_functions_, max_functions);
-  uint32_t num_wasm = num_functions_ - num_imported_functions_;
-  uint32_t max_wasm = max_functions - num_imported_functions_;
-  WasmCode** new_table = new WasmCode*[max_wasm];
-  memset(new_table, 0, max_wasm * sizeof(*new_table));
-  memcpy(new_table, code_table_.get(), num_wasm * sizeof(*new_table));
+  DCHECK_LE(num_functions(), max_functions);
+  WasmCode** new_table = new WasmCode*[max_functions];
+  memset(new_table, 0, max_functions * sizeof(*new_table));
+  memcpy(new_table, code_table_.get(),
+         module_->num_declared_functions * sizeof(*new_table));
   code_table_.reset(new_table);
 
   // Re-allocate jump table.
-  jump_table_ = CreateEmptyJumpTable(max_wasm);
-}
-
-void NativeModule::SetNumFunctionsForTesting(uint32_t num_functions) {
-  num_functions_ = num_functions;
+  jump_table_ = CreateEmptyJumpTable(max_functions);
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate) {
@@ -394,7 +384,7 @@ WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
   // this NativeModule is a memory leak until the whole NativeModule dies.
   WasmCode* ret = AddAnonymousCode(code, kind);
   ret->index_ = Just(index);
-  if (index >= num_imported_functions_) set_code(index, ret);
+  if (index >= module_->num_imported_functions) set_code(index, ret);
   return ret;
 }
 
@@ -406,7 +396,7 @@ WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
 }
 
 void NativeModule::SetLazyBuiltin(Handle<Code> code) {
-  uint32_t num_wasm_functions = num_functions_ - num_imported_functions_;
+  uint32_t num_wasm_functions = module_->num_declared_functions;
   if (num_wasm_functions == 0) return;
   WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
   // Fill the jump table with jumps to the lazy compile stub.
@@ -417,7 +407,7 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   for (uint32_t i = 0; i < num_wasm_functions; ++i) {
     // Check that the offset in the jump table increases as expected.
     DCHECK_EQ(i * JumpTableAssembler::kJumpTableSlotSize, jtasm.pc_offset());
-    jtasm.EmitLazyCompileJumpSlot(i + num_imported_functions_,
+    jtasm.EmitLazyCompileJumpSlot(i + module_->num_imported_functions,
                                   lazy_compile_target);
     jtasm.NopBytes((i + 1) * JumpTableAssembler::kJumpTableSlotSize -
                    jtasm.pc_offset());
@@ -600,8 +590,8 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
 
 void NativeModule::PatchJumpTable(uint32_t func_index, Address target,
                                   WasmCode::FlushICache flush_icache) {
-  DCHECK_LE(num_imported_functions_, func_index);
-  uint32_t slot_idx = func_index - num_imported_functions_;
+  DCHECK_LE(module_->num_imported_functions, func_index);
+  uint32_t slot_idx = func_index - module_->num_imported_functions;
   Address jump_table_slot = jump_table_->instruction_start() +
                             slot_idx * JumpTableAssembler::kJumpTableSlotSize;
   JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, target, flush_icache);
@@ -695,7 +685,7 @@ Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
 
   // Return the jump table slot for that function index.
   DCHECK_NOT_NULL(jump_table_);
-  uint32_t slot_idx = func_index - num_imported_functions_;
+  uint32_t slot_idx = func_index - module_->num_imported_functions;
   DCHECK_LT(slot_idx, jump_table_->instructions().size() /
                           JumpTableAssembler::kJumpTableSlotSize);
   return jump_table_->instruction_start() +
@@ -707,8 +697,8 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(Address slot_address) {
   uint32_t offset =
       static_cast<uint32_t>(slot_address - jump_table_->instruction_start());
   uint32_t slot_idx = offset / JumpTableAssembler::kJumpTableSlotSize;
-  DCHECK_LT(slot_idx, num_functions_ - num_imported_functions_);
-  return num_imported_functions_ + slot_idx;
+  DCHECK_LT(slot_idx, module_->num_declared_functions);
+  return module_->num_imported_functions + slot_idx;
 }
 
 void NativeModule::DisableTrapHandler() {
@@ -718,7 +708,7 @@ void NativeModule::DisableTrapHandler() {
 
   // Clear the code table (just to increase the chances to hit an error if we
   // forget to re-add all code).
-  uint32_t num_wasm_functions = num_functions_ - num_imported_functions_;
+  uint32_t num_wasm_functions = module_->num_declared_functions;
   memset(code_table_.get(), 0, num_wasm_functions * sizeof(WasmCode*));
 
   // TODO(clemensh): Actually free the owned code, such that the memory can be
@@ -790,8 +780,7 @@ size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
   constexpr size_t kCodeSizeMultiplier = 4;
   constexpr size_t kImportSize = 32 * kPointerSize;
 
-  uint32_t num_functions = static_cast<uint32_t>(module->functions.size());
-  uint32_t num_wasm_functions = num_functions - module->num_imported_functions;
+  uint32_t num_wasm_functions = module->num_declared_functions;
 
   size_t estimate =
       AllocatePageSize() /* TODO(titzer): 1 page spot bonus */ +
@@ -809,21 +798,9 @@ size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
   return estimate;
 }
 
-std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(Isolate* isolate,
-                                                               ModuleEnv& env) {
-  const WasmModule* module = env.module;
-  size_t memory_estimate = EstimateNativeModuleSize(module);
-  uint32_t num_wasm_functions =
-      module->num_imported_functions + module->num_declared_functions;
-  DCHECK_EQ(module->functions.size(), num_wasm_functions);
-  return NewNativeModule(isolate, memory_estimate, num_wasm_functions,
-                         module->num_imported_functions,
-                         kModuleCanAllocateMoreMemory, env);
-}
-
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, size_t memory_estimate, uint32_t num_functions,
-    uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env) {
+    Isolate* isolate, size_t memory_estimate, bool can_request_more,
+    std::shared_ptr<const WasmModule> module, const ModuleEnv& env) {
   // TODO(titzer): we force a critical memory pressure notification
   // when the code space is almost exhausted, but only upon the next module
   // creation. This is only for one isolate, and it should really do this for
@@ -846,9 +823,8 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Address start = mem.address();
     size_t size = mem.size();
     Address end = mem.end();
-    std::unique_ptr<NativeModule> ret(
-        new NativeModule(isolate, num_functions, num_imported_functions,
-                         can_request_more, &mem, this, env));
+    std::unique_ptr<NativeModule> ret(new NativeModule(
+        isolate, can_request_more, &mem, this, std::move(module), env));
     TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
                size);
     AssignRanges(start, end, ret.get());

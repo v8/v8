@@ -150,17 +150,17 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
 
 std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
+  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
+  module->num_declared_functions = 1;
   wasm::ModuleEnv env(
-      nullptr, wasm::UseTrapHandler::kNoTrapHandler,
+      module.get(), wasm::UseTrapHandler::kNoTrapHandler,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
 
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  std::unique_ptr<wasm::NativeModule> module =
-      isolate->wasm_engine()->code_manager()->NewNativeModule(
-          isolate, code_size, 1, 0, false, env);
-  return module;
+  return isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, code_size, false, std::move(module), env);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

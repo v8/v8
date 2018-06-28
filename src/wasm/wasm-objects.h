@@ -105,14 +105,13 @@ class WasmModuleObject : public JSObject {
   DECL_CAST(WasmModuleObject)
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
-  inline wasm::NativeModule* native_module();
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(managed_module, Managed<const wasm::WasmModule>)
-  inline const wasm::WasmModule* module() const;
   DECL_ACCESSORS(script, Script)
   DECL_ACCESSORS(weak_instance_list, WeakArrayList)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
+  inline wasm::NativeModule* native_module() const;
+  inline const wasm::WasmModule* module() const;
   inline void reset_breakpoint_infos();
 
   // Dispatched behavior.
@@ -123,7 +122,6 @@ class WasmModuleObject : public JSObject {
 #define WASM_MODULE_OBJECT_FIELDS(V)       \
   V(kNativeModuleOffset, kPointerSize)     \
   V(kExportWrappersOffset, kPointerSize)   \
-  V(kManagedModuleOffset, kPointerSize)    \
   V(kScriptOffset, kPointerSize)           \
   V(kWeakInstanceListOffset, kPointerSize) \
   V(kAsmJsOffsetTableOffset, kPointerSize) \

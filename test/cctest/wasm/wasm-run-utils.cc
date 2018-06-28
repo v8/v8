@@ -45,9 +45,6 @@ TestingModuleBuilder::TestingModuleBuilder(
         maybe_import_index, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
-    if (native_module_->num_functions() <= maybe_import_index) {
-      native_module_->SetNumFunctionsForTesting(maybe_import_index + 1);
-    }
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
         code.ToHandleChecked(), wasm::WasmCode::kWasmToJsWrapper,
         maybe_import_index);
@@ -99,9 +96,6 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
     test_module_->functions.reserve(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
-  if (native_module_ && native_module_->num_functions() <= index) {
-    native_module_->SetNumFunctionsForTesting(index + 1);
-  }
   test_module_->functions.push_back({sig, index, 0, {0, 0}, false, false});
   if (type == kImport) {
     DCHECK_EQ(0, test_module_->num_declared_functions);

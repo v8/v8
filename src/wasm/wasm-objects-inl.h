@@ -52,8 +52,6 @@ CAST_ACCESSOR(WasmTableObject)
 ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
-ACCESSORS(WasmModuleObject, managed_module, Managed<const wasm::WasmModule>,
-          kManagedModuleOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
 ACCESSORS(WasmModuleObject, weak_instance_list, WeakArrayList,
           kWeakInstanceListOffset)
@@ -61,11 +59,12 @@ OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
                    kBreakPointInfosOffset)
-const wasm::WasmModule* WasmModuleObject::module() const {
-  return managed_module()->raw();
-}
-wasm::NativeModule* WasmModuleObject::native_module() {
+wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module()->raw();
+}
+const wasm::WasmModule* WasmModuleObject::module() const {
+  // TODO(clemensh): Remove this helper (inline in callers).
+  return native_module()->module();
 }
 void WasmModuleObject::reset_breakpoint_infos() {
   WRITE_FIELD(this, kBreakPointInfosOffset, GetHeap()->undefined_value());

@@ -219,6 +219,12 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
+  static constexpr bool kCanAllocateMoreMemory = false;
+#else
+  static constexpr bool kCanAllocateMoreMemory = true;
+#endif
+
   WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     OwnedVector<trap_handler::ProtectedInstructionData>
@@ -257,16 +263,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void SetRuntimeStubs(Isolate* isolate);
 
   WasmCode* code(uint32_t index) const {
-    DCHECK_LT(index, num_functions_);
-    DCHECK_LE(num_imported_functions_, index);
-    return code_table_[index - num_imported_functions_];
+    DCHECK_LT(index, num_functions());
+    DCHECK_LE(module_->num_imported_functions, index);
+    return code_table_[index - module_->num_imported_functions];
   }
 
-  bool has_code(uint32_t index) const {
-    DCHECK_LT(index, num_functions_);
-    DCHECK_LE(num_imported_functions_, index);
-    return code_table_[index - num_imported_functions_] != nullptr;
-  }
+  bool has_code(uint32_t index) const { return code(index) != nullptr; }
 
   WasmCode* runtime_stub(WasmCode::RuntimeStubId index) const {
     DCHECK_LT(index, WasmCode::kRuntimeStubCount);
@@ -298,16 +300,19 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
-  void SetNumFunctionsForTesting(uint32_t num_functions);
 
   void LogWasmCodes(Isolate* isolate);
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
-  uint32_t num_functions() const { return num_functions_; }
-  uint32_t num_imported_functions() const { return num_imported_functions_; }
+  uint32_t num_functions() const {
+    return module_->num_declared_functions + module_->num_imported_functions;
+  }
+  uint32_t num_imported_functions() const {
+    return module_->num_imported_functions;
+  }
   Vector<WasmCode*> code_table() const {
-    return {code_table_.get(), num_functions_ - num_imported_functions_};
+    return {code_table_.get(), module_->num_declared_functions};
   }
   bool use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
@@ -330,10 +335,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
 
-  NativeModule(Isolate* isolate, uint32_t num_functions,
-               uint32_t num_imported_functions, bool can_request_more,
+  NativeModule(Isolate* isolate, bool can_request_more,
                VirtualMemory* code_space, WasmCodeManager* code_manager,
-               ModuleEnv& env);
+               std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
   Address AllocateForCode(size_t size);
@@ -357,18 +361,20 @@ class V8_EXPORT_PRIVATE NativeModule final {
                       WasmCode::FlushICache);
 
   void set_code(uint32_t index, WasmCode* code) {
-    DCHECK_LT(index, num_functions_);
-    DCHECK_LE(num_imported_functions_, index);
+    DCHECK_LT(index, num_functions());
+    DCHECK_LE(module_->num_imported_functions, index);
     DCHECK_EQ(code->index(), index);
-    code_table_[index - num_imported_functions_] = code;
+    code_table_[index - module_->num_imported_functions] = code;
   }
+
+  // TODO(clemensh): Make this a unique_ptr (requires refactoring
+  // AsyncCompileJob).
+  std::shared_ptr<const WasmModule> module_;
 
   // Holds all allocated code objects, is maintained to be in ascending order
   // according to the codes instruction start address to allow lookups.
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
 
-  uint32_t num_functions_;
-  uint32_t num_imported_functions_;
   std::unique_ptr<WasmCode* []> code_table_;
 
   size_t wire_bytes_len_;
@@ -406,12 +412,9 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // is determined with a heuristic based on the total size of wasm
   // code. The native module may later request more memory.
   // TODO(titzer): isolate is only required here for CompilationState.
-  std::unique_ptr<NativeModule> NewNativeModule(Isolate* isolate,
-                                                ModuleEnv& env);
-  // TODO(titzer): isolate is only required here for CompilationState.
   std::unique_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, size_t memory_estimate, uint32_t num_functions,
-      uint32_t num_imported_functions, bool can_request_more, ModuleEnv& env);
+      Isolate* isolate, size_t memory_estimate, bool can_request_more,
+      std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
 
   NativeModule* LookupNativeModule(Address pc) const;
   WasmCode* LookupCode(Address pc) const;

@@ -1579,8 +1579,6 @@ void WasmModuleObject::WasmModuleObjectVerify(Isolate* isolate) {
   CHECK(IsWasmModuleObject());
   VerifyObjectField(kNativeModuleOffset);
   VerifyObjectField(kExportWrappersOffset);
-  VerifyObjectField(kManagedModuleOffset);
-  CHECK(managed_module()->IsForeign());
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kAsmJsOffsetTableOffset);
   VerifyObjectField(kBreakPointInfosOffset);

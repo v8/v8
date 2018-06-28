@@ -179,22 +179,13 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     std::shared_ptr<const wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
     std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
     Handle<Script> script, Handle<ByteArray> asm_js_offset_table) {
-  const WasmModule* module = shared_module.get();
-  DCHECK_EQ(module, env.module);
-  size_t module_size = EstimateWasmModuleSize(module);
-  // The {managed_module} will take shared ownership of the {WasmModule} object,
-  // and release it when the GC reclaim the managed.
-  Handle<Managed<const WasmModule>> managed_module =
-      Managed<const WasmModule>::FromSharedPtr(isolate, module_size,
-                                               std::move(shared_module));
-
+  DCHECK_EQ(shared_module.get(), env.module);
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
       isolate->native_context()->wasm_module_constructor(), isolate);
   auto module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(module_cons));
   module_object->set_export_wrappers(*export_wrappers);
-  module_object->set_managed_module(*managed_module);
   if (script->type() == Script::TYPE_WASM) {
     script->set_wasm_module_object(*module_object);
   }
@@ -206,10 +197,15 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   }
 
   // Create the {NativeModule}, and let the {WasmModuleObject} reference it.
+  size_t native_memory_estimate =
+      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
+          env.module);
   size_t memory_estimate =
-      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(module);
-  auto native_module =
-      isolate->wasm_engine()->code_manager()->NewNativeModule(isolate, env);
+      EstimateWasmModuleSize(env.module) + native_memory_estimate;
+  auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, native_memory_estimate,
+      wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module),
+      env);
   native_module->set_wire_bytes(std::move(wire_bytes), wire_bytes_len);
   native_module->SetRuntimeStubs(isolate);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
