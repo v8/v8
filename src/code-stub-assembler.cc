@@ -9084,6 +9084,9 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
     case FLOAT64_ELEMENTS:
       rep = MachineRepresentation::kFloat64;
       break;
+    case BIGINT64_ELEMENTS:
+    case BIGUINT64_ELEMENTS:
+      return ToBigInt(context, input);
     default:
       UNREACHABLE();
   }
@@ -9245,6 +9248,21 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     Label done(this);
+
+    // IntegerIndexedElementSet converts value to a Number/BigInt prior to the
+    // bounds check.
+    value = PrepareValueForWriteToTypedArray(CAST(value), elements_kind,
+                                             CAST(context));
+
+    // There must be no allocations between the buffer load and
+    // and the actual store to backing store, because GC may decide that
+    // the buffer is not alive or move the elements.
+    // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
+
+    // Check if buffer has been neutered.
+    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+    GotoIf(IsDetachedBuffer(buffer), bailout);
+
     // Bounds check.
     Node* length =
         TaggedToParameter(LoadTypedArrayLength(CAST(object)), parameter_mode);
@@ -9258,24 +9276,17 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
     }
 
-    TNode<Object> value_obj = UncheckedCast<Object>(value);
     if (elements_kind == BIGINT64_ELEMENTS ||
         elements_kind == BIGUINT64_ELEMENTS) {
-      EmitBigTypedArrayElementStore(CAST(object), CAST(elements), intptr_key,
-                                    value_obj, CAST(context), bailout);
+      TNode<BigInt> bigint_value = UncheckedCast<BigInt>(value);
+
+      TNode<RawPtrT> backing_store =
+          LoadFixedTypedArrayBackingStore(CAST(elements));
+      TNode<IntPtrT> offset = ElementOffsetFromIndex(
+          intptr_key, BIGINT64_ELEMENTS, INTPTR_PARAMETERS, 0);
+      EmitBigTypedArrayElementStore(CAST(elements), backing_store, offset,
+                                    bigint_value);
     } else {
-      value = PrepareValueForWriteToTypedArray(value_obj, elements_kind,
-                                               CAST(context));
-
-      // There must be no allocations between the buffer load and
-      // and the actual store to backing store, because GC may decide that
-      // the buffer is not alive or move the elements.
-      // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
-
-      // Check if buffer has been neutered.
-      Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-      GotoIf(IsDetachedBuffer(buffer), bailout);
-
       Node* backing_store = LoadFixedTypedArrayBackingStore(CAST(elements));
       StoreElement(backing_store, elements_kind, intptr_key, value,
                    parameter_mode);

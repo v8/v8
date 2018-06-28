@@ -4895,9 +4895,33 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         }
         return SetPropertyWithAccessor(it, value, should_throw);
       }
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        // TODO(verwaest): We should throw an exception if holder is receiver.
+      case LookupIterator::INTEGER_INDEXED_EXOTIC: {
+        // IntegerIndexedElementSet converts value to a Number/BigInt prior to
+        // the bounds check. The bounds check has already happened here, but
+        // perform the possibly effectful ToNumber (or ToBigInt) operation
+        // anyways.
+        auto holder = it->GetHolder<JSTypedArray>();
+        Handle<Object> throwaway_value;
+        if (holder->type() == kExternalBigInt64Array ||
+            holder->type() == kExternalBigUint64Array) {
+          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+              it->isolate(), throwaway_value,
+              BigInt::FromObject(it->isolate(), value), Nothing<bool>());
+        } else {
+          ASSIGN_RETURN_ON_EXCEPTION_VALUE(it->isolate(), throwaway_value,
+                                           Object::ToNumber(value),
+                                           Nothing<bool>());
+        }
+
+        // FIXME: Throw a TypeError if the holder is neutered here
+        // (IntegerIndexedElementSpec step 5).
+
+        // TODO(verwaest): Per spec, we should return false here (steps 6-9
+        // in IntegerIndexedElementSpec), resulting in an exception being thrown
+        // on OOB accesses in strict code. Historically, v8 has not done made
+        // this change due to uncertainty about web compat. (v8:4901)
         return Just(true);
+      }
 
       case LookupIterator::DATA:
         if (it->IsReadOnly()) {

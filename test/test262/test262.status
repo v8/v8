@@ -299,8 +299,6 @@
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-not-integer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/tonumber-value-throws': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5329
   'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],
