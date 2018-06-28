@@ -81,6 +81,7 @@ class AsyncCompileJob {
   explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
                            size_t length, Handle<Context> context,
                            std::unique_ptr<CompilationResultResolver> resolver);
+  ~AsyncCompileJob();
 
   void Start();
 
@@ -88,7 +89,7 @@ class AsyncCompileJob {
 
   void Abort();
 
-  ~AsyncCompileJob();
+  Isolate* isolate() const { return isolate_; }
 
  private:
   class CompileTask;
@@ -133,8 +134,6 @@ class AsyncCompileJob {
   // execute it.
   template <typename Step, typename... Args>
   void NextStep(Args&&... args);
-
-  Isolate* isolate() { return isolate_; }
 
   friend class AsyncStreamingProcessor;
 

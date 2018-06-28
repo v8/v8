@@ -101,11 +101,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Returns true if at lease one AsyncCompileJob is currently running.
   bool HasRunningCompileJob() const { return !jobs_.empty(); }
 
-  // Cancel all AsyncCompileJobs so that they are not processed any further,
-  // but delay the deletion of their state until all tasks accessing the
-  // AsyncCompileJob finish their execution. This is used to clean-up the
-  // isolate to be reused.
-  void AbortAllCompileJobs();
+  // Cancel all AsyncCompileJobs that belong to the given Isolate. Their
+  // deletion is delayed until all tasks accessing the AsyncCompileJob finish
+  // their execution. This is used to clean-up the isolate to be reused.
+  void AbortCompileJobsOnIsolate(Isolate*);
 
   void TearDown();
 

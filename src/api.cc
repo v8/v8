@@ -8767,9 +8767,9 @@ void Isolate::LowMemoryNotification() {
 int Isolate::ContextDisposedNotification(bool dependant_context) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (!dependant_context) {
-    // We left the current context, we can abort all running WebAssembly
-    // compilations.
-    isolate->wasm_engine()->AbortAllCompileJobs();
+    // We left the current context, we can abort all WebAssembly compilations on
+    // that isolate.
+    isolate->wasm_engine()->AbortCompileJobsOnIsolate(isolate);
   }
   // TODO(ahaas): move other non-heap activity out of the heap call.
   return isolate->heap()->NotifyContextDisposed(dependant_context);

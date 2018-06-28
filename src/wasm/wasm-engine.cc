@@ -179,14 +179,16 @@ std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
   return result;
 }
 
-void WasmEngine::AbortAllCompileJobs() {
+void WasmEngine::AbortCompileJobsOnIsolate(Isolate* isolate) {
   // Iterate over a copy of {jobs_}, because {job->Abort} modifies {jobs_}.
-  std::vector<AsyncCompileJob*> copy;
-  copy.reserve(jobs_.size());
+  std::vector<AsyncCompileJob*> isolate_jobs;
 
-  for (auto& entry : jobs_) copy.push_back(entry.first);
+  for (auto& entry : jobs_) {
+    if (entry.first->isolate() != isolate) continue;
+    isolate_jobs.push_back(entry.first);
+  }
 
-  for (auto* job : copy) job->Abort();
+  for (auto* job : isolate_jobs) job->Abort();
 }
 
 void WasmEngine::TearDown() {
