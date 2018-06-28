@@ -539,7 +539,7 @@ WasmCode* NativeModule::AddCode(
     }
   }
 
-  if (use_trap_handler_) {
+  if (!ret->protected_instructions_.is_empty()) {
     ret->RegisterTrapHandlerData();
   }
   set_code(index, ret);
@@ -568,6 +568,9 @@ WasmCode* NativeModule::AddDeserializedCode(
                    std::move(reloc_info), std::move(source_position_table),
                    WasmCode::kFunction, tier, WasmCode::kNoFlushICache);
 
+  if (!code->protected_instructions_.is_empty()) {
+    code->RegisterTrapHandlerData();
+  }
   set_code(index, code);
   PatchJumpTable(index, code->instruction_start(), WasmCode::kFlushICache);
   // Note: we do not flush the i-cache here, since the code needs to be

@@ -8,6 +8,7 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function SerializeAndDeserializeModule() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("", "memory", 1);
   var kSig_v_i = makeSig([kWasmI32], []);
@@ -75,6 +76,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function DeserializeInvalidObject() {
+  print(arguments.callee.name);
   var invalid_buffer = new ArrayBuffer(10);
 
   module = %DeserializeWasmModule(invalid_buffer, invalid_buffer);
@@ -82,6 +84,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function RelationBetweenModuleAndClone() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_v)
     .addBody([kExprI32Const, 42])
@@ -99,6 +102,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function SerializeWrappersWithSameSignature() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_v)
     .addBody([kExprI32Const, 42])
@@ -119,6 +123,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function SerializeAfterInstantiation() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_v)
     .addBody([kExprI32Const, 42])
@@ -141,6 +146,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 
 (function SerializeAfterInstantiationWithMemory() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("", "memory", 1);
   builder.addFunction("main", kSig_i_v)
@@ -164,6 +170,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function GlobalsArePrivateBetweenClones() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true);
   builder.addFunction("read", kSig_i_v)
@@ -191,6 +198,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function SharedTableTest() {
+  print(arguments.callee.name);
   let kTableSize = 3;
   var sig_index1;
 
@@ -264,6 +272,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function StackOverflowAfterSerialization() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   var fun = builder.addFunction('main', kSig_v_v);
   fun.addBody([kExprCallFunction, fun.index]);
@@ -276,4 +285,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var instance = new WebAssembly.Instance(module);
 
   assertThrows(instance.exports.main, RangeError);
+})();
+
+(function TrapAfterDeserialization() {
+  print(arguments.callee.name);
+  function GenerateSerializedModule() {
+    const builder = new WasmModuleBuilder();
+    builder.addMemory(1, 1);
+    builder.addFunction('main', kSig_i_i)
+        .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+        .exportFunc();
+    const wire_bytes = builder.toBuffer();
+    const module = new WebAssembly.Module(wire_bytes);
+    const buffer = %SerializeWasmModule(module);
+    return [wire_bytes, buffer];
+  }
+  const [wire_bytes, buffer] = GenerateSerializedModule();
+  module = %DeserializeWasmModule(buffer, wire_bytes);
+  const instance = new WebAssembly.Instance(module);
+
+  assertEquals(0, instance.exports.main(0));
+  assertEquals(0, instance.exports.main(kPageSize - 4));
+  assertTraps(
+      kTrapMemOutOfBounds, _ => instance.exports.main(kPageSize - 3));
 })();
