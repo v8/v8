@@ -1599,7 +1599,20 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- a4 : len (number of elements to push from args)
   //  -- a3 : new.target (for [[Construct]])
   // -----------------------------------
-  __ AssertFixedArray(a2);
+  if (masm->emit_debug_code()) {
+    // Allow a2 to be a FixedArray, or a FixedDoubleArray if a4 == 0.
+    Label ok, fail;
+    __ AssertNotSmi(a2);
+    __ GetObjectType(a2, t8, t8);
+    __ Branch(&ok, eq, t8, Operand(FIXED_ARRAY_TYPE));
+    __ Branch(&fail, ne, t8, Operand(FIXED_DOUBLE_ARRAY_TYPE));
+    __ Branch(&ok, eq, a4, Operand(zero_reg));
+    // Fall through.
+    __ bind(&fail);
+    __ Abort(AbortReason::kOperandIsNotAFixedArray);
+
+    __ bind(&ok);
+  }
 
   Register args = a2;
   Register len = a4;

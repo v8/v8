@@ -1657,12 +1657,29 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- edx    : new.target (checked to be constructor or undefined)
   //  -- esp[0] : return address.
   // -----------------------------------
-  __ AssertFixedArray(ebx);
 
   // We need to preserve eax, edi and ebx.
   __ movd(xmm0, edx);
   __ movd(xmm1, edi);
   __ movd(xmm2, eax);
+
+  if (masm->emit_debug_code()) {
+    // Allow ebx to be a FixedArray, or a FixedDoubleArray if ecx == 0.
+    Label ok, fail;
+    __ AssertNotSmi(ebx);
+    __ mov(edx, FieldOperand(ebx, HeapObject::kMapOffset));
+    __ CmpInstanceType(edx, FIXED_ARRAY_TYPE);
+    __ j(equal, &ok);
+    __ CmpInstanceType(edx, FIXED_DOUBLE_ARRAY_TYPE);
+    __ j(not_equal, &fail);
+    __ cmp(ecx, 0);
+    __ j(equal, &ok);
+    // Fall through.
+    __ bind(&fail);
+    __ Abort(AbortReason::kOperandIsNotAFixedArray);
+
+    __ bind(&ok);
+  }
 
   // Check for stack overflow.
   {

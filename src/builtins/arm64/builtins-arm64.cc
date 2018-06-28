@@ -1908,7 +1908,24 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- x4 : len (number of elements to push from args)
   //  -- x3 : new.target (for [[Construct]])
   // -----------------------------------
-  __ AssertFixedArray(x2);
+  if (masm->emit_debug_code()) {
+    // Allow x2 to be a FixedArray, or a FixedDoubleArray if x4 == 0.
+    Label ok, fail;
+    __ AssertNotSmi(x2, AbortReason::kOperandIsNotAFixedArray);
+    __ Ldr(x10, FieldMemOperand(x2, HeapObject::kMapOffset));
+    __ Ldrh(x13, FieldMemOperand(x10, Map::kInstanceTypeOffset));
+    __ Cmp(x13, FIXED_ARRAY_TYPE);
+    __ B(eq, &ok);
+    __ Cmp(x13, FIXED_DOUBLE_ARRAY_TYPE);
+    __ B(ne, &fail);
+    __ Cmp(x4, 0);
+    __ B(eq, &ok);
+    // Fall through.
+    __ bind(&fail);
+    __ Abort(AbortReason::kOperandIsNotAFixedArray);
+
+    __ bind(&ok);
+  }
 
   Register arguments_list = x2;
   Register argc = x0;

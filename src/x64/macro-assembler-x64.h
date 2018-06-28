@@ -804,9 +804,6 @@ class MacroAssembler : public TurboAssembler {
   void AssertSmi(Register object);
   void AssertSmi(Operand object);
 
-  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
-  void AssertFixedArray(Register object);
-
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);
 

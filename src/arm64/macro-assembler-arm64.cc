@@ -1626,18 +1626,6 @@ void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   }
 }
 
-void MacroAssembler::AssertFixedArray(Register object) {
-  if (emit_debug_code()) {
-    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFixedArray);
-
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-
-    CompareObjectType(object, temp, temp, FIXED_ARRAY_TYPE);
-    Check(eq, AbortReason::kOperandIsNotAFixedArray);
-  }
-}
-
 void MacroAssembler::AssertConstructor(Register object) {
   if (emit_debug_code()) {
     AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAConstructor);
